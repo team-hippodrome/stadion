@@ -389,7 +389,7 @@ index afc07db..68c1b02 100644
      mCurrentFilterMode = mode;
      gfx_texture_cache_clear();
 diff --git a/src/fast/backends/gfx_opengl.cpp b/src/fast/backends/gfx_opengl.cpp
-index 6c4dfc8..6285a32 100644
+index 6c4dfc8..e36d64d 100644
 --- a/src/fast/backends/gfx_opengl.cpp
 +++ b/src/fast/backends/gfx_opengl.cpp
 @@ -1,3 +1,4 @@
@@ -451,7 +451,23 @@ index 6c4dfc8..6285a32 100644
      processor.populate(mContext);
      auto init = std::make_shared<Ship::ResourceInitData>();
      init->Type = (uint32_t)Ship::ResourceType::Shader;
-@@ -449,7 +474,21 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
+@@ -414,6 +439,15 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
+     gfx_cc_get_features(shader_id0, shader_id1, &cc_features);
+     const auto fs_buf = BuildFsShader(cc_features);
+     const auto vs_buf = BuildVsShader(cc_features);
++    if (const char* dumpDir = getenv("PORT_GL_DUMP_SHADERS")) { // debug: the generated GLSL, one file per shader
++        char path[1024];
++        snprintf(path, sizeof path, "%s/%016llx_%016llx.glsl", dumpDir, (unsigned long long)shader_id0,
++                 (unsigned long long)shader_id1);
++        if (FILE* f = fopen(path, "w")) {
++            fprintf(f, "// vertex\n%s\n// fragment\n%s\n", vs_buf.c_str(), fs_buf.c_str());
++            fclose(f);
++        }
++    }
+     const GLchar* sources[2] = { vs_buf.data(), fs_buf.data() };
+     const GLint lengths[2] = { (GLint)vs_buf.size(), (GLint)fs_buf.size() };
+     GLint success;
+@@ -449,7 +483,21 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
      GLuint shader_program = glCreateProgram();
      glAttachShader(shader_program, vertex_shader);
      glAttachShader(shader_program, fragment_shader);
@@ -473,7 +489,7 @@ index 6c4dfc8..6285a32 100644
  
      size_t cnt = 0;
  
-@@ -730,7 +769,17 @@ void GfxRenderingAPIOGL::Init() {
+@@ -730,7 +778,17 @@ void GfxRenderingAPIOGL::Init() {
      glEnable(GL_DEPTH_CLAMP);
  #endif
      glDepthFunc(GL_LEQUAL);
@@ -491,7 +507,7 @@ index 6c4dfc8..6285a32 100644
  
      mFrameBuffers.resize(1); // for the default screen buffer
  
-@@ -759,6 +808,15 @@ void GfxRenderingAPIOGL::StartFrame() {
+@@ -759,6 +817,15 @@ void GfxRenderingAPIOGL::StartFrame() {
  }
  
  void GfxRenderingAPIOGL::EndFrame() {
@@ -507,7 +523,7 @@ index 6c4dfc8..6285a32 100644
      glFlush();
  }
  
-@@ -797,10 +855,19 @@ int GfxRenderingAPIOGL::CreateFramebuffer() {
+@@ -797,10 +864,19 @@ int GfxRenderingAPIOGL::CreateFramebuffer() {
      return i;
  }
  
@@ -527,7 +543,7 @@ index 6c4dfc8..6285a32 100644
  
      width = std::max(width, 1U);
      height = std::max(height, 1U);
-@@ -812,12 +879,16 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
+@@ -812,12 +888,16 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
          if (fb.width != width || fb.height != height || fb.msaa_level != msaa_level) {
              if (msaa_level <= 1) {
                  glBindTexture(GL_TEXTURE_2D, fb.clrbuf);
@@ -546,7 +562,7 @@ index 6c4dfc8..6285a32 100644
                  glBindRenderbuffer(GL_RENDERBUFFER, 0);
                  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, fb.clrbufMsaa);
              }
-@@ -856,6 +927,27 @@ void GfxRenderingAPIOGL::StartDrawToFramebuffer(int fb_id, float noise_scale) {
+@@ -856,6 +936,27 @@ void GfxRenderingAPIOGL::StartDrawToFramebuffer(int fb_id, float noise_scale) {
      }
      glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo);
      mCurrentFrameBuffer = fb_id;
@@ -574,7 +590,7 @@ index 6c4dfc8..6285a32 100644
  }
  
  void GfxRenderingAPIOGL::ClearFramebuffer(bool color, bool depth) {
-@@ -928,6 +1020,10 @@ void GfxRenderingAPIOGL::SelectTextureFb(int fb_id) {
+@@ -928,6 +1029,10 @@ void GfxRenderingAPIOGL::SelectTextureFb(int fb_id) {
      if (texId >= textures.size()) {
          textures.resize((size_t)texId + 1);
      }
@@ -585,7 +601,7 @@ index 6c4dfc8..6285a32 100644
      SelectTexture(tile, texId);
  }
  
-@@ -1003,6 +1099,9 @@ void GfxRenderingAPIOGL::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0
+@@ -1003,6 +1108,9 @@ void GfxRenderingAPIOGL::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0
      }
  }
  
@@ -595,7 +611,7 @@ index 6c4dfc8..6285a32 100644
  void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFrameBuffers.size()) {
          return;
-@@ -1016,7 +1115,30 @@ void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_
+@@ -1016,7 +1124,30 @@ void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_
  
      std::vector<uint8_t> rgba8(width * height * 4);
      glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba8.data());

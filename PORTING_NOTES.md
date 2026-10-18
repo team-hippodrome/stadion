@@ -1012,12 +1012,20 @@ OpenGL backend. `PORT_GL_FBLOG=1` lists the GL frame buffers' sizes and inversio
 
 Open (macOS's optional OpenGL backend only, the 4.1 core profile; not Metal or Linux): the "Game Pak Check" label text
 is missing (its box is drawn). Its render target holds the same pixels as on Linux, no GL errors are raised, and it
-stays missing with dual-source blending off (`PORT_GL_NO_DUAL=1`).
+stays missing with dual-source blending off (`PORT_GL_NO_DUAL=1`). The generated GLSL is identical to Linux's apart from the output
+declarations (`PORT_GL_DUMP_SHADERS=<dir>` writes every shader), and texture filtering makes no difference, so the cause
+is in Apple's OpenGL driver state; not pursued further since Metal is the macOS backend.
 
 Against ares, what is not a rendering difference:
 - Opponent choice (gyms, cups, Mewtwo, and every tour that fights one): `session.c` burns `osGetCount() & 0xF` random
   numbers before picking, i.e. the low 4 bits of the CPU cycle counter. The port has no cycle-accurate CPU, so it picks
   a different trainer than ares from the same inputs, and those tours then show different Pokémon (44-81 from ares).
+  Battles do the same: the AI and the damage rolls mix CPU-count bits into guRandom's fixed-seed sequence
+  (`osGetCount()` in battle_engine_359F90.c, battle_engine_2F6930.c, battle_engine_361050.c), so outcomes and the
+  following trainers differ from ares even with identical input and saves (gym_misty and gym_koga fight a different
+  trainer; with the reference saves the other battle tours line up: mewtwo 11, final_mewtwo 27, cup_prime 23).
+  Matching that would need a cycle-accurate CPU. The regression runner now uses each tour's ares saves and cartridge
+  (`ares.log`), which removed the save-related differences (trade 62 -> 8, dex 51 -> 11).
 - GB Tower: ares loads the cartridge later. Paired with the nearest ares picture, `y_bat` (420 pictures) is median
   10.8 (Linux) / 11.9 (macOS) from ares, max 14.4 / 15.8, and `y_twr1` 8.9 / 11.7; the rest is ares's horizontal VI
   filter.
