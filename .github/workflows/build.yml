@@ -1,11 +1,8 @@
 # Builds the port for Linux, macOS and Windows. Build only: running the game needs the user's own ROM.
-# Also called by release.yml, which packages these builds.
+# Manual for now (Actions tab -> Build -> Run workflow), to save Actions minutes; release.yml calls it too.
 name: Build
 
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
   workflow_call:
 
