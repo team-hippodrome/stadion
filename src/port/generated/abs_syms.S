@@ -2243,3 +2243,5 @@
 .set SYM(victory_palace_plate_text_ROM_START), 0x6C1AB0
 .globl SYM(D_30084C0)
 .set SYM(D_30084C0), 0x30084C0
+.globl SYM(gAudioData)
+.set SYM(gAudioData), 0x15C0000

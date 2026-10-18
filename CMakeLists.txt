@@ -130,7 +130,7 @@ target_include_directories(stadium_game PRIVATE
 target_compile_definitions(stadium_game PRIVATE
   LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 NDEBUG _FINALROM N_MICRO NON_MATCHING AVOID_UB
   BUILD_VERSION=VERSION_I_P VERSION_US
-  PORT_NO_AUDIO PORT_STATIC_FRAGMENTS) # audio microcode/synth is not ported yet; the audio thread only paces frames
+  PORT_STATIC_FRAGMENTS)
 target_compile_options(stadium_game PRIVATE
   ${PORT_DEBUG_INFO} ${PORT_NO_BUILTIN} ${PORT_UNSIGNED_CHAR} ${PORT_NO_WARNINGS}
   # keep a symbol per static array: arm64 global merging folds them into _MergedGlobals, and the renderer finds the
@@ -144,7 +144,7 @@ target_compile_options(stadium_game PRIVATE
 # libultra runtime for the game (threads, message queues, devices). This target sees the game's SDK shim
 # headers (src/port/sdk/ultra64.h etc.); the LUS-facing code in the executable must not, because libultraship
 # headers include <ultra64.h> themselves.
-add_library(port_os STATIC src/port/os_thread.cpp src/port/os_devices.cpp src/port/transfer_pak.cpp src/port/gb_audio_out.cpp src/port/gb_core.c
+add_library(port_os STATIC src/port/os_thread.cpp src/port/os_devices.cpp src/port/transfer_pak.cpp src/port/gb_audio_out.cpp src/port/audio_out.cpp src/port/audio_hle.cpp src/port/gb_core.c
   src/port/jpeg_task.cpp src/port/gfx_translate.cpp)
 target_include_directories(port_os PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/port
@@ -160,7 +160,7 @@ target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}$
   ${PORT_NO_WARNINGS})
 # the GB Tower's sound output uses SDL3 directly (same SDL3 the window uses)
 find_path(PORT_SDL3_INCLUDE SDL3/SDL.h HINTS /opt/homebrew/include /usr/local/include)
-set_source_files_properties(src/port/gb_audio_out.cpp PROPERTIES INCLUDE_DIRECTORIES "${PORT_SDL3_INCLUDE}")
+set_source_files_properties(src/port/gb_audio_out.cpp src/port/audio_out.cpp PROPERTIES INCLUDE_DIRECTORIES "${PORT_SDL3_INCLUDE}")
 target_link_libraries(pokestadium PRIVATE port_os stadium_game port_os)
 if(WIN32)
   # a window-only program (no console window next to the game; main.cpp attaches to the console it was started from),

@@ -1053,3 +1053,88 @@ same on every backend). The first frame buffer the game selects in a frame gets 
 right of the picture (interpreter GfxDpSetColorImage); 3D scenes redraw the margins on top, and a 4:3 window is not
 touched. `PORT_NO_MARGIN_CLEAR=1` restores the old behaviour.
 
+## Game sound: music, sound effects, voices
+
+The game's own sound (everything but the GB Tower, which has its own path, above) used to be compiled out
+(`PORT_NO_AUDIO`: every entry point of the sound engine returned at once). It now runs, from sequence player to DAC:
+
+- **libnumus** (`game/src/libnumus/player.c`, the SDK's music player) interprets songs and sound effects and drives
+  **libnaudio** (`game/src/libnaudio`, the SDK's `n_audio` synthesizer), which builds an audio command list per frame
+  (552 or 368 samples at 32 kHz). The audio thread submits it as an `M_AUDTASK`.
+- **Audio microcode, emulated** (`src/port/audio_hle.cpp`): the game's aspMain is the "naudio" ABI (ucode data word
+  0x127c at +0x10, as mupen64plus-rsp-hle identifies it). DMEM is modelled byte for byte in N64 order; the commands
+  (ADPCM, RESAMPLE, ENVMIXER, MIXER, INTERLEAVE, LOAD/SAVEBUFF, DMEMMOVE, ...) follow the microcode's arithmetic.
+  The resampler's 64x4 tap table is read from the ROM's microcode data (0x7F670 + 0xB0). Command 14 is `A_POLEF` in
+  the library, but this microcode's jump table sends it into the middle of SETVOL (IMEM 0x12b0, replacing the low half
+  of the right ramp's rate), so it does that here too.
+- **Audio interface** (`src/port/audio_out.cpp`): `osAiSetFrequency` computes the DAC divider as libultra does (32000
+  -> 32006 Hz), and the AI is a virtual two-entry DMA FIFO drained by VI frames at the DAC rate (NTSC VI ~59.826 Hz).
+  The game reads the remaining length (`AI_LEN`, now `osAiGetLength`) to choose each frame's length, so what it produces
+  depends only on game time: lockstep runs stay deterministic, and nothing waits for the host's sound device. Accepted
+  buffers go to an SDL3 stream whose playback speed follows its fill level (PI control around 70 ms, at most ±3 %; a
+  real device needs ~0.3 % because the host paces frames at 60 Hz); far behind, the queue is dropped.
+- **Voices**: Pokémon cries and the announcer are GSM 06.10 streams decoded on the CPU (`audio_stream.c`,
+  `gsm_decoder.c`); the hand-written MIPS decoder kernels (`libgsm.s`) are translated to C in
+  `game/src/libgsm/libgsm.c` with the same arithmetic (no saturation where the assembly has none, 32-bit products).
+  The Lab's Game Boy-style cries (`gb_audio.c`, `gb_audio_render.c`) render on the CPU too. Both are mixed in by
+  the synthesizer's main bus from CPU-written buffers.
+
+Switches: `PORT_SOUND=0/1` (host output; default on at `PORT_SPEED=1`, off otherwise so fast runs never pile up or
+stall; also decides the GB Tower's output unless `PORT_GB_SOUND` is set), `PORT_GAME_AUDIO=0/1` (the engine itself,
+see below), `PORT_AUDIO_DUMP=<file>` (everything the AI accepts, s16 stereo host order at the AI rate, plus
+`<file>.frames`), traces `PORT_TRACE_ACMD` (first command lists), `PORT_TRACE_SFX` (songs, effects, fades, streams with
+callers), `PORT_TRACE_ACTIVITY` (the engine's activity score and channels once a second), `PORT_TRACE_AUDIO_OUT`
+(SDL queue, ratio, measured playback rate).
+
+### What had to change for a 64-bit little-endian host
+- **ROM data**: sound banks ("N64 PtrTablesV2"), songs, FX tables, sequence files, archive headers and the GB music
+  table are big-endian blobs whose tables hold 32-bit offsets the game relocated in place into absolute addresses.
+  Headers and offset tables are byte-swapped once on load (`game/src/port_audio.c`, the relocation functions in
+  player.c and gb_audio.c) and stay offsets: the readers add the blob's address (`PORT_BLOB_AT`). Wave tables, which
+  the synthesizer reads through `ALWaveTable` pointers, are rebuilt as host structures per bank (cached by blob and
+  content, so a reloaded bank reuses them); their ADPCM books and loop states stay in the blob, byte-swapped.
+  `ALSeqFile` (`alSeqFileNew`) is converted in place to the host layout (its entries hold a pointer: twice the size;
+  buffers sized with `PORT_SEQFILE_BYTES`). The GSM stream header and bit stream, the noise samples of the GB cries
+  and the GB noise table's ids are read big-endian.
+- **Command lists**: `Acmd` has 32-bit words, and several address fields only 24 bits. The `n_abi.h` macros (and
+  `aSetLoop`/`aLoadADPCM`) record each command's full host pointer in a side table keyed by the command's slot
+  (`Port_AcmdAddr`); `K0_TO_PHYS` (a 32-bit cut) is gone from the synthesizer. Sample data DMA'd from ROM is marked as
+  N64 byte order; every other DRAM buffer the microcode touches holds host-order samples.
+- **Pointers in 32-bit places**: the DMA callback's return value and `dc_memin`, `sv_dramout`, `Rom_DmaRead`'s buffer,
+  the player's command queue (32-bit ids now: `PortA_PtrId`), a channel's wave table (`channel_t.sample`), the GB music
+  engine's stream pointers, the announcer's DMA callback (also called through a prototype with the wrong types).
+  `ALParam` gained a pointer member: the start-voice parameters share its pool and are larger on the host (they
+  overwrote the next entry). Reverb: `&input[-delay]` with an unsigned delay wrapped on the N64 and went 16 GB ahead
+  here. A cleared range in `Audio_ResetVoiceState` and the GSM state's offset were N64 struct offsets.
+- **Missing return values**: five decomp functions end without `return` and the MIPS code leaves the value in v0
+  (checked in the original binary). `Audio_PlayDirectSoundCommand` returned garbage, so the crowd-noise loop in battle
+  could never be stopped; when its table was reloaded the channel ran into other data (a jump to address 0 there).
+- **Interior data symbols** (`undefined_syms.ld` in the decomp): the loop-point and music tables are addressed by
+  offset into their arrays (two of them are big-endian u16 tables kept as bytes).
+- **Spin-waits**: four places spin until the engine is quiet (`while (Audio_GetActivityScore() != 0) {}`); on the N64
+  the audio thread preempts them. Here they block one frame per pass (`PortA_SpinWait`).
+- **Title screen**: it switches the DMA callback to "waves in RAM" while ROM-wave voices may still sound; those read
+  unmapped RDRAM on the N64 and get silence here.
+- The audio heap is twice the size (host structures are larger).
+
+### Timing and old recordings
+With the engine running, the game waits for fades and sounds as on the N64 (e.g. the title screen starts the attract
+demo only when the title music has ended, at frame ~3320 from boot, as in ares; it used to start 600 frames into the
+title). Input recordings made without sound therefore desync. Recordings now carry a `# game audio` line; replaying one
+without it turns the engine off (`[audio] game sound off` in the log), so all recordings in `replays/` and the tours
+replay exactly as before (checked: `to_battle.rec` reaches the same frames and the same picture). `tools/tour.py`
+writes the marker (its port runs have sound, like ares) and `--audio` records both sides' sound.
+
+### Compared with ares
+`tools/audio_compare.py <port.pcm> <ares.pcm>` aligns the port's dump (resampled to 48 kHz) with an `ARES_REF_WAV`
+recording by loudness envelope, then to the sample, and reports per second the level of both, the envelope and the
+waveform correlation and the best local offset; `--align-from/--align-to` align on one scene, `--wav` writes both for
+listening.
+- Boot, N64 logo, intro and title music (1500 frames from boot): level within 0.2 dB every second; waveforms correlate
+  at 0.99-0.999 at the best local offset. That offset is 0 or 184 samples (5.75 ms): now and then a frame's length
+  choice (552 vs 368) falls one frame apart, i.e. timing of when the audio thread reads `AI_LEN`, not synthesis.
+- Battle Now (menus, rental selection, battle start with announcer and cries, battle music; `tools/tour.py bn ...
+  --audio`): aligned on the battle intro, envelope correlation 0.96-0.98, waveform up to 0.92, level within 0.1 dB; the
+  battle music's level is within 0.5 dB throughout. Waveforms there correlate less (0.2-0.4): the crowd-noise loop's
+  phase differs between the runs, and the computer's lead Pokémon is random (see above), so cries differ.
+- Linux (Xvfb, OpenGL) produces a bit-identical dump to macOS for the same run.

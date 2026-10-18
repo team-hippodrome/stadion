@@ -258,7 +258,6 @@ void __osSetCause(u32) {}
 void __osSetCompare(u32) {}
 void __osSetCount(u32) {}
 u32 __osSetFpcCsr(u32) { return 0; }
-u32 osAiGetStatus(void) { return 0; }
 s32 __osAiDeviceBusy(void) { return 0; }
 void osDpSetStatus(u32) {}
 u32 osDpGetCounters(u32* buf) {
@@ -489,6 +488,38 @@ s32 port_osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* 
 
 } // extern "C"
 
+// ---- The game's sound engine: on, or off as before it was ported -----------------------------------------------
+// Running the sound engine changes the game's timing (it waits for fades and sounds to end, as on the N64), so input
+// recordings made while it was not ported only replay correctly without it. Recordings now carry a "# game audio"
+// line; replaying one without it turns the engine off. PORT_GAME_AUDIO=0/1 decides explicitly.
+extern "C" int Port_GameAudio(void) {
+    static const int on = [] {
+        if (const char* e = getenv("PORT_GAME_AUDIO")) {
+            return atoi(e) != 0 ? 1 : 0;
+        }
+        int r = 1;
+        if (const char* rp = getenv("PORT_REPLAY")) {
+            r = 0;
+            if (FILE* f = fopen(rp, "r")) {
+                char line[256];
+                while (fgets(line, sizeof line, f)) {
+                    if (strncmp(line, "# game audio", 12) == 0) {
+                        r = 1;
+                        break;
+                    }
+                }
+                fclose(f);
+            }
+        }
+        if (r == 0) {
+            fprintf(stderr, "[audio] game sound off (%s)\n",
+                    getenv("PORT_GAME_AUDIO") ? "PORT_GAME_AUDIO=0" : "the replayed recording predates it");
+        }
+        return r;
+    }();
+    return on;
+}
+
 // ---- Controller input: live, recorded, replayed -----------------------------------------------------
 // The window thread publishes the live pad state (PublishPads). In lockstep mode the clock latches one state per
 // frame (what the game reads during that frame), records it to PORT_RECORD (default last_input.rec) and, with
@@ -551,6 +582,9 @@ void InputInit() {
     }
     if (*wp != '\0' && (gRecord = fopen(wp, "w")) != nullptr) {
         fprintf(gRecord, "# pokestadium input recording v1: frame, then button stick_x stick_y for pads 1-4\n");
+        if (Port_GameAudio()) {
+            fprintf(gRecord, "# game audio\n"); // made with the sound engine running (see Port_GameAudio)
+        }
         fflush(gRecord);
     }
 }
@@ -828,6 +862,7 @@ void osSpTaskYield(void) {}
 } // extern "C"
 
 extern "C" void Port_RunJpegTask(void* data);
+extern "C" void Port_RunAudioTask(const void* data, uint32_t size);
 extern "C" void Port_RequestCapture(uint64_t frame);
 
 // PORT_STOP_AT / PORT_SHOT_AT=f1,f2,...: whether the frame drawn now is to be saved (and the run ended at the stop frame)
@@ -978,7 +1013,9 @@ void Port::PumpRspTasks() {
         if (t->t.type == 4) { // M_NJPEGTASK: JPEG decode microcode, emulated on the host
             Port_RunJpegTask(t->t.data_ptr);
         }
-        // Audio and other task types complete immediately until the audio microcode is emulated.
+        if (t->t.type == M_AUDTASK) { // audio microcode, emulated on the host (audio_hle.cpp)
+            Port_RunAudioTask(t->t.data_ptr, (uint32_t)t->t.data_size);
+        }
         // The completion is posted before the task counts as processed: in between, the lockstep clock saw the game
         // idle with all tasks drained and could deliver the next retrace first (runs then depended on host speed).
         port_PostEvent(OS_EVENT_SP);

@@ -8,6 +8,9 @@ Script tokens (as tools/rec_script.py, from boot):
   <number>                                                 wait that many frames
   shot / shot:<label>                                      capture this frame on both sides
 Output: build/tour/<name>/<k>_<label>_port.png, _ares.png and a side-by-side <k>_<label>.png (port left, ares right).
+--audio also records the game's sound on both sides (build/tour/<name>/port.pcm: PORT_AUDIO_DUMP, the AI rate;
+ares.pcm: ARES_REF_WAV, 48 kHz) for tools/audio_compare.py. The port runs with its sound engine on (the recording
+carries "# game audio"; see Port_GameAudio in src/port/os_devices.cpp).
 ares runs start from the title-screen state when the script begins with a wait of at least 1500 frames
 (ARES_TITLE_STATE, saved 1500 frames after boot), otherwise from boot.
 Needs ARES_REF_BUILD / ARES_REF_SRC (see tools/ares_ref/ref.sh).
@@ -88,7 +91,7 @@ def main():
 
     if "--ares-only" not in flags:
         rec = os.path.join(out, "port.rec")
-        lines = ["# pokestadium input recording v1: frame, then button stick_x stick_y for pads 1-4\n"]
+        lines = ["# pokestadium input recording v1: frame, then button stick_x stick_y for pads 1-4\n", "# game audio\n"]
         for f, spec, hold in presses:
             lines.append("%d %d 0 0 0 0 0 0 0 0 0 0 0\n" % (f, mask(spec)))
             lines.append("%d 0 0 0 0 0 0 0 0 0 0 0 0\n" % (f + hold))
@@ -101,6 +104,8 @@ def main():
         env = dict(os.environ, PORT_REPLAY=rec, PORT_STOP_AT=str(end), PORT_SCREENSHOT_DIR=shotdir,
                    PORT_SHOT_AT=",".join(str(f) for f, _ in shots), PORT_SPEED="max", PORT_EXIT_ON_FREEZE="1",
                    PORT_RECORD="last_tour.rec")
+        if "--audio" in flags:
+            env["PORT_AUDIO_DUMP"] = os.path.join(out, "port.pcm")
         for kv in flags:
             if "=" in kv and not kv.startswith("--"):
                 k, v = kv.split("=", 1)
@@ -135,6 +140,8 @@ def main():
         src = os.environ["ARES_REF_SRC"]
         env = dict(os.environ, ARES_REF_FIRMWARE=os.path.join(src, "mia", "Firmware", "Nintendo 64"),
                    DYLD_LIBRARY_PATH="/Applications/ares.app/Contents/Frameworks")
+        if "--audio" in flags:
+            env["ARES_REF_WAV"] = os.path.join(out, "ares.pcm")
         rom = os.environ.get("ROM", "/Users/michael/Downloads/romis/Pokemon Stadium (USA).z64")
         link = "/tmp/ares_ref_rom.z64"  # nall rewrites path arguments with spaces
         if os.path.islink(link):
