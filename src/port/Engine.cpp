@@ -402,7 +402,20 @@ bool RunFrame(void* gfxCommands) {
     sWindow->StartFrame();
     sWindow->SetTargetFps(60);
     gPortDrawLog = sCaptureFrame != 0 && getenv("PORT_DRAWLOG") != nullptr; // debug: list the draw states of the captured frame
+    static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
+    auto drawStart = std::chrono::steady_clock::now();
     sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), {});
+    if (tracePacing) { // PORT_TRACE_PACING=1: presented frames more than 40 ms apart, and slow draws (os_devices.cpp)
+        static auto lastPresent = drawStart;
+        auto now = std::chrono::steady_clock::now();
+        double gapMs = std::chrono::duration<double, std::milli>(now - lastPresent).count();
+        double drawMs = std::chrono::duration<double, std::milli>(now - drawStart).count();
+        if (gapMs > 40 || drawMs > 20) {
+            fprintf(stderr, "[present] frame %llu: %.1f ms since the last present (draw %.1f ms)\n",
+                    (unsigned long long)Port_ViTick(), gapMs, drawMs);
+        }
+        lastPresent = now;
+    }
     gPortDrawLog = false;
     MaybeScreenshot();
     UpdateFpsTitle();
@@ -458,6 +471,10 @@ bool PumpFrame() {
         PublishPads(pads);
     }
     return true;
+}
+
+std::string AppPath(const char* name) {
+    return Ship::Context::GetPathRelativeToAppDirectory(name);
 }
 
 std::shared_ptr<Fast::Fast3dWindow> GetWindow() {

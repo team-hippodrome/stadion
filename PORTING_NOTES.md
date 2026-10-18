@@ -252,6 +252,9 @@ game thread is blocked, and `osGetTime`/`osGetCount` report that virtual time (t
 input therefore always produces the same run, and the speed is only a throttle: `PORT_SPEED=max` runs as fast as the host
 allows (~20x; the intro-to-team-select path takes ~10 s), `PORT_SPEED=10` caps at 10x, default 1x.
 `PORT_REALTIME=1` restores the old wall-clock threads.
+`PORT_TRACE_PACING=1` logs hitches: retraces that came late in wall-clock time (with how long the game was busy),
+presented frames more than 40 ms apart or slow to draw, and how long each new Metal shader took to build. A Metal shader
+now builds its pipeline only for the window's MSAA level (others on first use), not for every supported level.
 
 - Every run records the pad state per frame to `build/last_input.rec` (`PORT_RECORD=<file>` to choose another name). A
   crash ends the recording at the crash frame, and the crash report prints `game frame N`. Packaged builds (AppImage,
@@ -269,6 +272,8 @@ allows (~20x; the intro-to-team-select path takes ~10 s), `PORT_SPEED=10` caps a
   `PORT_TRACE_TIMERS=1` logs OS timers; a run that stops advancing prints `[clock] ... not idle` plus the thread table.
 - Saved recordings: `replays/cup_select_vtx_crash.rec` (crashed at frame 3892 before the vertex-array fix below),
   `replays/team_select_all_ready.rec` (reaches the rental team "All ready!" screen).
+  `replays/cup_giveup.rec` (Poké Cup, first battle, Start → Quit → Yes: the LOSE/WIN animation at frame ~3600 and the
+  cup grid with the opponent's portrait at 4200; was Bruno's face and garbled smoke, both big-endian ROM reads).
 
 ### Fixed in this round
 - Text tables: whether a table is already byte-swapped is decided from its contents (a reloaded file can land at an old

@@ -576,9 +576,12 @@ void InputInit() {
             fprintf(stderr, "[input] cannot read replay file %s\n", rp);
         }
     }
-    const char* wp = getenv("PORT_RECORD") ? getenv("PORT_RECORD") : "last_input.rec";
+    // (default: in the app's data folder; a started app's working directory may not be writable)
+    static const std::string defaultRecord = Port::AppPath("last_input.rec");
+    static const std::string continuedRecord = Port::AppPath("last_input_continued.rec");
+    const char* wp = getenv("PORT_RECORD") ? getenv("PORT_RECORD") : defaultRecord.c_str();
     if (rp != nullptr && strcmp(rp, wp) == 0) {
-        wp = "last_input_continued.rec"; // never overwrite the recording being replayed
+        wp = continuedRecord.c_str(); // never overwrite the recording being replayed
     }
     if (*wp != '\0' && (gRecord = fopen(wp, "w")) != nullptr) {
         fprintf(gRecord, "# pokestadium input recording v1: frame, then button stick_x stick_y for pads 1-4\n");
@@ -720,6 +723,20 @@ void LockstepClock() {
         if (haveTimer) {
             port_PostMesgFromIrq(due.mq, due.msg);
             continue;
+        }
+        // PORT_TRACE_PACING=1: retraces that came late in wall-clock time (a visible hitch), with how long the clock
+        // waited for the game to go idle
+        static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
+        if (tracePacing) {
+            static auto lastTick = std::chrono::steady_clock::now();
+            auto now = std::chrono::steady_clock::now();
+            double gapMs = std::chrono::duration<double, std::milli>(now - lastTick).count();
+            double busyMs = std::chrono::duration<double, std::milli>(now - waitStart).count();
+            if (gapMs > periodUs / 1000.0 * 1.5 + 2) {
+                fprintf(stderr, "[pace] frame %llu: %.1f ms since the last retrace (game busy %.1f ms)\n",
+                        (unsigned long long)tick, gapMs, busyMs);
+            }
+            lastTick = now;
         }
         if (periodUs > 1.0) {
             nextWall += std::chrono::microseconds((long long)periodUs);

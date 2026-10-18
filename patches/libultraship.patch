@@ -11,10 +11,39 @@ index 4ba2d35..db264c0 100644
      void ResolveMSAAColorBuffer(int fbIdTarger, int fbIdSrc) override;
      std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
 diff --git a/include/fast/backends/gfx_metal.h b/include/fast/backends/gfx_metal.h
-index 51d5e2d..3384dde 100644
+index 51d5e2d..037bb0b 100644
 --- a/include/fast/backends/gfx_metal.h
 +++ b/include/fast/backends/gfx_metal.h
-@@ -192,7 +192,9 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
+@@ -38,6 +38,7 @@ class Device;
+ class Function;
+ class Buffer;
+ class RenderPipelineState;
++class RenderPipelineDescriptor;
+ class ComputePipelineState;
+ class CommandQueue;
+ class Viewport;
+@@ -81,7 +82,10 @@ struct ShaderProgramMetal {
+     bool markedForDeletion = false;
+ 
+     // hashed by msaa_level
+-    MTL::RenderPipelineState* pipeline_state_variants[9];
++    MTL::RenderPipelineState* pipeline_state_variants[9] = {};
++    // PORT: kept to build the other msaa levels' pipelines when first drawn with them (building all of them up front
++    // made every new shader cost several pipeline compiles: visible hitches)
++    MTL::RenderPipelineDescriptor* pipeline_descriptor = nullptr;
+ };
+ 
+ /**
+@@ -166,6 +170,8 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
+     void LoadShader(ShaderProgram* newPrg) override;
+     ShaderProgram* CreateAndLoadNewShader(uint64_t shaderId0, uint64_t shaderId1) override;
+     ShaderProgram* LookupShader(uint64_t shaderId0, uint64_t shaderId1) override;
++    // PORT: the program's pipeline for an msaa level, built on first use
++    MTL::RenderPipelineState* PipelineFor(ShaderProgramMetal* prg, int msaaLevel);
+     void ShaderGetInfo(ShaderProgram* prg, uint8_t* numInputs, bool usedTextures[2]) override;
+     void ClearShaderCache() override;
+     uint32_t NewTexture() override;
+@@ -192,7 +198,9 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
      void CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0,
                           int dstX1, int dstY1) override;
      void ClearFramebuffer(bool color, bool depth) override;
@@ -245,18 +274,43 @@ index f747b81..f54b1f1 100644
      // dimensions to requested output dimensions, respecting RowPitch for row stride
      for (uint32_t j = 0; j < height; j++) {
 diff --git a/src/fast/backends/gfx_metal.cpp b/src/fast/backends/gfx_metal.cpp
-index afc07db..68c1b02 100644
+index afc07db..7e981d7 100644
 --- a/src/fast/backends/gfx_metal.cpp
 +++ b/src/fast/backends/gfx_metal.cpp
-@@ -9,6 +9,7 @@
+@@ -7,8 +7,10 @@
  
+ #ifdef __APPLE__
+ 
++#include <chrono>
  #include "fast/backends/gfx_metal.h"
  
 +#include <unordered_set>
  #include <vector>
  #include <algorithm>
  #include <unordered_map>
-@@ -251,12 +252,18 @@ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(uint64_t shad
+@@ -220,6 +222,21 @@ void GfxRenderingAPIMetal::ClearShaderCache() {
+ }
+ 
+ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(uint64_t shader_id0, uint64_t shader_id1) {
++    // PORT_TRACE_PACING=1: how long each new shader took to build (a draw waits for it)
++    static const bool sTraceShaders = getenv("PORT_TRACE_PACING") != nullptr;
++    auto buildStart = std::chrono::steady_clock::now();
++    struct TraceBuild {
++        bool on;
++        std::chrono::steady_clock::time_point start;
++        uint64_t id0, id1;
++        ~TraceBuild() {
++            if (on) {
++                fprintf(stderr, "[shader] %016llx/%016llx built in %.1f ms\n", (unsigned long long)id0,
++                        (unsigned long long)id1,
++                        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
++            }
++        }
++    } traceBuild{ sTraceShaders, buildStart, shader_id0, shader_id1 };
+     CCFeatures cc_features;
+     gfx_cc_get_features(shader_id0, shader_id1, &cc_features);
+ 
+@@ -251,12 +268,18 @@ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(uint64_t shad
      pipeline_descriptor->setDepthAttachmentPixelFormat(MTL::PixelFormatDepth32Float);
      if (cc_features.opt_alpha) {
          pipeline_descriptor->colorAttachments()->object(0)->setBlendingEnabled(true);
@@ -279,7 +333,71 @@ index afc07db..68c1b02 100644
          pipeline_descriptor->colorAttachments()->object(0)->setAlphaBlendOperation(MTL::BlendOperationAdd);
          pipeline_descriptor->colorAttachments()->object(0)->setWriteMask(MTL::ColorWriteMaskAll);
      } else {
-@@ -751,6 +758,11 @@ void GfxRenderingAPIMetal::SetupScreenFramebuffer(uint32_t width, uint32_t heigh
+@@ -276,25 +299,9 @@ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(uint64_t shad
+     prg->numInputs = cc_features.numInputs;
+     prg->numFloats = numFloats;
+ 
+-    // Prepoluate pipeline state cache with program and available msaa levels
+-    for (int i = 0; i < ARRAY_COUNT(mMsaaNumQualityLevels); i++) {
+-        if (mMsaaNumQualityLevels[i] == 1) {
+-            int msaa_level = i + 1;
+-            pipeline_descriptor->setSampleCount(msaa_level);
+-            MTL::RenderPipelineState* pipeline_state = mDevice->newRenderPipelineState(pipeline_descriptor, &error);
+-
+-            if (!pipeline_state || error != nullptr) {
+-                // Pipeline State creation could fail if we haven't properly set up our pipeline descriptor.
+-                // If the Metal API validation is enabled, we can find out more information about what
+-                // went wrong.  (Metal API validation is enabled by default when a debug build is run
+-                // from Xcode)
+-                SPDLOG_ERROR("Failed to create pipeline state, error {}",
+-                             error->localizedDescription()->cString(NS::UTF8StringEncoding));
+-            }
+-
+-            prg->pipeline_state_variants[msaa_level] = pipeline_state;
+-        }
+-    }
++    // PORT: only the window's msaa level now; other levels when first used (PipelineFor)
++    prg->pipeline_descriptor = pipeline_descriptor->retain();
++    PipelineFor(prg, mFramebuffers[0].mMsaaLevel);
+ 
+     LoadShader((struct ShaderProgram*)prg);
+ 
+@@ -307,6 +314,24 @@ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(uint64_t shad
+     return (struct ShaderProgram*)prg;
+ }
+ 
++// PORT: the program's pipeline for an msaa level, built on first use
++MTL::RenderPipelineState* GfxRenderingAPIMetal::PipelineFor(ShaderProgramMetal* prg, int msaa_level) {
++    if (msaa_level < 1 || msaa_level > 8) {
++        msaa_level = 1;
++    }
++    if (prg->pipeline_state_variants[msaa_level] == nullptr && prg->pipeline_descriptor != nullptr) {
++        NS::Error* error = nullptr;
++        prg->pipeline_descriptor->setSampleCount(msaa_level);
++        MTL::RenderPipelineState* pipeline_state = mDevice->newRenderPipelineState(prg->pipeline_descriptor, &error);
++        if (!pipeline_state || error != nullptr) {
++            SPDLOG_ERROR("Failed to create pipeline state, error {}",
++                         error->localizedDescription()->cString(NS::UTF8StringEncoding));
++        }
++        prg->pipeline_state_variants[msaa_level] = pipeline_state;
++    }
++    return prg->pipeline_state_variants[msaa_level];
++}
++
+ struct ShaderProgram* GfxRenderingAPIMetal::LookupShader(uint64_t shader_id0, uint64_t shader_id1) {
+     auto it = mShaderProgramPool.find(std::make_pair(shader_id0, shader_id1));
+ 
+@@ -546,8 +571,7 @@ void GfxRenderingAPIMetal::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, si
+     if (current_framebuffer.mLastShaderProgram != mShaderProgram) {
+         current_framebuffer.mLastShaderProgram = mShaderProgram;
+ 
+-        MTL::RenderPipelineState* pipeline_state =
+-            mShaderProgram->pipeline_state_variants[current_framebuffer.mMsaaLevel];
++        MTL::RenderPipelineState* pipeline_state = PipelineFor(mShaderProgram, current_framebuffer.mMsaaLevel);
+         current_framebuffer.mCommandEncoder->setRenderPipelineState(pipeline_state);
+     }
+ 
+@@ -751,6 +775,11 @@ void GfxRenderingAPIMetal::SetupScreenFramebuffer(uint32_t width, uint32_t heigh
      autorelease_pool->release();
  }
  
@@ -291,7 +409,7 @@ index afc07db..68c1b02 100644
  void GfxRenderingAPIMetal::UpdateFramebufferParameters(int fb_id, uint32_t width, uint32_t height, uint32_t msaa_level,
                                                         bool opengl_invertY, bool render_target, bool has_depth_buffer,
                                                         bool can_extract_depth) {
-@@ -791,6 +803,9 @@ void GfxRenderingAPIMetal::UpdateFramebufferParameters(int fb_id, uint32_t width
+@@ -791,6 +820,9 @@ void GfxRenderingAPIMetal::UpdateFramebufferParameters(int fb_id, uint32_t width
              tex.texture->release();
  
          tex.texture = mDevice->newTexture(tex_descriptor);
@@ -301,7 +419,7 @@ index afc07db..68c1b02 100644
  
          if (msaa_level > 1) {
              tex_descriptor->setTextureType(MTL::TextureType2DMultisample);
-@@ -905,7 +920,18 @@ void GfxRenderingAPIMetal::StartDrawToFramebuffer(int fb_id, float noise_scale)
+@@ -905,7 +937,18 @@ void GfxRenderingAPIMetal::StartDrawToFramebuffer(int fb_id, float noise_scale)
              fb.mCommandBuffer->enqueue();
          }
  
@@ -320,7 +438,7 @@ index afc07db..68c1b02 100644
          std::string fbce_label = fmt::format("FrameBuffer {} Command Encoder", fb_id);
          fb.mCommandEncoder->setLabel(NS::String::string(fbce_label.c_str(), NS::UTF8StringEncoding));
          fb.mCommandEncoder->setDepthClipMode(MTL::DepthClipModeClamp);
-@@ -971,6 +997,19 @@ void GfxRenderingAPIMetal::ClearFramebuffer(bool color, bool depth) {
+@@ -971,6 +1014,19 @@ void GfxRenderingAPIMetal::ClearFramebuffer(bool color, bool depth) {
      framebuffer.mLastZmodeDecal = -1;
  }
  
@@ -340,7 +458,7 @@ index afc07db..68c1b02 100644
  void GfxRenderingAPIMetal::ResolveMSAAColorBuffer(int fb_id_target, int fb_id_source) {
      int source_texture_id = mFramebuffers[fb_id_source].mTextureId;
      MTL::Texture* source_texture = mTextures[source_texture_id].texture;
-@@ -1182,6 +1221,9 @@ void GfxRenderingAPIMetal::CopyFramebuffer(int fb_dst_id, int fb_src_id, int src
+@@ -1182,6 +1238,9 @@ void GfxRenderingAPIMetal::CopyFramebuffer(int fb_dst_id, int fb_src_id, int src
      source_framebuffer.mLastZmodeDecal = -1;
  }
  
@@ -350,7 +468,7 @@ index afc07db..68c1b02 100644
  void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFramebuffers.size()) {
          return;
-@@ -1202,6 +1244,10 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1202,6 +1261,10 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
  
              uint8_t* bgra = (uint8_t*)mScreenReadbackBuffer->contents();
              uint32_t count = mScreenReadbackWidth * mScreenReadbackHeight;
@@ -361,7 +479,7 @@ index afc07db..68c1b02 100644
              for (uint32_t i = 0; i < count; i++) {
                  uint8_t b = bgra[i * 4 + 0];
                  uint8_t g = bgra[i * 4 + 1];
-@@ -1217,6 +1263,9 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1217,6 +1280,9 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
          mScreenReadbackHeight = height;
      } else {
          // Custom Framebuffer: synchronous readback via readback queue
@@ -371,7 +489,7 @@ index afc07db..68c1b02 100644
          if (framebuffer.mCommandEncoder && !framebuffer.mHasEndedEncoding) {
              framebuffer.mCommandEncoder->endEncoding();
          }
-@@ -1267,6 +1316,16 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1267,6 +1333,16 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
      }
  }
  

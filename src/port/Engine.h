@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
 
 namespace Fast {
 class Fast3dWindow;
@@ -18,6 +19,8 @@ void Shutdown();
 
 // Cartridge ROM image the game reads through PI DMA (osEPiStartDma).
 bool LoadRom(const char* path);
+// a file in the app's data folder (next to pokestadium.cfg.json: SHIP_HOME, e.g. the macOS app's Application Support)
+std::string AppPath(const char* name);
 // the game window (after Init), for the launcher
 std::shared_ptr<Fast::Fast3dWindow> GetWindow();
 const uint8_t* RomData();
