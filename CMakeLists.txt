@@ -123,7 +123,7 @@ target_compile_options(stadium_game PRIVATE
   $<$<AND:$<C_COMPILER_ID:Clang,AppleClang>,$<STREQUAL:${CMAKE_SYSTEM_PROCESSOR},arm64>>:-mno-global-merge>
   $<$<AND:$<C_COMPILER_ID:Clang,AppleClang>,$<STREQUAL:${CMAKE_SYSTEM_PROCESSOR},aarch64>>:-mno-global-merge>
   -Wno-int-conversion -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types
-  -Wno-return-mismatch
+  -Wno-return-mismatch -Wno-return-type # older clang (macOS CI) rejects missing return values the decomp keeps
   ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/game/port/port_compat.h)
 
 # libultra runtime for the game (threads, message queues, devices). This target sees the game's SDK shim
@@ -149,7 +149,7 @@ set_source_files_properties(src/port/gb_audio_out.cpp PROPERTIES INCLUDE_DIRECTO
 target_link_libraries(pokestadium PRIVATE port_os stadium_game port_os)
 if(WIN32 AND NOT MSVC) # mingw (gcc or clang)
   # system libraries MSVC links through #pragma comment(lib) in libultraship (DX11 shader compiler, DWM, audio GUIDs)
-  target_link_libraries(pokestadium PRIVATE d3dcompiler dwmapi ksuser)
+  target_link_libraries(pokestadium PRIVATE d3dcompiler dwmapi ksuser dbghelp)
   # one self-contained exe: the C++ runtime (libc++/libstdc++, unwinder) linked in, no extra DLLs to ship
   target_link_options(pokestadium PRIVATE -static)
 endif()

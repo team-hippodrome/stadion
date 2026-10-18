@@ -49,7 +49,7 @@ jobs:
             build/pokestadium.o2r
 
   macos:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Install dependencies
         run: brew install ninja sdl3 glew libzip nlohmann-json tinyxml2 spdlog
