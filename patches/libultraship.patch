@@ -786,7 +786,7 @@ index c8bc6cd..f9afa95 100644
      switch (message) {
          case WM_GETDPISCALEDSIZE:
 diff --git a/src/fast/interpreter.cpp b/src/fast/interpreter.cpp
-index a1907a1..6054002 100644
+index a1907a1..c7418e0 100644
 --- a/src/fast/interpreter.cpp
 +++ b/src/fast/interpreter.cpp
 @@ -11,6 +11,7 @@
@@ -1886,9 +1886,9 @@ index a1907a1..6054002 100644
 +            mRdp->other_mode_l = 0; // no depth, no blending
 +            mRdp->scissor = { 0, 0, (uint32_t)mCurDimensions.width, (uint32_t)mCurDimensions.height };
 +            mRdp->viewport_or_scissor_changed = true;
-+            const int32_t right = (int32_t)mNativeDimensions.width * 4, far = 4 * 4096;
-+            GfxDpFillRectangle(-far, -far, -4, far);       // left of the picture (fill mode adds one pixel)
-+            GfxDpFillRectangle(right, -far, right + far, far); // right of it
++            const int32_t right = (int32_t)mNativeDimensions.width * 4, reach = 4 * 4096; // not "far": windows.h macro
++            GfxDpFillRectangle(-reach, -reach, -4, reach);         // left of the picture (fill mode adds one pixel)
++            GfxDpFillRectangle(right, -reach, right + reach, reach); // right of it
 +            Flush();
 +            mRdp->fill_color = savedFill;
 +            mRdp->other_mode_h = savedOmh;
