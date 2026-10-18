@@ -5,6 +5,12 @@
 #include <ultra64.h>
 #include <string.h>
 #include <strings.h>
+#ifdef _WIN32
+// the BSD byte-string functions libultra (and so the game) uses; Windows' C runtime has none (src/port/stubs.c)
+void bcopy(const void* src, void* dst, int n);
+int bcmp(const void* a, const void* b, int n);
+void bzero(void* p, int n);
+#endif
 #include <stdio.h>
 #include <stdarg.h>
 

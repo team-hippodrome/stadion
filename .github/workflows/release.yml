@@ -1,0 +1,49 @@
+# Manual release: builds Linux, macOS and Windows (build.yml), tags the commit as v<version> and moves the "latest"
+# tag to it, and publishes a GitHub release with one zip per platform. Run it from the Actions tab on main.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release (tag v<version>)
+        required: true
+        default: 0.0.1
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Package
+        run: |
+          mkdir -p dist
+          for dir in artifacts/*/; do
+            name=$(basename "$dir")
+            cp README.md "$dir/README.md"
+            (cd "$dir" && chmod +x pokestadium 2>/dev/null; zip -r "../../dist/${name}-v${{ inputs.version }}.zip" .)
+          done
+          ls -l dist
+      - name: Tag and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "Pokémon Stadium port v$VERSION" "$GITHUB_SHA"
+          git push origin "v$VERSION"
+          git tag -f latest "$GITHUB_SHA"
+          git push -f origin latest
+          gh release create "v$VERSION" dist/*.zip --title "v$VERSION" --target "$GITHUB_SHA" \
+            --notes "Builds for Linux (x64), macOS (Apple Silicon) and Windows (x64). No game data included: you need your own Pokémon Stadium (USA) ROM. See README.md."

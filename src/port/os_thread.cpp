@@ -17,8 +17,7 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
-#include <execinfo.h>
-#include <mach-o/dyld.h>
+#include "port_platform.h"
 
 static bool TraceOn() {
     static const bool on = getenv("PORT_TRACE") != nullptr;
@@ -30,8 +29,8 @@ static void DumpStack(const char* what, int id) {
     static const bool deep = getenv("PORT_TRACE") && getenv("PORT_TRACE")[0] == '2';
     if (!deep) return;
     void* frames[12];
-    int n = backtrace(frames, 12);
-    fprintf(stderr, "@stack %s thread=%d slide=0x%lx:", what, id, (unsigned long)_dyld_get_image_vmaddr_slide(0));
+    int n = Port_Backtrace(frames, 12);
+    fprintf(stderr, "@stack %s thread=%d slide=0x%lx:", what, id, (unsigned long)Port_ImageSlide());
     for (int i = 2; i < n; i++) fprintf(stderr, " %p", frames[i]);
     fputc('\n', stderr);
 }
@@ -121,6 +120,7 @@ void WaitForToken(std::unique_lock<std::mutex>& lk, Thread* me) {
 
 void ThreadMain(Thread* t) {
     tlsSelf = t;
+    Port_AltSignalStack();
     std::unique_lock<std::mutex> lk(gLock);
     while (gCurrent != t && !gShuttingDown) {
         t->cv.wait(lk);
@@ -376,7 +376,7 @@ s32 port_osRecvMesg(OSMesgQueue* mq, OSMesg* msg, s32 flag) {
             continue;
         }
         TRACE("thread %d blocks on recv %p", (int)tlsSelf->id, (void*)mq);
-        tlsSelf->blockedDepth = backtrace(tlsSelf->blockedAt, 16);
+        tlsSelf->blockedDepth = Port_Backtrace(tlsSelf->blockedAt, 16);
         tlsSelf->blockCount++;
         DumpStack("recv", (int)tlsSelf->id);
         tlsSelf->state = State::Waiting;
@@ -474,7 +474,7 @@ void port_DumpThreads(void) {
         fprintf(stderr, " blocks=%llu", (unsigned long long)t->blockCount);
         fputc('\n', stderr);
         if (t->state == State::Waiting) {
-            fprintf(stderr, "@stack thread=%d slide=0x%lx:", (int)t->id, (unsigned long)_dyld_get_image_vmaddr_slide(0));
+            fprintf(stderr, "@stack thread=%d slide=0x%lx:", (int)t->id, (unsigned long)Port_ImageSlide());
             for (int i = 2; i < t->blockedDepth; i++) fprintf(stderr, " %p", t->blockedAt[i]);
             fputc('\n', stderr);
         }

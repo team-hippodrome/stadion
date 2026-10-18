@@ -1,5 +1,5 @@
 #include <unordered_set>
-#include <mach-o/dyld.h>
+#include "port_platform.h"
 // Host stand-ins for the N64 hardware the game talks to through libultra: cartridge ROM (PI DMA),
 // the VI retrace interrupt, RSP/RDP task completion, timers and the save/peripheral devices.
 #include <ultra64.h>
@@ -195,7 +195,7 @@ s32 osEPiReadIo(OSPiHandle* h, u32 devAddr, u32* data) {
 s32 port_osEPiStartDma(OSPiHandle* h, OSIoMesg* mb, s32 direction) {
     if ((uintptr_t)mb->dramAddr < 0x100000000ull) { // PORT: a truncated 32-bit buffer pointer somewhere in the game
         static int shown = 0;
-        if (shown++ < 4) fprintf(stderr, "[dma-bad] dram=%p dev=0x%x size=0x%x caller=%p slide=0x%lx\n", mb->dramAddr, (unsigned)mb->devAddr, (unsigned)mb->size, __builtin_return_address(0), (unsigned long)_dyld_get_image_vmaddr_slide(0));
+        if (shown++ < 4) fprintf(stderr, "[dma-bad] dram=%p dev=0x%x size=0x%x caller=%p slide=0x%lx\n", mb->dramAddr, (unsigned)mb->devAddr, (unsigned)mb->size, __builtin_return_address(0), (unsigned long)Port_ImageSlide());
         port_PostMesgFromIrq(mb->hdr.retQueue, (OSMesg)mb);
         return 0;
     }
@@ -330,7 +330,11 @@ void port_osViSetXScale(f32 scale) {
 
 // The libultraship implementation, reached through its real symbol name (the macro in port_compat.h renames the
 // game's calls to the wrapper below).
+#if defined(__APPLE__)
 extern "C" int32_t LUS_osContStartReadData(OSMesgQueue* mq) __asm__("_osContStartReadData");
+#else
+extern "C" int32_t LUS_osContStartReadData(OSMesgQueue* mq) __asm__("osContStartReadData");
+#endif
 extern "C" void port_WakeQueue(OSMesgQueue* mq);
 
 extern "C" s32 port_osContStartReadData(OSMesgQueue* mq) {
@@ -643,7 +647,9 @@ void LockstepClock() {
     for (;;) {
         auto waitStart = std::chrono::steady_clock::now();
         bool reported = false;
-        while (!(port_ThreadsIdle() && TasksDrained())) {
+        // drained, idle, drained: the two are read under different locks; a completion posted after the first check
+        // leaves a runnable thread, and a task submitted after the idle check shows in the second one
+        while (!(TasksDrained() && port_ThreadsIdle() && TasksDrained())) {
             if (gStop) return;
             std::this_thread::sleep_for(std::chrono::microseconds(20));
             if (!reported && std::chrono::steady_clock::now() - waitStart > std::chrono::seconds(3)) {
@@ -751,7 +757,7 @@ void port_osViSetEvent(OSMesgQueue* mq, OSMesg msg, u32 retraceCount) {
 
 // SIGUSR1: capture the next drawn frame and end the run (tools/replay.sh UNTIL=<pattern> sends it as soon as the
 // condition being tested shows up in the log, so runs do not continue past it).
-static void Port_StopSoonSignal(int) {
+[[maybe_unused]] static void Port_StopSoonSignal(int) {
     gStopAt = gTick.load() + 1;
 }
 
@@ -759,7 +765,9 @@ void port_osCreateViManager(OSPri) {
     if (gViRunning.exchange(true)) {
         return;
     }
+#ifdef SIGUSR1 // not on Windows
     signal(SIGUSR1, Port_StopSoonSignal);
+#endif
     if (Port_Lockstep()) {
         InputInit();
         if (getenv("PORT_STOP_AT")) gStopAt = strtoull(getenv("PORT_STOP_AT"), nullptr, 10);
@@ -970,13 +978,15 @@ void Port::PumpRspTasks() {
         if (t->t.type == 4) { // M_NJPEGTASK: JPEG decode microcode, emulated on the host
             Port_RunJpegTask(t->t.data_ptr);
         }
+        // Audio and other task types complete immediately until the audio microcode is emulated.
+        // The completion is posted before the task counts as processed: in between, the lockstep clock saw the game
+        // idle with all tasks drained and could deliver the next retrace first (runs then depended on host speed).
+        port_PostEvent(OS_EVENT_SP);
         {
             std::lock_guard<std::mutex> g(gTaskLock);
             gTasksProcessed++;
         }
         gTaskDoneCv.notify_all();
-        // Audio and other task types complete immediately until the audio microcode is emulated.
-        port_PostEvent(OS_EVENT_SP);
     }
     TryPresentCpuFrame(); // a frame buffer swapped while the tasks above ran
 }

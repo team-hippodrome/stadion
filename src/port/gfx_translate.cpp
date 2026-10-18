@@ -9,8 +9,7 @@
 #include <port_compat.h>
 
 #include <cstdint>
-#include <execinfo.h>
-#include <mach-o/dyld.h>
+#include "port_platform.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -268,8 +267,8 @@ void* Port_GfxPrepareDL(uintptr_t dl) {
         static int shown = 0;
         if (getenv("PORT_VALIDATE_DL") && shown++ < 3) {
             void* fr[10];
-            int n = backtrace(fr, 10);
-            fprintf(stderr, "@null-dl slide=0x%lx:", (unsigned long)_dyld_get_image_vmaddr_slide(0));
+            int n = Port_Backtrace(fr, 10);
+            fprintf(stderr, "@null-dl slide=0x%lx:", (unsigned long)Port_ImageSlide());
             for (int i = 1; i < n; i++) fprintf(stderr, " %p", fr[i]);
             fputc('\n', stderr);
         }
@@ -289,8 +288,8 @@ void* Port_GfxPrepareDL(uintptr_t dl) {
             static int shownT = 0;
             if (op0 > 0x08 && op0 < 0xD7 && shownT++ < 3) {
                 void* fr[10];
-                int n = backtrace(fr, 10);
-                fprintf(stderr, "@bad-dl raw=%p link=0x%lx slide=0x%lx:", p, (unsigned long)dl, (unsigned long)_dyld_get_image_vmaddr_slide(0));
+                int n = Port_Backtrace(fr, 10);
+                fprintf(stderr, "@bad-dl raw=%p link=0x%lx slide=0x%lx:", p, (unsigned long)dl, (unsigned long)Port_ImageSlide());
                 for (int i = 1; i < n; i++) fprintf(stderr, " %p", fr[i]);
                 fputc('\n', stderr);
             }

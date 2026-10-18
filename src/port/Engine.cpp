@@ -12,6 +12,7 @@
 #include <ship/resource/ResourceManager.h>
 #include <ship/thread/ThreadPool.h>
 #include <controller/controldeck/ControlDeck.h>
+#include <stdexcept>
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <libultraship/bridge/resourcebridge.h>
 #include <libultraship/bridge/windowbridge.h>
@@ -122,11 +123,9 @@ bool Init() {
 
 // Debug aid (PORT_VALIDATE_DL=1): walks a display list before it is submitted and reports commands whose data
 // pointers are not readable, which is what crashes the renderer when raw N64 addresses leak through.
-#include <mach/mach.h>
+#include "port_platform.h"
 static bool Readable(const void* p, size_t n) {
-    vm_size_t got = 0;
-    char tmp[16];
-    return vm_read_overwrite(mach_task_self(), (vm_address_t)p, std::min<size_t>(n, sizeof tmp), (vm_address_t)tmp, &got) == KERN_SUCCESS;
+    return Port_Readable(p, n) != 0;
 }
 static int sValidateBudget = 20;
 static void ValidateList(const Gfx* g, int depth, const char* path) {
@@ -326,7 +325,12 @@ bool PumpFrame() {
     // Poll the controllers here, on the window thread.
     if (auto deck = ControllerGetControlDeck()) {
         OSContPad pads[MAXCONTROLLERS] = {};
-        deck->WriteToPad(pads);
+        // the deck is set up by the game's osContInit (game thread); polling before that throws (no wheel handler
+        // yet). On macOS the game usually got there first; on Linux the window thread does.
+        try {
+            deck->WriteToPad(pads);
+        } catch (const std::runtime_error&) {
+        }
         // Debug aid: PORT_AUTOSTART=<period in ms> taps Start (A with PORT_AUTOA) every period, to skip intros without a keyboard.
         static const char* autoStart = getenv("PORT_AUTOSTART");
         if (autoStart && !Port_Lockstep()) { // in lockstep mode the clock applies it per frame (os_devices.cpp)

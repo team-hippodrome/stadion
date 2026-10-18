@@ -948,3 +948,87 @@ sample count after every VI frame).
   (`LAUNCHER_EDITOR_TEST=<js>`, `LAUNCHER_AUTO_CONFIRM=yes|no` answer confirm() and the close prompt without showing
   them). It guards against a bug found by hand: WKWebView ignored confirm()/alert() until the launcher implemented the WKUIDelegate panels, so
   "Delete saved run", "Delete team" and the other confirmations did nothing. 25 tests pass.
+
+## Linux and Windows
+
+What made the code macOS-only, and what replaces it:
+
+- **Symbols**: Mach-O prefixes C symbols with `_`, ELF and Win64 COFF do not. `abs_syms.S` (`SYM()`), the function
+  table (`PORT_ASM_NAME`) and `LUS_osContStartReadData`'s asm label pick the prefix per platform.
+- **Per-fragment data sections** (`tools/gen_frag_sections.py`): Mach-O `__DATA,__fdNN` sections with
+  `getsectiondata`; ELF named sections with the linker's `__start_`/`__stop_` symbols; COFF `fdNN$a/$m/$z` grouped
+  sections (`#pragma data_seg`) with marker variables in `$a` and `$z`.
+- **Word arrays** (textures the RDP reads in N64 byte order): found with `dladdr` before, which only sees exported
+  symbols; now each game file with such arrays is compiled through a generated wrapper that registers them
+  (`tools/gen_word_arrays.py`, `Port_RegisterWordArray`).
+- **Crash reports and debug helpers**: `src/port/port_platform.h` (image base, backtrace, readable-memory check) for
+  all three. libultraship's own crash handler replaces signal handlers on Linux and Windows, so `main.cpp` installs the
+  port's after `Port::Init`, each thread gets an alternate signal stack, and the report header is written before the
+  backtrace (which can fault itself).
+- **Address heuristics**: N64 addresses are told from host pointers by "below 4 GB". macOS and Linux put 64-bit
+  programs above that; Windows may not, so `Port_ReserveLowAddressSpace` reserves the free space below 4 GB at start.
+  The renderer's vertex check rejected Linux heap pointers (`0xaaaa…` on arm64, above 47 bits): the upper limit is now
+  the 48-bit user space.
+- **Linking (Linux)**: lld (GNU ld is single-pass; the game library uses libultra symbols from libultraship).
+
+Bugs that only showed on Linux (other heap addresses and stack layouts than macOS):
+
+- `BattlePrep_Align64PoolBlock` returned a pointer as `s32`: the cut address (sign-extended `0xffffffff…`) crashed
+  the texture load of the badge carousel. On macOS the cut value fell below 4 GB and was taken as an N64 address.
+  `Display_GetWorkerStatus` had the same pattern. A scan for such cuts: compile with `-Wshorten-64-to-32
+  -Wpointer-to-int-cast` (most hits are ROM offsets and N64 address arithmetic, which are fine).
+- `BattleAI_InsertRankedCandidateGroup` wrote 7 entries into 6- and 3x3-sized locals (room on the N64 frame); on
+  Linux that overwrote the saved return address (crash at frame 504 of `PORT_BOOT=battle`).
+
+Renderer: the fixes first made in the Metal backend are also in OpenGL and DirectX 11: dual-source blending (colour
+by the blend alpha, the written alpha is the N64 coverage bit), RGBA render targets (OpenGL had RGB), the first pass
+into a new render target clears it, `ClearFramebufferColor`, and the 8-bit screen readback for screenshots. OpenGL
+keeps the compatibility context (GLSL 1.30) on Linux and binds the two outputs with `glBindFragDataLocationIndexed`;
+switching to the 4.1 core profile (as macOS's OpenGL path) rendered wrong. `PORT_GL_NO_DUAL=1` turns dual-source off.
+
+Checks: a Linux VM (Ubuntu 25.04 arm64, Xvfb + Mesa) runs the same tours as macOS (`REGRESS_RUNNER=linux`) against the
+ares references; the Windows-only code (DX11 backend, COFF sections, crash handler) is syntax-checked with the
+mingw-w64 headers, and the CI workflow builds with clang-cl + vcpkg.
+
+Shader preprocessor (prism) pitfall: after an `@elseif` branch (or an `@if` nested in an `@else`) that is taken, it
+drops the rest of the shader. The fragment outputs therefore use flat flags set in gfx_opengl.cpp (`dual_out`,
+`single_out`). Before that, Linux's alpha shaders lost their tail: render-to-texture UI built in earlier frames (Game
+Pak Check panels, menu buttons behind the Event Battle dialog) went missing, and macOS's OpenGL backend failed to link.
+The port also never drops a frame now (`PORT_ALLOW_FRAME_DROP=1` restores libultraship's behaviour): the DXGI backend
+paced by wall clock, and a dropped frame lost what the game draws only once.
+
+Results (26 tours against ares, `REGRESS_RUNNER=linux`): Linux is within ±1 of macOS on every tour, no crashes or hangs.
+German Yellow on both platforms (inputs: each tour's Game Boy save and Stadium flash from its ares run): Lab PC transfer
+(`y_xfer1`) and Lab (`y_lab6`) 6-12 from ares; GB Tower (`y_twr1`, 151 pictures) 29-31 on average, where the high
+ones are timing only (ares loads the cartridge later: the port shows the title while ares is on the copyright screen);
+`y_bat` GB Tower frames within 4-6 between Linux and macOS. GB Tower tours need the regression runner's freeze exit off
+(still pictures during dialogs).
+
+OpenGL orientation: when the window matched the render size (Linux, 640x480), the game buffers were created without Y
+inversion, and the GUI showed the game upside down in the window (only a grab of the X screen showed it: screenshots
+read back bottom-up and looked right). They are now inverted whenever they are shown as a texture, and the GL readback
+reverses the rows of non-inverted buffers (the window), so screenshots are the right way up on Linux and on macOS's
+OpenGL backend. `PORT_GL_FBLOG=1` lists the GL frame buffers' sizes and inversion.
+
+Open (macOS's optional OpenGL backend only, the 4.1 core profile; not Metal or Linux): the "Game Pak Check" label text
+is missing (its box is drawn). Its render target holds the same pixels as on Linux, no GL errors are raised, and it
+stays missing with dual-source blending off (`PORT_GL_NO_DUAL=1`).
+
+Against ares, what is not a rendering difference:
+- Opponent choice (gyms, cups, Mewtwo, and every tour that fights one): `session.c` burns `osGetCount() & 0xF` random
+  numbers before picking, i.e. the low 4 bits of the CPU cycle counter. The port has no cycle-accurate CPU, so it picks
+  a different trainer than ares from the same inputs, and those tours then show different Pokémon (44-81 from ares).
+- GB Tower: ares loads the cartridge later. Paired with the nearest ares picture, `y_bat` (420 pictures) is median
+  10.8 (Linux) / 11.9 (macOS) from ares, max 14.4 / 15.8, and `y_twr1` 8.9 / 11.7; the rest is ares's horizontal VI
+  filter.
+
+Windows run test: cross-built for Windows on ARM with llvm-mingw (cmake/toolchain-mingw-clang.cmake, vcpkg
+arm64-mingw-static) and run under Wine 11 built from source with PE builtins (Ubuntu's Wine 9 cannot unwind
+pointer-authenticated code; Debian's Wine 8 has ELF builtins, so printf's variadic calls break; Rosetta cannot run Wine
+at all). It reaches the title screen and matches macOS (0.0-0.7 at frames 400/700, 3.9 at the title, the blinking
+PRESS START). The DX11 backend stops at a Wine shader-compiler limit ("Structured buffers store is not implemented",
+vkd3d-shader); Windows itself compiles that shader with Microsoft's compiler, so the test used the OpenGL backend.
+Fixed on the way: bzero/bcmp/bcopy (not in the Windows C runtime), libultraship includes (cstdlib, lowercase Windows
+headers, WM_GETDPISCALEDSIZE), the system libraries MSVC links by pragma (d3dcompiler, dwmapi, ksuser), and a static
+C++ runtime (one exe, no DLLs).
+

@@ -1,4 +1,4 @@
-#include <mach-o/dyld.h>
+#include "port_platform.h"
 #include <stdlib.h>
 // Stand-ins that let the executable link. Items marked TODO(port) have no real implementation yet;
 // the rest are small host reimplementations of N64 SDK pieces or of hand-written assembly.
@@ -161,10 +161,10 @@ void Port_LogAlloc(void* p, int n, void* caller) {
         }
         unsigned long a = (unsigned long)(uintptr_t)p & 0xFFFFF;
         if (a + (unsigned long)n <= lo || a > hi) return;
-        fprintf(stderr, "[alloc] %p size=0x%x caller=%p slide=0x%lx\n", p, n, caller, (unsigned long)_dyld_get_image_vmaddr_slide(0));
+        fprintf(stderr, "[alloc] %p size=0x%x caller=%p slide=0x%lx\n", p, n, caller, (unsigned long)Port_ImageSlide());
         return;
     }
-    fprintf(stderr, "[alloc] %p caller=%p slide=0x%lx\n", p, caller, (unsigned long)_dyld_get_image_vmaddr_slide(0));
+    fprintf(stderr, "[alloc] %p caller=%p slide=0x%lx\n", p, caller, (unsigned long)Port_ImageSlide());
 }
 
 void Port_TraceJpeg(const char* what, int a, int b, int c) {
@@ -172,3 +172,17 @@ void Port_TraceJpeg(const char* what, int a, int b, int c) {
     if (on < 0) on = getenv("PORT_TRACE_JPEG") != NULL;
     if (on) fprintf(stderr, "[jpeg] %s %d %d %d\n", what, a, b, c);
 }
+
+#ifdef _WIN32
+// BSD byte-string functions (declared in game/port/port_compat.h), not in the Windows C runtime
+void bcopy(const void* src, void* dst, int n) {
+    memmove(dst, src, (size_t)n);
+}
+int bcmp(const void* a, const void* b, int n) {
+    return memcmp(a, b, (size_t)n);
+}
+void bzero(void* p, int n) {
+    memset(p, 0, (size_t)n);
+}
+#endif
+

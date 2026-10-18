@@ -1,0 +1,106 @@
+# Builds the port for Linux, macOS and Windows. Build only: running the game needs the user's own ROM.
+# Also called by release.yml, which packages these builds.
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+env:
+  LLVM_MINGW: llvm-mingw-20261006-ucrt-ubuntu-22.04-x86_64
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    # Ubuntu 25.04 packages SDL3 (24.04 does not); the setup the Linux version is tested with
+    container: ubuntu:25.04
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git clang lld cmake ninja-build python3 \
+            libsdl3-dev libglew-dev libgl-dev libzip-dev libbz2-dev zlib1g-dev \
+            nlohmann-json3-dev libtinyxml2-dev libspdlog-dev
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Apply the libultraship patch
+        run: |
+          git config --global --add safe.directory '*'
+          git -C libultraship apply "$PWD/patches/libultraship.patch"
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+          cmake --build build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pokestadium-linux-x64
+          path: |
+            build/pokestadium
+            build/pokestadium.o2r
+
+  macos:
+    runs-on: macos-14
+    steps:
+      - name: Install dependencies
+        run: brew install ninja sdl3 glew libzip nlohmann-json tinyxml2 spdlog
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Apply the libultraship patch
+        run: git -C libultraship apply "$PWD/patches/libultraship.patch"
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake --build build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pokestadium-macos-arm64
+          path: |
+            build/pokestadium
+            build/pokestadium.o2r
+
+  windows:
+    # Cross-compiled with llvm-mingw (clang + lld + libc++), the setup the Windows version is tested with
+    # (cmake/toolchain-mingw-clang.cmake); dependencies from vcpkg's x64-mingw-static triplet
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build pkg-config autoconf automake libtool zip unzip
+          curl -sSLf -o llvm-mingw.tar.xz \
+            "https://github.com/mstorsjo/llvm-mingw/releases/download/20261006/${LLVM_MINGW}.tar.xz"
+          tar xf llvm-mingw.tar.xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/$LLVM_MINGW/bin" >> "$GITHUB_PATH"
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Apply the libultraship patch
+        run: git -C libultraship apply "$PWD/patches/libultraship.patch"
+      - name: Dependencies (vcpkg)
+        run: |
+          "$VCPKG_INSTALLATION_ROOT/vcpkg" install sdl3 glew libzip nlohmann-json tinyxml2 spdlog zlib bzip2 \
+            --triplet x64-mingw-static --host-triplet x64-linux
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-mingw-static \
+            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$PWD/cmake/toolchain-mingw-clang.cmake"
+          cmake --build build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pokestadium-windows-x64
+          path: |
+            build/pokestadium.exe
+            build/pokestadium.o2r
