@@ -4,7 +4,18 @@ name: Build
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build (empty = the version in CMakeLists.txt)
+        required: false
+        default: ''
   workflow_call:
+    inputs:
+      version:
+        description: Version to build (empty = the version in CMakeLists.txt)
+        type: string
+        required: false
+        default: ''
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -12,38 +23,66 @@ concurrency:
 
 env:
   LLVM_MINGW: llvm-mingw-20261006-ucrt-ubuntu-22.04-x86_64
+  SDL3_VERSION: 3.4.18
+  APPIMAGETOOL_VERSION: 1.9.1
+  # release.yml passes the release version; every job turns it into $VERSION (the project version if empty), gives it
+  # to CMake (-DPORT_VERSION: Windows file version) and to the packaging (AppImage, Info.plist)
+  INPUT_VERSION: ${{ inputs.version }}
 
 jobs:
   linux:
+    # An AppImage. Built on the oldest Ubuntu the runners offer (glibc 2.39), with SDL3 built from source and the other
+    # libraries from vcpkg, all linked statically together with the C++ runtime: the executable needs only glibc and
+    # the system's OpenGL, and SDL loads X11/Wayland/PulseAudio/PipeWire/ALSA at run time (tools/make_appimage.py)
     runs-on: ubuntu-24.04
-    # Ubuntu 25.04 packages SDL3 (24.04 does not); the setup the Linux version is tested with
-    container: ubuntu:25.04
     steps:
       - name: Install dependencies
+        # the -dev packages are SDL's build dependencies (headers only: SDL loads the libraries at run time)
         run: |
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            ca-certificates git clang lld cmake ninja-build python3 \
-            libsdl3-dev libglew-dev libgl-dev libzip-dev libbz2-dev zlib1g-dev \
-            nlohmann-json3-dev libtinyxml2-dev libspdlog-dev
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang lld cmake ninja-build python3 pkg-config \
+            libx11-dev libxext-dev libxcursor-dev libxi-dev libxfixes-dev libxrandr-dev libxss-dev libxtst-dev \
+            libxkbcommon-dev libwayland-dev wayland-protocols libdecor-0-dev libegl-dev libgl-dev libopengl-dev libgles-dev \
+            libdrm-dev libgbm-dev libpulse-dev libpipewire-0.3-dev libasound2-dev libdbus-1-dev libibus-1.0-dev \
+            libudev-dev
       - uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Apply the libultraship patch
+        run: git -C libultraship apply "$PWD/patches/libultraship.patch"
+      - name: SDL3
+        # vcpkg's SDL3 leaves out PulseAudio, PipeWire, libdecor and most X11 extensions
         run: |
-          git config --global --add safe.directory '*'
-          git -C libultraship apply "$PWD/patches/libultraship.patch"
+          git clone --depth 1 -b "release-$SDL3_VERSION" https://github.com/libsdl-org/SDL "$RUNNER_TEMP/SDL"
+          cmake -S "$RUNNER_TEMP/SDL" -B "$RUNNER_TEMP/SDL/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=clang -DSDL_SHARED=OFF -DSDL_STATIC=ON -DSDL_TESTS=OFF -DSDL_TEST_LIBRARY=OFF \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/deps"
+          cmake --build "$RUNNER_TEMP/SDL/build"
+          cmake --install "$RUNNER_TEMP/SDL/build"
+      - name: Dependencies (vcpkg)
+        run: |
+          "$VCPKG_INSTALLATION_ROOT/vcpkg" install "libzip[core,bzip2]" nlohmann-json tinyxml2 spdlog zlib bzip2 \
+            --triplet x64-linux
       - name: Build
         run: |
+          VERSION=${INPUT_VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/deps" \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc" -DPORT_VERSION="$VERSION"
           cmake --build build
+      - name: AppImage
+        run: |
+          VERSION=${INPUT_VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
+          curl -sSLf -o "$RUNNER_TEMP/appimagetool" \
+            "https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-x86_64.AppImage"
+          chmod +x "$RUNNER_TEMP/appimagetool"
+          python3 -I tools/make_appimage.py build dist/pokestadium-linux-x86_64.AppImage "$VERSION" "$RUNNER_TEMP/appimagetool"
       - uses: actions/upload-artifact@v4
         with:
           name: pokestadium-linux-x64
-          path: |
-            build/pokestadium
-            build/pokestadium.o2r
+          path: dist/pokestadium-linux-x86_64.AppImage
 
   macos:
     runs-on: macos-15
@@ -57,13 +96,14 @@ jobs:
         run: git -C libultraship apply "$PWD/patches/libultraship.patch"
       - name: Build
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          VERSION=${INPUT_VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DPORT_VERSION="$VERSION"
           cmake --build build
       - name: App bundle
         # "Pokemon Stadium.app" with the Homebrew libraries inside (tools/make_macos_bundle.py); ditto keeps the bundle's
         # permissions and signature in the zip
         run: |
-          VERSION=$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')
+          VERSION=${INPUT_VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
           python3 -I tools/make_macos_bundle.py build "dist/Pokemon Stadium.app" "$VERSION"
           ditto -c -k --keepParent "dist/Pokemon Stadium.app" dist/pokestadium-macos-arm64.app.zip
       - uses: actions/upload-artifact@v4
@@ -73,8 +113,19 @@ jobs:
 
   windows:
     # Cross-compiled with llvm-mingw (clang + lld + libc++), the setup the Windows version is tested with
-    # (cmake/toolchain-mingw-clang.cmake); dependencies from vcpkg's x64-mingw-static triplet
+    # (cmake/toolchain-mingw-clang.cmake); dependencies from vcpkg's static mingw triplets. x64 and arm64.
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            triple: x86_64-w64-mingw32
+            vcpkg: x64-mingw-static
+          - arch: arm64
+            triple: aarch64-w64-mingw32
+            vcpkg: arm64-mingw-static
+    env:
+      MINGW_TRIPLE: ${{ matrix.triple }}
     steps:
       - name: Install tools
         run: |
@@ -92,17 +143,18 @@ jobs:
       - name: Dependencies (vcpkg)
         run: |
           "$VCPKG_INSTALLATION_ROOT/vcpkg" install sdl3 glew libzip nlohmann-json tinyxml2 spdlog zlib bzip2 \
-            --triplet x64-mingw-static --host-triplet x64-linux
+            --triplet ${{ matrix.vcpkg }} --host-triplet x64-linux
       - name: Build
         run: |
+          VERSION=${INPUT_VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
-            -DVCPKG_TARGET_TRIPLET=x64-mingw-static \
-            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$PWD/cmake/toolchain-mingw-clang.cmake"
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg }} \
+            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$PWD/cmake/toolchain-mingw-clang.cmake" -DPORT_VERSION="$VERSION"
           cmake --build build
       - uses: actions/upload-artifact@v4
         with:
-          name: pokestadium-windows-x64
+          name: pokestadium-windows-${{ matrix.arch }}
           path: |
             build/pokestadium.exe
             build/pokestadium.o2r

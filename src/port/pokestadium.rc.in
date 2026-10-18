@@ -1,0 +1,30 @@
+// Windows resources of pokestadium.exe (configured by CMakeLists.txt): the icon Explorer and the taskbar show, and the
+// version information of the file's Properties dialog
+#include <winver.h>
+
+1 ICON "@PORT_ICON@"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION @PORT_VERSION_RC@
+PRODUCTVERSION @PORT_VERSION_RC@
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "CompanyName", "team-hippodrome"
+      VALUE "FileDescription", "Pokemon Stadium"
+      VALUE "FileVersion", "@PORT_VERSION@"
+      VALUE "InternalName", "pokestadium"
+      VALUE "OriginalFilename", "pokestadium.exe"
+      VALUE "ProductName", "Pokemon Stadium PC port"
+      VALUE "ProductVersion", "@PORT_VERSION@"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

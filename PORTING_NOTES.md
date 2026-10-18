@@ -252,7 +252,11 @@ allows (~20x; the intro-to-team-select path takes ~10 s), `PORT_SPEED=10` caps a
 `PORT_REALTIME=1` restores the old wall-clock threads.
 
 - Every run records the pad state per frame to `build/last_input.rec` (`PORT_RECORD=<file>` to choose another name). A
-  crash ends the recording at the crash frame, and the crash report prints `game frame N`.
+  crash ends the recording at the crash frame, and the crash report prints `game frame N`. Packaged builds (AppImage,
+  macOS app: `SHIP_HOME` set) write it to their settings folder instead (`~/.local/share/pokestadium`,
+  `~/Library/Application Support/com.team-hippodrome.pokestadium`). On Windows, `pokestadium.exe` has no console
+  window; stderr reaches the console it was started from, a redirection (`2> log.txt`), or with `PORT_CONSOLE=1` a
+  console window of its own.
 - `tools/replay.sh <recording> [frame]` replays it at max speed and stops at `frame` (default: where the recording ended,
   i.e. the crash), saving that frame as `build/shots/stop_<frame>.png`. `STOP=live` as frame keeps running with live
   input afterwards. Verified: three replays of a crash give identical state changes and crash at the same frame.
