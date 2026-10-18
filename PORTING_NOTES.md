@@ -868,6 +868,18 @@ sample count after every VI frame).
   Note for scripts: on the player screen two DOWN presses wrap back to the player row.
 - Window resized to 16:9 (`PORT_DEBUG_RESIZE=100:1600x900`, to_battle route): VS screen centred with the starfield
   filling the sides, battle scene full width, HUD in the central 4:3 area; no stretching or gaps.
+- Long battle (PORT_BOOT=battle, all four moves for 12 turns, build/tour/moves): crashed at frame 21622 (a tick
+  callback slot held garbage). AddressSanitizer on the same input found three host-only memory errors, fixed:
+  - BattleScene_* row enter callbacks clear gBattleSceneStateTickSlots[gBattleSceneStateTickSlotIndex] while the
+    index is still 7 after the tick loop; on the N64 that hits the unused D_843900A4, on the host it overwrote battle
+    data that later ran as a callback (the crash). The array has a spare 8th slot now.
+  - BattlePrep_InitStarfield writes D_84B19910[400] (arg0[i + 1] for the last star): array is 401 now.
+  - Text_UntranscodeName ran past an empty Transfer Pak slot's zeroed name field (no 0x50 terminator): bounded to
+    the 11-byte field.
+  - gen_frag_sections.py copied whole fragment sections with memcpy, tripping ASan on the redzones between globals:
+    uninstrumented byte copies now (no change in normal builds).
+  The battle now runs to "End Battle!" (60000 frames clean under ASan); attack effects (Quick Attack, Thunder Wave,
+  Flamethrower, Thunderbolt, Leech Seed, Sleep Powder, Take Down), faints, switches and sleep look right.
 - Victory Palace with the unlocked save (build/tour/vpfull): hub, the Hall of Fame pedestals (No.001 Bulbasaur to
   No.003 Venusaur, empty here) and back to the hub and main menu: match ares.
 - Attract sequence (no input, frames 600-8600, build/tour/attract), paired by tools/match_frames.py: 34 of 81 port
