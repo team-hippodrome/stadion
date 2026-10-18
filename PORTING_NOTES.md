@@ -863,6 +863,9 @@ sample count after every VI frame).
   Gallery menu with the stored photos, the camera/rental screens and a second snap session all match ares. Also
   compared (build/tour/galmenu2): Move photo (album with page/trash), Pick photo ("Select a picture"), Sticker(s)
   (photo arrangement, selection) and the 4x4/16x1 layout switch: all match ares.
+- Kids Club "Who's the Best?" (build/tour/wbest): player and COM-level screens, "3 win(s) to become the Champ"
+  match ares; the first game is random (port Ekans' Hoop Hurl, ares Sushi-Go-Round; both matched ares on their own).
+  Note for scripts: on the player screen two DOWN presses wrap back to the player row.
 - Victory Palace with the unlocked save (build/tour/vpfull): hub, the Hall of Fame pedestals (No.001 Bulbasaur to
   No.003 Venusaur, empty here) and back to the hub and main menu: match ares.
 - Attract sequence (no input, frames 600-8600, build/tour/attract), paired by tools/match_frames.py: 34 of 81 port
