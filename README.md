@@ -93,6 +93,19 @@ and Debug adds a save-editor button (needs python3). With a ROM path as argument
 Useful environment variables (all in PORTING_NOTES.md): `PORT_FLASH_FILE` (Stadium save), `PORT_GB_ROM` /
 `PORT_GB_SAVE` (Transfer Pak cartridge of player 1; `PORT_GB_ROM2..4` for the others).
 
+Controls (the same defaults as [pokemonStadiumRecomp](https://github.com/michiiik/pokemonStadiumRecomp)); change them
+per player with the launcher's Controls button:
+
+| N64 | Keyboard | Controller |
+|---|---|---|
+| A / B | X / Z | A / B |
+| Z | Left Shift or Space | either trigger |
+| Start | Return | Start |
+| L / R | Q / E | shoulder buttons |
+| D-pad | arrow keys | D-pad |
+| C-buttons | I / K / J / L | right stick |
+| Stick | W / A / S / D | left stick |
+
 ## Layout
 
 - `game/` — submodule: the decompiled game (C), adapted for 64-bit hosts (see below)

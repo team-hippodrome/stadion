@@ -3,14 +3,23 @@
 // of each Transfer Pak (picture, game, trainer from the save, save file) and a bar with the Stadium ROM, its save and
 // PLAY. The choices are remembered in pokestadium.cfg.json and passed to the game the way the command line does
 // (PORT_FLASH_FILE, PORT_GB_ROM*, PORT_GB_SAVE*). Auto-play skips it next time (hold Shift while starting to see it
-// again); Debug adds a button that opens the save editor (tools/save_editor, needs python3) in the browser.
+// again); Debug adds a button that opens the save editor (tools/save_editor, needs python3) in the browser. Controls
+// swaps the player cards for the key and controller bindings of each player (libultraship's ControlDeck mappings).
 #include "launcher.h"
 
 #include <libultraship/libultraship.h>
 #include <SDL3/SDL.h>
 #include <imgui.h>
 #include <libultraship/bridge/consolevariablebridge.h>
+#include <libultraship/bridge/controllerbridge.h>
 #include <libultraship/bridge/resourcebridge.h>
+#include <ship/controller/controldeck/ControlDeck.h>
+#include <ship/controller/controldevice/controller/Controller.h>
+#include <ship/controller/controldevice/controller/mapping/factories/AxisDirectionMappingFactory.h>
+#include <ship/controller/controldevice/controller/mapping/factories/ButtonMappingFactory.h>
+#include <ship/controller/controldevice/controller/mapping/keyboard/KeyboardKeyToAxisDirectionMapping.h>
+#include <ship/controller/controldevice/controller/mapping/keyboard/KeyboardKeyToButtonMapping.h>
+#include <ship/window/gui/IconsFontAwesome4.h>
 #include <ship/core/Context.h>
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/archive/ArchiveManager.h>
@@ -18,6 +27,7 @@
 #include <fast/Fast3dGui.h>
 #include <fast/Fast3dWindow.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <cstdlib>
@@ -393,15 +403,164 @@ ImTextureID Picture(Fast::Fast3dGui* gui, const char* name) {
     return gui->GetTextureByName(key);
 }
 
+// ---- controls: libultraship's ControlDeck mappings (gControllers.* in pokestadium.cfg.json) --------------------------
+
+// one N64 input: a button, or a direction of the stick (button == 0)
+struct Input {
+    const char* name;
+    CONTROLLERBUTTONS_T button;
+    Ship::Direction dir;
+};
+const Input kInputs[] = {
+    { "A", BTN_A, Ship::UP },           { "B", BTN_B, Ship::UP },
+    { "Z", BTN_Z, Ship::UP },           { "Start", BTN_START, Ship::UP },
+    { "L", BTN_L, Ship::UP },           { "R", BTN_R, Ship::UP },
+    { "D-Pad Up", BTN_DUP, Ship::UP },  { "D-Pad Down", BTN_DDOWN, Ship::UP },
+    { "D-Pad Left", BTN_DLEFT, Ship::UP }, { "D-Pad Right", BTN_DRIGHT, Ship::UP },
+    { "C Up", BTN_CUP, Ship::UP },      { "C Down", BTN_CDOWN, Ship::UP },
+    { "C Left", BTN_CLEFT, Ship::UP },  { "C Right", BTN_CRIGHT, Ship::UP },
+    { "Stick Up", 0, Ship::UP },        { "Stick Down", 0, Ship::DOWN },
+    { "Stick Left", 0, Ship::LEFT },    { "Stick Right", 0, Ship::RIGHT },
+};
+constexpr int kInputCount = sizeof(kInputs) / sizeof(kInputs[0]);
+
+struct Binding {
+    std::string id, name;
+    bool pad; // a controller binding (else keyboard or mouse)
+};
+
+std::shared_ptr<Ship::Controller> PortController(int port) {
+    auto deck = ControllerGetControlDeck();
+    return deck ? deck->GetControllerByPort((uint8_t)port) : nullptr;
+}
+
+// libultraship's names use Font Awesome arrows, which the launcher's font does not have
+std::string InputName(std::string s) {
+    const std::pair<const char*, const char*> words[] = {
+        { ICON_FA_ARROW_UP, "Up" }, { ICON_FA_ARROW_DOWN, "Down" }, { ICON_FA_ARROW_LEFT, "Left" },
+        { ICON_FA_ARROW_RIGHT, "Right" }, { ICON_FA_BARS, "Start" }, { ICON_FA_PLUS, "+" },
+        { ICON_FA_MINUS, "-" }, { "Left Stick", "LS" }, { "Right Stick", "RS" },
+    };
+    for (auto [from, to] : words) {
+        for (size_t at; (at = s.find(from)) != std::string::npos;) {
+            s.replace(at, strlen(from), to);
+        }
+    }
+    return s;
+}
+
+std::vector<Binding> Bindings(int port, const Input& in) {
+    std::vector<Binding> list;
+    auto c = PortController(port);
+    if (c == nullptr) {
+        return list;
+    }
+    auto add = [&](const std::string& id, const auto& m) {
+        list.push_back({ id, InputName(m->GetPhysicalInputName()),
+                         m->GetPhysicalDeviceType() == Ship::PhysicalDeviceType::SDLGamepad });
+    };
+    if (in.button != 0) {
+        for (auto& [id, m] : c->GetButton(in.button)->GetAllButtonMappings()) add(id, m);
+    } else {
+        for (auto& [id, m] : c->GetLeftStick()->GetAllAxisDirectionMappingByDirection(in.dir)) add(id, m);
+    }
+    // keyboard first, then the controller; stable order (the mappings live in unordered maps)
+    std::sort(list.begin(), list.end(),
+              [](const Binding& a, const Binding& b) { return a.pad != b.pad ? b.pad : a.id < b.id; });
+    return list;
+}
+
+void RemoveBinding(int port, const Input& in, const std::string& id) {
+    auto c = PortController(port);
+    if (c == nullptr) {
+        return;
+    }
+    if (in.button != 0) {
+        c->GetButton(in.button)->ClearButtonMapping(id);
+    } else {
+        c->GetLeftStick()->ClearAxisDirectionMapping(in.dir, id);
+    }
+    CVarSave();
+}
+
+// Binds the key or controller input held right now to `in` (replacing binding `replaceId`, when set) and returns true
+// when one is held; with save false it only reports that, for waiting until the inputs are released. Keyboard keys
+// come from the window's last key-down scancode, controller buttons and axes from libultraship's factories (they poll
+// SDL).
+bool CaptureBinding(int port, const Input& in, const std::string& replaceId,
+                    const std::shared_ptr<Ship::Window>& window, bool save) {
+    auto deck = ControllerGetControlDeck();
+    auto c = PortController(port);
+    auto cvars = CVarGetConsoleVariable();
+    if (deck == nullptr || c == nullptr || cvars == nullptr) {
+        return false;
+    }
+    int32_t scancode = window->GetLastScancode();
+    if (scancode == Ship::KbScancode::LUS_KB_ESCAPE) {
+        return true; // Esc cancels (the launcher window handles it)
+    }
+    auto key = (Ship::KbScancode)scancode;
+    bool isKey = scancode > 0;
+    if (in.button != 0) {
+        std::shared_ptr<Ship::ControllerButtonMapping> m =
+            isKey ? std::make_shared<Ship::KeyboardKeyToButtonMapping>(port, in.button, key, deck, window, cvars)
+                  : Ship::ButtonMappingFactory::CreateButtonMappingFromSDLInput(port, in.button, cvars, deck);
+        if (m == nullptr || !save) {
+            return m != nullptr;
+        }
+        auto button = c->GetButton(in.button);
+        if (!replaceId.empty() && replaceId != m->GetButtonMappingId()) {
+            button->ClearButtonMapping(replaceId);
+        }
+        button->AddButtonMapping(m);
+        m->SaveToConfig();
+        button->SaveButtonMappingIdsToConfig();
+    } else {
+        std::shared_ptr<Ship::ControllerAxisDirectionMapping> m =
+            isKey ? std::make_shared<Ship::KeyboardKeyToAxisDirectionMapping>(port, Ship::LEFT_STICK, in.dir, key,
+                                                                              deck, window, cvars)
+                  : Ship::AxisDirectionMappingFactory::CreateAxisDirectionMappingFromSDLInput(port, Ship::LEFT_STICK,
+                                                                                              in.dir, cvars, deck);
+        if (m == nullptr || !save) {
+            return m != nullptr;
+        }
+        auto stick = c->GetLeftStick();
+        if (!replaceId.empty() && replaceId != m->GetAxisDirectionMappingId()) {
+            stick->ClearAxisDirectionMapping(in.dir, replaceId);
+        }
+        stick->AddAxisDirectionMapping(in.dir, m);
+        m->SaveToConfig();
+        stick->SaveAxisDirectionMappingIdsToConfig();
+    }
+    CVarSetInteger(("gControllers.Port" + std::to_string(port + 1) + ".HasConfig").c_str(), 1);
+    CVarSave();
+    return true;
+}
+
+// the defaults (Engine.cpp, the same as pokemonStadiumRecomp's): keyboard and controller for player 1, the controller
+// only for the others
+void ResetBindings(int port) {
+    auto c = PortController(port);
+    if (c == nullptr) {
+        return;
+    }
+    c->ClearAllMappings();
+    if (port == 0) {
+        c->AddDefaultMappings(Ship::PhysicalDeviceType::Keyboard);
+    }
+    c->AddDefaultMappings(Ship::PhysicalDeviceType::SDLGamepad);
+    CVarSave();
+}
+
 // ---- the launcher window ---------------------------------------------------------------------------------------------
 
 constexpr float kW = 960, kH = 556; // the design size (Launcher.swift)
 
 class LauncherWindow : public Ship::GuiWindow {
   public:
-    LauncherWindow(State* state, bool* play, bool* quit, Fast::Fast3dGui* gui)
+    LauncherWindow(State* state, bool* play, bool* quit, Fast::Fast3dGui* gui, std::shared_ptr<Ship::Window> window)
         : GuiWindow("gLauncherWindowOpen", "Pokémon Stadium Launcher", ImVec2(kW, kH)), mState(state), mPlay(play),
-          mQuit(quit), mGui(gui) {
+          mQuit(quit), mGui(gui), mWindow(std::move(window)) {
     }
 
     void Draw() override {
@@ -448,10 +607,16 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(206, 14, "PC port · Transfer Pak", gFonts.body, Theme::dim);
         dl->AddRectFilled(P(0, 44), P(kW, 45), Hex(Theme::cardBorder));
 
-        for (int i = 0; i < 4; i++) {
-            PlayerCard(i, 16 + i * (222 + 14), 58, 222, 366);
+        if (mControls) {
+            ControlsPanel(16, 58, kW - 32, 366);
+        } else {
+            for (int i = 0; i < 4; i++) {
+                PlayerCard(i, 16 + i * (222 + 14), 58, 222, 366);
+            }
         }
+        ImGui::BeginDisabled(mCapture >= 0);
         BottomBar(0, 440, kW, 116);
+        ImGui::EndDisabled();
         if (mChanged) {
             Store(s);
         }
@@ -571,6 +736,126 @@ class LauncherWindow : public Ship::GuiWindow {
         ImGui::PopID();
     }
 
+    // a button in the given colour
+    bool ColorButton(const char* label, float x, float y, float w, float h, uint32_t color, uint32_t hover) {
+        ImGui::PushStyleColor(ImGuiCol_Button, HexV(color));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, HexV(hover));
+        bool clicked = Button(label, x, y, w, h);
+        ImGui::PopStyleColor(2);
+        return clicked;
+    }
+
+    // Controls: the bindings of one player's N64 inputs (keyboard grey, controller blue); click a binding to change
+    // it, right-click to remove it, + adds one. Shown in place of the player cards.
+    void ControlsPanel(float x, float y, float w, float h) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        if (mCapture >= 0) {
+            UpdateCapture();
+        }
+        ImGui::BeginDisabled(mCapture >= 0);
+
+        Text(x + 14, y + 14, "CONTROLS", gFonts.body, Theme::players[mPort]);
+        for (int i = 0; i < 4; i++) {
+            ImGui::PushID(i);
+            bool on = i == mPort;
+            if (ColorButton(("Player " + std::to_string(i + 1)).c_str(), x + 110 + i * 84, y + 9, 78, 26,
+                            on ? Theme::cardBorder : Theme::card, Theme::buttonHover)) {
+                mPort = i;
+            }
+            if (on) {
+                dl->AddRectFilled(P(x + 110 + i * 84, y + 35), P(x + 188 + i * 84, y + 37), Hex(Theme::players[i]));
+            }
+            ImGui::PopID();
+        }
+        if (Button("Reset to defaults", x + w - 246, y + 9, 130, 26)) {
+            ResetBindings(mPort);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip(mPort == 0 ? "Keyboard and controller defaults (the same as pokemonStadiumRecomp's)"
+                                         : "Controller defaults (the keyboard plays player 1)");
+        }
+        if (Button("Done", x + w - 108, y + 9, 94, 26)) {
+            mControls = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+
+        constexpr int kRows = 10;
+        for (int i = 0; i < kInputCount; i++) {
+            float cx = x + 14 + (i / kRows) * 466, cy = y + 56 + (i % kRows) * 29;
+            InputRow(i, cx, cy);
+        }
+        Text(x + 14, y + h - 22,
+             "Click a binding to change it, right-click to remove it, + to add one. Grey: keyboard, blue: controller.",
+             gFonts.small, Theme::dim);
+        ImGui::EndDisabled();
+
+        if (mCapture >= 0) {
+            dl->AddRectFilled(P(x, y + 45), P(x + w, y + h), Hex(Theme::window, 0.75f), 8 * mScale,
+                              ImDrawFlags_RoundCornersBottom);
+            float bw = 380, bh = 84, bx = x + (w - bw) / 2, by = y + (h - bh) / 2;
+            dl->AddRectFilled(P(bx, by), P(bx + bw, by + bh), Hex(Theme::card), 8 * mScale);
+            dl->AddRect(P(bx, by), P(bx + bw, by + bh), Hex(Theme::players[mPort]), 8 * mScale);
+            Text(bx + 20, by + 18, std::string("Press a key or controller input for ") + kInputs[mCapture].name,
+                 gFonts.body);
+            Text(bx + 20, by + 48, "Esc cancels", gFonts.small, Theme::dim);
+        }
+    }
+
+    void InputRow(int i, float x, float y) {
+        const Input& in = kInputs[i];
+        ImGui::PushID(i);
+        Text(x, y + 5, in.name, gFonts.body, Theme::dim);
+        auto list = Bindings(mPort, in);
+        constexpr size_t kShown = 3;
+        float bx = x + 96;
+        for (size_t n = 0; n < list.size() && n < kShown; n++) {
+            const Binding& b = list[n];
+            std::string label = b.name.size() > 12 ? b.name.substr(0, 11) + "…" : b.name;
+            label += "##" + b.id;
+            if (ColorButton(label.c_str(), bx, y, 92, 24, b.pad ? 0x23406B : Theme::button,
+                            b.pad ? 0x2D528A : Theme::buttonHover)) {
+                StartCapture(i, b.id);
+            }
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                RemoveBinding(mPort, in, b.id);
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("%s (%s)", b.name.c_str(), b.pad ? "controller" : "keyboard");
+            }
+            bx += 98;
+        }
+        if (list.size() > kShown) {
+            Text(bx, y + 6, "+" + std::to_string(list.size() - kShown), gFonts.small, Theme::dim);
+        }
+        if (Button("+", x + 96 + kShown * 98 + 22, y, 26, 24)) {
+            StartCapture(i, "");
+        }
+        ImGui::PopID();
+    }
+
+    void StartCapture(int input, const std::string& replaceId) {
+        mCapture = input;
+        mCaptureId = replaceId;
+        mArmed = false; // the click (or key) that started it must be released first
+    }
+
+    void UpdateCapture() {
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+            mCapture = -1;
+            return;
+        }
+        if (!mArmed) {
+            mArmed = !CaptureBinding(mPort, kInputs[mCapture], mCaptureId, mWindow, false) &&
+                     !ImGui::IsAnyMouseDown();
+            return;
+        }
+        if (CaptureBinding(mPort, kInputs[mCapture], mCaptureId, mWindow, true)) {
+            mCapture = -1;
+        }
+    }
+
     void BottomBar(float x, float y, float w, float h) {
         State& s = *mState;
         ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -606,6 +891,9 @@ class LauncherWindow : public Ship::GuiWindow {
             }
         }
         Check("Debug", &s.debug, x + 164, y + 88);
+        if (Button(mControls ? "Players" : "Controls", x + 450, y + 86, 100, 26)) {
+            mControls = !mControls;
+        }
 
         // PLAY: green, rounded, white border
         ImGui::BeginDisabled(!romError.empty());
@@ -626,7 +914,7 @@ class LauncherWindow : public Ship::GuiWindow {
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Start the game directly next time (hold Shift while starting to see this launcher)");
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty()) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls) {
             *mPlay = true;
         }
         (void)mQuit;
@@ -636,6 +924,12 @@ class LauncherWindow : public Ship::GuiWindow {
     bool* mPlay;
     bool* mQuit;
     Fast::Fast3dGui* mGui;
+    std::shared_ptr<Ship::Window> mWindow;
+    bool mControls = false; // the controls panel instead of the player cards
+    int mPort = 0;          // whose controls it shows
+    int mCapture = -1;      // the input (kInputs) waiting for a key or controller input, -1: none
+    std::string mCaptureId; // the binding it replaces ("": adds one)
+    bool mArmed = false;    // the inputs held when the capture started were released
     float mScale = 1.0f;
     ImVec2 mOrigin;
     bool mChanged = false;
@@ -667,7 +961,11 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
             SDL_SetWindowTitle(sdl, "Pokémon Stadium — Launcher");
         }
         auto gui = std::dynamic_pointer_cast<Fast::Fast3dGui>(window->GetGui());
-        auto launcher = std::make_shared<LauncherWindow>(&state, &play, &quit, gui.get());
+        // the controller deck, for the controls panel (the game's osContInit sets it up again, which is harmless)
+        static uint8_t controllerBits;
+        static OSContStatus controllerStatus[MAXCONTROLLERS];
+        osContInit(nullptr, &controllerBits, controllerStatus);
+        auto launcher = std::make_shared<LauncherWindow>(&state, &play, &quit, gui.get(), window);
         launcher->Init();
         launcher->Show();
         window->GetGui()->AddGuiWindow(launcher);

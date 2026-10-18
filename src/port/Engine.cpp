@@ -12,6 +12,7 @@
 #include <ship/resource/ResourceManager.h>
 #include <ship/thread/ThreadPool.h>
 #include <controller/controldeck/ControlDeck.h>
+#include <libultraship/controller/controldevice/controller/mapping/ControllerDefaultMappings.h>
 #include <stdexcept>
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <libultraship/bridge/resourcebridge.h>
@@ -53,6 +54,79 @@ extern "C" void Port_RequestCapture(uint64_t frame) { sCaptureFrame = frame; }
 namespace {
 std::shared_ptr<Ship::Context> sContext;
 std::shared_ptr<Fast::Fast3dWindow> sWindow;
+
+// Default bindings, the same as pokemonStadiumRecomp's (src/main/input_bindings.cpp). Keyboard: X/Z = A/B, Shift or
+// Space = Z, Return (and keypad Enter, which libultraship reads as Return) = Start, arrows = D-pad, Q/E = L/R,
+// I/K/J/L = C-buttons, WASD = stick. Controller: A/B, either trigger = Z, Start, D-pad, shoulders = L/R, right stick =
+// C-buttons, left stick = stick.
+std::shared_ptr<LUS::ControllerDefaultMappings> DefaultMappings() {
+    using Ship::KbScancode;
+    std::unordered_map<CONTROLLERBUTTONS_T, std::unordered_set<KbScancode>> keys = {
+        { BTN_A, { KbScancode::LUS_KB_X } },
+        { BTN_B, { KbScancode::LUS_KB_Z } },
+        { BTN_Z, { KbScancode::LUS_KB_SHIFT, KbScancode::LUS_KB_SPACE } },
+        { BTN_START, { KbScancode::LUS_KB_ENTER } },
+        { BTN_DUP, { KbScancode::LUS_KB_ARROWKEY_UP } },
+        { BTN_DDOWN, { KbScancode::LUS_KB_ARROWKEY_DOWN } },
+        { BTN_DLEFT, { KbScancode::LUS_KB_ARROWKEY_LEFT } },
+        { BTN_DRIGHT, { KbScancode::LUS_KB_ARROWKEY_RIGHT } },
+        { BTN_L, { KbScancode::LUS_KB_Q } },
+        { BTN_R, { KbScancode::LUS_KB_E } },
+        { BTN_CUP, { KbScancode::LUS_KB_I } },
+        { BTN_CDOWN, { KbScancode::LUS_KB_K } },
+        { BTN_CLEFT, { KbScancode::LUS_KB_J } },
+        { BTN_CRIGHT, { KbScancode::LUS_KB_L } },
+    };
+    std::unordered_map<Ship::StickIndex, std::vector<std::pair<Ship::Direction, KbScancode>>> keyStick = {
+        { Ship::LEFT_STICK,
+          { { Ship::UP, KbScancode::LUS_KB_W },
+            { Ship::DOWN, KbScancode::LUS_KB_S },
+            { Ship::LEFT, KbScancode::LUS_KB_A },
+            { Ship::RIGHT, KbScancode::LUS_KB_D } } },
+    };
+    std::unordered_map<CONTROLLERBUTTONS_T, std::unordered_set<SDL_GamepadButton>> pad = {
+        { BTN_A, { SDL_GAMEPAD_BUTTON_SOUTH } },
+        { BTN_B, { SDL_GAMEPAD_BUTTON_EAST } },
+        { BTN_START, { SDL_GAMEPAD_BUTTON_START } },
+        { BTN_DUP, { SDL_GAMEPAD_BUTTON_DPAD_UP } },
+        { BTN_DDOWN, { SDL_GAMEPAD_BUTTON_DPAD_DOWN } },
+        { BTN_DLEFT, { SDL_GAMEPAD_BUTTON_DPAD_LEFT } },
+        { BTN_DRIGHT, { SDL_GAMEPAD_BUTTON_DPAD_RIGHT } },
+        { BTN_L, { SDL_GAMEPAD_BUTTON_LEFT_SHOULDER } },
+        { BTN_R, { SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER } },
+    };
+    std::unordered_map<CONTROLLERBUTTONS_T, std::vector<std::pair<SDL_GamepadAxis, int32_t>>> padAxes = {
+        { BTN_Z, { { SDL_GAMEPAD_AXIS_LEFT_TRIGGER, 1 }, { SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, 1 } } },
+        { BTN_CUP, { { SDL_GAMEPAD_AXIS_RIGHTY, -1 } } },
+        { BTN_CDOWN, { { SDL_GAMEPAD_AXIS_RIGHTY, 1 } } },
+        { BTN_CLEFT, { { SDL_GAMEPAD_AXIS_RIGHTX, -1 } } },
+        { BTN_CRIGHT, { { SDL_GAMEPAD_AXIS_RIGHTX, 1 } } },
+    };
+    // the right stick drives the C-buttons only (no right-stick axis mapping)
+    std::unordered_map<Ship::StickIndex, std::vector<std::pair<Ship::Direction, std::pair<SDL_GamepadAxis, int32_t>>>>
+        padStick = {
+            { Ship::LEFT_STICK,
+              { { Ship::UP, { SDL_GAMEPAD_AXIS_LEFTY, -1 } },
+                { Ship::DOWN, { SDL_GAMEPAD_AXIS_LEFTY, 1 } },
+                { Ship::LEFT, { SDL_GAMEPAD_AXIS_LEFTX, -1 } },
+                { Ship::RIGHT, { SDL_GAMEPAD_AXIS_LEFTX, 1 } } } },
+        };
+    return std::make_shared<LUS::ControllerDefaultMappings>(
+        keys, keyStick, pad, std::unordered_map<Ship::StickIndex, std::vector<std::pair<Ship::Direction, SDL_GamepadButton>>>(),
+        padAxes, padStick);
+}
+
+// Configs written before these defaults hold libultraship's own ones (and nothing else: there was no way to change
+// them); they are dropped once so the defaults above apply.
+constexpr int32_t kControlsVersion = 1;
+void MigrateControls(const std::shared_ptr<Ship::ConsoleVariable>& cvars) {
+    if (cvars->GetInteger("gPort.ControlsVersion", 0) >= kControlsVersion) {
+        return;
+    }
+    cvars->ClearBlock("gControllers");
+    cvars->SetInteger("gPort.ControlsVersion", kControlsVersion);
+    cvars->Save();
+}
 } // namespace
 
 namespace Port {
@@ -86,7 +160,25 @@ bool Init() {
     sContext->GetChildren().Add(resourceManager);
     ResourceSetResourceManager(resourceManager);
 
-    auto controlDeck = std::make_shared<LUS::ControlDeck>(sWindow, cvars);
+    MigrateControls(cvars);
+    auto controlDeck = std::make_shared<LUS::ControlDeck>(std::vector<CONTROLLERBUTTONS_T>(), DefaultMappings(),
+                                                          std::unordered_map<CONTROLLERBUTTONS_T, std::string>({
+                                                              { BTN_A, "A" },
+                                                              { BTN_B, "B" },
+                                                              { BTN_L, "L" },
+                                                              { BTN_R, "R" },
+                                                              { BTN_Z, "Z" },
+                                                              { BTN_START, "Start" },
+                                                              { BTN_CLEFT, "CLeft" },
+                                                              { BTN_CRIGHT, "CRight" },
+                                                              { BTN_CUP, "CUp" },
+                                                              { BTN_CDOWN, "CDown" },
+                                                              { BTN_DLEFT, "DLeft" },
+                                                              { BTN_DRIGHT, "DRight" },
+                                                              { BTN_DUP, "DUp" },
+                                                              { BTN_DDOWN, "DDown" },
+                                                          }),
+                                                          sWindow, cvars);
     sContext->GetChildren().Add(controlDeck);
     ControllerSetControlDeck(controlDeck);
 
