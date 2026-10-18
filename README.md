@@ -23,8 +23,14 @@ tools/setup.sh                      # submodules + the port's libultraship patch
 brew install cmake ninja sdl3 glew libzip nlohmann-json tinyxml2 spdlog
 cmake -S . -B build -G Ninja
 cmake --build build
-tools/make_app.sh                   # optional: "Pokemon Stadium.app" with the launcher
+python3 tools/make_macos_bundle.py build "Pokemon Stadium.app" 0.0.1   # optional: self-contained app
 ```
+
+`tools/make_macos_bundle.py` builds a double-clickable `Pokemon Stadium.app` with the Homebrew libraries inside (the
+release download is this app). It keeps its settings, logs and default saves in
+`~/Library/Application Support/com.team-hippodrome.pokestadium`. The app is not notarized: on the first start of a
+downloaded copy, macOS refuses to open it; allow it under System Settings → Privacy & Security → "Open Anyway", or run
+`xattr -dr com.apple.quarantine "Pokemon Stadium.app"`.
 
 **Linux** (Ubuntu 25.04 or newer, for SDL3; other distributions: the same packages):
 
