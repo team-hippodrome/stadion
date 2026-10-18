@@ -668,7 +668,7 @@ index c8bc6cd..f9afa95 100644
      switch (message) {
          case WM_GETDPISCALEDSIZE:
 diff --git a/src/fast/interpreter.cpp b/src/fast/interpreter.cpp
-index a1907a1..550fe83 100644
+index a1907a1..6054002 100644
 --- a/src/fast/interpreter.cpp
 +++ b/src/fast/interpreter.cpp
 @@ -11,6 +11,7 @@
@@ -679,7 +679,7 @@ index a1907a1..550fe83 100644
  #include <any>
  #include <map>
  #include <set>
-@@ -59,6 +60,260 @@ std::stack<std::string> currentDir;
+@@ -59,6 +60,261 @@ std::stack<std::string> currentDir;
  #define SCALE_8_3(VAL_) ((VAL_) / 0x24)
  
  // Based off the current set native dimensions or active framebuffer
@@ -924,6 +924,7 @@ index a1907a1..550fe83 100644
 +// buffers that keep their picture, and games update them incrementally (erasing what they drew into the same buffer
 +// two frames earlier); a single shared buffer leaves trails.
 +static std::unordered_map<uintptr_t, int> sMainFbs;
++static bool sMarginsClearedThisRun = false; // see GfxDpSetColorImage
 +// PORT: whether the RDP (Fast3D) renders into this N64 frame buffer; frames shown with osViSwapBuffer that it does not
 +// render were drawn by the CPU and are presented from memory (os_devices.cpp)
 +static std::unordered_map<uintptr_t, uint64_t> sMainFbDrawStamp;
@@ -940,7 +941,7 @@ index a1907a1..550fe83 100644
  #define HALF_SCREEN_WIDTH(activeFb) ((mFbActive ? activeFb->second.orig_width : mNativeDimensions.width) / 2)
  #define HALF_SCREEN_HEIGHT(activeFb) ((mFbActive ? activeFb->second.orig_height : mNativeDimensions.height) / 2)
  
-@@ -71,6 +326,9 @@ std::stack<std::string> currentDir;
+@@ -71,6 +327,9 @@ std::stack<std::string> currentDir;
  #define TEXTURE_CACHE_MAX_SIZE 1024
  
  namespace Fast {
@@ -950,7 +951,7 @@ index a1907a1..550fe83 100644
  
  static UcodeHandlers ucode_handler_index = ucode_f3dex2;
  
-@@ -591,6 +849,49 @@ static uint32_t GetTileSizeFromCoordinates(float low, float high) {
+@@ -591,6 +850,49 @@ static uint32_t GetTileSizeFromCoordinates(float low, float high) {
      return static_cast<uint32_t>(lroundf((high - low + 4.0f) / 4.0f));
  }
  
@@ -1000,7 +1001,7 @@ index a1907a1..550fe83 100644
  void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
      const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
      const uint8_t* addr =
-@@ -669,6 +970,9 @@ void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
+@@ -669,6 +971,9 @@ void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
          }
      }
  
@@ -1010,7 +1011,7 @@ index a1907a1..550fe83 100644
      mRapi->UploadTexture(mTexUploadBuffer, width, height);
  }
  
-@@ -741,6 +1045,9 @@ void Interpreter::ImportTextureRgba32(int tile, bool importReplacement) {
+@@ -741,6 +1046,9 @@ void Interpreter::ImportTextureRgba32(int tile, bool importReplacement) {
              i++;
          }
      }
@@ -1020,7 +1021,7 @@ index a1907a1..550fe83 100644
      mRapi->UploadTexture(mTexUploadBuffer, width, height);
  }
  
-@@ -884,6 +1191,8 @@ void Interpreter::ImportTextureIA16(int tile, bool importReplacement) {
+@@ -884,6 +1192,8 @@ void Interpreter::ImportTextureIA16(int tile, bool importReplacement) {
      mRapi->UploadTexture(mTexUploadBuffer, width, height);
  }
  
@@ -1029,7 +1030,7 @@ index a1907a1..550fe83 100644
  void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
      const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
      const uint8_t* addr =
-@@ -920,15 +1229,11 @@ void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
+@@ -920,15 +1230,11 @@ void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
  
              uint8_t byte = addr[clrIdx / 2];
              uint8_t part = (byte >> (4 - (clrIdx % 2) * 4)) & 0xf;
@@ -1050,7 +1051,7 @@ index a1907a1..550fe83 100644
  
              i++;
          }
-@@ -1069,6 +1374,9 @@ void Interpreter::ImportTextureCi4(int tile, bool importReplacement) {
+@@ -1069,6 +1375,9 @@ void Interpreter::ImportTextureCi4(int tile, bool importReplacement) {
          }
      }
  
@@ -1060,7 +1061,7 @@ index a1907a1..550fe83 100644
      mRapi->UploadTexture(mTexUploadBuffer, width, height);
  }
  
-@@ -1151,6 +1459,9 @@ void Interpreter::ImportTextureCi8(int tile, bool importReplacement) {
+@@ -1151,6 +1460,9 @@ void Interpreter::ImportTextureCi8(int tile, bool importReplacement) {
          height = tile_h;
      }
  
@@ -1070,7 +1071,7 @@ index a1907a1..550fe83 100644
      mRapi->UploadTexture(mTexUploadBuffer, width, height);
  }
  
-@@ -1269,12 +1580,42 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
+@@ -1269,12 +1581,42 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
  }
  
  void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {
@@ -1113,7 +1114,7 @@ index a1907a1..550fe83 100644
  
      const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
      const uint8_t* origAddr =
-@@ -1332,6 +1673,26 @@ void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {
+@@ -1332,6 +1674,26 @@ void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {
      } else {
          key = { origAddr, {}, fmt, siz, paletteIndex, origSizeBytes };
      }
@@ -1140,7 +1141,7 @@ index a1907a1..550fe83 100644
  
      if (TextureCacheLookup(i, key)) {
          return;
-@@ -1505,6 +1866,7 @@ void Interpreter::CalculateNormalDir(const F3DLight_t* light, float coeffs[3]) {
+@@ -1505,6 +1867,7 @@ void Interpreter::CalculateNormalDir(const F3DLight_t* light, float coeffs[3]) {
  }
  
  void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
@@ -1148,7 +1149,7 @@ index a1907a1..550fe83 100644
      float matrix[4][4];
  
      if (auto it = mCurMtxReplacements->find((Mtx*)addr); it != mCurMtxReplacements->end()) {
-@@ -1532,6 +1894,20 @@ void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
+@@ -1532,6 +1895,20 @@ void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
  #endif
      }
  
@@ -1169,7 +1170,7 @@ index a1907a1..550fe83 100644
      const int8_t mtx_projection = get_attr(MTX_PROJECTION);
      const int8_t mtx_load = get_attr(MTX_LOAD);
      const int8_t mtx_push = get_attr(MTX_PUSH);
-@@ -1600,6 +1976,8 @@ void Interpreter::AdjustWidthHeightForScale(uint32_t& width, uint32_t& height, u
+@@ -1600,6 +1977,8 @@ void Interpreter::AdjustWidthHeightForScale(uint32_t& width, uint32_t& height, u
  }
  
  void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx* vertices) {
@@ -1178,7 +1179,7 @@ index a1907a1..550fe83 100644
      for (size_t i = 0; i < n_vertices; i++, dest_index++) {
          const F3DVtx_t* v = &vertices[i].v;
          const F3DVtx_tn* vn = &vertices[i].n;
-@@ -1805,11 +2183,32 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1805,11 +2184,32 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
      struct LoadedVertex* v_arr[3] = { v1, v2, v3 };
  
      // if (rand()%2) return;
@@ -1211,7 +1212,7 @@ index a1907a1..550fe83 100644
  
      const uint32_t cull_both = get_attr(CULL_BOTH);
      const uint32_t cull_front = get_attr(CULL_FRONT);
-@@ -1896,9 +2295,82 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1896,9 +2296,82 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
      bool texture_edge = (mRdp->other_mode_l & CVG_X_ALPHA) == CVG_X_ALPHA;
      bool use_noise = (mRdp->other_mode_l & (3U << G_MDSFT_ALPHACOMPARE)) == G_AC_DITHER;
      bool use_2cyc = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE)) == G_CYC_2CYCLE;
@@ -1294,7 +1295,7 @@ index a1907a1..550fe83 100644
      bool use_grayscale = mRdp->grayscale;
      bool use_prim_depth = (mRdp->other_mode_l & G_ZS_PRIM) != 0;
  
-@@ -1965,6 +2437,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1965,6 +2438,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
  
      uint32_t tm = 0;
      uint32_t tex_width[2], tex_height[2], tex_width2[2], tex_height2[2];
@@ -1303,7 +1304,7 @@ index a1907a1..550fe83 100644
      uint32_t effective_tile[2];
  
      for (int i = 0; i < 2; i++) {
-@@ -1977,9 +2451,39 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1977,9 +2452,39 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
          effective_tile[i] = tile;
  
          if (comb->usedTextures[i]) {
@@ -1344,7 +1345,7 @@ index a1907a1..550fe83 100644
                  if (mRdp->loaded_texture[i].masked) {
                      ImportTextureMask(SHADER_FIRST_MASK_TEXTURE + i, tile);
                  }
-@@ -2058,6 +2562,18 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2058,6 +2563,18 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
                  tex_height[i] = tex_height2[i];
              }
  
@@ -1363,7 +1364,7 @@ index a1907a1..550fe83 100644
              uint32_t tex_width1 = tex_width[i] << (cms & G_TX_MIRROR);
              uint32_t tex_height1 = tex_height[i] << (cmt & G_TX_MIRROR);
  
-@@ -2153,6 +2669,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2153,6 +2670,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
  
              u -= mRdp->texture_tile[uv_tile].uls / 4.0f;
              v -= mRdp->texture_tile[uv_tile].ult / 4.0f;
@@ -1372,7 +1373,7 @@ index a1907a1..550fe83 100644
  
              if ((mRdp->other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) {
                  // Linear filter adds 0.5f to the coordinates
-@@ -2169,11 +2687,11 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2169,11 +2688,11 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
              bool clampT = tm & (1 << 2 * t + 1);
  
              if (clampS) {
@@ -1386,7 +1387,7 @@ index a1907a1..550fe83 100644
              }
          }
  
-@@ -2371,11 +2889,16 @@ void Interpreter::CalcAndSetViewport(const F3DVp_t* viewport) {
+@@ -2371,11 +2890,16 @@ void Interpreter::CalcAndSetViewport(const F3DVp_t* viewport) {
      mRdp->viewport.height = height;
  
      AdjustVIewportOrScissor(&mRdp->viewport);
@@ -1403,7 +1404,7 @@ index a1907a1..550fe83 100644
      switch (index) {
          case F3DEX2_G_MV_VIEWPORT:
              CalcAndSetViewport((const F3DVp_t*)data);
-@@ -2428,6 +2951,7 @@ void Interpreter::GfxSpMovewordF3dex2(uint8_t index, uint16_t offset, uintptr_t
+@@ -2428,6 +2952,7 @@ void Interpreter::GfxSpMovewordF3dex2(uint8_t index, uint16_t offset, uintptr_t
              break;
          case G_MW_SEGMENT: {
              int segNumber = offset / 4;
@@ -1411,7 +1412,7 @@ index a1907a1..550fe83 100644
              mSegmentPointers[segNumber] = data;
          } break;
          case G_MW_SEGMENT_INTERP: {
-@@ -2467,6 +2991,7 @@ void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t dat
+@@ -2467,6 +2992,7 @@ void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t dat
  }
  
  void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t tile, uint8_t on) {
@@ -1419,7 +1420,7 @@ index a1907a1..550fe83 100644
      mRsp->texture_scaling_factor.s = sc;
      mRsp->texture_scaling_factor.t = tc;
      if (mRdp->first_tile_index != tile) {
-@@ -2478,6 +3003,27 @@ void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t
+@@ -2478,6 +3004,27 @@ void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t
  }
  
  void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uint32_t lrx, uint32_t lry) {
@@ -1447,7 +1448,7 @@ index a1907a1..550fe83 100644
      float x = ulx / 4.0f;
      float y = lry / 4.0f;
      float width = (lrx - ulx) / 4.0f;
-@@ -2495,6 +3041,7 @@ void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uin
+@@ -2495,6 +3042,7 @@ void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uin
  
  void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t width, const char* texPath,
                                         uint32_t texFlags, RawTexMetadata rawTexMetdata, const void* addr) {
@@ -1455,7 +1456,7 @@ index a1907a1..550fe83 100644
      // fprintf(stderr, "GfxDpSetTextureImage: %s (width=%d; size=0x%X)\n",
      //         rawTexMetdata.resource ? rawTexMetdata.resource->GetInitData()->Identifier.GetPath().c_str() : nullptr,
      //         width, size);
-@@ -2508,6 +3055,7 @@ void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t
+@@ -2508,6 +3056,7 @@ void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t
  void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_t tmem, uint8_t tile, uint32_t palette,
                                 uint32_t cmt, uint32_t maskt, uint32_t shiftt, uint32_t cms, uint32_t masks,
                                 uint32_t shifts) {
@@ -1463,7 +1464,7 @@ index a1907a1..550fe83 100644
      // OTRTODO:
      // SUPPORT_CHECK(tmem == 0 || tmem == 256);
  
-@@ -2530,6 +3078,12 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
+@@ -2530,6 +3079,12 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
      mRdp->texture_tile[tile].line_size_bytes = line * 8;
  
      mRdp->texture_tile[tile].tmem = tmem;
@@ -1476,7 +1477,7 @@ index a1907a1..550fe83 100644
      // mRdp->texture_tile[tile].tmem_index = tmem / 256; // tmem is the 64-bit word offset, so 256 words means 2 kB
  
      mRdp->texture_tile[tile].tmem_index =
-@@ -2540,6 +3094,7 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
+@@ -2540,6 +3095,7 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
  }
  
  void Interpreter::GfxDpSetTileSize(uint8_t tile, uint16_t uls, uint16_t ult, uint16_t lrs, uint16_t lrt) {
@@ -1484,7 +1485,7 @@ index a1907a1..550fe83 100644
      mRdp->texture_tile[tile].uls = uls;
      mRdp->texture_tile[tile].ult = ult;
      mRdp->texture_tile[tile].lrs = lrs;
-@@ -2555,6 +3110,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
+@@ -2555,6 +3111,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
      const uint8_t* src = mRdp->texture_to_load.addr;
      uint32_t entryCount = high_index + 1;
      uint32_t byteCount = entryCount * 2;
@@ -1503,7 +1504,7 @@ index a1907a1..550fe83 100644
  
      if (tmem >= 256) {
          // N64 TMEM palette area starts at tmem word 256. Each CI4 palette = 16 entries = 16 tmem words.
-@@ -2589,7 +3156,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
+@@ -2589,7 +3157,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
      }
  }
  
@@ -1522,7 +1523,7 @@ index a1907a1..550fe83 100644
      SUPPORT_CHECK(uls == 0);
      SUPPORT_CHECK(ult == 0);
  
-@@ -2658,6 +3236,11 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
+@@ -2658,6 +3237,11 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata = mRdp->texture_to_load.raw_tex_metadata;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].addr = mRdp->texture_to_load.addr;
@@ -1534,7 +1535,7 @@ index a1907a1..550fe83 100644
      // fprintf(stderr, "GfxDpLoadBlock: line_size = 0x%x; orig = 0x%x; bpp=%d; lrs=%d\n", size_bytes,
      // orig_size_bytes,
      //         mRdp->texture_to_load.siz, lrs);
-@@ -2680,6 +3263,7 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
+@@ -2680,6 +3264,7 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
  }
  
  void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t lrs, uint32_t lrt) {
@@ -1542,7 +1543,7 @@ index a1907a1..550fe83 100644
      SUPPORT_CHECK(tile == G_TX_LOADTILE);
  
      uint32_t word_size_shift = 0;
-@@ -2731,6 +3315,15 @@ void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32
+@@ -2731,6 +3316,15 @@ void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata = mRdp->texture_to_load.raw_tex_metadata;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].addr = mRdp->texture_to_load.addr + start_offset_bytes;
@@ -1558,7 +1559,7 @@ index a1907a1..550fe83 100644
  
      const std::string_view texPath =
          mRdp->texture_to_load.raw_tex_metadata.resource != nullptr
-@@ -2930,7 +3523,13 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
+@@ -2930,7 +3524,13 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
  
  void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry, uint8_t tile, int16_t uls,
                                          int16_t ult, int16_t dsdx, int16_t dtdy, bool flip) {
@@ -1573,7 +1574,7 @@ index a1907a1..550fe83 100644
      uint64_t saved_combine_mode = mRdp->combine_mode;
      if ((mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE)) == G_CYC_COPY) {
          // Per RDP Command Summary Set Tile's shift s and this dsdx should be set to 4 texels
-@@ -3043,6 +3642,11 @@ void Interpreter::GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_
+@@ -3043,6 +3643,11 @@ void Interpreter::GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_
  }
  
  void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry) {
@@ -1585,7 +1586,7 @@ index a1907a1..550fe83 100644
      if (mRdp->color_image_address == mRdp->z_buf_address) {
          // Fullscreen Z clears are redundant — already done by glClear at frame start.
          bool isFullScreen = (ulx <= 0 && uly <= 0 && lrx >= (int32_t)(mNativeDimensions.width - 1) * 4 &&
-@@ -3078,6 +3682,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
+@@ -3078,6 +3683,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
      }
      uint32_t mode = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE));
  
@@ -1609,7 +1610,7 @@ index a1907a1..550fe83 100644
      // Expand fullscreen fill rects to cover widescreen viewports.
      // Without this, screen clears and fades only cover the native 4:3 area.
      if (ulx == 0 && uly == 0) {
-@@ -3116,8 +3737,139 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
+@@ -3116,8 +3738,173 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
      mRdp->z_buf_address = zBufAddr;
  }
  
@@ -1649,6 +1650,7 @@ index a1907a1..550fe83 100644
 +}
 +
  void Interpreter::GfxDpSetColorImage(uint32_t format, uint32_t size, uint32_t width, void* address) {
++    bool mainFbSelected = false;
 +    if (getenv("PORT_TEXLOG") || gPortDrawLog) fprintf(stderr, "[cimg] fmt=%u siz=%u w=%u addr=%p\n", format, size, width, address);
      mRdp->color_image_address = address;
 +    uint32_t pixelWidth = width + 1; // the field holds width - 1
@@ -1729,6 +1731,7 @@ index a1907a1..550fe83 100644
 +            fb = mf->second;
 +        }
 +        sMainFbDrawStamp[(uintptr_t)address] = ++sDrawStamp;
++        mainFbSelected = true;
 +        if (fb != mGameFb) {
 +            Flush();
 +            mGameFb = fb;
@@ -1746,10 +1749,42 @@ index a1907a1..550fe83 100644
 +        mNativeDimensions.width = pixelWidth > 400 ? 640 : 320;
 +        mNativeDimensions.height = pixelWidth > 400 ? 480 : 240;
 +    }
++    // PORT: with a window wider than 4:3 the game's frame buffers have margins the N64 picture does not cover. 3D scenes
++    // draw into them, 2D screens (title, menus) do not, so each of the two or three rotating frame buffers kept
++    // whatever an earlier scene left there and the margins flickered as the buffers took turns. The first frame
++    // buffer the game selects in a frame gets its margins cleared to black; scenes that reach into them redraw them.
++    if (mainFbSelected && !sMarginsClearedThisRun) {
++        sMarginsClearedThisRun = true;
++        static const bool sNoMarginClear = getenv("PORT_NO_MARGIN_CLEAR") != nullptr; // debug: old behaviour
++        float aspect = mCurDimensions.height > 0 ? (float)mCurDimensions.width / mCurDimensions.height : 0.0f;
++        if (!sNoMarginClear && aspect > 4.0f / 3.0f * 1.01f) {
++            Flush();
++            const auto savedFill = mRdp->fill_color;
++            const uint32_t savedOmh = mRdp->other_mode_h, savedOml = mRdp->other_mode_l;
++            const uint64_t savedCombine = mRdp->combine_mode;
++            const auto savedScissor = mRdp->scissor;
++            mRdp->fill_color = { 0, 0, 0, 255 };
++            mRdp->other_mode_h = (savedOmh & ~(3U << G_MDSFT_CYCLETYPE)) | G_CYC_FILL;
++            mRdp->other_mode_l = 0; // no depth, no blending
++            mRdp->scissor = { 0, 0, (uint32_t)mCurDimensions.width, (uint32_t)mCurDimensions.height };
++            mRdp->viewport_or_scissor_changed = true;
++            const int32_t right = (int32_t)mNativeDimensions.width * 4, far = 4 * 4096;
++            GfxDpFillRectangle(-far, -far, -4, far);       // left of the picture (fill mode adds one pixel)
++            GfxDpFillRectangle(right, -far, right + far, far); // right of it
++            Flush();
++            mRdp->fill_color = savedFill;
++            mRdp->other_mode_h = savedOmh;
++            mRdp->other_mode_l = savedOml;
++            mRdp->combine_mode = savedCombine;
++            mRdp->scissor = savedScissor;
++            mRdp->viewport_or_scissor_changed = true;
++            mRenderingState.scissor = {};
++        }
++    }
  }
  
  void Interpreter::GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode) {
-@@ -3252,7 +4004,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
+@@ -3252,7 +4039,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
                            (float)(1 << 10) * realSW, (float)(1 << 10) * realSH, false);
  }
  
@@ -1773,7 +1808,7 @@ index a1907a1..550fe83 100644
      // Segmented?
      if (w1 & 1) {
          uint32_t segNum = (uint32_t)(w1 >> 24);
-@@ -3389,10 +4157,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3389,10 +4192,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      return false;
  }
  
@@ -1798,7 +1833,7 @@ index a1907a1..550fe83 100644
  
      gfx->GfxSpMatrix(C0(0, 8) ^ F3DEX2_G_MTX_PUSH, (const int32_t*)gfx->SegAddr(mtxAddr));
      return false;
-@@ -3632,7 +4414,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3632,7 +4449,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
  
@@ -1820,7 +1855,7 @@ index a1907a1..550fe83 100644
  
      return false;
  }
-@@ -3736,16 +4531,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3736,16 +4566,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
  }
  
  // F3D, F3DEX, and F3DEX2 do the same thing but F3DEX2 has its own opcode number
@@ -1847,7 +1882,7 @@ index a1907a1..550fe83 100644
          (*cmd0) = subGFX;
          g_exec_stack.branch(cmd);
          return true; // shortcut cmd increment
-@@ -4018,7 +4823,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
+@@ -4018,7 +4858,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
      uintptr_t i = (uintptr_t)gfx->SegAddr(cmd->words.w1);
@@ -1919,7 +1954,7 @@ index a1907a1..550fe83 100644
      char* imgData = (char*)i;
      uint32_t texFlags = 0;
      RawTexMetadata rawTexMetdata = {};
-@@ -4947,6 +5816,19 @@ static void gfx_step() {
+@@ -4947,6 +5851,19 @@ static void gfx_step() {
          } else {
              SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, for loaded ucode: {}", (uint8_t)opcode,
                              (uint32_t)ucode_handler_index);
@@ -1939,7 +1974,7 @@ index a1907a1..550fe83 100644
          }
      } else {
          SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, invalid ucode: {}", (uint8_t)opcode, (uint32_t)ucode_handler_index);
-@@ -5005,8 +5887,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
+@@ -5005,8 +5922,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
      mGameFb = mRapi->CreateFramebuffer();
      mGameFbMsaaResolved = mRapi->CreateFramebuffer();
  
@@ -1950,7 +1985,7 @@ index a1907a1..550fe83 100644
  
      for (int i = 0; i < MAX_SEGMENT_POINTERS; i++) {
          mSegmentPointers[i] = 0;
-@@ -5109,16 +5991,28 @@ void Interpreter::StartFrame() {
+@@ -5109,16 +6026,28 @@ void Interpreter::StartFrame() {
  
      mPrvDimensions = mCurDimensions;
      mPrevNativeDimensions = mNativeDimensions;
@@ -1988,7 +2023,7 @@ index a1907a1..550fe83 100644
          }
          if (mMsaaLevel > 1 && !ViewportMatchesRendererResolution()) {
              mRapi->UpdateFramebufferParameters(mGameFbMsaaResolved, mCurDimensions.width, mCurDimensions.height, 1,
-@@ -5173,7 +6067,116 @@ void Interpreter::RunGuiOnly() {
+@@ -5173,7 +6102,117 @@ void Interpreter::RunGuiOnly() {
      }
  }
  
@@ -2101,11 +2136,12 @@ index a1907a1..550fe83 100644
 +}
 +
  void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_replacements) {
++    sMarginsClearedThisRun = false;
 +    if (getenv("PORT_TILE1LOG")) fprintf(stderr, "[tile1] -- run begin\n");
      SpReset();
  
      mGetPixelDepthPending.clear();
-@@ -5185,7 +6188,10 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5185,7 +6224,10 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
                                         false, true, true, !mRendersToFb);
      mRapi->StartFrame();
      mRapi->StartDrawToFramebuffer(mRendersToFb ? mGameFb : 0, (float)mCurDimensions.height / mNativeDimensions.height);
@@ -2117,7 +2153,7 @@ index a1907a1..550fe83 100644
      mRdp->viewport_or_scissor_changed = true;
      mRenderingState.viewport = {};
      mRenderingState.scissor = {};
-@@ -5194,7 +6200,23 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5194,7 +6236,23 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
      g_exec_stack.start((F3DGfx*)commands);
      while (!g_exec_stack.cmd_stack.empty()) {
          auto cmd = g_exec_stack.cmd_stack.top();
@@ -2141,7 +2177,7 @@ index a1907a1..550fe83 100644
          if (dbg->IsDebugging()) {
              g_exec_stack.gfx_path.push_back(cmd);
              if (dbg->HasBreakPoint(g_exec_stack.gfx_path)) {
-@@ -5209,8 +6231,15 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5209,8 +6267,15 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
              }
              g_exec_stack.gfx_path.pop_back();
          }
