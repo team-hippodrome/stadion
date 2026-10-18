@@ -880,6 +880,19 @@ sample count after every VI frame).
     uninstrumented byte copies now (no change in normal builds).
   The battle now runs to "End Battle!" (60000 frames clean under ASan); attack effects (Quick Attack, Thunder Wave,
   Flamethrower, Thunderbolt, Leech Seed, Sleep Powder, Take Down), faints, switches and sleep look right.
+- AddressSanitizer pass over the recorded routes (build_asan; Gallery, all Kids Club games, Who's the Best, cups,
+  Lab, trade machine, Castle, Mewtwo, Misty, intro/demos, credits, VS screen, GB Tower, Yellow battle, Lab
+  transfer, GB-party Free Battle): all clean now. Fixed, each an N64 layout assumption that does not hold for
+  separate host globals:
+  - widget_toolkit_2.c: D_8780FCCC[2] + D_8780FCD0[4] are one 6-entry array (pause menu grid, mini-games).
+  - clefairy_game.c: the arrow (12x10, drawn 11x11) and 8x8 (drawn 9x9) textures got the bytes that follow them on
+    the N64 (gsSPEndDisplayList, then the next texture's start) as an extra row.
+  - gb_tower_emulator_7F9A0.c: D_8122C500[0x1F] + D_8122C51F one 32-byte block (Transfer Pak register writes);
+    D_8122B1E0/D_8122B1E4 one array (indexed as (&D_8122B1E0)[i]).
+  - gb_tower_emulator_86920.c: the APU setup filled D_812346EC up to &D_812346F2: now the three entries directly.
+  - battle_engine_3591E0.c: a ribbon effect without a free auxiliary-effect slot keeps index -1; Draw/Spawn/Update
+    read element -1 (unrelated memory): negative indices are inactive now.
+  Normal-build pictures of all these routes are unchanged (Clefairy's arrow edge by <0.05).
 - Victory Palace with the unlocked save (build/tour/vpfull): hub, the Hall of Fame pedestals (No.001 Bulbasaur to
   No.003 Venusaur, empty here) and back to the hub and main menu: match ares.
 - Attract sequence (no input, frames 600-8600, build/tour/attract), paired by tools/match_frames.py: 34 of 81 port
