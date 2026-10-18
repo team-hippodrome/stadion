@@ -146,7 +146,9 @@ int main(int argc, char** argv) {
     // The window must be driven from the process's main thread; game threads run on host threads.
     while (Port::PumpFrame()) {
         Port::PumpRspTasks();
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        // up to 1 ms, less when the game queues an RSP task: a scene's 300 JPEG tasks each waited a full loop pass
+        // (a 0.35 s pause at the title-to-menu change)
+        Port::WaitForRspTasks(std::chrono::milliseconds(1));
     }
     Port::StopDevices();
     // Window closed: end the process at once, as on SIGTERM. Returning from main ran the static destructors while

@@ -118,6 +118,7 @@ per player with the launcher's Controls button:
 - `libultraship/` — submodule; the port's renderer changes are in `patches/libultraship.patch`
 - `ghostship-ref/` — submodule (fonts used by `tools/make_o2r.py`)
 - `tools/` — launcher, save editor, ares comparison tooling (`tools/tour.py`), replay helpers
+  (`tools/run_replays.py` plays all stored recordings without showing the window and reports which still pass)
 - `replays/` — input recordings used as regression tests
 - `PORTING_NOTES.md` — what was done, how it was checked against ares, debug switches
 

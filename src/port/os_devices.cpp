@@ -668,6 +668,7 @@ std::atomic<uint64_t> gStopAt{ 0 }; // PORT_STOP_AT=<frame>: draw and capture th
 std::mutex gTaskLock;
 std::condition_variable gTaskDoneCv;
 uint64_t gTasksSubmitted = 0, gTasksProcessed = 0;
+std::condition_variable gTaskQueuedCv; // the window loop waits on it (Port::WaitForRspTasks)
 std::deque<OSTask*> gTasks;
 OSTask* gLoaded = nullptr;
 
@@ -689,10 +690,13 @@ void LockstepClock() {
         while (!(TasksDrained() && port_ThreadsIdle() && TasksDrained())) {
             if (gStop) return;
             std::this_thread::sleep_for(std::chrono::microseconds(20));
-            if (!reported && std::chrono::steady_clock::now() - waitStart > std::chrono::seconds(3)) {
+            // (after 150 ms with PORT_TRACE_PACING=1, to see what a hitch waits for)
+            static const auto reportAfter = getenv("PORT_TRACE_PACING") ? std::chrono::milliseconds(150)
+                                                                         : std::chrono::milliseconds(3000);
+            if (!reported && std::chrono::steady_clock::now() - waitStart > reportAfter) {
                 reported = true; // a thread that never blocks stops the clock: say which one
-                fprintf(stderr, "[clock] frame %llu: game not idle for 3 s (tasks drained: %d)\n",
-                        (unsigned long long)gTick.load(), (int)TasksDrained());
+                fprintf(stderr, "[clock] frame %llu: game not idle for %lld ms (tasks drained: %d)\n",
+                        (unsigned long long)gTick.load(), (long long)reportAfter.count(), (int)TasksDrained());
                 port_DumpThreads();
             }
         }
@@ -861,6 +865,7 @@ void osSpTaskStartGo(OSTask* t) {
     std::unique_lock<std::mutex> g(gTaskLock);
     gTasks.push_back(t ? t : gLoaded);
     uint64_t mine = ++gTasksSubmitted;
+    gTaskQueuedCv.notify_one();
     // The RSP/RDP of the original finish before the CPU can free or reuse the task's data (scenes unload display-list
     // data right after submitting the last frame). Rendering here happens later on the window thread, so the submitting
     // thread keeps the scheduling token and waits for it. In realtime mode a timeout keeps boot (before the window
@@ -1010,6 +1015,8 @@ void Port::PumpRspTasks() {
             t = gTasks.front();
             gTasks.pop_front();
         }
+        static const bool sTracePacing = getenv("PORT_TRACE_PACING") != nullptr;
+        auto taskStart = std::chrono::steady_clock::now();
         if (t->t.type == M_GFXTASK) {
             static uint64_t gfxCount = 0;
             bool stopFrame, shotFrame;
@@ -1033,6 +1040,28 @@ void Port::PumpRspTasks() {
         if (t->t.type == M_AUDTASK) { // audio microcode, emulated on the host (audio_hle.cpp)
             Port_RunAudioTask(t->t.data_ptr, (uint32_t)t->t.data_size);
         }
+        if (sTracePacing) { // PORT_TRACE_PACING=1: RSP tasks that took long on the window thread
+            double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - taskStart).count();
+            // per retrace and task type: many short tasks add up too (a scene's JPEG backgrounds)
+            static uint64_t sumTick = 0;
+            static double sumMs[8] = {};
+            static int sumCount[8] = {};
+            uint64_t tick = gTick.load();
+            if (tick != sumTick) {
+                for (int k = 0; k < 8; k++) {
+                    if (sumMs[k] > 30 || sumCount[k] > 20) {
+                        fprintf(stderr, "[task] frame %llu: %d tasks of type %d took %.1f ms\n",
+                                (unsigned long long)sumTick, sumCount[k], k, sumMs[k]);
+                    }
+                    sumMs[k] = 0;
+                    sumCount[k] = 0;
+                }
+                sumTick = tick;
+            }
+            int k = (int)std::min<uint32_t>(t->t.type, 7);
+            sumMs[k] += ms;
+            sumCount[k]++;
+        }
         // The completion is posted before the task counts as processed: in between, the lockstep clock saw the game
         // idle with all tasks drained and could deliver the next retrace first (runs then depended on host speed).
         port_PostEvent(OS_EVENT_SP);
@@ -1043,6 +1072,11 @@ void Port::PumpRspTasks() {
         gTaskDoneCv.notify_all();
     }
     TryPresentCpuFrame(); // a frame buffer swapped while the tasks above ran
+}
+
+void Port::WaitForRspTasks(std::chrono::milliseconds timeout) {
+    std::unique_lock<std::mutex> g(gTaskLock);
+    gTaskQueuedCv.wait_for(g, timeout, [] { return !gTasks.empty() || gStop; });
 }
 
 void Port::StopDevices() {

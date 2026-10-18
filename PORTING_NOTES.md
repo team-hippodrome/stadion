@@ -254,7 +254,11 @@ allows (~20x; the intro-to-team-select path takes ~10 s), `PORT_SPEED=10` caps a
 `PORT_REALTIME=1` restores the old wall-clock threads.
 `PORT_TRACE_PACING=1` logs hitches: retraces that came late in wall-clock time (with how long the game was busy),
 presented frames more than 40 ms apart or slow to draw, and how long each new Metal shader took to build. A Metal shader
-now builds its pipeline only for the window's MSAA level (others on first use), not for every supported level.
+now builds its pipeline only for the window's MSAA level (others on first use), not for every supported level. It also
+sums RSP tasks per retrace (`[task]`) and lists the game threads when a retrace waits more than 150 ms. That found the
+pause at boot and at the title-to-menu change (~0.35 s): each scene decodes its backgrounds in 300 JPEG tasks, and each
+task waited for the next window-loop pass, which slept 1 ms; the loop now wakes when a task is queued
+(`Port::WaitForRspTasks`), and the pause is ~20 ms.
 
 - Every run records the pad state per frame to `build/last_input.rec` (`PORT_RECORD=<file>` to choose another name). A
   crash ends the recording at the crash frame, and the crash report prints `game frame N`. Packaged builds (AppImage,
@@ -262,6 +266,12 @@ now builds its pipeline only for the window's MSAA level (others on first use), 
   `~/Library/Application Support/com.team-hippodrome.pokestadium`). On Windows, `pokestadium.exe` has no console
   window; stderr reaches the console it was started from, a redirection (`2> log.txt`), or with `PORT_CONSOLE=1` a
   console window of its own.
+- `tools/run_replays.py` plays every stored recording with the game window hidden (`PORT_HIDDEN_WINDOW=1`), three at a
+  time, each from a fresh copy of its save (`replays/<name>.flash`, else `replays/default.flash`), up to the stop frame
+  in `replays/replays.txt` (default: the recording's end), and prints OK / DIFF / FREEZE / CRASH / TIMEOUT per recording.
+  The stop frame is compared with a local reference picture in `build/replays/ref/` (written on the first run, or with
+  `--update`; game pictures are not committed). `--all` adds the long recordings, names run only those. The default
+  set takes about a minute on an M-series Mac.
 - `tools/replay.sh <recording> [frame]` replays it at max speed and stops at `frame` (default: where the recording ended,
   i.e. the crash), saving that frame as `build/shots/stop_<frame>.png`. `STOP=live` as frame keeps running with live
   input afterwards. Verified: three replays of a crash give identical state changes and crash at the same frame.
