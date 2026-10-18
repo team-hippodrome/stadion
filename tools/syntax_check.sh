@@ -4,7 +4,7 @@
 cd "$(dirname "$0")/.."
 export OUT=${1:-build/syntax}
 mkdir -p "$OUT"
-export FLAGS=$(tr '\n' ' ' < game/compile_flags.txt)
+export FLAGS=$(tr '\n' ' ' < tools/compile_flags.txt)
 check_one() {
   f=$1; log="$OUT/$(echo "$f" | tr / _).log"
   clang -fsyntax-only $FLAGS "$f" 2> "$log"

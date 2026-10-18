@@ -66,10 +66,21 @@ Useful environment variables (all in PORTING_NOTES.md): `PORT_FLASH_FILE` (Stadi
 
 ## Layout
 
-- `game/` — the decompiled game (C), adapted for 64-bit hosts
+- `game/` — submodule: the decompiled game (C), adapted for 64-bit hosts (see below)
 - `src/port/` — host layer: OS/threads, VI, controllers, Transfer Pak, flash saves, GB core
+- `src/port/sdk/` — stand-ins for the N64 SDK headers the game includes (`ultra64.h`, `PR/*.h`, force-included `port_compat.h`)
 - `libultraship/` — submodule; the port's renderer changes are in `patches/libultraship.patch`
 - `ghostship-ref/` — submodule (fonts used by `tools/make_o2r.py`)
 - `tools/` — launcher, save editor, ares comparison tooling (`tools/tour.py`), replay helpers
 - `replays/` — input recordings used as regression tests
 - `PORTING_NOTES.md` — what was done, how it was checked against ares, debug switches
+
+## The game submodule
+
+`game/` is branch `pc-port` of [michiiik/pokestadium](https://github.com/michiiik/pokestadium/tree/pc-port): the
+decompilation at commit 697f9ba7 plus commits that adapt its sources for 64-bit hosts. Only `game/src`, `game/include`
+and the libultra files listed in `cmake/ultralib_sources.txt` are compiled; the rest of the decomp (asm, assets,
+tools) is unused. To change game code: commit in `game/` on `pc-port`, push it there, then commit the new submodule
+commit here. `tools/gen_func_table.py` and `tools/gen_fragment_entries.py` write into `game/src`, so their output is
+committed the same way; they (and `tools/gen_abs_syms.py`) read the map of an unmodified decomp build in
+`../pokestadium`.

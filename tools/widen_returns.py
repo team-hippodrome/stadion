@@ -27,7 +27,7 @@ for l in (root / "build/ptr/intconv.txt").read_text().splitlines():
         cm = re.match(r"([A-Za-z_]\w*)\s*\(", s[col - 1:])
         if cm: names.add(cm.group(1))
 # keep only functions that are defined (not macros) under game/src
-srcs = [p for p in (root / "game").rglob("*") if p.suffix in (".c", ".h") and "lib/ultralib/include" not in str(p) and not str(p.relative_to(root)).startswith("game/port/")]
+srcs = [p for p in (p for d in ("src", "include", "lib") for p in (root / "game" / d).rglob("*")) if p.suffix in (".c", ".h") and "lib/ultralib/include" not in str(p)]
 SKIP = {"Audio_WriteU32BE", "osRecvMesg", "osSendMesg"}
 n = 0
 for name in sorted(names - SKIP):

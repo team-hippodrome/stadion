@@ -1,0 +1,19 @@
+# libultra sources from the decomp (game/lib/ultralib/src) that the port compiles; the rest of libultra is
+# provided by libultraship or src/port. Read by CMakeLists.txt and tools/ptr_warnings.sh.
+audio/bnkf.c
+audio/copy.c
+audio/heapalloc.c
+audio/heapinit.c
+audio/sl.c
+gu/lookatref.c
+gu/mtxcatf.c
+gu/mtxcatl.c
+gu/mtxutil.c
+gu/normalize.c
+gu/ortho.c
+gu/perspective.c
+gu/random.c
+gu/rotate.c
+gu/rotaterpy.c
+gu/scale.c
+gu/translate.c

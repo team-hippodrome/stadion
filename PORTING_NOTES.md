@@ -44,20 +44,22 @@ for 6s, no exception. Not verified visually (screenshot capture was unavailable)
 
 
 ## Stage 1 (done): all 347 game sources compile for the host
-`game/` is a copy of the decomp's `src/` and `include/` (plus the SDK headers libultraship does not provide
-under `game/lib/ultralib/include`). The decomp checkout in `../pokestadium` is untouched.
+`game/` started as a copy of the decomp's `src/` and `include/` (plus the SDK headers libultraship does not provide
+under `game/lib/ultralib/include`). It is now a submodule: branch `pc-port` of michiiik/pokestadium, the decomp at
+697f9ba7 plus the port's changes (see README "The game submodule"). The SDK stand-in headers described below live in
+`src/port/sdk/`. The decomp checkout in `../pokestadium` is untouched.
 
     tools/syntax_check.sh              # clang -fsyntax-only over all of game/src: 0 errors / 347 files
     cmake --build build --target stadium_game   # compiles all 347 files into build/libstadium_game.a
 
 What was changed to get there:
-- `game/port/ultra64.h` replaces the SDK `<ultra64.h>`: includes libultraship's libultra headers one by one
+- `src/port/sdk/ultra64.h` replaces the SDK `<ultra64.h>`: includes libultraship's libultra headers one by one
   (not `libultra.h`, whose `abi.h` is a different HLE audio command set and clashes with the SDK `abi.h`
   that libnaudio needs), hides libultraship's `OSMesg` union so the game keeps the SDK's `void*` form, and
   maps `osSendMesg`/`osRecvMesg`/... to `port_*` names that the port must implement (blocking queues for
   host threads). It also maps `gSPDisplayList/gSPVertex/gSPSegment` to libultraship's `__`-prefixed forms.
-- `game/port/PR/*.h` forward the game's `<PR/...>` includes to that header.
-- `game/port/port_compat.h` (force-included) declares libultra pieces libultraship lacks: threads, EPi/PI,
+- `src/port/sdk/PR/*.h` forward the game's `<PR/...>` includes to that header.
+- `src/port/sdk/port_compat.h` (force-included) declares libultra pieces libultraship lacks: threads, EPi/PI,
   Transfer Pak (`osGbpak*`), flash constants, CPU register helpers, `_Printf`, `osTvType`, etc.
 - Local patch to the vendored libultraship: `include/libultraship/libultra/mbi.h` skips `abi.h` when
   `PORT_NO_LUS_ABI` is defined. Reapply if libultraship is re-cloned.
@@ -67,7 +69,7 @@ What was changed to get there:
   `uintptr_t` (script-like data in fragments), `ModelSegment` segment fields, `unk_D_8006FF00.unk_08/unk_18`,
   `unk_D_8140E728_01C_00C.arg`. Readers of these tables still assume 4-byte words; each needs an audit
   (find them with `grep -rn PORT64 game`). `tools/widen_addr_tables.py` produced most of them.
-- The flags in `game/compile_flags.txt` keep `-Wno-int-conversion -Wno-incompatible-pointer-types` etc. from
+- The flags in `tools/compile_flags.txt` keep `-Wno-int-conversion -Wno-incompatible-pointer-types` etc. from
   the original build and `-w`; "compiles" does not mean pointer-correct. Truncating `(u32)ptr`/`(s32)ptr`
   casts (553 `(u32)` casts in the sources) still compile and will misbehave at runtime.
 
@@ -93,7 +95,7 @@ New pieces (all under src/port/):
   OSThread runs (highest priority, FIFO among equals); switches happen at libultra calls and when an
   interrupt-like post wakes a higher-priority thread while nothing holds the token. The original idle thread
   (id 1) parks forever when it drops to priority 0. `port_osSendMesg/RecvMesg/...` replace the libultraship
-  non-blocking queues (names remapped in `game/port/ultra64.h`).
+  non-blocking queues (names remapped in `src/port/sdk/ultra64.h`).
 - `os_devices.cpp`: cartridge ROM loaded from the path on the command line and served by `osEPiStartDma`; VI
   retrace thread (60 Hz) feeding `osViSetEvent`; `osSpTaskStartGo` queues RSP tasks that the window thread
   runs (`Port::PumpRspTasks`): gfx tasks go to Fast3D then post DP/SP events, other tasks complete at once;
@@ -194,7 +196,7 @@ Done:
 - **Code pointers in data** (`tools/gen_func_table.py` -> `game/src/port_func_table.c`, `Port_ResolveCode`): maps a 32-bit
   link address back to the statically linked function, keyed by the fragment loaded in that slot.
 - **Raw display lists** (`src/port/gfx_translate.cpp`): F3DEX2 lists, Vtx arrays, matrices, viewports translated on first
-  use and cached; hooked through `gSPDisplayList/gSPBranchList/gSPVertex/gSPMatrix` in `game/port/ultra64.h`. Tracks list-local
+  use and cached; hooked through `gSPDisplayList/gSPBranchList/gSPVertex/gSPMatrix` in `src/port/sdk/ultra64.h`. Tracks list-local
   segment bases (`G_MOVEWORD segment`). NULL branch placeholders become `G_ENDDL`. Sign-extended `s32` addresses are normalised.
 - Asset-layer fixes found with AddressSanitizer (`cmake -DPORT_ASAN=ON`, `tools/asan_run.sh`): undersized `ModeSettings`
   destination, sine/cosine tables that the decomp split but the code indexes as one array (now one `gSineTable[0x1400]`),
@@ -576,7 +578,7 @@ the Pokédex flag and a Pokémon Center save (`tools/gb_save.py --got-pokedex`; 
   text index for an unset gift Pokémon.
 - GB Tower thread structs and two more scene structs were allocated with N64 sizes (now sizeof).
 - Hub sparkle trail and the Stadium sparkle table: original out-of-range accesses, padded / merged.
-- `osRecvMesg` now writes exactly `sizeof(*msg)` bytes for typed destinations (game/port/ultra64.h).
+- `osRecvMesg` now writes exactly `sizeof(*msg)` bytes for typed destinations (src/port/sdk/ultra64.h).
 How they were found: `tools/ptr_warnings.sh`-style clang scans (`-Wint-conversion` errors are hidden by the build's
 flags: grep for "error:" too) and the ASan build (`cmake --build build_asan`, run a tour's port.rec with
 PORT_REPLAY/PORT_STOP_AT and ASAN_OPTIONS=halt_on_error=1). Both point at the exact site; the routes above now run
