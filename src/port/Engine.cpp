@@ -368,6 +368,10 @@ bool PumpFrame() {
     return true;
 }
 
+std::shared_ptr<Fast::Fast3dWindow> GetWindow() {
+    return sWindow;
+}
+
 void Shutdown() {
     sWindow = nullptr;
     sContext = nullptr;

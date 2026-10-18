@@ -1,5 +1,8 @@
 #include "Engine.h"
 #include "port_platform.h"
+#include "launcher.h"
+
+#include <string>
 
 #include <chrono>
 #include <cstdio>
@@ -86,17 +89,30 @@ static void InstallSignalHandlers() {
 int main(int argc, char** argv) {
     // The port tells N64 addresses (below 4 GB) from host pointers; keep host allocations above 4 GB (Windows).
     Port_ReserveLowAddressSpace();
-    const char* romPath = argc > 1 ? argv[1] : "baserom.z64";
-    if (!Port::LoadRom(romPath)) {
-        fprintf(stderr, "Could not read ROM '%s'\nUsage: pokestadium <path to Pokemon Stadium (USA) .z64>\n", romPath);
-        return 1;
-    }
     Port_AltSignalStack();
     InstallSignalHandlers();
+    // With a ROM argument the game starts right away (scripts, replays); without one, the launcher (launcher.cpp)
+    // asks for the ROM, the save and the Transfer Pak cartridges in the game window first.
+    std::string romPath = argc > 1 ? argv[1] : "";
+    if (!romPath.empty() && !Port::LoadRom(romPath.c_str())) {
+        fprintf(stderr, "Could not read ROM '%s'\nUsage: pokestadium [path to Pokemon Stadium (USA) .z64]\n", romPath.c_str());
+        return 1;
+    }
     if (!Port::Init()) {
         return 1;
     }
     InstallSignalHandlers();
+    if (romPath.empty()) {
+        romPath = Port::RunLauncher(Port::GetWindow());
+        if (romPath.empty()) {
+            fflush(nullptr);
+            _exit(0);
+        }
+        if (!Port::LoadRom(romPath.c_str())) {
+            fprintf(stderr, "Could not read ROM '%s'\n", romPath.c_str());
+            return 1;
+        }
+    }
     Main();
     // The window must be driven from the process's main thread; game threads run on host threads.
     while (Port::PumpFrame()) {

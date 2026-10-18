@@ -3,6 +3,10 @@
 #include <cstdint>
 #include <memory>
 
+namespace Fast {
+class Fast3dWindow;
+}
+
 // Owns the libultraship context and window for the Pokemon Stadium port.
 namespace Port {
 bool Init();
@@ -14,6 +18,8 @@ void Shutdown();
 
 // Cartridge ROM image the game reads through PI DMA (osEPiStartDma).
 bool LoadRom(const char* path);
+// the game window (after Init), for the launcher
+std::shared_ptr<Fast::Fast3dWindow> GetWindow();
 const uint8_t* RomData();
 size_t RomSize();
 

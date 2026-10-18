@@ -50,7 +50,11 @@ For Windows on ARM: `MINGW_TRIPLE=aarch64-w64-mingw32` and the `arm64-mingw-stat
 `.github/workflows/build.yml` builds all three on every push; `.github/workflows/release.yml` (run by hand from the
 Actions tab) builds them, tags the commit `v<version>` and `latest`, and publishes a GitHub release.
 
-Run directly: `cd build && ./pokestadium "/path/to/Pokemon Stadium (USA).z64"`.
+Start `pokestadium` (`pokestadium.exe` on Windows) without arguments to get the launcher (all platforms): pick the
+Stadium ROM and save and, per player, a Game Boy cartridge and save for the Transfer Pak, then PLAY. The choices are
+remembered (`pokestadium.cfg.json`); Auto-play skips the launcher next time (hold Shift while starting to see it again),
+and Debug adds a save-editor button (needs python3). With a ROM path as argument the game starts right away:
+`cd build && ./pokestadium "/path/to/Pokemon Stadium (USA).z64"`.
 Useful environment variables (all in PORTING_NOTES.md): `PORT_FLASH_FILE` (Stadium save), `PORT_GB_ROM` /
 `PORT_GB_SAVE` (Transfer Pak cartridge of player 1; `PORT_GB_ROM2..4` for the others).
 

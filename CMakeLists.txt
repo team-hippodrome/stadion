@@ -40,6 +40,7 @@ add_subdirectory(libultraship ${CMAKE_BINARY_DIR}/libultraship)
 add_executable(pokestadium
   src/port/main.cpp
   src/port/Engine.cpp
+  src/port/launcher.cpp
   src/port/stubs.c
   src/port/port_platform.c
   src/port/generated/abs_syms.S
