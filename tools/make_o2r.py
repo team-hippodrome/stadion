@@ -12,11 +12,13 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         if p.is_file():
             data = p.read_bytes()
             if p.suffix == ".metal":
-                # The macOS 27 Metal compiler rejects address-space qualifiers on by-value/reference helper
-                # parameters ("parameter may not be qualified with an address space"); drop them.
+                # The macOS 27 Metal compiler rejects address-space qualifiers on by-value helper parameters
+                # ("parameter may not be qualified with an address space"); drop them there. References keep
+                # theirs: older Metal language versions (binaries built with an older SDK, e.g. the macOS 15 CI
+                # runner) require it ("reference type must have explicit address space qualifier").
                 import re
                 text = data.decode()
-                text = re.sub(r"\bthread (const )", r"\1", text)
+                text = re.sub(r"\bthread (const \w+(?:<\w+>)? )(?=\w)", r"\1", text)
                 data = text.encode()
             z.writestr("shaders/" + p.relative_to(shaders).as_posix(), data)
     # launcher pictures (cartridges, N64), shown by src/port/launcher.cpp
