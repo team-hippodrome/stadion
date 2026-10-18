@@ -1012,7 +1012,9 @@ OpenGL backend. `PORT_GL_FBLOG=1` lists the GL frame buffers' sizes and inversio
 
 Open (macOS's optional OpenGL backend only, the 4.1 core profile; not Metal or Linux): the "Game Pak Check" label text
 is missing (its box is drawn). Its render target holds the same pixels as on Linux, no GL errors are raised, and it
-stays missing with dual-source blending off (`PORT_GL_NO_DUAL=1`).
+stays missing with dual-source blending off (`PORT_GL_NO_DUAL=1`). The generated GLSL is identical to Linux's apart from the output
+declarations (`PORT_GL_DUMP_SHADERS=<dir>` writes every shader), and texture filtering makes no difference, so the cause
+is in Apple's OpenGL driver state; not pursued further since Metal is the macOS backend.
 
 Against ares, what is not a rendering difference:
 - Opponent choice (gyms, cups, Mewtwo, and every tour that fights one): `session.c` burns `osGetCount() & 0xF` random
