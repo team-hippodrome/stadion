@@ -91,7 +91,11 @@ remembered (`pokestadium.cfg.json`); Auto-play skips the launcher next time (hol
 and Debug adds a save-editor button (needs python3). With a ROM path as argument the game starts right away:
 `cd build && ./pokestadium "/path/to/Pokemon Stadium (USA).z64"`.
 Useful environment variables (all in PORTING_NOTES.md): `PORT_FLASH_FILE` (Stadium save), `PORT_GB_ROM` /
-`PORT_GB_SAVE` (Transfer Pak cartridge of player 1; `PORT_GB_ROM2..4` for the others).
+`PORT_GB_SAVE` (Transfer Pak cartridge of player 1; `PORT_GB_ROM2..4` for the others), `PORT_SOUND=0` (no sound
+output; it is on by default at normal speed).
+
+Sound: the game's music, sound effects, Pokémon cries and the announcer play through SDL3; the N64 audio microcode they
+need is emulated in `src/port/audio_hle.cpp`.
 
 Controls (the same defaults as [pokemonStadiumRecomp](https://github.com/michiiik/pokemonStadiumRecomp)); change them
 per player with the launcher's Controls button:
@@ -109,7 +113,7 @@ per player with the launcher's Controls button:
 ## Layout
 
 - `game/` — submodule: the decompiled game (C), adapted for 64-bit hosts (see below)
-- `src/port/` — host layer: OS/threads, VI, controllers, Transfer Pak, flash saves, GB core
+- `src/port/` — host layer: OS/threads, VI, controllers, sound (audio microcode, AI), Transfer Pak, flash saves, GB core
 - `src/port/sdk/` — stand-ins for the N64 SDK headers the game includes (`ultra64.h`, `PR/*.h`, force-included `port_compat.h`)
 - `libultraship/` — submodule; the port's renderer changes are in `patches/libultraship.patch`
 - `ghostship-ref/` — submodule (fonts used by `tools/make_o2r.py`)

@@ -78,14 +78,13 @@ void Yay0_Decompress(void* srcv, void* dstv) {
     }
 }
 
+// The audio code's own Yay0 decoder (hand-written, 517A0.s): same format.
+void func_80050BA0(void* src, void* dst) { Yay0_Decompress(src, dst); }
+
 // ---- TODO(port): hand-written assembly with no host implementation yet ------------------------------
 // GB Tower emulator core (src/fragments/gb_tower_emulator/gb_tower_emulator_code_asm.s).
 // (GbEmu_InitContext, GbCpu_Execute, GbCpu_InitOpcodeTables: native core in gb_core.c)
-// libgsm speech decoder kernels (src/libgsm.s).
-void Gsm_Short_Term_Synthesis_Filter(void* a, void* b, void* c) { (void)a; (void)b; (void)c; }
-void Gsm_RPE_Decoding(int a, int b, void* c, void* d) { (void)a; (void)b; (void)c; (void)d; }
-void Gsm_Long_term_synthesis_filtering(void* a, int b, int c, void* d) { (void)a; (void)b; (void)c; (void)d; }
-void func_80050BA0(s32 a, void* b) { (void)a; (void)b; }
+// (libgsm speech decoder kernels, src/libgsm.s: game/src/libgsm/libgsm.c)
 void set_watch_lohi(s32 a) { (void)a; }
 
 // ---- TODO(port): libultra internals referenced by libleo / controller-pak code ----------------------
@@ -100,8 +99,6 @@ s32 __osContRamRead(void* mq, int ch, unsigned short addr, unsigned char* buf) {
 s32 __osContRamWrite(void* mq, int ch, unsigned short addr, unsigned char* buf, int force) { (void)mq; (void)ch; (void)addr; (void)buf; (void)force; return 1; }
 s32 osEPiRawStartDma(void* h, s32 dir, u32 cart, void* dram, u32 size) { (void)h; (void)dir; (void)cart; (void)dram; (void)size; return 0; }
 u32 osSetIntMask(u32 m) { (void)m; return 1; }
-void Port_GbAudioSetFrequency(s32 freq); // gb_audio_out.cpp: the GB Tower's sound output
-u32 osAiSetFrequency(u32 f) { Port_GbAudioSetFrequency((s32)f); return f; }
 extern void port_osViRepeatLine(u8 on); // os_devices.cpp
 void osViRepeatLine(u8 on) { port_osViRepeatLine(on); }
 void __LeoBootGame3(void) {}

@@ -1,12 +1,12 @@
 // Audio output for the GB Tower.
 //
 // The GB Tower mixes the Game Boy's sound itself (gb_tower_emulator_86CB0.c: APU channels -> 16-bit stereo PCM) and
-// hands each buffer to the audio interface with osGbSetNextBuffer, pacing itself by osAiGetLength. The rest of the game
-// is silent in this port (PORT_NO_AUDIO), so this is a small SDL3 audio stream just for those buffers.
+// hands each buffer to the audio interface with osGbSetNextBuffer, pacing itself by osAiGetLength. This is a small SDL3
+// audio stream just for those buffers (the game's own sound goes through audio_out.cpp).
 //
 // Off in replay / lockstep runs (PORT_REPLAY, PORT_SPEED=max), where the queued length would make runs depend on
-// wall-clock time; PORT_GB_SOUND=1 forces it on, PORT_GB_SOUND=0 off. With the output off, osAiGetLength reports a
-// virtual queue that the audio interface drains by VI frames at the DAC rate (like the N64), so the tower still sizes
+// wall-clock time; PORT_GB_SOUND=1 forces it on, PORT_GB_SOUND=0 off (if unset, PORT_SOUND decides when it is set).
+// With the output off, osAiGetLength reports a virtual queue that the audio interface drains by VI frames at the DAC rate (like the N64), so the tower still sizes
 // its buffers as on hardware (~802 samples per frame; reporting 0 made every buffer the maximum 816 samples and the
 // PORT_GB_WAV dump ran ~1.5 % slow against ares).
 #include <SDL3/SDL.h>
@@ -29,6 +29,9 @@ double gVirtFrac = 0;
 bool Enabled() {
     if (gEnabled < 0) {
         const char* e = getenv("PORT_GB_SOUND");
+        if (e == nullptr) {
+            e = getenv("PORT_SOUND"); // the switch for all sound output (audio_out.cpp)
+        }
         if (e != nullptr) {
             gEnabled = atoi(e) != 0;
         } else {
@@ -72,7 +75,11 @@ void Port_GbAudioSetFrequency(int32_t freq) {
     if (!Enabled() || freq <= 0) {
         return;
     }
-    OpenStream(freq);
+    if (gStream != nullptr) {
+        OpenStream(freq);
+    } else {
+        gFreq = freq; // opened on the first buffer (osAiSetFrequency is also the game's own call)
+    }
 }
 
 // One mixed buffer: 16-bit stereo samples in host byte order. PORT_GB_WAV=<file> also writes the raw PCM there

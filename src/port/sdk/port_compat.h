@@ -144,6 +144,15 @@ OSPiHandle* port_osCartRomInit(void);
 void port_osCreateViManager(OSPri pri);
 s32 port_osEPiStartDma(OSPiHandle*, OSIoMesg*, s32);
 #define osSetTimer port_osSetTimer
+// The game's sound engine runs unless switched off (PORT_GAME_AUDIO=0, or replaying an input recording made before
+// the engine was ported: src/port/os_devices.cpp). Off, its entry points return at once as they did then.
+int Port_GameAudio(void);
+#define PORT_AUDIO_OFF() (!Port_GameAudio())
+// Audio interface: a virtual DMA FIFO in game time, played through SDL3 (src/port/audio_out.cpp)
+s32 port_osAiSetNextBuffer(void* buf, u32 size);
+u32 port_osAiGetLength(void);
+#define osAiSetNextBuffer port_osAiSetNextBuffer
+#define osAiGetLength port_osAiGetLength
 // Time comes from the port's clock: virtual (frame-locked) in lockstep mode, so runs and input replays are
 // reproducible (the game seeds its RNG from osGetCount).
 OSTime port_osGetTime(void);
