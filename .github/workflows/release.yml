@@ -31,7 +31,8 @@ jobs:
           for dir in artifacts/*/; do
             name=$(basename "$dir")
             cp README.md "$dir/README.md"
-            (cd "$dir" && chmod +x pokestadium 2>/dev/null; zip -r "../../dist/${name}-v${{ inputs.version }}.zip" .)
+            if [ -f "$dir/pokestadium" ]; then chmod +x "$dir/pokestadium"; fi
+            (cd "$dir" && zip -r "../../dist/${name}-v${{ inputs.version }}.zip" .)
           done
           ls -l dist
       - name: Tag and publish
