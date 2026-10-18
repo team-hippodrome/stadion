@@ -174,7 +174,7 @@ void Port_TraceJpeg(const char* what, int a, int b, int c) {
 }
 
 #ifdef _WIN32
-// BSD byte-string functions (declared in game/port/port_compat.h), not in the Windows C runtime
+// BSD byte-string functions (declared in src/port/sdk/port_compat.h), not in the Windows C runtime
 void bcopy(const void* src, void* dst, int n) {
     memmove(dst, src, (size_t)n);
 }

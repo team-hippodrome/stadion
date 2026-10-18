@@ -4,7 +4,7 @@ parameter in every declaration/definition of the callee (u32 -> uintptr_t, s32 -
 Uses clang's follow-up note ("passing argument to parameter 'x' here") to locate the callee's declaration."""
 import re, subprocess, pathlib, sys, concurrent.futures as cf, collections
 root = pathlib.Path(__file__).resolve().parent.parent
-flags = [l.strip() for l in (root / "game/compile_flags.txt").read_text().split("\n") if l.strip()]
+flags = [l.strip() for l in (root / "tools/compile_flags.txt").read_text().split("\n") if l.strip()]
 flags = [f for f in flags if f not in ("-w", "-Wno-int-conversion")]
 files = sorted(str(p.relative_to(root)) for p in (root / "game/src").rglob("*.c"))
 warn_re = re.compile(r"^(\S+?):(\d+):(\d+): (?:warning|error): incompatible pointer to integer conversion passing '[^']*' (?:\(aka '[^']*'\) )?to parameter of type '(u32|s32|u16|s16|int|unsigned int)'")
@@ -61,7 +61,7 @@ for skip in ("Audio_WriteU32BE",):
     funcs.pop(skip, None)
 print("functions:", len(funcs))
 changed = 0
-allsrc = [p for p in (root / "game").rglob("*") if p.suffix in (".c", ".h") and "lib/ultralib/include" not in str(p.relative_to(root)) and not str(p.relative_to(root)).startswith("game/port/")]
+allsrc = [p for p in (p for d in ("src", "include", "lib") for p in (root / "game" / d).rglob("*")) if p.suffix in (".c", ".h") and "lib/ultralib/include" not in str(p.relative_to(root))]
 for p in allsrc:
     s = p.read_text(errors="replace")
     o = s

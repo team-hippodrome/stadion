@@ -4,3 +4,7 @@
 [submodule "ghostship-ref"]
 	path = ghostship-ref
 	url = https://github.com/HarbourMasters/Ghostship
+[submodule "game"]
+	path = game
+	url = https://github.com/michiiik/pokestadium
+	branch = pc-port

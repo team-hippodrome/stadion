@@ -64,9 +64,14 @@ target_link_libraries(pokestadium PRIVATE libultraship)
 
 # ---------------------------------------------------------------------------------------------
 # Game code: the decompiled Pokemon Stadium (US) sources, compiled for the host.
-# Flags mirror game/compile_flags.txt (used by tools/syntax_check.sh).
+# Flags mirror tools/compile_flags.txt (used by tools/syntax_check.sh).
 # ---------------------------------------------------------------------------------------------
-file(GLOB_RECURSE STADIUM_GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/game/src/*.c ${CMAKE_CURRENT_SOURCE_DIR}/game/lib/ultralib/src/*.c)
+file(GLOB_RECURSE STADIUM_GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/game/src/*.c)
+# game/ is the whole decomp (a submodule): of its libultra sources, only the ones listed are compiled
+file(STRINGS cmake/ultralib_sources.txt PORT_ULTRALIB_SOURCES REGEX "^[^#]")
+list(TRANSFORM PORT_ULTRALIB_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/game/lib/ultralib/src/)
+list(APPEND STADIUM_GAME_SOURCES ${PORT_ULTRALIB_SOURCES})
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ultralib_sources.txt)
 # C arrays of 16/32-bit words in the game sources (textures among them need N64 byte order): their files are compiled
 # through generated wrappers that register the arrays with the renderer (see tools/gen_word_arrays.py)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
@@ -111,8 +116,8 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_S
 set_target_properties(stadium_game PROPERTIES C_STANDARD 11 C_EXTENSIONS ON)
 target_include_directories(stadium_game PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/game
-  ${CMAKE_CURRENT_SOURCE_DIR}/game/port
-  ${CMAKE_CURRENT_SOURCE_DIR}/game/port/PR
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/PR
   ${CMAKE_CURRENT_SOURCE_DIR}/game/include
   ${CMAKE_CURRENT_SOURCE_DIR}/game/src
   ${CMAKE_CURRENT_SOURCE_DIR}/game/src/libnaudio
@@ -134,24 +139,24 @@ target_compile_options(stadium_game PRIVATE
   $<$<AND:$<C_COMPILER_ID:Clang,AppleClang>,$<STREQUAL:${CMAKE_SYSTEM_PROCESSOR},aarch64>>:-mno-global-merge>
   -Wno-int-conversion -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types
   -Wno-return-mismatch -Wno-return-type # older clang (macOS CI) rejects missing return values the decomp keeps
-  ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/game/port/port_compat.h)
+  ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/port_compat.h)
 
 # libultra runtime for the game (threads, message queues, devices). This target sees the game's SDK shim
-# headers (game/port/ultra64.h etc.); the LUS-facing code in the executable must not, because libultraship
+# headers (src/port/sdk/ultra64.h etc.); the LUS-facing code in the executable must not, because libultraship
 # headers include <ultra64.h> themselves.
 add_library(port_os STATIC src/port/os_thread.cpp src/port/os_devices.cpp src/port/transfer_pak.cpp src/port/gb_audio_out.cpp src/port/gb_core.c
   src/port/jpeg_task.cpp src/port/gfx_translate.cpp)
 target_include_directories(port_os PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/port
-  ${CMAKE_CURRENT_SOURCE_DIR}/game/port
-  ${CMAKE_CURRENT_SOURCE_DIR}/game/port/PR
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/PR
   ${CMAKE_CURRENT_SOURCE_DIR}/game/include
   ${CMAKE_CURRENT_SOURCE_DIR}/game
   ${CMAKE_CURRENT_SOURCE_DIR}/game/lib/ultralib/include
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include/libultraship)
 target_compile_definitions(port_os PRIVATE LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 NDEBUG _FINALROM N_MICRO VERSION_US BUILD_VERSION=VERSION_I_P)
-target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/game/port/port_compat.h
+target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/port_compat.h
   ${PORT_NO_WARNINGS})
 # the GB Tower's sound output uses SDL3 directly (same SDL3 the window uses)
 find_path(PORT_SDL3_INCLUDE SDL3/SDL.h HINTS /opt/homebrew/include /usr/local/include)

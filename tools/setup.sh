@@ -1,5 +1,5 @@
 #!/bin/bash
-# Fetches the submodules (libultraship, ghostship-ref) and applies the port's changes to libultraship.
+# Fetches the submodules (game, libultraship, ghostship-ref) and applies the port's changes to libultraship.
 # Run once after cloning, then build with: cmake -S . -B build && cmake --build build -j
 set -e
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
