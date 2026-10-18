@@ -1,10 +1,16 @@
 # Stop frame and settings per recording for tools/run_replays.py (default: the recording's "# end" frame).
 # A recording runs from replays/<name>.flash when that exists, else from replays/default.flash.
-# "long" recordings run only with --all or when named.
+# "long" recordings run only with --all or when named. The tour_* recordings are the smallest set of the ares
+# comparison tours (build/tour) that together reach every game module (fragment) the tours reach: the quick sweep.
+# GB settings name your own cartridge dump in gb/ (not in the repository; without it the recording is skipped).
 boot_battle_move        3824    PORT_BOOT=battle
 cup_giveup              4200    # Poke Cup first battle given up: LOSE/WIN smoke (~3668), cup grid portrait
-cup_win_badge           20500   # Poke Cup won: badge award (crashed at 20464 before the big-endian table fix)
-cup_select_vtx_crash    3892
+cup_win_badge           20500   long  # Poke Cup won: badge award (crashed at 20464 before the big-endian table fix)
+cup_select_vtx_crash    3892    long
 to_battle               2700
 team_select_all_ready   long
 user_freeze_2146        long
+fast_to_battle          long    # the same route as to_battle
+pick3                   long
+to_battle_slow          long
+tour_labgb3             PORT_GB_ROM=gb/yellow_de.gb GBSAVE=gb/yellow_de.sav

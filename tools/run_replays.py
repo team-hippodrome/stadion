@@ -3,12 +3,14 @@
 
 Usage: tools/run_replays.py [--all] [--update] [-j N] [--rom PATH] [name ...]   (or PORT_ROM=<path>)
 
-Each recording runs at max speed with the game window hidden (PORT_HIDDEN_WINDOW=1), from a fresh copy of its save
+Each recording runs at max speed with the game window hidden (PORT_HIDDEN_WINDOW=1), several at a time (-j, default:
+the number of CPU cores minus two), from a fresh copy of its save
 (replays/<name>.flash, else replays/default.flash), until its stop frame. replays/replays.txt lists the stop frame and
 extra settings per recording (default: the recording's "# end" frame). The stop frame is saved as
 build/replays/<name>.ppm and compared with build/replays/ref/<name>.ppm when that exists (a local reference picture:
 game pictures are not committed); --update writes the references. Results: OK, DIFF (picture differs from the
-reference), FREEZE (the game stopped changing the picture), CRASH, TIMEOUT. Recordings marked "long" in the list run
+reference), BADADDR (the renderer or a DMA met a wild address: "[timg] bad", "[dma-bad]"; usually unswapped big-endian ROM
+data), FREEZE (the game stopped changing the picture), CRASH, TIMEOUT. Recordings marked "long" in the list run
 only with --all or when named. Exit status 1 when any recording did not pass.
 """
 import os, shutil, subprocess, sys, tempfile, time
@@ -79,10 +81,20 @@ def run_one(name, stop, env_extra, rom, update):
             "PORT_REPLAY": rec, "PORT_RECORD": os.path.join(tmp, "out.rec"),
             "PORT_STOP_AT": str(stop), "PORT_SCREENSHOT_DIR": tmp,
         })
+        missing = [v for k, v in env_extra.items() if (k == "GBSAVE" or k == "PORT_GB_ROM")
+                   and not os.path.exists(os.path.join(ROOT, v))]
+        if missing:
+            return name, "SKIPPED", 0.0, "missing %s (not in the repository: your own cartridge dump)" % ", ".join(missing)
         if os.path.exists(save):
             shutil.copyfile(save, os.path.join(tmp, "save.flash"))  # the run writes to its copy only
             env["PORT_FLASH_FILE"] = os.path.join(tmp, "save.flash")
-        env.update(env_extra)
+        for k, v in env_extra.items():
+            path = os.path.join(ROOT, v)
+            if k == "GBSAVE":  # a Game Boy save: the run writes to a fresh copy
+                shutil.copyfile(path, os.path.join(tmp, "gb.sav"))
+                env["PORT_GB_SAVE"] = os.path.join(tmp, "gb.sav")
+            else:  # values naming a file in the repository (gb/..., replays/...) become absolute
+                env[k] = path if os.path.exists(path) else v
         start = time.time()
         log = open(os.path.join(OUT, name + ".log"), "w")
         try:
@@ -102,8 +114,12 @@ def run_one(name, stop, env_extra, rom, update):
             return name, "FREEZE", secs, "see build/replays/%s.log" % name
         if code != 0 or not os.path.exists(shot):
             return name, "CRASH", secs, "exit %s, see build/replays/%s.log" % (code, name)
+        bad = [l.strip()[:120] for l in open(os.path.join(OUT, name + ".log"), errors="replace")
+               if l.startswith(("[timg] bad", "[dma-bad]"))]
         result = os.path.join(OUT, name + ".ppm")
         shutil.copyfile(shot, result)
+    if bad:
+        return name, "BADADDR", secs, "%d lines, first: %s" % (len(bad), bad[0])
     ref = os.path.join(OUT, "ref", name + ".ppm")
     if update or not os.path.exists(ref):
         shutil.copyfile(result, ref)
@@ -116,7 +132,7 @@ def main():
     args = sys.argv[1:]
     run_all = "--all" in args
     update = "--update" in args
-    jobs, rom, names = 3, DEFAULT_ROM, []
+    jobs, rom, names = max(1, (os.cpu_count() or 4) - 2), DEFAULT_ROM, []
     i = 0
     while i < len(args):
         if args[i] == "-j":
@@ -146,7 +162,7 @@ def main():
     width = max([len(r[0]) for r in results] + [9])
     for name, status, secs, note in results:
         print("%-*s  %-7s %6.1f s  %s" % (width, name, status, secs, note))
-    sys.exit(0 if all(r[1] == "OK" for r in results) else 1)
+    sys.exit(0 if all(r[1] in ("OK", "SKIPPED") for r in results) else 1)
 
 
 if __name__ == "__main__":

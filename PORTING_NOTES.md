@@ -266,12 +266,17 @@ task waited for the next window-loop pass, which slept 1 ms; the loop now wakes 
   `~/Library/Application Support/com.team-hippodrome.pokestadium`). On Windows, `pokestadium.exe` has no console
   window; stderr reaches the console it was started from, a redirection (`2> log.txt`), or with `PORT_CONSOLE=1` a
   console window of its own.
-- `tools/run_replays.py` plays every stored recording with the game window hidden (`PORT_HIDDEN_WINDOW=1`), three at a
-  time, each from a fresh copy of its save (`replays/<name>.flash`, else `replays/default.flash`), up to the stop frame
-  in `replays/replays.txt` (default: the recording's end), and prints OK / DIFF / FREEZE / CRASH / TIMEOUT per recording.
-  The stop frame is compared with a local reference picture in `build/replays/ref/` (written on the first run, or with
-  `--update`; game pictures are not committed). `--all` adds the long recordings, names run only those. The default
-  set takes about a minute on an M-series Mac.
+- `tools/run_replays.py` is the quick sweep (~1 minute on an M-series Mac): it plays the stored recordings with the game
+  window hidden (`PORT_HIDDEN_WINDOW=1`), as many at a time as there are cores (minus two), each from a fresh copy of its
+  save (`replays/<name>.flash`, else `replays/default.flash`), up to the stop frame in `replays/replays.txt` (default:
+  the recording's end), and prints OK / DIFF / BADADDR / FREEZE / CRASH / TIMEOUT per recording. BADADDR means the log
+  has `[timg] bad` or `[dma-bad]` lines (a wild texture or DMA address, typically big-endian ROM data read unswapped;
+  the cup-win crash showed up that way). The stop frame is compared with a local reference picture in
+  `build/replays/ref/` (written on the first run, or with `--update`; game pictures are not committed). The
+  `replays/tour_*` recordings are the smallest set of the ares comparison tours that together reach every game module
+  (fragment) any tour reaches (17 of 241, chosen from a run of all tours with `PORT_TRACE_FRAGMENTS=1`). `--all` adds
+  the long recordings; names run only those. A Game Boy cartridge (Transfer Pak tours) is your own dump in `gb/`; a
+  recording that needs one is skipped without it.
 - `tools/replay.sh <recording> [frame]` replays it at max speed and stops at `frame` (default: where the recording ended,
   i.e. the crash), saving that frame as `build/shots/stop_<frame>.png`. `STOP=live` as frame keeps running with live
   input afterwards. Verified: three replays of a crash give identical state changes and crash at the same frame.
