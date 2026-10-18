@@ -1040,3 +1040,10 @@ Fixed on the way: bzero/bcmp/bcopy (not in the Windows C runtime), libultraship 
 headers, WM_GETDPISCALEDSIZE), the system libraries MSVC links by pragma (d3dcompiler, dwmapi, ksuser), and a static
 C++ runtime (one exe, no DLLs).
 
+Widescreen margins: with a window wider than 4:3, the game frame buffers have margins the N64 picture does not cover.
+3D scenes draw into them (the trailer's clouds), 2D screens (title, menus) do not, so each of the rotating frame
+buffers kept what an earlier scene left there and the margins flickered as the buffers took turns (reported on Windows,
+same on every backend). The first frame buffer the game selects in a frame gets two black fill rectangles left and
+right of the picture (interpreter GfxDpSetColorImage); 3D scenes redraw the margins on top, and a 4:3 window is not
+touched. `PORT_NO_MARGIN_CLEAR=1` restores the old behaviour.
+
