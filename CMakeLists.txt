@@ -1,8 +1,17 @@
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
-project(PokemonStadiumPort VERSION 0.0.1 LANGUAGES C CXX ASM)
+project(PokemonStadiumPort VERSION 0.0.2 LANGUAGES C CXX ASM)
+# The release version (release.yml passes it as -DPORT_VERSION=<version>); defaults to the project version above.
+# Used for the Windows file version and the AppImage/app bundle metadata.
+set(PORT_VERSION "${PROJECT_VERSION}" CACHE STRING "Version of this build")
+if(NOT PORT_VERSION)
+  set(PORT_VERSION "${PROJECT_VERSION}")
+endif()
 
 if(APPLE)
   enable_language(OBJCXX)
+endif()
+if(WIN32)
+  enable_language(RC)
 endif()
 
 set(CMAKE_CXX_STANDARD 20)
@@ -148,6 +157,17 @@ target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}$
 find_path(PORT_SDL3_INCLUDE SDL3/SDL.h HINTS /opt/homebrew/include /usr/local/include)
 set_source_files_properties(src/port/gb_audio_out.cpp PROPERTIES INCLUDE_DIRECTORIES "${PORT_SDL3_INCLUDE}")
 target_link_libraries(pokestadium PRIVATE port_os stadium_game port_os)
+if(WIN32)
+  # a window-only program (no console window next to the game; main.cpp attaches to the console it was started from),
+  # with the icon and version information from src/port/pokestadium.rc.in
+  set_target_properties(pokestadium PROPERTIES WIN32_EXECUTABLE TRUE)
+  string(REGEX MATCHALL "[0-9]+" _v "${PORT_VERSION}.0.0.0.0")
+  list(SUBLIST _v 0 4 _v)
+  list(JOIN _v "," PORT_VERSION_RC)
+  set(PORT_ICON ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/pokestadium.ico)
+  configure_file(src/port/pokestadium.rc.in ${CMAKE_BINARY_DIR}/generated/pokestadium.rc @ONLY)
+  target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/pokestadium.rc)
+endif()
 if(WIN32 AND NOT MSVC) # mingw (gcc or clang)
   # system libraries MSVC links through #pragma comment(lib) in libultraship (DX11 shader compiler, DWM, audio GUIDs)
   target_link_libraries(pokestadium PRIVATE d3dcompiler dwmapi ksuser dbghelp)

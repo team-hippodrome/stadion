@@ -7,9 +7,12 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <thread>
 #include <csignal>
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#include <io.h>
+#else
 #include <sys/ucontext.h>
 #include <unistd.h>
 #endif
@@ -20,6 +23,28 @@ extern "C" void Port_InputFinish(); // game entry (src/main.c): starts libultra 
 extern "C" void Port_ReserveLowAddressSpace(void);
 
 #if defined(_WIN32)
+// pokestadium.exe is a window-only program (no console window of its own); stdout/stderr (logs, crash reports) still
+// reach a console when there is one. Output redirected to a file or pipe (pokestadium.exe 2> log.txt) is kept as is;
+// otherwise the program writes to the console of the shell it was started from, or to a console of its own with
+// PORT_CONSOLE=1.
+static void AttachToConsole() {
+    DWORD type = GetFileType(GetStdHandle(STD_ERROR_HANDLE));
+    if (type == FILE_TYPE_DISK || type == FILE_TYPE_PIPE) {
+        return;
+    }
+    const char* want = getenv("PORT_CONSOLE");
+    if (!AttachConsole(ATTACH_PARENT_PROCESS) && !(want != nullptr && strcmp(want, "1") == 0 && AllocConsole())) {
+        return;
+    }
+    FILE* f;
+    freopen_s(&f, "CONOUT$", "w", stdout);
+    freopen_s(&f, "CONOUT$", "w", stderr);
+    setvbuf(stderr, nullptr, _IONBF, 0);
+    // for code that writes to the handles directly (spdlog's console sink)
+    SetStdHandle(STD_OUTPUT_HANDLE, (HANDLE)_get_osfhandle(_fileno(stdout)));
+    SetStdHandle(STD_ERROR_HANDLE, (HANDLE)_get_osfhandle(_fileno(stderr)));
+}
+
 // Prints the crash address and the unwound frames plus the image base; resolve with the PDB/map file.
 static LONG WINAPI CrashHandler(EXCEPTION_POINTERS* ep) {
     void* frames[48];
@@ -87,10 +112,14 @@ static void InstallSignalHandlers() {
 }
 
 int main(int argc, char** argv) {
+#if defined(_WIN32)
+    AttachToConsole();
+#endif
     // The port tells N64 addresses (below 4 GB) from host pointers; keep host allocations above 4 GB (Windows).
     Port_ReserveLowAddressSpace();
     Port_AltSignalStack();
     InstallSignalHandlers();
+    Port::UseShipHomeDefaults();
     // With a ROM argument the game starts right away (scripts, replays); without one, the launcher (launcher.cpp)
     // asks for the ROM, the save and the Transfer Pak cartridges in the game window first.
     std::string romPath = argc > 1 ? argv[1] : "";

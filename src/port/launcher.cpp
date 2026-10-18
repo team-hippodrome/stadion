@@ -713,4 +713,18 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
     return state.rom;
 }
 
+void UseShipHomeDefaults() {
+    if (getenv("SHIP_HOME") == nullptr) {
+        return;
+    }
+    if (getenv("PORT_RECORD") == nullptr) {
+        SetEnv("PORT_RECORD", Ship::Context::GetPathRelativeToAppDirectory("last_input.rec"));
+    }
+    if (getenv("PORT_FLASH_FILE") == nullptr) { // the launcher's default save
+        std::error_code ec;
+        fs::create_directories(fs::u8path(DefaultSave()).parent_path(), ec);
+        SetEnv("PORT_FLASH_FILE", DefaultSave());
+    }
+}
+
 } // namespace Port
