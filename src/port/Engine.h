@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -28,6 +29,8 @@ size_t RomSize();
 
 // Executes queued RSP tasks (display lists) on the window thread and posts SP/DP completion.
 void PumpRspTasks();
+// Waits until an RSP task is queued, at most the given time.
+void WaitForRspTasks(std::chrono::milliseconds timeout);
 // Pumps window events; returns false once the window is closed.
 bool PumpFrame();
 void StopDevices();

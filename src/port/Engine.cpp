@@ -205,6 +205,13 @@ bool Init() {
     WindowSetWindowComponent(sWindow);
     GfxSetFast3dWindow(sWindow);
     sWindow->Init();
+    // PORT_HIDDEN_WINDOW=1: render without showing the window (tools/run_replays.sh; screenshots still work)
+    if (getenv("PORT_HIDDEN_WINDOW")) {
+        int n = 0;
+        SDL_Window** wins = SDL_GetWindows(&n);
+        for (int i = 0; wins && i < n; i++) SDL_HideWindow(wins[i]);
+        SDL_free(wins);
+    }
 
     auto events = std::make_shared<Ship::Events>();
     sContext->GetChildren().Add(events);
