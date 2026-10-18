@@ -30,6 +30,11 @@ jobs:
           mkdir -p dist
           for dir in artifacts/*/; do
             name=$(basename "$dir")
+            if [ -f "$dir/$name.app.zip" ]; then
+              # macOS: the app bundle, already zipped with ditto by build.yml
+              cp "$dir/$name.app.zip" "dist/${name}-v${{ inputs.version }}.zip"
+              continue
+            fi
             cp README.md "$dir/README.md"
             if [ -f "$dir/pokestadium" ]; then chmod +x "$dir/pokestadium"; fi
             (cd "$dir" && zip -r "../../dist/${name}-v${{ inputs.version }}.zip" .)
@@ -47,4 +52,4 @@ jobs:
           git tag -f latest "$GITHUB_SHA"
           git push -f origin latest
           gh release create "v$VERSION" dist/*.zip --title "v$VERSION" --target "$GITHUB_SHA" \
-            --notes "Builds for Linux (x64), macOS (Apple Silicon) and Windows (x64). No game data included: you need your own Pokémon Stadium (USA) ROM. See README.md."
+            --notes "Builds for Linux (x64), macOS (Apple Silicon, Pokemon Stadium.app) and Windows (x64). No game data included: you need your own Pokémon Stadium (USA) ROM. See README.md."

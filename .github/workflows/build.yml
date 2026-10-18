@@ -1,11 +1,8 @@
 # Builds the port for Linux, macOS and Windows. Build only: running the game needs the user's own ROM.
-# Also called by release.yml, which packages these builds.
+# Manual for now (Actions tab -> Build -> Run workflow), to save Actions minutes; release.yml calls it too.
 name: Build
 
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
   workflow_call:
 
@@ -62,12 +59,17 @@ jobs:
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
           cmake --build build
+      - name: App bundle
+        # "Pokemon Stadium.app" with the Homebrew libraries inside (tools/make_macos_bundle.py); ditto keeps the bundle's
+        # permissions and signature in the zip
+        run: |
+          VERSION=$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')
+          python3 -I tools/make_macos_bundle.py build "dist/Pokemon Stadium.app" "$VERSION"
+          ditto -c -k --keepParent "dist/Pokemon Stadium.app" dist/pokestadium-macos-arm64.app.zip
       - uses: actions/upload-artifact@v4
         with:
           name: pokestadium-macos-arm64
-          path: |
-            build/pokestadium
-            build/pokestadium.o2r
+          path: dist/pokestadium-macos-arm64.app.zip
 
   windows:
     # Cross-compiled with llvm-mingw (clang + lld + libc++), the setup the Windows version is tested with
