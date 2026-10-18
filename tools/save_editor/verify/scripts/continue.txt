@@ -1,0 +1,10 @@
+# area select -> STADIUM: a saved battle starts the saved Poke Cup run (VS screen, then the order screen)
+tap 1500 START
+tap 1650 A
+tap 2250 A
+tap 2700 A
+shot 3100 SHOT/vs.ppm
+tap 3150 A
+tap 3400 A
+shot 3600 SHOT/order.ppm
+end 3600

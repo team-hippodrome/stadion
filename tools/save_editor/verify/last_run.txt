@@ -1,0 +1,9 @@
+blank_chip: game run on an erased chip; the save it writes on leaving Options equals fixtures/first_save.flash -> 
+    game-written save: 0 invalid records, 0 records differ from the input
+first_save: area select by day, no Mewtwo -> shots/first_save_area.png
+unlock: night sky (gb_tower_speed 2) and Mewtwo over the Castle (progress[0].mewtwo_unlocked) -> shots/unlock_area.png
+options: SOUND MONO, VOICE OFF; the save the game writes on leaving Options keeps both -> shots/options_options.png
+    game-written save: 0 invalid records, 0 records differ from the input
+registered_team: 'Registered Pokemon 1 Set(s)'; set 1 = ASH ID 04242 with MEWTWO L55, SPARKY L50, SNORLAX L55, CHANSEY, LAPRAS, TAUROS L50 -> shots/registered_team_entry.png, shots/registered_team_teams.png
+continue: Poke Cup run resumes at battle 3 (two opponents crossed out) with RED's MEWTWO L55, PIKACHU L50, SNORLAX L55 -> shots/continue_order.png, shots/continue_vs.png
+victory_palace: statue on No.001; details NAME BULBY, LEVEL 55, OT ASH, ID 12345, HALL OF FAME POKe CUP; statue on No.002 -> shots/victory_palace_details1.png, shots/victory_palace_statue1.png, shots/victory_palace_statue2.png

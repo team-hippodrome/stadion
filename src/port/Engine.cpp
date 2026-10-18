@@ -1,0 +1,372 @@
+#include "Engine.h"
+
+#include <libultraship/libultraship.h>
+#include <fast/Fast3dWindow.h>
+#include <fast/interpreter.h>
+#include <ship/config/Config.h>
+#include <ship/config/ConsoleVariable.h>
+#include <ship/debug/Console.h>
+#include <ship/debug/CrashHandler.h>
+#include <ship/events/Events.h>
+#include <ship/log/Logger.h>
+#include <ship/resource/ResourceManager.h>
+#include <ship/thread/ThreadPool.h>
+#include <controller/controldeck/ControlDeck.h>
+#include <libultraship/bridge/consolevariablebridge.h>
+#include <libultraship/bridge/resourcebridge.h>
+#include <libultraship/bridge/windowbridge.h>
+#include <libultraship/bridge/controllerbridge.h>
+#include <libultraship/bridge/eventsbridge.h>
+#include <libultraship/bridge/crashhandlerbridge.h>
+#include <libultraship/bridge/gfxbridge.h>
+
+#include <algorithm>
+#include <unistd.h>
+#include <chrono>
+#include <SDL3/SDL.h>
+#include <thread>
+#include <vector>
+
+namespace Fast {
+extern void* (*gPortAddressResolver)(uintptr_t);
+}
+extern "C" void* Port_ResolveN64Address(uintptr_t addr);
+
+extern "C" double Port_Speed();
+extern "C" bool Port_Lockstep();
+extern "C" uint64_t Port_ViTick();
+extern "C" bool Port_FreezeCheckEnabled();
+extern "C" void Port_NotePictureHash(uint64_t hash);
+
+// PORT_STOP_AT: the frame to save regardless of the change detection (as stop_<frame>.ppm).
+static uint64_t sCaptureFrame = 0;
+namespace Fast {
+extern std::vector<uint8_t> gPortScreenBgra; // gfx_metal.cpp: last screen readback, BGRA8
+extern uint32_t gPortScreenW, gPortScreenH;
+}
+using Fast::gPortScreenBgra;
+using Fast::gPortScreenW;
+using Fast::gPortScreenH;
+extern bool gPortDrawLog;
+extern "C" void Port_RequestCapture(uint64_t frame) { sCaptureFrame = frame; }
+namespace {
+std::shared_ptr<Ship::Context> sContext;
+std::shared_ptr<Fast::Fast3dWindow> sWindow;
+} // namespace
+
+namespace Port {
+
+bool Init() {
+    Fast::gPortAddressResolver = Port_ResolveN64Address;
+    sContext = Ship::Context::CreateInstance("Pokemon Stadium", "pokestadium");
+    sContext->Init();
+
+    auto logger = std::make_shared<Ship::Logger>(
+        "Pokemon Stadium", Ship::Context::GetPathRelativeToAppDirectory("logs/pokestadium.log"));
+    sContext->GetChildren().Add(logger);
+    logger->Init();
+
+    auto config = std::make_shared<Ship::Config>(
+        Ship::Context::GetPathRelativeToAppDirectory("pokestadium.cfg.json"), nullptr);
+    sContext->GetChildren().Add(config);
+
+    auto cvars = std::make_shared<Ship::ConsoleVariable>(config);
+    sContext->GetChildren().Add(cvars);
+    CVarSetConsoleVariable(cvars);
+    if (Port_Speed() > 1.0) cvars->SetInteger("gVsyncEnabled", 0); // vsync would cap the speed-up at the display rate
+
+    sWindow = std::make_shared<Fast::Fast3dWindow>(std::vector<std::shared_ptr<Ship::GuiWindow>>({}), config, cvars);
+
+    auto threadPool =
+        std::make_shared<Ship::ThreadPool>(std::max(1, (int32_t)(std::thread::hardware_concurrency() - 3 - 1)));
+    sContext->GetChildren().Add(threadPool);
+
+    auto resourceManager = std::make_shared<Ship::ResourceManager>(threadPool);
+    sContext->GetChildren().Add(resourceManager);
+    ResourceSetResourceManager(resourceManager);
+
+    auto controlDeck = std::make_shared<LUS::ControlDeck>(sWindow, cvars);
+    sContext->GetChildren().Add(controlDeck);
+    ControllerSetControlDeck(controlDeck);
+
+    // Placeholder archive: libultraship's GUI needs a ResourceManager with at least one archive.
+    // Game data is still read straight from the ROM at this milestone.
+    try {
+        nlohmann::json rmArgs;
+        rmArgs["archivePaths"] = std::vector<std::string>{ Ship::Context::LocateFileAcrossAppDirs("pokestadium.o2r") };
+        rmArgs["validHashes"] = std::vector<uint32_t>{};
+        resourceManager->Init(rmArgs);
+    } catch (const std::exception& e) {
+        SPDLOG_WARN("ResourceManager init deferred: {}", e.what());
+    }
+
+    auto console = std::make_shared<Ship::Console>();
+    sContext->GetChildren().Add(console);
+    console->Init();
+
+    auto crashHandler = std::make_shared<Ship::CrashHandler>();
+    sContext->GetChildren().Add(crashHandler);
+    CrashHandlerSetComponent(crashHandler);
+
+    sContext->GetChildren().Add(sWindow);
+    WindowSetWindowComponent(sWindow);
+    GfxSetFast3dWindow(sWindow);
+    sWindow->Init();
+
+    auto events = std::make_shared<Ship::Events>();
+    sContext->GetChildren().Add(events);
+    EventSystemSetEvents(events);
+
+    return true;
+}
+
+// Debug aid (PORT_VALIDATE_DL=1): walks a display list before it is submitted and reports commands whose data
+// pointers are not readable, which is what crashes the renderer when raw N64 addresses leak through.
+#include <mach/mach.h>
+static bool Readable(const void* p, size_t n) {
+    vm_size_t got = 0;
+    char tmp[16];
+    return vm_read_overwrite(mach_task_self(), (vm_address_t)p, std::min<size_t>(n, sizeof tmp), (vm_address_t)tmp, &got) == KERN_SUCCESS;
+}
+static int sValidateBudget = 20;
+static void ValidateList(const Gfx* g, int depth, const char* path) {
+    if (depth > 24) return;
+    for (int n = 0; n < 200000; n++, g++) {
+        uint32_t w0 = (uint32_t)g->words.w0;
+        uintptr_t w1 = g->words.w1;
+        uint8_t op = w0 >> 24;
+        if (op == 0xDF) return;
+        if (op > 0x08 && op < 0xD7) {
+            if (sValidateBudget-- > 0) fprintf(stderr, "[dlcheck] invalid opcode %02x (w0=%08x w1=%p) at %p depth %d\n", op, w0, (void*)w1, (const void*)g, depth);
+            return;
+        }
+        bool ptrOp = op == 0xDE || op == 0x01 || op == 0xDA || op == 0xDC || op == 0xFD || op == 0xFE || op == 0xFF;
+        if (!ptrOp) continue;
+        if (op == 0xDE && w1 == 0) {
+            if (sValidateBudget-- > 0) fprintf(stderr, "[dlcheck] G_DL to NULL at %p depth %d\n", (const void*)g, depth);
+            return;
+        }
+        if (w1 < 0x100000000ull) continue; // N64-style address, Fast3D resolves it
+        if (!Readable((void*)w1, 8)) {
+            if (sValidateBudget-- > 0)
+                fprintf(stderr, "[dlcheck] unreadable pointer %p in cmd %02x (w0=%08x) at %p depth %d (%s)\n", (void*)w1, op, w0, (const void*)g, depth, path);
+            return;
+        }
+        if (op == 0xDE) {
+            ValidateList((const Gfx*)w1, depth + 1, path);
+            if (((w0 >> 16) & 0xFF) == 1) return;
+        }
+    }
+}
+
+// Debug aid (PORT_SCREENSHOT_DIR=dir): writes the presented frame as a PPM every 120 frames (the Metal readback
+// returns the previous frame as RGBA5551). Convert with tools/ppm2png.py.
+static void MaybeScreenshot() {
+    static const char* dir = getenv("PORT_SCREENSHOT_DIR");
+    static int frame = 0;
+    if (!dir && !Port_FreezeCheckEnabled()) return;
+    ++frame;
+    int w = sWindow->GetWidth(), h = sWindow->GetHeight();
+    {   // the drawable can be larger than the window in points (Retina): read the full pixel size
+        int count = 0;
+        if (SDL_Window** ws = SDL_GetWindows(&count)) {
+            int pw = 0, ph = 0;
+            if (count > 0 && SDL_GetWindowSizeInPixels(ws[0], &pw, &ph) && pw > 0 && ph > 0) { w = pw; h = ph; }
+            SDL_free(ws);
+        }
+    }
+    if (w <= 0 || h <= 0) return;
+    auto interp = sWindow->GetInterpreterWeak().lock();
+    if (!interp) return;
+    std::vector<uint16_t> buf((size_t)w * h);
+    interp->mRapi->ReadFramebufferToCPU(0, (uint32_t)w, (uint32_t)h, buf.data());
+    {   // freeze detection: hash of a sparse sample of the presented picture
+        // channels quantized to 3 bits: the per-frame shader noise (N64 dither emulation) must not count as change
+        uint64_t fh = 1469598103934665603ull;
+        for (size_t i = 0; i < buf.size(); i += 7) fh = (fh ^ (buf[i] & 0xE738)) * 1099511628211ull;
+        Port_NotePictureHash(fh);
+    }
+    if (!dir) return;
+    // Only save when the picture changed since the last saved frame (hash of a sparse sample), checked every 15 frames.
+    // The readback must still be requested every frame to stay in sync.
+    static uint64_t lastHash = 0;
+    static bool all = getenv("PORT_SCREENSHOT_ALL") != nullptr;
+    // Files are named by game frame (VI retrace count) in lockstep mode, so they line up with PORT_STOP_AT and replays.
+    int name = Port_Lockstep() ? (int)Port_ViTick() : frame;
+    if (sCaptureFrame != 0) {
+        char path[1024];
+        snprintf(path, sizeof path, "%s/stop_%05d.ppm", dir, name);
+        if (FILE* f = fopen(path, "wb")) {
+            fprintf(f, "P6\n%d %d\n255\n", w, h);
+            // the 8-bit screen pixels when the readback has them (same frame as buf), else the RGBA5551 copy
+            bool full = gPortScreenW == (uint32_t)w && gPortScreenH == (uint32_t)h && gPortScreenBgra.size() == buf.size() * 4;
+            for (size_t i = 0; i < buf.size(); i++) {
+                if (full) {
+                    uint8_t px[3] = { gPortScreenBgra[i * 4 + 2], gPortScreenBgra[i * 4 + 1], gPortScreenBgra[i * 4 + 0] };
+                    fwrite(px, 1, 3, f);
+                    continue;
+                }
+                uint16_t v = buf[i];
+                uint8_t px[3] = { (uint8_t)(((v >> 11) & 31) * 255 / 31), (uint8_t)(((v >> 6) & 31) * 255 / 31), (uint8_t)(((v >> 1) & 31) * 255 / 31) };
+                fwrite(px, 1, 3, f);
+            }
+            fclose(f);
+        }
+        sCaptureFrame = 0; // one picture per request (PORT_SHOT_AT asks again for its next frame)
+        return;
+    }
+    if (frame % (all ? 5 : 15) != 0) return;
+    uint64_t hsh = 1469598103934665603ull;
+    size_t nz = 0;
+    for (size_t i = 0; i < buf.size(); i += 7) { hsh = (hsh ^ buf[i]) * 1099511628211ull; nz += buf[i] != 0; }
+    static int lastChange = 0;
+    if (hsh == lastHash && !all) {
+        // Picture unchanged (black or stuck) for ~6 s: the capture run has nothing more to show, so end it.
+        static int stuckFrames = getenv("PORT_SCREENSHOT_STUCK") ? atoi(getenv("PORT_SCREENSHOT_STUCK")) * 60 : 360;
+        if (frame - lastChange > stuckFrames && !getenv("PORT_SCREENSHOT_NOSTOP")) {
+            fprintf(stderr, "[shot] screen unchanged since frame %d, stopping\n", lastChange);
+            fflush(stderr);
+            _exit(0);
+        }
+        return;
+    }
+    lastHash = hsh;
+    lastChange = frame;
+    fprintf(stderr, "[shot] frame %d changed (nonzero samples %zu)\n", name, nz);
+    char path[1024];
+    snprintf(path, sizeof path, "%s/frame_%05d.ppm", dir, name);
+    if (FILE* f = fopen(path, "wb")) {
+        fprintf(f, "P6\n%d %d\n255\n", w, h);
+        for (size_t i = 0; i < buf.size(); i++) {
+            uint16_t v = buf[i];
+            uint8_t px[3] = { (uint8_t)(((v >> 11) & 31) * 255 / 31), (uint8_t)(((v >> 6) & 31) * 255 / 31), (uint8_t)(((v >> 1) & 31) * 255 / 31) };
+            fwrite(px, 1, 3, f);
+        }
+        fclose(f);
+    }
+}
+
+// Shows the presented-frame rate in the window title (updated twice a second).
+static void UpdateFpsTitle() {
+    static auto last = std::chrono::steady_clock::now();
+    static int frames = 0;
+    frames++;
+    auto now = std::chrono::steady_clock::now();
+    double dt = std::chrono::duration<double>(now - last).count();
+    if (dt < 0.5) return;
+    char title[96];
+    snprintf(title, sizeof title, "Pokemon Stadium - %.1f FPS", frames / dt);
+    int count = 0;
+    if (SDL_Window** ws = SDL_GetWindows(&count)) {
+        for (int i = 0; i < count; i++) SDL_SetWindowTitle(ws[i], title);
+        SDL_free(ws);
+    }
+    frames = 0;
+    last = now;
+}
+
+// A frame that is not drawn still updates the RSP's persistent segment table, as on the N64; later frames rely on it.
+bool TrackFrame(void* gfxCommands) {
+    if (auto interp = sWindow->GetInterpreterWeak().lock()) {
+        return interp->TrackSegmentsOnly(static_cast<Gfx*>(gfxCommands)); // true: renders off-screen, must be drawn
+    }
+    return false;
+}
+
+bool RunFrame(void* gfxCommands) {
+    if (getenv("PORT_VALIDATE_DL")) ValidateList(static_cast<Gfx*>(gfxCommands), 0, "frame");
+    if (!WindowIsRunning()) {
+        return false;
+    }
+    sWindow->HandleEvents();
+    { // PORT debug: PORT_DEBUG_RESIZE=<frame>:<w>x<h> resizes the window once at that VI frame
+        static const char* rs = getenv("PORT_DEBUG_RESIZE");
+        static bool done = false;
+        unsigned long long f = 0;
+        int w = 0, h = 0;
+        if (rs && !done && sscanf(rs, "%llu:%dx%d", &f, &w, &h) == 3 && Port_ViTick() >= f) {
+            done = true;
+            int n = 0;
+            SDL_Window** wins = SDL_GetWindows(&n);
+            if (wins && n > 0) SDL_SetWindowSize(wins[0], w, h);
+            SDL_free(wins);
+            fprintf(stderr, "[resize] window -> %dx%d at frame %llu\n", w, h, (unsigned long long)Port_ViTick());
+        }
+        // PORT debug: PORT_QUIT_AT=<frame> sends the quit event a window close sends, at that VI frame
+        static const char* qa = getenv("PORT_QUIT_AT");
+        static bool quitSent = false;
+        if (qa && !quitSent && Port_ViTick() >= strtoull(qa, nullptr, 10)) {
+            quitSent = true;
+            SDL_Event e = {};
+            e.type = SDL_EVENT_QUIT;
+            SDL_PushEvent(&e);
+            fprintf(stderr, "[quit] window close at frame %llu\n", (unsigned long long)Port_ViTick());
+        }
+    }
+    if (!sWindow->IsFrameReady()) {
+        if (!TrackFrame(gfxCommands)) {
+            return true;
+        }
+    }
+    sWindow->StartFrame();
+    sWindow->SetTargetFps(60);
+    gPortDrawLog = sCaptureFrame != 0 && getenv("PORT_DRAWLOG") != nullptr; // debug: list the draw states of the captured frame
+    sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), {});
+    gPortDrawLog = false;
+    MaybeScreenshot();
+    UpdateFpsTitle();
+    return true;
+}
+
+bool PumpFrame() {
+    if (!WindowIsRunning()) {
+        return false;
+    }
+    sWindow->HandleEvents();
+    // Poll the controllers here, on the window thread.
+    if (auto deck = ControllerGetControlDeck()) {
+        OSContPad pads[MAXCONTROLLERS] = {};
+        deck->WriteToPad(pads);
+        // Debug aid: PORT_AUTOSTART=<period in ms> taps Start (A with PORT_AUTOA) every period, to skip intros without a keyboard.
+        static const char* autoStart = getenv("PORT_AUTOSTART");
+        if (autoStart && !Port_Lockstep()) { // in lockstep mode the clock applies it per frame (os_devices.cpp)
+            static auto t0 = std::chrono::steady_clock::now();
+            long ms = (long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+            long period = atol(autoStart) > 0 ? atol(autoStart) : 5000;
+            if (ms > 8000 && (ms % period) < 150) pads[0].button |= getenv("PORT_AUTOA") ? (CONT_A | CONT_START) : CONT_START;
+        }
+        // Debug aid: PORT_KEYTEST=1 pushes real SDL key events (arrows = C-buttons, X = A) through the window's event
+        // queue every second, to check the keyboard path end to end; PORT_TRACE_PADS=1 logs pad state changes.
+        if (getenv("PORT_KEYTEST")) {
+            static int n = 0;
+            static const SDL_Scancode keys[] = { SDL_SCANCODE_UP, SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT, SDL_SCANCODE_DOWN, SDL_SCANCODE_X };
+            int phase = n++ % 120;
+            if (phase == 60 || phase == 70) {
+                SDL_Event ev = {};
+                ev.type = phase == 60 ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+                ev.key.scancode = keys[(n / 120) % 5];
+                ev.key.down = phase == 60;
+                int count = 0;
+                if (SDL_Window** ws = SDL_GetWindows(&count)) {
+                    if (count > 0) ev.key.windowID = SDL_GetWindowID(ws[0]);
+                    SDL_free(ws);
+                }
+                SDL_PushEvent(&ev);
+            }
+        }
+        if (getenv("PORT_TRACE_PADS")) {
+            static uint32_t last = 0;
+            if (pads[0].button != last) fprintf(stderr, "[pad] button 0x%04x\n", pads[0].button);
+            last = pads[0].button;
+        }
+        PublishPads(pads);
+    }
+    return true;
+}
+
+void Shutdown() {
+    sWindow = nullptr;
+    sContext = nullptr;
+}
+
+} // namespace Port

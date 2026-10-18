@@ -1,0 +1,6 @@
+# title -> main menu -> POKeMON STADIUM -> area select (shows Mewtwo / night sky when unlocked)
+tap 1500 START
+tap 1650 A
+tap 2250 A
+shot 2900 SHOT/area.ppm
+end 2900

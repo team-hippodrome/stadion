@@ -1,0 +1,14 @@
+# area select -> LEFT, DOWN = VICTORY PALACE -> first pedestal (No.001), A = statue details, RIGHT = No.002
+tap 1500 START
+tap 1650 A
+tap 2250 A
+tap 2700 LEFT
+tap 2800 DOWN
+tap 2950 A
+shot 3600 SHOT/statue1.ppm
+tap 3850 A
+shot 4000 SHOT/details1.ppm
+tap 4050 RIGHT
+tap 4250 RIGHT
+shot 4600 SHOT/statue2.ppm
+end 4600

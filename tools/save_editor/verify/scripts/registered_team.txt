@@ -1,0 +1,12 @@
+# area select -> STADIUM -> POKe CUP -> POKe BALL -> Battle -> "Registered Pokemon" -> registered team list
+tap 1500 START
+tap 1650 A
+tap 2250 A
+tap 2700 A
+tap 3150 A
+tap 3400 A
+tap 3650 A
+shot 3850 SHOT/entry.ppm
+tap 3900 A
+shot 4300 SHOT/teams.ppm
+end 4300

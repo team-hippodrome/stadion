@@ -1,0 +1,10 @@
+# Blank chip -> first save written by the game itself: title -> main menu -> OPTIONS -> quit Options.
+# Leaving Options calls Save_FlushDirtyBanks after Save_EnsureAllBanksLoaded reset every record.
+tap 1500 START
+tap 1650 A
+tap 2250 DOWN
+tap 2300 RIGHT
+tap 2350 A
+tap 2750 B
+flashsave 3100 OUT
+end 3100

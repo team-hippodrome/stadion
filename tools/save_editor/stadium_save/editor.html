@@ -1,0 +1,907 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stadium Save Editor</title>
+<style>
+:root {
+  --bg:#f4f5f7; --panel:#ffffff; --panel2:#eef0f3; --line:#dcdfe5; --fg:#1b1f26; --muted:#677080;
+  --accent:#d0342c; --accent-fg:#fff; --ok:#1f8a3b; --warn:#b26a00; --sel:#fde8e6; --shadow:0 8px 30px rgba(0,0,0,.18);
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg:#12161d; --panel:#1a1f27; --panel2:#222833; --line:#2c3440; --fg:#e6e9ee; --muted:#8b95a3;
+  --accent:#e5484d; --accent-fg:#fff; --ok:#3fb950; --warn:#e3a008; --sel:#3a2326; --shadow:0 8px 30px rgba(0,0,0,.5);
+} }
+* { box-sizing:border-box; }
+[hidden] { display:none !important; }
+html, body { height:100%; }
+body { margin:0; font:14px/1.45 -apple-system, system-ui, sans-serif; background:var(--bg); color:var(--fg);
+  display:flex; flex-direction:column; }
+button, select, input { font:inherit; color:inherit; }
+button { padding:6px 14px; border-radius:7px; border:1px solid var(--line); background:var(--panel); cursor:pointer; }
+button:hover:not(:disabled) { border-color:var(--muted); }
+button:disabled { opacity:.45; cursor:default; }
+button.primary { background:var(--accent); color:var(--accent-fg); border-color:var(--accent); font-weight:600; }
+button.small { padding:3px 10px; font-size:12px; }
+button.link { border:none; background:none; color:var(--accent); padding:2px 4px; }
+button.danger { color:var(--accent); }
+input, select { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:5px 8px; min-width:0; }
+input[type=number] { width:80px; }
+input[type=checkbox] { width:16px; height:16px; accent-color:var(--accent); }
+input:invalid { border-color:var(--accent); }
+label { color:var(--muted); font-size:12px; display:block; margin-bottom:3px; }
+h2 { font-size:20px; margin:0 0 4px; }
+h3 { font-size:15px; margin:0 0 10px; }
+p.lead { color:var(--muted); margin:0 0 18px; }
+.muted { color:var(--muted); }
+.row { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
+.grow { flex:1; }
+
+header { display:flex; align-items:center; gap:12px; padding:10px 18px; border-bottom:1px solid var(--line);
+  background:var(--panel); }
+header .title { font-weight:700; font-size:16px; white-space:nowrap; }
+header .file { color:var(--muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:40vw; }
+#status { font-size:12px; padding:3px 10px; border-radius:20px; background:var(--panel2); color:var(--muted); white-space:nowrap; }
+#status.dirty { background:var(--sel); color:var(--accent); font-weight:600; }
+#status.err { background:var(--sel); color:var(--accent); }
+
+.layout { flex:1; display:flex; min-height:0; }
+nav { width:210px; flex:none; border-right:1px solid var(--line); padding:12px 8px; overflow:auto; background:var(--panel); }
+nav a { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-radius:7px;
+  color:var(--fg); text-decoration:none; cursor:pointer; margin-bottom:2px; }
+nav a:hover { background:var(--panel2); }
+nav a.sel { background:var(--accent); color:var(--accent-fg); }
+nav a .count { font-size:11px; opacity:.75; }
+nav hr { border:none; border-top:1px solid var(--line); margin:10px 6px; }
+main { flex:1; overflow:auto; padding:22px 26px 40px; }
+
+.card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:16px; }
+.cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px; margin-bottom:16px; }
+.cards .card { margin:0; }
+.stat { font-size:26px; font-weight:700; }
+.banner { display:flex; gap:14px; align-items:center; border-radius:10px; padding:14px 18px; margin-bottom:16px;
+  border:1px solid var(--line); background:var(--panel); }
+.banner.ok { border-color:var(--ok); }
+.banner.warn { border-color:var(--warn); }
+.banner .icon { font-size:22px; }
+.tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+.tabs button { border-radius:20px; }
+.tabs button.sel { background:var(--accent); color:var(--accent-fg); border-color:var(--accent); }
+
+.split { display:grid; grid-template-columns:240px 1fr; gap:16px; align-items:start; }
+.slotlist .slot { display:flex; gap:10px; align-items:center; padding:8px 10px; border-radius:8px; cursor:pointer;
+  border:1px solid transparent; }
+.slotlist .slot:hover { background:var(--panel2); }
+.slotlist .slot.sel { border-color:var(--accent); background:var(--sel); }
+.slotlist .slot .n { width:22px; color:var(--muted); font-size:12px; text-align:right; }
+.slotlist .slot .minis { display:flex; gap:2px; }
+
+.mongrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; }
+.mon { display:flex; gap:10px; align-items:center; padding:10px; border:1px solid var(--line); border-radius:9px;
+  background:var(--panel); cursor:pointer; min-height:62px; }
+.mon:hover { border-color:var(--muted); }
+.mon.empty { border-style:dashed; color:var(--muted); justify-content:center; }
+.mon .name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mon .sub { font-size:12px; color:var(--muted); }
+.ball { flex:none; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-weight:700; color:#fff; font-size:13px; text-shadow:0 1px 2px rgba(0,0,0,.45); position:relative; overflow:hidden; }
+.ball.half::after { content:""; position:absolute; right:0; top:0; bottom:0; width:50%; background:var(--t2); }
+.ball span { position:relative; z-index:1; }
+.ball.mini { width:16px; height:16px; font-size:0; }
+.boxnav { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.boxgrid { display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; }
+
+table.items { border-collapse:collapse; width:100%; }
+table.items td { padding:4px 6px; border-bottom:1px solid var(--line); }
+table.items td:first-child { width:100%; }
+table.items select { width:100%; }
+
+.dexgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:6px; }
+.dex { padding:6px 8px; border:1px solid var(--line); border-radius:7px; cursor:pointer; font-size:12px; background:var(--panel);
+  display:flex; gap:6px; align-items:center; }
+.dex.has { border-color:var(--warn); background:color-mix(in srgb, var(--warn) 14%, var(--panel)); font-weight:600; }
+.dex.sel { outline:2px solid var(--accent); }
+.dex .no { color:var(--muted); font-size:11px; }
+.check { display:flex; gap:8px; align-items:center; color:var(--fg); font-size:14px; margin:6px 0; cursor:pointer; }
+.formgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:12px 16px; }
+.seg { display:inline-flex; border:1px solid var(--line); border-radius:7px; overflow:hidden; }
+.seg button { border:none; border-radius:0; border-right:1px solid var(--line); }
+.seg button:last-child { border-right:none; }
+.seg button.sel { background:var(--accent); color:var(--accent-fg); }
+.hint { font-size:12px; color:var(--muted); margin-top:6px; }
+.warnlist { color:var(--warn); font-size:12px; margin:8px 0 0; padding-left:18px; }
+.typebadge { display:inline-block; font-size:11px; padding:1px 8px; border-radius:10px; color:#fff; margin-right:4px;
+  text-shadow:0 1px 1px rgba(0,0,0,.35); }
+
+dialog { border:1px solid var(--line); border-radius:12px; background:var(--panel); color:var(--fg); padding:0;
+  width:min(680px, 94vw); box-shadow:var(--shadow); }
+dialog::backdrop { background:rgba(0,0,0,.45); }
+dialog .head { display:flex; gap:14px; align-items:center; padding:16px 20px; border-bottom:1px solid var(--line); }
+dialog .body { padding:16px 20px; min-height:300px; }
+dialog .foot { display:flex; gap:8px; padding:12px 20px; border-top:1px solid var(--line); }
+table.stats { border-collapse:collapse; margin-top:6px; }
+table.stats th, table.stats td { padding:4px 10px; text-align:right; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
+table.stats th:first-child, table.stats td:first-child { text-align:left; }
+table.stats input { width:74px; }
+.moverow { display:grid; grid-template-columns:1fr 120px 110px; gap:10px; align-items:center; margin-bottom:8px; }
+textarea { width:100%; min-height:55vh; font:12px/1.4 ui-monospace, Menlo, monospace; background:var(--bg); color:var(--fg);
+  border:1px solid var(--line); border-radius:6px; padding:8px; }
+pre { white-space:pre-wrap; font:12px/1.4 ui-monospace, Menlo, monospace; color:var(--muted); }
+#toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--fg); color:var(--bg);
+  padding:8px 16px; border-radius:8px; font-size:13px; opacity:0; transition:opacity .2s; pointer-events:none; }
+#toast.show { opacity:.95; }
+.empty-state { text-align:center; padding:40px; color:var(--muted); }
+nav .group { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); padding:4px 12px 6px; }
+.pair { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+.pair .card { margin:0; }
+.compact { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+.compact .mon { padding:6px 26px 6px 8px; min-height:50px; gap:8px; position:relative; }
+.compact .mon.empty { padding:6px 8px; }
+.compact .ball { width:28px; height:28px; font-size:10px; }
+.compact .mon .name { font-size:13px; }
+.compact .mon .sub { font-size:11px; }
+.mon .move { position:absolute; right:4px; top:4px; padding:0 6px; font-size:12px; line-height:18px; border-radius:5px;
+  background:var(--panel2); border:1px solid var(--line); color:var(--fg); }
+.mon .move:hover:not(:disabled) { background:var(--accent); color:var(--accent-fg); border-color:var(--accent); }
+.dex.seen { border-style:dashed; border-color:var(--muted); }
+.legend { display:flex; gap:14px; font-size:12px; color:var(--muted); margin-bottom:10px; align-items:center; }
+.legend .dex { cursor:default; display:inline-flex; padding:2px 8px; }
+</style></head><body>
+<header>
+  <span class="title">Pokémon Stadium save</span>
+  <span class="file" id="file">no save loaded</span>
+  <span id="status">Loading…</span>
+  <span class="grow"></span>
+  <button type="button" id="openBtn">Open save…</button><input type="file" id="fileInput" hidden>
+  <button id="discard" disabled title="Go back to the file as it is on disk">Discard changes</button>
+  <button class="primary" id="saveBtn" disabled>Save</button>
+</header>
+<div class="layout">
+  <nav id="nav"></nav>
+  <main id="main"><div class="empty-state">Open a Pokémon Stadium save (.flash / .fla, 128 KiB) to start.</div></main>
+</div>
+
+<dialog id="monDlg"></dialog>
+<div id="toast"></div>
+<datalist id="speciesList"></datalist>
+
+<script>
+"use strict";
+// ---- state -----------------------------------------------------------------------------------------------------
+let META = null;            // /api/meta
+let base = null;            // dump the current edits are relative to (the file on disk)
+let baseStr = "";
+let cur = null;             // edited dump
+let fileName = "pokestadium.flash", filePath = "", writable = false;
+let gbs = [];               // Game Boy saves (Transfer Paks): {id, label, title, kind, lang, name, path, base, baseStr, cur}
+const view = { section: "overview", cat: "poke_cup", slot: 0, box: 0, ibox: 0, dex: 25, json: "options",
+               gbTab: "party", gbBox: 0, xg: 0, xstore: "party" };
+
+const CATS = [
+  ["free_battle", "Free Battle", "Any Pokémon at any level."],
+  ["poke_cup", "Poké Cup", "Game rule: levels 50–55, and the three Pokémon you send in may add up to level 155 at most."],
+  ["petit_cup", "Petit Cup", "Game rule: levels 25–30 (three add up to 80 at most), small Pokémon only."],
+  ["pika_cup", "Pika Cup", "Game rule: levels 15–20 (three add up to 50 at most)."],
+  ["prime_cup", "Prime Cup", "Game rule: levels 1–100."],
+  ["gym_leader_castle", "Gym Leader Castle", "Any level up to 100."],
+  ["mewtwo", "Vs. Mewtwo", "Your team for the Mewtwo battle."],
+  ["category_1", "Hidden cup 1", "A Poké Cup copy that the game's menus never show."],
+  ["category_2", "Hidden cup 2", "A Poké Cup copy that the game's menus never show."],
+];
+const CAT_LEVEL = { poke_cup: 50, petit_cup: 25, pika_cup: 15, prime_cup: 100, gym_leader_castle: 50, mewtwo: 100 };
+const CUP_BITS = [[3, "Poké Cup"], [4, "Petit Cup"], [5, "Pika Cup"], [6, "Prime Cup"], [7, "Gym Leader Castle"], [8, "Beat Mewtwo"]];
+const STATUE_MODES = [[3, "Poké Cup"], [4, "Petit Cup"], [5, "Pika Cup"], [6, "Prime Cup"], [7, "Gym Leader Castle"]];
+const TYPE_COLORS = { Normal: "#9a9a6e", Fighting: "#c03028", Flying: "#8f7ae0", Poison: "#a040a0", Ground: "#d6b45a",
+  Rock: "#b8a038", Bug: "#98a820", Ghost: "#705898", Fire: "#f08030", Water: "#6890f0", Grass: "#5cb041",
+  Electric: "#e8b800", Psychic: "#f85888", Ice: "#6cc8c8", Dragon: "#7038f8" };
+const STAT_NAMES = { hp: "HP", atk: "Attack", def: "Defense", spd: "Speed", spc: "Special" };
+
+// ---- helpers ---------------------------------------------------------------------------------------------------
+const $ = id => document.getElementById(id);
+function el(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v === undefined || v === null || v === false) continue;
+    if (k === "class") e.className = v;
+    else if (k === "style") e.style.cssText = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (k in e && k !== "list") e[k] = v;
+    else e.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of kids.flat(Infinity)) if (c !== null && c !== undefined && c !== false) e.append(c instanceof Node ? c : String(c));
+  return e;
+}
+const clone = o => JSON.parse(JSON.stringify(o));
+const text = v => typeof v === "string" ? v : (v && typeof v === "object" ? v.text : "") || "";
+const pad = (n, w) => String(n).padStart(w, "0");
+const valid = rec => rec && rec._footer === "valid";
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2600); }
+function setStatus(msg, cls) { const s = $("status"); s.textContent = msg; s.className = cls || ""; }
+async function api(path, body, raw) {
+  const r = await fetch(path, body === undefined ? {} : { method: "POST", body: body instanceof ArrayBuffer ? body : JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return raw ? r.arrayBuffer() : r.json();
+}
+function speciesInfo(name) { return META.species.find(s => s.name === name); }
+function speciesByInput(v) {
+  const q = String(v || "").trim().toUpperCase().replace(/^#?\d+\s*/, "");
+  return META.species.find(s => s.name.toUpperCase() === q);
+}
+function ball(mon, mini) {
+  const sp = mon && mon.species ? speciesInfo(mon.species) : null;
+  const t = sp ? sp.types : [null, null];
+  const c1 = TYPE_COLORS[t[0]] || "#888", c2 = TYPE_COLORS[t[1]] || c1;
+  return el("span", { class: "ball" + (mini ? " mini" : "") + (c2 !== c1 ? " half" : ""), style: `background:${c1};--t2:${c2}`,
+                      title: mini && sp ? sp.name : null }, el("span", {}, sp ? pad(sp.dex, 3) : "?"));
+}
+function typeBadge(t) { return t ? el("span", { class: "typebadge", style: `background:${TYPE_COLORS[t] || "#888"}` }, t) : null; }
+function monName(m) { return m.species || ("Unknown #" + m.species_index); }
+
+// ---- record access ---------------------------------------------------------------------------------------------
+function listRecord(rec) {                // what a list record (team / box / item box) holds for the game
+  return valid(rec) ? rec : { flags: 0, name: "", trainer_id: 0, entries: [] };
+}
+function editList(rec, fn) {              // edit a list record; an unreadable one starts from the game's reset state
+  if (!valid(rec)) {
+    for (const k of Object.keys(rec)) delete rec[k];
+    Object.assign(rec, { flags: 0, name: "", trainer_id: 0, entries: [], _footer: "valid" });
+  }
+  fn(rec);
+  delete rec.count_raw;
+  delete rec._unused_entries;
+  changed();
+}
+function teamRegistered(t) { return valid(t) && (t.flags & 1) && t.entries.length > 0; }
+function allRecords() {
+  const out = [];
+  for (const c of META.team_categories) cur.teams[c].forEach((r, i) => out.push([["teams", c, i], r]));
+  for (const k of ["victory_palace", "continue", "options", "album", "photos"]) out.push([[k], cur[k]]);
+  cur.boxes.forEach((r, i) => out.push([["boxes", i], r]));
+  cur.item_boxes.forEach((r, i) => out.push([["item_boxes", i], r]));
+  return out;
+}
+
+// ---- load / save -----------------------------------------------------------------------------------------------
+function load(d, keepView) {
+  base = d.save; baseStr = JSON.stringify(base); cur = clone(base);
+  gbs = (d.gb || []).map(g => ({ id: g.id, label: g.label, title: g.title, kind: g.kind, lang: g.lang, name: g.name,
+    path: g.path, base: g.save, baseStr: JSON.stringify(g.save), cur: clone(g.save) }));
+  if (!keepView && /^#gb\d$/.test(location.hash) && +location.hash.slice(3) < gbs.length) { view.section = location.hash.slice(1); keepView = true; }
+  if (d.name) fileName = d.name;
+  if (d.path) filePath = d.path;
+  $("file").textContent = fileName;
+  $("file").title = filePath || fileName;
+  if (!keepView) view.section = "overview";
+  changed();
+}
+const gbDirty = g => JSON.stringify(g.cur) !== g.baseStr;
+function isDirty() { return cur !== null && (JSON.stringify(cur) !== baseStr || gbs.some(gbDirty)); }
+window.showSection = s => { view.section = s; render(); };  // the launcher's player cards open their cartridge
+window.hasUnsavedChanges = isDirty;       // asked by the macOS launcher before closing the window
+function changed() {
+  const dirty = isDirty();
+  $("saveBtn").disabled = !cur || (writable && !dirty);
+  $("discard").disabled = !dirty;
+  setStatus(dirty ? "Unsaved changes" : (writable ? "All changes saved" : "No changes"), dirty ? "dirty" : "");
+  render();
+}
+async function save() {
+  if (!cur) return;
+  try {
+    if (writable) {
+      const d = await api("/api/save", { base, edited: cur,
+        gb: gbs.filter(gbDirty).map(g => ({ id: g.id, base: g.base, edited: g.cur })) });
+      load(d, true);
+      toast(d.written.length ? "Saved " + d.written.join(" and ") + " (previous versions kept as .bak)" : "Nothing to save");
+    } else {
+      const buf = await api("/api/encode", { base, edited: cur }, true);
+      const a = el("a", { href: URL.createObjectURL(new Blob([buf])), download: fileName });
+      document.body.append(a); a.click(); a.remove();
+      toast("Downloaded " + fileName);
+    }
+  } catch (e) { setStatus("Could not save", "err"); alert("The save could not be written:\n\n" + e.message); }
+}
+$("saveBtn").onclick = save;
+$("discard").onclick = () => { if (confirm("Throw away all changes since the last save?")) { cur = clone(base); gbs.forEach(g => g.cur = clone(g.base)); changed(); } };
+document.addEventListener("keydown", e => { if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); if (!$("saveBtn").disabled) save(); } });
+$("openBtn").onclick = () => $("fileInput").click();
+$("fileInput").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (isDirty() && !confirm("Open another save and lose the unsaved changes?")) return;
+  try { const d = await api("/api/decode", await f.arrayBuffer()); d.name = f.name; filePath = ""; writable = false; load(d); }
+  catch (err) { alert("This is not a Pokémon Stadium save:\n\n" + err.message); }
+  e.target.value = "";
+};
+window.addEventListener("beforeunload", e => { if (isDirty()) { e.preventDefault(); e.returnValue = ""; } });
+
+// ---- navigation ------------------------------------------------------------------------------------------------
+const SECTIONS = [
+  ["overview", "Overview"], ["progress", "Progress & unlocks"], ["options", "Options"], "-",
+  ["teams", "Registered teams"], ["boxes", "Pokémon Lab boxes"], ["items", "Item boxes"], "-",
+  ["palace", "Victory Palace"], ["run", "Saved cup run"], ["gallery", "Gallery"], "-", ["advanced", "Advanced"],
+];
+function renderNav() {
+  const counts = {
+    teams: META.team_categories.reduce((n, c) => n + cur.teams[c].filter(teamRegistered).length, 0),
+    boxes: cur.boxes.reduce((n, b) => n + listRecord(b).entries.length, 0),
+    items: cur.item_boxes.reduce((n, b) => n + listRecord(b).entries.length, 0),
+    palace: cur.victory_palace.entries.filter(Boolean).length,
+    run: (cur.continue.flags & 1) ? "●" : "",
+  };
+  const secs = [...SECTIONS];
+  if (gbs.length) secs.splice(secs.length - 2, 0, "-", ["", "Game Boy (Transfer Pak)"], ...gbs.map((g, i) => ["gb" + i, g.title]));
+  $("nav").replaceChildren(...secs.map(s => s === "-" ? el("hr") : !s[0] ? el("div", { class: "group" }, s[1]) :
+    el("a", { class: view.section === s[0] ? "sel" : "", title: s[0].startsWith("gb") ? gbs[+s[0].slice(2)].label : null,
+              onclick: () => { view.section = s[0]; render(); $("main").scrollTop = 0; } },
+       s[1], counts[s[0]] ? el("span", { class: "count" }, counts[s[0]]) : s[0].startsWith("gb") ? el("span", { class: "count" },
+         (gbDirtyMark(s[0]) ? "● " : "") + gbs[+s[0].slice(2)].label.replace(/^Player /, "P")) : null)));
+}
+function gbDirtyMark(sec) { return sec.startsWith("gb") && gbs[+sec.slice(2)] && gbDirty(gbs[+sec.slice(2)]); }
+function render() {
+  if (!cur) return;
+  renderNav();
+  if (view.section.startsWith("gb")) { $("main").replaceChildren(...[renderGB(gbs[+view.section.slice(2)])].flat()); return; }
+  const fn = { overview: renderOverview, progress: renderProgress, options: renderOptions, teams: renderTeams,
+               boxes: renderBoxes, items: renderItems, palace: renderPalace, run: renderRun, gallery: renderGallery,
+               advanced: renderAdvanced }[view.section];
+  $("main").replaceChildren(...[fn()].flat().filter(Boolean));
+}
+function section(title, lead, ...body) { return [el("h2", {}, title), lead ? el("p", { class: "lead" }, lead) : null, ...body]; }
+
+// ---- overview --------------------------------------------------------------------------------------------------
+function health() {
+  const bad = allRecords().filter(([, r]) => !valid(r) || r._backup !== undefined);
+  return bad;
+}
+async function repair() {
+  try { const d = await api("/api/repair", { base, edited: cur }); cur = d.save; changed(); toast("Repaired. Save to keep it."); }
+  catch (e) { alert(e.message); }
+}
+function progressLine(p) {
+  const done = CUP_BITS.filter(([b]) => p.cleared_modes & (1 << b)).map(([, n]) => n);
+  return done.length ? done.join(", ") : "nothing cleared yet";
+}
+function roundState(p) {
+  if ((p.cleared_modes & 0x1F8) === 0x1F8) return "Complete";
+  if (p.mewtwo_unlocked) return "Mewtwo unlocked";
+  return p.cleared_modes || p.poke_cup || p.prime_cup || p.gym_leader_castle ? "In progress" : "Not started";
+}
+function renderOverview() {
+  const bad = health();
+  const o = cur.options;
+  const banner = bad.length === 0
+    ? el("div", { class: "banner ok" }, el("span", { class: "icon" }, "✓"), el("div", {}, el("b", {}, "This save is healthy."),
+        el("div", { class: "muted" }, "Every part of it is readable and both copies agree.")))
+    : el("div", { class: "banner warn" }, el("span", { class: "icon" }, "⚠"), el("div", { class: "grow" },
+        el("b", {}, `${bad.length} of ${allRecords().length} parts of this save are unreadable or out of sync.`),
+        el("div", { class: "muted" }, "That is normal for parts the game has never written (for example unused team slots). " +
+          "The game treats them as empty when it loads the save and rebuilds them. Editing a part fixes it; " +
+          "“Repair” fixes all of them now, the same way the game would.")),
+        el("button", { onclick: repair }, "Repair"));
+  const teams = META.team_categories.reduce((n, c) => n + cur.teams[c].filter(teamRegistered).length, 0);
+  const boxed = cur.boxes.reduce((n, b) => n + listRecord(b).entries.length, 0);
+  const statues = cur.victory_palace.entries.filter(Boolean).length;
+  const card = (title, value, sub, sec) => el("div", { class: "card", style: "cursor:pointer", onclick: () => { view.section = sec; render(); } },
+    el("div", { class: "muted" }, title), el("div", { class: "stat" }, value), el("div", { class: "muted" }, sub));
+  return section("Overview", "What is in this save. Click a card to edit that part.", banner,
+    el("div", { class: "cards" },
+      card("Round 1", roundState(o.progress[0]), progressLine(o.progress[0]), "progress"),
+      card("Round 2", roundState(o.progress[1]), progressLine(o.progress[1]), "progress"),
+      card("Registered teams", teams, "across all cups and modes", "teams"),
+      card("Pokémon in the Lab", boxed, "in 12 boxes of 20", "boxes"),
+      card("Victory Palace statues", statues + " / 151", "Pokémon that won a cup", "palace"),
+      card("Saved cup run", (cur.continue.flags & 1) ? "Yes" : "None", (cur.continue.flags & 1) ? runTitle(cur.continue.session) : "nothing to continue", "run"),
+      gbs.map((g, i) => card(`${g.label} · ${g.title}`, text(g.cur.trainer.name),
+        `${g.cur.party.length} in the party · ${g.cur.boxes.reduce((n, b) => n + b.length, 0)} in PC boxes · ${g.cur.pokedex.owned.length} caught`, "gb" + i))),
+    el("div", { class: "card" }, el("h3", {}, "Quick actions"),
+      el("div", { class: "row" },
+        el("button", { onclick: () => { unlockAll(false); toast("Round 1 fully cleared, Mewtwo unlocked."); } }, "Clear Round 1 & unlock Mewtwo"),
+        el("button", { onclick: () => { unlockAll(true); toast("Both rounds fully cleared."); } }, "Clear both rounds"),
+        el("button", { onclick: () => { o.gb_tower_speed = 2; changed(); toast("GB Tower now runs at Dodrio speed."); } }, "GB Tower: fastest speed")),
+      el("div", { class: "hint" }, "Changes are only written when you press Save.")));
+}
+function unlockAll(round2) {
+  for (const r of round2 ? [0, 1] : [0]) {
+    Object.assign(cur.options.progress[r], { cleared_modes: cur.options.progress[r].cleared_modes | 0xF8,
+      gym_leader_castle: 8, poke_cup: 4, prime_cup: 4, mewtwo_unlocked: 1 });
+  }
+  changed();
+}
+
+// ---- progress --------------------------------------------------------------------------------------------------
+function numberField(lbl, value, min, max, set, hint) {
+  return el("div", {}, el("label", {}, lbl),
+    el("input", { type: "number", min, max, value, onchange: e => {
+      const v = Math.max(min, Math.min(max, parseInt(e.target.value || "0", 10))); set(v); changed(); } }),
+    hint ? el("div", { class: "hint" }, hint) : null);
+}
+function selectField(lbl, value, options, set) {
+  return el("div", {}, el("label", {}, lbl),
+    el("select", { onchange: e => { set(isNaN(+e.target.value) ? e.target.value : +e.target.value); changed(); } },
+      options.map(([v, t]) => el("option", { value: v, selected: v === value }, t))));
+}
+function checkField(lbl, on, set) {
+  return el("label", { class: "check" }, el("input", { type: "checkbox", checked: on, onchange: e => { set(e.target.checked); changed(); } }), lbl);
+}
+function renderProgress() {
+  const o = cur.options;
+  const div = n => [[0, "None"], [1, "Poké Ball"], [2, "Great Ball"], [3, "Ultra Ball"], [4, "Master Ball (all)"]].slice(0, n + 1);
+  const rounds = o.progress.map((p, r) => el("div", { class: "card" },
+    el("h3", {}, r === 0 ? "Round 1" : "Round 2"),
+    el("div", { class: "formgrid" },
+      el("div", {}, el("label", {}, "Cleared"), CUP_BITS.map(([b, n]) => checkField(n, !!(p.cleared_modes & (1 << b)),
+        v => { p.cleared_modes = v ? p.cleared_modes | (1 << b) : p.cleared_modes & ~(1 << b); }))),
+      el("div", {},
+        selectField("Poké Cup divisions cleared", p.poke_cup, div(4), v => p.poke_cup = v),
+        el("div", { style: "height:10px" }),
+        selectField("Prime Cup divisions cleared", p.prime_cup, div(4), v => p.prime_cup = v),
+        el("div", { style: "height:10px" }),
+        selectField("Castle gyms cleared", p.gym_leader_castle,
+          [[0, "No gym cleared"], ...META.glc_stages.slice(0, 8).map((g, i) => [i + 1, i + 1 === 8 ? "All 8 gyms" : `Up to ${g}`])],
+          v => p.gym_leader_castle = v)),
+      el("div", {}, el("label", {}, "Mewtwo"), checkField("Mewtwo unlocked (night sky over the Castle)", !!p.mewtwo_unlocked, v => p.mewtwo_unlocked = v ? 1 : 0),
+        el("div", { style: "height:12px" }),
+        el("div", { class: "row" },
+          el("button", { class: "small", onclick: () => { Object.assign(p, { cleared_modes: p.cleared_modes | 0xF8, gym_leader_castle: 8, poke_cup: 4, prime_cup: 4, mewtwo_unlocked: 1 }); changed(); } }, "Clear everything"),
+          el("button", { class: "small", onclick: () => { Object.assign(p, { cleared_modes: 0, gym_leader_castle: 0, poke_cup: 0, prime_cup: 0, mewtwo_unlocked: 0 }); changed(); } }, "Reset"))))));
+  return section("Progress & unlocks", "Which cups you have cleared. Clearing all four cups and the Castle unlocks the Mewtwo battle.",
+    ...rounds,
+    el("div", { class: "card" }, el("h3", {}, "GB Tower"),
+      el("label", {}, "Game Boy emulation speed (an unlock from clearing cups)"),
+      el("div", { class: "seg" }, [[0, "Normal"], [1, "Doduo (×2)"], [2, "Dodrio (×3)"]].map(([v, t]) =>
+        el("button", { class: o.gb_tower_speed === v ? "sel" : "", onclick: () => { o.gb_tower_speed = v; changed(); } }, t)))));
+}
+
+// ---- options ---------------------------------------------------------------------------------------------------
+function renderOptions() {
+  const o = cur.options;
+  const seg = (lbl, cur_, opts, set) => el("div", {}, el("label", {}, lbl), el("div", { class: "seg" },
+    opts.map(([v, t]) => el("button", { class: cur_ === v ? "sel" : "", onclick: () => { set(v); changed(); } }, t))));
+  const bonusDex = o.bonus_pokemon & 0xFF;
+  return section("Options", "The settings from the game's Options menu, plus a few things the game remembers.",
+    el("div", { class: "card" }, el("h3", {}, "Sound"),
+      el("div", { class: "row" },
+        seg("Sound", o.sound & 1, [[0, "Stereo"], [1, "Mono"]], v => o.sound = (o.sound & ~1) | v),
+        seg("Commentator voice", (o.sound >> 1) & 1, [[0, "On"], [1, "Off"]], v => o.sound = (o.sound & ~2) | (v << 1)))),
+    el("div", { class: "card" }, el("h3", {}, "Kids Club"),
+      checkField("Hyper difficulty unlocked", !!(o.kids_club & 1), v => o.kids_club = (o.kids_club & ~1) | (v ? 1 : 0))),
+    el("div", { class: "card" }, el("h3", {}, "Bonus Pokémon"),
+      el("p", { class: "muted", style: "margin-top:0" }, "A gift Pokémon waiting at the Lab PC, collected from the Pokémon Lab with a Game Boy cartridge in the Transfer Pak."),
+      el("div", { class: "row" },
+        selectField("Pokémon waiting", bonusDex, [[0, "None"], ...META.species.map(s => [s.dex, `#${pad(s.dex, 3)} ${s.name}`])],
+          v => o.bonus_pokemon = v ? (o.bonus_pokemon & 0x100) | v : 0),
+        bonusDex ? checkField("From Round 2", !!(o.bonus_pokemon & 0x100), v => o.bonus_pokemon = (o.bonus_pokemon & 0xFF) | (v ? 0x100 : 0)) : null)));
+}
+
+// ---- Pokémon editor dialog -------------------------------------------------------------------------------------
+// ctx: {mon (null = new), title, ot_name, ot_id, level, onDone(mon), onRemove()}
+let dlg = null;
+function openMon(ctx) {
+  const m = ctx.mon;
+  dlg = {
+    ctx, tab: "main", preview: m, warnings: [], error: "",
+    d: m ? { species: m.species || "", nickname: m.nickname, level: m.level,
+             moves: [0, 1, 2, 3].map(i => m.moves[i] ? { move: String(m.moves[i].move), pp_up: m.moves[i].pp_up } : { move: "", pp_up: 0 }),
+             ot_name: m.ot_name, ot_id: m.ot_id, dvs: clone(m.dvs), stat_exp: clone(m.stat_exp) }
+         : { species: "", nickname: "", level: ctx.level || 50, moves: [0, 1, 2, 3].map(() => ({ move: "", pp_up: 0 })),
+             ot_name: ctx.ot_name || "STADIUM", ot_id: ctx.ot_id || 0, dvs: { atk: 15, def: 15, spd: 15, spc: 15 },
+             stat_exp: { hp: 0, atk: 0, def: 0, spd: 0, spc: 0 } },
+  };
+  renderDlg();
+  $("monDlg").showModal();
+}
+function dlgRequest() {
+  const d = dlg.d;
+  return { species: d.species, level: d.level, nickname: text(d.nickname) ? d.nickname : null,
+           moves: d.moves.filter(x => x.move), ot_name: d.ot_name, ot_id: d.ot_id, dvs: d.dvs, stat_exp: d.stat_exp };
+}
+async function refreshPreview() {
+  if (!speciesInfo(dlg.d.species)) { dlg.preview = null; renderDlg(); return; }
+  try { const r = await api("/api/mon", dlgRequest()); dlg.preview = r.mon; dlg.warnings = r.warnings; dlg.error = ""; }
+  catch (e) { dlg.error = e.message.replace(/^\w+Error: /, ""); }
+  renderDlg();
+}
+function setSpecies(sp) {
+  const d = dlg.d, old = d.species;
+  if (!text(d.nickname) || text(d.nickname) === old) d.nickname = sp.name;
+  d.species = sp.name;
+  if (!d.moves.some(x => x.move)) d.moves = [0, 1, 2, 3].map(i => ({ move: sp.moves[i] || "", pp_up: 0 }));
+  refreshPreview();
+}
+function renderDlg() {
+  const d = dlg.d, p = dlg.preview, sp = speciesInfo(d.species);
+  const tabBtn = (k, t) => el("button", { class: dlg.tab === k ? "sel" : "", onclick: () => { dlg.tab = k; renderDlg(); } }, t);
+  const num = (lbl, obj, key, min, max, w) => el("div", {}, el("label", {}, lbl),
+    el("input", { type: "number", min, max, value: obj[key], style: w ? `width:${w}px` : null,
+      onchange: e => { obj[key] = Math.max(min, Math.min(max, parseInt(e.target.value || "0", 10))); refreshPreview(); } }));
+  let body;
+  if (dlg.tab === "main") {
+    body = el("div", { class: "formgrid" },
+      el("div", { style: "grid-column:1/-1" }, el("label", {}, "Species"),
+        el("input", { list: "speciesList", value: d.species, placeholder: "Type a name, e.g. PIKACHU", style: "width:100%",
+          onchange: e => { const s = speciesByInput(e.target.value); if (s) setSpecies(s); else { e.target.value = d.species; toast("Pick a species from the list"); } } })),
+      el("div", {}, el("label", {}, "Nickname"),
+        el("input", { value: text(d.nickname), maxLength: 10, onchange: e => { d.nickname = e.target.value.toUpperCase() || (sp ? sp.name : ""); refreshPreview(); } })),
+      num("Level (1–100)", d, "level", 1, 100),
+      el("div", {}, el("label", {}, "Original trainer"),
+        el("input", { value: text(d.ot_name), maxLength: 10, onchange: e => { d.ot_name = e.target.value.toUpperCase(); refreshPreview(); } })),
+      num("Trainer ID (0–65535)", d, "ot_id", 0, 65535, 110),
+      el("div", { class: "hint", style: "grid-column:1/-1" }, "Names use the Game Boy alphabet: up to 10 capital letters, digits and a few symbols. " +
+        "Experience, HP and PP are filled in to match the level, as for a freshly caught Pokémon."));
+  } else if (dlg.tab === "moves") {
+    const sorted = [...META.moves].sort((a, b) => a.name.localeCompare(b.name));
+    body = el("div", {},
+      d.moves.map((mv, i) => {
+        const info = META.moves.find(x => x.name === mv.move);
+        return el("div", { class: "moverow" },
+          el("select", { onchange: e => { mv.move = e.target.value; refreshPreview(); } },
+            el("option", { value: "" }, "— no move —"),
+            sorted.map(x => el("option", { value: x.name, selected: x.name === mv.move }, x.name))),
+          el("span", {}, info ? typeBadge(info.type) : null, info && info.power ? el("span", { class: "muted" }, " " + info.power) : null),
+          el("select", { disabled: !mv.move, onchange: e => { mv.pp_up = +e.target.value; refreshPreview(); } },
+            [0, 1, 2, 3].map(u => el("option", { value: u, selected: mv.pp_up === u },
+              info ? `${info.pp + Math.floor(info.pp / 5) * u} PP${u ? ` (${u} PP Up)` : ""}` : "PP"))));
+      }),
+      el("div", { class: "row", style: "margin-top:12px" },
+        el("button", { class: "small", disabled: !sp, onclick: () => { d.moves = [0, 1, 2, 3].map(i => ({ move: sp.moves[i] || "", pp_up: 0 })); refreshPreview(); } }, "Use starting moves"),
+        el("span", { class: "hint" }, "Any move can be chosen; the game does not check whether the species can learn it.")));
+  } else {
+    const st = p && p._info ? p._info.stats : null;
+    const hpDv = ((d.dvs.atk & 1) << 3) | ((d.dvs.def & 1) << 2) | ((d.dvs.spd & 1) << 1) | (d.dvs.spc & 1);
+    body = el("div", {},
+      el("table", { class: "stats" },
+        el("tr", {}, el("th", {}, ""), el("th", {}, "DV (0–15)"), el("th", {}, "Stat Exp (0–65535)"), el("th", {}, "Stat")),
+        ["hp", "atk", "def", "spd", "spc"].map(k => el("tr", {},
+          el("td", {}, STAT_NAMES[k]),
+          el("td", {}, k === "hp" ? el("span", { class: "muted", title: "Comes from the other four DVs" }, hpDv)
+            : el("input", { type: "number", min: 0, max: 15, value: d.dvs[k], onchange: e => { d.dvs[k] = Math.max(0, Math.min(15, +e.target.value || 0)); refreshPreview(); } })),
+          el("td", {}, el("input", { type: "number", min: 0, max: 65535, value: d.stat_exp[k], style: "width:90px",
+            onchange: e => { d.stat_exp[k] = Math.max(0, Math.min(65535, +e.target.value || 0)); refreshPreview(); } })),
+          el("td", {}, el("b", {}, st ? st[k] : "–"))))),
+      el("div", { class: "row", style: "margin-top:12px" },
+        el("button", { class: "small", onclick: () => { d.dvs = { atk: 15, def: 15, spd: 15, spc: 15 }; d.stat_exp = { hp: 65535, atk: 65535, def: 65535, spd: 65535, spc: 65535 }; refreshPreview(); } }, "Perfect stats"),
+        el("button", { class: "small", onclick: () => { d.stat_exp = { hp: 0, atk: 0, def: 0, spd: 0, spc: 0 }; refreshPreview(); } }, "No training"),
+        el("span", { class: "hint" }, "DVs are Gen 1 “individual values”; Stat Exp is the training from battles.")));
+  }
+  const title = sp ? `${text(d.nickname) || sp.name}` : (dlg.ctx.mon ? monName(dlg.ctx.mon) : "New Pokémon");
+  $("monDlg").replaceChildren(
+    el("div", { class: "head" }, ball(sp ? { species: sp.name } : null),
+      el("div", { class: "grow" }, el("div", { style: "font-weight:700;font-size:17px" }, title),
+        el("div", { class: "muted" }, sp ? [`#${pad(sp.dex, 3)} ${sp.name} · Lv ${d.level} `, ...sp.types.filter((t, i) => i === 0 || t !== sp.types[0]).map(typeBadge)] : dlg.ctx.title || "")),
+      el("div", { class: "tabs", style: "margin:0" }, tabBtn("main", "Pokémon"), tabBtn("moves", "Moves"), tabBtn("stats", "Stats"))),
+    el("div", { class: "body" }, body,
+      dlg.error ? el("ul", { class: "warnlist" }, el("li", {}, dlg.error)) : null,
+      dlg.warnings.length ? el("ul", { class: "warnlist" }, dlg.warnings.map(w => el("li", {}, w))) : null),
+    el("div", { class: "foot" },
+      dlg.ctx.onRemove ? el("button", { class: "danger", onclick: () => { $("monDlg").close(); dlg.ctx.onRemove(); } }, "Remove") : null,
+      el("span", { class: "grow" }),
+      el("button", { onclick: () => $("monDlg").close() }, "Cancel"),
+      el("button", { class: "primary", disabled: !sp, onclick: async () => {
+        try { const r = await api("/api/mon", dlgRequest()); $("monDlg").close(); dlg.ctx.onDone(r.mon); }
+        catch (e) { dlg.error = e.message.replace(/^\w+Error: /, ""); renderDlg(); } } }, dlg.ctx.mon ? "Done" : "Add")));
+}
+function monCard(m, onclick, action) {
+  return el("div", { class: "mon", onclick }, ball(m),
+    el("div", { style: "min-width:0" }, el("div", { class: "name" }, text(m.nickname) || monName(m)),
+      el("div", { class: "sub" }, text(m.nickname) && text(m.nickname) !== monName(m) ? `${monName(m)} · Lv ${m.level}` : `Lv ${m.level}`)),
+    action ? el("button", { class: "move", title: action.title, disabled: action.disabled,
+      onclick: e => { e.stopPropagation(); action.onclick(); } }, action.label) : null);
+}
+function emptyCard(label, onclick) { return el("div", { class: "mon empty", onclick }, "+ " + label); }
+
+// ---- registered teams ------------------------------------------------------------------------------------------
+function renderTeams() {
+  const cat = CATS.find(c => c[0] === view.cat);
+  const slots = cur.teams[view.cat];
+  const t = slots[view.slot], tl = listRecord(t);
+  const reg = teamRegistered(t);
+  const editTeam = fn => editList(t, r => { fn(r); r.flags = r.entries.length ? (r.flags | 1) & ~2 : 0; });
+  const ctx = (i) => ({ title: `${cat[1]} team`, ot_name: text(tl.name) || "RED", ot_id: tl.trainer_id, level: CAT_LEVEL[view.cat] });
+  const panel = el("div", { class: "card" },
+    el("div", { class: "row", style: "margin-bottom:14px" },
+      el("div", {}, el("label", {}, "Team name (trainer)"), el("input", { value: text(tl.name), maxLength: 10, placeholder: "e.g. RED",
+        onchange: e => editTeam(r => r.name = e.target.value.toUpperCase()) })),
+      el("div", {}, el("label", {}, "Trainer ID"), el("input", { type: "number", min: 0, max: 65535, value: tl.trainer_id, style: "width:110px",
+        onchange: e => editTeam(r => r.trainer_id = Math.max(0, Math.min(65535, +e.target.value || 0))) })),
+      el("span", { class: "grow" }),
+      reg ? el("button", { class: "danger", onclick: () => { if (confirm("Delete this team?")) editList(t, r => { for (const k of Object.keys(r)) if (k.startsWith("_") && k !== "_footer") delete r[k]; Object.assign(r, { flags: 0, name: "", trainer_id: 0, entries: [] }); }); } }, "Delete team") : null),
+    el("div", { class: "mongrid" },
+      tl.entries.map((m, i) => monCard(m, () => openMon({ ...ctx(), mon: m,
+        onDone: nm => editTeam(r => r.entries[i] = nm), onRemove: () => editTeam(r => r.entries.splice(i, 1)) }))),
+      tl.entries.length < 6 ? emptyCard("Add Pokémon", () => openMon({ ...ctx(), mon: null,
+        onDone: nm => editTeam(r => { r.entries.push(nm); if (!text(r.name)) r.name = "RED"; }) })) : null),
+    el("div", { class: "hint", style: "margin-top:12px" }, cat[2] + " Up to 6 Pokémon per team."));
+  return section("Registered teams", "Teams saved with “Register” in each cup. Every cup has 10 slots.",
+    el("div", { class: "tabs" }, CATS.map(([k, n]) => el("button", { class: view.cat === k ? "sel" : "", onclick: () => { view.cat = k; view.slot = 0; render(); } },
+      n, " ", el("span", { class: "muted" }, cur.teams[k].filter(teamRegistered).length || "")))),
+    el("div", { class: "split" },
+      el("div", { class: "card slotlist", style: "padding:8px" }, slots.map((s, i) => {
+        const r = listRecord(s);
+        return el("div", { class: "slot" + (i === view.slot ? " sel" : ""), onclick: () => { view.slot = i; render(); } },
+          el("span", { class: "n" }, i + 1),
+          el("div", { class: "grow", style: "min-width:0" }, teamRegistered(s) ? el("div", {}, text(r.name) || "(no name)") : el("div", { class: "muted" }, "Empty slot"),
+            teamRegistered(s) ? el("div", { class: "minis" }, r.entries.map(m => ball(m, true))) : null));
+      })),
+      panel));
+}
+
+// ---- Lab boxes (and moving Pokémon to / from the Game Boy games) ----------------------------------------------------
+const PARTY_MAX = 6, BOX_MAX = 20;
+function gbStore(g, store) { return store === "party" ? g.cur.party : g.cur.boxes[store]; }
+function gbStoreName(store) { return store === "party" ? "Party" : `Box ${store + 1}`; }
+function toStadium(m) {               // the Lab PC re-encodes the nickname (zero padding), the OT name is copied
+  const c = clone(m); if (c.nickname && typeof c.nickname === "object") c.nickname = c.nickname.text; return c;
+}
+function boxCells(list, cap, ctx, edit, action, compact) {
+  const cells = [];
+  for (let i = 0; i < cap; i++) {
+    const m = list[i];
+    if (m) cells.push(monCard(m, () => openMon({ ...ctx, mon: m, onDone: nm => edit(l => l[i] = nm),
+      onRemove: ctx.canRemove === false && list.length <= 1 ? null : () => edit(l => l.splice(i, 1)) }), action && action(m, i)));
+    else if (i === list.length) cells.push(emptyCard("Add", () => openMon({ ...ctx, mon: null, onDone: nm => edit(l => l.push(nm)) })));
+    else cells.push(el("div", { class: "mon empty", style: "cursor:default;opacity:.4" }, ""));
+  }
+  return el("div", { class: compact ? "compact" : "boxgrid" }, cells);
+}
+function boxNav(count, cur_, labelOf, setter, extra) {
+  const go = d => { setter((cur_ + d + count) % count); render(); };
+  return el("div", { class: "boxnav" },
+    el("button", { onclick: () => go(-1) }, "◀"),
+    el("select", { onchange: e => { setter(+e.target.value); render(); } },
+      Array.from({ length: count }, (_, i) => el("option", { value: i, selected: i === cur_ }, labelOf(i)))),
+    el("button", { onclick: () => go(1) }, "▶"), el("span", { class: "grow" }), extra || null);
+}
+function renderBoxes() {
+  const b = cur.boxes[view.box], bl = listRecord(b);
+  const edit = fn => editList(b, r => fn(r.entries));
+  const ctx = { title: `Box ${view.box + 1}`, ot_name: bl.entries[0] ? text(bl.entries[0].ot_name) : "RED", ot_id: bl.entries[0] ? bl.entries[0].ot_id : 0 };
+  const nav_ = boxNav(12, view.box, i => `Box ${i + 1}  (${listRecord(cur.boxes[i]).entries.length}/20)`, v => view.box = v,
+    bl.entries.length ? el("button", { class: "danger small", onclick: () => { if (confirm(`Empty box ${view.box + 1}?`)) edit(l => l.length = 0); } }, "Empty this box") : null);
+  if (!gbs.length) return section("Pokémon Lab boxes", "The Pokémon stored in the Pokémon Lab's PC: 12 boxes with room for 20 each.",
+    nav_, boxCells(bl.entries, BOX_MAX, ctx, edit));
+  // with Game Boy games in the Transfer Paks: move Pokémon between the Lab and a cartridge, like the Lab PC does
+  const g = gbs[Math.min(view.xg, gbs.length - 1)];
+  const store = view.xstore, list = gbStore(g, store), cap = store === "party" ? PARTY_MAX : BOX_MAX;
+  const gEdit = fn => { fn(gbStore(g, store)); changed(); };
+  const gctx = { title: `${g.label} · ${gbStoreName(store)}`, ot_name: text(g.cur.trainer.name), ot_id: g.cur.trainer.id, level: 5, canRemove: store !== "party" };
+  const toGb = (m, i) => ({ label: "→", title: `Move to ${g.label}'s ${gbStoreName(store).toLowerCase()}`, disabled: list.length >= cap,
+    onclick: () => { editList(b, r => r.entries.splice(i, 1)); gbStore(g, store).push(clone(m)); changed(); toast(`${text(m.nickname)} moved to ${g.label}`); } });
+  const toLab = (m, i) => ({ label: "←", title: `Move to Lab box ${view.box + 1}`,
+    disabled: bl.entries.length >= BOX_MAX || (store === "party" && list.length <= 1),
+    onclick: () => { const lm = toStadium(m); gbStore(g, store).splice(i, 1); editList(b, r => r.entries.push(lm)); toast(`${text(m.nickname)} moved to Lab box ${view.box + 1}`); } });
+  return section("Pokémon Lab boxes", "The Pokémon stored in the Pokémon Lab's PC. Use the arrow on a Pokémon to move it between the Lab and a Game Boy game in a Transfer Pak, as the Lab PC does.",
+    el("div", { class: "pair" },
+      el("div", { class: "card" }, el("h3", {}, "Pokémon Lab"), nav_, boxCells(bl.entries, BOX_MAX, ctx, edit, toGb, true)),
+      el("div", { class: "card" },
+        el("h3", {}, "Game Boy"),
+        el("div", { class: "boxnav" },
+          gbs.length > 1 ? el("select", { onchange: e => { view.xg = +e.target.value; render(); } },
+            gbs.map((x, i) => el("option", { value: i, selected: x === g }, `${x.label} · ${text(x.cur.trainer.name)}`))) : el("b", {}, `${g.label} · ${text(g.cur.trainer.name)}`),
+          el("select", { onchange: e => { view.xstore = e.target.value === "party" ? "party" : +e.target.value; render(); } },
+            el("option", { value: "party", selected: store === "party" }, `Party (${g.cur.party.length}/6)`),
+            g.cur.boxes.map((x, i) => el("option", { value: i, selected: store === i }, `Box ${i + 1} (${x.length}/20)`)))),
+        boxCells(list, cap, gctx, gEdit, toLab, true),
+        store === "party" ? el("div", { class: "hint" }, "The party always keeps at least one Pokémon.") : null)));
+}
+
+// ---- Game Boy games ---------------------------------------------------------------------------------------------
+const BADGES = ["Boulder", "Cascade", "Thunder", "Rainbow", "Soul", "Marsh", "Volcano", "Earth"];
+function itemTable(entries, cap, mutate, emptyText) {
+  const items = [...META.items].sort((a, b2) => a.id - b2.id);
+  return el("div", {},
+    entries.length ? el("table", { class: "items" }, entries.map((it, i) => el("tr", {},
+      el("td", {}, el("select", { onchange: e => mutate(l => l[i] = { item: +e.target.value, quantity: l[i].quantity }) },
+        items.map(x => el("option", { value: x.id, selected: x.id === it.item }, x.name)),
+        items.some(x => x.id === it.item) ? null : el("option", { value: it.item, selected: true }, `Unknown item ${it.item}`))),
+      el("td", {}, el("input", { type: "number", min: 1, max: 99, value: it.quantity, title: "Quantity",
+        onchange: e => mutate(l => l[i] = { item: l[i].item, quantity: Math.max(1, Math.min(99, +e.target.value || 1)) }) })),
+      el("td", {}, el("button", { class: "link", title: "Remove", onclick: () => mutate(l => l.splice(i, 1)) }, "✕")))))
+      : el("div", { class: "muted", style: "padding:10px 0" }, emptyText),
+    el("div", { class: "row", style: "margin-top:12px" },
+      el("button", { disabled: entries.length >= cap, onclick: () => mutate(l => l.push({ item: 40, quantity: 1 })) }, "+ Add item"),
+      el("span", { class: "hint", style: "margin:0" }, `${entries.length} of ${cap}`)));
+}
+function renderGB(g) {
+  const c = g.cur, t = c.trainer;
+  const mut = fn => { fn(); changed(); };
+  const tab = (k, n) => el("button", { class: view.gbTab === k ? "sel" : "", onclick: () => { view.gbTab = k; render(); } }, n);
+  const head = [
+    el("h2", {}, `${g.label} · ${g.title}`),
+    el("p", { class: "lead" }, `${text(t.name)} (ID ${pad(t.id, 5)}) · ${g.name}`),
+    c.valid ? null : el("div", { class: "banner warn" }, el("span", { class: "icon" }, "⚠"),
+      el("div", {}, el("b", {}, "The Game Boy game will report this save as corrupted."), el("div", { class: "muted" }, "Its checksum does not match. Saving here rewrites the checksum."))),
+    el("div", { class: "tabs" }, tab("trainer", "Trainer"), tab("party", `Party (${c.party.length})`), tab("boxes", "PC boxes"),
+      tab("items", "Items"), tab("dex", `Pokédex (${c.pokedex.owned.length})`)),
+  ];
+  const ctx = { title: g.label, ot_name: text(t.name), ot_id: t.id, level: 5 };
+  let body;
+  if (view.gbTab === "trainer") {
+    body = [el("div", { class: "card" }, el("div", { class: "formgrid" },
+      el("div", {}, el("label", {}, "Player name"), el("input", { value: text(t.name), maxLength: 7, onchange: e => mut(() => t.name = e.target.value.toUpperCase()) })),
+      el("div", {}, el("label", {}, "Rival name"), el("input", { value: text(t.rival), maxLength: 7, onchange: e => mut(() => t.rival = e.target.value.toUpperCase()) })),
+      numberField("Trainer ID", t.id, 0, 65535, v => t.id = v),
+      numberField("Money (₽)", t.money, 0, 999999, v => t.money = v),
+      g.kind === "yellow" ? numberField("Pikachu's friendship (0–255)", t.pikachu_happiness, 0, 255, v => t.pikachu_happiness = v) : null,
+      el("div", {}, el("label", {}, "Play time"), el("div", { style: "padding:5px 0" }, `${t.playtime.hours}:${pad(t.playtime.minutes, 2)}:${pad(t.playtime.seconds, 2)}`))),
+      el("div", { class: "hint" }, "Changing the trainer ID makes the game treat your own Pokémon as traded ones (they obey only with the right badges).")),
+      el("div", { class: "card" }, el("h3", {}, "Badges"),
+        el("div", { class: "row", style: "align-items:center" }, BADGES.map((n, i) => checkField(n + " Badge", !!(t.badges & (1 << i)), v => t.badges = v ? t.badges | (1 << i) : t.badges & ~(1 << i)))),
+        el("div", { class: "row", style: "margin-top:8px" },
+          el("button", { class: "small", onclick: () => mut(() => t.badges = 255) }, "All badges"),
+          el("button", { class: "small", onclick: () => mut(() => t.badges = 0) }, "No badges")))];
+  } else if (view.gbTab === "party") {
+    body = el("div", { class: "card" }, boxCells(c.party, PARTY_MAX, { ...ctx, canRemove: false }, fn => mut(() => fn(c.party))),
+      el("div", { class: "hint", style: "margin-top:10px" }, "Up to 6 Pokémon; the party always keeps at least one. Level and stats are recalculated when saving."));
+  } else if (view.gbTab === "boxes") {
+    const n = view.gbBox;
+    body = el("div", { class: "card" },
+      boxNav(12, n, i => `Box ${i + 1}  (${c.boxes[i].length}/20)${i === c.current_box ? "  · current" : ""}`, v => view.gbBox = v,
+        c.boxes[n].length ? el("button", { class: "danger small", onclick: () => { if (confirm(`Empty PC box ${n + 1}?`)) mut(() => c.boxes[n].length = 0); } }, "Empty this box") : null),
+      boxCells(c.boxes[n], BOX_MAX, ctx, fn => mut(() => fn(c.boxes[n]))));
+  } else if (view.gbTab === "items") {
+    body = el("div", { class: "pair" },
+      el("div", { class: "card" }, el("h3", {}, "Bag"), itemTable(c.bag, 20, fn => mut(() => fn(c.bag)), "The bag is empty.")),
+      el("div", { class: "card" }, el("h3", {}, "PC items"), itemTable(c.pc_items, 50, fn => mut(() => fn(c.pc_items)), "No items stored in the PC.")));
+  } else {
+    const owned = new Set(c.pokedex.owned), seen = new Set(c.pokedex.seen);
+    const cycle = dex => mut(() => {  // none -> seen -> caught -> none
+      if (owned.has(dex)) { c.pokedex.owned = c.pokedex.owned.filter(x => x !== dex); c.pokedex.seen = c.pokedex.seen.filter(x => x !== dex); }
+      else if (seen.has(dex)) c.pokedex.owned = [...c.pokedex.owned, dex].sort((a, b2) => a - b2);
+      else c.pokedex.seen = [...c.pokedex.seen, dex].sort((a, b2) => a - b2);
+    });
+    body = el("div", { class: "card" },
+      el("div", { class: "legend" }, el("span", { class: "dex has" }, "caught"), el("span", { class: "dex seen" }, "seen"), el("span", { class: "dex" }, "not seen"),
+        el("span", {}, `${c.pokedex.owned.length} caught · ${c.pokedex.seen.length} seen · click a Pokémon to change it`)),
+      el("div", { class: "row", style: "margin-bottom:12px" },
+        el("button", { class: "small", onclick: () => mut(() => { const all = META.species.map(x => x.dex); c.pokedex.owned = [...all]; c.pokedex.seen = [...all]; }) }, "Mark all caught"),
+        el("button", { class: "small danger", onclick: () => { if (confirm("Clear the whole Pokédex?")) mut(() => { c.pokedex.owned = []; c.pokedex.seen = []; }); } }, "Clear Pokédex")),
+      el("div", { class: "dexgrid" }, META.species.map(x => el("div", {
+        class: "dex" + (owned.has(x.dex) ? " has" : seen.has(x.dex) ? " seen" : ""), onclick: () => cycle(x.dex) },
+        el("span", { class: "no" }, pad(x.dex, 3)), x.name))));
+  }
+  return [...head, ...[body].flat()].filter(Boolean);
+}
+
+// ---- item boxes ------------------------------------------------------------------------------------------------
+function renderItems() {
+  const b = cur.item_boxes[view.ibox], bl = listRecord(b);
+  const edit = fn => editList(b, r => { fn(r); if (r.entries.length) r.flags |= 1; });
+  const items = [...META.items].sort((a, b2) => a.id - b2.id);
+  return section("Item boxes", "Items stored at the Pokémon Lab, to send to a Game Boy game through the Transfer Pak.",
+    el("div", { class: "tabs" }, cur.item_boxes.map((x, i) => el("button", { class: i === view.ibox ? "sel" : "", onclick: () => { view.ibox = i; render(); } },
+      `Item box ${i + 1}`, " ", el("span", { class: "muted" }, listRecord(x).entries.length || "")))),
+    el("div", { class: "card" },
+      el("div", { class: "row", style: "margin-bottom:12px" },
+        el("div", {}, el("label", {}, "Owner name"), el("input", { value: text(bl.name), maxLength: 10, onchange: e => edit(r => r.name = e.target.value.toUpperCase()) })),
+        el("div", {}, el("label", {}, "Owner ID"), el("input", { type: "number", min: 0, max: 65535, value: bl.trainer_id, style: "width:110px",
+          onchange: e => edit(r => r.trainer_id = Math.max(0, Math.min(65535, +e.target.value || 0))) }))),
+      bl.entries.length ? el("table", { class: "items" }, bl.entries.map((it, i) => el("tr", {},
+        el("td", {}, el("select", { onchange: e => edit(r => r.entries[i] = { item: +e.target.value, quantity: r.entries[i].quantity }) },
+          items.map(x => el("option", { value: x.id, selected: x.id === it.item }, x.name)),
+          items.some(x => x.id === it.item) ? null : el("option", { value: it.item, selected: true }, `Unknown item ${it.item}`))),
+        el("td", {}, el("input", { type: "number", min: 1, max: 99, value: it.quantity, title: "Quantity",
+          onchange: e => edit(r => r.entries[i] = { item: r.entries[i].item, quantity: Math.max(1, Math.min(99, +e.target.value || 1)) }) })),
+        el("td", {}, el("button", { class: "link", title: "Remove", onclick: () => edit(r => r.entries.splice(i, 1)) }, "✕")))))
+        : el("div", { class: "muted", style: "padding:10px 0" }, "This box is empty."),
+      el("div", { class: "row", style: "margin-top:12px" },
+        el("button", { disabled: bl.entries.length >= 100, onclick: () => edit(r => { r.entries.push({ item: 40, quantity: 1 }); if (!text(r.name)) r.name = "RED"; }) }, "+ Add item"),
+        bl.entries.length ? el("button", { class: "danger", onclick: () => { if (confirm("Empty this item box?")) editList(b, r => Object.assign(r, { flags: 0, name: "", trainer_id: 0, entries: [] })); } }, "Empty this box") : null)));
+}
+
+// ---- Victory Palace --------------------------------------------------------------------------------------------
+function renderPalace() {
+  const ents = cur.victory_palace.entries;
+  const dex = view.dex, e = ents[dex - 1], sp = META.species[dex - 1];
+  const setE = fn => { if (!ents[dex - 1]) ents[dex - 1] = { mode: 3, level: 50, ot_id: 0, nickname: sp.name, ot_name: "RED" }; fn(ents[dex - 1]); changed(); };
+  const detail = el("div", { class: "card" },
+    el("div", { class: "row", style: "align-items:center;margin-bottom:12px" }, ball({ species: sp.name }),
+      el("div", { class: "grow" }, el("div", { style: "font-weight:700" }, `#${pad(dex, 3)} ${sp.name}`),
+        el("div", { class: "muted" }, e ? "Has a statue" : "No statue yet")),
+      e ? el("button", { class: "danger", onclick: () => { ents[dex - 1] = null; changed(); } }, "Remove statue")
+        : el("button", { class: "primary", onclick: () => setE(() => {}) }, "Add statue")),
+    e ? el("div", { class: "formgrid" },
+      el("div", {}, el("label", {}, "Nickname"), el("input", { value: text(e.nickname), maxLength: 10, onchange: ev => setE(x => x.nickname = ev.target.value.toUpperCase() || sp.name) })),
+      el("div", {}, el("label", {}, "Level"), el("input", { type: "number", min: 1, max: 100, value: e.level, onchange: ev => setE(x => x.level = Math.max(1, Math.min(100, +ev.target.value || 1))) })),
+      selectField("Won in", e.mode & 0x7F, STATUE_MODES, v => setE(x => x.mode = (x.mode & 0x80) | v)),
+      el("div", {}, el("label", {}, "Round"), checkField("Round 2", !!(e.mode & 0x80), v => setE(x => x.mode = (x.mode & 0x7F) | (v ? 0x80 : 0)))),
+      el("div", {}, el("label", {}, "Trainer"), el("input", { value: text(e.ot_name), maxLength: 10, onchange: ev => setE(x => x.ot_name = ev.target.value.toUpperCase()) })),
+      el("div", {}, el("label", {}, "Trainer ID"), el("input", { type: "number", min: 0, max: 65535, value: e.ot_id, style: "width:110px", onchange: ev => setE(x => x.ot_id = Math.max(0, Math.min(65535, +ev.target.value || 0))) })))
+      : el("div", { class: "muted" }, "A statue appears in the Victory Palace for every Pokémon that won a cup."));
+  return section("Victory Palace", `${ents.filter(Boolean).length} of 151 Pokémon have a statue. Pick a Pokémon to add, change or remove its statue.`,
+    detail,
+    el("div", { class: "row", style: "margin-bottom:12px" },
+      el("button", { class: "small", onclick: () => { META.species.forEach(s => { if (!ents[s.dex - 1]) ents[s.dex - 1] = { mode: 3, level: 50, ot_id: 0, nickname: s.name, ot_name: "RED" }; }); changed(); } }, "Give every Pokémon a statue"),
+      el("button", { class: "small danger", onclick: () => { if (confirm("Remove all statues?")) { ents.fill(null); changed(); } } }, "Remove all")),
+    el("div", { class: "dexgrid" }, META.species.map(s => el("div", {
+      class: "dex" + (ents[s.dex - 1] ? " has" : "") + (s.dex === dex ? " sel" : ""), onclick: () => { view.dex = s.dex; render(); } },
+      el("span", { class: "no" }, pad(s.dex, 3)), s.name))));
+}
+
+// ---- saved run (continue) --------------------------------------------------------------------------------------
+function runTitle(se) {
+  const mode = META.modes[se.mode] || ("Mode " + se.mode);
+  let sel = "";
+  if (se.mode === 3 || se.mode === 6) sel = " · " + META.cup_divisions[se.mode_selection & 3] + " division";
+  if (se.mode === 7) sel = " · " + (META.glc_stages[se.mode_selection] || "stage " + se.mode_selection);
+  return `${mode}${sel} · battle ${se.battle}${se.round2 ? " · Round 2" : ""}`;
+}
+function renderRun() {
+  const c = cur.continue, se = c.session;
+  const has = (c.flags & 1) === 1;
+  const mons = c.pokemon.slice(0, Math.max(0, Math.min(c.count, 6))).filter(m => typeof m === "object");
+  const setMons = list => { c.pokemon = [...list, ...Array(6 - list.length).fill("fill:00*55")]; c.count = list.length; changed(); };
+  const clear = () => {
+    c.flags = 0; c.count = 0;
+    Object.assign(se, { mode: 0, mode_selection: 0, battle: 0, round2: 0, continues: 0, opponent_history: [0, 0, 0, 0, 0, 0, 0, 0], gb_starter_choice: 0, trainer_id: 0, player_name: "" });
+    c.pokemon = Array(6).fill("fill:00*55"); c.battle_byte_52 = [0, 0, 0, 0, 0, 0]; c.battle_byte_53 = [0, 0, 0, 0, 0, 0];
+    changed();
+  };
+  if (!has) return section("Saved cup run", "When you quit in the middle of a cup or the Castle, the game saves the run so you can CONTINUE it.",
+    el("div", { class: "card empty-state" }, el("p", {}, "There is no saved run in this save."),
+      el("button", { onclick: () => { c.flags = 1; Object.assign(se, { mode: 3, mode_selection: 0, battle: 1, round2: 0, continues: 0, trainer_id: 0, player_name: "RED" }); setMons([]); } }, "Create a saved run")));
+  const ctx = { title: "Saved run", ot_name: text(se.player_name) || "RED", ot_id: se.trainer_id, level: 50 };
+  const modeOpts = [[3, "Poké Cup"], [4, "Petit Cup"], [5, "Pika Cup"], [6, "Prime Cup"], [7, "Gym Leader Castle"]];
+  const selOpts = se.mode === 7 ? META.glc_stages.map((g, i) => [i, g]) : (se.mode === 3 || se.mode === 6) ? META.cup_divisions.map((d, i) => [i, d + " division"]) : null;
+  return section("Saved cup run", runTitle(se),
+    el("div", { class: "card" }, el("div", { class: "formgrid" },
+      selectField("Where", se.mode, modeOpts.some(([v]) => v === se.mode) ? modeOpts : [...modeOpts, [se.mode, META.modes[se.mode] || "Mode " + se.mode]], v => { se.mode = v; se.mode_selection = 0; }),
+      selOpts ? selectField(se.mode === 7 ? "Stage" : "Division", se.mode_selection, selOpts, v => se.mode_selection = v) : null,
+      numberField("Next battle", se.battle, 1, 8, v => se.battle = v),
+      numberField("Continues used", se.continues, 0, 255, v => se.continues = v),
+      el("div", {}, el("label", {}, "Player name"), el("input", { value: text(se.player_name), maxLength: 10, onchange: e => { se.player_name = e.target.value.toUpperCase(); changed(); } })),
+      numberField("Trainer ID", se.trainer_id, 0, 65535, v => se.trainer_id = v),
+      el("div", {}, el("label", {}, "Round"), checkField("Round 2", !!se.round2, v => se.round2 = v ? 1 : 0)))),
+    el("div", { class: "card" }, el("h3", {}, "Team in this run"),
+      el("div", { class: "mongrid" },
+        mons.map((m, i) => monCard(m, () => openMon({ ...ctx, mon: m, onDone: nm => { const l = [...mons]; l[i] = nm; setMons(l); }, onRemove: () => { const l = [...mons]; l.splice(i, 1); setMons(l); } }))),
+        mons.length < 6 ? emptyCard("Add Pokémon", () => openMon({ ...ctx, mon: null, onDone: nm => setMons([...mons, nm]) })) : null),
+      mons.length === 0 ? el("div", { class: "hint", style: "color:var(--warn)" }, "A saved run needs at least one Pokémon.") : null),
+    el("button", { class: "danger", onclick: () => { if (confirm("Delete the saved run?")) clear(); } }, "Delete saved run"));
+}
+
+// ---- gallery ---------------------------------------------------------------------------------------------------
+function renderGallery() {
+  const album = cur.album.entries.filter(Boolean).length, set = cur.photos.entries.filter(Boolean).length;
+  return section("Gallery", "Photos taken in the Gallery. The editor can only count and delete them.",
+    el("div", { class: "cards" },
+      el("div", { class: "card" }, el("div", { class: "muted" }, "Photo album"), el("div", { class: "stat" }, album + " / 36"),
+        album ? el("button", { class: "danger small", onclick: () => { if (confirm("Delete all album photos?")) { cur.album.entries.fill(null); changed(); } } }, "Delete all") : null),
+      el("div", { class: "card" }, el("div", { class: "muted" }, "Current photo set"), el("div", { class: "stat" }, set + " / 21"),
+        set ? el("button", { class: "danger small", onclick: () => { if (confirm("Delete the current photo set?")) { cur.photos.entries.fill(null); changed(); } } }, "Delete all") : null)));
+}
+
+// ---- advanced (raw JSON) ---------------------------------------------------------------------------------------
+function renderAdvanced() {
+  const recs = allRecords();
+  const key = p => p.join("/");
+  const sel = recs.find(([p]) => key(p) === view.json) || recs[0];
+  const ta = el("textarea", { spellcheck: false, value: JSON.stringify(sel[1], null, 1) });
+  return section("Advanced", "Every record of the save as JSON, for things the forms above do not cover. Field meanings: tools/save_editor/SAVE_FORMAT.md.",
+    el("div", { class: "row", style: "margin-bottom:10px" },
+      el("select", { onchange: e => { view.json = e.target.value; render(); } },
+        recs.map(([p, r]) => el("option", { value: key(p), selected: key(p) === key(sel[0]) }, key(p) + (valid(r) ? "" : "  (unreadable)")))),
+      el("button", { onclick: () => {
+        let v; try { v = JSON.parse(ta.value); } catch (e) { alert("JSON error: " + e.message); return; }
+        let node = cur; const p = sel[0]; for (const k of p.slice(0, -1)) node = node[k]; node[p[p.length - 1]] = v; changed(); toast("Record updated");
+      } }, "Apply"),
+      el("span", { class: "hint", style: "margin:0" }, "Keys starting with _ keep bytes the editor does not interpret.")),
+    ta, el("pre", {}, ""));
+}
+
+// ---- start -----------------------------------------------------------------------------------------------------
+(async () => {
+  try {
+    META = await api("/api/meta");
+    $("speciesList").replaceChildren(...META.species.map(s => el("option", { value: s.name }, `#${pad(s.dex, 3)}`)));
+    const r = await fetch("/api/initial");
+    if (r.ok) {
+      const d = await r.json();
+      writable = !!d.writable;
+      if (writable) $("openBtn").hidden = true;
+      $("saveBtn").textContent = writable ? "Save" : "Download save";
+      load(d);
+    } else {
+      setStatus("No save loaded");
+      $("saveBtn").textContent = "Download save";
+    }
+  } catch (e) { setStatus("Error", "err"); $("main").replaceChildren(el("div", { class: "empty-state" }, e.message)); }
+})();
+</script></body></html>

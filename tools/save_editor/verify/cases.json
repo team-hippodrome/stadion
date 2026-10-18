@@ -1,0 +1,107 @@
+{
+ "blank_chip": {
+  "blank": true,
+  "steps": [],
+  "script": "first_save.txt",
+  "expect": "game run on an erased chip; the save it writes on leaving Options equals fixtures/first_save.flash"
+ },
+ "first_save": {
+  "steps": [],
+  "script": "area.txt",
+  "expect": "area select by day, no Mewtwo"
+ },
+ "unlock": {
+  "steps": [
+   [
+    "unlock",
+    "SAVE",
+    "--tower-speed",
+    "2"
+   ]
+  ],
+  "script": "area.txt",
+  "expect": "night sky (gb_tower_speed 2) and Mewtwo over the Castle (progress[0].mewtwo_unlocked)"
+ },
+ "options": {
+  "steps": [
+   [
+    "options",
+    "SAVE",
+    "--sound",
+    "mono",
+    "--voice",
+    "off"
+   ]
+  ],
+  "script": "options.txt",
+  "expect": "SOUND MONO, VOICE OFF; the save the game writes on leaving Options keeps both"
+ },
+ "registered_team": {
+  "steps": [
+   [
+    "team",
+    "SAVE",
+    "set",
+    "poke_cup",
+    "0",
+    "MEWTWO:55:PSYCHIC/RECOVER/AMNESIA/BARRIER",
+    "PIKACHU:50:THUNDERBOLT/SURF/THUNDER WAVE/AGILITY@nick=SPARKY",
+    "SNORLAX:55",
+    "CHANSEY:50",
+    "LAPRAS:50",
+    "TAUROS:50",
+    "--name",
+    "ASH",
+    "--trainer-id",
+    "4242"
+   ]
+  ],
+  "script": "registered_team.txt",
+  "expect": "'Registered Pokemon 1 Set(s)'; set 1 = ASH ID 04242 with MEWTWO L55, SPARKY L50, SNORLAX L55, CHANSEY, LAPRAS, TAUROS L50"
+ },
+ "continue": {
+  "steps": [
+   [
+    "continue",
+    "SAVE",
+    "set",
+    "MEWTWO:55",
+    "PIKACHU:50",
+    "SNORLAX:55",
+    "--battle",
+    "3",
+    "--ot",
+    "RED"
+   ]
+  ],
+  "script": "continue.txt",
+  "expect": "Poke Cup run resumes at battle 3 (two opponents crossed out) with RED's MEWTWO L55, PIKACHU L50, SNORLAX L55"
+ },
+ "victory_palace": {
+  "steps": [
+   [
+    "statue",
+    "SAVE",
+    "set",
+    "BULBASAUR",
+    "--nickname",
+    "BULBY",
+    "--ot",
+    "ASH",
+    "--level",
+    "55"
+   ],
+   [
+    "statue",
+    "SAVE",
+    "set",
+    "IVYSAUR",
+    "--mode",
+    "7",
+    "--round2"
+   ]
+  ],
+  "script": "victory_palace.txt",
+  "expect": "statue on No.001; details NAME BULBY, LEVEL 55, OT ASH, ID 12345, HALL OF FAME POKe CUP; statue on No.002"
+ }
+}

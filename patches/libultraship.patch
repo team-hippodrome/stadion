@@ -1,0 +1,1735 @@
+diff --git a/include/fast/backends/gfx_metal.h b/include/fast/backends/gfx_metal.h
+index 51d5e2d..3384dde 100644
+--- a/include/fast/backends/gfx_metal.h
++++ b/include/fast/backends/gfx_metal.h
+@@ -192,7 +192,9 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
+     void CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0,
+                          int dstX1, int dstY1) override;
+     void ClearFramebuffer(bool color, bool depth) override;
++    bool ClearFramebufferColor(float r, float g, float b, float a) override;
+     void ReadFramebufferToCPU(int fbId, uint32_t width, uint32_t height, uint16_t* rgba16Buf) override;
++    void SetFramebufferReadback(int fbId) override;
+     void ResolveMSAAColorBuffer(int fbIdTarge, int fbIdSrc) override;
+     std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
+     GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) override;
+diff --git a/include/fast/backends/gfx_rendering_api.h b/include/fast/backends/gfx_rendering_api.h
+index 3eb0996..71de2aa 100644
+--- a/include/fast/backends/gfx_rendering_api.h
++++ b/include/fast/backends/gfx_rendering_api.h
+@@ -67,7 +67,15 @@ class GfxRenderingAPI {
+         // (e.g. OpenGL) should override for a more precise partial clear.
+         ClearFramebuffer(false, true);
+     }
++    // PORT: clears the whole colour buffer of the current framebuffer to this colour, alpha included (an N64 fill
++    // writes the alpha bit; opaque draws output alpha 1). false: not supported, draw the fill instead.
++    virtual bool ClearFramebufferColor(float r, float g, float b, float a) {
++        return false;
++    }
+     virtual void ReadFramebufferToCPU(int fbId, uint32_t width, uint32_t height, uint16_t* rgba16Buf) = 0;
++    // PORT: this framebuffer is read back after each pass (render-to-texture): backends may set it up for that
++    virtual void SetFramebufferReadback(int fbId) {
++    }
+     virtual void ResolveMSAAColorBuffer(int fbIdTarger, int fbIdSrc) = 0;
+     virtual std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
+     GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) = 0;
+diff --git a/include/fast/interpreter.h b/include/fast/interpreter.h
+index a7334a9..ee13a56 100644
+--- a/include/fast/interpreter.h
++++ b/include/fast/interpreter.h
+@@ -190,6 +190,10 @@ struct TextureCacheKey {
+     uint8_t fmt, siz;
+     uint8_t palette_index;
+     uint32_t size_bytes;
++    // PORT: hash of the texel (and palette) bytes. The game builds and rewrites textures in RAM (font files reloaded
++    // into the same buffer, icons, render targets); the N64 has no texture cache, so a cached entry is only valid
++    // while the bytes are the same.
++    uint64_t content_hash = 0;
+ 
+     bool operator==(const TextureCacheKey&) const noexcept = default;
+ 
+@@ -282,6 +286,7 @@ struct RDP {
+     } texture_to_load;
+     struct {
+         const uint8_t* addr;
++        const uint8_t* raw_addr; // PORT: the RDRAM address the load came from (addr points to the TMEM snapshot)
+         uint32_t orig_size_bytes;
+         uint32_t size_bytes;
+         uint32_t full_image_line_size_bytes;
+@@ -395,6 +400,8 @@ class Interpreter {
+     void StartFrame();
+     void RunGuiOnly();
+     void Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_replacements);
++    // PORT: applies the persistent RSP/RDP state changes (segments, texture loads) of a frame that is not drawn.
++    bool TrackSegmentsOnly(Gfx* commands); // true: the frame renders off-screen and must be drawn
+     void EndFrame();
+     void HandleWindowEvents();
+     bool IsFrameReady();
+@@ -491,6 +498,7 @@ class Interpreter {
+     void GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry);
+     void GfxDpSetZImage(void* zBufAddr);
+     void GfxDpSetColorImage(uint32_t format, uint32_t size, uint32_t width, void* address);
++    void RttReadback(); // PORT: copy the current render target's pixels back to its RDRAM buffer
+     void GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode);
+     void GfxDpSetOtherMode(uint32_t h, uint32_t l);
+ 
+diff --git a/include/libultraship/libultra/mbi.h b/include/libultraship/libultra/mbi.h
+index 3019a6c..ed1997f 100644
+--- a/include/libultraship/libultra/mbi.h
++++ b/include/libultraship/libultra/mbi.h
+@@ -32,7 +32,10 @@
+ #include <stdint.h>
+ #include "types.h"
+ #include "gbi.h"
++// PORT PATCH: the Stadium port supplies the original SDK audio ABI (different A_* numbering).
++#ifndef PORT_NO_LUS_ABI
+ #include "abi.h"
++#endif
+ 
+ #define NUM_SEGMENTS (16)
+ #define SEGMENT_OFFSET(a) ((u32)(a)&0x00FFFFFF)
+diff --git a/src/fast/Fast3dWindow.cpp b/src/fast/Fast3dWindow.cpp
+index b80c990..0946274 100644
+--- a/src/fast/Fast3dWindow.cpp
++++ b/src/fast/Fast3dWindow.cpp
+@@ -232,7 +232,10 @@ bool Fast3dWindow::IsFrameReady() {
+ bool Fast3dWindow::DrawAndRunGraphicsCommands(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtxReplacements) {
+     // Skip dropped frames
+     if (!IsFrameReady()) {
+-        return false;
++        // PORT: a dropped frame still updates the persistent RSP/RDP state; one that renders to a texture is drawn
++        if (!mInterpreter->TrackSegmentsOnly(commands)) {
++            return false;
++        }
+     }
+ 
+     auto gui = GetGui();
+diff --git a/src/fast/backends/gfx_metal.cpp b/src/fast/backends/gfx_metal.cpp
+index afc07db..1bd94a6 100644
+--- a/src/fast/backends/gfx_metal.cpp
++++ b/src/fast/backends/gfx_metal.cpp
+@@ -9,6 +9,7 @@
+ 
+ #include "fast/backends/gfx_metal.h"
+ 
++#include <unordered_set>
+ #include <vector>
+ #include <algorithm>
+ #include <unordered_map>
+@@ -251,12 +252,18 @@ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(uint64_t shad
+     pipeline_descriptor->setDepthAttachmentPixelFormat(MTL::PixelFormatDepth32Float);
+     if (cc_features.opt_alpha) {
+         pipeline_descriptor->colorAttachments()->object(0)->setBlendingEnabled(true);
+-        pipeline_descriptor->colorAttachments()->object(0)->setSourceRGBBlendFactor(MTL::BlendFactorSourceAlpha);
++        // PORT: dual-source (default.shader.metal): RGB = src * a + dst * (1 - a) with a = color1.a; alpha = coverage
++        // (color.a: 1, or 0 for o_invisible draws, which keep the old alpha). Was alpha = dst: in a render-to-texture
++        // image cleared to transparent, translucent or alpha-0 texels stayed invisible where the N64 shows them.
++        static const bool sOldAlphaBlend = getenv("PORT_OLD_ALPHA_BLEND") != nullptr; // debug: alpha = dst
++        pipeline_descriptor->colorAttachments()->object(0)->setSourceRGBBlendFactor(MTL::BlendFactorSource1Alpha);
+         pipeline_descriptor->colorAttachments()->object(0)->setDestinationRGBBlendFactor(
+-            MTL::BlendFactorOneMinusSourceAlpha);
++            MTL::BlendFactorOneMinusSource1Alpha);
+         pipeline_descriptor->colorAttachments()->object(0)->setRgbBlendOperation(MTL::BlendOperationAdd);
+-        pipeline_descriptor->colorAttachments()->object(0)->setSourceAlphaBlendFactor(MTL::BlendFactorZero);
+-        pipeline_descriptor->colorAttachments()->object(0)->setDestinationAlphaBlendFactor(MTL::BlendFactorOne);
++        pipeline_descriptor->colorAttachments()->object(0)->setSourceAlphaBlendFactor(
++            sOldAlphaBlend ? MTL::BlendFactorZero : MTL::BlendFactorOne);
++        pipeline_descriptor->colorAttachments()->object(0)->setDestinationAlphaBlendFactor(
++            sOldAlphaBlend ? MTL::BlendFactorOne : MTL::BlendFactorOneMinusSourceAlpha);
+         pipeline_descriptor->colorAttachments()->object(0)->setAlphaBlendOperation(MTL::BlendOperationAdd);
+         pipeline_descriptor->colorAttachments()->object(0)->setWriteMask(MTL::ColorWriteMaskAll);
+     } else {
+@@ -751,6 +758,11 @@ void GfxRenderingAPIMetal::SetupScreenFramebuffer(uint32_t width, uint32_t heigh
+     autorelease_pool->release();
+ }
+ 
++// PORT: framebuffers whose colour texture was just (re)created: their contents are undefined (often leftover GPU
++// memory). The game draws some frames incrementally (fades only add a translucent layer over the previous picture), so
++// the first pass into such a texture clears it to black, as an untouched N64 frame buffer would read.
++static std::unordered_set<int> sFreshColorFbs;
++
+ void GfxRenderingAPIMetal::UpdateFramebufferParameters(int fb_id, uint32_t width, uint32_t height, uint32_t msaa_level,
+                                                        bool opengl_invertY, bool render_target, bool has_depth_buffer,
+                                                        bool can_extract_depth) {
+@@ -791,6 +803,9 @@ void GfxRenderingAPIMetal::UpdateFramebufferParameters(int fb_id, uint32_t width
+             tex.texture->release();
+ 
+         tex.texture = mDevice->newTexture(tex_descriptor);
++        if (render_target) {
++            sFreshColorFbs.insert(fb_id);
++        }
+ 
+         if (msaa_level > 1) {
+             tex_descriptor->setTextureType(MTL::TextureType2DMultisample);
+@@ -905,7 +920,18 @@ void GfxRenderingAPIMetal::StartDrawToFramebuffer(int fb_id, float noise_scale)
+             fb.mCommandBuffer->enqueue();
+         }
+ 
++        MTL::RenderPassColorAttachmentDescriptor* color0 = fb.mRenderPassDescriptor->colorAttachments()->object(0);
++        static const bool sNoFreshClear = getenv("PORT_NO_FRESH_CLEAR") != nullptr; // debug: old behaviour
++        bool fresh = sFreshColorFbs.erase(fb_id) != 0 && !sNoFreshClear;
++        MTL::LoadAction loadAction = color0->loadAction();
++        if (fresh) {
++            color0->setClearColor(MTL::ClearColor::Make(0.0, 0.0, 0.0, 1.0));
++            color0->setLoadAction(MTL::LoadActionClear);
++        }
+         fb.mCommandEncoder = fb.mCommandBuffer->renderCommandEncoder(fb.mRenderPassDescriptor);
++        if (fresh) {
++            color0->setLoadAction(loadAction);
++        }
+         std::string fbce_label = fmt::format("FrameBuffer {} Command Encoder", fb_id);
+         fb.mCommandEncoder->setLabel(NS::String::string(fbce_label.c_str(), NS::UTF8StringEncoding));
+         fb.mCommandEncoder->setDepthClipMode(MTL::DepthClipModeClamp);
+@@ -971,6 +997,19 @@ void GfxRenderingAPIMetal::ClearFramebuffer(bool color, bool depth) {
+     framebuffer.mLastZmodeDecal = -1;
+ }
+ 
++bool GfxRenderingAPIMetal::ClearFramebufferColor(float r, float g, float b, float a) {
++    auto& framebuffer = mFramebuffers[mCurrentFramebuffer];
++    if (mCurrentFramebuffer == 0 || framebuffer.mCommandEncoder == nullptr || framebuffer.mRenderPassDescriptor == nullptr) {
++        return false;
++    }
++    MTL::RenderPassColorAttachmentDescriptor* color0 = framebuffer.mRenderPassDescriptor->colorAttachments()->object(0);
++    MTL::ClearColor saved = color0->clearColor();
++    color0->setClearColor(MTL::ClearColor::Make(r, g, b, a));
++    ClearFramebuffer(true, false);
++    color0->setClearColor(saved);
++    return true;
++}
++
+ void GfxRenderingAPIMetal::ResolveMSAAColorBuffer(int fb_id_target, int fb_id_source) {
+     int source_texture_id = mFramebuffers[fb_id_source].mTextureId;
+     MTL::Texture* source_texture = mTextures[source_texture_id].texture;
+@@ -1182,6 +1221,9 @@ void GfxRenderingAPIMetal::CopyFramebuffer(int fb_dst_id, int fb_src_id, int src
+     source_framebuffer.mLastZmodeDecal = -1;
+ }
+ 
++std::vector<uint8_t> gPortScreenBgra;
++uint32_t gPortScreenW, gPortScreenH;
++
+ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
+     if (fb_id >= (int)mFramebuffers.size()) {
+         return;
+@@ -1202,6 +1244,10 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+ 
+             uint8_t* bgra = (uint8_t*)mScreenReadbackBuffer->contents();
+             uint32_t count = mScreenReadbackWidth * mScreenReadbackHeight;
++            // PORT: keep the full 8-bit pixels too, for screenshots (the RGBA5551 below quantises gradients)
++            gPortScreenBgra.assign(bgra, bgra + (size_t)count * 4);
++            gPortScreenW = mScreenReadbackWidth;
++            gPortScreenH = mScreenReadbackHeight;
+             for (uint32_t i = 0; i < count; i++) {
+                 uint8_t b = bgra[i * 4 + 0];
+                 uint8_t g = bgra[i * 4 + 1];
+@@ -1217,6 +1263,9 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+         mScreenReadbackHeight = height;
+     } else {
+         // Custom Framebuffer: synchronous readback via readback queue
++        if (framebuffer.mCommandBuffer == nullptr) { // PORT: nothing drawn into it this frame: leave the buffer as is
++            return;
++        }
+         if (framebuffer.mCommandEncoder && !framebuffer.mHasEndedEncoding) {
+             framebuffer.mCommandEncoder->endEncoding();
+         }
+@@ -1267,6 +1316,16 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+     }
+ }
+ 
++// PORT: a render-to-texture target is read back whenever the game stops drawing into it. Its passes go to the readback
++// queue from the start: the first pass on the main queue would only run after the frame's own command buffers (enqueued
++// earlier, committed at the end of the frame), so a later pass on the readback queue (drawn and read back right away)
++// ran before it, and the first pass's clear then wiped what the later one drew (the Pokémon pictures on the VS screen).
++void GfxRenderingAPIMetal::SetFramebufferReadback(int fb_id) {
++    if (fb_id > 0 && fb_id < (int)mFramebuffers.size() && mFramebuffers[fb_id].mCommandBuffer == nullptr) {
++        mFramebuffers[fb_id].mUseReadbackQueue = true;
++    }
++}
++
+ void GfxRenderingAPIMetal::SetTextureFilter(FilteringMode mode) {
+     mCurrentFilterMode = mode;
+     gfx_texture_cache_clear();
+diff --git a/src/fast/interpreter.cpp b/src/fast/interpreter.cpp
+index a1907a1..eb76b1b 100644
+--- a/src/fast/interpreter.cpp
++++ b/src/fast/interpreter.cpp
+@@ -59,6 +59,260 @@ std::stack<std::string> currentDir;
+ #define SCALE_8_3(VAL_) ((VAL_) / 0x24)
+ 
+ // Based off the current set native dimensions or active framebuffer
++// PORT PATCH: render-to-texture state (see GfxDpSetColorImage)
++bool gPortDrawLog = false; // PORT debug: set by the port for the frame whose draw states are listed
++
++static const void* sLastTimgCmd = nullptr; // PORT debug: the last G_SETTIMG (for the TMEM 2048 load log)
++
++// PORT: TMEM model. On the N64 a texture load copies bytes into the 4 KB TMEM; tiles then read from any TMEM address,
++// also from the middle of an earlier load (Stadium's arena floor loads a 2 KB RGBA16 texture and a 1 KB I8 detail
++// texture with one load and reads the second through a tile at TMEM 256), and the data stays valid after the RDRAM
++// source is reused. Fast3D only kept two "slots" pointing at RDRAM, so RAM loads are recorded here as TMEM regions
++// with a copy of their bytes, and tiles are resolved against them when a texture is imported.
++struct TmemRegion {
++    uint32_t start, len;           // TMEM byte range
++    const uint8_t* raw;            // RDRAM source (for render-target lookup)
++    std::vector<uint8_t> data;     // the bytes as loaded (rows compacted)
++};
++static std::list<TmemRegion> sTmemRegions;
++static void TmemForget(uint32_t start, uint32_t len) {
++    // A new load overwrites [start, start + len); like real TMEM, the parts of older loads outside it stay readable.
++    // (The arena's near floor reads its second tile from TMEM 2048, which holds the tail of the previous frame's last
++    // large load.)
++    uint32_t end = start + len;
++    std::list<TmemRegion> kept;
++    for (auto it = sTmemRegions.begin(); it != sTmemRegions.end();) {
++        uint32_t oend = it->start + it->len;
++        if (it->start < end && start < oend) {
++            if (it->start < start) { // the part before the new load
++                kept.push_back({ it->start, start - it->start, it->raw,
++                                 std::vector<uint8_t>(it->data.begin(), it->data.begin() + (start - it->start)) });
++            }
++            if (oend > end) { // the part after it
++                uint32_t off = end - it->start;
++                kept.push_back({ end, oend - end, it->raw ? it->raw + off : nullptr,
++                                 std::vector<uint8_t>(it->data.begin() + off, it->data.end()) });
++            }
++            it = sTmemRegions.erase(it);
++        } else {
++            ++it;
++        }
++    }
++    // remainders keep their age (they are older than the new load, which is appended after this)
++    sTmemRegions.splice(sTmemRegions.begin(), kept);
++}
++// PORT: the game's C arrays of u16/u32 words (generated list, see tools/gen_word_arrays.py) are little-endian on the
++// host; the N64 (and this TMEM copy) sees them big-endian. Returns the word size (2 or 4) when src lies in one, and
++// the offset of src from the array start.
++struct PortWordArray { const char* name; int size; };
++extern "C" const PortWordArray gPortWordArrays[] __attribute__((weak));
++extern "C" const size_t gPortWordArrayCount __attribute__((weak));
++static int WordArrayAt(const uint8_t* src, size_t* offset) {
++    static std::unordered_map<std::string, int>* names = nullptr;
++    if (&gPortWordArrayCount == nullptr) {
++        return 0;
++    }
++    if (names == nullptr) {
++        names = new std::unordered_map<std::string, int>();
++        for (size_t i = 0; i < gPortWordArrayCount; i++) {
++            (*names)[gPortWordArrays[i].name] = gPortWordArrays[i].size;
++        }
++    }
++    // only the executable image holds these arrays; heap data (most textures) is answered without a symbol lookup
++    static uintptr_t imageLo = 0, imageHi = 0;
++    if (imageHi == 0) {
++        Dl_info self = {};
++        dladdr((const void*)&WordArrayAt, &self);
++        imageLo = (uintptr_t)self.dli_fbase;
++        const uint8_t* e = (const uint8_t*)&gPortWordArrayCount;
++        imageHi = (uintptr_t)e + (64u << 20); // data follows text; generous upper bound
++    }
++    if ((uintptr_t)src < imageLo || (uintptr_t)src > imageHi) {
++        return 0;
++    }
++    static std::unordered_map<const void*, std::pair<const void*, int>> cache; // source address -> (array start, size)
++    auto it = cache.find(src);
++    if (it == cache.end()) {
++        Dl_info di = {};
++        int size = 0;
++        const void* start = nullptr;
++        if (dladdr(src, &di) != 0 && di.dli_sname != nullptr && di.dli_saddr != nullptr) {
++            auto n = names->find(di.dli_sname);
++            size = n != names->end() ? n->second : 0;
++            start = di.dli_saddr;
++        }
++        it = cache.emplace(src, std::make_pair(start, size)).first;
++    }
++    if (it->second.second == 0) {
++        return 0;
++    }
++    *offset = (size_t)(src - (const uint8_t*)it->second.first);
++    return it->second.second;
++}
++static void SwapWordsFrom(uint8_t* data, size_t len, int size, size_t offset) {
++    // data[0] is at byte 'offset' of the array: swap each whole word, aligned to the array start
++    size_t i = (size - offset % size) % size;
++    for (; i + size <= len; i += size) {
++        if (size == 4) {
++            std::swap(data[i], data[i + 3]);
++            std::swap(data[i + 1], data[i + 2]);
++        } else {
++            std::swap(data[i], data[i + 1]);
++        }
++    }
++}
++
++static const uint8_t* TmemLoad(uint32_t tmemWord, const uint8_t* src, uint32_t lineBytes, uint32_t strideBytes, uint32_t rows) {
++    uint32_t start = tmemWord * 8, len = lineBytes * rows;
++    if (gPortDrawLog) {
++        Dl_info di = {};
++        dladdr(src, &di);
++        fprintf(stderr, "[seq] load tmem=%u len=%u src=%p (%s+0x%lx)\n", start, len, (const void*)src,
++                di.dli_sname ? di.dli_sname : "?", di.dli_saddr ? (unsigned long)((const uint8_t*)src - (const uint8_t*)di.dli_saddr) : 0ul);
++    }
++    static const bool sT1b = getenv("PORT_TILE1LOG") != nullptr;
++    if (sT1b && (start != 0 || (len > 2048 && start < 2048))) {
++        static int n = 0;
++        Dl_info di = {};
++        dladdr(src, &di);
++        static int ctx = 0;
++        if (start == 2048 && sLastTimgCmd && ctx++ < 2) {
++            const Fast::F3DGfx* c = (const Fast::F3DGfx*)sLastTimgCmd;
++            fprintf(stderr, "[detail] settimg at %p:\n", sLastTimgCmd);
++            for (int k = -10; k <= 6; k++)
++                fprintf(stderr, "    %+3d: %08x %016lx\n", k, (uint32_t)c[k].words.w0, (unsigned long)c[k].words.w1);
++        }
++        if (n++ < 100000) fprintf(stderr, "[tile1] load tmem=%u len=%u src=%p (%s+0x%lx)\n", start, len, (const void*)src,
++                                  di.dli_sname ? di.dli_sname : "?", di.dli_saddr ? (unsigned long)((const uint8_t*)src - (const uint8_t*)di.dli_saddr) : 0ul);
++    }
++    static const bool sLog = getenv("PORT_TMEMLOG") != nullptr;
++    if (sLog && start <= 2048 && 2048 < start + (len ? len : 8)) {
++        static int n = 0;
++        if (n++ < 300) fprintf(stderr, "[tmem] load start=%u len=%u src=%p (line %u x %u)\n", start, len, (const void*)src, lineBytes, rows);
++    }
++    if (src == nullptr || (uintptr_t)src < 0x100000000ull || lineBytes == 0 || rows == 0 || len > (1u << 22)) {
++        TmemForget(start, len ? len : 8);
++        return src;
++    }
++    TmemForget(start, len);
++    sTmemRegions.push_back({ start, len, src, std::vector<uint8_t>(len) });
++    TmemRegion& r = sTmemRegions.back();
++    size_t wordOffset;
++    int wordSize = WordArrayAt(src, &wordOffset);
++    for (uint32_t k = 0; k < rows; k++) {
++        memcpy(r.data.data() + (size_t)k * lineBytes, src + (size_t)k * strideBytes, lineBytes);
++        if (wordSize != 0) {
++            SwapWordsFrom(r.data.data() + (size_t)k * lineBytes, lineBytes, wordSize, wordOffset + (size_t)k * strideBytes);
++        }
++    }
++    return r.data.data();
++}
++static const TmemRegion* TmemFind(uint32_t tmemWord) {
++    uint32_t a = tmemWord * 8;
++    for (auto it = sTmemRegions.rbegin(); it != sTmemRegions.rend(); ++it) {
++        if (a >= it->start && a < it->start + it->len) {
++            return &*it;
++        }
++    }
++    return nullptr;
++}
++
++struct RttInfo { int fb; uint32_t w, h; uint32_t stamp[4]; };
++static std::unordered_map<uintptr_t, RttInfo> sOffscreenFbs;
++// Finds the render-to-texture buffer containing a texture address; rowOff is the row (in texels) of that address.
++// The RDRAM buffer of a render target carries a 16-byte marker written when the target is created. The game frees
++// and reuses that memory (fonts, models, other images); once the CPU has overwritten the marker, the target is stale
++// and textures at those addresses are real RDRAM data again.
++// After a readback the first 16 bytes hold the real pixels (CPU copies of the image, e.g. the GB Tower's party
++// pictures, showed the marker as coloured dots), and those bytes become the target's stamp.
++static void RttStamp(uintptr_t addr, RttInfo* info) {
++    uint32_t* w = (uint32_t*)addr;
++    w[0] = 0x50525454u; // 'PRTT'
++    w[1] = 0x52545421u;
++    w[2] = (uint32_t)info->fb;
++    w[3] = ~(uint32_t)info->fb;
++    memcpy(info->stamp, w, sizeof(info->stamp));
++}
++static bool RttStampValid(uintptr_t addr, const RttInfo& info) {
++    return memcmp((const void*)addr, info.stamp, sizeof(info.stamp)) == 0;
++}
++static void RttForgetOverlapping(uintptr_t start, uintptr_t end) {
++    for (auto it = sOffscreenFbs.begin(); it != sOffscreenFbs.end();) {
++        uintptr_t size = (uintptr_t)it->second.w * it->second.h * 2;
++        if (it->first < end && start < it->first + size) {
++            it = sOffscreenFbs.erase(it);
++        } else {
++            ++it;
++        }
++    }
++}
++// PORT: memory the game allocates again (main pool) is no longer a render target, even where the 16-byte marker
++// survives (new data placed past the start of an old target, e.g. a font set inside a freed full-screen image).
++// The game thread queues the ranges; the render thread applies them before using the table.
++static std::mutex sRttForgetLock;
++static std::vector<std::pair<uintptr_t, uintptr_t>> sRttForgetPending;
++extern "C" void Port_GfxForgetRenderTargets(const void* start, size_t size) {
++    static const bool off = getenv("PORT_NO_RTT_FORGET") != nullptr; // debug
++    if (off) return;
++    std::lock_guard<std::mutex> g(sRttForgetLock);
++    sRttForgetPending.emplace_back((uintptr_t)start, (uintptr_t)start + size);
++}
++static void RttApplyForgets() {
++    std::vector<std::pair<uintptr_t, uintptr_t>> pending;
++    {
++        std::lock_guard<std::mutex> g(sRttForgetLock);
++        pending.swap(sRttForgetPending);
++    }
++    for (auto& r : pending) {
++        RttForgetOverlapping(r.first, r.second);
++    }
++}
++static bool RttLookup(const void* addr, RttInfo* out, float* rowOff, float* colOff = nullptr) {
++    uintptr_t a = (uintptr_t)addr;
++    static const bool off = getenv("PORT_NO_RTT") != nullptr || getenv("PORT_NO_RTT_SAMPLE") != nullptr; // debug: sample RDRAM instead of render targets
++    RttApplyForgets();
++    if (off || addr == nullptr || sOffscreenFbs.empty()) return false;
++    for (auto it = sOffscreenFbs.begin(); it != sOffscreenFbs.end();) {
++        uintptr_t size = (uintptr_t)it->second.w * it->second.h * 2;
++        if (a >= it->first && a < it->first + size) {
++            if (!RttStampValid(it->first, it->second)) {
++                if (getenv("PORT_TEXLOG")) fprintf(stderr, "[rtt] dropped stale target at %p\n", (void*)it->first);
++                it = sOffscreenFbs.erase(it); // memory reused: no longer a render target
++                continue;
++            }
++            *out = it->second;
++            *rowOff = (float)((a - it->first) / (it->second.w * 2));
++            if (colOff != nullptr) { // a tile loaded from inside a row (LoadTextureTile with uls > 0)
++                *colOff = (float)(((a - it->first) % (it->second.w * 2)) / 2);
++            }
++            return true;
++        }
++        ++it;
++    }
++    return false;
++}
++extern "C" int Port_ViFrameBufferState(const void* addr);
++static uintptr_t sPendingOffscreenAddr = 0;
++static uint32_t sPendingOffscreenWidth = 0;
++static bool sInOffscreen = false;
++static uintptr_t sCurOffscreenAddr = 0; // RDRAM address of the render target being drawn
++// PORT: one persistent GPU framebuffer per N64 frame buffer (colour image address). The N64 rotates two or three frame
++// buffers that keep their picture, and games update them incrementally (erasing what they drew into the same buffer
++// two frames earlier); a single shared buffer leaves trails.
++static std::unordered_map<uintptr_t, int> sMainFbs;
++// PORT: whether the RDP (Fast3D) renders into this N64 frame buffer; frames shown with osViSwapBuffer that it does not
++// render were drawn by the CPU and are presented from memory (os_devices.cpp)
++static std::unordered_map<uintptr_t, uint64_t> sMainFbDrawStamp;
++static uint64_t sDrawStamp = 0;
++extern "C" uint64_t Port_GpuDrawStampGlobal(void) {
++    return sDrawStamp;
++}
++extern "C" uint64_t Port_GpuDrawStamp(const void* address) {
++    auto it = sMainFbDrawStamp.find((uintptr_t)address);
++    return it != sMainFbDrawStamp.end() ? it->second : 0;
++}
++
++
+ #define HALF_SCREEN_WIDTH(activeFb) ((mFbActive ? activeFb->second.orig_width : mNativeDimensions.width) / 2)
+ #define HALF_SCREEN_HEIGHT(activeFb) ((mFbActive ? activeFb->second.orig_height : mNativeDimensions.height) / 2)
+ 
+@@ -591,6 +845,49 @@ static uint32_t GetTileSizeFromCoordinates(float low, float high) {
+     return static_cast<uint32_t>(lroundf((high - low + 4.0f) / 4.0f));
+ }
+ 
++// PORT: fully transparent texels take the colour of their opaque neighbours. Rendering above the N64 resolution
++// filters between texels, and the RGB of transparent ones (often a magenta key colour) bled into the edges of
++// alpha-cut UI art (HUD digits came out pink). Alpha is unchanged. Only for filtered sampling: point-sampled texels
++// never mix, and where alpha is ignored (CPU-drawn frames shown with an opaque draw, PresentCpuFrame) the recoloured
++// texels showed (the GB Tower menu's text, whose colours have alpha bit 0, came out black).
++static void BleedTransparentTexels(uint8_t* rgba, uint32_t width, uint32_t height) {
++    static const bool off = getenv("PORT_NO_ALPHA_BLEED") != nullptr;
++    if (off || width == 0 || height == 0 || (uint64_t)width * height > (1u << 20)) {
++        return;
++    }
++    static std::vector<uint8_t> src;
++    src.assign(rgba, rgba + (size_t)width * height * 4);
++    for (uint32_t y = 0; y < height; y++) {
++        for (uint32_t x = 0; x < width; x++) {
++            uint8_t* d = &rgba[((size_t)y * width + x) * 4];
++            if (d[3] != 0) {
++                continue;
++            }
++            uint32_t r = 0, g = 0, b = 0, n = 0;
++            for (int dy = -1; dy <= 1; dy++) {
++                for (int dx = -1; dx <= 1; dx++) {
++                    int xx = (int)x + dx, yy = (int)y + dy;
++                    if ((dx == 0 && dy == 0) || xx < 0 || yy < 0 || xx >= (int)width || yy >= (int)height) {
++                        continue;
++                    }
++                    const uint8_t* q = &src[((size_t)yy * width + xx) * 4];
++                    if (q[3] != 0) {
++                        r += q[0];
++                        g += q[1];
++                        b += q[2];
++                        n++;
++                    }
++                }
++            }
++            if (n != 0) {
++                d[0] = (uint8_t)(r / n);
++                d[1] = (uint8_t)(g / n);
++                d[2] = (uint8_t)(b / n);
++            }
++        }
++    }
++}
++
+ void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
+     const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
+     const uint8_t* addr =
+@@ -669,6 +966,9 @@ void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
+         }
+     }
+ 
++    if ((mRdp->other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) { // see BleedTransparentTexels
++        BleedTransparentTexels(mTexUploadBuffer, width, height);
++    }
+     mRapi->UploadTexture(mTexUploadBuffer, width, height);
+ }
+ 
+@@ -741,6 +1041,9 @@ void Interpreter::ImportTextureRgba32(int tile, bool importReplacement) {
+             i++;
+         }
+     }
++    if ((mRdp->other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) { // see BleedTransparentTexels
++        BleedTransparentTexels(mTexUploadBuffer, width, height);
++    }
+     mRapi->UploadTexture(mTexUploadBuffer, width, height);
+ }
+ 
+@@ -884,6 +1187,8 @@ void Interpreter::ImportTextureIA16(int tile, bool importReplacement) {
+     mRapi->UploadTexture(mTexUploadBuffer, width, height);
+ }
+ 
++static int sCi4RawPalette = -1; // PORT: >= 0 while a CI4 texture without TLUT is decoded by ImportTextureI4
++
+ void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
+     const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
+     const uint8_t* addr =
+@@ -920,15 +1225,11 @@ void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
+ 
+             uint8_t byte = addr[clrIdx / 2];
+             uint8_t part = (byte >> (4 - (clrIdx % 2) * 4)) & 0xf;
+-            uint8_t intensity = part;
+-            uint8_t r = intensity;
+-            uint8_t g = intensity;
+-            uint8_t b = intensity;
+-            uint8_t a = intensity;
+-            mTexUploadBuffer[4 * i + 0] = SCALE_4_8(r);
+-            mTexUploadBuffer[4 * i + 1] = SCALE_4_8(g);
+-            mTexUploadBuffer[4 * i + 2] = SCALE_4_8(b);
+-            mTexUploadBuffer[4 * i + 3] = SCALE_4_8(a);
++            uint8_t intensity = sCi4RawPalette >= 0 ? (uint8_t)((sCi4RawPalette << 4) | part) : SCALE_4_8(part);
++            mTexUploadBuffer[4 * i + 0] = intensity;
++            mTexUploadBuffer[4 * i + 1] = intensity;
++            mTexUploadBuffer[4 * i + 2] = intensity;
++            mTexUploadBuffer[4 * i + 3] = intensity;
+ 
+             i++;
+         }
+@@ -1069,6 +1370,9 @@ void Interpreter::ImportTextureCi4(int tile, bool importReplacement) {
+         }
+     }
+ 
++    if ((mRdp->other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) { // see BleedTransparentTexels
++        BleedTransparentTexels(mTexUploadBuffer, width, height);
++    }
+     mRapi->UploadTexture(mTexUploadBuffer, width, height);
+ }
+ 
+@@ -1151,6 +1455,9 @@ void Interpreter::ImportTextureCi8(int tile, bool importReplacement) {
+         height = tile_h;
+     }
+ 
++    if ((mRdp->other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) { // see BleedTransparentTexels
++        BleedTransparentTexels(mTexUploadBuffer, width, height);
++    }
+     mRapi->UploadTexture(mTexUploadBuffer, width, height);
+ }
+ 
+@@ -1269,12 +1576,42 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
+ }
+ 
+ void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {
++    if (!importReplacement) { // PORT: take the tile's bytes from the TMEM region that covers its TMEM address
++        if (const TmemRegion* r = TmemFind(mRdp->texture_tile[tile].tmem)) {
++            auto& lt = mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index];
++            uint32_t off = mRdp->texture_tile[tile].tmem * 8 - r->start;
++            if (lt.addr != r->data.data() + off) {
++                lt.addr = r->data.data() + off;
++                lt.raw_addr = r->raw ? r->raw + off : nullptr;
++                lt.orig_size_bytes = lt.size_bytes = r->len - off;
++                if (mRdp->texture_tile[tile].line_size_bytes != 0) {
++                    lt.line_size_bytes = lt.full_image_line_size_bytes = mRdp->texture_tile[tile].line_size_bytes;
++                }
++                lt.tex_flags = 0;
++                lt.raw_tex_metadata = {};
++                lt.raw_tex_metadata.h_byte_scale = 1;
++                lt.raw_tex_metadata.v_pixel_scale = 1;
++                lt.masked = false;
++                lt.blended = false;
++            }
++        }
++    }
+     uint8_t fmt = mRdp->texture_tile[tile].fmt;
+     uint8_t siz = mRdp->texture_tile[tile].siz;
+     uint32_t texFlags = mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags;
+     uint32_t tmemIdex = mRdp->texture_tile[tile].tmem_index;
+     uint8_t paletteIndex = mRdp->texture_tile[tile].palette;
+     uint32_t origSizeBytes = mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].orig_size_bytes;
++    // PORT: with texture lookup off (G_TT_NONE) the RDP reads a CI texel as an intensity: the index itself (CI4: palette
++    // number in the high nibble) on all four channels. Decoded through the I4/I8 paths, cached as fmt I.
++    static const bool sNoCiRaw = getenv("PORT_NO_CI_RAW") != nullptr; // debug: old behaviour (always look up a palette)
++    if (!sNoCiRaw && fmt == G_IM_FMT_CI && (mRdp->other_mode_h & (3U << G_MDSFT_TEXTLUT)) == G_TT_NONE &&
++        (siz == G_IM_SIZ_4b || siz == G_IM_SIZ_8b)) {
++        fmt = G_IM_FMT_I;
++        sCi4RawPalette = siz == G_IM_SIZ_4b ? paletteIndex : -1;
++    } else {
++        sCi4RawPalette = -1;
++    }
+ 
+     const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
+     const uint8_t* origAddr =
+@@ -1332,6 +1669,26 @@ void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {
+     } else {
+         key = { origAddr, {}, fmt, siz, paletteIndex, origSizeBytes };
+     }
++    {   // PORT: content hash (FNV-1a over the texels and the palette in use)
++        uint64_t h = 1469598103934665603ull;
++        auto mix = [&h](const uint8_t* p, size_t n) {
++            if (p == nullptr) return;
++            for (size_t k = 0; k < n; k++) h = (h ^ p[k]) * 1099511628211ull;
++        };
++        if ((uintptr_t)origAddr >= 0x100000000ull) {
++            mix(origAddr, std::min<uint32_t>(origSizeBytes, 1u << 20));
++        }
++        if (fmt == G_IM_FMT_CI) {
++            if (siz == G_IM_SIZ_4b) {
++                const uint8_t* pal = mRdp->palettes[paletteIndex / 8];
++                mix(pal ? pal + (paletteIndex % 8) * 16 * 2 : nullptr, 16 * 2);
++            } else {
++                mix(mRdp->palettes[0], 128 * 2);
++                mix(mRdp->palettes[1], 128 * 2);
++            }
++        }
++        key.content_hash = h;
++    }
+ 
+     if (TextureCacheLookup(i, key)) {
+         return;
+@@ -1505,6 +1862,7 @@ void Interpreter::CalculateNormalDir(const F3DLight_t* light, float coeffs[3]) {
+ }
+ 
+ void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
++    if ((uintptr_t)addr < 0x10000) { return; } // PORT PATCH: unresolved N64 address, skip the command
+     float matrix[4][4];
+ 
+     if (auto it = mCurMtxReplacements->find((Mtx*)addr); it != mCurMtxReplacements->end()) {
+@@ -1532,6 +1890,20 @@ void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
+ #endif
+     }
+ 
++    if (getenv("PORT_MTXLOG")) {
++        fprintf(stderr, "[mtxraw]");
++        for (int k = 0; k < 16; k++) fprintf(stderr, " %08x", (uint32_t)addr[k]);
++        fputc(10, stderr);
++    }
++    if (gPortDrawLog && (std::fabs(matrix[3][0]) > 1e5f || std::fabs(matrix[3][1]) > 1e5f || std::fabs(matrix[0][0]) > 1e3f ||
++                         std::fabs(matrix[1][1]) > 1e3f)) {
++        fprintf(stderr, "[badmtx] addr=%p p=%x raw:", (const void*)addr, parameters);
++        for (int k = 0; k < 16; k++) fprintf(stderr, " %08x", (uint32_t)addr[k]);
++        fprintf(stderr, " diag=%.3g %.3g %.3g t=%.3g %.3g %.3g\n", matrix[0][0], matrix[1][1], matrix[2][2], matrix[3][0], matrix[3][1], matrix[3][2]);
++    }
++    if (getenv("PORT_MTXLOG"))
++        fprintf(stderr, "[mtx] p=%x addr=%p diag=%.3g %.3g %.3g %.3g t=%.3g %.3g %.3g %.3g r0=%.3g %.3g %.3g\n", parameters, (const void*)addr,
++                matrix[0][0], matrix[1][1], matrix[2][2], matrix[3][3], matrix[3][0], matrix[3][1], matrix[3][2], matrix[0][3], matrix[0][0], matrix[0][1], matrix[0][2]);
+     const int8_t mtx_projection = get_attr(MTX_PROJECTION);
+     const int8_t mtx_load = get_attr(MTX_LOAD);
+     const int8_t mtx_push = get_attr(MTX_PUSH);
+@@ -1600,6 +1972,8 @@ void Interpreter::AdjustWidthHeightForScale(uint32_t& width, uint32_t& height, u
+ }
+ 
+ void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx* vertices) {
++    if ((uintptr_t)vertices < 0x10000) { return; } // PORT PATCH: unresolved N64 address, skip the command
++    if (getenv("PORT_TEXLOG")) { fprintf(stderr, "[tex] vtx n=%zu:", n_vertices); for (size_t q = 0; q < n_vertices && q < 4; q++) fprintf(stderr, " (%d,%d,%d st=%d,%d)", vertices[q].v.ob[0], vertices[q].v.ob[1], vertices[q].v.ob[2], vertices[q].v.tc[0], vertices[q].v.tc[1]); fputc(10, stderr); }
+     for (size_t i = 0; i < n_vertices; i++, dest_index++) {
+         const F3DVtx_t* v = &vertices[i].v;
+         const F3DVtx_tn* vn = &vertices[i].n;
+@@ -1805,11 +2179,32 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+     struct LoadedVertex* v_arr[3] = { v1, v2, v3 };
+ 
+     // if (rand()%2) return;
++    static int sTot = 0, sClip = 0;
++    static bool sLog = getenv("PORT_TRILOG") != nullptr;
++    if (sLog) {
++        sTot++;
++        if (v1->clip_rej & v2->clip_rej & v3->clip_rej) sClip++;
++        if (sTot % 50 == 0)
++            fprintf(stderr, "[tri] total=%d clipped=%d v1=(%.1f %.1f %.1f w=%.1f) rej=%x\n", sTot, sClip, v1->x, v1->y, v1->z, v1->w, v1->clip_rej);
++    }
+ 
+     if (v1->clip_rej & v2->clip_rej & v3->clip_rej) {
+         // The whole triangle lies outside the visible area
+         return;
+     }
++    if (gPortDrawLog) { // PORT debug: triangles that span far beyond the screen
++        float ext = 0;
++        for (auto* v : v_arr) {
++            if (v->w != 0) ext = std::max(ext, std::max(std::fabs(v->x / v->w), std::fabs(v->y / v->w)));
++        }
++        if (ext > 4.0f) {
++            static int n = 0;
++            if (n++ < 12)
++                fprintf(stderr, "[bigtri] ext=%.1f tex=%p v=(%.0f %.0f %.0f %.1f) (%.0f %.0f %.0f %.1f) (%.0f %.0f %.0f %.1f)\n", ext,
++                        (const void*)mRdp->loaded_texture[0].raw_addr, v1->x, v1->y, v1->z, v1->w, v2->x, v2->y, v2->z, v2->w,
++                        v3->x, v3->y, v3->z, v3->w);
++        }
++    }
+ 
+     const uint32_t cull_both = get_attr(CULL_BOTH);
+     const uint32_t cull_front = get_attr(CULL_FRONT);
+@@ -1896,9 +2291,82 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+     bool texture_edge = (mRdp->other_mode_l & CVG_X_ALPHA) == CVG_X_ALPHA;
+     bool use_noise = (mRdp->other_mode_l & (3U << G_MDSFT_ALPHACOMPARE)) == G_AC_DITHER;
+     bool use_2cyc = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE)) == G_CYC_2CYCLE;
++    static const bool sFloorLog = getenv("PORT_TILE1LOG") != nullptr;
++    if (sFloorLog && (cc_id == 0x001ffe35034a8c21ull || cc_id == 0x001ffe3507ff8cf1ull)) {
++        static int nf = 0;
++        if (nf++ < 100000) fprintf(stderr, "[tile1] FLOOR region=%d\n", TmemFind(mRdp->texture_tile[1].tmem) != nullptr);
++    }
++    if (gPortDrawLog && sInOffscreen && mFbActive && mActiveFrameBuffer != mFrameBuffers.end() &&
++        mActiveFrameBuffer->second.orig_width == 76) {
++        static int no = 0;
++        if (no++ < 40) fprintf(stderr, "[offdraw] vp=(%.0f,%.0f %.0fx%.0f) sc=(%.0f,%.0f %.0fx%.0f) v1=(%.1f,%.1f,%.1f,w=%.1f) rej=%x cc=%llx\n",
++                                mRdp->viewport.x, mRdp->viewport.y, mRdp->viewport.width, mRdp->viewport.height,
++                                mRdp->scissor.x, mRdp->scissor.y, mRdp->scissor.width, mRdp->scissor.height,
++                                v1->x, v1->y, v1->z, v1->w, v1->clip_rej, (unsigned long long)cc_id);
++    }
++    if (gPortDrawLog) { // PORT debug: one line per distinct draw state in the logged frame (Engine.cpp sets it)
++        static std::set<std::tuple<uint64_t, uint32_t, uint32_t, const void*, uint32_t>> seen;
++        const void* tex = mRdp->loaded_texture[mRdp->texture_tile[mRdp->first_tile_index].tmem_index].addr;
++        auto key = std::make_tuple(cc_id, mRdp->other_mode_l, mRdp->other_mode_h, tex,
++                                   ((uint32_t)mRdp->prim_color.r << 24) | (mRdp->prim_color.g << 16) | (mRdp->prim_color.b << 8) | mRdp->env_color.r);
++        if (cc_id == 0x001ffe35034a8c21ull || cc_id == 0x001ffe3507ff8cf1ull) {
++            const TmemRegion* r1 = TmemFind(mRdp->texture_tile[1].tmem);
++            fprintf(stderr, "[seq] FLOOR draw cc=%llx tile1 tmem=%u fmt=%u siz=%u line=%u region=%s start=%u len=%u raw=%p v=(%.0f,%.0f)\n",
++                    (unsigned long long)cc_id, mRdp->texture_tile[1].tmem, mRdp->texture_tile[1].fmt, mRdp->texture_tile[1].siz,
++                    mRdp->texture_tile[1].line_size_bytes, r1 ? "yes" : "no", r1 ? r1->start : 0, r1 ? r1->len : 0,
++                    r1 ? (const void*)r1->raw : nullptr, v1->x / v1->w, v1->y / v1->w);
++        }
++        if (seen.insert(key).second) {
++            fprintf(stderr, "[draw] cc=%016llx oml=%08x omh=%08x geo=%08x dec=%d tex=%p fmt=%d siz=%d prim=%02x%02x%02x%02x env=%02x%02x%02x%02x v1=%02x%02x%02x%02x\n",
++                    (unsigned long long)cc_id, mRdp->other_mode_l, mRdp->other_mode_h, mRsp->geometry_mode, (int)zmode_decal, tex,
++                    mRdp->texture_tile[mRdp->first_tile_index].fmt, mRdp->texture_tile[mRdp->first_tile_index].siz,
++                    mRdp->prim_color.r, mRdp->prim_color.g, mRdp->prim_color.b, mRdp->prim_color.a,
++                    mRdp->env_color.r, mRdp->env_color.g, mRdp->env_color.b, mRdp->env_color.a,
++                    v1->color.r, v1->color.g, v1->color.b, v1->color.a);
++            int t1 = (mRdp->first_tile_index + 1) & 7;
++            const auto& lt0 = mRdp->loaded_texture[mRdp->texture_tile[mRdp->first_tile_index].tmem_index];
++            const auto& lt1 = mRdp->loaded_texture[mRdp->texture_tile[t1].tmem_index];
++            fprintf(stderr, "        tile0 %d tmem=%u idx=%d size=%u | tile1 %d tmem=%u idx=%d fmt=%d siz=%d tex=%p size=%u\n",
++                    mRdp->first_tile_index, mRdp->texture_tile[mRdp->first_tile_index].tmem, mRdp->texture_tile[mRdp->first_tile_index].tmem_index,
++                    lt0.orig_size_bytes, t1, mRdp->texture_tile[t1].tmem, mRdp->texture_tile[t1].tmem_index, mRdp->texture_tile[t1].fmt,
++                    mRdp->texture_tile[t1].siz, lt1.addr, lt1.orig_size_bytes);
++            for (int q = 0; q < 2; q++) {
++                int tt = q ? t1 : mRdp->first_tile_index;
++                const TmemRegion* r = TmemFind(mRdp->texture_tile[tt].tmem);
++                fprintf(stderr, "        tile%d tmem=%u region: %s start=%u len=%u raw=%p\n", tt, mRdp->texture_tile[tt].tmem,
++                        r ? "yes" : "none", r ? r->start : 0, r ? r->len : 0, r ? (const void*)r->raw : nullptr);
++                if (r) {
++                    const uint8_t* rb = r->data.data() + (mRdp->texture_tile[tt].tmem * 8 - r->start);
++                    fprintf(stderr, "          region bytes:");
++                    for (int k = 0; k < 16; k++) fprintf(stderr, " %02x", rb[k]);
++                    fprintf(stderr, "\n");
++                }
++            }
++            for (int q = 0; q < 2; q++) {
++                const uint8_t* b = q ? lt1.addr : lt0.addr;
++                if (b && (uintptr_t)b > 0x100000000ull) {
++                    fprintf(stderr, "        tex%d bytes:", q);
++                    for (int k = 0; k < 24; k++) fprintf(stderr, " %02x", b[k]);
++                    fprintf(stderr, "\n");
++                }
++            }
++        }
++    }
+     bool alpha_threshold = (mRdp->other_mode_l & (3U << G_MDSFT_ALPHACOMPARE)) == G_AC_THRESHOLD;
++    // PORT: in copy mode the RDP's alpha compare skips texels whose alpha bit is 0, whatever the blender says (Stadium
++    // draws its order-screen icons this way with G_RM_NOOP). The shader only discards when alpha is in use; copy-mode
++    // texels have 1-bit alpha, so alpha blending gives the same picture.
++    if (alpha_threshold && (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE)) == G_CYC_COPY) {
++        use_alpha = true;
++    }
+     bool invisible =
+         (mRdp->other_mode_l & (3 << 24)) == (G_BL_0 << 24) && (mRdp->other_mode_l & (3 << 20)) == (G_BL_CLR_MEM << 20);
++    // PORT: an invisible (depth-only) draw keeps the memory colour whatever its B input is (G_BL_1MA or G_BL_1):
++    // it only works through blending. With B = 1 (the Sandshrew game's hole mask) use_alpha stayed off and the draw
++    // painted its colour, black hexagons over the ground.
++    if (invisible) {
++        use_alpha = true;
++    }
+     bool use_grayscale = mRdp->grayscale;
+     bool use_prim_depth = (mRdp->other_mode_l & G_ZS_PRIM) != 0;
+ 
+@@ -1965,6 +2433,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+ 
+     uint32_t tm = 0;
+     uint32_t tex_width[2], tex_height[2], tex_width2[2], tex_height2[2];
++    float rttRow[2] = { 0, 0 };
++    float rttCol[2] = { 0, 0 };
+     uint32_t effective_tile[2];
+ 
+     for (int i = 0; i < 2; i++) {
+@@ -1977,9 +2447,39 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+         effective_tile[i] = tile;
+ 
+         if (comb->usedTextures[i]) {
++            if (gPortDrawLog && i == 1) { // PORT-TRACE: draws that sample the second tile
++                static std::set<std::tuple<uint64_t, uint32_t, const void*>> seen1;
++                const TmemRegion* r = TmemFind(mRdp->texture_tile[tile].tmem);
++                if (seen1.insert({ cc_id, mRdp->texture_tile[tile].tmem, r ? (const void*)r->raw : nullptr }).second) {
++                    fprintf(stderr, "[tex1] cc=%016llx comb=%08x%08x tile%u tmem=%u fmt=%u siz=%u line=%u region=%s start=%u len=%u raw=%p tile0 tmem=%u v=(%.0f,%.0f)\n",
++                            (unsigned long long)cc_id, (uint32_t)(mRdp->combine_mode >> 32), (uint32_t)mRdp->combine_mode, tile,
++                            mRdp->texture_tile[tile].tmem, mRdp->texture_tile[tile].fmt, mRdp->texture_tile[tile].siz,
++                            mRdp->texture_tile[tile].line_size_bytes, r ? "yes" : "no", r ? r->start : 0, r ? r->len : 0,
++                            r ? (const void*)r->raw : nullptr, mRdp->texture_tile[mRdp->first_tile_index].tmem,
++                            v1->x / v1->w, v1->y / v1->w);
++                    const auto& ts = mRdp->texture_tile[tile];
++                    fprintf(stderr, "       tile1 uls=%.0f ult=%.0f lrs=%.0f lrt=%.0f cms=%u cmt=%u masks=%u maskt=%u shifts=%u shiftt=%u\n",
++                            (double)ts.uls, (double)ts.ult, (double)ts.lrs, (double)ts.lrt, ts.cms, ts.cmt, ts.masks, ts.maskt, ts.shifts, ts.shiftt);
++                    if (r) {
++                        const uint8_t* b = r->data.data() + (mRdp->texture_tile[tile].tmem * 8 - r->start);
++                        for (int row = 0; row < 4; row++) {
++                            fprintf(stderr, "       ");
++                            for (int k = 0; k < 16; k++) fprintf(stderr, " %02x", b[row * 16 + k]);
++                            fprintf(stderr, "\n");
++                        }
++                    }
++                }
++            }
+             if (mRdp->textures_changed[i]) {
+                 Flush();
+-                ImportTexture(i, tile, false);
++                RttInfo rtt;
++                float rttRowTmp;
++                if (i == 0 && !sInOffscreen && RttLookup(mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_addr, &rtt, &rttRowTmp)) {
++                    if (getenv("PORT_TEXLOG")) fprintf(stderr, "[rtt] bind fb %d (%ux%u) for %p row %.0f\n", rtt.fb, rtt.w, rtt.h, mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_addr, rttRowTmp);
++                    mRapi->SelectTextureFb(rtt.fb); // render-to-texture buffer: bind the GPU framebuffer instead of uploading RAM
++                } else {
++                    ImportTexture(i, tile, false);
++                }
+                 if (mRdp->loaded_texture[i].masked) {
+                     ImportTextureMask(SHADER_FIRST_MASK_TEXTURE + i, tile);
+                 }
+@@ -2058,6 +2558,18 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+                 tex_height[i] = tex_height2[i];
+             }
+ 
++            rttRow[i] = 0;
++            rttCol[i] = 0;
++            {
++                RttInfo rtt;
++                float row, col = 0;
++                if (i == 0 && !sInOffscreen && RttLookup(mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_addr, &rtt, &row, &col)) {
++                    tex_width[i] = rtt.w; // UVs are relative to the whole buffer, the tile starts at (col, row)
++                    tex_height[i] = rtt.h;
++                    rttRow[i] = row;
++                    rttCol[i] = col;
++                }
++            }
+             uint32_t tex_width1 = tex_width[i] << (cms & G_TX_MIRROR);
+             uint32_t tex_height1 = tex_height[i] << (cmt & G_TX_MIRROR);
+ 
+@@ -2153,6 +2665,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+ 
+             u -= mRdp->texture_tile[uv_tile].uls / 4.0f;
+             v -= mRdp->texture_tile[uv_tile].ult / 4.0f;
++            v += rttRow[t];
++            u += rttCol[t];
+ 
+             if ((mRdp->other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) {
+                 // Linear filter adds 0.5f to the coordinates
+@@ -2169,11 +2683,11 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+             bool clampT = tm & (1 << 2 * t + 1);
+ 
+             if (clampS) {
+-                mBufVbo[mBufVboLen++] = (tex_width2[t] - 0.5f) / tex_width[t];
++                mBufVbo[mBufVboLen++] = (tex_width2[t] - 0.5f + rttCol[t]) / tex_width[t];
+             }
+ 
+             if (clampT) {
+-                mBufVbo[mBufVboLen++] = (tex_height2[t] - 0.5f) / tex_height[t];
++                mBufVbo[mBufVboLen++] = (tex_height2[t] - 0.5f + rttRow[t]) / tex_height[t];
+             }
+         }
+ 
+@@ -2371,11 +2885,16 @@ void Interpreter::CalcAndSetViewport(const F3DVp_t* viewport) {
+     mRdp->viewport.height = height;
+ 
+     AdjustVIewportOrScissor(&mRdp->viewport);
++    if (gPortDrawLog && mFbActive && mActiveFrameBuffer != mFrameBuffers.end() && mActiveFrameBuffer->second.orig_width == 76)
++        fprintf(stderr, "[offvp] vscale=%d,%d vtrans=%d,%d -> vp=(%d,%d %ux%u)\n", viewport->vscale[0], viewport->vscale[1],
++                viewport->vtrans[0], viewport->vtrans[1], (int)mRdp->viewport.x, (int)mRdp->viewport.y,
++                (unsigned)mRdp->viewport.width, (unsigned)mRdp->viewport.height);
+ 
+     mRdp->viewport_or_scissor_changed = true;
+ }
+ 
+ void Interpreter::GfxSpMovememF3dex2(uint8_t index, uint8_t offset, const void* data) {
++    if ((uintptr_t)data < 0x10000) { return; } // PORT PATCH: unresolved N64 address, skip the command
+     switch (index) {
+         case F3DEX2_G_MV_VIEWPORT:
+             CalcAndSetViewport((const F3DVp_t*)data);
+@@ -2428,6 +2947,7 @@ void Interpreter::GfxSpMovewordF3dex2(uint8_t index, uint16_t offset, uintptr_t
+             break;
+         case G_MW_SEGMENT: {
+             int segNumber = offset / 4;
++            if (segNumber == 15 && getenv("PORT_TEXLOG")) fprintf(stderr, "[seg] 15 = 0x%lx\n", (unsigned long)data);
+             mSegmentPointers[segNumber] = data;
+         } break;
+         case G_MW_SEGMENT_INTERP: {
+@@ -2467,6 +2987,7 @@ void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t dat
+ }
+ 
+ void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t tile, uint8_t on) {
++    if (getenv("PORT_TEXLOG")) fprintf(stderr, "[tex] texture sc=%x tc=%x tile=%u on=%u\n", sc, tc, tile, on);
+     mRsp->texture_scaling_factor.s = sc;
+     mRsp->texture_scaling_factor.t = tc;
+     if (mRdp->first_tile_index != tile) {
+@@ -2478,6 +2999,27 @@ void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t
+ }
+ 
+ void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uint32_t lrx, uint32_t lry) {
++    if (sPendingOffscreenAddr != 0) {
++        uint32_t w = sPendingOffscreenWidth, h = (lry - uly) / 4;
++        if (h == 0) h = 16;
++        int id = CreateFrameBuffer(w, h, w, h, false, false);
++        mRapi->SetFramebufferReadback(id);
++        RttApplyForgets();
++        RttForgetOverlapping(sPendingOffscreenAddr, sPendingOffscreenAddr + (uintptr_t)w * h * 2);
++        sOffscreenFbs[sPendingOffscreenAddr] = RttInfo{ id, w, h, {} };
++        RttStamp(sPendingOffscreenAddr, &sOffscreenFbs[sPendingOffscreenAddr]);
++        SetFrameBuffer(id, 1.0f);
++        mActiveFrameBuffer = mFrameBuffers.find(id);
++        mFbActive = true;
++        sInOffscreen = true;
++        // a new GPU target starts without viewport/scissor: send them again even if they equal the cached ones
++        mRdp->viewport_or_scissor_changed = true;
++        mRenderingState.viewport = {};
++        mRenderingState.scissor = {};
++        sCurOffscreenAddr = sPendingOffscreenAddr;
++        sPendingOffscreenAddr = 0;
++        if (getenv("PORT_TEXLOG")) fprintf(stderr, "[rtt] created fb %d for %ux%u\n", id, w, h);
++    }
+     float x = ulx / 4.0f;
+     float y = lry / 4.0f;
+     float width = (lrx - ulx) / 4.0f;
+@@ -2495,6 +3037,7 @@ void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uin
+ 
+ void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t width, const char* texPath,
+                                        uint32_t texFlags, RawTexMetadata rawTexMetdata, const void* addr) {
++    if (getenv("PORT_TEXLOG")) fprintf(stderr, "[tex] timg fmt=%u siz=%u w=%u addr=%p\n", format, size, width, addr);
+     // fprintf(stderr, "GfxDpSetTextureImage: %s (width=%d; size=0x%X)\n",
+     //         rawTexMetdata.resource ? rawTexMetdata.resource->GetInitData()->Identifier.GetPath().c_str() : nullptr,
+     //         width, size);
+@@ -2508,6 +3051,7 @@ void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t
+ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_t tmem, uint8_t tile, uint32_t palette,
+                                uint32_t cmt, uint32_t maskt, uint32_t shiftt, uint32_t cms, uint32_t masks,
+                                uint32_t shifts) {
++    if (getenv("PORT_TEXLOG")) fprintf(stderr, "[tex] tile%u fmt=%u siz=%u line=%u tmem=%u pal=%u\n", tile, fmt, siz, line, tmem, palette);
+     // OTRTODO:
+     // SUPPORT_CHECK(tmem == 0 || tmem == 256);
+ 
+@@ -2530,6 +3074,12 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
+     mRdp->texture_tile[tile].line_size_bytes = line * 8;
+ 
+     mRdp->texture_tile[tile].tmem = tmem;
++    if (gPortDrawLog) fprintf(stderr, "[seq] settile %u fmt=%u siz=%u line=%u tmem=%u\n", tile, fmt, siz, line, tmem);
++    static const bool sT1 = getenv("PORT_TILE1LOG") != nullptr;
++    if (sT1 && (tile == 1 || tmem != 0)) {
++        static int n = 0;
++        if (n++ < 400) fprintf(stderr, "[tile1] settile %u fmt=%u siz=%u line=%u tmem=%u\n", tile, fmt, siz, line, tmem);
++    }
+     // mRdp->texture_tile[tile].tmem_index = tmem / 256; // tmem is the 64-bit word offset, so 256 words means 2 kB
+ 
+     mRdp->texture_tile[tile].tmem_index =
+@@ -2540,6 +3090,7 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
+ }
+ 
+ void Interpreter::GfxDpSetTileSize(uint8_t tile, uint16_t uls, uint16_t ult, uint16_t lrs, uint16_t lrt) {
++    if (getenv("PORT_TEXLOG")) fprintf(stderr, "[tex] tsize%u %u %u %u %u\n", tile, uls, ult, lrs, lrt);
+     mRdp->texture_tile[tile].uls = uls;
+     mRdp->texture_tile[tile].ult = ult;
+     mRdp->texture_tile[tile].lrs = lrs;
+@@ -2555,6 +3106,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
+     const uint8_t* src = mRdp->texture_to_load.addr;
+     uint32_t entryCount = high_index + 1;
+     uint32_t byteCount = entryCount * 2;
++    if (gPortDrawLog) fprintf(stderr, "[seq] tlut tmem=%u entries=%u src=%p\n", tmem * 8, entryCount, (const void*)src);
++    // PORT: a palette in a C u16/u32 array is little-endian on the host (see WordArrayAt): copy it in N64 order
++    static uint8_t sTlutCopy[512];
++    {
++        size_t off;
++        int ws = (src != nullptr && byteCount <= sizeof(sTlutCopy)) ? WordArrayAt(src, &off) : 0;
++        if (ws != 0) {
++            memcpy(sTlutCopy, src, byteCount);
++            SwapWordsFrom(sTlutCopy, byteCount, ws, off);
++            src = sTlutCopy;
++        }
++    }
+ 
+     if (tmem >= 256) {
+         // N64 TMEM palette area starts at tmem word 256. Each CI4 palette = 16 entries = 16 tmem words.
+@@ -2589,7 +3152,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
+     }
+ }
+ 
++static void PortDumpTex(const uint8_t* addr, uint32_t lrs, uint32_t siz, uint32_t dxt) {
++    static const char* dir = getenv("PORT_TEXDUMP");
++    static int n = 0;
++    if (!dir || siz != 2 || lrs != 2047 || dxt != (getenv("PORT_TEXDUMP_DXT") ? (uint32_t)atoi(getenv("PORT_TEXDUMP_DXT")) : 64u)) return; // keeps a ring of the 40 most recent
++    char path[512];
++    snprintf(path, sizeof path, "%s/tex_%02d.bin", dir, n++ % 40);
++    if (FILE* f = fopen(path, "wb")) { fwrite(addr, 1, 4096, f); fclose(f); }
++}
++
+ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t lrs, uint32_t dxt) {
++    PortDumpTex(mRdp->texture_to_load.addr, lrs, mRdp->texture_to_load.siz, dxt);
++    if (getenv("PORT_TEXLOG")) { fprintf(stderr, "[tex] loadblock t%u siz=%u lrs=%u dxt=%u data:", tile, mRdp->texture_to_load.siz, lrs, dxt); for (int k = 0; k < 24; k++) fprintf(stderr, "%02x", mRdp->texture_to_load.addr[k]); fputc(10, stderr); }
+     SUPPORT_CHECK(uls == 0);
+     SUPPORT_CHECK(ult == 0);
+ 
+@@ -2658,6 +3232,11 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata = mRdp->texture_to_load.raw_tex_metadata;
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].addr = mRdp->texture_to_load.addr;
++    mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_addr = mRdp->texture_to_load.addr;
++    if (mRdp->texture_to_load.raw_tex_metadata.resource == nullptr) { // PORT: snapshot RAM textures (TMEM semantics)
++        int slot = mRdp->texture_tile[tile].tmem_index;
++        mRdp->loaded_texture[slot].addr = TmemLoad(mRdp->texture_tile[tile].tmem, mRdp->texture_to_load.addr, size_bytes, size_bytes, 1);
++    }
+     // fprintf(stderr, "GfxDpLoadBlock: line_size = 0x%x; orig = 0x%x; bpp=%d; lrs=%d\n", size_bytes,
+     // orig_size_bytes,
+     //         mRdp->texture_to_load.siz, lrs);
+@@ -2680,6 +3259,7 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
+ }
+ 
+ void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t lrs, uint32_t lrt) {
++    if (getenv("PORT_TEXLOG")) fprintf(stderr, "[tex] loadtile t%u %u %u %u %u\n", tile, uls, ult, lrs, lrt);
+     SUPPORT_CHECK(tile == G_TX_LOADTILE);
+ 
+     uint32_t word_size_shift = 0;
+@@ -2731,6 +3311,15 @@ void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata = mRdp->texture_to_load.raw_tex_metadata;
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].addr = mRdp->texture_to_load.addr + start_offset_bytes;
++    mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_addr = mRdp->texture_to_load.addr + start_offset_bytes;
++    if (mRdp->texture_to_load.raw_tex_metadata.resource == nullptr && tile_line_size_bytes > 0) {
++        // PORT: snapshot RAM textures (TMEM semantics); rows are compacted to the tile's line size
++        int slot = mRdp->texture_tile[tile].tmem_index;
++        uint32_t rows = size_bytes / tile_line_size_bytes;
++        mRdp->loaded_texture[slot].addr = TmemLoad(mRdp->texture_tile[tile].tmem, mRdp->texture_to_load.addr + start_offset_bytes,
++                                                   tile_line_size_bytes, full_image_line_size_bytes, rows);
++        mRdp->loaded_texture[slot].full_image_line_size_bytes = tile_line_size_bytes;
++    }
+ 
+     const std::string_view texPath =
+         mRdp->texture_to_load.raw_tex_metadata.resource != nullptr
+@@ -2930,7 +3519,13 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
+ 
+ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry, uint8_t tile, int16_t uls,
+                                         int16_t ult, int16_t dsdx, int16_t dtdy, bool flip) {
+-    // printf("render %d at %d\n", tile, lrx);
++    if (getenv("PORT_TEXLOG")) fprintf(stderr, "[rect] %d,%d - %d,%d tile=%u st=%d,%d d=%d,%d flip=%d\n", ulx, uly, lrx, lry, tile, uls, ult, dsdx, dtdy, (int)flip);
++    if (gPortDrawLog && getenv("PORT_RECTLOG")) // PORT debug: state of each textured rectangle in the logged frame
++        fprintf(stderr, "[trect] %d,%d-%d,%d cc=%016llx omh=%08x oml=%08x fmt=%u siz=%u pal=%u prim=%02x%02x%02x%02x env=%02x%02x%02x%02x tex=%p\n",
++                ulx >> 2, uly >> 2, lrx >> 2, lry >> 2, (unsigned long long)mRdp->combine_mode, mRdp->other_mode_h, mRdp->other_mode_l,
++                mRdp->texture_tile[tile].fmt, mRdp->texture_tile[tile].siz, mRdp->texture_tile[tile].palette, mRdp->prim_color.r,
++                mRdp->prim_color.g, mRdp->prim_color.b, mRdp->prim_color.a, mRdp->env_color.r, mRdp->env_color.g, mRdp->env_color.b,
++                mRdp->env_color.a, (const void*)mRdp->loaded_texture[0].raw_addr);
+     uint64_t saved_combine_mode = mRdp->combine_mode;
+     if ((mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE)) == G_CYC_COPY) {
+         // Per RDP Command Summary Set Tile's shift s and this dsdx should be set to 4 texels
+@@ -3043,6 +3638,11 @@ void Interpreter::GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_
+ }
+ 
+ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry) {
++    if (gPortDrawLog && getenv("PORT_RECTLOG"))
++        fprintf(stderr, "[frect] %d,%d-%d,%d fill=%08x omh=%08x cc=%016llx prim=%02x%02x%02x%02x env=%02x%02x%02x%02x\n", ulx, uly, lrx, lry,
++                mRdp->fill_color.r << 24 | mRdp->fill_color.g << 16 | mRdp->fill_color.b << 8 | mRdp->fill_color.a, mRdp->other_mode_h,
++                (unsigned long long)mRdp->combine_mode, mRdp->prim_color.r, mRdp->prim_color.g, mRdp->prim_color.b, mRdp->prim_color.a,
++                mRdp->env_color.r, mRdp->env_color.g, mRdp->env_color.b, mRdp->env_color.a);
+     if (mRdp->color_image_address == mRdp->z_buf_address) {
+         // Fullscreen Z clears are redundant — already done by glClear at frame start.
+         bool isFullScreen = (ulx <= 0 && uly <= 0 && lrx >= (int32_t)(mNativeDimensions.width - 1) * 4 &&
+@@ -3078,6 +3678,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
+     }
+     uint32_t mode = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE));
+ 
++    // PORT: a fill of a whole render-to-texture image (e.g. the VS screen's Pokémon pictures, filled with transparent
++    // 0x0000 before the model is drawn) must write the fill colour's alpha bit: opaque draws output alpha 1, which
++    // would give the pictures a solid black background where the N64 leaves them see-through.
++    static const bool sNoFillAlpha = getenv("PORT_NO_RTT_FILL_ALPHA") != nullptr; // debug
++    if (mode == G_CYC_FILL && sInOffscreen && !sNoFillAlpha && mActiveFrameBuffer != mFrameBuffers.end() && ulx <= 0 && uly <= 0 &&
++        (uint32_t)(lrx >> 2) + 1 >= mActiveFrameBuffer->second.orig_width &&
++        (uint32_t)(lry >> 2) + 1 >= mActiveFrameBuffer->second.orig_height) {
++        Flush();
++        if (getenv("PORT_TEXLOG")) fprintf(stderr, "[rtt] fill clear %p %ux%u color %02x%02x%02x%02x\n", (void*)sCurOffscreenAddr,
++                                           mActiveFrameBuffer->second.orig_width, mActiveFrameBuffer->second.orig_height,
++                                           mRdp->fill_color.r, mRdp->fill_color.g, mRdp->fill_color.b, mRdp->fill_color.a);
++        if (mRapi->ClearFramebufferColor(mRdp->fill_color.r / 255.0f, mRdp->fill_color.g / 255.0f,
++                                         mRdp->fill_color.b / 255.0f, mRdp->fill_color.a / 255.0f)) {
++            return;
++        }
++    }
++
+     // Expand fullscreen fill rects to cover widescreen viewports.
+     // Without this, screen clears and fades only cover the native 4:3 area.
+     if (ulx == 0 && uly == 0) {
+@@ -3116,8 +3733,129 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
+     mRdp->z_buf_address = zBufAddr;
+ }
+ 
++// PORT PATCH: render-to-texture. Stadium draws some UI text into small RGBA16 buffers in RDRAM (G_SETCIMG to a buffer that
++// is not one of the 320/640 pixel wide frame buffers) and samples them as textures later. Such a color image gets an
++// offscreen framebuffer keyed by its address; G_SETTIMG with that address binds the framebuffer texture.
++
++// PORT: the N64 RDP writes rendered pixels to RDRAM, and the game can load them into TMEM from there (the arena's
++// near floor samples TMEM that the portrait images were loaded into). Render targets live on the GPU, so when the game
++// stops drawing into one, its pixels are copied back into the RDRAM buffer as big-endian RGBA5551, all of them; the
++// first 16 bytes then become the target's stamp (RttStamp), so the target itself stays bound for normal texture use.
++void Interpreter::RttReadback() {
++    Flush();
++    static const bool off = getenv("PORT_NO_RTT_READBACK") != nullptr;
++    auto it = sOffscreenFbs.find(sCurOffscreenAddr);
++    if (off || sCurOffscreenAddr == 0 || it == sOffscreenFbs.end() || !RttStampValid(it->first, it->second)) {
++        return;
++    }
++    uint32_t w = it->second.w, h = it->second.h;
++    static std::vector<uint16_t> buf;
++    buf.assign((size_t)w * h, 0);
++    mRapi->ReadFramebufferToCPU(it->second.fb, w, h, buf.data());
++    uint8_t* dst = (uint8_t*)it->first;
++    for (size_t i = 0; i < buf.size(); i++) {
++        dst[i * 2] = (uint8_t)(buf[i] >> 8);
++        dst[i * 2 + 1] = (uint8_t)buf[i];
++    }
++    memcpy(it->second.stamp, dst, sizeof(it->second.stamp)); // see RttStamp
++}
++
+ void Interpreter::GfxDpSetColorImage(uint32_t format, uint32_t size, uint32_t width, void* address) {
++    if (getenv("PORT_TEXLOG") || gPortDrawLog) fprintf(stderr, "[cimg] fmt=%u siz=%u w=%u addr=%p\n", format, size, width, address);
+     mRdp->color_image_address = address;
++    uint32_t pixelWidth = width + 1; // the field holds width - 1
++    bool offscreen = pixelWidth != 320 && pixelWidth != 640 && address != nullptr && !getenv("PORT_NO_RTT");
++    // PORT: a screen-sized picture the game never shows (osViSwapBuffer) is drawn to be used as a texture (Gallery
++    // enlarge renders the photo at 640x480, then draws it): render-to-texture too. Before two frame buffers have been
++    // shown, every screen-sized image counts as a frame buffer.
++    static const bool sNoFbCheck = getenv("PORT_NO_VIFB_CHECK") != nullptr; // debug
++    if (!offscreen && address != nullptr && !sNoFbCheck && !getenv("PORT_NO_RTT") && Port_ViFrameBufferState(address) == 0) {
++        offscreen = true;
++    }
++    if (offscreen) {
++        Flush();
++        // PORT: a screen-sized off-screen picture (Gallery enlarge: 640x480) is drawn in the 640x480 space; with the
++        // native size of the screen drawn before (320x240) its scene came out 2x zoomed. Smaller targets keep the
++        // current space, as before. The main colour image sets it again when the game returns to it.
++        if (pixelWidth > 400 && !getenv("PORT_NATIVE_W")) {
++            mNativeDimensions.width = 640;
++            mNativeDimensions.height = 480;
++        }
++        auto it = sOffscreenFbs.find((uintptr_t)address);
++        if (it != sOffscreenFbs.end()) {
++            if (sInOffscreen) {
++                RttReadback();
++            }
++            SetFrameBuffer(it->second.fb, 1.0f);
++            mActiveFrameBuffer = mFrameBuffers.find(it->second.fb);
++            mFbActive = true;
++            sInOffscreen = true;
++            mRdp->viewport_or_scissor_changed = true; // see GfxDpSetScissor
++            mRenderingState.viewport = {};
++            mRenderingState.scissor = {};
++            sCurOffscreenAddr = (uintptr_t)address;
++            sPendingOffscreenAddr = 0; // PORT: a colour image set just before (no scissor yet) is not drawn into
++        } else {
++            if (sInOffscreen) {
++                RttReadback();
++                sCurOffscreenAddr = 0;
++            }
++            sPendingOffscreenAddr = (uintptr_t)address; // created at the scissor that follows, which carries the height
++            sPendingOffscreenWidth = pixelWidth;
++        }
++        return;
++    }
++    sPendingOffscreenAddr = 0;
++    if (sInOffscreen) {
++        RttReadback();
++        sCurOffscreenAddr = 0;
++        mFbActive = false;
++        mActiveFrameBuffer = mFrameBuffers.end();
++        mRapi->StartDrawToFramebuffer(mRendersToFb ? mGameFb : 0, (float)mCurDimensions.height / mNativeDimensions.height);
++        mRdp->viewport_or_scissor_changed = true;
++        mRenderingState.viewport = {};
++        mRenderingState.scissor = {};
++        sInOffscreen = false;
++    }
++    if (mRendersToFb && address != nullptr && address != mRdp->z_buf_address) {
++        auto mf = sMainFbs.find((uintptr_t)address);
++        int fb;
++        if (mf == sMainFbs.end()) {
++            if (sMainFbs.empty()) {
++                fb = mGameFb; // the first frame buffer uses the existing target
++            } else {
++                fb = mRapi->CreateFramebuffer();
++                if (!ViewportMatchesRendererResolution()) {
++                    mRapi->UpdateFramebufferParameters(fb, mCurDimensions.width, mCurDimensions.height, mMsaaLevel,
++                                                       true, true, true, true);
++                } else {
++                    mRapi->UpdateFramebufferParameters(fb, mGfxCurrentWindowDimensions.width,
++                                                       mGfxCurrentWindowDimensions.height, mMsaaLevel, false, true,
++                                                       true, true);
++                }
++            }
++            sMainFbs[(uintptr_t)address] = fb;
++        } else {
++            fb = mf->second;
++        }
++        sMainFbDrawStamp[(uintptr_t)address] = ++sDrawStamp;
++        if (fb != mGameFb) {
++            Flush();
++            mGameFb = fb;
++            mRapi->StartDrawToFramebuffer(mGameFb, (float)mCurDimensions.height / mNativeDimensions.height);
++            mRapi->ClearFramebuffer(false, true);
++            mRdp->viewport_or_scissor_changed = true;
++            mRenderingState.viewport = {};
++            mRenderingState.scissor = {};
++        }
++    }
++    // Stadium switches between 320x240 and 640x480 (hi-res) color images; the native coordinate space of
++    // texture rectangles, fills and scissors follows the framebuffer width.
++    static const bool fixedNative = getenv("PORT_NATIVE_W") != nullptr;
++    if (!fixedNative && !mFbActive && address != mRdp->z_buf_address) {
++        mNativeDimensions.width = pixelWidth > 400 ? 640 : 320;
++        mNativeDimensions.height = pixelWidth > 400 ? 480 : 240;
++    }
+ }
+ 
+ void Interpreter::GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode) {
+@@ -3252,7 +3990,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
+                           (float)(1 << 10) * realSW, (float)(1 << 10) * realSH, false);
+ }
+ 
++// PORT PATCH: N64-style 32-bit addresses (segment-relative 0x0Nxxxxxx, fragment link addresses 0x8Nxxxxxx) can
++// appear in display lists built by game code. Host pointers are always >= 4 GB on 64-bit macOS, so anything
++// below that is resolved by the port's callback.
++void* (*gPortAddressResolver)(uintptr_t) = nullptr;
++
+ void* Interpreter::SegAddr(uintptr_t w1) {
++    if ((w1 >> 32) == 0xFFFFFFFFull) {
++        w1 &= 0xFFFFFFFFull; // PORT: sign-extended 32-bit N64 address
++    }
++    if (gPortAddressResolver != nullptr && w1 != 0 && w1 < 0x100000000ull) {
++        // A segment base set by this frame's display lists (gSPSegment) wins, like on the RSP; the port's resolver
++        // (the game's own CPU-side segment table, fragment link addresses, ...) handles everything else.
++        if ((w1 >> 28) == 0 && mSegmentPointers[(w1 >> 24) & 0xF] != 0) {
++            return (void*)(mSegmentPointers[(w1 >> 24) & 0xF] + (w1 & 0x00FFFFFF));
++        }
++        return gPortAddressResolver(w1);
++    }
+     // Segmented?
+     if (w1 & 1) {
+         uint32_t segNum = (uint32_t)(w1 >> 24);
+@@ -3389,10 +4143,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+     return false;
+ }
+ 
++extern "C" uintptr_t Port_DlBufferBase(void) __attribute__((weak));
++extern "C" void Port_DlBufferWhere(uintptr_t p, int* which, long* off) __attribute__((weak));
++extern "C" int Port_DlBufferActive(void) __attribute__((weak));
+ bool gfx_mtx_handler_f3dex2(F3DGfx** cmd0) {
+     Interpreter* gfx = mInstance.lock().get();
+     F3DGfx* cmd = *cmd0;
+     uintptr_t mtxAddr = cmd->words.w1;
++    if (gPortDrawLog) { // PORT debug: a matrix address that holds display-list commands
++        const uint32_t* m = (const uint32_t*)gfx->SegAddr(mtxAddr);
++        if ((uintptr_t)m >= 0x100000000ull && (m[0] >> 24) >= 0xD7 && m[1] == 0 && (m[0] >> 24) != 0xFF) {
++            int wm = -1, wc = -1; long om = 0, oc = 0;
++            if (Port_DlBufferWhere) { Port_DlBufferWhere((uintptr_t)m, &wm, &om); Port_DlBufferWhere((uintptr_t)cmd, &wc, &oc); }
++            fprintf(stderr, "[mtxwhere] mtx buf%d+0x%lx cmd buf%d+0x%lx active=%d\n", wm, om, wc, oc, Port_DlBufferActive ? Port_DlBufferActive() : -1);
++            fprintf(stderr, "[mtxdl] off=0x%lx cmd=%p w1=0x%lx -> %p; list:", (unsigned long)(((uintptr_t)m - (Port_DlBufferBase ? Port_DlBufferBase() : 0)) & 0xFFFFFFF), (void*)cmd, (unsigned long)mtxAddr, (const void*)m);
++            for (int k = -6; k <= 2; k++) fprintf(stderr, " [%d]%08x/%lx", k, (uint32_t)(cmd + k)->words.w0, (unsigned long)(cmd + k)->words.w1);
++            fputc('\n', stderr);
++        }
++    }
+ 
+     gfx->GfxSpMatrix(C0(0, 8) ^ F3DEX2_G_MTX_PUSH, (const int32_t*)gfx->SegAddr(mtxAddr));
+     return false;
+@@ -3632,7 +4400,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
+     Interpreter* gfx = mInstance.lock().get();
+     F3DGfx* cmd = *cmd0;
+ 
+-    gfx->GfxSpVertex(C0(12, 8), C0(1, 7) - C0(12, 8), (const F3DVtx*)gfx->SegAddr(cmd->words.w1));
++    const F3DVtx* vtx = (const F3DVtx*)gfx->SegAddr(cmd->words.w1);
++    uintptr_t va = (uintptr_t)vtx;
++    if (va < 0x100000000ULL || va >= 0x800000000000ULL) { // PORT: garbage/unresolved vertex address
++        static int dumped = 0;
++        if (dumped++ < 4) {
++            fprintf(stderr, "[badvtx] w1=%016lx -> %p, cmd=%p, context:\n", (unsigned long)cmd->words.w1, (void*)vtx,
++                    (void*)cmd);
++            for (int k = -6; k <= 2; k++)
++                fprintf(stderr, "  %+d: %016lx %016lx\n", k, (unsigned long)(cmd + k)->words.w0,
++                        (unsigned long)(cmd + k)->words.w1);
++        }
++        return false;
++    }
++    gfx->GfxSpVertex(C0(12, 8), C0(1, 7) - C0(12, 8), vtx);
+ 
+     return false;
+ }
+@@ -3736,16 +4517,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
+ }
+ 
+ // F3D, F3DEX, and F3DEX2 do the same thing but F3DEX2 has its own opcode number
++// PORT debug: the last display-list jumps (from, raw w1, resolved target), printed with a [badop] dump.
++static struct { const void* from; uintptr_t w1; const void* to; } sDlTrail[16];
++static unsigned sDlTrailPos;
++
+ bool gfx_dl_handler_common(F3DGfx** cmd0) {
+     Interpreter* gfx = mInstance.lock().get();
+     F3DGfx* cmd = *cmd0;
+     F3DGfx* subGFX = (F3DGfx*)gfx->SegAddr(cmd->words.w1);
++    sDlTrail[sDlTrailPos++ & 15] = { cmd, (uintptr_t)cmd->words.w1, subGFX };
+     if (C0(16, 1) == 0) {
+         // Push return address
+         if (subGFX != nullptr) {
+             g_exec_stack.call(*cmd0, subGFX);
+         }
+     } else {
++        if (subGFX == nullptr) {
++            // PORT PATCH: a branch to NULL is an unpatched placeholder in game-built lists; end this list.
++            g_exec_stack.ret();
++            return true;
++        }
+         (*cmd0) = subGFX;
+         g_exec_stack.branch(cmd);
+         return true; // shortcut cmd increment
+@@ -4018,7 +4809,63 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
+     Interpreter* gfx = mInstance.lock().get();
+     F3DGfx* cmd = *cmd0;
+     uintptr_t i = (uintptr_t)gfx->SegAddr(cmd->words.w1);
++    sLastTimgCmd = cmd;
++    static const bool sTimgI16 = getenv("PORT_TILE1LOG") != nullptr;
++    if (sTimgI16 && ((((uint32_t)cmd->words.w0) >> 19) & 0x3F) == ((4 << 2) | 2)) { // fmt I, 16b: the detail load
++        static int n = 0;
++        if (n++ < 3) {
++            fprintf(stderr, "[detail] settimg w1=0x%lx -> %p list %p\n", (unsigned long)cmd->words.w1, (void*)i, (void*)cmd);
++            for (int k = -8; k <= 8; k++)
++                fprintf(stderr, "    %+3d: %08x %016lx\n", k, (uint32_t)(cmd + k)->words.w0, (unsigned long)(cmd + k)->words.w1);
++        }
++    }
++    static const bool sTimgI8 = getenv("PORT_TIMGLOG_I8") != nullptr;
++    if (sTimgI8 && ((((uint32_t)cmd->words.w0) >> 19) & 0x3F) == ((4 << 2) | 1)) {
++        static int n = 0;
++        if (n++ < 40) fprintf(stderr, "[timg8] w1=0x%lx -> %p list %p\n", (unsigned long)cmd->words.w1, (void*)i, (void*)cmd);
++    }
++    if (gPortDrawLog) { // PORT debug: raw texture image addresses of the logged frame
++        uint32_t w0 = (uint32_t)cmd->words.w0;
++        fprintf(stderr, "[timg] w1=0x%lx -> %p fmt=%u siz=%u from list %p\n", (unsigned long)cmd->words.w1, (void*)i,
++                (w0 >> 21) & 7, (w0 >> 19) & 3, (void*)cmd);
++        if (getenv("PORT_DRAWLOG_SEQ"))
++            for (int k = 1; k <= 7; k++) {
++                fprintf(stderr, "    +%d: %08x %016lx\n", k, (uint32_t)(cmd + k)->words.w0, (unsigned long)(cmd + k)->words.w1);
++                if (((uint32_t)(cmd + k)->words.w0 >> 24) == 0xDE && (cmd + k)->words.w1 > 0x100000000ull)
++                    for (int q = 0; q < 14; q++) {
++                        F3DGfx* sub = (F3DGfx*)(cmd + k)->words.w1;
++                        fprintf(stderr, "        %2d: %08x %016lx\n", q, (uint32_t)sub[q].words.w0, (unsigned long)sub[q].words.w1);
++                        if (((uint32_t)sub[q].words.w0 >> 24) == 0xDF) break;
++                    }
++            }
++        static int dumpedCtx = 0;
++        if (dumpedCtx++ < 1) {
++            for (int k = 1; k <= 4; k += 3) { // the material's sub-lists (load sequence, geometry)
++                F3DGfx* sub = (F3DGfx*)gfx->SegAddr((cmd + k)->words.w1);
++                fprintf(stderr, "  sub %+d -> %p\n", k, (void*)sub);
++                for (int q = 0; sub && (uintptr_t)sub >= 0x100000000ull && q < 24; q++) {
++                    fprintf(stderr, "    %2d: %08x %016lx\n", q, (uint32_t)sub[q].words.w0, (unsigned long)sub[q].words.w1);
++                    if (((uint32_t)sub[q].words.w0 >> 24) == 0xDF) break;
++                }
++            }
++        }
++    }
+ 
++    if (i == 0) {
++        return false; // PORT: unresolved N64 address
++    }
++    if (i < 0x100000000ull && getenv("PORT_BADTIMG_CTX")) { // PORT debug: the commands around a bad SETTIMG
++        static int n = 0;
++        if (n++ < 2)
++            for (int k = -12; k <= 4; k++)
++                fprintf(stderr, "  [badctx] %+3d: %08x %016lx\n", k, (uint32_t)(cmd + k)->words.w0, (unsigned long)(cmd + k)->words.w1);
++    }
++    if (i < 0x100000000ull) {
++        // PORT PATCH: not a host address; a stale or unresolved N64 address must not be dereferenced as a path.
++        static int shownT = 0;
++        if (shownT++ < 5) fprintf(stderr, "[timg] bad address 0x%lx from w1=0x%lx\n", (unsigned long)i, (unsigned long)cmd->words.w1);
++        return false;
++    }
+     char* imgData = (char*)i;
+     uint32_t texFlags = 0;
+     RawTexMetadata rawTexMetdata = {};
+@@ -4947,6 +5794,19 @@ static void gfx_step() {
+         } else {
+             SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, for loaded ucode: {}", (uint8_t)opcode,
+                             (uint32_t)ucode_handler_index);
++            static int dumped = 0;
++            if (dumped++ < 2) { // PORT: show the commands around the garbage to identify the list that produced it
++                fprintf(stderr, "[badop] cmd=%p, context:\n", (void*)cmd);
++                for (int k = -6; k <= 2; k++) fprintf(stderr, "  %+d: %016lx %016lx\n", k, (unsigned long)(cmd + k)->words.w0, (unsigned long)(cmd + k)->words.w1);
++                for (unsigned k = 0; k < 16; k++) {
++                    auto& e = sDlTrail[(sDlTrailPos + k) & 15];
++                    if (e.from) fprintf(stderr, "  dl %p: w1=0x%lx -> %p\n", e.from, (unsigned long)e.w1, e.to);
++                }
++            }
++            // PORT: an opcode the microcode does not have means this list is not a display list (e.g. a freed buffer
++            // already reused for asset data); end it instead of interpreting the data.
++            g_exec_stack.ret();
++            return;
+         }
+     } else {
+         SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, invalid ucode: {}", (uint8_t)opcode, (uint32_t)ucode_handler_index);
+@@ -5005,8 +5865,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
+     mGameFb = mRapi->CreateFramebuffer();
+     mGameFbMsaaResolved = mRapi->CreateFramebuffer();
+ 
+-    mNativeDimensions.width = SCREEN_WIDTH;
+-    mNativeDimensions.height = SCREEN_HEIGHT;
++    mNativeDimensions.width = getenv("PORT_NATIVE_W") ? atoi(getenv("PORT_NATIVE_W")) : SCREEN_WIDTH;   // PORT: Stadium draws in a 640x480 space
++    mNativeDimensions.height = getenv("PORT_NATIVE_H") ? atoi(getenv("PORT_NATIVE_H")) : SCREEN_HEIGHT;
+ 
+     for (int i = 0; i < MAX_SEGMENT_POINTERS; i++) {
+         mSegmentPointers[i] = 0;
+@@ -5109,16 +5969,27 @@ void Interpreter::StartFrame() {
+ 
+     mPrvDimensions = mCurDimensions;
+     mPrevNativeDimensions = mNativeDimensions;
+-    if (!ViewportMatchesRendererResolution() || mMsaaLevel > 1) {
++    // PORT: always render into the game framebuffer: like the N64's, it keeps its picture between frames (menus draw
++    // their static background once and then only what changes; see Run).
++    if (true || !ViewportMatchesRendererResolution() || mMsaaLevel > 1) {
+         mRendersToFb = true;
+-        if (!ViewportMatchesRendererResolution()) {
+-            mRapi->UpdateFramebufferParameters(mGameFb, mCurDimensions.width, mCurDimensions.height, mMsaaLevel, true,
+-                                               true, true, true);
+-        } else {
+-            // MSAA framebuffer needs to be resolved to an equally sized target when complete, which must therefore
+-            // match the window size
+-            mRapi->UpdateFramebufferParameters(mGameFb, mGfxCurrentWindowDimensions.width,
+-                                               mGfxCurrentWindowDimensions.height, mMsaaLevel, false, true, true, true);
++        std::vector<int> fbs{ mGameFb };
++        for (auto& e : sMainFbs) {
++            if (e.second != mGameFb) {
++                fbs.push_back(e.second);
++            }
++        }
++        for (int fb : fbs) {
++            if (!ViewportMatchesRendererResolution()) {
++                mRapi->UpdateFramebufferParameters(fb, mCurDimensions.width, mCurDimensions.height, mMsaaLevel, true,
++                                                   true, true, true);
++            } else {
++                // MSAA framebuffer needs to be resolved to an equally sized target when complete, which must therefore
++                // match the window size
++                mRapi->UpdateFramebufferParameters(fb, mGfxCurrentWindowDimensions.width,
++                                                   mGfxCurrentWindowDimensions.height, mMsaaLevel, false, true, true,
++                                                   true);
++            }
+         }
+         if (mMsaaLevel > 1 && !ViewportMatchesRendererResolution()) {
+             mRapi->UpdateFramebufferParameters(mGameFbMsaaResolved, mCurDimensions.width, mCurDimensions.height, 1,
+@@ -5173,7 +6044,116 @@ void Interpreter::RunGuiOnly() {
+     }
+ }
+ 
++static bool sOpLog = getenv("PORT_OPLOG") != nullptr;
++static int sOpHist[256];
++static int sOpFrames = 0;
++
++static F3DGfx* sLastCmd = nullptr;
++bool Interpreter::TrackSegmentsOnly(Gfx* commands) {
++    static const bool sFillLog = getenv("PORT_TRACE_FILL") != nullptr; // debug: fill rectangles seen by the state pass
++    if (getenv("PORT_TILE1LOG")) fprintf(stderr, "[tile1] -- track begin\n");
++    // PORT: state pass for a frame that is not drawn. The N64 keeps the RSP segment table and the RDP's TMEM/tile
++    // state across tasks, and the game relies on that (e.g. a texture loaded once when a scene starts). This walks the
++    // display-list tree following G_DL / G_ENDDL and applies segment writes and texture loads through the normal
++    // handlers. Returns true if the frame must be drawn after all: it renders into an off-screen color image, or it
++    // draws over the previous picture instead of repainting the whole screen (no full-screen fill rectangle; the frame
++    // buffer keeps its colour between frames, see Run).
++    std::vector<F3DGfx*> stack;
++    F3DGfx* cmd = (F3DGfx*)commands;
++    uintptr_t cimg = 0, zimg = 0;
++    uint32_t cimgWidth = 320;
++    bool fullFill = false;
++    uint32_t draws = 0;
++    static uint32_t sLastDraws = 0;
++    for (int budget = 0; cmd != nullptr && budget < 400000; budget++) {
++        if ((uintptr_t)cmd < 0x100000000ull) {
++            break; // unresolved address: stop this branch
++        }
++        uint32_t w0 = (uint32_t)cmd->words.w0;
++        uintptr_t w1 = cmd->words.w1;
++        uint8_t op = (uint8_t)(w0 >> 24);
++        bool invalid = op > 0x07 && op < 0xD3; // not an F3DEX2 opcode: not a display list (stale/reused buffer)
++        if (op == 0xDF /* G_ENDDL */ || invalid) {
++            if (stack.empty()) {
++                break;
++            }
++            cmd = stack.back();
++            stack.pop_back();
++            continue;
++        }
++        if (op == 0xDE /* G_DL */) {
++            F3DGfx* sub = (F3DGfx*)SegAddr(w1);
++            if (((w0 >> 16) & 0xFF) == 0) { // call
++                if (sub != nullptr && stack.size() < 64) {
++                    stack.push_back(cmd + 1);
++                    cmd = sub;
++                    continue;
++                }
++            } else { // branch
++                if (sub == nullptr) {
++                    if (stack.empty()) {
++                        break;
++                    }
++                    cmd = stack.back();
++                    stack.pop_back();
++                } else {
++                    cmd = sub;
++                }
++                continue;
++            }
++        } else if (op == 0xDB /* G_MOVEWORD */ && ((w0 >> 16) & 0xFF) == G_MW_SEGMENT) {
++            int seg = (int)((w0 & 0xFFFF) / 4);
++            if (seg >= 0 && seg < MAX_SEGMENT_POINTERS) {
++                mSegmentPointers[seg] = w1;
++            }
++        } else if (op == 0xFF /* G_SETCIMG */) {
++            uint32_t width = (w0 & 0xFFF) + 1;
++            if (width != 320 && width != 640 && w1 != 0) {
++                return true; // render-to-texture in this frame
++            }
++            cimg = (uintptr_t)SegAddr(w1);
++            cimgWidth = width;
++            sMainFbDrawStamp[cimg] = ++sDrawStamp; // the RDP renders this frame buffer (even if not drawn here)
++        } else if (op == 0xFE /* G_SETZIMG */) {
++            zimg = (uintptr_t)SegAddr(w1);
++        } else if (op == 0x05 || op == 0x06 || op == 0x07 || op == 0xE4 || op == 0xE5) {
++            draws++; // G_TRI1, G_TRI2, G_QUAD, G_TEXRECT, G_TEXRECTFLIP
++        } else if (op == 0xF6 /* G_FILLRECT */) {
++            draws++;
++            uint32_t lrx = (w0 >> 14) & 0x3FF, lry = (w0 >> 2) & 0x3FF;
++            uint32_t ulx = ((uint32_t)w1 >> 14) & 0x3FF, uly = ((uint32_t)w1 >> 2) & 0x3FF;
++            uint32_t h = cimgWidth > 400 ? 480 : 240;
++            if (sFillLog) fprintf(stderr, "[fill] %u,%u-%u,%u cimgW=%u z=%d\n", ulx, uly, lrx, lry, cimgWidth, (int)(cimg == zimg));
++            if (cimg != zimg && ulx == 0 && uly == 0 && lrx + 1 >= cimgWidth && lry + 1 >= h) {
++                fullFill = true;
++            }
++        } else if (op == 0xFD || op == 0xF5 || op == 0xF2 || op == 0xF3 || op == 0xF4 || op == 0xF0) {
++            // G_SETTIMG, G_SETTILE, G_SETTILESIZE, G_LOADBLOCK, G_LOADTILE, G_LOADTLUT: TMEM / tile state
++            int8_t sop = (int8_t)op;
++            if (rdpHandlers.contains(sop)) {
++                F3DGfx* c = cmd;
++                rdpHandlers.at(sop).second(&c);
++            }
++        }
++        cmd++;
++    }
++    static const bool sSkipAll = getenv("PORT_SKIP_INCREMENTAL") != nullptr; // debug: skip such frames anyway
++    // A frame that draws over the previous picture loses something only if it draws what later frames do not repeat:
++    // screens paint their static layers in the first frames (or on every frame of a fade) and then only what changes,
++    // so the amount of drawing changes there. Steady animation (the same amount every frame) is still skipped.
++    // Tracked per N64 frame buffer (each has its own persistent target): a frame whose buffer last got the same amount
++    // of drawing repaints the same things (steady animation) and can be skipped.
++    static std::unordered_map<uintptr_t, uint32_t> sLastDrawsPerBuffer;
++    uint32_t& last = sLastDrawsPerBuffer[cimg];
++    bool mustDraw = !fullFill && draws > 0 && draws != last && !sSkipAll;
++    last = draws;
++    if (getenv("PORT_TRACE_FILL")) fprintf(stderr, "[fill] frame full=%d draws=%u must=%d\n", (int)fullFill, draws, (int)mustDraw);
++    sLastDraws = draws;
++    return mustDraw;
++}
++
+ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_replacements) {
++    if (getenv("PORT_TILE1LOG")) fprintf(stderr, "[tile1] -- run begin\n");
+     SpReset();
+ 
+     mGetPixelDepthPending.clear();
+@@ -5185,7 +6165,10 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+                                        false, true, true, !mRendersToFb);
+     mRapi->StartFrame();
+     mRapi->StartDrawToFramebuffer(mRendersToFb ? mGameFb : 0, (float)mCurDimensions.height / mNativeDimensions.height);
+-    mRapi->ClearFramebuffer(true, true);
++    // PORT: the N64 never clears its frame buffer by itself; games clear it with a fill rectangle when they need to.
++    // Keep the colour (menus draw their static background only in the first frames of a screen).
++    static const bool sClearEach = getenv("PORT_CLEAR_EACH_FRAME") != nullptr; // debug: old behaviour
++    mRapi->ClearFramebuffer(!mRendersToFb || sClearEach, true);
+     mRdp->viewport_or_scissor_changed = true;
+     mRenderingState.viewport = {};
+     mRenderingState.scissor = {};
+@@ -5194,7 +6177,23 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+     g_exec_stack.start((F3DGfx*)commands);
+     while (!g_exec_stack.cmd_stack.empty()) {
+         auto cmd = g_exec_stack.cmd_stack.top();
++        if (cmd == nullptr) {
++            // PORT PATCH: a branch to NULL left an empty frame; drop it instead of dereferencing.
++            g_exec_stack.cmd_stack.pop();
++            continue;
++        }
+ 
++        if ((uintptr_t)cmd < 0x100000000ull) {
++            // PORT PATCH: a list pointer that is not a host address (unresolved N64 address); drop the frame.
++            static int shown = 0;
++            if (shown++ < 5) {
++                fprintf(stderr, "[badcmd] cmd=%p depth=%zu prev op=%08x\n", (void*)cmd, g_exec_stack.cmd_stack.size(), (unsigned)(sLastCmd ? sLastCmd->words.w0 >> 32 : 0));
++                if (sLastCmd) fprintf(stderr, "[badcmd] last cmd %p w0=%lx w1=%lx\n", (void*)sLastCmd, (unsigned long)sLastCmd->words.w0, (unsigned long)sLastCmd->words.w1);
++            }
++            g_exec_stack.cmd_stack.pop();
++            continue;
++        }
++        sLastCmd = cmd;
+         if (dbg->IsDebugging()) {
+             g_exec_stack.gfx_path.push_back(cmd);
+             if (dbg->HasBreakPoint(g_exec_stack.gfx_path)) {
+@@ -5209,8 +6208,15 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+             }
+             g_exec_stack.gfx_path.pop_back();
+         }
++        if (sOpLog) sOpHist[(uint8_t)(cmd->words.w0 >> 24)]++;
+         gfx_step();
+     }
++    if (sOpLog && (++sOpFrames % 20) == 0) {
++        fprintf(stderr, "[ops] frame %d:", sOpFrames);
++        for (int k = 0; k < 256; k++) if (sOpHist[k]) fprintf(stderr, " %02x=%d", k, sOpHist[k]);
++        fputc(10, stderr);
++        memset(sOpHist, 0, sizeof sOpHist);
++    }
+ 
+     Flush();
+     mGfxFrameBuffer = 0;
+diff --git a/src/fast/shaders/metal/default.shader.metal b/src/fast/shaders/metal/default.shader.metal
+index bf87639..babfa5f 100644
+--- a/src/fast/shaders/metal/default.shader.metal
++++ b/src/fast/shaders/metal/default.shader.metal
+@@ -18,6 +18,10 @@ struct DrawUniforms {
+ 
+ struct FragOut {
+     float4 color [[color(0)]];
++    @if(o_alpha)
++    // PORT: dual-source blending: colour blends by color1.a; the alpha written is color.a, the N64's coverage bit
++    float4 color1 [[color(0), index(1)]];
++    @end
+     @if(o_prim_depth)
+     float depth [[depth(any)]];
+     @end
+@@ -294,7 +298,16 @@ fragment FragOut fragmentShader(
+         @if(o_invisible)
+             texel.w = 0.0;
+         @end
+-        out.color = texel;
++        // PORT: an N64 colour image's alpha bit is pixel coverage: every pixel a primitive draws (not discarded by
++        // the alpha compare) reads as present afterwards, whatever its blend alpha (striped signs with transparent
++        // texels, translucent flames drawn into render-to-texture images). Draws that only keep the memory colour
++        // (o_invisible) leave it as it was.
++        @if(o_invisible)
++            out.color = float4(texel.xyz, 0.0);
++        @else
++            out.color = float4(texel.xyz, 1.0);
++        @end
++        out.color1 = float4(0.0, 0.0, 0.0, texel.w);
+     @else
+         out.color = float4(texel, 1.0);
+     @end

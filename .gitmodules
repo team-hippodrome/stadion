@@ -1,0 +1,6 @@
+[submodule "libultraship"]
+	path = libultraship
+	url = https://github.com/Kenix3/libultraship
+[submodule "ghostship-ref"]
+	path = ghostship-ref
+	url = https://github.com/HarbourMasters/Ghostship

@@ -1,0 +1,920 @@
+# Pokemon Stadium (US) -> libultraship port: status and findings
+
+## Layout
+- `libultraship/`  upstream Kenix3/libultraship (shallow clone), built as a CMake subproject.
+- `ghostship-ref/` HarbourMasters/Ghostship (Mario 64 port), reference only; not built.
+- `src/port/`      port harness (libultraship context, window, per-frame display-list submission).
+- The decomp lives untouched in `../pokestadium`.
+
+## Build / run
+    cmake -S . -B build -GNinja -DCMAKE_BUILD_TYPE=Release
+    cmake --build build --target pokestadium
+    cd build && ./pokestadium      # needs build/pokestadium.o2r (placeholder zip, see below)
+
+`build/pokestadium.o2r` is a placeholder zip containing one file (`portVersion`); libultraship's GUI
+refuses to start without at least one archive. Recreate it with python's zipfile if `build/` is wiped.
+
+## Milestone 0 (done): window + Fast3D
+`main.cpp` builds a fill-rectangle display list and submits it every frame. Verified: process stays alive
+for 6s, no exception. Not verified visually (screenshot capture was unavailable).
+
+## Findings that shape the real port (measured on pokestadium @ 697f9ba7)
+- 347 C files, ~250k lines. 306/347 already pass `clang -fsyntax-only` with the repo's compile_flags; 41 fail
+  (mostly 1-2 errors each, battle_prep_* worst at up to 14).
+- Pointer width is the main obstacle. Counts in src/*.c: 553 `(u32)` casts, 48 `(u32)&...`, 235 hard-coded
+  0x80xxxxxx addresses, ~1964 0x0Exxxxxx-style segment constants; `include/global.h` does
+  `typedef unsigned int uintptr_t`; many structs hold pointers in `s32` fields.
+- A "keep everything below 4 GB" shortcut does NOT work natively: on arm64 macOS, any `-pagezero_size`
+  below 4 GB gets the process SIGKILLed, so `mmap(0x10000000, MAP_FIXED)` fails. It only works as an
+  x86_64 binary under Rosetta (verified with a test program), which would need x86_64 builds of every dep.
+  The practical route is a pointer-clean 64-bit port.
+- Not portable as-is: hasm segments (boot, entry, exception, Yay0 decoder, abs, libgsm, audio Yay0 decoder,
+  and the GB Tower emulator core `gb_tower_emulator_code_asm`), libleo bootstrap, libultra internals (replaced
+  by libultraship), custom RSP audio ucode (N_MICRO naudio) and JPEG ucode (libultraship has no audio HLE),
+  fragment/overlay loader (Memmap_RelocateFragment) which must become static linking + a symbol table.
+- Game data: compressed (Yay0/PERS-SZP) assets with segment-relative pointers; first runnable target should
+  read the ROM at runtime and emulate Storage_QueueRomRead, deferring O2R/Torch conversion.
+
+## Suggested order
+1. Copy src/ + include/ into `game/`, switch to libultraship headers, get all 347 files compiling (stubs for RSP/audio/asm).
+2. Replace thread/message-queue/scheduler glue (main.c, rsp.c, dp_intro.c) with libultraship equivalents.
+3. Pointer cleanup pass (u32/s32 address fields), starting with gfx/segment handling.
+4. ROM-backed DMA + Yay0 decode in C, boot to N64 logo / title screen.
+5. Audio: HLE of the naudio ucode or a C reimplementation; GB Tower emulator in C.
+
+
+## Stage 1 (done): all 347 game sources compile for the host
+`game/` is a copy of the decomp's `src/` and `include/` (plus the SDK headers libultraship does not provide
+under `game/lib/ultralib/include`). The decomp checkout in `../pokestadium` is untouched.
+
+    tools/syntax_check.sh              # clang -fsyntax-only over all of game/src: 0 errors / 347 files
+    cmake --build build --target stadium_game   # compiles all 347 files into build/libstadium_game.a
+
+What was changed to get there:
+- `game/port/ultra64.h` replaces the SDK `<ultra64.h>`: includes libultraship's libultra headers one by one
+  (not `libultra.h`, whose `abi.h` is a different HLE audio command set and clashes with the SDK `abi.h`
+  that libnaudio needs), hides libultraship's `OSMesg` union so the game keeps the SDK's `void*` form, and
+  maps `osSendMesg`/`osRecvMesg`/... to `port_*` names that the port must implement (blocking queues for
+  host threads). It also maps `gSPDisplayList/gSPVertex/gSPSegment` to libultraship's `__`-prefixed forms.
+- `game/port/PR/*.h` forward the game's `<PR/...>` includes to that header.
+- `game/port/port_compat.h` (force-included) declares libultra pieces libultraship lacks: threads, EPi/PI,
+  Transfer Pak (`osGbpak*`), flash constants, CPU register helpers, `_Printf`, `osTvType`, etc.
+- Local patch to the vendored libultraship: `include/libultraship/libultra/mbi.h` skips `abi.h` when
+  `PORT_NO_LUS_ABI` is defined. Reapply if libultraship is re-cloned.
+- game/include string.h, stdlib.h, stdarg.h now forward to the system headers; math.h also includes them;
+  `typedef unsigned int uintptr_t` removed from global.h; duplicate `MtxF` removed.
+- 64-bit widening, each tagged `PORT64`: ~120 `u32/s32` initializer tables that hold addresses became
+  `uintptr_t` (script-like data in fragments), `ModelSegment` segment fields, `unk_D_8006FF00.unk_08/unk_18`,
+  `unk_D_8140E728_01C_00C.arg`. Readers of these tables still assume 4-byte words; each needs an audit
+  (find them with `grep -rn PORT64 game`). `tools/widen_addr_tables.py` produced most of them.
+- The flags in `game/compile_flags.txt` keep `-Wno-int-conversion -Wno-incompatible-pointer-types` etc. from
+  the original build and `-w`; "compiles" does not mean pointer-correct. Truncating `(u32)ptr`/`(s32)ptr`
+  casts (553 `(u32)` casts in the sources) still compile and will misbehave at runtime.
+
+## Link surface of libstadium_game.a (1305 undefined symbols, measured with nm)
+- 856 `D_<hex>`: segment/virtual-address asset symbols (D_1000000, D_3000000, ...; defined in the original by the
+  linker script). They should become address constants or ROM-segment lookups.
+- ~300 linker-script ROM/fragment boundaries: `_fragmentN_ROM_START/_TEXT_START/_relocs_ROM_END`, asset blobs
+  (`_fonts_ROM_START`, `_battle_ui_ROM_START`, ...). Needed by the overlay loader; replace with a ROM index table
+  and static linking of fragment code.
+- Missing implementations: the `port_os*` message queue/thread layer, `osEPi*`, flash/PI/Leo/Gbpak, `_Printf`,
+  `bzero/bcmp/_bcopy`, `Yay0_Decompress` (hasm), `Gsm_*` (hasm libgsm), `GbCpu_*`/`GbEmu_*` (hasm GB core),
+  `F3DEX2_data_bin`, `aspMain*` (RSP audio ucode), alHeap/alSeq/__init_lpfilter pieces, `__osPi*` internals.
+
+## Stage 2 (done): runtime layer, symbols, linked executable
+`pokestadium` now links `stadium_game` + libultraship and the game's `Main()` runs on host threads.
+
+    cmake --build build --target pokestadium
+    tools/try_run.sh 12            # rebuild, run 12 s against the US ROM, symbolize a crash (PORT_TRACE=1 logs thread/queue events)
+    ./build/pokestadium "/path/to/Pokemon Stadium (USA).z64"
+
+New pieces (all under src/port/):
+- `os_thread.cpp`: libultra threads and blocking message queues on host threads. One token decides which
+  OSThread runs (highest priority, FIFO among equals); switches happen at libultra calls and when an
+  interrupt-like post wakes a higher-priority thread while nothing holds the token. The original idle thread
+  (id 1) parks forever when it drops to priority 0. `port_osSendMesg/RecvMesg/...` replace the libultraship
+  non-blocking queues (names remapped in `game/port/ultra64.h`).
+- `os_devices.cpp`: cartridge ROM loaded from the path on the command line and served by `osEPiStartDma`; VI
+  retrace thread (60 Hz) feeding `osViSetEvent`; `osSpTaskStartGo` queues RSP tasks that the window thread
+  runs (`Port::PumpRspTasks`): gfx tasks go to Fast3D then post DP/SP events, other tasks complete at once;
+  timers; Controller/Transfer Pak report "not present".
+- `stubs.c`: C `Yay0_Decompress`, `_Printf`, `_bcopy`, a 96 MB host arena for the game's main pool
+  (`gPortHeap`, used by `Util_InitMainPools`), hardware-register scratch page (`port_hw_reg`, behind
+  `HW_REG/IO_READ/IO_WRITE`), and TODO stubs for the GB Tower emulator core, libgsm, libultra internals and
+  audio synth pieces.
+- `generated/abs_syms.S` (from `tools/gen_abs_syms.py` + the decomp linker map): 1146 absolute symbols
+  (`D_<hex>` segment/virtual addresses, `*_ROM_START/_END`, `*_TEXT_START`, `gAudioData`). Regenerate after
+  rebuilding `libstadium_game.a` if new unresolved data symbols appear. Verified that Mach-O absolute symbols
+  link and resolve to the intended constants.
+- SDK C sources copied into `game/lib/ultralib/src` (gu matrix/projection helpers, audio heap/bank file) and
+  built into `stadium_game`; libultraship does not provide the `gu*`/`al*` functions the game calls.
+
+Fixes made while booting: `ALIGN*` macros now mask at pointer width; `GfxImage_Initialize` takes a
+`uintptr_t`; ~370 explicit `(u32)/(s32)pointer` casts were widened by `tools/widen_ptr_casts.py`.
+
+### Where boot stops now
+Threads 1 (idle), 2 (crash screen), 20 (RSP), 3 (scheduler), 4 (audio), 5 (display worker) start, then the
+RSP thread crashes in `port_osEPiStartDma`: `Storage_ReadSram`-style code builds `OSIoMesg.dramAddr` from
+`u32` fields (e.g. `struct UnkStruct800006C4_2.vaddr`, `struct UnkStruct80000E80`), so the pointer was truncated
+before it reached the DMA call. This is the general failure mode: structs that keep addresses in `u32/s32`
+fields. Also `Util_Malloc(0x2C)`-style literal sizes no longer match the larger 64-bit structs.
+
+`tools/ptr_warnings.sh` lists 894 compiler-visible truncation sites (710 explicit casts, ~110 implicit
+narrowings, ~70 integer-to-pointer casts; 367 casts already widened). It cannot see struct fields that merely
+hold addresses; run an AddressSanitizer build once the obvious ones are fixed.
+
+## Stage 3 (in progress): boot to the N64 logo
+`tools/try_run.sh 25` now gets through the whole N64-logo state: save banks load from an emulated flash chip,
+`fragment35` (N64 logo) is "loaded", the scheduler/display-worker/RSP-thread pipeline runs, and about 20 graphics
+tasks reach Fast3D (Metal) without errors (`[sp] task` lines with PORT_TRACE=1). The logo texture is addressed
+through the segment table. NOT verified visually: no screen capture is possible in this environment, so whether
+pixels are correct is unconfirmed. After the logo the intro scene crashes in `Font_Init`/`Font_LoadSizes`
+(`main_pool_set_func`, memory_main.c:382) - see "Where it stops now".
+
+What was added/changed in this stage:
+- Fragment loader: `tools/gen_fragment_entries.py` -> `game/src/port_fragment_entries.c` (ROM offset -> statically
+  linked entry function, 72 of 77 fragments; 30, 31, 51, 74, 77 have no named entry symbol yet).
+  `Fragment_Load` (PORT_STATIC_FRAGMENTS) still DMA-loads the blob (for its data image) but returns the table entry;
+  `Memmap_RelocateFragment` no longer patches MIPS code.
+- Address translation for the renderer: `Fast::gPortAddressResolver` (local patch in libultraship
+  `src/fast/interpreter.cpp`, `SegAddr`) maps any address below 4 GB - segment (0x0Nxxxxxx) or fragment link
+  (0x8Nxxxxxx) - through `Memmap_GetSegmentVaddr/GetFragmentVaddr`. Host pointers are always >= 4 GB on arm64 macOS
+  so the two cannot be confused. The `& 0x1FFFFFFF` physical-address masks (139 sites) were removed and
+  `osVirtualToPhysical` is the identity.
+- Metal: `tools/make_o2r.py` packs Fast3D's shader sources into `pokestadium.o2r` and strips `thread` from helper
+  parameters, which the macOS 27 Metal compiler rejects. The archive is rebuilt by CMake after linking.
+- Flash/SRAM: command-level flash chip emulation (`os_devices.cpp`, file `pokestadium.flash`), SRAM, ROM reads.
+- Pointer fixes found by running: Storage request queues take `OSMesgQueue*`; message-queue storage is owned by the
+  port (the game's 4-byte-slot buffers overflow with 8-byte slots); `osRecvMesg` writes only as many bytes as the
+  caller's variable (`_Generic` on the pointer type); scheduler client structs, `UnkArray4`/`unk_D_800A7450`,
+  the display-list double buffers (Gfx is 16 bytes on the host), `mem_pool_init` (was aliasing MainPool/MemoryPool by
+  32-bit offsets), `ALIGN*` masks, `GfxImage_Initialize`, direct reads from cartridge address space
+  (`port_rom_read_u32`), hardware registers (`port_hw_reg`).
+- Audio is compiled out of the boot path (PORT_NO_AUDIO): no bank init, no frame tasks; audio commands go to a dummy
+  queue.
+
+### ROM asset layer (stage 3b)
+Done:
+- BinArchive tables (header and entries) are byte-swapped on open; the per-file cache pointer lives in a 32-bit
+  slot as an index into a handle table (`Port_PtrToHandle/Port_HandleToPtr`, jpeg_stream.c).
+- Text files are `u32 count, u32 offsets[count]` big-endian; swapped once per table (`Text_GetStringTable`).
+- The scene-graph arena (`MainPoolState`) was rewritten for 64-bit (its header is 0x20 bytes now, not 0x10, which had
+  made every graph node overlap the state struct; `MainPool_AllocAligned/FinalizeAllocation/InitState`).
+- Geo layout scripts (`game/src/geo_layout.c`): arrays hold one `uintptr_t` slot per original 32-bit word, each slot
+  holding the word's numeric value, so fields are decoded with shifts (`GL_U8/GL_S16/GL_U32/GL_PTR` in
+  geo_layout.h; `tools/geo_words.py` did the conversion). Verified: the boot diorama's layout executes all its
+  commands and builds nodes.
+- Controllers: pads are polled on the window thread and published as a snapshot; `osContStartReadData` posts the SI
+  completion that libultraship never sends; Diorama input polling no longer blocks or touches Cocoa from a game thread.
+- Util_ConvertAddrToVirtAddr passes host pointers through.
+
+State now: the boot diorama (after the N64 logo) builds its scene graph and ~31 graphics tasks reach Fast3D, then it
+dereferences NULL because the Pokemon models cannot be loaded.
+
+### Stage 3c: blockers worked this round
+How other projects handle these problems (research):
+- The existing Pokemon Stadium (US v1.0) *recompilation* (mstan/PokemonStadiumRecomp, built on N64Recomp) avoids all of
+  them by keeping the original 32-bit big-endian memory image and running the original MIPS translated to C; it never
+  needs per-asset converters. Our decomp-based route needs the converters below.
+- libultraship-based decomp ports (Ship of Harkinian, Starship, Ghostship/SM64) convert assets at extraction time with
+  per-type tools (ZAPD / Torch) into host-format display lists, vertices, matrices and resources.
+  We do the same conversion lazily at first use instead (no schemas for Stadium's formats exist yet).
+
+Done:
+- **Compressed-asset headers/magic.** `((u32*)magic)[0] == 'PERS'` compared a little-endian load with a big-endian
+  constant, so no asset was ever recognised as compressed (every texture/model was loaded still compressed). Tag compares
+  use `PORT_BE32`; PERS-SZP / PRESJPEG header words are swapped once after load; the Yay0 patch table is applied
+  big-endian; fragment headers (`sizeInRam`...) are normalised in `Memmap_NormalizeFragmentHeader` (marker in `inst[1]`).
+  BinArchive's first header word is two big-endian u16 (flags, fragment slot id), not one u32.
+- **Model blobs** (`display_object_textures.c: Fragment_ProcessGeoLayout`): the blob's MIPS entry is decoded
+  (`lui/addiu` -> table link address), the table and layout list are read big-endian, a host result struct holds 64-bit
+  node pointers. Verified on the boot diorama: node trees build.
+- **Packed layouts**: `geo_layout.c` decodes either the slot form (C arrays) or the packed big-endian form (ROM blobs);
+  the form follows from `Port_IsRawData(command pointer)`.
+- **Code pointers in data** (`tools/gen_func_table.py` -> `game/src/port_func_table.c`, `Port_ResolveCode`): maps a 32-bit
+  link address back to the statically linked function, keyed by the fragment loaded in that slot.
+- **Raw display lists** (`src/port/gfx_translate.cpp`): F3DEX2 lists, Vtx arrays, matrices, viewports translated on first
+  use and cached; hooked through `gSPDisplayList/gSPBranchList/gSPVertex/gSPMatrix` in `game/port/ultra64.h`. Tracks list-local
+  segment bases (`G_MOVEWORD segment`). NULL branch placeholders become `G_ENDDL`. Sign-extended `s32` addresses are normalised.
+- Asset-layer fixes found with AddressSanitizer (`cmake -DPORT_ASAN=ON`, `tools/asan_run.sh`): undersized `ModeSettings`
+  destination, sine/cosine tables that the decomp split but the code indexes as one array (now one `gSineTable[0x1400]`),
+  the 8-entry joint matrix table that was really 128 pointers.
+- Audio API is stubbed (`tools/stub_audio.py`, PORT_NO_AUDIO), animation API is stubbed (`tools/stub_animation.py`,
+  PORT_NO_ANIMATION: banks are big-endian blob data reached through the blob's MIPS entry).
+- Pointer cleanup helpers: `tools/widen_idents.py`, `tools/widen_returns.py`, `tools/sync_protos.py`, `tools/fix_param_types.py`.
+
+State: the boot diorama builds model scene graphs and renders ~88+ frames; it now stops in the renderer
+(`ImportTextureRgba16` crash) because texture/palette descriptors referenced by materials are not decoded correctly:
+`Port_ConvertDesc` assumes {fmt, size, count, pad, u32 data@+8}; the second descriptor (`unk_10`, the TLUT) dumped as raw palette
+data, so the material's field mapping (`GeoRender_SetMaterialTexture` argument order / node field) needs checking against the
+original struct. Use `PORT_VALIDATE_DL=1` (list validation, `[xlat]`, `[desc]`, `@bad-dl`) to see it.
+
+### Open items (in order)
+1. Texture/LUT descriptors and the rest of the per-model structs read by `geo_render.c` (materials, texture descriptors).
+2. Animation banks (big-endian, reached through the blob entry stub with a1 selecting the bank).
+3. Audio HLE, GB Tower core, Transfer Pak, and the pointer lists in "Known systemic problems".
+
+
+## Status: boots into the main menu
+
+Verified with the framebuffer capture aid (`tools/shot_run.sh`, `PORT_AUTOSTART` + `PORT_AUTOA`):
+
+N64 logo -> intro diorama -> title screen ("PRESS START", JPEG background) -> Game Pak Check ("Game Pak None",
+"OK?") -> main menu ("Please Select": Battle Now!, Pokemon Stadium, Event Battle, Options, description text).
+
+Fixes that got here (each was a 64-bit / endianness / hardware-emulation gap):
+- Matrices: `MtxF_ToFixed` and ROM matrices must be packed 32-bit words, not s16 halves.
+- RSP JPEG microcode emulated on the host (`src/port/jpeg_task.cpp`); `Jpeg_ReadBits` needs explicit modulo-32 shifts.
+- Fast3D: native size follows the color image width (320x240 vs 640x480 hi-res); render-to-texture (offscreen
+  framebuffers keyed by the `G_SETCIMG` address, bound when a texture load falls inside the buffer, with the strip's
+  row offset added to V); in-list segment pointers take priority over the port resolver in `SegAddr`.
+- Font glyph map table lookup relied on the 8-byte `Gfx` layout (`Font_MapGlyphCode`).
+- Task submission waits until the window thread has rendered the task (scenes free display-list data right after
+  submitting the last frame; async rendering then read freed memory).
+- Guards: SIGTERM exits immediately, `InRaw`/`ResolveRaw` reject non-host pointers, bad `SETTIMG` addresses ignored.
+
+Known gaps: selecting a menu entry crashes on a direct cartridge address read (`0xb0000504`, an `IO_READ` that bypasses
+`port_hw_reg`); menu cards are drawn duplicated/clipped (texture repeat of render-to-texture cards); model animation is
+stubbed (intro models look "exploded"); audio, Transfer Pak and GB Tower emulation are stubbed.
+
+Debug aids: `PORT_SCREENSHOT_DIR` (+ `PORT_SCREENSHOT_STUCK=secs`, `PORT_SCREENSHOT_NOSTOP`, `PORT_SCREENSHOT_ALL`),
+`tools/shot_run.sh <rom> [max secs]` (`STEP`, `KEEP` env; builds `build/shots/sheet.png`, deletes the PPMs, kills the
+game), `tools/run_for.sh`, `PORT_AUTOSTART=<ms>` (taps Start; `PORT_AUTOA` taps Start+A), `PORT_SPEED=<n>`,
+`PORT_TRACE_STATE`, `PORT_TEXLOG`, `PORT_TRILOG`, `PORT_MTXLOG`, `PORT_OPLOG`, `PORT_TRACE_JPEG`, `PORT_ALLOCLOG`,
+`PORT_TEXDUMP`, `PORT_NO_RTT`. The window title shows the FPS.
+
+## Deterministic runs: record, replay, jump straight to a bug
+
+Time is virtual by default (lockstep mode, `src/port/os_devices.cpp`): the VI retrace and OS timers fire only when every
+game thread is blocked, and `osGetTime`/`osGetCount` report that virtual time (the game seeds its RNG from them). The same
+input therefore always produces the same run, and the speed is only a throttle: `PORT_SPEED=max` runs as fast as the host
+allows (~20x; the intro-to-team-select path takes ~10 s), `PORT_SPEED=10` caps at 10x, default 1x.
+`PORT_REALTIME=1` restores the old wall-clock threads.
+
+- Every run records the pad state per frame to `build/last_input.rec` (`PORT_RECORD=<file>` to choose another name). A
+  crash ends the recording at the crash frame, and the crash report prints `game frame N`.
+- `tools/replay.sh <recording> [frame]` replays it at max speed and stops at `frame` (default: where the recording ended,
+  i.e. the crash), saving that frame as `build/shots/stop_<frame>.png`. `STOP=live` as frame keeps running with live
+  input afterwards. Verified: three replays of a crash give identical state changes and crash at the same frame.
+- Recordings survive rebuilds (they hold input, not memory), so the loop is: reproduce once, copy the recording into
+  `replays/`, fix, replay. A raw memory snapshot would not survive a rebuild: code addresses (function pointers, return
+  addresses in thread stacks) move.
+- `PORT_STOP_AT=<frame>` stops any run at that frame; `PORT_TRACE_STATE=1` prints game-state changes with their frame;
+  `PORT_TRACE_TIMERS=1` logs OS timers; a run that stops advancing prints `[clock] ... not idle` plus the thread table.
+- Saved recordings: `replays/cup_select_vtx_crash.rec` (crashed at frame 3892 before the vertex-array fix below),
+  `replays/team_select_all_ready.rec` (reaches the rental team "All ready!" screen).
+
+### Fixed in this round
+- Text tables: whether a table is already byte-swapped is decided from its contents (a reloaded file can land at an old
+  address; the address cache left it unswapped and the Transfer Pak screen crashed in `Font_Printf`).
+- `DisplayNodeHeader.callbackArg` is `intptr_t` (it carries display-list pointers; truncated -> crash in the Stadium
+  carousel callbacks).
+- Adjacent vertex arrays: the game indexes across consecutive `Vtx` symbols (geo layouts with a vertex count spanning
+  two arrays, `gsSPVertex(D_84B12498, 32, 0)` on a 31-entry array). `tools/merge_vtx_arrays.py` merged 28 such runs
+  back into single arrays (later names become `#define D_x (D_first + n)`); before that, recolouring the cup-select
+  banner overwrote the display list behind it.
+- Fast3D: G_VTX with a garbage address is skipped with a `[badvtx]` dump instead of crashing.
+
+## Status: reaches the battle (replays/to_battle.rec)
+`tools/replay.sh replays/to_battle.rec 5500` shows the battle menu with both Pokémon's status boxes (L50, HP). The
+recording picks Poké Cup rentals with A, C-up, C-left and confirms with A.
+
+Fixed on the way (see DECOMP_FINDINGS.md for the decomp-side facts):
+- Rental and trainer rosters are big-endian ROM data: swapped on load (`Port_BattleMonFromBE`, session.c and
+  fragment61_2D78B0.c). Before, EXP read little-endian made every Pokémon L100 and the Poké Cup level cap blocked the
+  third pick (it looked like C-buttons did not work).
+- `stadium_models` entries are code: `Port_CallBlobEntry` (memmap.c) interprets their small MIPS lookup function.
+- Pointer-in-int fields and two-view layouts: `BattleSessionTeams.unk_20`, `unk_func_8001C248`, tick-slot argument,
+  model table views, resource tables (`Port_ConvertResourceTable`).
+- Model animation is still compiled out (`PORT_NO_ANIMATION`); its "done" predicates now report finished, so battle
+  steps that wait for an animation proceed.
+- Fortified libc traps on original small-buffer overflows (sprintf/bzero): buffers enlarged.
+
+Freeze detection: with `PORT_FREEZE_CHECK=1` (default for replays and screenshot runs) the presented picture is hashed
+every rendered frame; if it does not change for `PORT_FREEZE_FRAMES` game frames (default 300) the clock prints
+`[freeze]` with every game thread, the queue it waits on, how often it has blocked (rising = still looping) and where
+(`@stack` lines; `tools/symbolize.sh` / atos). `PORT_EXIT_ON_FREEZE=1` ends the run after three reports.
+`PORT_TRACE_BATTLE=1` logs the battle scene director's phase/step changes.
+
+Known open: an intermittent renderer crash around frame 488 (intro, garbage display list; ~1 in 4 runs), Pokémon
+models render as cyan silhouettes in battle, names in the status boxes miss glyphs, trainer portrait boxes are black.
+
+## Struct layout checker (tools/layout_check.py)
+Finds code that only works with the N64 struct layout. ~8 s for all 349 game sources:
+1. clang `-fdump-record-layouts` for the host and for a 32-bit big-endian MIPS target (`tools/mips_sysroot` supplies
+   the two libc headers the sources pull in): exact host and N64 offsets of every field.
+2. clang `-ast-dump`: every conversion between two different struct pointer types (casts and implicit conversions,
+   e.g. passing a `BattleSessionTeams*` to a parameter of another struct type).
+3. For each converted pair, fields that sit at the same N64 offset must sit at the same host offset in both types.
+
+Output in build/layout: `report.txt` (mismatching pairs with the conversion sites), `summary.txt`,
+`comment_errors.txt` (decomp offset comments that disagree with the real N64 layout; 84, for the decomp).
+`tools/ptr_warnings.sh` complements it for pointers stored in integers (compiler warnings, build/ptr/warnings.txt);
+the harmless kinds (ROM offsets, segment symbols, size arithmetic) can be filtered as in build/ptr/suspicious.txt.
+
+Fixed from the first run: `BattleSessionTeams.unk_04` (holds a `BattleMon*`; model_renderer read it as `TeamRoster`),
+`Model_LoadWithScale` result, particle callback argument (`unk_D_8140E728_01C_004_1_04/08`: s32 -> intptr_t),
+`FontContext.unk_4C` (glyph source cache key), minigame select (`unk_D_82508B30_03C` and sushi `unk_D_86808808_018`
+were partial `DisplayObject` views padded to the N64 size: now real `DisplayObject`s; slot pointers typed),
+sushi conveyor objects (pointer-sized slot at 0x008).
+
+Lab PC / Pokédex widget system (26 pairs, all fixed; N64 sizes/offsets of every touched struct re-checked against
+the MIPS layout dump):
+- Controller-style widgets (header + input callback @0x10 + set-state callback @0x14: `WidgetGridMenu`,
+  `unk_func_8850CD44`, `unk_func_8830867C_02C_04C`, `unk_func_8821421C_02C_06C_02C`, `unk_func_8830867C_048_04C`,
+  `unk_func_8820B12C_02C`) now start with a real `WidgetLinkHeader` (or pointer-typed equivalents) instead of
+  `char[0x10]`/`char[0xC]`+pointer, so the menu code's `child->unk_14(...)` hits the callback on the host.
+- The append/init typedefs (`func8850BF80`, `func8850CC74`, `func88500668`) carry the real signatures
+  (`WidgetLinkHeader*` child / node) instead of `WidgetNode*` / `unk_func_882025E0*`.
+- Scrollable-grid helpers in widget_tree (`WidgetTree_BindScrollableGridData`, `..._SetScrollableGridIndex*`,
+  `..._Clamp*`, scrollbar target, ...) take the 0x70-byte core `unk_func_8821421C_038_034` they actually use; the
+  pokedex / lab_pc_list re-declarations of that core (`unk_func_888044BC_038_02C_000`, `unk_func_8830867C_04C_030`,
+  `unk_func_8830867C_02C_0B4_030`) wrap the paged-grid part in an anonymous struct (same host padding as the nested
+  `unk_func_88200FA0_030_030`) and use pointer types where the core has pointers.
+- Real host bugs this removed: `LabPC_ReleaseSwapWidgets` read the swap screen's tab widgets through the wrong type
+  (now `unk_func_8820BE14_02C*`, `unk_44[2/4/5/3/7]`); PC list sort comparators read `unk_func_88316128` 8 bytes
+  early (its first 8 N64 bytes are a pointer + s32); `WidgetTree_InitChildWidgetGroup` allocated its pointer array
+  with `* 4`.
+- Pointer-only uses are typed `void*` (`TableView_Initialize` table base, `LabPCList_CompareByPointer`, the reused
+  `temp_s0` in `func_88209B54`, lab_pc_1AE680.c).
+Not run yet: the Lab needs a Game Pak (Transfer Pak is stubbed); `replays/to_lab_gamepak_gate.rec` reaches the
+"A Pokémon Game Pak is not inserted" screen in the Lab (frame 1604) for when it is emulated.
+
+Open (7 pairs left): sushi game types that conflate
+different objects, GB Tower's hand-built `OSTask` (`unk_D_8122B1E8`; its custom microcode is not run anyway), and
+harmless ones (`Geo_NodeReference`, `main_pool_set_func`, 64DD code in rsp.c).
+
+## Renderer: state that persists across frames (this round)
+- Skipped frames (render divisor at speed, and frames dropped by libultraship's frame pacing) used to skip their
+  whole display list. The N64 keeps the RSP segment table and the RDP tile/TMEM state across tasks, so later frames
+  used stale segments (the intermittent frame-488 intro crash: a stale segment pointed into a reused buffer) and
+  missed texture loads. `Interpreter::TrackSegmentsOnly` now walks skipped frames and applies segment writes and
+  texture loads (SETTIMG/SETTILE/SETTILESIZE/LOADBLOCK/LOADTILE/LOADTLUT); frames that render to a texture are drawn.
+- Invalid F3DEX2 opcodes end the current display list (a freed buffer already holding asset data is no longer run).
+- Texture cache keys include a hash of the texel/palette bytes (RAM textures change in place).
+- Render targets carry a 16-byte marker in RDRAM; once the CPU overwrites it the target is dropped (fixed the
+  missing letters: glyphs in a font file loaded where a render target used to be).
+- `Color_RGBA8_u32.rgba` holds the bytes r,g,b,a in memory order; numeric 0xRRGGBBAA uses go through PORT_BE32
+  (fixed the red channel: cyan/green Pokémon models).
+- TMEM regions: RAM texture loads are copied at load time and tiles resolve their TMEM address against the loaded
+  regions (fixed the far half of the arena floor). A load now only replaces the bytes it covers: the parts of older
+  loads outside it stay readable, as on real TMEM.
+- Render-target readback: when the game stops drawing into a render target, its pixels are copied back into the RDRAM
+  buffer as big-endian RGBA5551 (`Interpreter::RttReadback`; the first 16 bytes keep the render-target marker, so the
+  GPU target stays bound for normal texture use). `PORT_NO_RTT_READBACK=1` disables it. No measurable cost.
+- Arena floor (fixed; checked against ares, see "Reference frames from ares"): the floor's combiners are
+  `(TEXEL0 - TEXEL1) * ENV_A + SHADE` and `(COMBINED - ENV) * PRIM`, a detail effect where tile 1 is the same 32x32
+  sand texture loaded again with shift 2/3. That second load is emitted each frame by the floor node's geo callback,
+  `ParticleGfx_GraphNodeBuildDescriptorMaterialList`, which the stadium model names through a trampoline
+  (0x810001D0 in fragment 31's jump table, see DECOMP_FINDINGS). `Port_ResolveCode` returned NULL for the trampoline,
+  so the callback was dropped and tile 1 kept the HUD's setup from the previous frame: white and cyan overflow. Now
+  trampolines are followed (only to callbacks checked to handle ROM callback data; the others are logged with
+  PORT_TRACE_GEO and skipped as before), and the callback converts its big-endian material list (cached) and reads
+  the node's real callbackArg. `arg1_func_84344CE8` (battle effect display-list nodes) was a flat node view whose
+  display-list field overwrote the host GraphNode's callback; it is now `{ GraphNode node; Gfx* unk_18; }`.
+  Debug: PORT_DRAWLOG=1 logs `[seq]` loads/tiles/TLUTs/combine/env in order and `[tex1]` for every distinct draw that
+  samples tile 1 (tile parameters and the first TMEM bytes).
+- Frame buffer keeps its picture between frames (like the N64's; the port always renders into the game framebuffer
+  and clears only depth at frame start). Menus draw their static background only in the first frames of a screen and
+  then only what changes (the order screen: Poké Ball background, computer's panel, labels and hint row were missing).
+  Skipped frames (render divisor / dropped frames) are drawn anyway when they draw over the previous picture (no
+  full-screen fill rectangle) and the amount of drawing changed from the frame before (`TrackSegmentsOnly`); steady
+  animation is still skipped. PORT_SKIP_INCREMENTAL=1 skips them anyway; PORT_TRACE_FILL=1 logs the decision. Cost:
+  menu route 7.4 s -> 9.7 s.
+- Copy mode with alpha compare skips texels whose alpha bit is 0 (`use_alpha` forced for that case; the shader only
+  discarded with alpha blending): fixed the white boxes behind the order screen's icons and pointer.
+- Geo callbacks reached through fragment 31's jump table: all 60 targets are followed now. Their callback data from
+  ROM models is converted where it is read: battle effect nodes (`Port_CbTexture`, `Port_CbTexPair`), the
+  particle_data_library `DisplayList_*` callbacks (`Port_PdlWords` for address lists, frame records, frame ranges;
+  their node views are real nodes now, `PDL_NODE_WITH_DATA`), MiniFx (`Port_MiniFxTexPair`, `Port_MiniFxColorRamp`)
+  and the material lists. `DisplayList_SetFlag*` switch the previous sibling node's render flag.
+- Per-species slot effects (`StadiumModelSlot`, model_renderer_callbacks.c / 33FE0.c): `StadiumModel.modelSegment`
+  holds a pointer and `unkSegment` is a whole `ModelSegment` (was u32 + padding: the copy overran `position`); the two
+  slot-model templates (u32 words: s16 tables, Vtx, F3DEX2 lists) are converted to host layout on first use;
+  `ModelRenderer_GetActiveMode/GetObjectType` return 0 when no model part is current (callbacks call them at
+  installation).
+- Model previews (`PokeIcon_RenderPreview`): the returned image was kept in s32 fields (rental screen, trade machine)
+  and the preview struct kept pointers in s32 (`unk_0C`, `unk_14`): widened; the rental screen shows the 3D model.
+- Battle input: after BATTLE (A) the moves are on the C buttons (no list on screen, same on hardware).
+  `replays/boot_battle_move.rec` (with PORT_BOOT=battle): BATTLE, C-Up, then a full turn (both sides attack).
+- (fixed later: the portraits are a second camera per side; see "Per-species battle records".)
+
+## Fast test route and loop detection
+- `replays/to_battle.rec` is now a scripted fast route (tools/rec_script.py): A+Start every 20 frames from boot, then the
+  Pokémon picks (A, C-up, C-left) as soon as the order screen accepts input (frame ~1690; its first ~20 frames are a
+  transition that ignores input), confirm with A. Battle menu at frame 2410 (was 5198); `tools/replay.sh
+  replays/to_battle.rec 2700` takes ~7 s. The old recording is replays/to_battle_slow.rec.
+- Freeze detection counts a picture as progress only if it was not presented in the last PORT_LOOP_WINDOW frames
+  (default 600); channels are quantized to 3 bits so the per-frame dither noise does not count. Static screens and
+  short animation loops are reported (`[freeze] ... looping over N pictures`). A continuously moving camera (the idle
+  battle menu) always produces new pictures, so test runs should end at a stop frame: tools/replay.sh stops at the end
+  of the recording by default. PORT_TRACE_PICTURES=1 logs every new picture.
+- Trainer panel: `PresentationLayout` was a flat view of the camera node with its viewport fields after a pointer; it is
+  now the camera type (36 field accesses renamed). The panels slide in correctly; the portraits render 3D content but
+  are framed oddly (model animation is still off) and the player's portrait is still empty.
+- Stop on a condition: `UNTIL='<regex>' tools/replay.sh <rec> live` watches the game log and sends SIGUSR1 when a line
+  matches; the game then saves the next drawn frame (build/shots/stop_<frame>.png) and exits. Example: battle menu
+  reached: `PORT_TRACE_BATTLE=1 UNTIL='step 11' tools/replay.sh replays/to_battle.rec live` → stops at frame ~2420,
+  ~6.5 s wall. A stop frame no longer freezes the clock (the game draws only every second frame, so a frozen clock could
+  wait forever for the frame to capture).
+
+## Debug boot (PORT_BOOT)
+- `PORT_BOOT=battle` starts the game in its own "Battle Now!" state (0x28: `Team_BuildQuickBattleTeams`, then the
+  order screen and the battle fragment). With PORT_BOOT set, the player's order picks are made automatically (first
+  slots, then confirm; battle_order_select.c), so no input is needed: battle intro from frame 508, battle menu at
+  ~1150. `PORT_BOOT=battle tools/replay.sh - 1150` → ~1.8 s wall (the menu route needs ~6.5 s).
+- `PORT_BOOT=battle2p`, `PORT_BOOT=menu` (main menu, skips intro/title), `PORT_BOOT=<number>` (any state from
+  variables.h). Runs stay deterministic (teams come from the game's own quick-battle builder).
+- `tools/replay.sh -` runs without a recording; combine with a stop frame or UNTIL='<regex>'.
+- Seen in the Battle Now scene: Psyduck renders green (another red-channel loss, not yet tracked down).
+- Nickname colours (cross-checked, game behaviour): `Model_ComputeSizeVariant` (model_renderer.c) gives a Pokémon a
+  colour variant only when its nickname differs from the species name. The value lies in the species' range
+  (`D_8006FF00[species-1].unk_10..unk_12`) and is picked by a checksum of OT ID + nickname + OT name; it is applied to
+  the model's textures (`func_80018C40` → Color_AdjustRGB5551/RGBA8). Un-nicknamed Pokémon get 0 (normal colours).
+  The green Psyduck seen with PORT_BOOT=battle was a debug-boot bug: the species names are copied into their slots by
+  `Text_LoadNameTable`, called from the N64-logo intro which the boot skipped, so every name compared against the
+  placeholder "pmname_NNN" and every Pokémon counted as nicknamed. The boot now runs the intro's init
+  (Save_EnsureBankLoaded(2), Text_InitStringTables, Text_LoadPlayerLabels, Text_LoadNameTable); PORT_TRACE_VARIANT=1
+  logs the inputs and result of each variant computation.
+
+## Model animation (enabled)
+`PORT_NO_ANIMATION` is gone; models animate (battle Pokémon idle/intro poses, the intro's animated scenes).
+- Animation banks: the model root node's `unk_28` (unk_D_86002F34) is the function returning the bank. For ROM models
+  it is the blob's MIPS entry point, run by `Port_CallBlobEntry`; the bank is the blob's big-endian model table
+  (u8 transform count +4, event-track count +5, u32 addresses of the transform / event-track address arrays at +0xC /
+  +0x10). C-defined models get a native call (`Port_ModelAnimBank` / `Port_ModelAnimTrack` in model_renderer.c).
+  `ModelAssetNode.getAnimationBank` sat at a different host offset than the root node's real field, so the root is
+  read through its real type.
+- Animation data (model_animation.c, model_animation_events.c) is read through accessors that byte-swap when the data
+  lies in a raw ROM blob (`Port_VIsRaw`): TransformAnimData / EventTrackData headers (32-bit addresses), channel
+  entries, s16 sample arrays, bit-packed streams (big-endian 16-bit words) and keyframe records.
+- `ModelAnim_BindEventTrack` takes the track address as intptr_t (was s32).
+- The battle intro's "wait for the send-out animation" steps now take the real animation time (step 5: 14 frames).
+- Checked: PORT_BOOT=battle runs 20 000 frames without crash; the menu route (replays/to_battle.rec) still reaches the
+  battle menu (frame 2422).
+- The body-part gaps seen earlier were the unanimated bind pose; with animation on, intro and battle close-ups show
+  closed models.
+
+## Per-species battle records (portraits, camera framing)
+`func_84302658` (battle_engine_2EC3C0.c) DMAs per-species records straight from the big-endian ROM; they are now swapped
+after each copy:
+- `SpeciesModelTransform` (`D_84384578` portrait framing, `D_84384580` move-camera framing; table `D_6E910`, 0x20 per
+  species): Vec3f offset + four s16 (yaw, pitch, alt-record index `unk_10` (0xFF = none), animation frame). Read raw,
+  the portrait cameras (layers 1/2, `PresentationState.unk_168`) looked into empty space, so the portrait boxes were
+  empty; it also drove the battle cameras' framing/zoom.
+- `D_84390028` (4 floats: model height etc., used to place models) and `D_84390048` (`SwayLayoutConfig`, 6 floats).
+- `BattleAI_LoadConfiguration` (battle_engine_361050.c): the three `AIDifficultyConfig` flag words (s32 at +0).
+The 0xBC0-byte `MovePresentationCue` block and `TagTeamPartners` are bytes only.
+
+## Reference frames from ares (tools/ares_ref)
+A headless ares (N64 core + paraLLEl-RDP through MoltenVK) driven by a script gives real-hardware-accurate frames,
+RDRAM dumps and save states, so port output can be compared with the original instead of guessed.
+- Build: `tools/ares_ref/build.sh <dir>` clones ares, adds the driver target and builds it (needs cmake, ninja and
+  /Applications/ares.app for libMoltenVK; `brew install --cask ares-emulator`). Boot logic follows
+  michiiik/N64Recomp `ares-bridge`.
+- Run: `ARES_REF_BUILD=<dir>/build ARES_REF_SRC=<dir>/ares tools/ares_ref/ref.sh <script> [state]`. Script lines:
+  `hold`/`tap` buttons (A B Z START L R UP DOWN LEFT RIGHT CU CD CL CR, joined with +), `shot <frame> <file.ppm>`,
+  `every <n> <dir>` (pictures plus a contact sheet `<dir>/sheet.png`), `save <frame> <state>`, `dump <frame> <file>`
+  (8 MB RDRAM, big-endian), `fill` (poke RDRAM), `end <frame>`. Frames are VI frames; ~200 fps.
+- Routes used (from the title-screen state, frame 1500 after boot): Start; A at the Game Pak check; on the main menu
+  LEFT selects Battle Now (default is Pokémon Stadium, which mashing A+Start turns into a Poké Cup battle); mash
+  A+Start; at the order screen pick (e.g. A, C-Up, C-Left) and confirm A, A. The computer's lead is random.
+- Findings so far: the arena floor (above); in real Battle Now the floor display lists are byte-identical to the
+  port's, so differences come from the renderer or from game code the port skips.
+
+## Comparing with ares: tools/tour.py, tools/match_frames.py (and what they found)
+- `tools/tour.py <name> "<script>"`: one input script (tokens as rec_script.py plus `shot:<label>`) runs on the port and
+  on ares (from `build/ares_title.state`, the title screen 1500 frames after boot, when the script starts there);
+  writes side-by-side pictures (port left) to build/tour/<name>/. `--port-only` reruns just the port side and reuses the
+  ares pictures. build/ares/{build,src} link to the ares build (tools/ares_ref/build.sh).
+- `tools/match_frames.py <port dir> <ares dir> <out>`: pairs each port picture with the most similar ares picture, for
+  scenes whose timing differs (the intro runs ~200 frames earlier in the port: ares boots slower).
+- PORT_SHOT_AT=f1,f2,...: the port saves those frames (stop_<frame>.ppm) without ending the run.
+Fixes found this way:
+- Render targets: a new GPU target starts with an empty viewport/scissor; Fast3D's cached viewport made it skip setting
+  them when the target had the same size as the previous one (Game Pak check: cards 2-4 empty). Reset on every switch.
+- Render-target tiles loaded from inside a row (LoadTextureTile with uls > 0) now get their column offset (main-menu
+  card strips, the Game Pak warning bar).
+- One persistent GPU framebuffer per N64 frame buffer address (the game alternates 2-3 buffers and updates each
+  incrementally). Skipped frames are drawn when they do not repaint the whole screen and their buffer's amount of
+  drawing changed (`TrackSegmentsOnly`). Menu route ~12 s.
+- C arrays of u16/u32 words are little-endian on the host: textures/palettes read from them by the RDP now get their
+  bytes swapped when copied into TMEM (`WordArrayAt` + generated list build/generated/word_arrays.c from
+  tools/gen_word_arrays.py). Fixed the intro's sky (yellow/green streaks) and underwater backgrounds.
+- `ParticleGfx_GraphNodeBuildDescriptorMaterialList` also takes C-defined material lists (native pointers to
+  big-endian byte records: the intro sky's cross-faded cloud layers).
+- `PokeIcon_AdjustImageColors` works on big-endian texels (nickname colour variants of icons: the order screen's
+  computer team had wrong colours and a gold box behind KANS-E).
+- Checked equal to hardware: title, Game Pak check, main menu, options, Battle Now menu, both order screens, a full
+  battle turn (Thunderbolt / Fire Blast effects); the intro apart from timing.
+
+## Game Boy games: Transfer Pak and GB Tower
+- Transfer Pak (src/port/transfer_pak.cpp): `PORT_GB_ROM` (controllers 2-4: `PORT_GB_ROM2..4`) puts a cartridge in the
+  pak; battery RAM comes from `PORT_GB_SAVE` (default: the ROM path with `.sav`) and is written back on every pak write
+  and on power-off. osPfsIsPlug/osGbpakInit/Power/GetStatus/ReadWrite/ReadId/CheckConnector work on Game Boy bus
+  addresses (MBC1/3/5). CheckConnector powers the cart on (libultra does too): the tower powers it off when idle and
+  re-probes before each save write. Stadium only knows the US titles, so other-region Gen-1 carts are presented with
+  the US header title (`PORT_GB_REGION_COMPAT=0` turns it off): German Yellow is accepted as POKEMON YELLOW.
+- GB Tower: the hand-written MIPS Game Boy emulator and its RSP microcode are replaced by a native core
+  (src/port/gb_core.c: SM83, MBC, scanline LCD, timer, joypad, Super Game Boy packets with palettes, attribute files,
+  border and screen masks). `Port_GbPresent` draws the 256x224 SGB picture into the frame buffer where the RSP task
+  did; the tower's own code (menus, status strip, save write-back, cartridge checks) still runs. Save RAM writes mark
+  pages for the tower's write-back (page state / delay tables via `Port_GbEmuOffsets`); pages the tower marks 0xFE
+  (scratch RAM below 0x500 on Pokémon carts, where it keeps its cartridge probe block) are left alone, or the probe
+  check fails ("Unable to save").
+- Other tower fixes: the menu's voice/sound streams table held N64 addresses (now host pointers); the menu waited on
+  the RSP's SIG3 of the frame task (gone: the host composes synchronously).
+- Game Boy Color carts (header 0x143 bit 7; Yellow is one) run as a Game Boy Color, as on the N64: A = 0x11 at boot,
+  double speed, VRAM/WRAM banks, HDMA, colour palettes, tile attributes, CGB sprite priority. SGB packets still work
+  (the tower is an SGB/CGB hybrid), so Yellow uses its GBC palettes (CGBBasePalettes) and sends its border; its border
+  packets carry garbage on a GBC (its CGB palette update clobbers HL before the tile copy), so for cartridge variant 4
+  the tower takes Yellow's (US, "YELLOW") border from the start of its UI asset (`D_8122C748`, context +0x5C58) instead,
+  like the original emulator. `PORT_GB_NO_CGB=1` runs everything as a Super Game Boy (the cart's own SGB border and
+  palettes, e.g. "GELB"). Without a game border the tower's own frame image (`unk_58`: 256 RGBA5551 palette entries,
+  then 256x224 indices; Game Boy device / Stadium borders) is drawn. SGB *_TRN transfers sample VRAM one frame later.
+- The status strip sits at line 208 (ares), not 212. Checked against ares on the same save: border, colours and layout
+  match (remaining per-pixel differences: a one-pixel fringe from horizontal resampling).
+- Verified (German Yellow, gb/yellow_de.gb): Game Pak check shows the save's trainer; tower boots with the border
+  and Game Freak intro; the core matches ares on the same save (pixel-identical garbage map from a broken save,
+  which is how the save generator bug was found); new game through Oak's intro and naming, in-game SAVE written back
+  to the .sav; continue, walking with Pikachu following, START menu, party screen.
+- Test saves: `tools/gb_save.py out.sav [--base real.sav]`. From scratch it writes names, party, Pokédex and a
+  Pokémon Center position; Stadium reads that fine, but the Game Boy game keeps tileset/sprite state in the save too,
+  so for continuing on the GB use `--base` with a save the game wrote (gb/base/yellow_de_newgame.sav: new game saved
+  in the bedroom) and only names/party/Pokédex are replaced.
+- Sound: the native core forwards every write to 0xFF10-0xFF3F to the tower's own APU mixer (func_81208C08, time =
+  CPU cycles in the frame / 4) and reads NR52 back from it. The mixer's buffers go to src/port/gb_audio_out.cpp (an
+  SDL3 stream at 48 kHz, opened on the first buffer; off in replay / `PORT_SPEED=max` unless `PORT_GB_SOUND=1`;
+  `PORT_GB_WAV=<file>` dumps the raw 16-bit stereo PCM). Two big-endian layouts made it silent / wrong on the host:
+  the GbApuRegs bitfield struct over the register bytes (now `GBAPU_<field>` byte/shift accessors) and the channel
+  phase union, whose u16 is the high half of the s32 accumulator on the N64 (now `GBAPU_PHASE`). Checked on German
+  Yellow: title and overworld music, all sampled windows on the 12-tone grid (Goertzel test: on-note energy 12.6x a
+  quarter tone off); a 17 s sample is gb/yellow_tower_sample.wav.
+- The Special Pikachu Edition file from Downloads is the same ROM as gb/yellow_de.gb (same SHA-1) and was run from
+  its own path via `PORT_GB_ROM`.
+- Screenshots (stop_*.ppm / tour shots) are taken from the Metal backend's 8-bit readback (`Fast::gPortScreenBgra`);
+  the older RGBA5551 capture showed banding (e.g. the Victory Palace spotlight) that is not on screen.
+- Tour scripts: Stadium's START at the tower's cartridge screen, then the GB intro (~1800 frames in the port, ~3300 in
+  ares: ares loads the cartridge slower). `PORT_FREEZE_CHECK=0 PORT_SCREENSHOT_NOSTOP=1` keep runs going through
+  static GB screens.
+
+## Second ares round: Stadium, GLC, Kids Club, Lab, Victory Palace, Free Battle (and what was wrong)
+Toured with tools/tour.py on both sides (hub moves: Stadium centre; RIGHT GB Tower; DOWN Free Battle; LEFT Kids Club;
+LEFT Victory Palace; UP Pokémon Lab; Gym Leader Castle = LEFT, UP from the Stadium). Lab tests need a Game Pak with
+the Pokédex flag and a Pokémon Center save (`tools/gb_save.py --got-pokedex`; map id 0x29).
+- Registered/Rental choice (cups, GLC): Ditto, rental pak and hand were off screen. Entries 4-5 of the slot table were a
+  separate big-endian byte array; merged (rental_team_selection_2DB900.c).
+- Gym Leader Castle: trainer portraits were empty (pointer in an s32 field), then shifted by one (big-endian u16 from
+  ROM data read as host u16).
+- Mini-game instruction screens: red/white stripes instead of the background picture (picture address in s32).
+- Victory Palace: crash (string table only declared, so it resolved to its N64 address; plus an f32 written into an
+  s16 stack slot).
+- Lab / Lab PC (crashes and garbage): message buffers sized for 4-byte messages (Lab UI queue, scheduler client and VI
+  queues); `Ui_ReceiveMessage` writing 8 bytes into s32s; widget callbacks and `FragmentEntry` taking pointers as s32;
+  pointer lists allocated with 4 bytes per entry and read as s32; record matrices laid out with N64 struct sizes
+  (0x10/0x1C); pointer sort with s32 comparators; box-bank verify buffer too small (an original overrun); out-of-range
+  text index for an unset gift Pokémon.
+- GB Tower thread structs and two more scene structs were allocated with N64 sizes (now sizeof).
+- Hub sparkle trail and the Stadium sparkle table: original out-of-range accesses, padded / merged.
+- `osRecvMesg` now writes exactly `sizeof(*msg)` bytes for typed destinations (game/port/ultra64.h).
+How they were found: `tools/ptr_warnings.sh`-style clang scans (`-Wint-conversion` errors are hidden by the build's
+flags: grep for "error:" too) and the ASan build (`cmake --build build_asan`, run a tour's port.rec with
+PORT_REPLAY/PORT_STOP_AT and ASAN_OPTIONS=halt_on_error=1). Both point at the exact site; the routes above now run
+ASan-clean.
+- Gallery: "Snap photo!" left the Gallery (fragment entry points declared void whose callers use the result: Gallery
+  snap/album/film select and seven mini-games now return it); the camera's background sets are tiny MIPS code files in
+  an archive (now run by `Port_CallFragmentLeaf`, a leaf-function interpreter in jpeg_stream.c); the scene layout held
+  raw N64 node/callback addresses (also in the Pokédex area map and a sushi-game layout); the camera target floats are
+  DMA'd from ROM big-endian. Snap mode now matches ares.
+The Victory Palace spotlight bands seen earlier were not on screen: the old screenshot path saved the 5-bit RGBA5551
+copy; with 8-bit captures (see the Game Boy section) it matches ares.
+
+## Third ares round: Free Battle stages, Game Boy party in battle
+Toured Free Battle into the battle on both sides, with rentals and with the German Yellow party from the Transfer Pak
+(ares needs the same US-title header patch as the port, and must run from boot: `ARES_TITLE_STATE=`; a title state
+saved without the pak leaves the cartridge undetected).
+- Field stage (Free Battle "Anything Goes", stage file 0 of stadium_models) was not drawn: frames were never cleared,
+  giving smeared copies of Pokémon and HUD. Its MIPS entry function dispatches through a jump table, whose words
+  Port_RelocateDataBlob had already rewritten to pseudo addresses; Port_CallBlobEntry now maps a `jr` target in the
+  blob's own pseudo slot back to the link address. The stage's fog record (entry 4) is a pseudo address too (now
+  Port_VResolve'd) and holds big-endian s16 near/far (now byte-swapped; read raw the whole field was fogged white).
+- Yellow's partner Pikachu (the GB Pikachu with `unk_52 & 0x80` uses model 0x99) had garbage textures (pieces of the
+  stage). Its textures are CI with palettes: GeoRender_BindTexture calls the palette descriptor's load list, but read
+  it through the wrong host type (`unk_D_800ABB28.unk_08`, +16 on the host) instead of the converted descriptor's
+  pointer at +8, so it always got NULL, no LOADTLUT ran and TLUT stayed off. Every model with paletted textures went
+  through this. Also implemented the RDP behaviour for CI textures drawn with TLUT off (texel = index as intensity).
+- All 18 stage files (`PORT_BOOT=battle PORT_BOOT_STAGE=<0..17>`, a debug override of the stage index) now load with
+  no blob-entry failure or crash and draw their arenas (field, the cup stadiums, Kids Club, Victory Palace, the GLC
+  gyms, the final rooms). Compared against ares in battle: field (stage 0), Stadium arena, and all eight gyms (unlocked save): arena geometry, textures, lighting, overhead camera and HUD
+  match. The opposing trainer's lead differs between the two runs in some gyms (AI/RNG timing, not rendering).
+  Then Saffron, Cinnabar, Viridian (after the Moltres fix below) and the Elite Four room: match too. Not reached:
+  the rival's room after the Elite Four (needs a won Elite Four run in both emulators).
+- Intro balloon scene: the balloons were textured squares (ares: round balloons). Texture-swap animation tracks
+  (ModelAnim_GetEventAtFrame) picked their descriptor as `&base[i]` with the host struct size, but ROM descriptors are
+  12 bytes apart; now Port_DescAt. Every animated-texture material went through this; the "[timg] bad address
+  0x20020/0x20040" warnings came from it and are gone.
+- Area select (hub) came back black after leaving an area (seen after the Lab): the cursor glow still held the
+  closing iris (alpha 0xFF) from the previous visit. On the N64 every fragment load restores the fragment's .data and
+  clears its .bss from ROM; the port links fragment code statically, so its globals kept the old values. Now each
+  fragment directory's writable data goes to its own Mach-O sections (tools/gen_frag_sections.py, applied by
+  CMakeLists.txt), snapshotted at startup and restored by Fragment_Load (`PORT_NO_FRAG_RESET=1` turns it off).
+- Debug for the fragment data reset: `PORT_TRACE_FRAG_RESET=1` logs each reset section (build/generated/
+  frag_sections.txt maps section numbers to fragment directories), `PORT_FRAG_RESET_SKIP=__fdNN,...` skips some.
+- Lab PC with the Yellow cartridge (a Pokémon Center save from `tools/gb_save.py --rom ... --got-pokedex`): the PC
+  screens, party list and the status panel's Pikachu icon match ares. One early run showed the icon garbled/blank;
+  not reproducible in 5 later runs (the icon is loaded into a double buffer while the screen is drawn).
+- Transition "red frames" (fixed): between scenes the game has no frame to show, so it switches the VI to repeat-line
+  mode (`osViRepeatLine(1)`) and shows a one-line 640-pixel buffer (dp_intro.c DisplayWorker_ProcessFrame; the line
+  holds the stage's clear colour: black, or white after the title / for white fades). osViRepeatLine was a no-op stub,
+  so the port presented 320x240 pixels from that one-line buffer: the rest came from unrelated memory, a white row
+  and red/purple/orange blocks at the top of an otherwise black screen, at every scene change. It is now implemented
+  (stubs.c → os_devices.cpp, PresentCpuFrame repeats the first line). Found with a full-pixel scan of every presented
+  frame of a hub/Castle/Lab route (31 frames with red before, 0 after); the blank frames now match ares (black at the
+  Castle entry, white at the fades that are white in ares). osViSetMode (redirected to port_osViSetMode) ends
+  repeat-line mode, as the VI register rewrite does: without it the GB Tower, which sets its own mode after the scene
+  change, showed only its first line (black). The line is written in N64 (big-endian) byte order now
+  (Display_ClearFramebufferLine; Display_GetFramebufferClearColor reads it back): written natively, black 0x0001 was
+  shown as 0x0100, a dark green (0,32,0) blank screen. Debug: `PORT_TRACE_VI=1` lists CPU-presented frames and
+  the line colours set.
+- Earlier attempt for the same report (kept, harmless): A frame buffer's colour texture is (re)created when
+  the game first uses a frame-buffer address and whenever the window size changes; its contents are undefined
+  (leftover GPU memory) until the game repaints it fully, and fades only add a translucent layer over the previous
+  picture. Such textures are now cleared to black on their first render pass (gfx_metal.cpp `sFreshColorFbs`).
+  Not confirmed as the cause: `PORT_DEBUG_RESIZE=<frame>:<w>x<h>` (resizes the window from inside the port) during
+  the Castle fade-in gave identical frames with and without the clear (`PORT_NO_FRESH_CLEAR=1`), and no red pixels
+  beyond the Castle's own picture. Needs the user's description of where the red frames appear.
+- Transition "red frames" (user report), before that fix: not reproduced; no red pixel in ~1700 captured frames of the boot → title →
+  menu → hub route at max speed and in real time. CPU-presented frames (RAM frame buffer shown directly) only occur at
+  boot (frames 1-49).
+- GB Tower: a crash once the game's sound used the noise channel. GbApu_Reset took the noise table pointer as s32
+  (truncated on the host); now void*.
+- ASan runs of all these routes (8 gyms, Elite Four, 4 cups, Mewtwo, Yellow-party battle, GB Tower, night hub) found
+  and fixed N64-only-safe out-of-bounds reads/writes, each kept equal to what the N64 reads: the team-selection
+  scale tables (index 12) and the intro camera presets (index 3..4 of a 3-entry table) are merged with the table that
+  follows them in the ROM; the type-icon table gets the following ROM word as a sixth row; the AI's candidate ranking
+  array (8 entries used, 6 declared) is 8; gMoveData has a zero element -1 (empty move slots read
+  gMoveData[move - 1], which on the N64 is the zeroed tail of gMoveDisplayInfo); GeoRender_BindTexture no longer
+  indexes its 4-entry size table with out-of-range size bytes (attract intro / a few models; visually unchanged).
+- Mewtwo battle (night hub → VS MEWTWO): the player's HUD labels ("TRAINER", the Pokémon's name) were black boxes.
+  The font set had been loaded into memory that earlier held a full-screen render target; the target's 16-byte
+  marker at its start survived (the font starts further in), so glyph loads were served from the stale GPU
+  framebuffer. main_pool_alloc_from_pool now tells the renderer (`Port_GfxForgetRenderTargets`) that a block handed
+  out again is no longer a render target (queued, applied on the render thread).
+- HUD digits, "HP:" and similar alpha-cut UI art were pink-tinged in every battle (ares: white). Above N64
+  resolution the textures are filtered between texels, and the RGB of fully transparent texels (a magenta key colour)
+  bled into the edges. RGBA16/32 and CI uploads now give transparent texels their opaque neighbours' colour
+  (`BleedTransparentTexels`; `PORT_NO_ALPHA_BLEED=1` turns it off).
+- Compared in battle against ares as well: the Pika, Prime and Petit Cup stadiums, and the Mewtwo arena; the night
+  hub (everything cleared) with the VS MEWTWO spot. Cup/Castle progress came from an editor-made unlocked save.
+- Moltres (Giovanni's gym trainer) drew its wings as two lines across the screen and some frames all yellow. The
+  wings' scrolling fire texture is a per-frame list from DisplayList_InitAnimatedFrameSegment, allocated as 0x50
+  bytes (10 N64 commands) but written as 9 host commands (0x90): the tail landed in the next allocation, the wing
+  joint's matrix (Geo_NodeAnimatedPart), so the wing vertices went to ~10^7. Same N64-size pattern in 22 more
+  particle/effect display-list allocations (particle_data_library, Drowzee game): now `GFX_N64_BYTES(n)`
+  (gfx_buffer.h). Found with `PORT_DRAWLOG=1` [mtxdl]/[mtxwhere] (a G_MTX whose data are display-list commands) and
+  `PORT_DLALLOC_AT=<hex offset>` (allocations covering a display-list buffer offset, with caller).
+- Battle camera wipe (the "strip wipe" between shots, battle_engine_3597B0.c) drew blocky, shuffled wedges. Its I4
+  wedge texture is a static u32 array; the renderer swaps such word arrays to N64 byte order by symbol name
+  (gen_word_arrays.py + dladdr), but arm64 clang merges static globals into `_MergedGlobals` and drops their
+  symbols, so ~40 registered static textures/palettes/tables were never swapped. The game library now builds with
+  `-mno-global-merge` (CMakeLists.txt). Re-toured hub, cups, Kids Club, Gym Leader Castle, Lab, gallery, event,
+  menus, options and Magikarp's Splash against ares afterwards: unchanged, no regressions.
+- Saves (found while loading an editor-made save for the Castle): port_compat.h had FLASH_STATUS_ERASE_OK/ERROR as
+  0x08/0x04 instead of libultra's 0/-1, so every flash page program "failed" after the first page, was retried four
+  times and abandoned — nothing but the first page of each bank was ever written. And GameOptions (save_data.h) had a
+  pointer field, 16 bytes on the host, which moved SaveOptionsRecord's progress array from 0x0C to 0x18: cup,
+  Castle, Round 2 and Mewtwo progress were never read or stored at the right place. Both fixed; with an unlocked save
+  the Castle map now shows the cleared (neon) gyms as in ares. ares takes a save via `ARES_REF_FLASH=<file>` (new in
+  tools/ares_ref).
+- Save byte order: the flash image is now byte-for-byte a cartridge save (N64 big-endian, as ares' save.flash and
+  tools/save_editor; SAVE_FORMAT.md), so the same file works in the port, ares and the editor. The RAM banks stay
+  host-native structs (game code unchanged, as in the decomp); save_data.c swaps every multi-byte record field at
+  the bank boundary: `Save_AllocateBank` swaps both copies right after reading them from flash, and
+  `Save_FlushBank` programs a swapped copy (`Save_PortFlashImage`, static 16 KiB buffer) instead of the RAM bank.
+  Swapped (`Save_PortSwapBank`): every record's footer ('PO','KE' and the checksum, three u16 — the old port wrote
+  "OPEK"), the DeckRecordHeader trainer ID/count of registered teams, Lab boxes and item boxes, the Victory Palace
+  OT IDs, the saved battle's trainer ID and team count, the options record (sound, GB Tower speed and word,
+  cleared-modes of both rounds, bonus Pokémon) and the gallery photos (f32 Y, s16 frame, two Vec3f, u32 at 0x68,
+  u16 OT ID). Pokémon entries (GbPokemonNamedRecord, already big-endian byte arrays via GbData_Write/ReadU16BE)
+  and the photos' particle slot data (packed byte by byte) are not touched; the checksum is a byte sum and
+  independent of the order. Checked: the swap table equals the editor schema's multi-byte fields for all 111
+  records (C table applied to an index pattern vs. stadium_save.save.RECORDS, 0 mismatches); an erased chip +
+  Options gives exactly fixtures/first_save.flash (the real game's first save); the editor's mono/voice-off save
+  shows MONO/OFF and leaving Options gives exactly ares' output; `stadium_save new` + `unlock` gives the night sky,
+  Mewtwo over the Castle and the neon gyms on the Castle map; a save with teams in all three team banks, Lab
+  boxes/items, statues, a saved battle, photos and non-zero option words, with one primary record per bank
+  corrupted, comes back byte-identical after the game repairs and rewrites all four banks. tools/save_to_port_order.py
+  (converter to the old host-order layout) is obsolete: hand ares/editor saves to the port as they are
+  (`PORT_FLASH_FILE=<file>`, absolute or relative to build/). A pokestadium.flash written by an older build is in
+  the old layout; its records fail the check and are reset on load, like on a blank chip.
+- VS screen before a cup/Free Battle (user report: the 12 grid cells stayed empty; ares shows each team's Pokémon).
+  battle_prep_39AC50.c renders every Pokémon's 3D model into its own 128x96 image (PokeIcon render list,
+  poke_icon.c) and maps those images onto the grid. Four renderer faults, all in render-to-texture (RTT):
+  1. Ordering (the empty cells): each picture takes two GPU passes (z pass, then fill + model). The first readback of
+     a new framebuffer cannot wait (its command buffer sits behind the frame's own, committed at frame end), so
+     gfx_metal moved later passes to the readback queue, and the model pass ran and was read back before the first
+     pass, whose fresh-texture clear then wiped the GPU image (RDRAM kept the picture: `PORT_NO_RTT_SAMPLE=1` showed
+     them). RTT framebuffers now start on the readback queue (`SetFramebufferReadback`), so passes run in order.
+  2. The first picture was drawn into the depth buffer's image: switching back to an existing target did not cancel a
+     pending target creation (`sPendingOffscreenAddr`), so the next scissor created and bound a target for the depth
+     buffer.
+  3. Opaque black backgrounds (ares: the cells' grid pattern shows through): the fill of a whole RTT image now clears
+     with the fill colour's alpha bit (`ClearFramebufferColor`; opaque draws output alpha 1). `PORT_NO_RTT_FILL_ALPHA=1`
+     turns it off.
+  4. Missing leaves, petals and tail flames (translucent texels), and the Game Pak screen's WARNING stripes once the
+     fill was transparent: the N64 colour image's alpha bit is coverage (any drawn pixel), but blending kept the old
+     alpha (src factor Zero). Blended Metal pipelines now use dual-source blending (default.shader.metal `color1`):
+     RGB blends by the texel alpha as before, alpha is written as 1 (0 for o_invisible draws, which keep it).
+     `PORT_OLD_ALPHA_BLEND=1` restores alpha = dst.
+  Checked against ares through the VS animation (all 12 Pokémon, grid behind them, leaves/flames). Re-ran the
+  menus, hub, cups, Lab, gallery, Kids Club, Castle, options, Magikarp, intro, Victory Palace and Yellow Lab PC
+  tours: identical to before, except the menu cards' outer shadow ring (was opaque black, now see-through, as in ares)
+  and the restored WARNING sign. Battle replays unchanged. Debug: `PORT_TRACE_ICON=1` (PokeIcon slot renders),
+  `PORT_TEXLOG=1` now also lists `[rtt] bind` and `[rtt] fill clear`.
+- Debug switches: `PORT_TRACE_BLOB=1` (blob entry interpreter), `PORT_TRACE_VBLOB=1` (pseudo slot alloc/free),
+  `PORT_DRAWLOG_SEQ=1` with `PORT_DRAWLOG=1` (commands after each SETTIMG, with branched sub-lists),
+  `PORT_TRACE_FLASH=1` (flash commands, DMA, status reads), `PORT_TRACE_SAVE=1` (progress record reads).
+
+## German Yellow on the Transfer Pak and in the GB Tower vs ares (Lab PC transfer, frames, sound)
+Same inputs and saves on both sides; ares from boot (`ARES_TITLE_STATE=`), US-title-patched cartridge, `ARES_REF_GBBOARD=MBC5`,
+Stadium flash from `stadium_save new`. New in tools/ares_ref: `ARES_REF_FLASH_OUT=<file>` (the Stadium FlashRAM after
+the run) and `ARES_REF_WAV=<file>` (N64 AI output resampled to 48 kHz, raw s16le stereo; `<file>.frames` holds the
+sample count after every VI frame).
+- Lab PC transfer (Yellow save from `tools/gb_save.py --got-pokedex`, i.e. at the Viridian Pokémon Center: the Lab
+  refuses saves made elsewhere, "hasn't been saved at a POKéMON CENTER"). Route from the title: `1500 START 300 A 200 A
+  400 RIGHT 60 RIGHT 60 DOWN 60 LEFT 60 LEFT 60 LEFT 60 UP 90 A 900 A 300 A 300 A 300` reaches the Pokémon grid; there
+  UP RIGHT A opens the right-box selector (DOWN A = "64 BOXes", A = box 1), DOWN LEFT = move icon, R/L flips the move
+  direction, B on the grid = "Save and quit". Moved Pikachu party -> Stadium box 1, saved; then (from those saves) box 1
+  -> party, saved; also party -> GB box. Every screen matched ares, and the Game Boy saves and Stadium flash images are
+  byte-identical, except SRAM 0x00-0x1F: GbPak_DetectRam's third probe pattern is `osGetCount()` bytes, timing noise
+  on hardware too.
+  Fixed on the way (lab_pc_1AE680.c): the info card's Pokémon icon was noise (its buffer address kept in an s32);
+  opening the box-type selector crashed (TableView over the three box banks with the N64 stride 0x10, host struct is
+  0x18); the box-number cells read their counts through the bank layout instead of the box record's (wrong "nn/20").
+- GB Tower frames: German Yellow from the game's own new-game save (gb/base/yellow_de_newgame.sav), down the stairs,
+  out of the house, north to Route 1, Oak's cutscene and the scripted battle (wild PIKACHU, HP bars, battle menu,
+  Oak's Poké Ball). ares's Game Boy starts 1555 VI frames later (cartridge load), so its GB inputs are shifted by
+  that. 420 pictures (every 3 frames, 1260 frames) compared on the 160x144 GB screen in 4x4-pixel blocks: every
+  frame has a counterpart with the same content within +-2 pictures; the leftovers are the ±1 GB frame
+  interleave of GB frames and VIs (walk-frame phase, battle slide-in, the battle-entry wipe caught mid-update) and
+  half-tone pixels at 1-pixel vertical lines. Not content differences: ares's VI filters horizontally (a GB pixel is
+  2.25 ares pixels; dither turns into blends, sample the ares picture 0.25 N64 px left of the nominal grid) and white
+  is 248 in ares, 255 in the port (5-to-8-bit expansion). The trainer battle in Oak's lab was not reached: the scene
+  waits for the player to take the Poké Ball and the route script did not get there.
+- Sound: the tower's mixer sizes each buffer from osAiGetLength (`len = ((800 - aiLen + 0x80) & ~15) + 16`, clamped
+  to 784..816). With host sound off (replays, `PORT_SPEED=max`, which is when `PORT_GB_WAV` dumps are made) the port
+  reported an empty queue, so every buffer got 816 samples instead of the ~802.6 per VI frame the N64 AI drains: the
+  dump ran ~1.5 % slow against ares (0.8 s behind after 55 s). gb_audio_out.cpp now keeps a virtual AI queue drained
+  by VI ticks at the DAC rate (clock 48681812 / round(clock / 48000)) when the output is off. Afterwards, over the same
+  83.7 s: levels equal (RMS ratio 1.001, +0.01 dB), envelope correlation 0.83 with the local lag wandering within
+  ±0.15 s (input timing) instead of drifting; per 100 ms window the dominant note is the same (or an octave) in 639,
+  a chord tone of the other side in 29, different in 59 (noise-channel hits and note onsets, no consistent semitone
+  shift), both silent in 109. Frame comparison unchanged by the fix.
+- A real German Yellow save from the web (found later): gb/yellow_de_projectpokemon_mew.sav, a cartridge dump posted
+  without login in Project Pokémon's "Gen I - V Event Contributions Thread" (forum attachment "Pokémon Gelbe Edition
+  Special Pikachu Edition Mew.sav", comment 268615; the 2000 Bremen Mew distribution). 32 KiB, checksum valid:
+  player ASH, ID 40985, 8 badges, Pokédex 139 seen / 124 owned, party RATTFRATZ L3 and MEW L100 (OT HAMBURG).
+  Checked on the port and ares with it: the GB Tower continues the game (title → WEITER with SPIELER ASH, ORDEN 8,
+  POKéDEX 124, ZEIT 13:46 → Pokémon Center, start menu, Pokédex list) and the Lab PC (1P ASH, ID 40985, the party
+  with MEW L100, GB box selector, box list 00/20): every capture matches ares (build/tour/mew_tower, mew_lab).
+  Before that, saves the German game wrote itself were used (the new-game base save; the tower's in-game SAVE
+  write-back was checked earlier).
+- GB Tower in-game menu (C-Up) and layouts, compared with ares using the downloaded save (build/tour/towermenu,
+  towermenu0, towerlay, towerload):
+  - The menu showed its text straight over the Game Boy picture. The tower fades the Game Boy screen to black behind
+    the menu with emu->unk_53FD (the frame task's word 0x5C bits 16-23), which the original RSP microcode applies;
+    Port_GbPresent now takes it (brightness) and the frame fade unk_53FC (bits 24-31, used while switching frames).
+  - The menu text was black/lilac: its colours have alpha bit 0, and BleedTransparentTexels recoloured alpha-0 texels
+    of the CPU-presented frame (PresentCpuFrame draws it as an opaque texture) with their neighbours. Bleeding now
+    only runs for filtered sampling (point-sampled texels never mix).
+  - With the Doduo/Dodrio speed unlocked (options word 0x04 = 1/2) ares frames the tower with the Stadium art and Z
+    cycles the frames (layout 0 = the game's own Super Game Boy border, 1 = Doduo art / Game Boy console, 2 = Dodrio
+    art; ROM 0xF4920 Game Boy console, 0xF5450 Doduo, 0xFDE40 Dodrio, Yay0, 256 RGBA5551 + 256x224 CI8). The port
+    always showed Yellow's Pikachu border and Z did nothing: (a) Port_GbPresent preferred the game's SGB border over
+    the tower's frame; it now gets the frame only for layouts 1/2 (NULL for layout 0); (b) the switching starts once
+    context byte 0x5404 is set, which the native core never did. As the N64 emulator does at each frame end
+    (gb_tower_emulator_code_asm.s 0x8120A010): a CHR_TRN/PCT_TRN packet, then MASK_EN back to 0, raises it
+    (gb_core.c, Port_GbEmuOffsets[8]). Now the Dodrio art at start, Z → Pikachu border (with the fade) → Doduo art,
+    and in normal speed the frame position matches ares more closely (the Yellow walk moved closer to ares in all
+    151 captures).
+  - The loading screen's party pictures (rendered by gb_tower_team_prep into 40x40 images and copied with _bcopy)
+    had coloured dots top left: the 16-byte render-target marker. The readback now writes all pixels and keeps those
+    first 16 bytes as the target's stamp (RttInfo::stamp) instead of a marker in memory.
+- Pokédex (Lab, third object; downloaded save): list, Bulbasaur's data page with the 3D model, menus: match ares.
+- Verified in real time too (`--port-only PORT_SPEED=1`: the tower menu/layout route and the VS screen ran at 60 fps,
+  same pictures as the max-speed runs). A capture placed on the same script frame as a button press shows that
+  press on the port (input is applied before the frame is drawn) but not on ares: the tower menu looked "one step
+  ahead". With captures between presses (build/tour/towerexact) all 7 menu/layout captures match ares, including
+  the fade during the Z switch.
+- Closing the window crashed (the user's 80-minute session ended with "mutex lock failed: Invalid argument", abort):
+  main returned after the window loop, the C++ static destructors ran while game threads were still running, and one
+  of them locked a destroyed mutex. main now ends with _exit(0) after the loop, as SIGTERM already did (saves are
+  written through on every flash/Transfer Pak write). `PORT_QUIT_AT=<frame>` sends the quit event of a window close
+  (debug); the old exit path crashed 3/3 times with it, the new one exits 0 3/3. Checked through the app bundle
+  (launcher autoplay with the preselected ROM and saves): title reached in real time, clean quit, saves unchanged.
+- Kids Club mini-games toured against ares (build/tour/mg_*: Snore War, Ekans' Hoop Hurl, Thundering Dynamo, Rock
+  Harden, Clefairy Says, Rattata's Run, Sushi-Go-Round, Sandshrew's Dig; Magikarp was toured before). Found:
+  - Clefairy Says crashed when it built its first pattern (GraphNode_AppendChild via ClefairyGame_SpawnPatternIconStep):
+    ClefairyGame_GeneratePattern's weight total was "var_a3 = var_a3" (uninitialised; the caller's a3 on the N64),
+    so ClefairyGame_ChoosePatternEntry ran past the table and returned an uninitialised pointer. Now starts at 0.
+  - Sushi-Go-Round crashed once a player stacked 5+ plates: the 5-plate stack D_86806E08 had no NULL terminator (on
+    the N64 the next table's first word, NULL, ends it). Terminated.
+  - Sandshrew's Dig drew big black hexagons over the ground: the holes' depth-only mask (2-cycle blender IN*0 + MEM*1)
+    is "invisible", but use_alpha was only set for B = 1-A, so it drew unblended in its black colour. Invisible draws
+    now always blend (interpreter.cpp).
+  - The holes' dirt mounds stayed flat: AnimFixedFrame (model_animation.c) split the 16.16 frame counter in N64 order,
+    so on the host "whole" was the fraction and every animation at a fractional speed (here 0x5000) never advanced.
+    Fields swapped. Re-ran all tours (menus, hub, cups, Lab, gallery, Kids Club, Castle, options, Magikarp, intro,
+    Victory Palace, Mewtwo, Misty, battle replays, VS screen, GB Tower): unchanged; Clefairy Says moved closer to ares.
+  The other games match ares (positions/outcomes differ by timing and the CPU players' randomness).
+- Also toured against ares (build/tour/trade, trade2, gal2, galflash*): the Lab PC's Pokémon pages (party, stat
+  pages with moves), the trade machine ("You need to have two Game Paks"), leaving and re-entering the Lab, and the
+  Gallery (main menu → Gallery: menu, camera choice, rental list, snap viewfinder). All match. The Gallery's photo
+  flash is white in both; on the port it shows right at the A press, in ares ~3 frames later (input latency), so
+  captures placed on a press frame showed white only on the port.
+- Gym Leader Castle map with the unlocked save (build/tour/glce4): the cursor path Brock → Misty → Surge (RIGHT),
+  UP to Erika, LEFT Koga/Sabrina, UP Blaine, RIGHT Giovanni, RIGHT pans up to the Elite Four; the Elite Four line-up
+  and the entry screen match ares (badge icons only differ in their pulse phase). The rival's room needs the Elite
+  Four's four battles won in the Castle first (not scripted; ares' battles take other random paths). Its arena is
+  stage file 16 (7 + room 9); `PORT_BOOT=battle PORT_BOOT_STAGE=16` renders it pixel-identical to stage 15, the
+  Elite Four arena already compared with ares in a battle (build/tour/gym_elite); stage 14 differs.
+- Ending credits (`PORT_BOOT=credits`, new: runs State_RunCredits; normally after beating Mewtwo) crashed at once:
+  Credits_LoadBackgroundScene called the stadium scene file's entry (MIPS code) directly. Now Port_CallBlobEntry with
+  Port_VResolve and big-endian fog data, as the battle stages do. Credits run to the end (flight through the
+  stadiums, staff roll, logo).
+- Gallery photos (Film screen thumbnails, build/tour/galphoto) were plain sky-blue squares; now match ares:
+  - Gallery_LoadPhotoSceneGraph: the same direct call of the stage file's entry (now Port_CallBlobEntry).
+  - Gallery_ConfigurePhotoCamera copied the photo's eye/at to N64 offset 0xA8 of the camera node; on the host that
+    is another field, so the camera kept no view. Now unk_60.eye / unk_60.at.
+  - The photo's fog node is an unk_D_8690A610 (as in gallery_camera); written through the N64-offset struct
+    unk_func_80031270_024 the fog went into the wrong fields (washed-out photos).
+  - 2nd and later photos drew the sky and cliffs with the previous photo's textures: Port_ConvertDesc's
+    texture-descriptor cache (gfx_translate.cpp) was never dropped, so a stage file reloaded at the same address
+    kept the old descriptors (pointing into the previous pseudo slot, now another blob). It is now cleared with the
+    display-list cache (Port_GfxFlushCache).
+  (In ares a Z press on the Film screen showed a mark; the film-select code only marks on A, so that came from ares'
+  input timing.)
+- Gallery enlarge (C-Down on the Film screen) showed noise, then a 2x-zoomed quarter: it renders the photo into a
+  640x480 image and draws that as a texture, but the renderer took every 320/640-wide colour image for a frame
+  buffer. Now an image the game never shows with osViSwapBuffer is a render-to-texture target
+  (Port_ViFrameBufferState, os_devices.cpp; `PORT_NO_VIFB_CHECK=1` turns it off), and a 640-wide target is drawn in
+  the 640x480 space. Matches ares; the full regression set (incl. GB Tower walk, battles, mini-games) is unchanged.
+- Gallery album flow (build/tour/galalb, galmenu): marking a photo, "Go to Album" and its confirmation texts, the
+  Gallery menu with the stored photos, the camera/rental screens and a second snap session all match ares. Also
+  compared (build/tour/galmenu2): Move photo (album with page/trash), Pick photo ("Select a picture"), Sticker(s)
+  (photo arrangement, selection) and the 4x4/16x1 layout switch: all match ares.
+- Victory Palace with the unlocked save (build/tour/vpfull): hub, the Hall of Fame pedestals (No.001 Bulbasaur to
+  No.003 Venusaur, empty here) and back to the hub and main menu: match ares.
+- Attract sequence (no input, frames 600-8600, build/tour/attract), paired by tools/match_frames.py: 34 of 81 port
+  frames have a close ares match (the intro). The rest are attract demos with random content that differs between
+  the two runs: demo battles with other teams (port Golbat vs Magikarp, ares Psyduck vs Dragonair; same stadium,
+  logo and camera framing), Rattata's Run shown only on the port (matched ares in mg_r0c2), one battle strip-wipe
+  frame mid-transition. Viewed the worst and mid-range pairs: no rendering faults.
+- Battle move effects (found via a crash in the attract-mode demo battle after the intro, frame ~12300): the effect
+  lists checked byte by byte by func_8436FD54 (D_8438ADEC/ADFC/AE00/AE04/AE20/AE2C, Gen 1 effect ids such as 0x28
+  Super Fang, 0x29 fixed damage) were u32 words, so the host read their bytes in reverse order: short lists matched
+  effect 0 (no effect), so Battle_RunMoveEffect called gMoveEffectHandlers[-1] (crash), and listed effects were
+  missed. They are byte arrays in N64 order now. Changes battle outcomes to the N64's (boot_battle_move: the turn now
+  ends with PIKACHU at 1/115). Scanned all game sources for other word arrays passed as byte pointers
+  (-Wincompatible-pointer-types without -w): only textures and image buffers, which the renderer handles.
+- One regression run showed the Castle's entry screen (r3_glc3 captures 4-5) with the cartridge/Ditto animation at
+  another phase; three later runs (alone and with 6 games in parallel) were identical to the earlier port captures.
+- After the VS-screen renderer change (render-to-texture order, fill alpha, dual-source blending), re-ran with their
+  saves: the Yellow GB Tower walk (151 captures, identical to before), the Yellow-party Route 1 battle (run with
+  PORT_GB_SOUND=1 as originally: the same game path; the remaining differences are all inside the Game Boy screen and
+  come from the capture landing one frame later on a 30 fps picture, e.g. mid map scroll; two runs of the current
+  build are identical), the GB-party Free Battle, Misty's gym and the Mewtwo battle (only background
+  animation phase differs).
+
+## macOS launcher (tools/launcher, "Pokemon Stadium.app"): debug option and save editor
+
+- `tools/make_app.sh` builds the app; `tools/launcher/Launcher.swift` is the launcher window (ROM/saves per Transfer
+  Pak, PLAY, Auto-play).
+- **Debug** checkbox (bottom bar, off by default, stored as UserDefaults key `debug`): when it is on, a **Save editor**
+  button appears next to "Change save". It opens `tools/save_editor`'s web UI on the selected Stadium save: the launcher
+  runs `python3 -m stadium_save serve <save> --port 0 --write --exit-with-parent` (cwd tools/save_editor, localhost,
+  free port, stderr in saves/save_editor.log) and shows the page in a WKWebView window. The page
+  (`tools/save_editor/stadium_save/editor.html`) has a form for every field the editor understands: overview/health,
+  progress, options, registered teams, Lab boxes, item boxes, Victory Palace, saved cup run and gallery. Pokémon are
+  edited in a dialog with tabs, and raw JSON stays under *Advanced* (details in the save editor README). *Save* (or ⌘S)
+  overwrites the save and keeps the previous contents as `<save>.bak`. Closing the window with unsaved changes asks
+  first. The launcher has Edit and Window menus, so copy/paste and ⌘W work in the page.
+- Game Boy saves: the editor also opens the save of every enabled player card (`--gb "Player N|save|rom"`; tests:
+  `LAUNCHER_GB="save|rom;..."`). Each cartridge gets a section (trainer, party, PC boxes, items, Pokédex), and
+  *Pokémon Lab boxes* shows it next to the Lab to move Pokémon across. With Debug on, each card with a save has an
+  *Edit save* button that opens the editor on that cartridge. Moves give the same bytes as the game's Lab PC
+  (German Yellow, both directions: `tools/save_editor/fixtures/lab_transfer`, from the Lab PC runs that matched ares).
+- The server stops when the editor window closes or the launcher quits; `--exit-with-parent` also ends it if the
+  launcher is killed (checked with SIGKILL). The game and the editor never write the save at the same time: PLAY with
+  the editor open asks to close it first, and the button is disabled while a game runs.
+- Test hooks: `LAUNCHER_DEBUG=0|1` and `LAUNCHER_SAVE=<file>` override the stored settings for one run without saving
+  them. `LAUNCHER_OPEN_EDITOR=1` opens the editor at start. `LAUNCHER_EDITOR_SNAPSHOT=<png>` saves a picture of the
+  editor page once it has loaded, then quits; `LAUNCHER_EDITOR_JS=<js>` runs in the page before that picture is taken.
+  Verified on a copy of saves/stadium.flash: Options → Mono → Save, clicked in the launcher's window, changed exactly
+  4 bytes (the value and checksum in both flash copies), and no server was left running. In a browser, a Poké Cup team
+  (MEWTWO with perfect stats), a Round 1 unlock and an item box were saved; only those records changed, and they
+  became valid. The save editor tests cover the page's API (`/api/save` with base/edited, `/api/mon`, `/api/repair`,
+  `/api/meta`). `tools/save_editor/tests/test_ui.py` drives every button and field of the page inside the built app
+  (`LAUNCHER_EDITOR_TEST=<js>`, `LAUNCHER_AUTO_CONFIRM=yes|no` answer confirm() and the close prompt without showing
+  them). It guards against a bug found by hand: WKWebView ignored confirm()/alert() until the launcher implemented the WKUIDelegate panels, so
+  "Delete saved run", "Delete team" and the other confirmations did nothing. 25 tests pass.

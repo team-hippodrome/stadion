@@ -1,0 +1,10 @@
+# title -> main menu -> OPTIONS (sound / voice), then quit Options: the game flushes all banks (Save_FlushDirtyBanks)
+tap 1500 START
+tap 1650 A
+tap 2250 DOWN
+tap 2300 RIGHT
+tap 2350 A
+shot 2700 SHOT/options.ppm
+tap 2750 B
+flashsave 3100 OUT
+end 3100
