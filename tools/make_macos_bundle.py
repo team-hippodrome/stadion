@@ -9,8 +9,8 @@ Usage: tools/make_macos_bundle.py <build dir> <output .app> [version] [icon .png
   rewritten to @rpath, so the app runs without Homebrew
 - Info.plist: LSEnvironment sets SHIP_HOME to ~/Library/Application Support/<bundle id> (config, logs and default saves
   go there; libultraship creates the folder), as Lighthouse does
-- an icon: the given picture (e.g. the title screen, as tools/make_app.sh uses; game art, so not in the repo),
-  else the yellow cartridge from tools/launcher/assets; and an ad-hoc signature (needed after install_name_tool; not notarized: the first
+- an icon: tools/macos/AppIcon.png ("POKéMON STADIUM" lettering, drawn by tools/macos_icon.swift) or the given
+  picture; and an ad-hoc signature (needed after install_name_tool; not notarized: the first
   start of a downloaded copy needs "Open Anyway" or `xattr -dr com.apple.quarantine`)
 """
 import os, shutil, subprocess, sys, tempfile
@@ -129,7 +129,7 @@ def main():
     shutil.copy2(os.path.join(build, "pokestadium.o2r"), os.path.join(res, "pokestadium.o2r"))
     with open(os.path.join(app, "Contents", "Info.plist"), "w") as f:
         f.write(PLIST.format(bid=BUNDLE_ID, ver=version))
-    icon = os.path.abspath(sys.argv[4]) if len(sys.argv) > 4 else os.path.join(root, "tools/launcher/assets/yellow.png")
+    icon = os.path.abspath(sys.argv[4]) if len(sys.argv) > 4 else os.path.join(root, "tools/macos/AppIcon.png")
     make_icon(icon, os.path.join(res, "AppIcon.icns"))
     libs = bundle_libs(exe, fw)
     run("codesign", "--force", "--deep", "--sign", "-", app)
