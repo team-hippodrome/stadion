@@ -244,6 +244,14 @@ void osDestroyThread(OSThread* t) {
         gCurrent = nullptr;
         Reschedule(false);
     }
+    // A thread destroying itself (osDestroyThread(NULL), e.g. the GB Tower's Game Boy Pak service thread when the
+    // emulator closes) never returns, as on the N64. It used to: the thread then ran on with its message (NULL) and
+    // crashed the game. A dead thread is never scheduled again, so its host thread just waits for the process to end.
+    if (th == tlsSelf) {
+        for (;;) {
+            th->cv.wait(lk);
+        }
+    }
 }
 
 OSPri osGetThreadPri(OSThread* t) {
