@@ -360,6 +360,10 @@ struct Fonts {
     ImFont* title = nullptr; // 20
     ImFont* play = nullptr;  // 32
 } gFonts;
+// Pixels per point of the window (2 on a Retina display). The fonts are rasterized at this many times their size and
+// drawn at 1/this scale (io.FontGlobalScale while the launcher shows): ImGui 1.91 rasterizes a font once, and fonts
+// made at point size were stretched on HiDPI screens (blurry text).
+float gFontDensity = 1.0f;
 
 void LoadFonts() {
     auto rm = ResourceGetResourceManager();
@@ -373,10 +377,13 @@ void LoadFonts() {
     static std::vector<char> ttf; // ImGui keeps pointing at the data
     ttf.assign(file->Buffer->begin() + (std::ptrdiff_t)file->BufferOffset, file->Buffer->end());
     ImGuiIO& io = ImGui::GetIO();
+    SDL_Window* sdl = MainWindow();
+    gFontDensity = sdl != nullptr ? std::max(1.0f, SDL_GetWindowPixelDensity(sdl)) : 1.0f;
     auto add = [&](float size) {
         ImFontConfig cfg;
         cfg.FontDataOwnedByAtlas = false;
         cfg.OversampleH = 2;
+        size *= gFontDensity;
         static const ImWchar ranges[] = { 0x0020, 0x00FF, 0x2013, 0x2014, 0x2026, 0x2026, 0x2713, 0x2713, 0 };
         return io.Fonts->AddFontFromMemoryTTF(ttf.data(), (int)ttf.size(), size, &cfg, ranges);
     };
@@ -630,7 +637,8 @@ class LauncherWindow : public Ship::GuiWindow {
 
     void Text(float x, float y, const std::string& t, ImFont* font = nullptr, uint32_t color = Theme::text) {
         ImFont* f = font != nullptr ? font : ImGui::GetFont();
-        float size = (font != nullptr ? font->FontSize : ImGui::GetFontSize()) * mScale;
+        // (a launcher font's FontSize is in pixels: gFontDensity times its point size; GetFontSize includes the scale)
+        float size = (font != nullptr ? font->FontSize / gFontDensity : ImGui::GetFontSize()) * mScale;
         ImGui::GetWindowDrawList()->AddText(f, size, P(x, y), Hex(color), t.c_str());
     }
 
@@ -950,6 +958,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
         LoadFonts(); // before the first frame: ImGui builds its font atlas then
         if (gFonts.body != nullptr) {
             ImGui::GetIO().FontDefault = gFonts.body;
+            ImGui::GetIO().FontGlobalScale = 1.0f / gFontDensity;
         }
         // the launcher's own window size while it shows; the game's size comes back for PLAY
         SDL_Window* sdl = MainWindow();
@@ -982,6 +991,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
         }
         window->GetGui()->RemoveGuiWindow(launcher->GetName());
         ImGui::GetIO().FontDefault = nullptr;
+        ImGui::GetIO().FontGlobalScale = 1.0f;
         Store(state);
         if (!play) {
             return "";
