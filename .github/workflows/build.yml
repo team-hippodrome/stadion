@@ -25,7 +25,8 @@ env:
   LLVM_MINGW: llvm-mingw-20261006-ucrt-ubuntu-22.04-x86_64
   SDL3_VERSION: 3.4.18
   APPIMAGETOOL_VERSION: 1.9.1
-  # release.yml passes the release version; every job turns it into $VERSION (the project version if empty), gives it
+  # release.yml passes the release version; every job turns it into $VERSION (a leading "v" dropped; the project version
+  # if empty), gives it
   # to CMake (-DPORT_VERSION: Windows file version) and to the packaging (AppImage, Info.plist)
   INPUT_VERSION: ${{ inputs.version }}
 
@@ -65,7 +66,7 @@ jobs:
             --triplet x64-linux
       - name: Build
         run: |
-          VERSION=${INPUT_VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
+          VERSION=${INPUT_VERSION#v}; VERSION=${VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
@@ -74,7 +75,7 @@ jobs:
           cmake --build build
       - name: AppImage
         run: |
-          VERSION=${INPUT_VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
+          VERSION=${INPUT_VERSION#v}; VERSION=${VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
           curl -sSLf -o "$RUNNER_TEMP/appimagetool" \
             "https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-x86_64.AppImage"
           chmod +x "$RUNNER_TEMP/appimagetool"
@@ -96,14 +97,14 @@ jobs:
         run: git -C libultraship apply "$PWD/patches/libultraship.patch"
       - name: Build
         run: |
-          VERSION=${INPUT_VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
+          VERSION=${INPUT_VERSION#v}; VERSION=${VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DPORT_VERSION="$VERSION"
           cmake --build build
       - name: App bundle
         # "Pokemon Stadium.app" with the Homebrew libraries inside (tools/make_macos_bundle.py); ditto keeps the bundle's
         # permissions and signature in the zip
         run: |
-          VERSION=${INPUT_VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
+          VERSION=${INPUT_VERSION#v}; VERSION=${VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
           python3 -I tools/make_macos_bundle.py build "dist/Pokemon Stadium.app" "$VERSION"
           ditto -c -k --keepParent "dist/Pokemon Stadium.app" dist/pokestadium-macos-arm64.app.zip
       - uses: actions/upload-artifact@v4
@@ -146,7 +147,7 @@ jobs:
             --triplet ${{ matrix.vcpkg }} --host-triplet x64-linux
       - name: Build
         run: |
-          VERSION=${INPUT_VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
+          VERSION=${INPUT_VERSION#v}; VERSION=${VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg }} \
