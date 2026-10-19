@@ -1,0 +1,263 @@
+diff --git a/src/fragments/demo_scenes/demo_scenes.h b/src/fragments/demo_scenes/demo_scenes.h
+index bec7fa5a84cc8eca6a782471bdd28eb1aa3ff170..7504ae21ac7eea02e3b71585ab68d56c5cbe8cc4 100644
+--- a/src/fragments/demo_scenes/demo_scenes.h
++++ b/src/fragments/demo_scenes/demo_scenes.h
+@@ -106,7 +106,7 @@ typedef struct unk_D_86B0FA78 {
+ 
+ typedef struct unk_D_86B0FA50 {
+     /* 0x00 */ char unk00[0x80];
+-    /* 0x80 */ s32 unk_80;
++    /* 0x80 */ u8* unk_80; // PORT64: the panel texture (was s32)
+     /* 0x84 */ s32 unk_84;
+     /* 0x88 */ s32 unk_88;
+     /* 0x8C */ s32 unk_8C;
+diff --git a/src/fragments/demo_scenes/demo_scenes_15FA60.c b/src/fragments/demo_scenes/demo_scenes_15FA60.c
+index 80a157ff3738fd0ea8465aa09f36571e37d968c6..eb0385d466bb9a93402555b9cb81dc6fa69a47df 100644
+--- a/src/fragments/demo_scenes/demo_scenes_15FA60.c
++++ b/src/fragments/demo_scenes/demo_scenes_15FA60.c
+@@ -32,8 +32,8 @@ extern u32 D_86B0BD60[];
+ extern unk_D_86B0C4C8* D_86B0C4C8[];
+ extern unk_D_86B0C160 D_86B0C160[];
+ extern unk_D_86B0C264 D_86B0C264[];
+-extern u32 D_86B0CF9C[];
+-extern u32 D_86B0DA9C[];
++extern uintptr_t D_86B0CF9C[];
++extern uintptr_t D_86B0DA9C[];
+ 
+ s32 Diorama_LogoRotateColorCallback(s32, GraphNode*);
+ s32 Diorama_ScaleRotateCallbackA(s32, GraphNode*);
+@@ -43,7 +43,7 @@ s32 Diorama_GroupStateCallback(s32, GraphNode*);
+ static s16 D_86B0BBF0 = -0x3C6E;
+ static s16 D_86B0BBF4 = 0x38E;
+ 
+-static u32 D_86B0BBF8[] = {
++static uintptr_t D_86B0BBF8[] = { // PORT64: holds addresses
+     0x0C00FFFF, 0x05000000, 0x0B00001E, 0x00000000, 0x014000F0,  0x0000000F,    0x00000000,    0x00000000,
+     0x05000000, 0x0D000000, 0x05000000, 0x1A050000, 0x08000000,  Diorama_GroupStateCallback, 0x00000000,    0x05000000,
+     0x0F000002, 0x05000000, 0x06000000, 0x0F000002, 0x05000000,  0x06000000,    0x0F000002,    0x05000000,
+@@ -70,7 +70,9 @@ static u8* D_86B0E5E8;
+ static unk_D_86B0E5F0 D_86B0E5F0[4];
+ static s32 D_86B0EBB0;
+ static s32 D_86B0EBB4;
+-static u16 D_86B0EBB8;
++// PORT: Save_GetModeSettings copies a whole ModeSettings into this; the original declared only the leading u16
++static ModeSettings D_86B0EBB8_full;
++#define D_86B0EBB8 (*(u16*)&D_86B0EBB8_full)
+ 
+ s32 Diorama_LogoRotateColorCallback(s32 arg0, GraphNode* arg1) {
+     if (arg0 == 2) {
+@@ -545,7 +547,7 @@ s32 Stage_ShowBootDiorama(void) {
+ 
+     ASSET_LOAD(D_1000000, common_menu1_ui, 0);
+     FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);
+-    Fragment_Load((((u32)D_8D000000 & 0x0FF00000) >> 0x14) - 0x10, _5C7A70_ROM_START, _5C7A70_ROM_END);
++    Fragment_Load((((uintptr_t)D_8D000000 & 0x0FF00000) >> 0x14) - 0x10, _5C7A70_ROM_START, _5C7A70_ROM_END);
+ 
+     Save_EnsureBankLoaded(2);
+     Save_GetModeSettings(&D_86B0EBB8, 0);
+diff --git a/src/fragments/demo_scenes/demo_scenes_161590.c b/src/fragments/demo_scenes/demo_scenes_161590.c
+index 7f6d1b423905dea2d06a918fe100462f56bbdd6a..52c1826ceb5dc681777e2a92c347bc6d42319306 100644
+--- a/src/fragments/demo_scenes/demo_scenes_161590.c
++++ b/src/fragments/demo_scenes/demo_scenes_161590.c
+@@ -41,7 +41,7 @@ void Diorama_DrawFullscreenTexture(u8* arg0, s32 arg1, s32 arg2, s32 arg3, s32 a
+ 
+     Gfx_SetViewportDimensions(spC8, temp_s1->width, temp_s1->height);
+ 
+-    gSPViewport(gDisplayListHead++, (u32)spC8 & 0x1FFFFFFF);
++    gSPViewport(gDisplayListHead++, (uintptr_t)spC8);
+ 
+     guOrtho(spCC, 0.5f, temp_s1->width - 0.5f, temp_s1->height - 0.5f, 0.5f, -2.0f, 2.0f, 1.0f);
+     Gfx_SetVertexAttributes(&temp_s2[0], arg1, arg2, -1, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF);
+@@ -64,14 +64,14 @@ void Diorama_DrawFullscreenTexture(u8* arg0, s32 arg1, s32 arg2, s32 arg3, s32 a
+     gDPSetTextureFilter(gDisplayListHead++, G_TF_BILERP);
+     gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
+     gSPPerspNormalize(gDisplayListHead++, 0xFFFF);
+-    gSPMatrix(gDisplayListHead++, (u32)spCC & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
+-    gSPMatrix(gDisplayListHead++, (u32)&gIdentityMtx & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
++    gSPMatrix(gDisplayListHead++, (uintptr_t)spCC, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
++    gSPMatrix(gDisplayListHead++, (uintptr_t)&gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+ 
+     gDPLoadTextureTile(gDisplayListHead++, arg0, G_IM_FMT_RGBA, G_IM_SIZ_16b, arg5, arg6, 0, 0, arg5 - 1, arg6 - 1, 0,
+                        G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
+                        G_TX_NOLOD);
+ 
+-    gSPVertex(gDisplayListHead++, (u32)temp_s2 & 0x1FFFFFFF, 4, 0);
++    gSPVertex(gDisplayListHead++, (uintptr_t)temp_s2, 4, 0);
+     gSP2Triangles(gDisplayListHead++, 0, 2, 3, 0, 0, 3, 1, 0);
+ 
+     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
+diff --git a/src/fragments/demo_scenes/demo_scenes_161E60.c b/src/fragments/demo_scenes/demo_scenes_161E60.c
+index 9443e6bba021f7eb19c8d76d3f624548e62305fa..f18a999ede43c02c7f1800eeff940877a4106540 100644
+--- a/src/fragments/demo_scenes/demo_scenes_161E60.c
++++ b/src/fragments/demo_scenes/demo_scenes_161E60.c
+@@ -464,13 +464,13 @@ static unk_D_86002F34_000_014 D_86B0CF38 = {
+     D_86B0CF18,
+ };
+ 
+-static u32 D_86B0CF40[] = {
++static uintptr_t D_86B0CF40[] = {
+     0x09000000, 0x05000000, 0x09000000, 0x05000000, 0x09000000, 0x05000000, 0x13000005, 0x03E303E8,
+-    0x2309FFFF, (u32)D_86B0CCF0, 0x0000FFFF, 0xFFFFFFFF, 0x22050000, 0x00000000, 0x08000000, 0x810001D0,
+-    (u32)&D_86B0CF38, 0x22050000, (u32)D_86B0CE28, 0x06000000, 0x06000000, 0x06000000, 0x04000000,
++    0x2309FFFF, D_86B0CCF0, 0x0000FFFF, 0xFFFFFFFF, 0x22050000, 0x00000000, 0x08000000, 0x810001D0,
++    &D_86B0CF38, 0x22050000, D_86B0CE28, 0x06000000, 0x06000000, 0x06000000, 0x04000000,
+ };
+ 
+-u32 D_86B0CF9C[] = {
++uintptr_t D_86B0CF9C[] = { // PORT64: holds addresses
+     0x17000001, 0x00000010, &D_86B0CCE0, 0x00000000, D_86B0CD28, 0x05000000, 0x1C000000, 0x00008000, 0x00008000,
+     0x00008000, 0x05000000, 0x03000000,  D_86B0CF40, 0x06000000, 0x06000000, 0x01000000, 0x00000000,
+ };
+@@ -603,12 +603,12 @@ static unk_D_86002F34_000_014 D_86B0DA38 = {
+     D_86B0D9F8,
+     D_86B0DA18,
+ };
+-static u32 D_86B0DA40[] = {
++static uintptr_t D_86B0DA40[] = { // PORT64: holds addresses
+     0x09000000,  0x05000000, 0x09000000, 0x05000000, 0x09000000, 0x05000000, 0x13000005, 0x03E303E8,
+     0x2306FFFF,  D_86B0D7F0, 0x0000FFFF, 0xFFFFFFFF, 0x22010000, 0x00000000, 0x08000000, 0x810001D0,
+     &D_86B0DA38, 0x22010000, D_86B0D928, 0x06000000, 0x06000000, 0x06000000, 0x04000000,
+ };
+-u32 D_86B0DA9C[] = {
++uintptr_t D_86B0DA9C[] = { // PORT64: holds addresses
+     0x17000001, 0x00000010, &D_86B0D7E0, 0x00000000, D_86B0D828, 0x05000000, 0x1C000000, 0x00008000, 0x00008000,
+     0x00008000, 0x05000000, 0x03000000,  D_86B0DA40, 0x06000000, 0x06000000, 0x01000000, 0x00000000,
+ };
+@@ -730,7 +730,7 @@ static unk_D_86B0DBCC D_86B0DBCC[] = {
+     { 1200.0f, 0.0f, 27.0f, 0.0f },
+ };
+ 
+-static u32 D_86B0DC5C[] = {
++static uintptr_t D_86B0DC5C[] = { // PORT64: holds addresses
+     0x0C00FFFF,  0x05000000, 0x0B00001E, 0x00000000,    0x014000F0, 0x0000000F, 0x00000000,    0x00000000, 0x05000000,
+     0x0D000000,  0x05000000, 0x14000000, 0x002D0019,    0xFFFFFF28, 0x08000000, Completion_LightAngleCallbackA, 0x00000000, 0x14000000,
+     0x002D0019,  0x80808028, 0x08000000, Completion_LightAngleCallbackB, 0x00000000, 0x16646464, 0x0F000003,    0x05000000, 0x0A000000,
+@@ -1616,13 +1616,13 @@ void Completion_InitScene(void) {
+     MainPool_FinalizeAllocation(sp1C);
+     ModelRenderer_InitDisplayRoots();
+ 
+-    D_86B0EBE0 = main_pool_alloc(0x20, 0);
++    D_86B0EBE0 = main_pool_alloc(sizeof(unk_D_86B0EBE0), 0); // PORT64: host sizes (were 0x20 / 0x30C / 0x4C)
+     bzero(D_86B0EBE0, 0x20);
+ 
+-    D_86B0EBDC = main_pool_alloc(0x30C, 0);
++    D_86B0EBDC = main_pool_alloc(sizeof(unk_D_86B0EBDC), 0);
+     bzero(D_86B0EBDC, 0x30C);
+ 
+-    D_86B0EBD8 = main_pool_alloc(0x4C, 0);
++    D_86B0EBD8 = main_pool_alloc(sizeof(unk_D_86B0EBD8), 0);
+     bzero(D_86B0EBD8, 0x4C);
+ 
+     Completion_SelectBonusPokemon();
+@@ -1647,7 +1647,7 @@ s32 Stage_ShowCompletionScene(void) {
+     ASSET_LOAD(D_3000000, cup_clear_ui, 0);
+ 
+     FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);
+-    Fragment_Load((((u32)D_8D000000 & 0x0FF00000) >> 0x14) - 0x10, _5C7A70_ROM_START, _5C7A70_ROM_END);
++    Fragment_Load((((uintptr_t)D_8D000000 & 0x0FF00000) >> 0x14) - 0x10, _5C7A70_ROM_START, _5C7A70_ROM_END);
+ 
+     Text_InitStringTables();
+ 
+diff --git a/src/fragments/demo_scenes/demo_scenes_164B00.c b/src/fragments/demo_scenes/demo_scenes_164B00.c
+index 9499c8a88aaaf3e768da330d558294317f3a493d..dae11ba0dd0f83712f59ef44bd4fc9cd69613029 100644
+--- a/src/fragments/demo_scenes/demo_scenes_164B00.c
++++ b/src/fragments/demo_scenes/demo_scenes_164B00.c
+@@ -12,7 +12,7 @@ void UI_DrawSplitGradientPanel(u8* arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4,
+ 
+     Gfx_SetViewportDimensions(temp_v0, temp_s1->width, temp_s1->height);
+ 
+-    gSPViewport(gDisplayListHead++, (u32)temp_v0 & 0x1FFFFFFF);
++    gSPViewport(gDisplayListHead++, (uintptr_t)temp_v0);
+ 
+     guOrtho(spD4, 0.5f, temp_s1->width - 0.5f, temp_s1->height - 0.5f, 0.5f, -2.0f, 2.0f, 1.0f);
+     if (argE != 0) {
+@@ -53,9 +53,9 @@ void UI_DrawSplitGradientPanel(u8* arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4,
+                        G_TX_NOLOD);
+ 
+     gSPPerspNormalize(gDisplayListHead++, 0xFFFF);
+-    gSPMatrix(gDisplayListHead++, (u32)spD4 & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
+-    gSPMatrix(gDisplayListHead++, (u32)&gIdentityMtx & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+-    gSPVertex(gDisplayListHead++, (u32)temp_s6 & 0x1FFFFFFF, 4, 0);
++    gSPMatrix(gDisplayListHead++, (uintptr_t)spD4, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
++    gSPMatrix(gDisplayListHead++, (uintptr_t)&gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
++    gSPVertex(gDisplayListHead++, (uintptr_t)temp_s6, 4, 0);
+     gSP2Triangles(gDisplayListHead++, 0, 2, 3, 0, 0, 3, 1, 0);
+     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
+     gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF);
+@@ -69,7 +69,7 @@ void UI_DrawAlphaQuad(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4) {
+ 
+     Gfx_SetViewportDimensions(sp80, temp_s1->width, temp_s1->height);
+ 
+-    gSPViewport(gDisplayListHead++, (u32)sp80 & 0x1FFFFFFF);
++    gSPViewport(gDisplayListHead++, (uintptr_t)sp80);
+ 
+     guOrtho(sp84, 0.5f, temp_s1->width - 0.5f, temp_s1->height - 0.5f, 0.5f, -2.0f, 2.0f, 1.0f);
+ 
+@@ -86,8 +86,8 @@ void UI_DrawAlphaQuad(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4) {
+     gDPSetRenderMode(gDisplayListHead++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
+     gSPPerspNormalize(gDisplayListHead++, 0xFFFF);
+ 
+-    gSPMatrix(gDisplayListHead++, (u32)sp84 & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
+-    gSPMatrix(gDisplayListHead++, (u32)&gIdentityMtx & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+-    gSPVertex(gDisplayListHead++, (u32)temp_s2 & 0x1FFFFFFF, 4, 0);
++    gSPMatrix(gDisplayListHead++, (uintptr_t)sp84, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
++    gSPMatrix(gDisplayListHead++, (uintptr_t)&gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
++    gSPVertex(gDisplayListHead++, (uintptr_t)temp_s2, 4, 0);
+     gSP2Triangles(gDisplayListHead++, 0, 2, 3, 0, 0, 3, 1, 0);
+ }
+diff --git a/src/fragments/demo_scenes/demo_scenes_165640.c b/src/fragments/demo_scenes/demo_scenes_165640.c
+index 57fe00fde0547792c5cfe38a08b91627e67df1c4..9696e62e4a7a5f02cfea50b6c2cfb05294a2cdca 100644
+--- a/src/fragments/demo_scenes/demo_scenes_165640.c
++++ b/src/fragments/demo_scenes/demo_scenes_165640.c
+@@ -155,7 +155,7 @@ static unk_D_70B10 D_86B10670;
+ static TeamRoster* D_86B10690;
+ static BattleSessionTeams* D_86B10694;
+ 
+-static u32 D_86B0DE5C[] = {
++static uintptr_t D_86B0DE5C[] = { // PORT64: holds addresses
+     0x0C00FFFF, 0x05000000,    0x0B00001E,  0x00000000,    0x014000F0,  0x0000000F,  0x00000000, 0x00000000,
+     0x05000000, 0x0D000000,    0x05000000,  0x07000000,    &D_86B0F9D0, 0x14000000,  0x002D0019, 0xFFFFFF28,
+     0x08000000, Intro_LightAngleCallbackA, 0x00000000,  0x14000000,    0x002D0019,  0x80808028,  0x08000000, Intro_LightAngleCallbackB,
+@@ -232,11 +232,11 @@ void Intro_LoadPokemonTextures(void) {
+     u8* temp_a1;
+     u8* sp1C;
+ 
+-    temp_a1 = (u32)_70D3A0_ROM_START + (D_80075BD0[D_86B0FA78->unk_174 - 1] & 0xFFFFFF);
+-    sp24 = (u32)_70D3A0_ROM_START +
+-           ((((D_86B0FA78->unk_174 ^ 0) * sizeof(unk_D_70B10)) - sizeof(unk_D_70B10) + (u32)D_70B10) & 0xFFFFFF);
+-    sp1C = (u32)_70D3A0_ROM_START +
+-           (((D_86B0FA78->unk_174 * sizeof(unk_70D3A0)) - sizeof(unk_70D3A0) + (u32)D_70110) & 0xFFFFFF);
++    temp_a1 = (uintptr_t)_70D3A0_ROM_START + (D_80075BD0[D_86B0FA78->unk_174 - 1] & 0xFFFFFF);
++    sp24 = (uintptr_t)_70D3A0_ROM_START +
++           ((((D_86B0FA78->unk_174 ^ 0) * sizeof(unk_D_70B10)) - sizeof(unk_D_70B10) + (uintptr_t)D_70B10) & 0xFFFFFF);
++    sp1C = (uintptr_t)_70D3A0_ROM_START +
++           (((D_86B0FA78->unk_174 * sizeof(unk_70D3A0)) - sizeof(unk_70D3A0) + (uintptr_t)D_70110) & 0xFFFFFF);
+ 
+     Dma_WriteChunks(D_86B0FA80, temp_a1, temp_a1 + 0xBC0, 0);
+     Dma_WriteChunks(&D_86B10660, sp1C, sp1C + sizeof(unk_70D3A0), 0);
+diff --git a/src/fragments/demo_scenes/demo_scenes_169A40.c b/src/fragments/demo_scenes/demo_scenes_169A40.c
+index 702f35a0db6ceecd574c8e516dcd30e653666154..f310044358185209662a5bb3fff6f0d44f3fc335 100644
+--- a/src/fragments/demo_scenes/demo_scenes_169A40.c
++++ b/src/fragments/demo_scenes/demo_scenes_169A40.c
+@@ -16,7 +16,7 @@
+ #include "src/memory.h"
+ #include "src/stage_loader.h"
+ 
+-static u32 D_86B0E250[] = {
++static uintptr_t D_86B0E250[] = { // PORT64: holds addresses
+     0x0C00FFFF, 0x05000000, 0x0B00001E,  0x00000000, 0x014000F0, 0x00000032, 0x00000000, 0x00000118,
+     0x05000000, 0x0D000000, 0x05000000,  0x14000000, 0x002B0012, 0xFFFFFF32, 0x16FFFFFF, 0x0F000003,
+     0x05000000, 0x0A000000, &D_800AC840, 0x06000000, 0x06000000, 0x06000000, 0x06000000, 0x01000000,
+diff --git a/src/fragments/demo_scenes/demo_scenes_16A0E0.c b/src/fragments/demo_scenes/demo_scenes_16A0E0.c
+index 08a32500c88aa26d3712c21584abb88ccdcb746b..59d5ec8fd4657d1aff32fae46a9906443b21b694 100644
+--- a/src/fragments/demo_scenes/demo_scenes_16A0E0.c
++++ b/src/fragments/demo_scenes/demo_scenes_16A0E0.c
+@@ -50,7 +50,7 @@ static char D_86B0E310[] = "すごいぞ！ ドードリオの\nゲームボー
+ static char D_86B0E344[] = "GBビルのゲームボーイが\nさらにスピードアップだ！";
+ #endif
+ 
+-static u32 D_86B0E374[] = {
++static uintptr_t D_86B0E374[] = { // PORT64: holds addresses
+     0x0C00FFFF, 0x05000000, 0x0B00001E,  0x00000000, 0x014000F0, 0x00000000, 0x00000000, 0x00000118,
+     0x05000000, 0x0D000000, 0x05000000,  0x14000000, 0x002B0012, 0xFFFFFF32, 0x16FFFFFF, 0x0F000003,
+     0x05000000, 0x0A000000, &D_800AC840, 0x06000000, 0x06000000, 0x06000000, 0x06000000, 0x01000000,

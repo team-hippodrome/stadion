@@ -45,8 +45,8 @@ for 6s, no exception. Not verified visually (screenshot capture was unavailable)
 
 ## Stage 1 (done): all 347 game sources compile for the host
 `game/` started as a copy of the decomp's `src/` and `include/` (plus the SDK headers libultraship does not provide
-under `game/lib/ultralib/include`). It is now a submodule: branch `pc-port` of michiiik/pokestadium, the decomp at
-697f9ba7 plus the port's changes (see README "The game submodule"). The SDK stand-in headers described below live in
+under `game/lib/ultralib/include`). It is now a submodule pinned at an unmodified decomp commit, with the port's changes
+applied from `patches/game/` (see README "The game submodule"). The SDK stand-in headers described below live in
 `src/port/sdk/`. The decomp checkout in `../pokestadium` is untouched.
 
     tools/syntax_check.sh              # clang -fsyntax-only over all of game/src: 0 errors / 347 files
@@ -134,7 +134,7 @@ pixels are correct is unconfirmed. After the logo the intro scene crashes in `Fo
 (`main_pool_set_func`, memory_main.c:382) - see "Where it stops now".
 
 What was added/changed in this stage:
-- Fragment loader: `tools/gen_fragment_entries.py` -> `game/src/port_fragment_entries.c` (ROM offset -> statically
+- Fragment loader: `tools/gen_fragment_entries.py` -> `src/port/generated/port_fragment_entries.c` (ROM offset -> statically
   linked entry function, 72 of 77 fragments; 30, 31, 51, 74, 77 have no named entry symbol yet).
   `Fragment_Load` (PORT_STATIC_FRAGMENTS) still DMA-loads the blob (for its data image) but returns the table entry;
   `Memmap_RelocateFragment` no longer patches MIPS code.
@@ -193,7 +193,7 @@ Done:
   node pointers. Verified on the boot diorama: node trees build.
 - **Packed layouts**: `geo_layout.c` decodes either the slot form (C arrays) or the packed big-endian form (ROM blobs);
   the form follows from `Port_IsRawData(command pointer)`.
-- **Code pointers in data** (`tools/gen_func_table.py` -> `game/src/port_func_table.c`, `Port_ResolveCode`): maps a 32-bit
+- **Code pointers in data** (`tools/gen_func_table.py` -> `src/port/generated/port_func_table.c`, `Port_ResolveCode`): maps a 32-bit
   link address back to the statically linked function, keyed by the fragment loaded in that slot.
 - **Raw display lists** (`src/port/gfx_translate.cpp`): F3DEX2 lists, Vtx arrays, matrices, viewports translated on first
   use and cached; hooked through `gSPDisplayList/gSPBranchList/gSPVertex/gSPMatrix` in `src/port/sdk/ultra64.h`. Tracks list-local

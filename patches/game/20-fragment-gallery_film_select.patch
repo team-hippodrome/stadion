@@ -1,0 +1,20 @@
+diff --git a/src/fragments/gallery_film_select/gallery_film_select.c b/src/fragments/gallery_film_select/gallery_film_select.c
+index f203d07d8a4ece2788abc2bb29901d6a05f2d180..591ff7582cc207cb74097c67f6303bf02fc09d7b 100644
+--- a/src/fragments/gallery_film_select/gallery_film_select.c
++++ b/src/fragments/gallery_film_select/gallery_film_select.c
+@@ -879,7 +879,7 @@ s32 Gallery_FilmSelectFinalize(unk_D_83407B38* arg0) {
+     return sp1C;
+ }
+ 
+-void Gallery_FilmSelectMain(s32 arg0, UNUSED s32 arg1) {
++s32 Gallery_FilmSelectMain(s32 arg0, UNUSED s32 arg1) {
+     StageContext* sp24;
+ 
+     main_pool_push_state('FILM');
+@@ -907,5 +907,5 @@ void Gallery_FilmSelectMain(s32 arg0, UNUSED s32 arg1) {
+ 
+     main_pool_pop_state('FILM');
+ 
+-    Gallery_FilmSelectFinalize(&D_83603300);
++    return Gallery_FilmSelectFinalize(&D_83603300); // PORT: the caller uses this result (on the N64 it was left in v0)
+ }

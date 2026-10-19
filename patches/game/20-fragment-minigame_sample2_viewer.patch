@@ -1,0 +1,13 @@
+diff --git a/src/fragments/minigame_sample2_viewer/minigame_sample2_viewer.c b/src/fragments/minigame_sample2_viewer/minigame_sample2_viewer.c
+index 8e819d90fa68fb15fc11b7405bd9b92a2faac7ef..e123dd17715fee1be1e879859083f9fb85b6683b 100644
+--- a/src/fragments/minigame_sample2_viewer/minigame_sample2_viewer.c
++++ b/src/fragments/minigame_sample2_viewer/minigame_sample2_viewer.c
+@@ -19,7 +19,7 @@ static DisplayObject D_82800538;
+ static BinArchive* D_828006A0;
+ static u8* D_828006A4;
+ 
+-static u32 D_828004D0[] = {
++static uintptr_t D_828004D0[] = { // PORT64: holds addresses
+     0x0C00FFFF, 0x05000000, 0x0B00001E,  0x00000000, 0x014000F0, 0x00000032, 0x00000000, 0x00000118,
+     0x05000000, 0x0D000000, 0x05000000,  0x14000000, 0x002B0012, 0xFFFFFF32, 0x16FFFFFF, 0x0F000003,
+     0x05000000, 0x0A000000, &D_800AC840, 0x06000000, 0x06000000, 0x06000000, 0x06000000, 0x01000000,

@@ -1,0 +1,144 @@
+diff --git a/lib/ultralib/include/PR/libaudio.h b/lib/ultralib/include/PR/libaudio.h
+index 33017b7221975e6c54c7a5286310f76319384040..4fee74ff0a08c604dd6a5019537e1e07faf3be99 100644
+--- a/lib/ultralib/include/PR/libaudio.h
++++ b/lib/ultralib/include/PR/libaudio.h
+@@ -118,7 +118,7 @@ typedef struct ALLink_s {
+ void    alUnlink(ALLink *element);
+ void    alLink(ALLink *element, ALLink *after);
+ 
+-typedef s32 (*ALDMAproc)(s32 addr, s32 len, void *state);
++typedef intptr_t (*ALDMAproc)(intptr_t addr, s32 len, void *state); /* PORT: returns a host pointer (was s32) */
+ typedef ALDMAproc (*ALDMANew)(void *state);
+ 
+ void    alCopy(void *src, void *dest, s32 len);
+diff --git a/lib/ultralib/src/audio/bnkf.c b/lib/ultralib/src/audio/bnkf.c
+index dfd312fad62c07502ad39de01380a961fefd9846..8a081246c63cd1e9bf1902332e4439a09e8e46ac 100644
+--- a/lib/ultralib/src/audio/bnkf.c
++++ b/lib/ultralib/src/audio/bnkf.c
+@@ -33,21 +33,33 @@ static  void _bnkfPatchWaveTable(ALWaveTable *w, s32 offset, s32 table);
+ 
+ void alSeqFileNew(ALSeqFile *file, u8 *base)
+ {
+-    s32 offset = (s32) base;
+-    s32 i;
+-    
+     /*
+-     * patch the file so that offsets are pointers
++     * PORT: the file arrives as stored in ROM: s16 revision, s16 seqCount, then {u32 offset, s32 len} per
++     * sequence, big-endian. Convert it in place to the host layout (ALSeqData holds a pointer, so the entries
++     * grow: the buffer must hold PORT_SEQFILE_BYTES(seqCount)), last entry first, turning the offsets into
++     * addresses (ROM addresses here: base is one).
+      */
+-    for (i = 0; i < file->seqCount; i++) {
+-        file->seqArray[i].offset = (u8 *)((u8 *)file->seqArray[i].offset + offset);
++    u8 *raw = (u8 *)file;
++    s16 revision = (s16)((raw[0] << 8) | raw[1]);
++    s32 count = (s16)((raw[2] << 8) | raw[3]);
++    s32 i;
++
++    for (i = count - 1; i >= 0; i--) {
++        const u8 *e = raw + 4 + 8 * i;
++        u32 offset = ((u32)e[0] << 24) | ((u32)e[1] << 16) | ((u32)e[2] << 8) | e[3];
++        s32 len = (s32)(((u32)e[4] << 24) | ((u32)e[5] << 16) | ((u32)e[6] << 8) | e[7]);
++
++        file->seqArray[i].offset = (u8 *)((uintptr_t)base + offset);
++        file->seqArray[i].len = len;
+     }
++    file->revision = revision;
++    file->seqCount = count;
+ }
+ 
+ void alBnkfNew(ALBankFile *file, u8 *table)
+ {
+-    s32 offset = (s32) file;
+-    s32 woffset = (s32) table;
++    s32 offset = (intptr_t) file;
++    s32 woffset = (intptr_t) table;
+     
+     s32 i;
+     
+diff --git a/lib/ultralib/src/audio/heapinit.c b/lib/ultralib/src/audio/heapinit.c
+index 9053375c639bbef3022079c3fc3408218cf8f22b..d91abed8d3471ab55d29f5edfa68ac5cc21ecdc3 100644
+--- a/lib/ultralib/src/audio/heapinit.c
++++ b/lib/ultralib/src/audio/heapinit.c
+@@ -23,7 +23,7 @@
+ 
+ void alHeapInit(ALHeap *hp, u8 *base, s32 len)
+ {
+-    s32 extraAlign = (AL_CACHE_ALIGN+1) - ((s32) base & AL_CACHE_ALIGN);
++    s32 extraAlign = (AL_CACHE_ALIGN+1) - ((intptr_t) base & AL_CACHE_ALIGN);
+     
+     if (extraAlign != AL_CACHE_ALIGN+1)
+         hp->base = base + extraAlign;
+diff --git a/lib/ultralib/src/gu/lookatref.c b/lib/ultralib/src/gu/lookatref.c
+index 3cd3b65d176ec0d96443ebd1f18a337d572f9e4c..0cbcf3b0dd467bac9da9934b62fe30ca3411f9b7 100644
+--- a/lib/ultralib/src/gu/lookatref.c
++++ b/lib/ultralib/src/gu/lookatref.c
+@@ -1,3 +1,4 @@
++#include <math.h>
+ /**************************************************************************
+  *									  *
+  *		 Copyright (C) 1994, Silicon Graphics, Inc.		  *
+diff --git a/lib/ultralib/src/gu/mtxutil.c b/lib/ultralib/src/gu/mtxutil.c
+index 25105587b82d436370d5f6e4619c046267d8cc80..607b5ad61237facf299f54295fdf76893b170cd3 100644
+--- a/lib/ultralib/src/gu/mtxutil.c
++++ b/lib/ultralib/src/gu/mtxutil.c
+@@ -19,8 +19,9 @@ void guMtxF2L(float mf[4][4], Mtx *m)
+ 	int	*ai,*af;
+ 
+ 
+-	ai=(int *) &m->m[0][0];
+-	af=(int *) &m->m[2][0];
++	{ extern void Port_LogF2L(float mf[4][4], Mtx *m); Port_LogF2L(mf, m); }
++	ai=(int *) m; /* PORT: Mtx.m is long[4][4] (8-byte longs on the host); the layout is 8 int words + 8 fraction words */
++	af=ai + 8;
+ 
+ 	for (i=0; i<4; i++)
+ 	for (j=0; j<2; j++) {
+@@ -38,8 +39,8 @@ void guMtxL2F(float mf[4][4], Mtx *m)
+ 	unsigned int	*ai,*af;
+ 	int		q1,q2;
+ 
+-	ai=(unsigned int *) &m->m[0][0];
+-	af=(unsigned int *) &m->m[2][0];
++	ai=(unsigned int *) m; /* PORT: see guMtxF2L */
++	af=ai + 8;
+ 
+ 	for (i=0; i<4; i++)
+ 	for (j=0; j<2; j++) {
+diff --git a/lib/ultralib/src/gu/normalize.c b/lib/ultralib/src/gu/normalize.c
+index 6884b29b11c494bf14267aeb8047e72c18574a28..1b1a2083bc4cb6c350c142e362d7606ea9f1fa26 100644
+--- a/lib/ultralib/src/gu/normalize.c
++++ b/lib/ultralib/src/gu/normalize.c
+@@ -1,3 +1,4 @@
++#include <math.h>
+ /**************************************************************************
+  *									  *
+  *		 Copyright (C) 1994, Silicon Graphics, Inc.		  *
+diff --git a/lib/ultralib/src/gu/perspective.c b/lib/ultralib/src/gu/perspective.c
+index be571d40b90b8ffd1f8bba527918a16ea0659fa8..ec82aab370bf1a7f95b2f29a3996df77d4e25672 100644
+--- a/lib/ultralib/src/gu/perspective.c
++++ b/lib/ultralib/src/gu/perspective.c
+@@ -1,3 +1,4 @@
++#include <math.h>
+ 
+ /**************************************************************************
+  *									  *
+diff --git a/lib/ultralib/src/gu/rotate.c b/lib/ultralib/src/gu/rotate.c
+index c843d9ffa2ba72d1a8893ec91eafcf11a70efc7a..0fd3e33d7468eecb6b07102bca519c2225df3388 100644
+--- a/lib/ultralib/src/gu/rotate.c
++++ b/lib/ultralib/src/gu/rotate.c
+@@ -1,3 +1,4 @@
++#include <math.h>
+ /**************************************************************************
+  *									  *
+  *		 Copyright (C) 1994, Silicon Graphics, Inc.		  *
+diff --git a/lib/ultralib/src/gu/rotaterpy.c b/lib/ultralib/src/gu/rotaterpy.c
+index c239d21014c52dfa5e72c4f2a331aa01125a1cc9..c2b902d58f8de6879f162862399316177fee07b8 100644
+--- a/lib/ultralib/src/gu/rotaterpy.c
++++ b/lib/ultralib/src/gu/rotaterpy.c
+@@ -1,3 +1,4 @@
++#include <math.h>
+ /**************************************************************************
+  *									  *
+  *		 Copyright (C) 1994, Silicon Graphics, Inc.		  *
