@@ -1,6 +1,6 @@
 #!/usr/bin/env python3 -I
 """Packs the port's runtime resources into build/pokestadium.o2r (a zip libultraship opens as an archive):
-the Fast3D shader sources, ImGui fonts, the launcher pictures and a port version marker. Game data is not in here; it is read from the ROM."""
+the Fast3D shader sources, the shader warm-up list, ImGui fonts, the launcher pictures and a port version marker. Game data is not in here; it is read from the ROM."""
 import zipfile, pathlib, sys
 root = pathlib.Path(__file__).resolve().parent.parent
 out = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else root / "build/pokestadium.o2r"
@@ -21,6 +21,8 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
                 text = re.sub(r"\bthread (const \w+(?:<\w+>)? )(?=\w)", r"\1", text)
                 data = text.encode()
             z.writestr("shaders/" + p.relative_to(shaders).as_posix(), data)
+    # the shader programs built ahead while the launcher shows (src/port/shader_warmup.cpp, tools/shader_list.py)
+    z.write(root / "src/port/shader_warmup.txt", "port/shader_warmup.txt")
     # launcher pictures (cartridges, N64), shown by src/port/launcher.cpp
     for p in sorted((root / "tools/launcher/assets").glob("*.png")):
         z.write(p, "textures/launcher/" + p.name)

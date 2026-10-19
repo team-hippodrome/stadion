@@ -50,6 +50,7 @@ add_executable(pokestadium
   src/port/main.cpp
   src/port/Engine.cpp
   src/port/launcher.cpp
+  src/port/shader_warmup.cpp
   src/port/stubs.c
   src/port/port_platform.c
   src/port/generated/abs_syms.S
@@ -186,6 +187,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 # Runtime resources (shaders, fonts) packed into an archive next to the executable.
+# (the shader warm-up list goes into it too: a new list rebuilds shader_warmup.cpp, so the archive is packed again)
+set_property(SOURCE src/port/shader_warmup.cpp APPEND PROPERTY OBJECT_DEPENDS
+             ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt)
 add_custom_command(TARGET pokestadium POST_BUILD
   COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py $<TARGET_FILE_DIR:pokestadium>/pokestadium.o2r
   COMMENT "Packing pokestadium.o2r")

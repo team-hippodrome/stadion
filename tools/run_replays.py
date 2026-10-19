@@ -80,6 +80,8 @@ def run_one(name, stop, env_extra, rom, update):
             "PORT_HIDDEN_WINDOW": "1", "PORT_SPEED": "max", "PORT_EXIT_ON_FREEZE": "1",
             "PORT_REPLAY": rec, "PORT_RECORD": os.path.join(tmp, "out.rec"),
             "PORT_STOP_AT": str(stop), "PORT_SCREENSHOT_DIR": tmp,
+            # shader warm-up: the shipped list only; programs drawn are recorded in the run's own file
+            "PORT_SHADER_LIST": os.path.join(tmp, "shaders.txt"),
         })
         missing = [v for k, v in env_extra.items() if (k == "GBSAVE" or k == "PORT_GB_ROM")
                    and not os.path.exists(os.path.join(ROOT, v))]
