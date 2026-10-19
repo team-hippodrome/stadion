@@ -469,8 +469,6 @@
 .set SYM(D_2011C60), 0x2011C60
 .globl SYM(D_20130A0)
 .set SYM(D_20130A0), 0x20130A0
-.globl SYM(D_20144E0)
-.set SYM(D_20144E0), 0x20144E0
 .globl SYM(D_2014F00)
 .set SYM(D_2014F00), 0x2014F00
 .globl SYM(D_20154B0)
@@ -553,14 +551,6 @@
 .set SYM(D_20288E0), 0x20288E0
 .globl SYM(D_2028960)
 .set SYM(D_2028960), 0x2028960
-.globl SYM(D_20289E0)
-.set SYM(D_20289E0), 0x20289E0
-.globl SYM(D_2028A20)
-.set SYM(D_2028A20), 0x2028A20
-.globl SYM(D_2028A60)
-.set SYM(D_2028A60), 0x2028A60
-.globl SYM(D_2028AA0)
-.set SYM(D_2028AA0), 0x2028AA0
 .globl SYM(D_2028AE0)
 .set SYM(D_2028AE0), 0x2028AE0
 .globl SYM(D_20293E0)
@@ -789,6 +779,8 @@
 .set SYM(D_3008420), 0x3008420
 .globl SYM(D_3008480)
 .set SYM(D_3008480), 0x3008480
+.globl SYM(D_30084C0)
+.set SYM(D_30084C0), 0x30084C0
 .globl SYM(D_3008500)
 .set SYM(D_3008500), 0x3008500
 .globl SYM(D_3008580)
@@ -1413,8 +1405,6 @@
 .set SYM(D_3042A90), 0x3042A90
 .globl SYM(D_3044070)
 .set SYM(D_3044070), 0x3044070
-.globl SYM(D_3044260)
-.set SYM(D_3044260), 0x3044260
 .globl SYM(D_3045650)
 .set SYM(D_3045650), 0x3045650
 .globl SYM(D_3046C30)
@@ -2149,6 +2139,18 @@
 .set SYM(fragment9_TEXT_START), 0x86300000
 .globl SYM(fragment9_relocs_ROM_END)
 .set SYM(fragment9_relocs_ROM_END), 0x134680
+.globl SYM(gAudioData)
+.set SYM(gAudioData), 0x15C0000
+.globl SYM(gRound2BadgeTexture)
+.set SYM(gRound2BadgeTexture), 0x20144E0
+.globl SYM(gUiPanelBottomLeftTexture)
+.set SYM(gUiPanelBottomLeftTexture), 0x20289E0
+.globl SYM(gUiPanelBottomRightTexture)
+.set SYM(gUiPanelBottomRightTexture), 0x2028A20
+.globl SYM(gUiPanelTopLeftTexture)
+.set SYM(gUiPanelTopLeftTexture), 0x2028A60
+.globl SYM(gUiPanelTopRightTexture)
+.set SYM(gUiPanelTopRightTexture), 0x2028AA0
 .globl SYM(gallery_ui_ROM_END)
 .set SYM(gallery_ui_ROM_END), 0x69D090
 .globl SYM(gallery_ui_ROM_START)
@@ -2201,6 +2203,8 @@
 .set SYM(run_rattata_run_flag_gfx_ROM_END), 0x6C4E50
 .globl SYM(run_rattata_run_flag_gfx_ROM_START)
 .set SYM(run_rattata_run_flag_gfx_ROM_START), 0x6C4CE0
+.globl SYM(sAreaSelectGlowCircleTexture)
+.set SYM(sAreaSelectGlowCircleTexture), 0x3044260
 .globl SYM(snap_mode_ui_ROM_END)
 .set SYM(snap_mode_ui_ROM_END), 0x79AFB0
 .globl SYM(snap_mode_ui_ROM_START)
@@ -2241,7 +2245,3 @@
 .set SYM(victory_palace_plate_text_ROM_END), 0x6C4CE0
 .globl SYM(victory_palace_plate_text_ROM_START)
 .set SYM(victory_palace_plate_text_ROM_START), 0x6C1AB0
-.globl SYM(D_30084C0)
-.set SYM(D_30084C0), 0x30084C0
-.globl SYM(gAudioData)
-.set SYM(gAudioData), 0x15C0000

@@ -4,7 +4,9 @@ dispatch tables) can be turned back into host function pointers. Fragments share
 carries the ROM offset of the fragment it belongs to (0 for the always-resident main segment)."""
 import re, subprocess, pathlib
 root = pathlib.Path(__file__).resolve().parent.parent
-mp = (root.parent / "pokestadium/build/pokestadium-us.map").read_text(errors="replace").split("\n")
+# the unmodified decomp checkout and build the game is patched from (PORT_DECOMP_DIR, default ../pokestadium)
+decomp = pathlib.Path(__import__("os").environ.get("PORT_DECOMP_DIR", root.parent / "pokestadium"))
+mp = (decomp / "build/pokestadium-us.map").read_text(errors="replace").split("\n")
 sympat = re.compile(r"^\s+0x([0-9a-f]{8,16})\s+([A-Za-z_]\w*)\s*(?:=.*)?$")
 # fragment ranges
 frags = {}
@@ -40,5 +42,5 @@ for i, (_, _, n) in enumerate(rows): out.append(f"extern void port_fn_{i}() __as
 out += ["", "struct PortFuncEntry { unsigned rom; unsigned addr; void* fn; };", "const struct PortFuncEntry gPortFuncTable[] = {"]
 for i, (rom, a, n) in enumerate(rows): out.append(f"    {{ 0x{rom:X}, 0x{a:X}, (void*)port_fn_{i} }},")
 out += ["};", f"const unsigned gPortFuncTableCount = {len(rows)};", ""]
-(root / "game/src/port_func_table.c").write_text("\n".join(out))
+(root / "src/port/generated/port_func_table.c").write_text("\n".join(out))
 print(len(rows), "functions")

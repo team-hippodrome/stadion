@@ -1,0 +1,850 @@
+diff --git a/src/gb_audio.c b/src/gb_audio.c
+index 8d3b5671ffbfeb564d3bf8880eb1a663581cd149..9250d913866369348c95a691a9e178e7dad08a42 100644
+--- a/src/gb_audio.c
++++ b/src/gb_audio.c
+@@ -1,3 +1,4 @@
++#include "src/port_audio.h"
+ #include "gb_audio.h"
+ #include "gb_audio_render.h"
+ 
+@@ -31,8 +32,8 @@ static u8 D_800FCE30[8];
+ static u8 D_800FCE38[8];
+ static u8 D_800FCE40[8];
+ static u8* D_800FCE48[8];
+-static s32 D_800FCE68[8];
+-static s32 D_800FCE88[8];
++static intptr_t D_800FCE68[8]; // PORT: stream pointers (was s32)
++static intptr_t D_800FCE88[8]; // PORT: stream pointers (was s32)
+ static u8 D_800FCEA8[8];
+ static u16 D_800FCEB0;
+ static u16 D_800FCEB2;
+@@ -40,7 +41,7 @@ static u8 D_800FCEB4;
+ static u8 D_800FCEB6[2];
+ static u8* D_800FCEB8[2];
+ static u8 D_800FCEC0[8];
+-static u32 D_800FCEC8;
++static uintptr_t D_800FCEC8; // PORT: a pointer (was u32)
+ static u8 D_800FCECC;
+ static u8 D_800FCECD;
+ 
+@@ -59,6 +60,9 @@ static u8 D_800785B4 = 0;
+ static u8 D_800785B8 = 0xFF;
+ 
+ void GbMusic_UpdateChannels(void) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     s32 i;
+ 
+     for (i = 0; i < 8; i++) {
+@@ -69,6 +73,9 @@ void GbMusic_UpdateChannels(void) {
+ }
+ 
+ void GbMusic_StartSequenceById(u8 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     D_800FCEB4 = arg0;
+     if (arg0 == 0xFF) {
+         GbMusic_ResetApu();
+@@ -80,6 +87,9 @@ void GbMusic_StartSequenceById(u8 arg0) {
+ }
+ 
+ s32 GbMusic_StartTableSequence(u16 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     s32 a;
+     s32 offset;
+ 
+@@ -93,7 +103,7 @@ s32 GbMusic_StartTableSequence(u16 arg0) {
+         return 0;
+     }
+ 
+-    offset = D_800FC6D4->offset;
++    offset = D_800FC6D4->offset; // PORT: an offset from the table (see func_80044A50)
+     GbMusic_ResetApu();
+ 
+     arg0--;
+@@ -102,7 +112,7 @@ s32 GbMusic_StartTableSequence(u16 arg0) {
+     D_800FCEB4 = a;
+     D_800FCECC = D_800FC6D4->entries[arg0].unk_02;
+     D_800FCECD = D_800FC6D4->entries[arg0].unk_03;
+-    D_800FCEC8 = offset + a * 0x18;
++    D_800FCEC8 = (uintptr_t)D_800FC6D4 + offset + a * 0x18;
+ 
+     GbMusic_StartSfx(a);
+ 
+@@ -110,6 +120,9 @@ s32 GbMusic_StartTableSequence(u16 arg0) {
+ }
+ 
+ void GbMusic_UpdateChannel(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     if (D_800FCD50[arg0] < 2) {
+         D_800FCD70[arg0].unk_03 = D_800FCD70[arg0].unk_04;
+         D_800FCD58[arg0] &= (u8)~0x30;
+@@ -165,6 +178,9 @@ void GbMusic_UpdateChannel(u32 arg0) {
+ }
+ 
+ void GbMusic_DecodeChannelCommands(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     u32 var_v0;
+     u8 temp_v0;
+ 
+@@ -231,6 +247,9 @@ void GbMusic_DecodeChannelCommands(u32 arg0) {
+ }
+ 
+ u8 GbMusic_CmdEndOrReturn(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     if (D_800FCD58[arg0] & 2) {
+         D_800FCD58[arg0] &= ~2;
+         D_800FCE68[arg0] = D_800FCE48[arg0];
+@@ -266,6 +285,9 @@ u8 GbMusic_CmdEndOrReturn(u32 arg0) {
+ }
+ 
+ u8 GbMusic_CmdCall(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     u8 sp1F;
+     u8 temp_v0;
+     s32 tmp;
+@@ -281,6 +303,9 @@ u8 GbMusic_CmdCall(u32 arg0) {
+ }
+ 
+ u8 GbMusic_CmdLoop(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     u8 sp27;
+     u8 sp26;
+     u32 temp_v0 = GbMusic_ReadStreamByte(arg0);
+@@ -303,11 +328,17 @@ u8 GbMusic_CmdLoop(u32 arg0) {
+ }
+ 
+ u8 GbMusic_CmdToggleFinePitch(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     D_800FCD58[arg0] ^= 1;
+     return 0;
+ }
+ 
+ u8 GbMusic_CmdSetEnvelope(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     u8 temp_a0;
+     u8 temp_a1;
+     u8 temp_v0;
+@@ -336,6 +367,9 @@ u8 GbMusic_CmdSetEnvelope(u32 arg0) {
+ }
+ 
+ u8 GbMusic_CmdPitchSlide(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     UNUSED s32 pad;
+     u8 temp_v0;
+ 
+@@ -348,11 +382,17 @@ u8 GbMusic_CmdPitchSlide(u32 arg0) {
+ }
+ 
+ u8 GbMusic_CmdSetDutyCycle(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     D_800FCE20[arg0] = GbMusic_ReadStreamByte(arg0) << 6;
+     return 0;
+ }
+ 
+ u8 GbMusic_CmdSetTempo(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     u8 sp1F;
+     u8 sp1E;
+ 
+@@ -377,11 +417,17 @@ u8 GbMusic_CmdSetTempo(u32 arg0) {
+ }
+ 
+ u8 GbMusic_CmdSetPanMask(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     D_800FCE40[1] = GbMusic_ReadStreamByte(arg0);
+     return 0;
+ }
+ 
+ u8 GbMusic_CmdPlaySequence(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     GbMusic_StartSequenceById(GbMusic_ReadStreamByte(arg0));
+     if (D_800FCD68 == 0) {
+         D_800FCD68 = D_800FCD48[7];
+@@ -391,6 +437,9 @@ u8 GbMusic_CmdPlaySequence(u32 arg0) {
+ }
+ 
+ u8 GbMusic_CmdSetDutyRotation(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     u8 temp_v0 = GbMusic_ReadStreamByte(arg0);
+ 
+     D_800FCE18[arg0] = temp_v0;
+@@ -400,16 +449,25 @@ u8 GbMusic_CmdSetDutyRotation(u32 arg0) {
+ }
+ 
+ u8 GbMusic_CmdSetMasterVolume(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     GbAudio_QueueRegisterWrite(0xFF24, GbMusic_ReadStreamByte(arg0), 0);
+     return 0;
+ }
+ 
+ u8 GbMusic_CmdEnableEnvelope(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     D_800FCD60[arg0] |= 1;
+     return 0;
+ }
+ 
+ u8 GbMusic_CmdSetNoteLength(u32 arg0, u8 arg1) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     u8 var_a1;
+ 
+     D_800FCEA8[arg0] = arg1 & 0xF;
+@@ -428,11 +486,17 @@ u8 GbMusic_CmdSetNoteLength(u32 arg0, u8 arg1) {
+ }
+ 
+ u8 GbMusic_CmdSetOctave(u32 arg0, u8 arg1) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     D_800FCE38[arg0] = arg1 & 0xF;
+     return 0;
+ }
+ 
+ s32 GbMusic_CmdPlayNoteWithDuty(u32 arg0, u8 arg1) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     u8 sp27;
+     u8 sp26;
+     u8 sp25;
+@@ -459,6 +523,9 @@ s32 GbMusic_CmdPlayNoteWithDuty(u32 arg0, u8 arg1) {
+ }
+ 
+ u8 GbMusic_CmdPlayNote(u32 arg0, u8 arg1) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     if (arg0 < 4) {
+         GbMusic_TriggerNoteFromByte(arg0, arg1);
+     }
+@@ -478,6 +545,9 @@ u8 GbMusic_CmdPlayNote(u32 arg0, u8 arg1) {
+ }
+ 
+ u8 GbMusic_TriggerNoteFromByte(u32 arg0, u8 arg1) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     u8 sp1F;
+     s32 temp_v0 = arg1 & 0xF0;
+ 
+@@ -500,6 +570,9 @@ u8 GbMusic_TriggerNoteFromByte(u32 arg0, u8 arg1) {
+ }
+ 
+ s32 GbMusic_ScheduleNote(u32 arg0, u8 arg1) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     u16 sp26;
+     u16 tmp;
+     u16 var_t0;
+@@ -541,6 +614,9 @@ s32 GbMusic_ScheduleNote(u32 arg0, u8 arg1) {
+ }
+ 
+ s32 GbMusic_TriggerChannelNote(u32 arg0, u16 arg1, u16 arg2) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     u16 var_s1;
+     s32 tmp;
+     u8 tmp1;
+@@ -571,6 +647,9 @@ s32 GbMusic_TriggerChannelNote(u32 arg0, u16 arg1, u16 arg2) {
+ }
+ 
+ s32 GbMusic_UpdateChannelPanning(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     u8 tmp;
+     u8 sp1E;
+     u8 temp_v1 = D_80078590[arg0] | GbAudio_GetRegisterValue(0xFF25);
+@@ -593,6 +672,9 @@ s32 GbMusic_UpdateChannelPanning(u32 arg0) {
+ }
+ 
+ s32 GbMusic_WriteChannelDutyLength(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     u8 sp1F = D_800FCD50[arg0];
+     u8 tmp;
+ 
+@@ -607,6 +689,9 @@ s32 GbMusic_WriteChannelDutyLength(u32 arg0) {
+ }
+ 
+ s32 GbMusic_WriteChannelFrequency(u32 arg0, u16 arg1) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     u8 sp2E[4];
+     s32 var_s2;
+     u16 temp_v0;
+@@ -647,6 +732,9 @@ s32 GbMusic_WriteChannelFrequency(u32 arg0, u16 arg1) {
+ }
+ 
+ void GbMusic_UpdateHighChannelTempo(void) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     s32 tmp;
+ 
+     if (GbMusic_IsSfxActive() != 0) {
+@@ -658,6 +746,9 @@ void GbMusic_UpdateHighChannelTempo(void) {
+ }
+ 
+ void GbMusic_WriteTransposedFrequency(u16 arg0, u16 arg1) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     if (GbMusic_IsSfxActive() != 0) {
+         u16 sp18 = D_800FCECC;
+ 
+@@ -668,6 +759,9 @@ void GbMusic_WriteTransposedFrequency(u16 arg0, u16 arg1) {
+ }
+ 
+ s32 GbMusic_RewindIfSfxActive(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     if (GbMusic_IsSfxActive() != 0) {
+         D_800FCE48[arg0]--;
+         return 1;
+@@ -676,6 +770,9 @@ s32 GbMusic_RewindIfSfxActive(u32 arg0) {
+ }
+ 
+ s32 GbMusic_IsSfxActive(void) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     if ((D_800FCD48[4] < D_800785A4) && (D_800FCD48[4] >= D_800785A0)) {
+         return 1;
+     }
+@@ -683,6 +780,9 @@ s32 GbMusic_IsSfxActive(void) {
+ }
+ 
+ void GbMusic_AdvancePitchSlide(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     u8 sp1F;
+     u8 sp1E;
+     u16 sp1C;
+@@ -706,6 +806,9 @@ void GbMusic_AdvancePitchSlide(u32 arg0) {
+ }
+ 
+ s32 GbMusic_StartPitchSlide(u32 arg0, u16 arg1) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     D_800FCD98[arg0].unk_00 = arg1;
+     if (arg1 < D_800FCD98[arg0].unk_04) {
+         D_800FCD58[arg0] &= ~0x20;
+@@ -717,6 +820,9 @@ s32 GbMusic_StartPitchSlide(u32 arg0, u16 arg1) {
+ }
+ 
+ void GbMusic_RotateChannelDuty(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     u8 sp1F;
+     u16 sp1C;
+ 
+@@ -730,10 +836,16 @@ void GbMusic_RotateChannelDuty(u32 arg0) {
+ }
+ 
+ u8 GbMusic_ReadStreamByte(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     return *D_800FCE48[arg0]++;
+ }
+ 
+ u16 GbMusic_GetChannelRegister(u32 arg0, s32 arg1) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     UNUSED s32 pad;
+     u16 D_800785BC[] = {
+         0xFF10, 0XFF15, 0xFF1A, 0XFF1F, 0xFF10, 0XFF15, 0xFF1A, 0XFF1F,
+@@ -744,6 +856,9 @@ u16 GbMusic_GetChannelRegister(u32 arg0, s32 arg1) {
+ }
+ 
+ u16 GbMusic_GetNoteFrequency(u8 arg0, u8 arg1) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     s16 sp8[] = {
+         0xF82C, 0xF89D, 0xF907, 0xF96B, 0xF9CA, 0xFA23, 0xFA77, 0xFAC7, 0xFB12, 0xFB58, 0xFB9B, 0xFBDA,
+     };
+@@ -755,6 +870,9 @@ u16 GbMusic_GetNoteFrequency(u8 arg0, u8 arg1) {
+ }
+ 
+ void GbMusic_StartMusic(u8 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     s32 i;
+ 
+     D_800FCD68 = 0;
+@@ -802,6 +920,9 @@ void GbMusic_StartMusic(u8 arg0) {
+ }
+ 
+ void GbMusic_StartSfx(u8 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     u8 i;
+ 
+     D_800FCE40[1] = 0xFF;
+@@ -856,6 +977,9 @@ void GbMusic_StartSfx(u8 arg0) {
+ }
+ 
+ void GbMusic_ResetApu(void) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     s32 i;
+ 
+     GbAudio_QueueRegisterWrite(0xFF26, 0x80, 0);
+@@ -888,6 +1012,9 @@ void GbMusic_ResetApu(void) {
+ }
+ 
+ void GbMusic_BindSequenceTracks(u8 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     u32 i;
+     u8 x;
+     u8 temp;
+@@ -903,7 +1030,7 @@ void GbMusic_BindSequenceTracks(u8 arg0) {
+             D_800FCD58[x] |= 4;
+         }
+ 
+-        D_800FCE48[x] = ((unk_D_800FC6D4_008*)D_800FCEC8 + i)->unk_00;
++        D_800FCE48[x] = (u8*)D_800FC6D4 + ((unk_D_800FC6D4_008*)D_800FCEC8 + i)->unk_00; // PORT: offset from the table
+         D_800FCE88[x] = D_800FCE48[x];
+         i++;
+         
+@@ -927,6 +1054,9 @@ void GbMusic_BindSequenceTracks(u8 arg0) {
+ }
+ 
+ s32 GbMusic_CountActiveHighChannels(void) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     s32 ret = 0;
+     s32 i;
+ 
+@@ -945,20 +1075,25 @@ typedef struct unk_80044A50_008 {
+ } unk_80044A50_008;
+ 
+ void func_80044A50(unk_D_800FC6D4* arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
++    // PORT: the table is big-endian ROM data with 32-bit offsets from its start; byte-swap it once and keep the
++    // offsets (readers add the table's address) instead of relocating them into 32-bit pointers.
+     s32 i, end;
+-    u32 base;
+-    u8* temp_v1;
++    u8* records;
+     unk_80044A50_008* temp_v0;
+     if (arg0->flags != 0) return;
++    PortA_Swap16(arg0, 4);
++    PortA_Swap32(&arg0->offset, 1);
++    for (i = 0; i < arg0->num_entries; i++) {
++        PortA_Swap16(&arg0->entries[i].unk_00, 1);
++    }
+     end = arg0->unk_04;
+-    base = (u32)arg0;
+-    temp_v1 = arg0->offset;
+-    temp_v1 += base;
+-    arg0->offset = (u32)temp_v1;
++    records = (u8*)arg0 + arg0->offset;
+     for (i = 0; i != (end * 3); i++) {
+-        temp_v0 = (unk_80044A50_008*)((u32)i * 8 + (u32)temp_v1);
+-        temp_v0 += 0;
+-        temp_v0->unk_00 += base;
++        temp_v0 = (unk_80044A50_008*)(records + i * 8);
++        PortA_Swap32(&temp_v0->unk_00, 1);
+     }
+     arg0->flags = 1;
+ }
+diff --git a/src/gb_audio_render.c b/src/gb_audio_render.c
+index b926f73a1d7e266718513ede408058c4e1890aef..7b114dd631eb1010ba2764b1cad9ce40b846ed2e 100644
+--- a/src/gb_audio_render.c
++++ b/src/gb_audio_render.c
+@@ -1,3 +1,4 @@
++#include "src/port_audio.h"
+ #include "gb_audio_render.h"
+ #include "src/rom_device.h"
+ #include "src/audio_commands.h"
+@@ -85,8 +86,11 @@ unk_D_800FCFD8 D_800FCFD8;
+ u32 D_800FD004;
+ unk_D_800FD008 D_800FD008;
+ u8 D_800FD048[32];
+-unk_D_800FD068 D_800FD068[199];
+-u8 D_800FD6A0[8];
++// PORT: on the N64 the 200-entry (0xC8) register-write queue ends in D_800FD6A0's first 8 bytes, and the register
++// mirror D_800FD6A0, indexed by the register's low byte (0x10-0x3F), runs on into the padding at 0x800FD6B0. Here
++// they get their full sizes (out of bounds, the writes hit whatever the host linker placed after them).
++unk_D_800FD068 D_800FD068[200];
++u8 D_800FD6A0[0x40];
+ u32 D_800FD6A8;
+ u32 D_800FD6AC;
+ static u8 D_800FD6B0[0x30]; // pad
+@@ -212,10 +216,16 @@ s32 D_80078ED8 = 0;
+ s32 D_80078EDC = 0;
+ 
+ void GbAudio_GenerateSamples(s16* arg0, s32 arg1, u32 arg2, f32 arg3) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     func_80049A60(arg2);
+ }
+ 
+ void GbAudio_QueueRegisterWrite(u16 arg0, u8 arg1, u16 arg2) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     D_800FD068[D_800FD6AC].unk_00 = (u8*)&D_800FD008.unk_00[(arg0 & 0xFF) - 0x10];
+     D_800FD068[D_800FD6AC].unk_04 = arg1;
+     D_800FD068[D_800FD6AC].unk_06 = arg2 + 1;
+@@ -226,10 +236,16 @@ void GbAudio_QueueRegisterWrite(u16 arg0, u8 arg1, u16 arg2) {
+ }
+ 
+ u8 GbAudio_GetRegisterValue(u16 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     return D_800FD6A0[arg0 & 0xFF];
+ }
+ 
+ void func_800498A8(u32 arg0, u8 arg1, u32 arg2) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     u32 temp_t3;
+     u8* p;
+     s32 i;
+@@ -301,6 +317,9 @@ s16 func_8004A474(void);
+ s16 func_8004A89C(void);
+ 
+ void func_80049A60(u32 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     s32 pad[3];
+     s16 sp4C[4];
+     u32 i;
+@@ -379,6 +398,9 @@ void func_80049A60(u32 arg0) {
+ }
+ 
+ void GbAudio_ApplyQueuedWrites(u16 arg0) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     while (D_800FD068[D_800FD6A8].unk_06 >= arg0) {
+         D_800FD068[D_800FD6A8].unk_00[0] = D_800FD068[D_800FD6A8].unk_04;
+         D_800FD068[D_800FD6A8].unk_00[1] = 1;
+@@ -390,6 +412,9 @@ void GbAudio_ApplyQueuedWrites(u16 arg0) {
+ }
+ 
+ s16 func_80049DF0(void) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     s32 i;
+     s32 changed;
+     s32 nr14;
+@@ -582,6 +607,9 @@ skip:
+ }
+ 
+ s16 func_8004A474(void) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     s32 i;
+     s32 changed;
+     s32 nr24;
+@@ -715,6 +743,9 @@ s16 func_8004A474(void) {
+ }
+ 
+ s16 func_8004A89C(void) {
++    if (PORT_AUDIO_OFF()) {
++        return 0;
++    }
+     s32 i;
+     s32 nr43;
+     s32 row;
+@@ -739,7 +770,7 @@ s16 func_8004A89C(void) {
+         row = nr43 & 7;
+         col = (GB_REG(0x12) & 0xF0) >> 4;
+         entry = &GB_NOISE_TABLE[row][col];
+-        sampleId = entry->sampleId;
++        sampleId = (u8)(*(u32*)entry >> 24); // PORT: the id is the first (big-endian) byte of a u32 word
+         if (sampleId == 0xFF) {
+             D_800FCFD8.unk_28 = 0;
+             return 0;
+@@ -751,7 +782,7 @@ s16 func_8004A89C(void) {
+         if (sampleId != D_800FCFD8.unk_04) {
+             D_800FCFD8.unk_04 = sampleId;
+             ent = (unk_D_800FC6CC*)((u32*)D_800FC6CC + (D_800FCFD8.unk_04 << 1));
+-            Rom_DmaRead(ent->unk_00, (u32)D_800FC6D0, ent->unk_04);
++            Rom_DmaRead(ent->unk_00, (uintptr_t)D_800FC6D0, ent->unk_04);
+         }
+ 
+         D_800FCFD8.unk_08 = 0;
+@@ -811,7 +842,7 @@ s16 func_8004A89C(void) {
+ 
+     ent = (unk_D_800FC6CC*)((u32*)D_800FC6CC + (D_800FCFD8.unk_04 << 1));
+     if (1) {}
+-    sample = ((s16*)D_800FC6D0)[D_800FCFD8.unk_08];
++    sample = (s16)PortA_BE16((u8*)D_800FC6D0 + 2 * D_800FCFD8.unk_08); // PORT: big-endian samples from ROM
+     D_800FCFD8.unk_10 += 1.0f;
+     if (D_800FCFD8.unk_0C <= D_800FCFD8.unk_10) {
+         D_800FCFD8.unk_08++;
+@@ -836,6 +867,9 @@ s16 func_8004A89C(void) {
+ }
+ 
+ void GbAudio_ClearInterpolationHistory(void) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     s32 i;
+ 
+     for (i = 0; i < ARRAY_COUNT(D_800FD6F8); i++) {
+@@ -845,6 +879,9 @@ void GbAudio_ClearInterpolationHistory(void) {
+ }
+ 
+ void GbAudio_ClearOutputBuffer(void) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+     s32 i;
+ 
+     for (i = 0; i < 0xB80; i++) {
+@@ -855,5 +892,8 @@ void GbAudio_ClearOutputBuffer(void) {
+ }
+ 
+ void func_8004AD2C(void) {
++    if (PORT_AUDIO_OFF()) {
++        return;
++    }
+ 
+ }
+diff --git a/src/gb_data.c b/src/gb_data.c
+index 2a7be588569a27f567d037bdf0cccb54014c4531..b77087225c1c9a1d3b4bf153ea92f4bc1cbc23bc 100644
+--- a/src/gb_data.c
++++ b/src/gb_data.c
+@@ -6,9 +6,7 @@
+ #include "src/gb_tower.h"
+ #include "src/hal_libc.h"
+ #include "src/util.h"
+-#if defined(VERSION_JP)
+ #include "src/pokemon_stats.h"
+-#endif
+ 
+ #if !defined(VERSION_JP)
+ // Name strings for these tables live in status_icons.c.
+@@ -490,7 +488,10 @@ unk_D_80072338 gMoveDisplayInfo[166] = {
+     { {0}, 0, {0, 0}, NULL, NULL },
+ };
+ 
+-MoveData gMoveData[165] = {
++// PORT: element -1 kept. Code indexes gMoveData[move - 1] for empty move slots (move 0); on the N64 those bytes are the
++// tail of the last (empty) gMoveDisplayInfo entry, all zero.
++MoveData gMoveDataWithZeroth[166] = {
++    { 0 },
+     {1, 0, 40, 0, 0xFF, 35}, {2, 0, 50, 0, 0xFF, 25}, {3, 29, 15, 0, 216, 10}, {4, 29, 18, 0, 216, 15},
+     {5, 0, 80, 0, 216, 20}, {6, 16, 40, 0, 0xFF, 20}, {7, 4, 75, 20, 0xFF, 15}, {8, 5, 75, 25, 0xFF, 15},
+     {9, 6, 75, 23, 0xFF, 15}, {10, 0, 40, 0, 0xFF, 35}, {11, 0, 55, 0, 0xFF, 30}, {12, 38, 1, 0, 76, 5},
+@@ -754,8 +755,10 @@ char* Text_UntranscodeName(char* arg0, char* arg1) {
+     char* sp34 = arg0;
+     char* sp18;
+     char* temp_s1 = Text_GetPlayerLabel(1);
++    char* end = arg1 + 11; // PORT: a Game Boy name field is 11 bytes (10 characters + 0x50); an empty Transfer Pak slot
++                           // has a zeroed field without the terminator, and the loop read and wrote past both buffers
+ 
+-    while (*arg1 != 'P') {
++    while (*arg1 != 'P' && arg1 < end) {
+         if (*arg1 == ']') {
+             memcpy(arg0, temp_s1, strlen(temp_s1) + 1);
+             arg0 += strlen(temp_s1);
+@@ -814,7 +817,7 @@ char* Text_CopyString(char* arg0, char* arg1) {
+ #endif
+ 
+ char* Text_CopySpeciesName(char* arg0, s32 arg1) {
+-    Text_CopyString(arg0, (char*)*(u32*)D_8006FEE8[arg1]);
++    Text_CopyString(arg0, D_8006FF00[arg1 - 1].name); // PORT: was a raw read at 0x8006FEE8 + 0x1C * id (the name pointer, +4 of record id-1)
+     return arg0;
+ }
+ 
+diff --git a/src/gb_data.h b/src/gb_data.h
+index 2aa2ecd7fc456e597f01785e0da1b24601b4e2db..8bbf76fcf57049ff51257092f5b60402986ef6a1 100644
+--- a/src/gb_data.h
++++ b/src/gb_data.h
+@@ -51,9 +51,11 @@ typedef struct SpeciesData {
+     /* 0x16 */ u8 padding;
+ } SpeciesData; // size = 0x17
+ 
+-extern PokemonStats gBaseStats[];
+ // Indexed by species ID - 1: Bulbasaur through Mew, then the Substitute doll.
+ extern SpeciesData gSpeciesData[152];
++// PORT: gBaseStats is an interior alias the original linker script places 0x1C bytes before gSpeciesData (1-based
++// species index into the base-stats table); the host has no linker alias, so it is spelled out.
++#define gBaseStats ((PokemonStats*)((u8*)gSpeciesData - 0x1C))
+ 
+ typedef struct unk_D_80071D88 {
+     /* 0x00 */ char* type_name;
+diff --git a/src/gb_save.c b/src/gb_save.c
+index 5b632b297c71f1e35a6b5b48c66ea3e8ebcb3479..9a54aab7096f59c45204589263eba24cdb1e09f9 100644
+--- a/src/gb_save.c
++++ b/src/gb_save.c
+@@ -11,14 +11,14 @@
+ #include "src/stage_loader.h"
+ 
+ static OSMesgQueue D_800AF750;
+-static s32 D_800AF768;
++static OSMesg D_800AF768; // PORT64: message buffer (was s32)
+ 
+ static Color_RGBA8 D_800758A0[] = {
+     { 0xF0, 0xF0, 0xF0, 0xFF },
+     { 0xE1, 0xE1, 0xE1, 0xFF },
+ };
+ 
+-static u32 D_800758A8[] = {
++static uintptr_t D_800758A8[] = { // PORT64: holds addresses
+     D_04001878, D_040018E0, D_04001948, D_040019B0, D_04001A18, D_04001A80, D_04001AF0,
+     D_04001B58, D_04001BC0, D_04001C28, 0x10,       0x10,       0x10,       D_4001010,
+ };
+@@ -123,7 +123,7 @@ s32 Ui_AdjustVerticalSelection(unk_func_8002DCB8_arg0* arg0, s32 arg1) {
+     return ret;
+ }
+ 
+-s32 Ui_HandleVerticalSelectionInput(s32 arg0) {
++s32 Ui_HandleVerticalSelectionInput(intptr_t arg0) {
+     s32 sp1C = Input_GetRepeatedDPad() & 0xFFFF;
+ 
+     Ui_AdjustVerticalSelection(arg0, sp1C);
+@@ -432,7 +432,7 @@ s32 BattleMon_CountMoves(BattleMon* arg0) {
+     return i;
+ }
+ 
+-ret_func_8002ED08* Move_GetDisplayInfo(s32 arg0) {
++ret_func_8002ED08* Move_GetDisplayInfo(intptr_t arg0) {
+     if ((arg0 <= 0) || (arg0 > 165)) {
+         return NULL;
+     }
+@@ -510,7 +510,7 @@ void Ui_SendNullMessage(void) {
+     osSendMesg(&D_800AF750, NULL, 1);
+ }
+ 
+-void Ui_ReceiveMessage(OSMesg arg0) {
++void Ui_ReceiveMessage(s32* arg0) { // PORT64: callers pass an s32; an untyped pointer made the receive write 8 bytes
+     osRecvMesg(&D_800AF750, arg0, 1);
+ }
+ 
+diff --git a/src/gb_save.h b/src/gb_save.h
+index 978a4a692a8fe8f8a97bc7b6315b5129bc8fdea6..71c12b5b1dc3af94796bb606910e4fee2754589d 100644
+--- a/src/gb_save.h
++++ b/src/gb_save.h
+@@ -74,7 +74,7 @@ extern s32 D_80075BD0[];
+ void GbSave_BuildPortSummary(unk_func_8002D860* arg0, s32 arg1);
+ void Gfx_DrawTiledTextureStrip(unk_func_88500020* arg0, s32 arg1, s32 a2);
+ s32 Ui_AdjustVerticalSelection(unk_func_8002DCB8_arg0* arg0, s32 arg1);
+-s32 Ui_HandleVerticalSelectionInput(s32 arg0);
++s32 Ui_HandleVerticalSelectionInput(intptr_t arg0);
+ s32 Ui_AdjustHorizontalSelection(unk_func_8002DD98_arg0* arg0, s32 arg1);
+ s32 Ui_HandleHorizontalSelectionInput(unk_func_8002DD98_arg0* arg0);
+ void Ui_AdjustSteppedScrollSelection(unk_func_8002DE78_arg0* arg0);
+@@ -88,7 +88,7 @@ s32 Ui_GetSelectionDirection(unk_func_8002EBD8_arg0* arg0);
+ s32 GbSave_GameToCategoryIndex(s32 arg0);
+ Color_RGBA8 Color_InterpolateFromGray(Color_RGBA8 arg0, f32 arg1);
+ s32 BattleMon_CountMoves(BattleMon* arg0);
+-ret_func_8002ED08* Move_GetDisplayInfo(s32 arg0);
++ret_func_8002ED08* Move_GetDisplayInfo(intptr_t arg0);
+ MoveData* Move_GetData(s32 arg0);
+ s32 Species_GetMoveSlot(BattleMon* arg0, s32 arg1);
+ s32 Move_NormalizeDisplayIndex(s32 arg0);
+@@ -96,7 +96,7 @@ s32 Deck_GetEntryCountForType(s32 arg0, s32 arg1, s32 arg2);
+ void Ui_InitInputMessageQueue(void);
+ void Ui_SendMessageAndPollInput(OSMesg arg0);
+ void Ui_SendNullMessage(void);
+-void Ui_ReceiveMessage(OSMesg arg0);
++void Ui_ReceiveMessage(s32* arg0);
+ void State_PokemonLab(void);
+ s32 LabItem_IsQuantitylessItem(s32 arg0);
+ s32 LabItem_IsQuantitylessItemForOperation(s32 arg0);
+diff --git a/src/gb_tower_audio.c b/src/gb_tower_audio.c
+index 6e3c26252a81b633dde8a532ffc324f1899bffc2..16367b35418a264de5aab97efb9412f4ad9e3f08 100644
+--- a/src/gb_tower_audio.c
++++ b/src/gb_tower_audio.c
+@@ -8,6 +8,7 @@
+ #include "scheduler.h"
+ #include "util.h"
+ #include "src/fragments/gb_tower_emulator/gb_tower_emulator.h"
++#include "src/gb_tower.h"
+ 
+ unk_D_800AA660* D_800AA660;
+ unk_D_800AA664* D_800AA664;
+@@ -51,11 +52,11 @@ void GbTower_EmuThread(UNUSED void* arg0) {
+ }
+ 
+ void GbTower_Start(UnkInputStruct8000D738* arg0) {
+-    s32 temp_v0;
++    intptr_t temp_v0;
+ 
+     main_pool_push_state('GBEM');
+-    D_800AA660 = main_pool_alloc(0x2210, 0);
+-    D_800AA664 = main_pool_alloc(0x21E0, 0);
++    D_800AA660 = main_pool_alloc(sizeof(unk_D_800AA660), 0); // PORT64: host struct sizes (were 0x2210 / 0x21E0)
++    D_800AA664 = main_pool_alloc(sizeof(unk_D_800AA664), 0);
+ 
+     FRAGMENT_LOAD(FRAGMENT_GB_TOWER_EMULATOR);
+     temp_v0 = ASSET_LOAD2(fonts, 1, 1);
+@@ -64,8 +65,8 @@ void GbTower_Start(UnkInputStruct8000D738* arg0) {
+     D_800AA660->font2 = BinArchive_GetFile(temp_v0, 1);
+     D_800AA660->unk_2204 = *arg0;
+     osCreateMesgQueue(&D_800AA660->queue2, &D_800AA660->mesg, 1);
+-    osCreateThread(&D_800AA664->thread, 10, GbTower_AudioThread, NULL, (u32)D_800AA664 + 0x21E0, 0x11);
+-    osCreateThread(&D_800AA660->thread, 8, GbTower_EmuThread, NULL, (u32)D_800AA660 + 0x21E0, 0xF);
++    osCreateThread(&D_800AA664->thread, 10, GbTower_AudioThread, NULL, (uintptr_t)D_800AA664 + 0x21E0, 0x11);
++    osCreateThread(&D_800AA660->thread, 8, GbTower_EmuThread, NULL, (uintptr_t)D_800AA660 + 0x21E0, 0xF);
+     D_800AA668 = GbTower_SetPollMask(0);
+     osStartThread(&D_800AA660->thread);
+ }

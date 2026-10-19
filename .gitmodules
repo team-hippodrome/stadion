@@ -7,4 +7,4 @@
 [submodule "game"]
 	path = game
 	url = https://github.com/michiiik/pokestadium
-	branch = pc-port
+	branch = master

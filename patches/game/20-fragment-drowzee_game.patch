@@ -1,0 +1,81 @@
+diff --git a/src/fragments/drowzee_game/drowzee_game.c b/src/fragments/drowzee_game/drowzee_game.c
+index b8c2d701aba333e8351e6cbb3d002594f57d7b05..77dfa0a1722ef041c9998d43b5366a72b931379c 100644
+--- a/src/fragments/drowzee_game/drowzee_game.c
++++ b/src/fragments/drowzee_game/drowzee_game.c
+@@ -51,7 +51,7 @@ static unk_func_87801684 D_864028E4[] = {
+     { 0x03040580, 18 }, { 0x03040980, 2 }, { 0x03040D80, 8 }, { 0x03040980, 2 }, { NULL, 0 },
+ };
+ 
+-static u32 D_8640290C[] = {
++static uintptr_t D_8640290C[] = { // PORT64: holds addresses
+     0x0C00FFFF, 0x05000000, 0x0B00001E, 0x00000000, 0x014000F0, 0x0000000F, 0x00000000, 0x00000000, 0x05000000,
+     0x0D000000, 0x05000000, 0x14000000, 0x002B0012, 0xFFFFFF32, 0x16FFFFFF, 0x0F000003, 0x05000000, 0x1F00FFFF,
+     0x00000000, 0x00000000, 0x00000000, 0x00640064, 0x00640000, 0x06000000, 0x05000000, 0x0A000000, &D_800AC840,
+@@ -289,7 +289,7 @@ void DrowzeeGame_DrawPlayerOverlay(UNUSED s32 arg0) {
+     for (i = 0; i < 4; i++) {
+         D_864052C8 = &D_86404778[i];
+ 
+-        temp_v0 = Gfx_AllocDisplayList(0x80);
++        temp_v0 = Gfx_AllocDisplayList(GFX_N64_BYTES(0x80));
+         D_864052C8->unk_190->unk_18 = temp_v0;
+ 
+         if ((D_864052C8->unk_010 == 0) || (D_864052C8->unk_00C == 1)) {
+@@ -943,7 +943,7 @@ void DrowzeeGame_LoadAssets(void) {
+     Widget_PauseMenuInit();
+ }
+ 
+-void DrowzeeGame_Main(UNUSED s32 arg0, UNUSED s32 arg1) {
++s32 DrowzeeGame_Main(UNUSED s32 arg0, UNUSED s32 arg1) {
+     StageContext* sp24;
+ 
+     main_pool_push_state('MINI');
+@@ -964,5 +964,5 @@ void DrowzeeGame_Main(UNUSED s32 arg0, UNUSED s32 arg1) {
+ 
+     main_pool_pop_state('MINI');
+ 
+-    Widget_PauseMenuGetResult();
++    return Widget_PauseMenuGetResult(); // PORT: the caller uses this result (on the N64 it was left in v0)
+ }
+diff --git a/src/fragments/drowzee_game/drowzee_game.h b/src/fragments/drowzee_game/drowzee_game.h
+index 82104b1d176e27b76f7ad3a063e070bbe68e0fb5..db8929321445fb43240b48bb84af1ea3c3e543c8 100644
+--- a/src/fragments/drowzee_game/drowzee_game.h
++++ b/src/fragments/drowzee_game/drowzee_game.h
+@@ -60,7 +60,7 @@ void DrowzeeGame_ShowResultText(void);
+ void DrowzeeGame_InitCamera(void);
+ void DrowzeeGame_InitPlayerOverlays(void);
+ void DrowzeeGame_LoadAssets(void);
+-void DrowzeeGame_Main(UNUSED s32 arg0, UNUSED s32 arg1);
++s32 DrowzeeGame_Main(UNUSED s32 arg0, UNUSED s32 arg1);
+ 
+ s8 DrowzeeGame_ComputeAITimingBias(u8 arg0, s32 arg1);
+ 
+diff --git a/src/fragments/drowzee_game/drowzee_game_1.c b/src/fragments/drowzee_game/drowzee_game_1.c
+index 8f2316f6d5334205ce6758d9dafff87fdf9c01c3..aaab7a2a4acda373cc6e0f79a77ee73ba180d4f3 100644
+--- a/src/fragments/drowzee_game/drowzee_game_1.c
++++ b/src/fragments/drowzee_game/drowzee_game_1.c
+@@ -201,6 +201,7 @@ Gfx D_86403BB0[] = {
+     gsSPEndDisplayList(),
+ };
+ 
++// PORT: one array (the N64 layout): the game indexes across these symbols
+ static Vtx D_86403C70[] = {
+     VTX(-152, 676, 0, 0, -1146, 0xFF, 0x96, 0x96, 0x40), VTX(-158, 594, 0, 0, -655, 0xFF, 0x96, 0x96, 0x40),
+     VTX(12, 583, 0, 1024, -655, 0xFF, 0x96, 0x96, 0x40), VTX(62, 683, 0, 1024, -1146, 0xFF, 0x96, 0x96, 0x40),
+@@ -218,9 +219,6 @@ static Vtx D_86403C70[] = {
+     VTX(-69, 177, 0, 0, 5242, 0x96, 0xFF, 0x96, 0xB2),   VTX(4, 177, 0, 1024, 5242, 0x96, 0xFF, 0x96, 0xB2),
+     VTX(-51, 144, 0, 0, 5734, 0x96, 0xFF, 0x96, 0xC5),   VTX(-5, 134, 0, 1024, 5734, 0x96, 0xFF, 0x96, 0xC5),
+     VTX(-64, 113, 0, 0, 6225, 0x96, 0xFF, 0x96, 0xC5),   VTX(-21, 102, 0, 1024, 6225, 0x96, 0xFF, 0x96, 0xC5),
+-};
+-
+-static Vtx D_86403E70[] = {
+     VTX(-64, 113, 0, 0, 6225, 0xFF, 0xFF, 0x96, 0xD8),   VTX(-69, 94, 0, 0, 6717, 0xFF, 0xFF, 0x96, 0xD8),
+     VTX(-20, 86, 0, 1024, 6717, 0xFF, 0xFF, 0x96, 0xD8), VTX(-21, 102, 0, 1024, 6225, 0xFF, 0xFF, 0x96, 0xD8),
+     VTX(-65, 55, 0, 0, 7208, 0xFF, 0xFF, 0x96, 0xEB),    VTX(-22, 53, 0, 1024, 7208, 0xFF, 0xFF, 0x96, 0xEB),
+@@ -228,6 +226,7 @@ static Vtx D_86403E70[] = {
+     VTX(-32, 18, 0, 0, 8192, 0xFF, 0xFF, 0xFF, 0xFE),    VTX(-3, 18, 0, 1024, 8192, 0xFF, 0xFF, 0xFF, 0xFE),
+     VTX(-2, 0, 0, 0, 8683, 0xFF, 0xFF, 0xFF, 0xFE),      VTX(4, 0, 0, 1024, 8683, 0xFF, 0xFF, 0xFF, 0xFE),
+ };
++#define D_86403E70 (D_86403C70 + 32)
+ 
+ Gfx D_86403F30[] = {
+     gsDPPipeSync(),

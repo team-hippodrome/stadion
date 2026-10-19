@@ -78,6 +78,10 @@ file(GLOB_RECURSE STADIUM_GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_
 file(STRINGS cmake/ultralib_sources.txt PORT_ULTRALIB_SOURCES REGEX "^[^#]")
 list(TRANSFORM PORT_ULTRALIB_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/game/lib/ultralib/src/)
 list(APPEND STADIUM_GAME_SOURCES ${PORT_ULTRALIB_SOURCES})
+# tables generated from the decomp's link map (tools/gen_func_table.py, tools/gen_fragment_entries.py); they are compiled
+# with the game code but kept in the port, so the game sources are the decomp plus patches/game only
+list(APPEND STADIUM_GAME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_func_table.c
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_fragment_entries.c)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ultralib_sources.txt)
 # C arrays of 16/32-bit words in the game sources (textures among them need N64 byte order): their files are compiled
 # through generated wrappers that register the arrays with the renderer (see tools/gen_word_arrays.py)
@@ -119,7 +123,7 @@ if(_n GREATER 0)
 endif()
 target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/frag_sections.c)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_frag_sections.py
-             ${CMAKE_CURRENT_SOURCE_DIR}/game/src/port_fragment_entries.c)
+             ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_fragment_entries.c)
 set_target_properties(stadium_game PROPERTIES C_STANDARD 11 C_EXTENSIONS ON)
 target_include_directories(stadium_game PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/game

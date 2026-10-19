@@ -34,7 +34,7 @@ arguments, each shows the launcher (below):
 The game code needs clang (for Windows: llvm-mingw); GCC and MSVC are not supported.
 
 ```bash
-tools/setup.sh                      # submodules + the port's libultraship patch (patches/libultraship.patch)
+tools/setup.sh                      # submodules + the port's patches (patches/libultraship.patch, patches/game/)
 ```
 
 **macOS** (Homebrew):
@@ -112,7 +112,7 @@ per player with the launcher's Controls button:
 
 ## Layout
 
-- `game/` — submodule: the decompiled game (C), adapted for 64-bit hosts (see below)
+- `game/` — submodule: the decompiled game (C), unmodified; the port's changes are in `patches/game/` (see below)
 - `src/port/` — host layer: OS/threads, VI, controllers, sound (audio microcode, AI), Transfer Pak, flash saves, GB core
 - `src/port/sdk/` — stand-ins for the N64 SDK headers the game includes (`ultra64.h`, `PR/*.h`, force-included `port_compat.h`)
 - `libultraship/` — submodule; the port's renderer changes are in `patches/libultraship.patch`
@@ -124,10 +124,16 @@ per player with the launcher's Controls button:
 
 ## The game submodule
 
-`game/` is branch `pc-port` of [michiiik/pokestadium](https://github.com/michiiik/pokestadium/tree/pc-port): the
-decompilation at commit 697f9ba7 plus commits that adapt its sources for 64-bit hosts. Only `game/src`, `game/include`
-and the libultra files listed in `cmake/ultralib_sources.txt` are compiled; the rest of the decomp (asm, assets,
-tools) is unused. To change game code: commit in `game/` on `pc-port`, push it there, then commit the new submodule
-commit here. `tools/gen_func_table.py` and `tools/gen_fragment_entries.py` write into `game/src`, so their output is
-committed the same way; they (and `tools/gen_abs_syms.py`) read the map of an unmodified decomp build in
+`game/` is an unmodified commit of the decompilation, [michiiik/pokestadium](https://github.com/michiiik/pokestadium)
+(`master`). Everything the port changes in it (64-bit pointers, big-endian ROM data, sound, Game Boy, port hooks) is
+kept here as patches in `patches/game/`, one per area, and `tools/setup.sh` (and CI) applies them with
+`tools/game_patches.py apply`. Only `game/src`, `game/include` and the libultra files listed in
+`cmake/ultralib_sources.txt` are compiled; the rest of the decomp (asm, assets, tools) is unused.
+
+To change game code: edit files in `game/`, then `python3 tools/game_patches.py export` and commit `patches/game`.
+To move to a newer decomp commit: `python3 tools/game_patches.py reset`, check out the new commit in `game/`, apply
+(fix the patches that no longer apply, e.g. with `git apply --3way` and the decomp's renames), export, and commit the
+submodule pointer together with `patches/game`. Then regenerate the tables in `src/port/generated/` with
+`tools/gen_func_table.py`, `tools/gen_fragment_entries.py` and `tools/gen_abs_syms.py`: they read the map of an
+unmodified decomp build of that same commit (`build/pokestadium-us.map`) in `$PORT_DECOMP_DIR`, by default
 `../pokestadium`.

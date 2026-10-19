@@ -1,0 +1,1553 @@
+diff --git a/src/fragments/battle_engine/battle_engine.h b/src/fragments/battle_engine/battle_engine.h
+index 09454ed115097da5b6796f74c5dac6befc148f9d..18a724b04646f640319c00262f47465aa95d9466 100644
+--- a/src/fragments/battle_engine/battle_engine.h
++++ b/src/fragments/battle_engine/battle_engine.h
+@@ -61,21 +61,10 @@ typedef struct ActivePokemonState {
+     /* 0xC8 */ Controller* unk_C8;
+ } ActivePokemonState; // size = 0xCC
+ 
+-typedef struct PresentationLayout {
+-    /* 0x00 */ DisplayNodeHeader node;
+-    /* 0x18 */ char unk18[0x4];
+-    /* 0x1C */ s16 unk_1C;
+-    /* 0x1E */ s16 unk_1E;
+-    /* 0x20 */ s16 unk_20;
+-    /* 0x22 */ char unk22[0xA];
+-    /* 0x2C */ f32 unk_2C;
+-    /* 0x30 */ char unk30[0x4];
+-    /* 0x34 */ f32 unk_34;
+-    /* 0x38 */ f32 unk_38;
+-    /* 0x3C */ char unk3C[0x6C];
+-    /* 0xA8 */ Vec3f unk_A8;
+-    /* 0xB4 */ Vec3f unk_B4;
+-} PresentationLayout; // size >= 0xC0
++// PORT: this was a flat view of a camera node (CameraNode): 0x1C/0x1E/0x20 = viewport x/y/width, 0x2C = fovy,
++// 0x34/0x38 = near/far, 0xA8/0xB4 = eye/at. Its viewport fields follow a pointer, so the flat view put them at the
++// wrong host offsets (the trainer panel slide-in then read the camera's Vp pointer); it is the camera type itself.
++typedef struct CameraNode PresentationLayout;
+ 
+ typedef struct PresentationState {
+     /* 0x000 */ DisplayObject unk_000;
+@@ -279,7 +268,7 @@ typedef struct unk_D_843C4DEC {
+ } unk_D_843C4DEC; // size = 0x58
+ 
+ typedef struct BattleSceneStateTickSlot {
+-    /* 0x00 */ s32 unk_00;
++    /* 0x00 */ struct Battler* unk_00; // PORT: the callback's Battler argument (was s32)
+     /* 0x04 */ BattleSceneStateCallback unk_04;
+ } BattleSceneStateTickSlot; // size = 0x8
+ 
+@@ -389,9 +378,10 @@ typedef struct unk_D_84385790 {
+     /* 0x04 */ Color_RGBA8 unk_04;
+ } unk_D_84385790; // size = 0x8
+ 
++// PORT: a display-list graph node (unk_D_86002F34_alt7): the flat view put unk_18 (the node's display list) on the
++// host GraphNode's callback field. unk_14 was the node's callback data: node.callbackArg.
+ typedef struct arg1_func_84344CE8 {
+-    /* 0x00 */ char unk00[0x14];
+-    /* 0x14 */ u8* unk_14;
++    /* 0x00 */ GraphNode node;
+     /* 0x18 */ Gfx* unk_18;
+ } arg1_func_84344CE8; // size >= 0x1C
+ 
+@@ -909,8 +899,8 @@ typedef struct unk_func_8438220C {
+ } unk_func_8438220C; // size = 0xBC
+ 
+ typedef struct unk_func_8437F85C_arg3 {
+-    /* 0x00 */ u8 unk_00[3][3];
+-} unk_func_8437F85C_arg3; // size = 0x3
++    /* 0x00 */ u8 unk_00[8][3]; // PORT: 8 groups, as the callers use (sp78[0x18]); was [3][3]
++} unk_func_8437F85C_arg3; // size = 0x18
+ 
+ extern unk_D_8438E7B0* D_84384570[];
+ extern SpeciesModelTransform* D_84384578[];
+@@ -923,8 +913,8 @@ extern u8 D_843845F8;
+ extern u8 D_843845FC[];
+ extern s16 D_84384670[];
+ extern unk_D_843847BC D_843847BC[2];
+-extern unk_D_86B0C160 D_843847EC[3];
+-extern unk_D_86B0C160 D_84384888[2];
++extern unk_D_86B0C160 D_843847EC[5];
++#define D_84384888 (&D_843847EC[3]) // PORT: tail of D_843847EC (see battle_engine_2F3CB0.c)
+ extern unk_D_86B0C160 D_843848F0;
+ extern unk_D_86B0C160 D_84384924;
+ extern unk_D_86B0C160 D_84384958;
+@@ -1046,7 +1036,7 @@ s32 Battle_StageLightAngleCallbackB(s32 event, unk_D_86002F34_alt18* light);
+ s32 Battle_StageMaterialTintCallback(s32 event, DisplayObject* object);
+ void Battle_SetStageTintColor(u8 r, u8 g, u8 b);
+ void Battle_SetStageScale(f32 scale);
+-u16 Battle_TintTexel16(u16 color);
++u16 Battle_TintTexel16(uintptr_t color);
+ void Battle_DrawStageBackdrop(void);
+ void Battle_RenderActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer* thumbnail);
+ void Battle_DrawClippedTextureRect(s32 x1, s32 y1, s32 x2, s32 y2);
+@@ -1090,9 +1080,9 @@ void BattleScene_ReloadMoveResourceList(ActivePokemon* active_pokemon);
+ void Battle_MakeSubstitute(ActivePokemon* active_pokemon);
+ void BattleScene_DestroySubstitute(ActivePokemon* active_pokemon);
+ s32 BattleScene_FindU16InByteArray(u16 arg0, u8* arg1, s32 arg2);
+-void Battle_MarkIllegalMoves(ActivePokemon* arg0, u16 arg1, SpeciesLearnsetBuffer* arg2, SpeciesLearnsetBuffer* arg3);
++void Battle_MarkIllegalMoves(ActivePokemon* active_pokemon, u16 arg1, SpeciesLearnsetBuffer* arg2, SpeciesLearnsetBuffer* arg3);
+ void Battle_InitializeMoveIllegalityMask(ActivePokemon* active_pokemon);
+-void Battle_DmaLoadAnimRecord(u8 arg0, u32 arg1);
++void Battle_DmaLoadAnimRecord(u8 active_pokemon, uintptr_t arg1);
+ void Battle_DmaLoadAnimRecordPair(s32 arg0, SpeciesLearnsetBuffer* arg1, SpeciesLearnsetBuffer* arg2);
+ void Battle_LoadAnimationAndMarkMoveIllegality(ActivePokemon* arg0, s32 arg1);
+ void BattleScene_TickRow10CleanupAndEnterState18(ActivePokemon* active_pokemon);
+@@ -2371,7 +2361,7 @@ void BattleAnim_CallbackStartEffects12And129DelayedModelAnimWait(Particle* arg0)
+ void BattleAnim_StartEffect12DelayedModelAnim(void);
+ void BattleAnim_ApplySpeciesMotionOffset(Particle* arg0);
+ void BattleAnim_StartEffect14ModelAnimAndMoveKeyedTintParticles(void);
+-void BattleAnim_BuildReflectiveTextureDisplayList(Gfx* arg0, s32 arg1, u16 arg2);
++void BattleAnim_BuildReflectiveTextureDisplayList(Gfx* arg0, intptr_t arg1, u16 arg2);
+ void BattleAnim_AllocateReflectiveTextureDisplayList(s32 arg0, arg1_func_84344CE8* arg1);
+ void BattleAnim_ApplyEffect125ModelScaleOffset(Particle* arg0);
+ void BattleAnim_InitEffect125Model(Particle* arg0, UNUSED s16 arg1);
+@@ -2405,7 +2395,7 @@ void BattleAnim_CallbackEndEffect23Descriptor4AAnimatedFade_InitParticle(Particl
+ void BattleAnim_CallbackEndEffect23Descriptor4AAnimatedFade(Particle* arg0);
+ void func_84345038(void);
+ void func_843450B4(void);
+-void func_8434523C(Gfx* arg0, s32 arg1, u16 arg2);
++void func_8434523C(Gfx* arg0, intptr_t arg1, u16 arg2);
+ void func_843452F0(s32 arg0, arg1_func_84344CE8* arg1);
+ void func_84345338(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 arg2);
+ void func_8434539C(s32 arg0, arg1_func_84344CE8* arg1);
+@@ -2419,7 +2409,7 @@ void func_8434575C(void);
+ void BattleAnim_InitEffect49Model(Particle* arg0);
+ void BattleAnim_CallbackEndEffect49Model33Anim34WaitCleanup(Particle* arg0);
+ void BattleAnim_CallbackEndEffect21ModelAnimWait(Particle* arg0);
+-void BattleAnim_BuildEffect49DisplayList(Gfx* arg0, UNUSED s32 arg1, UNUSED u16 arg2);
++void BattleAnim_BuildEffect49DisplayList(Gfx* arg0, UNUSED intptr_t arg1, UNUSED u16 arg2);
+ void BattleAnim_AllocateEffect49DisplayList(s32 arg0, arg1_func_84344CE8* arg1);
+ void func_84345B28(void);
+ void func_84345B84(void);
+@@ -2429,9 +2419,9 @@ void func_84345D74(void);
+ void BattleAnim_InitEffect86Model(Particle* arg0);
+ void BattleAnim_CallbackStartEffect86ModelFadeCycle(Particle* arg0);
+ void func_84345EC0(void);
+-void BattleAnim_BuildEffect63DisplayList(Gfx* arg0, s32 arg1, u16 arg2);
++void BattleAnim_BuildEffect63DisplayList(Gfx* arg0, intptr_t arg1, u16 arg2);
+ void BattleAnim_AllocateEffect63DisplayList(s32 arg0, arg1_func_84344CE8* arg1);
+-void BattleAnim_BuildEffect75DisplayList(Gfx* arg0, UNUSED s32 arg1, UNUSED u16 arg2);
++void BattleAnim_BuildEffect75DisplayList(Gfx* arg0, UNUSED intptr_t arg1, UNUSED u16 arg2);
+ void BattleAnim_AllocateEffect75DisplayList(s32 arg0, arg1_func_84344CE8* arg1);
+ void BattleAnim_InitEffects63And75Model(Particle* arg0);
+ void BattleAnim_CallbackStartEffects63And75ModelAnimWait(Particle* arg0);
+@@ -2440,7 +2430,7 @@ void BattleAnim_CallbackEndEffects10And50ModelAnimColorFade(Particle* arg0);
+ void BattleAnim_ApplyEffects63And75SpeciesScaleOffset(Particle* arg0);
+ void BattleAnim_InitEffects63And75Model38(Particle* arg0);
+ void BattleAnim_CallbackStartEffects63And75Model38FadeIn(Particle* arg0);
+-void func_843466EC(Gfx* arg0, s32 arg1, u16 arg2);
++void func_843466EC(Gfx* arg0, intptr_t arg1, u16 arg2);
+ void func_843467B0(s32 arg0, arg1_func_84344CE8* arg1);
+ void func_843467F8(Gfx* arg0, u8* arg1, UNUSED u16 arg2);
+ void func_84346960(s32 arg0, arg1_func_84344CE8* arg1);
+@@ -2483,7 +2473,7 @@ void func_84348C6C(UNUSED s32 arg0, UNUSED s32 arg1);
+ void func_84348C78(UNUSED s32 arg0, UNUSED s32 arg1);
+ void BattleAnim_CallbackStartEffects71And74And111SpecialModelColorCycle_InitParticle(Particle* arg0);
+ void BattleAnim_CallbackStartEffects71And74And111SpecialModelColorCycle(Particle* arg0);
+-void func_84348F24(Gfx* arg0, s32 arg1, u16 arg2);
++void func_84348F24(Gfx* arg0, intptr_t arg1, u16 arg2);
+ void func_84349010(s32 arg0, arg1_func_84344CE8* arg1);
+ void func_84349058(void);
+ void func_843490A8(void);
+@@ -3176,7 +3166,7 @@ void Battle_ExecuteMoveEffect(void);
+ 
+ 
+ //@src/fragments/battle_engine/battle_engine_361050.c
+-void BattleAI_LoadConfiguration(s32 arg0, u32 arg1);
++void BattleAI_LoadConfiguration(s32 arg0, uintptr_t arg1);
+ void func_843767DC(void);
+ s32 BattleAI_RandomBelowInclusive(s32 arg0);
+ void BattleAI_SeedRandomState(u8 arg0);
+diff --git a/src/fragments/battle_engine/battle_engine_2EC3C0.c b/src/fragments/battle_engine/battle_engine_2EC3C0.c
+index af8b2f357f40d3449cd9cc57d8664a00362fa738..90f611a47533cb14c0ecf43ddcb67255021eacf0 100644
+--- a/src/fragments/battle_engine/battle_engine_2EC3C0.c
++++ b/src/fragments/battle_engine/battle_engine_2EC3C0.c
+@@ -1,3 +1,5 @@
++#include <stdio.h>
++#include <stdlib.h>
+ #include "battle_engine.h"
+ #include "src/model_animation.h"
+ #include "src/model_animation_events.h"
+@@ -30,7 +32,11 @@ ActivePokemon* sSide2ActivePokemon;
+ static MovePresentationCue* sCurrentAnimation;
+ unk_D_84390028 D_84390028[2];
+ static SwayLayoutConfig sDefaultSwayLayout;
+-static BattleSceneStateTickSlot gBattleSceneStateTickSlots[7];
++// PORT: one spare slot. Row enter callbacks (e.g. BattleScene_Row13PlaySequences14And21) clear
++// gBattleSceneStateTickSlots[sBattleSceneStateTickSlotIndex] while the index is still 7 from the last tick loop; on the
++// N64 that writes the unused D_843900A4, on the host it overwrote other battle data (later called as a tick callback:
++// crash after several turns). The loops use slots 0..6 only.
++static BattleSceneStateTickSlot gBattleSceneStateTickSlots[8];
+ static s32 sBattleSceneStateTickSlotIndex;
+ static s32 D_843900A4;
+ f32 D_843900A8[2];
+@@ -356,8 +362,8 @@ void Battle_InitializeMoveIllegalityMask(ActivePokemon* active_pokemon) {
+     }
+ }
+ 
+-void Battle_DmaLoadAnimRecord(u8 read_end, u32 write_start) {
+-    u32 temp_a1 = (u32)_70D3A0_ROM_START + ((u32)&D_72780[read_end - 1] & 0xFFFFFF);
++void Battle_DmaLoadAnimRecord(u8 read_end, uintptr_t write_start) {
++    u32 temp_a1 = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)&D_72780[read_end - 1] & 0xFFFFFF);
+ 
+     Dma_WriteChunks(write_start, temp_a1, temp_a1 + 0x20, 0);
+ }
+@@ -366,12 +372,29 @@ void Battle_DmaLoadAnimRecordPair(s32 read_end, SpeciesLearnsetBuffer* first_lea
+     UNUSED s32 pad[3];
+     u32 buffer_start;
+ 
+-    buffer_start = (u32)_70D3A0_ROM_START + ((u32)&D_72780[read_end] & 0xFFFFFF);
++    buffer_start = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)&D_72780[read_end] & 0xFFFFFF);
+     Dma_WriteChunks(first_learnset_buffer, buffer_start, buffer_start + 0x20, 0);
+-    buffer_start = (u32)_70D3A0_ROM_START + ((u32)&D_73A60[read_end] & 0xFFFFFF);
++    buffer_start = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)&D_73A60[read_end] & 0xFFFFFF);
+     Dma_WriteChunks(second_learnset_buffer, buffer_start, buffer_start + 0x20, 0);
+ }
+ 
++// PORT: the per-species records below are copied raw from the big-endian ROM: swap their f32 words and s16 halves.
++static void Port_SwapWords(void* p, s32 n) {
++    u32* w = p;
++    while (n-- > 0) {
++        *w = Port_Swap32(*w);
++        w++;
++    }
++}
++
++static void Port_SwapSpeciesModelTransform(SpeciesModelTransform* t) {
++    Port_SwapWords(&t->unk_00, 3);
++    t->unk_0C = Port_Swap16(t->unk_0C);
++    t->unk_0E = Port_Swap16(t->unk_0E);
++    t->unk_10 = Port_Swap16(t->unk_10);
++    t->unk_12 = Port_Swap16(t->unk_12);
++}
++
+ void Battle_LoadAnimationAndMarkMoveIllegality(ActivePokemon* pokemon, s32 mark_move_illegality) {
+     s16 sp6E;
+     s32 side_index;
+@@ -387,36 +410,41 @@ void Battle_LoadAnimationAndMarkMoveIllegality(ActivePokemon* pokemon, s32 mark_
+ 
+     ptr = &pokemon->sessionTeams->teamMember[pokemon->state.unk_2C]->pokemonPicked[pokemon->state.unk_18];
+ 
+-    var_a1 = (u32)_70D3A0_ROM_START + ((u32)D_80075BD0[object_type_index] & 0xFFFFFF);
++    var_a1 = (uintptr_t)_70D3A0_ROM_START + ((u32)D_80075BD0[object_type_index] & 0xFFFFFF);
+     if ((pokemon->displayObject.objectType == 0x19) && (ptr->unk_52 & 0x80)) {
+-        var_a1 = (u32)_70D3A0_ROM_START + ((u32)D_80075BD0[152] & 0xFFFFFF);
++        var_a1 = (uintptr_t)_70D3A0_ROM_START + ((u32)D_80075BD0[152] & 0xFFFFFF);
+     }
+-    tmp = ((u32)_70D3A0_ROM_START + ((u32)(D_6E910 + (object_type_index << 5)) & 0xFFFFFF)) + 0x20;
++    tmp = ((uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_6E910 + (object_type_index << 5)) & 0xFFFFFF)) + 0x20;
+     Dma_WriteChunks(D_84384570[side_index], var_a1, var_a1 + 0xBC0, 0);
+ 
+-    var_a1 = (u32)_70D3A0_ROM_START + ((u32)(D_6E910 + (object_type_index << 5)) & 0xFFFFFF);
++    var_a1 = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_6E910 + (object_type_index << 5)) & 0xFFFFFF);
+     Dma_WriteChunks(D_84384580[side_index], var_a1, tmp, 0);
++    Port_SwapSpeciesModelTransform(D_84384580[side_index]);
+ 
+     if (side_index == 1) {
+-        var_a1 = (u32)_70D3A0_ROM_START + ((u32)(D_6E910 + (object_type_index << 5)) & 0xFFFFFF);
++        var_a1 = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_6E910 + (object_type_index << 5)) & 0xFFFFFF);
+         Dma_WriteChunks(D_84384578[side_index], var_a1, var_a1 + 0x20, 0);
++        Port_SwapSpeciesModelTransform(D_84384578[side_index]);
+ 
+         ptr2 = D_84384578[side_index];
+         if (ptr2->unk_10 != 0xFF) {
+             sp6E = ptr2->unk_10;
+ 
+-            var_a1 = ((u32)_70D3A0_ROM_START) + (((u32)(D_6E910 + ((ptr2->unk_10 - (tmp = 2)) * 0x20))) & 0xFFFFFF);
++            var_a1 = ((uintptr_t)_70D3A0_ROM_START) + (((uintptr_t)(D_6E910 + ((ptr2->unk_10 - (tmp = 2)) * 0x20))) & 0xFFFFFF);
+             Dma_WriteChunks(ptr2, var_a1, var_a1 + 0x20, 0);
++            Port_SwapSpeciesModelTransform(ptr2);
+ 
+             D_84384578[side_index]->unk_10 = sp6E;
+         }
+     } else {
+-        var_a1 = (u32)_70D3A0_ROM_START + ((u32)(D_6E910 + (object_type_index << 5)) & 0xFFFFFF);
++        var_a1 = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_6E910 + (object_type_index << 5)) & 0xFFFFFF);
+         Dma_WriteChunks(D_84384578[side_index], var_a1, var_a1 + 0x20, 0);
++        Port_SwapSpeciesModelTransform(D_84384578[side_index]);
+     }
+ 
+-    var_a1 = (u32)_70D3A0_ROM_START + ((u32)(D_70B10 + (object_type_index * 0x20)) & 0xFFFFFF);
++    var_a1 = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_70B10 + (object_type_index * 0x20)) & 0xFFFFFF);
+     Dma_WriteChunks(&sDefaultSwayLayout, var_a1, var_a1 + 0x20, 0);
++    Port_SwapWords(&sDefaultSwayLayout, 6);
+ 
+     BattleAnim_Vec3fCopy(&pokemon->swayState.layoutConfig.unk_00, &sDefaultSwayLayout.unk_00);
+     BattleAnim_Vec3fCopy(&pokemon->swayState.layoutConfig.unk_0C, &sDefaultSwayLayout.unk_0C);
+@@ -428,10 +456,11 @@ void Battle_LoadAnimationAndMarkMoveIllegality(ActivePokemon* pokemon, s32 mark_
+     pokemon->swayState.layoutConfig.unk_00.x *= pokemon->unk_4B0;
+     pokemon->swayState.layoutConfig.unk_0C.x *= pokemon->unk_4B0;
+ 
+-    var_a1 = (u32)_70D3A0_ROM_START + ((u32)(D_70110 + (object_type_index << 4)) & 0xFFFFFF);
++    var_a1 = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_70110 + (object_type_index << 4)) & 0xFFFFFF);
+     Dma_WriteChunks(&D_84390028[side_index], var_a1, var_a1 + 0x10, 0);
++    Port_SwapWords(&D_84390028[side_index], 4);
+ 
+-    var_a1 = (u32)_70D3A0_ROM_START + ((u32)(D_71E10 + (object_type_index * 0x10)) & 0xFFFFFF);
++    var_a1 = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_71E10 + (object_type_index * 0x10)) & 0xFFFFFF);
+     Dma_WriteChunks(sPlayerTagTeam[side_index], var_a1, var_a1 + 0x10, 0);
+ 
+     Battle_DmaLoadAnimRecordPair(object_type_index, &pokemon->unk_94C, &pokemon->unk_9AC);
+@@ -977,6 +1006,7 @@ void BattleScene_TickRow1PlayOwnerCry(ActivePokemon* active_pokemon) {
+ 
+ void BattleScene_TickRow16PlayCryAndSpeciesSound(ActivePokemon* active_pokemon) {
+     UNUSED s32 pad;
++    if (getenv("PORT_TRACE_BATTLE")) fprintf(stderr, "[battle] cry: battler %p roster %p teams %p idx %d\n", (void*)active_pokemon, (void*)active_pokemon->unk_724, (void*)active_pokemon->sessionTeams, (int)active_pokemon->state.unk_08);
+     BattleMon* ptr = &active_pokemon->unk_724->pokemonPicked[active_pokemon->state.unk_08];
+     ActivePokemonState* sp24 = &active_pokemon->state;
+ 
+diff --git a/src/fragments/battle_engine/battle_engine_2F1D60.c b/src/fragments/battle_engine/battle_engine_2F1D60.c
+index c115fc0557a6714ec8403ad28c11655029f52722..0f0bf53fb70299053fff648de8926625b4b4a430 100644
+--- a/src/fragments/battle_engine/battle_engine_2F1D60.c
++++ b/src/fragments/battle_engine/battle_engine_2F1D60.c
+@@ -41,15 +41,15 @@ void BattleScene_LoadOwnerCameraFramingConstants(ActivePokemon* arg0) {
+         var_v0 = 1;
+     }
+ 
+-    arg0->unk_728.unk_168->unk_20 = D_843847BC[var_v0].unk_04;
+-    arg0->unk_728.unk_168->unk_1C = D_843847BC[var_v0].unk_00;
+-    arg0->unk_728.unk_168->unk_1E = D_843847BC[var_v0].unk_02;
++    arg0->unk_728.unk_168->viewport.width = D_843847BC[var_v0].unk_04;
++    arg0->unk_728.unk_168->viewport.x = D_843847BC[var_v0].unk_00;
++    arg0->unk_728.unk_168->viewport.y = D_843847BC[var_v0].unk_02;
+ 
+     arg0->unk_728.unk_178 = D_843847BC[var_v0].unk_14;
+ 
+-    arg0->unk_728.unk_168->unk_34 = D_843847BC[var_v0].unk_0C;
+-    arg0->unk_728.unk_168->unk_38 = D_843847BC[var_v0].unk_10;
+-    arg0->unk_728.unk_168->unk_2C = D_843847BC[var_v0].unk_08;
++    arg0->unk_728.unk_168->perspective.nearPlane = D_843847BC[var_v0].unk_0C;
++    arg0->unk_728.unk_168->perspective.farPlane = D_843847BC[var_v0].unk_10;
++    arg0->unk_728.unk_168->perspective.verticalFieldOfView = D_843847BC[var_v0].unk_08;
+ }
+ 
+ void BattleScene_SetupOwnerCameraFraming(ActivePokemon* arg0, ActivePokemon* arg1) {
+@@ -113,7 +113,7 @@ void BattleScene_TickOwnerSlideIn(ActivePokemon* arg0, s32 arg1) {
+     arg0->unk_728.unk_000.node.flags |= 1;
+ 
+     if (arg0->unk_728.unk_178 == 1) {
+-        if ((arg0->unk_728.unk_168->unk_1C == -0x48) && !(arg0->state.unk_34 & 0x800)) {
++        if ((arg0->unk_728.unk_168->viewport.x == -0x48) && !(arg0->state.unk_34 & 0x800)) {
+             BattleScene_TriggerOwnerModelAnimation(arg0);
+         }
+ 
+@@ -121,13 +121,13 @@ void BattleScene_TickOwnerSlideIn(ActivePokemon* arg0, s32 arg1) {
+             arg0->unk_728.unk_18C = 2;
+             ModelRenderer_OnSlotReady(0);
+         }
+-        arg0->unk_728.unk_168->unk_1C = Math_StepToS32(arg0->unk_728.unk_168->unk_1C, 0x17, arg1, arg1);
++        arg0->unk_728.unk_168->viewport.x = Math_StepToS32(arg0->unk_728.unk_168->viewport.x, 0x17, arg1, arg1);
+     } else {
+-        if ((arg0->unk_728.unk_168->unk_1C == 0x15F) && !(arg0->state.unk_34 & 0x800)) {
++        if ((arg0->unk_728.unk_168->viewport.x == 0x15F) && !(arg0->state.unk_34 & 0x800)) {
+             BattleScene_TriggerOwnerModelAnimation(arg0);
+         }
+ 
+-        arg0->unk_728.unk_168->unk_1C = Math_StepToS32(arg0->unk_728.unk_168->unk_1C, 0x103, arg1, arg1);
++        arg0->unk_728.unk_168->viewport.x = Math_StepToS32(arg0->unk_728.unk_168->viewport.x, 0x103, arg1, arg1);
+ 
+         if ((ModelRenderer_IsReady(1) != 0) && (arg0->unk_728.unk_18C == 0)) {
+             arg0->unk_728.unk_18C = 2;
+@@ -139,15 +139,15 @@ void BattleScene_TickOwnerSlideIn(ActivePokemon* arg0, s32 arg1) {
+ void BattleScene_TickOwnerSlideOut(ActivePokemon* arg0, s32 arg1) {
+     if (arg0->unk_728.unk_178 == 1) {
+         arg0->unk_728.unk_18C = 0;
+-        arg0->unk_728.unk_168->unk_1C = Math_StepToS32(arg0->unk_728.unk_168->unk_1C, -0x48, arg1, arg1);
+-        if (arg0->unk_728.unk_168->unk_1C == -0x48) {
++        arg0->unk_728.unk_168->viewport.x = Math_StepToS32(arg0->unk_728.unk_168->viewport.x, -0x48, arg1, arg1);
++        if (arg0->unk_728.unk_168->viewport.x == -0x48) {
+             arg0->unk_728.unk_168->node.flags &= ~1;
+             arg0->unk_728.unk_000.node.flags &= ~1;
+         }
+     } else {
+         arg0->unk_728.unk_18C = 0;
+-        arg0->unk_728.unk_168->unk_1C = Math_StepToS32(arg0->unk_728.unk_168->unk_1C, 0x15F, arg1, arg1);
+-        if (arg0->unk_728.unk_168->unk_1C == 0x15F) {
++        arg0->unk_728.unk_168->viewport.x = Math_StepToS32(arg0->unk_728.unk_168->viewport.x, 0x15F, arg1, arg1);
++        if (arg0->unk_728.unk_168->viewport.x == 0x15F) {
+             arg0->unk_728.unk_168->node.flags &= ~1;
+             arg0->unk_728.unk_000.node.flags &= ~1;
+         }
+diff --git a/src/fragments/battle_engine/battle_engine_2F23A0.c b/src/fragments/battle_engine/battle_engine_2F23A0.c
+index 16e063b763dc52ce9e9afa1270393fd072a8a121..e8b71264d08650ef1bd9d35e77df720cbe71aa57 100644
+--- a/src/fragments/battle_engine/battle_engine_2F23A0.c
++++ b/src/fragments/battle_engine/battle_engine_2F23A0.c
+@@ -262,7 +262,9 @@ f32 BattleScene_GetParticipantModelRadiusScaled(ActivePokemon* active_pokemon) {
+ }
+ 
+ ModelNodeView* Battle_GetMoveEffectListEntry(ActivePokemon* arg0, s32 arg1) {
+-    return arg0->sessionTeams->unk_14->unk_00[2]->unk_00[arg1];
++    // PORT: unk_14 is a loaded model table (unk_D_86002F30: header, then the node list at N64 offset 8); read as a
++    // ModelNodeView, the list is word 2, which is a different host offset.
++    return ((unk_D_86002F30*)arg0->sessionTeams->unk_14)->unk_08->unk_00[arg1];
+ }
+ 
+ s32 Battle_GetTrainerId(ActivePokemon* arg0, UNUSED s32 arg1) {
+diff --git a/src/fragments/battle_engine/battle_engine_2F3CB0.c b/src/fragments/battle_engine/battle_engine_2F3CB0.c
+index 56965571563b21a7557a154dd5ff135465583eb6..f1d73d71d63db8806786e996470fe607c14cb82b 100644
+--- a/src/fragments/battle_engine/battle_engine_2F3CB0.c
++++ b/src/fragments/battle_engine/battle_engine_2F3CB0.c
+@@ -1107,6 +1107,8 @@ unk_D_843847BC D_843847BC[2] = {
+     },
+ };
+ 
++// PORT: one array as in the ROM. BattleScene intro picks D_843847EC[0..4]; on the N64 entries 3 and 4 are
++// D_84384888[0..1], which follows directly.
+ unk_D_86B0C160 D_843847EC[] = {
+     {
+         0,
+@@ -1165,8 +1167,7 @@ unk_D_86B0C160 D_843847EC[] = {
+         0.019999999552965164f,
+         50.0f,
+     },
+-};
+-unk_D_86B0C160 D_84384888[] = {
++    // D_84384888
+     {
+         0,
+         0,
+diff --git a/src/fragments/battle_engine/battle_engine_2FA4D0.c b/src/fragments/battle_engine/battle_engine_2FA4D0.c
+index f8a3b8862d17edaf214dd05d2e29c313124d9ed4..04d469930dc549ddcf585afccc3df838e385cd08 100644
+--- a/src/fragments/battle_engine/battle_engine_2FA4D0.c
++++ b/src/fragments/battle_engine/battle_engine_2FA4D0.c
+@@ -1,4 +1,10 @@
++#include <stdlib.h>
+ #include "battle_engine.h"
++#include "src/util.h"
++
++// PORT: tables of texture addresses in ROM data are big-endian 32-bit words (segment or link addresses), not host
++// pointers; this reads entry i as an address the display list code accepts.
++#define PORT_BE_ADDR(tbl, i) ((u8*)(uintptr_t)PORT_BE32(((u32*)(tbl))[i]))
+ #include "src/graphics_textures.h"
+ #include "src/ui_graphics.h"
+ #include "src/status_icons.h"
+@@ -188,7 +194,7 @@ void BattleHud_DrawTranslucentShadowRect(s32 arg0, s32 arg1, s32 arg2, s32 arg3,
+     sp80 = Gfx_AllocDisplayList(sizeof(Vp) * 1);
+     Gfx_SetViewportDimensions(sp80, temp_s1->width, temp_s1->height);
+ 
+-    gSPViewport(gDisplayListHead++, (u32)sp80 & 0x1FFFFFFF);
++    gSPViewport(gDisplayListHead++, (uintptr_t)sp80);
+ 
+     guOrtho(sp84, 0.5f, temp_s1->width - 0.5f, temp_s1->height - 0.5f, 0.5f, -2.0f, 2.0f, 1.0f);
+ 
+@@ -203,9 +209,9 @@ void BattleHud_DrawTranslucentShadowRect(s32 arg0, s32 arg1, s32 arg2, s32 arg3,
+     gDPSetCombineMode(gDisplayListHead++, G_CC_SHADE, G_CC_SHADE);
+     gDPSetRenderMode(gDisplayListHead++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
+     gSPPerspNormalize(gDisplayListHead++, 0xFFFF);
+-    gSPMatrix(gDisplayListHead++, (u32)sp84 & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
+-    gSPMatrix(gDisplayListHead++, (u32)&gIdentityMtx & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+-    gSPVertex(gDisplayListHead++, (u32)temp_s2 & 0x1FFFFFFF, 4, 0);
++    gSPMatrix(gDisplayListHead++, (uintptr_t)sp84, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
++    gSPMatrix(gDisplayListHead++, (uintptr_t)&gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
++    gSPVertex(gDisplayListHead++, (uintptr_t)temp_s2, 4, 0);
+     gSP2Triangles(gDisplayListHead++, 0, 2, 3, 0, 0, 3, 1, 0);
+ }
+ 
+@@ -221,7 +227,7 @@ void BattleHud_DrawGradientRect(s32 arg0, s32 arg1, s32 arg2, s32 arg3, Color_RG
+     sp78 = Gfx_AllocDisplayList(sizeof(Vp) * 1);
+     Gfx_SetViewportDimensions(sp78, temp_s1->width, temp_s1->height);
+ 
+-    gSPViewport(gDisplayListHead++, (u32)sp78 & 0x1FFFFFFF);
++    gSPViewport(gDisplayListHead++, (uintptr_t)sp78);
+ 
+     guOrtho(sp7C, 0.5f, temp_s1->width - 0.5f, temp_s1->height - 0.5f, 0.5f, -2.0f, 2.0f, 1.0f);
+     Gfx_SetVertexAttributes(&temp_s2[0], arg0, arg1, -1, 0, 0, arg4->r, arg4->g, arg4->b, 0xFF);
+@@ -235,9 +241,9 @@ void BattleHud_DrawGradientRect(s32 arg0, s32 arg1, s32 arg2, s32 arg3, Color_RG
+     gDPSetCombineMode(gDisplayListHead++, G_CC_SHADE, G_CC_SHADE);
+     gDPSetRenderMode(gDisplayListHead++, G_RM_OPA_SURF, G_RM_OPA_SURF2);
+     gSPPerspNormalize(gDisplayListHead++, 0xFFFF);
+-    gSPMatrix(gDisplayListHead++, (u32)sp7C & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
+-    gSPMatrix(gDisplayListHead++, (u32)&gIdentityMtx & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+-    gSPVertex(gDisplayListHead++, (u32)temp_s2 & 0x1FFFFFFF, 4, 0);
++    gSPMatrix(gDisplayListHead++, (uintptr_t)sp7C, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
++    gSPMatrix(gDisplayListHead++, (uintptr_t)&gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
++    gSPVertex(gDisplayListHead++, (uintptr_t)temp_s2, 4, 0);
+     gSP2Triangles(gDisplayListHead++, 0, 2, 3, 0, 0, 3, 1, 0);
+ }
+ 
+@@ -298,7 +304,7 @@ void func_843109EC(void) {
+ void BattleHud_DrawLevelNumber(s32 arg0, s32 arg1, s32 arg2) {
+     UNUSED s32 pad[2];
+     s8* var_s2;
+-    s8 sp58[2];
++    s8 sp58[4]; // PORT: was [2]; "%d" of a level writes up to 4 bytes (spilled into padding on N64)
+     u8** temp_s4;
+ 
+     var_s2 = &sp58;
+@@ -309,16 +315,16 @@ void BattleHud_DrawLevelNumber(s32 arg0, s32 arg1, s32 arg2) {
+ 
+     if (arg2 >= 0x64) {
+         arg0 -= 2;
+-        Gfx_DrawTextureRgba16(arg0, arg1, 8, 6, temp_s4[sp58[0] - '0'], 8, 0);
++        Gfx_DrawTextureRgba16(arg0, arg1, 8, 6, PORT_BE_ADDR(temp_s4, sp58[0] - '0'), 8, 0);
+         arg0 += 8;
+         var_s2 = &sp58[1];
+     } else {
+-        Gfx_DrawTextureRgba16(arg0, arg1, 4, 6, temp_s4[11], 4, 0);
++        Gfx_DrawTextureRgba16(arg0, arg1, 4, 6, PORT_BE_ADDR(temp_s4, 11), 4, 0);
+         arg0 += 5;
+     }
+ 
+     while (*var_s2 != 0) {
+-        Gfx_DrawTextureRgba16(arg0, arg1, 8, 6, temp_s4[*var_s2 - '0'], 8, 0);
++        Gfx_DrawTextureRgba16(arg0, arg1, 8, 6, PORT_BE_ADDR(temp_s4, *var_s2 - '0'), 8, 0);
+         arg0 += 8;
+         var_s2++;
+     }
+@@ -328,7 +334,7 @@ void BattleHud_DrawLevelNumber(s32 arg0, s32 arg1, s32 arg2) {
+ 
+ void BattleHud_DrawHpFractionText(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+     UNUSED s32 pad[2];
+-    s8 sp70[7];
++    s8 sp70[8]; // PORT: was [7]; "%3d/%3d" writes 8 bytes with the terminator
+     UNUSED s32 pad2;
+     u8** temp_s2;
+     u8* var_v0;
+@@ -339,18 +345,18 @@ void BattleHud_DrawHpFractionText(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+ 
+     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
+ 
+-    for (i = 0; i < sizeof(sp70); i++) {
++    for (i = 0; i < 7 /* PORT: the 7 characters, as with the original sp70[7] */; i++) {
+         switch (sp70[i]) {
+             case ' ':
+                 var_v0 = NULL;
+                 break;
+ 
+             case '/':
+-                var_v0 = temp_s2[10];
++                var_v0 = PORT_BE_ADDR(temp_s2, 10);
+                 break;
+ 
+             default:
+-                var_v0 = temp_s2[sp70[i] - '0'];
++                var_v0 = PORT_BE_ADDR(temp_s2, sp70[i] - '0');
+                 break;
+         }
+ 
+@@ -371,6 +377,11 @@ void BattleHud_DrawSpeciesNameLabel(s16 arg0, s16 arg1, s32 arg2, char* arg3, s3
+         Gfx_SetEnvColor(0xFF, 0x64, 0xFF, 0xFF);
+     }
+     Font_SetActive(2, 0);
++    if (getenv("PORT_TRACE_HUD")) { // PORT debug
++        fprintf(stderr, "[hud] label:");
++        for (int k = 0; k < 12 && arg3[k]; k++) fprintf(stderr, " %02x", (u8)arg3[k]);
++        fputc('\n', stderr);
++    }
+     Font_Printf((arg0 - (Font_MeasureTextExtent(2, 0, arg3) / 2)) + 0x23, arg1 + 2, arg3);
+     Font_EndTexturedTextRendering();
+ }
+@@ -446,6 +457,12 @@ void BattleHud_DrawMonInfoPanel(ActivePokemon* arg0, BattleMon* arg1, unk_D_8438
+     Font_BeginTranslucentTextRendering();
+     Font_SetActive(2, 0);
+ 
++    if (getenv("PORT_TRACE_HUD")) { // PORT debug
++        const u8* nn = (const u8*)Battle_GetActiveMonNickname(arg0);
++        fprintf(stderr, "[hud] nick:");
++        for (int k = 0; k < 12 && nn[k]; k++) fprintf(stderr, " %02x", nn[k]);
++        fputc('\n', stderr);
++    }
+     sp34 = Font_MeasureTextExtent(2, 0, Battle_GetActiveMonNickname(arg0)) / 2;
+     Font_Printf((arg3 - sp34) + 0x23, arg4 + 2, Battle_GetActiveMonNickname(arg0));
+     sp34 = Font_MeasureTextExtent(1, 0, Text_GetString(NULL, 0, sStatusConditionNameTable, arg2->unk_00));
+@@ -478,6 +495,12 @@ s32 BattleHud_DrawBorderTile(s32 arg0, s32 arg1, s32 arg2, s32 arg3, u8* arg4) {
+     if (arg3 < 9) { sp28 = 0x400; } else { sp28 = 0; }
+     // clang-format on
+ 
++    if (getenv("PORT_SKIP_BORDER")) return 0; // PORT debug
++    if (getenv("PORT_TRACE_HUD")) { // PORT debug
++        const u8* t = (const u8*)Util_ConvertAddrToVirtAddr((uintptr_t)arg4);
++        static int n;
++        if (t != NULL && n++ < 40) fprintf(stderr, "[border] %p -> %p %02x%02x %02x%02x %02x%02x %02x%02x | %02x%02x %02x%02x\n", (void*)arg4, (const void*)t, t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[64], t[65], t[66], t[67]);
++    }
+     gDPLoadTextureBlock(gDisplayListHead++, arg4, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+                         G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+ 
+@@ -907,7 +930,7 @@ void Battle_DrawRightAlignedText(s32 arg0, s32 arg1, char* arg2) {
+ 
+ s32 BattleHud_DrawMovePpTextLTR(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+     UNUSED s32 pad[2];
+-    s8 sp70[7];
++    s8 sp70[8]; // PORT: was [7]; "%3d/%3d" writes 8 bytes with the terminator
+     s32 i;
+     u8** temp_s2;
+     u8* var_v1;
+@@ -926,12 +949,12 @@ s32 BattleHud_DrawMovePpTextLTR(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+                 break;
+ 
+             case '/':
+-                var_v1 = temp_s2[10];
++                var_v1 = PORT_BE_ADDR(temp_s2, 10);
+                 break;
+ 
+             default:
+                 if ((c >= 0x30) && (c < 0x3A)) {
+-                    var_v1 = temp_s2[c - '0'];
++                    var_v1 = PORT_BE_ADDR(temp_s2, c - '0');
+                 } else {
+                     var_v1 = NULL;
+                 }
+@@ -951,7 +974,7 @@ s32 BattleHud_DrawMovePpTextLTR(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+ 
+ s32 BattleHud_DrawMovePpTextRTL(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+     UNUSED s32 pad[2];
+-    s8 sp70[7];
++    s8 sp70[8]; // PORT: was [7]; "%3d/%3d" writes 8 bytes with the terminator
+     s32 i;
+     u8** temp_s2;
+     u8* var_v1;
+@@ -970,12 +993,12 @@ s32 BattleHud_DrawMovePpTextRTL(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+                 break;
+ 
+             case '/':
+-                var_v1 = temp_s2[10];
++                var_v1 = PORT_BE_ADDR(temp_s2, 10);
+                 break;
+ 
+             default:
+                 if ((c >= 0x30) && (c < 0x3A)) {
+-                    var_v1 = temp_s2[c - '0'];
++                    var_v1 = PORT_BE_ADDR(temp_s2, c - '0');
+                 } else {
+                     var_v1 = NULL;
+                 }
+@@ -1702,7 +1725,7 @@ void Battle_DrawGradientTextureRect(u8* arg0, s32 arg1, s32 arg2, s32 arg3, s32
+ 
+     Gfx_SetViewportDimensions(spBC, temp_s1->width, temp_s1->height);
+ 
+-    gSPViewport(gDisplayListHead++, (u32)spBC & 0x1FFFFFFF);
++    gSPViewport(gDisplayListHead++, (uintptr_t)spBC);
+ 
+     guOrtho(spC0, 0.5f, temp_s1->width - 0.5f, temp_s1->height - 0.5f, 0.5f, -2.0f, 2.0f, 1.0f);
+ 
+@@ -1728,9 +1751,9 @@ void Battle_DrawGradientTextureRect(u8* arg0, s32 arg1, s32 arg2, s32 arg3, s32
+                        G_TX_NOLOD);
+ 
+     gSPPerspNormalize(gDisplayListHead++, 0xFFFF);
+-    gSPMatrix(gDisplayListHead++, (u32)spC0 & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
+-    gSPMatrix(gDisplayListHead++, (u32)&gIdentityMtx & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+-    gSPVertex(gDisplayListHead++, (u32)temp_s2 & 0x1FFFFFFF, 4, 0);
++    gSPMatrix(gDisplayListHead++, (uintptr_t)spC0, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
++    gSPMatrix(gDisplayListHead++, (uintptr_t)&gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
++    gSPVertex(gDisplayListHead++, (uintptr_t)temp_s2, 4, 0);
+     gSP2Triangles(gDisplayListHead++, 0, 2, 3, 0, 0, 3, 1, 0);
+     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
+     gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF);
+@@ -1781,14 +1804,14 @@ void BattleHud_DrawOwnSideStatus(ActivePokemon* arg0, ActivePokemonState* arg1)
+ 
+     if (gSessionContext.mode != 0x10) {
+         if (arg1->unk_10 == 3) {
+-            BattleHud_DrawMonStatusBoxPlayer(arg0, arg0->unk_728.unk_168->unk_1C - 2, arg0->unk_728.unk_168->unk_1E - 0x3A, arg1->unk_1E,
++            BattleHud_DrawMonStatusBoxPlayer(arg0, arg0->unk_728.unk_168->viewport.x - 2, arg0->unk_728.unk_168->viewport.y - 0x3A, arg1->unk_1E,
+                           1);
+         } else {
+-            BattleHud_DrawMonStatusBoxPlayer(arg0, arg0->unk_728.unk_168->unk_1C - 2, arg0->unk_728.unk_168->unk_1E - 0x3A, arg1->unk_1E,
++            BattleHud_DrawMonStatusBoxPlayer(arg0, arg0->unk_728.unk_168->viewport.x - 2, arg0->unk_728.unk_168->viewport.y - 0x3A, arg1->unk_1E,
+                           0);
+         }
+ 
+-        if ((arg1->unk_10 != 3) && (arg0->unk_728.unk_168->unk_1C == 0x17)) {
++        if ((arg1->unk_10 != 3) && (arg0->unk_728.unk_168->viewport.x == 0x17)) {
+             switch (arg1->unk_10) {
+                 case 2:
+                     if (arg1->unk_1C == 1) {
+@@ -1840,14 +1863,14 @@ void BattleHud_DrawOpponentSideStatus(ActivePokemon* arg0, ActivePokemonState* a
+ 
+     if (gSessionContext.mode != 0x10) {
+         if (arg1->unk_10 == 3) {
+-            BattleHud_DrawMonStatusBoxOpponent(arg0, arg0->unk_728.unk_168->unk_1C - 0x20, arg0->unk_728.unk_168->unk_1E - 2, arg1->unk_1E,
++            BattleHud_DrawMonStatusBoxOpponent(arg0, arg0->unk_728.unk_168->viewport.x - 0x20, arg0->unk_728.unk_168->viewport.y - 2, arg1->unk_1E,
+                           1);
+         } else {
+-            BattleHud_DrawMonStatusBoxOpponent(arg0, arg0->unk_728.unk_168->unk_1C - 0x20, arg0->unk_728.unk_168->unk_1E - 2, arg1->unk_1E,
++            BattleHud_DrawMonStatusBoxOpponent(arg0, arg0->unk_728.unk_168->viewport.x - 0x20, arg0->unk_728.unk_168->viewport.y - 2, arg1->unk_1E,
+                           0);
+         }
+ 
+-        if ((arg1->unk_10 != 3) && (arg0->unk_728.unk_168->unk_1C == 0x103)) {
++        if ((arg1->unk_10 != 3) && (arg0->unk_728.unk_168->viewport.x == 0x103)) {
+             switch (arg1->unk_10) {
+                 case 2:
+                     if (arg1->unk_1C == 1) {
+diff --git a/src/fragments/battle_engine/battle_engine_3020D0.c b/src/fragments/battle_engine/battle_engine_3020D0.c
+index 9ed31c8c28d9796f5d38657cdf516fe3c88172c0..dd4144df7ae34c93c41308c7c44ec783877cb04c 100644
+--- a/src/fragments/battle_engine/battle_engine_3020D0.c
++++ b/src/fragments/battle_engine/battle_engine_3020D0.c
+@@ -730,8 +730,8 @@ void BattleScene_TickHudTimers(void) {
+     ActivePokemonState* sp1C = &sActivePokemon[0]->state;
+     ActivePokemonState* sp18 = &sActivePokemon[1]->state;
+ 
+-    if ((gSessionContext.timeLimitsEnabled != 0) && (sActivePokemon[1]->unk_728.unk_168->unk_1C == 0x103) &&
+-        (sActivePokemon[0]->unk_728.unk_168->unk_1C == 0x17)) {
++    if ((gSessionContext.timeLimitsEnabled != 0) && (sActivePokemon[1]->unk_728.unk_168->viewport.x == 0x103) &&
++        (sActivePokemon[0]->unk_728.unk_168->viewport.x == 0x17)) {
+         BattleHud_DrawBattleTimer(0x101, 0x64);
+         if (D_84390134 == 0) {
+             if (sp1C->unk_10 != 3) {
+diff --git a/src/fragments/battle_engine/battle_engine_304060.c b/src/fragments/battle_engine/battle_engine_304060.c
+index d7449ebb4d87ea4e5a41280fca68f0d4a2e7638a..d58e78988681128c206232030ea152beb0c25783 100644
+--- a/src/fragments/battle_engine/battle_engine_304060.c
++++ b/src/fragments/battle_engine/battle_engine_304060.c
+@@ -557,11 +557,11 @@ void BattleScene_UpdateIntroCameraSequence(CameraNode* arg0) {
+     if ((gSessionContext.mode == 0x10) && (sBattleScene.unk_00->unk_1C == 1)) {
+         BattleScene_UpdateActionSelectPhase();
+     } else if (sBattleScene.unk_00->unk_1C == 1) {
+-        if ((sBattleScene.unk_00->unk_30 == 0) && (sActivePokemon[0]->unk_728.unk_168->unk_1C == 0x17) &&
+-            (sActivePokemon[1]->unk_728.unk_168->unk_1C == 0x103)) {
++        if ((sBattleScene.unk_00->unk_30 == 0) && (sActivePokemon[0]->unk_728.unk_168->viewport.x == 0x17) &&
++            (sActivePokemon[1]->unk_728.unk_168->viewport.x == 0x103)) {
+             BattleScene_UpdateActionSelectPhase();
+-        } else if ((sBattleScene.unk_00->unk_30 == 0) && (sActivePokemon[0]->unk_728.unk_168->unk_1C < 0xE) &&
+-                   (sActivePokemon[1]->unk_728.unk_168->unk_1C >= 0x10D)) {
++        } else if ((sBattleScene.unk_00->unk_30 == 0) && (sActivePokemon[0]->unk_728.unk_168->viewport.x < 0xE) &&
++                   (sActivePokemon[1]->unk_728.unk_168->viewport.x >= 0x10D)) {
+             BattleScene_ResetActionSelectionTimers();
+         }
+     }
+diff --git a/src/fragments/battle_engine/battle_engine_313250.c b/src/fragments/battle_engine/battle_engine_313250.c
+index 883360294ba05bc180fa8857710d4eb6f2cc5eaf..44e4326acf090b5cbf2cdf70733bc974f2bfaaf1 100644
+--- a/src/fragments/battle_engine/battle_engine_313250.c
++++ b/src/fragments/battle_engine/battle_engine_313250.c
+@@ -111,7 +111,7 @@ void BattleScene_IntroRevealFirstMon(CameraNode* arg0) {
+     Battle_QueueMessage(gBattleMessageQueues->unk_088, 0x21, D_84386D84_jp,
+                         sp28->pokemonPicked[sp2C->unk_18].unk_30);
+ #else
+-    Text_SetStringToken(0x19, (u32)sp28->pokemonPicked[sp2C->unk_18].unk_30);
++    Text_SetStringToken(0x19, (uintptr_t)sp28->pokemonPicked[sp2C->unk_18].unk_30);
+     Battle_QueueMessage(gBattleMessageQueues->unk_088, 0x21);
+ #endif
+     BattleBox_Open(0xC);
+@@ -154,7 +154,7 @@ void BattleScene_IntroRevealSecondMon(CameraNode* arg0) {
+     Battle_QueueMessage(gBattleMessageQueues->unk_088, 0x21, D_84386D84_jp,
+                         sp28->pokemonPicked[sp2C->unk_18].unk_30);
+ #else
+-    Text_SetStringToken(0x19, (u32)sp28->pokemonPicked[sp2C->unk_18].unk_30);
++    Text_SetStringToken(0x19, (uintptr_t)sp28->pokemonPicked[sp2C->unk_18].unk_30);
+     Battle_QueueMessage(gBattleMessageQueues->unk_088, 0x21);
+ #endif
+     if (gSessionContext.mode != 8) {
+diff --git a/src/fragments/battle_engine/battle_engine_313D60.c b/src/fragments/battle_engine/battle_engine_313D60.c
+index e2dca54b8eb1b66ff3ea445e8ab7c41227284187..cdcf90e4028c62d75cfd888345f5ba9ec11916d5 100644
+--- a/src/fragments/battle_engine/battle_engine_313D60.c
++++ b/src/fragments/battle_engine/battle_engine_313D60.c
+@@ -1,3 +1,6 @@
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
+ #include "battle_engine.h"
+ #include "src/geo_node.h"
+ #include "src/model_animation.h"
+@@ -102,13 +105,13 @@ void BattleScene_TickCameraSubstateDefault(CameraNode* arg0) {
+             break;
+ 
+         case 2:
+-            if (sActivePokemon[0]->unk_728.unk_168->unk_1C == -0x48) {
++            if (sActivePokemon[0]->unk_728.unk_168->viewport.x == -0x48) {
+                 sBattleScene.unk_00->unk_30++;
+             }
+             break;
+ 
+         case 3:
+-            GeoCamera_SetBackgroundTexture(arg0, 0x12C, 0xA, 2, Util_ConvertAddrToVirtAddr((u32)D_1000000));
++            GeoCamera_SetBackgroundTexture(arg0, 0x12C, 0xA, 2, Util_ConvertAddrToVirtAddr((uintptr_t)D_1000000));
+             GeoCamera_SetBackground(arg0, 5, 0xA, 0, 0, 0);
+             sBattleScene.unk_00->unk_18 = 0;
+             sBattleScene.unk_00->unk_30 += 1;
+@@ -133,7 +136,7 @@ void BattleScene_TickCameraSubstateDefault(CameraNode* arg0) {
+                 Battle_StopBeingGoldAfterHarden(sActivePokemon[0]);
+                 Battle_StopBeingGoldAfterHarden(sActivePokemon[1]);
+                 sBattleScene.unk_00->unk_18 = 2;
+-                GeoCamera_SetBackgroundTexture(arg0, 0xA, 0x12C, 2, Util_ConvertAddrToVirtAddr((u32)D_1000000));
++                GeoCamera_SetBackgroundTexture(arg0, 0xA, 0x12C, 2, Util_ConvertAddrToVirtAddr((uintptr_t)D_1000000));
+                 GeoCamera_SetBackground(arg0, 4, 0xA, 0, 0, 0);
+                 arg0->perspective.verticalFieldOfView = 30.0f;
+                 sBattleScene.unk_00->unk_60 = 30.0f;
+@@ -170,7 +173,7 @@ void BattleScene_TickCameraSubstateStripWipe(CameraNode* arg0) {
+             break;
+ 
+         case 2:
+-            if (sActivePokemon[0]->unk_728.unk_168->unk_1C == -0x48) {
++            if (sActivePokemon[0]->unk_728.unk_168->viewport.x == -0x48) {
+                 sBattleScene.unk_00->unk_30++;
+             }
+             break;
+@@ -685,7 +688,17 @@ void BattleScene_UpdateOwnerVisibilityDouble(CameraNode* arg0) {
+     BattleScene_HideFaintedOwners();
+ }
+ 
++unsigned long long Port_ViTick(void);
+ void BattleScene_Update(CameraNode* arg0) {
++    if (getenv("PORT_TRACE_BATTLE")) { // logs the scene director's phase fields whenever one changes
++        static int last[6] = { -99, -99, -99, -99, -99, -99 };
++        int now[6] = { (int)sBattleScene.unk_00->unk_1C, (int)sBattleScene.unk_00->unk_30, (int)sBattleScene.unk_00->unk_18,
++                       (int)sBattleScene.unk_00->unk_40, (int)sBattleScene.unk_00->unk_44, (int)sBattleScene.unk_00->unk_20 };
++        if (memcmp(now, last, sizeof now) != 0) {
++            fprintf(stderr, "[battle] frame %llu phase %d sub %d u18 %d u40 %d u44 %d step %d\n", Port_ViTick(), now[0], now[1], now[2], now[3], now[4], now[5]);
++            memcpy(last, now, sizeof now);
++        }
++    }
+     BattleScene_TickCameraSubstate(arg0);
+     BattleScene_ApplyCameraPhaseDefaults();
+     BattleScene_UpdateOwnerVisibilitySingle(arg0);
+diff --git a/src/fragments/battle_engine/battle_engine_317E70.c b/src/fragments/battle_engine/battle_engine_317E70.c
+index 269129c66c8049aca4d529b8cc3e3420df21b924..6630516644ed1496be760d34f3516c27e0a88e11 100644
+--- a/src/fragments/battle_engine/battle_engine_317E70.c
++++ b/src/fragments/battle_engine/battle_engine_317E70.c
+@@ -102,7 +102,7 @@ void BattleAnim_EmitParticleBurst(Particle* arg0, ParticleUpdateCallback arg1, P
+ 
+     for (i = 0; i < arg3; i++) {
+         temp_v0 = Particle_New();
+-        if ((u32)temp_v0 == -1) {
++        if ((uintptr_t)temp_v0 == -1) {
+             break;
+         }
+         BattleAnim_CloneParticleState(temp_v0, arg0, arg1, arg2, i);
+@@ -116,7 +116,7 @@ void BattleAnim_EmitParticleBurstWithMetadata(Particle* arg0, ParticleUpdateCall
+ 
+     for (i = 0; i < arg3; i++) {
+         temp_v0 = Particle_New();
+-        if ((u32)temp_v0 == -1) {
++        if ((uintptr_t)temp_v0 == -1) {
+             break;
+         }
+         BattleAnim_CloneParticleState(temp_v0, arg0, arg1, arg2, i);
+@@ -128,7 +128,7 @@ void BattleAnim_EmitParticleBurstWithMetadata(Particle* arg0, ParticleUpdateCall
+ Particle* BattleAnim_CreateProceduralParticle(s16 arg0, s16 arg1, s32 arg2, f32 arg3) {
+     Particle* temp_v0 = Particle_New();
+ 
+-    if ((u32)temp_v0 != -1) {
++    if ((uintptr_t)temp_v0 != -1) {
+         Vec3f_SetComponentsDuplicate(&temp_v0->unk_38, arg0, arg1, 0.0f);
+         Particle_UpdateWorldTransform(temp_v0);
+         Vec3s_SetComponents(&temp_v0->unk_94, arg2, arg2, arg2);
+@@ -345,7 +345,7 @@ void BattleAnim_UpdateParticlePool(void) {
+ }
+ 
+ void BattleAnim_InitializeParticleFromEffect(Particle* arg0, ActivePokemon* arg1, BattleAnimEffectSlot* arg2, s16 arg3) {
+-    if ((u32)arg0 == -1) {
++    if ((uintptr_t)arg0 == -1) {
+         return;
+     }
+ 
+@@ -640,7 +640,7 @@ BattleAnimEffectSlot* BattleAnim_CreateEffectSlot(s32 arg0, s32 arg1, s8 arg2, f
+                               ActivePokemon* arg5, s16 arg6, s16 arg7, u8 arg8, u8 arg9, u8 argA, u8 argB) {
+     BattleAnimEffectSlot* sp1C = BattleAnim_AllocEffectSlot();
+ 
+-    if ((u32)sp1C != -1) {
++    if ((uintptr_t)sp1C != -1) {
+         sp1C->unk_0E = arg0 + gBattleAnimSpawnDelay;
+         sp1C->unk_0C = arg1;
+         sp1C->unk_14 = arg2;
+@@ -909,7 +909,7 @@ CameraNode* BattleAnim_GetCameraContext(void) {
+ Particle* BattleAnim_SpawnSecondaryOwnerParticle(Vec3f arg0, u8 arg1) {
+     Particle* sp1C = Particle_New();
+ 
+-    if ((u32)sp1C != -1) {
++    if ((uintptr_t)sp1C != -1) {
+         ParticleMath_CopyVec3f(&sp1C->unk_68, &arg0);
+         BattleAnim_ConfigureSecondaryOwnerParticleVariant(sp1C, arg1);
+         sp1C->unk_10 = gBattleAnimSecondaryOwner;
+@@ -922,7 +922,7 @@ Particle* BattleAnim_SpawnSecondaryOwnerParticle(Vec3f arg0, u8 arg1) {
+ }
+ 
+ void BattleAnim_SetParticlePosition(Particle* arg0, Vec3f arg1) {
+-    if ((u32)arg0 != -1) {
++    if ((uintptr_t)arg0 != -1) {
+         arg0->unk_68.x = arg1.x;
+         arg0->unk_68.y = arg1.y;
+         arg0->unk_68.z = arg1.z;
+diff --git a/src/fragments/battle_engine/battle_engine_32B680.c b/src/fragments/battle_engine/battle_engine_32B680.c
+index 6fc8fc44f50cdcb650dca25919c81627db1f7427..ab0daf4243c5b687087272c53224d812da4091d8 100644
+--- a/src/fragments/battle_engine/battle_engine_32B680.c
++++ b/src/fragments/battle_engine/battle_engine_32B680.c
+@@ -1,3 +1,6 @@
++#include "src/util.h"
++#include <string.h>
++#include <stdlib.h>
+ #include "battle_engine.h"
+ #include "src/model_animation.h"
+ #include "src/geo_render.h"
+@@ -5,6 +8,47 @@
+ #include "src/matrix.h"
+ #include "src/math_util.h"
+ 
++// PORT: callback data of these display-list nodes comes from geo layouts: a native pointer when the layout is C data,
++// a 32-bit link address into the loaded model when it is a ROM model (they are reached through fragment 31's jump
++// table). Textures are used in place; the texture-pair records ({u8* tex; u8* tex2; s16 pad; s16 unk_0A}, big-endian
++// in ROM) are converted once.
++extern int Port_IsRawData(const void* p);
++
++static void* Port_CbTexture(void* arg) {
++    return (void*)Util_ConvertAddrToVirtAddr((uintptr_t)arg);
++}
++
++static arg1_func_8434E21C* Port_CbTexPair(void* arg) {
++    static struct {
++        const u8* src;
++        arg1_func_8434E21C* out;
++    } sCache[64];
++    static s32 sCount;
++    const u8* p = (const u8*)Util_ConvertAddrToVirtAddr((uintptr_t)arg);
++    arg1_func_8434E21C* out;
++    s32 i;
++
++    if (p == NULL || !Port_IsRawData(p)) {
++        return (arg1_func_8434E21C*)p;
++    }
++    for (i = 0; i < sCount; i++) {
++        if (sCache[i].src == p) {
++            return sCache[i].out;
++        }
++    }
++    out = calloc(1, sizeof(*out));
++    out->unk_00 = (u8*)Util_ConvertAddrToVirtAddr(((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3]);
++    out->unk_04 = (u8*)Util_ConvertAddrToVirtAddr(((u32)p[4] << 24) | ((u32)p[5] << 16) | ((u32)p[6] << 8) | p[7]);
++    memcpy(out->unk08, p + 8, 2);
++    out->unk_0A = (s16)((p[10] << 8) | p[11]);
++    if (sCount < 64) {
++        sCache[sCount].src = p;
++        sCache[sCount].out = out;
++        sCount++;
++    }
++    return out;
++}
++
+ static f32 D_84387B00[] = {
+     0.0f, 1.0f,  1.0f,  1.3f, 0.8f, 0.9f, 1.3f,  0.8f,  1.0f,  0.9f,  0.6f, 1.2f,  1.2f, 0.6f,  0.9f, 1.5f, 0.8f,
+     1.5f, 1.5f,  0.8f,  1.0f, 0.8f, 1.0f, 0.65f, 1.1f,  0.75f, 0.8f,  0.8f, 0.8f,  0.8f, 1.0f,  1.0f, 0.8f, 1.2f,
+@@ -573,7 +617,7 @@ void func_84341F44(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 arg2) {
+ void func_84342304(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_84341F44(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_84341F44(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -1446,7 +1490,7 @@ void BattleAnim_StartEffect14ModelAnimAndMoveKeyedTintParticles(void) {
+     }
+ }
+ 
+-void BattleAnim_BuildReflectiveTextureDisplayList(Gfx* arg0, s32 arg1, u16 arg2) {
++void BattleAnim_BuildReflectiveTextureDisplayList(Gfx* arg0, intptr_t arg1, u16 arg2) {
+     BattleAnim_SetupReflectiveCamera();
+ 
+     switch (BattleAnim_GetQueuedMoveId()) {
+@@ -1477,7 +1521,7 @@ void BattleAnim_BuildReflectiveTextureDisplayList(Gfx* arg0, s32 arg1, u16 arg2)
+ void BattleAnim_AllocateReflectiveTextureDisplayList(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        BattleAnim_BuildReflectiveTextureDisplayList(arg1->unk_18, arg1->unk_14, D_8006F084);
++        BattleAnim_BuildReflectiveTextureDisplayList(arg1->unk_18, (intptr_t)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -1817,7 +1861,7 @@ void func_84344C7C(Gfx* arg0, u8* arg1) {
+ void func_84344CE8(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_84344C7C(arg1->unk_18, arg1->unk_14);
++        func_84344C7C(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg));
+     }
+ }
+ 
+@@ -1915,7 +1959,7 @@ void func_843450B4(void) {
+     BattleAnim_SpawnGlobalTintColorFadeDetach(0x32, 0x20, 0xA);
+ }
+ 
+-void func_8434523C(Gfx* arg0, s32 arg1, u16 arg2) {
++void func_8434523C(Gfx* arg0, intptr_t arg1, u16 arg2) {
+     Particle* temp_v0 = BattleAnim_GetOwnerContextParticle(D_8006F09C);
+ 
+     gDPPipeSync(arg0++);
+@@ -1929,7 +1973,7 @@ void func_8434523C(Gfx* arg0, s32 arg1, u16 arg2) {
+ void func_843452F0(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_8434523C(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_8434523C(arg1->unk_18, (intptr_t)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -1942,7 +1986,7 @@ void func_84345338(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 arg2) {
+ void func_8434539C(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_84345338(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_84345338(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -1955,7 +1999,7 @@ void func_843453E4(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
+ void func_84345448(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_843453E4(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_843453E4(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -2148,7 +2192,7 @@ void BattleAnim_CallbackEndEffect21ModelAnimWait(Particle* arg0) {
+     }
+ }
+ 
+-void BattleAnim_BuildEffect49DisplayList(Gfx* arg0, UNUSED s32 arg1, UNUSED u16 arg2) {
++void BattleAnim_BuildEffect49DisplayList(Gfx* arg0, UNUSED intptr_t arg1, UNUSED u16 arg2) {
+     Particle* temp_v0 = BattleAnim_GetOwnerContextParticle(D_8006F09C);
+ 
+     gDPPipeSync(arg0++);
+@@ -2162,7 +2206,7 @@ void BattleAnim_BuildEffect49DisplayList(Gfx* arg0, UNUSED s32 arg1, UNUSED u16
+ void BattleAnim_AllocateEffect49DisplayList(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        BattleAnim_BuildEffect49DisplayList(arg1->unk_18, arg1->unk_14, D_8006F084);
++        BattleAnim_BuildEffect49DisplayList(arg1->unk_18, (intptr_t)arg1->node.callbackArg, D_8006F084);
+     }
+ }
+ 
+@@ -2264,7 +2308,7 @@ void func_84345EC0(void) {
+     BattleAnim_SpawnOwnerModelAlphaFade(0x2D, 0, 0xFF, 0x20);
+ }
+ 
+-void BattleAnim_BuildEffect63DisplayList(Gfx* arg0, s32 arg1, u16 arg2) {
++void BattleAnim_BuildEffect63DisplayList(Gfx* arg0, intptr_t arg1, u16 arg2) {
+     UNUSED s32 pad;
+     Particle* sp28 = BattleAnim_GetOwnerContextParticle(D_8006F09C);
+ 
+@@ -2282,11 +2326,11 @@ void BattleAnim_BuildEffect63DisplayList(Gfx* arg0, s32 arg1, u16 arg2) {
+ void BattleAnim_AllocateEffect63DisplayList(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        BattleAnim_BuildEffect63DisplayList(arg1->unk_18, arg1->unk_14, D_8006F084);
++        BattleAnim_BuildEffect63DisplayList(arg1->unk_18, (intptr_t)arg1->node.callbackArg, D_8006F084);
+     }
+ }
+ 
+-void BattleAnim_BuildEffect75DisplayList(Gfx* arg0, UNUSED s32 arg1, UNUSED u16 arg2) {
++void BattleAnim_BuildEffect75DisplayList(Gfx* arg0, UNUSED intptr_t arg1, UNUSED u16 arg2) {
+     Particle* temp_v0 = BattleAnim_GetOwnerContextParticle(D_8006F09C);
+ 
+     gDPPipeSync(arg0++);
+@@ -2300,7 +2344,7 @@ void BattleAnim_BuildEffect75DisplayList(Gfx* arg0, UNUSED s32 arg1, UNUSED u16
+ void BattleAnim_AllocateEffect75DisplayList(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        BattleAnim_BuildEffect75DisplayList(arg1->unk_18, arg1->unk_14, D_8006F084);
++        BattleAnim_BuildEffect75DisplayList(arg1->unk_18, (intptr_t)arg1->node.callbackArg, D_8006F084);
+     }
+ }
+ 
+@@ -2497,7 +2541,7 @@ void BattleAnim_CallbackStartEffects63And75Model38FadeIn(Particle* arg0) {
+     }
+ }
+ 
+-void func_843466EC(Gfx* arg0, s32 arg1, u16 arg2) {
++void func_843466EC(Gfx* arg0, intptr_t arg1, u16 arg2) {
+     Particle* temp_v0 = BattleAnim_GetOwnerContextParticle(D_8006F09C);
+ 
+     gDPPipeSync(arg0++);
+@@ -2513,7 +2557,7 @@ void func_843466EC(Gfx* arg0, s32 arg1, u16 arg2) {
+ void func_843467B0(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_843466EC(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_843466EC(arg1->unk_18, (intptr_t)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -2537,7 +2581,7 @@ void func_843467F8(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
+ void func_84346960(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_843467F8(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_843467F8(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -2561,7 +2605,7 @@ void func_843469A8(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
+ void func_84346B10(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_843469A8(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_843469A8(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -2651,7 +2695,7 @@ void func_8434719C(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 arg2) {
+ void func_84347254(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_8434719C(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_8434719C(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -2670,7 +2714,7 @@ void func_8434729C(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 arg2) {
+ void func_84347374(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_8434729C(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_8434729C(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -2910,7 +2954,7 @@ void func_84347BF4(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 arg2) {
+ void func_84347D2C(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_84347BF4(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_84347BF4(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -3268,7 +3312,7 @@ void BattleAnim_CallbackStartEffects71And74And111SpecialModelColorCycle(Particle
+     }
+ }
+ 
+-void func_84348F24(Gfx* arg0, s32 arg1, u16 arg2) {
++void func_84348F24(Gfx* arg0, intptr_t arg1, u16 arg2) {
+     Particle* temp_v0 = BattleAnim_GetOwnerContextParticle(D_8006F09C);
+ 
+     gDPPipeSync(arg0++);
+@@ -3284,7 +3328,7 @@ void func_84348F24(Gfx* arg0, s32 arg1, u16 arg2) {
+ void func_84349010(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_84348F24(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_84348F24(arg1->unk_18, (intptr_t)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -3321,7 +3365,7 @@ void func_843491D4(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
+ void func_84349264(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_843491D4(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_843491D4(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -3335,7 +3379,7 @@ void func_843492AC(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
+ void func_8434933C(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_843492AC(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_843492AC(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -3603,13 +3647,13 @@ void func_84349D10(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
+ void func_84349F80(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_84349D10(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_84349D10(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+ void func_84349FC8(Gfx* arg0, UNUSED arg1_func_8434E21C* arg1, UNUSED u16 arg2) {
+     DisplayObject* sp24 = D_8006F09C;
+-    s32 tmp = BattleAnim_GetOwnerContextParticle(D_8006F09C);
++    intptr_t tmp = BattleAnim_GetOwnerContextParticle(D_8006F09C);
+     UNUSED u8 sp1F;
+     UNUSED u8 sp1E;
+     u8 sp1D;
+@@ -3668,7 +3712,7 @@ void func_84349FC8(Gfx* arg0, UNUSED arg1_func_8434E21C* arg1, UNUSED u16 arg2)
+ void func_8434A18C(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_84349FC8(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_84349FC8(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -3805,7 +3849,7 @@ void func_8434A654(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 arg2) {
+ void func_8434A6D8(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_8434A654(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_8434A654(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -3821,7 +3865,7 @@ void func_8434A720(Gfx* arg0, UNUSED arg1_func_8434E21C* arg1, UNUSED u16 arg2)
+ void func_8434A794(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_8434A720(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_8434A720(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -3895,7 +3939,7 @@ void func_8434AAEC(Gfx* arg0, u8 arg1, UNUSED u16 arg2) {
+ void func_8434AC44(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_8434AAEC(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_8434AAEC(arg1->unk_18, (u8)(uintptr_t)arg1->node.callbackArg, D_8006F084);
+     }
+ }
+ 
+@@ -4300,7 +4344,7 @@ void func_8434B2B8(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
+ void func_8434BA28(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_8434B2B8(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_8434B2B8(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -4449,7 +4493,7 @@ void func_8434C3F0(Gfx* arg0, u8 arg1, UNUSED u16 arg2) {
+ void func_8434C548(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_8434C3F0(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_8434C3F0(arg1->unk_18, (u8)(uintptr_t)arg1->node.callbackArg, D_8006F084);
+     }
+ }
+ 
+@@ -4505,7 +4549,7 @@ void func_8434C814(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
+ void func_8434CA48(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_8434C814(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_8434C814(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -4729,7 +4773,7 @@ void func_8434D77C(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 arg2) {
+ void func_8434D890(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_8434D77C(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_8434D77C(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+@@ -4973,7 +5017,7 @@ void func_8434E21C(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 arg2) {
+ void func_8434E6AC(s32 arg0, arg1_func_84344CE8* arg1) {
+     if (arg0 == 2) {
+         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
+-        func_8434E21C(arg1->unk_18, arg1->unk_14, D_8006F084);
++        func_8434E21C(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
+     }
+ }
+ 
+diff --git a/src/fragments/battle_engine/battle_engine_3438B0.c b/src/fragments/battle_engine/battle_engine_3438B0.c
+index a6c3e39119a26e6fa30ac5bf59ad5cb7848cdcd1..15dd9139fcd364cfd4f269cb0ee3c4106e79a581 100644
+--- a/src/fragments/battle_engine/battle_engine_3438B0.c
++++ b/src/fragments/battle_engine/battle_engine_3438B0.c
+@@ -32,7 +32,7 @@ void BattleAnim_RenderEffectsFrame(CameraNode* arg0) {
+     Particle_RenderWorldChains(arg0);
+     guOrtho(&gParticleMatrixPool->unk_5B80, 0.0f, 320.0f, 240.0f, 0.0f, -2.0f, 2.0f, 1.0f);
+ 
+-    gSPMatrix(gDisplayListHead++, (u32)&gParticleMatrixPool->unk_5B80 & 0x1FFFFFFF,
++    gSPMatrix(gDisplayListHead++, (uintptr_t)&gParticleMatrixPool->unk_5B80,
+               G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
+     gSPDisplayList(gDisplayListHead++, D_8140DD78);
+ 
+diff --git a/src/fragments/battle_engine/battle_engine_3591E0.c b/src/fragments/battle_engine/battle_engine_3591E0.c
+index cc7f3672f5521d94c2468cdc948e116e9d4e56f6..6b579012b868e37eb8c9449dd311a83ab2985d2a 100644
+--- a/src/fragments/battle_engine/battle_engine_3591E0.c
++++ b/src/fragments/battle_engine/battle_engine_3591E0.c
+@@ -150,6 +150,10 @@ s16 AuxiliaryEffect_Alloc(void) {
+ void AuxiliaryEffect_Spawn(s16 arg0, f32 arg1, f32 arg2, f32 arg3, s16 arg4, f32 arg5) {
+     s32 i;
+     AuxiliaryEffect* temp_v0 = &D_843C49C0[arg0];
++
++    if (arg0 < 0) { // PORT: no free effect slot (the caller keeps -1); element -1 is unrelated memory on the host
++        return;
++    }
+     AuxiliaryEffectNode* var_v1;
+ 
+     if (temp_v0->unk_000 != 0) {
+@@ -171,6 +175,10 @@ void AuxiliaryEffect_Spawn(s16 arg0, f32 arg1, f32 arg2, f32 arg3, s16 arg4, f32
+ 
+ void AuxiliaryEffect_Update(s16 arg0) {
+     AuxiliaryEffect* temp_v0 = &D_843C49C0[arg0];
++
++    if (arg0 < 0) { // PORT: no free effect slot (the caller keeps -1); element -1 is unrelated memory on the host
++        return;
++    }
+     AuxiliaryEffectNode* var_v1;
+     s32 i;
+ 
+@@ -220,6 +228,10 @@ Gfx* AuxiliaryEffect_DrawOne(Gfx* arg0, AuxiliaryEffectNode* arg1, MtxF* arg2) {
+ Gfx* AuxiliaryEffect_Draw(s16 arg0, Gfx* arg1) {
+     UNUSED s32 pad;
+     AuxiliaryEffect* temp_s3 = &D_843C49C0[arg0];
++
++    if (arg0 < 0) { // PORT: no free effect slot (the caller keeps -1); element -1 is unrelated memory on the host
++        return arg1;
++    }
+     AuxiliaryEffectNode* var_s0;
+     s32 i;
+     MtxF sp78;
+diff --git a/src/fragments/battle_engine/battle_engine_359F90.c b/src/fragments/battle_engine/battle_engine_359F90.c
+index 0e7bc5cd90773cec5f63484943f1341ed40768eb..a8be6591922daec8a5f00392fde2423397b5bc54 100644
+--- a/src/fragments/battle_engine/battle_engine_359F90.c
++++ b/src/fragments/battle_engine/battle_engine_359F90.c
+@@ -114,32 +114,12 @@ u8 gTypeEffects[] = {
+     5,    7,    0x14, 5,    0x19, 0x14, 8,    0,    0,    8,    0x18, 0,    0x14, 0x1A, 5,    0x15, 0x1A, 5,
+     0x17, 0x1A, 5,    0x16, 0x1A, 5,    0x19, 0x1A, 0x14, 0x1A, 0x1A, 0x14, 0xFF, 0,    0,
+ };
+-static u32 D_8438ADEC[] = {
+-    0x18191C2E,
+-    0x2F313839,
+-    0x40414243,
+-    0x4F525455,
+-};
+-static u32 D_8438ADFC[] = {
+-    0x1B000000,
+-};
+-static u32 D_8438AE00[] = {
+-    0x28290000,
+-};
+-static u32 D_8438AE04[] = {
+-    0x010A0B0C, 0x0D0E0F12, 0x13141516, 0x171A2032, 0x33343536, 0x373A3B3C, 0x3D3E3F00,
+-};
+-static u32 D_8438AE20[] = {
+-    0x03070810,
+-    0x1D1E2C30,
+-    0x4D510000,
+-};
+-static u32 D_8438AE2C[] = {
+-    0x03070810,
+-    0x111D1E27,
+-    0x28292B2C,
+-    0x2D301B00,
+-};
++static u8 D_8438ADEC[] = { 0x18, 0x19, 0x1C, 0x2E, 0x2F, 0x31, 0x38, 0x39, 0x40, 0x41, 0x42, 0x43, 0x4F, 0x52, 0x54, 0x55 }; // PORT: byte list (func_8436FD54), was u32 words: N64 byte order
++static u8 D_8438ADFC[] = { 0x1B, 0x00, 0x00, 0x00 }; // PORT: byte list (func_8436FD54), was u32 words: N64 byte order
++static u8 D_8438AE00[] = { 0x28, 0x29, 0x00, 0x00 }; // PORT: byte list (func_8436FD54), was u32 words: N64 byte order
++static u8 D_8438AE04[] = { 0x01, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x1A, 0x20, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x00 }; // PORT: byte list (func_8436FD54), was u32 words: N64 byte order
++static u8 D_8438AE20[] = { 0x03, 0x07, 0x08, 0x10, 0x1D, 0x1E, 0x2C, 0x30, 0x4D, 0x51, 0x00, 0x00 }; // PORT: byte list (func_8436FD54), was u32 words: N64 byte order
++static u8 D_8438AE2C[] = { 0x03, 0x07, 0x08, 0x10, 0x11, 0x1D, 0x1E, 0x27, 0x28, 0x29, 0x2B, 0x2C, 0x2D, 0x30, 0x1B, 0x00 }; // PORT: byte list (func_8436FD54), was u32 words: N64 byte order
+ static s32 D_8438AE3C = 0x4D2;
+ static u32 D_8438AE40 = 0x1A85;
+ static u32 D_8438AE44 = 0x3039;
+diff --git a/src/fragments/battle_engine/battle_engine_35DF70.c b/src/fragments/battle_engine/battle_engine_35DF70.c
+index 2d35ee2a19e970aaf95a39c954d0ca2df22379e1..6091345938b61fcb8dda8141bbcf696c1e986127 100644
+--- a/src/fragments/battle_engine/battle_engine_35DF70.c
++++ b/src/fragments/battle_engine/battle_engine_35DF70.c
+@@ -1,3 +1,4 @@
++#include <stdio.h>
+ #include "battle_engine.h"
+ #include "moves.h"
+ #include "src/text_system.h"
+diff --git a/src/fragments/battle_engine/battle_engine_361050.c b/src/fragments/battle_engine/battle_engine_361050.c
+index 1463c36f9d91811ef32fd53a4bad18102a7318ed..2c672edf6347122f0a972b02f3bb0d10979a3f5f 100644
+--- a/src/fragments/battle_engine/battle_engine_361050.c
++++ b/src/fragments/battle_engine/battle_engine_361050.c
+@@ -66,10 +66,19 @@ static u8 D_8438B0D8[] = {
+ };
+ static u8 D_8438B0F4[] = { 0x27, 0x2B };
+ 
+-void BattleAI_LoadConfiguration(s32 arg0, u32 arg1) {
+-    u32 temp_a1 = (u32)_7820E0_ROM_START + arg0 * 0x48;
++void BattleAI_LoadConfiguration(s32 arg0, uintptr_t arg1) {
++    u32 temp_a1 = (uintptr_t)_7820E0_ROM_START + arg0 * 0x48;
+ 
+     Dma_WriteChunks(arg1, temp_a1, temp_a1 + 0x48, 0);
++    {
++        // PORT: big-endian ROM record; the three difficulty configs (read as AIDifficultyConfig) start with an s32
++        // flag word.
++        s32 i;
++        for (i = 0; i < 3; i++) {
++            u32* w = (u32*)(arg1 + 0xC + i * 0x14);
++            *w = Port_Swap32(*w);
++        }
++    }
+ }
+ 
+ void func_843767DC(void) {
+@@ -3525,7 +3534,7 @@ u16 BattleAI_ComputeDifficultyThreshold(u8 arg0, u8 arg1) {
+ }
+ 
+ u8 BattleAI_GetPpWeight(u8 arg0) {
+-    u8 var_a1 = gMoveData[arg0 - 1].unk_05;
++    u8 var_a1 = gMoveData[arg0 - 1].unk_05; // PORT: gMoveData[-1] exists (zero) for empty slots, see gb_data.c
+ 
+     var_a1 += ((var_a1 / 5 >= 8) ? 7 : var_a1 / 5) * 3;
+     return var_a1;
+@@ -3941,7 +3950,7 @@ s32 BattleAI_ScoreAllTeamCandidates(BattleAiTeamState* arg0, BattleAiTeamState*
+ }
+ 
+ typedef struct unk_func_8437F85C_sp74 {
+-    /* 0x00 */ s32 unk_00[6];
++    /* 0x00 */ s32 unk_00[8]; // PORT: up to 7 entries are written; [6] overran the host stack frame (Linux crash)
+ } unk_func_8437F85C_sp74; // size >= 0x20
+ 
+ s32 BattleAI_InsertRankedCandidateGroup(BattleAiTeamState* arg0, s32* arg1, s32 arg2, unk_func_8437F85C_arg3* arg3, u8* arg4, u8 arg5, u8 arg6) {
+@@ -4091,7 +4100,7 @@ s32 func_8437FD74(BattleAiTeamState* arg0, u8* arg1, s32* arg2, u8 arg3) {
+     unsigned int temp_l;
+     // The loop below and BattleAI_InsertRankedCandidateGroup use 8 entries, but only 6 fit in the
+     // target's frame. The last two overlap the unused stack homes of var_a1 and temp_l.
+-    s32 sp94[6];
++    s32 sp94[8]; // PORT: 8, the entries actually used (6 overflowed into the host's stack)
+     u8 sp90[3];
+     u8 sp78[0x18];
+     u8 spBF;
+@@ -5394,7 +5403,7 @@ s32 func_843831A0(TeamRoster* arg0, TeamRoster* arg1, TeamRoster* ai_roster, s32
+     if (ai_difficulty < 0xFF) {
+         BattleAI_LoadConfiguration(ai_difficulty, &D_843C60F0);
+     }
+-    bzero(D_843C5568, sizeof(D_843C5568) + 2);
++    bzero(D_843C5568, sizeof(D_843C5568)); // PORT: was + 2 (padding after the array on N64; fortified bzero traps)
+     D_843C5568->unk_000 = 1;
+     BattleAI_SeedRandomState(0x35);
+ 
+diff --git a/src/fragments/battle_engine/battle_engine_main.c b/src/fragments/battle_engine/battle_engine_main.c
+index f52b88d105b39060d8d3f853d6fec3aa56c62e86..bb6ea6b8d30afdff962692f8e4391f0d66357319 100644
+--- a/src/fragments/battle_engine/battle_engine_main.c
++++ b/src/fragments/battle_engine/battle_engine_main.c
+@@ -1,3 +1,5 @@
++#include <stdlib.h>
++#include <stdio.h>
+ #include "battle_engine.h"
+ #include "game_state.h"
+ #include "src/geo_node.h"
+@@ -68,7 +70,7 @@ static u8 sBattleModeDispatch[] = {
+     // first bytes of sStageGeoLayout (0x0C, 0x00, 0xFF, 0xFF, 0x05, 0x00, 0x00).
+     // Adding entries would shift .data and break ROM identity.
+ };
+-static u32 sStageGeoLayout[] = {
++static uintptr_t sStageGeoLayout[] = { // PORT64: holds addresses
+     0x0C00FFFF,  0x05000000,  0x07000000,    &sStageCamera,   0x05000000, 0x0D000000,    0x05000000,  0x07000000,
+     &sStageFog, 0x14000000,  0x002D0019,    0xFFFFFF28,    0x08000000, Battle_StageLightAngleCallbackA, 0x00000000,  0x14000000,
+     0x002D0019,  0x80808028,  0x08000000,    Battle_StageLightAngleCallbackB, 0x00000000, 0x16646464,    0x0F000002,  0x05000000,
+@@ -81,12 +83,12 @@ static u32 sStageGeoLayout[] = {
+     0x0A000000,  &D_800AC840, 0x06000000,    0x0F000002,    0x05000000, 0x0A000000,    &D_800AC858, 0x06000000,
+     0x09000000,  0x08000000,  Battle_StageGeoDispatchCallback, 0x00000000,    0x06000000, 0x06000000,    0x06000000,  0x01000000,
+ };
+-static u32 sSide1ThumbnailLayout[] = {
++static uintptr_t sSide1ThumbnailLayout[] = { // PORT64: holds addresses
+     0x0C00FFFF,  0x05000000, 0x07000000, &sSide1ThumbnailCamera, 0x05000000, 0x0D000001, 0x05000000,
+     0x14000000,  0x002D0019, 0xFFFFFF28, 0x16FFFFFF,  0x0F000003, 0x05000000, 0x0A000000,
+     &D_800AC840, 0x06000000, 0x06000000, 0x06000000,  0x06000000, 0x01000000,
+ };
+-static u32 sSide2ThumbnailLayout[] = {
++static uintptr_t sSide2ThumbnailLayout[] = { // PORT64: holds addresses
+     0x0C00FFFF,  0x05000000, 0x07000000, &sSide2ThumbnailCamera, 0x05000000, 0x0D000002, 0x05000000,
+     0x14000000,  0x002D0019, 0xFFFFFF28, 0x16FFFFFF,  0x0F000003, 0x05000000, 0x0A000000,
+     &D_800AC840, 0x06000000, 0x06000000, 0x06000000,  0x06000000, 0x01000000,
+@@ -168,7 +170,7 @@ void Battle_SetStageScale(f32 scale) {
+ 
+ // called every frame: bug boy in GLC
+ // Expand RGBA5551 channels to eight bits for tinting, then repack with alpha set.
+-u16 Battle_TintTexel16(u16 color) {
++u16 Battle_TintTexel16(uintptr_t color) {
+     s32 r;
+     s32 g;
+     s32 b;
+@@ -192,17 +194,17 @@ void Battle_DrawStageBackdrop(void) {
+     s16 bottom;
+     s16 texture_step_y;
+ 
+-    if ((u32)sStageBackdrop == NULL) {
++    if ((uintptr_t)sStageBackdrop == NULL) {
+         GfxImage_ClearDepthRectangle(&gDisplayListHead, 0, 0, 0x140, 0xF0);
+         return;
+     }
+ 
+-    if ((u32)sStageBackdrop == -1) {
++    if ((uintptr_t)sStageBackdrop == -1) {
+         GfxImage_FillCurrent(&gDisplayListHead, 1);
+         return;
+     }
+ 
+-    if ((u32)sStageBackdrop < 0x10000) {
++    if ((uintptr_t)sStageBackdrop < 0x10000) {
+         GfxImage_FillCurrent(&gDisplayListHead, Battle_TintTexel16(sStageBackdrop));
+         return;
+     }
+@@ -254,6 +256,12 @@ void Battle_RenderActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer*
+ 
+         GfxImage_SetRenderTarget(&gDisplayListHead, thumbnail);
+         GfxImage_FillCurrent(&gDisplayListHead, 0x10D);
++        if (getenv("PORT_TRACE_BATTLE")) {
++            extern unsigned long long Port_ViTick(void);
++            GraphNode* c = (GraphNode*)camera_node->node.children;
++            fprintf(stderr, "[thumb] frame %llu image %p %dx%d children %p\n", Port_ViTick(), (void*)thumbnail->img_p,
++                    thumbnail->width, thumbnail->height, (void*)c);
++        }
+         Geo_RenderRootNode(thumbnail_root);
+ 
+         camera_node->node.flags &= ~0x10;
+@@ -308,7 +316,7 @@ void Battle_FillActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer* t
+     s32 y;
+     CameraNode* camera_node = thumbnail_root->children;
+     CameraViewport* viewport = &thumbnail_root->children->viewport;
+-    s32 image_address;
++    intptr_t image_address;
+ 
+     x = viewport->x;
+     y = viewport->y;
+@@ -611,7 +619,7 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+     sBattleSides[1].unk_10 = PokeIcon_AllocFramebuffers(3);
+     PokeIcon_OpenModelArchives();
+ 
+-    thumbnail_depth = main_pool_alloc(0x10, 0);
++    thumbnail_depth = main_pool_alloc(sizeof(*thumbnail_depth), 0); // PORT64: host size (was 0x10)
+     GfxImage_Initialize(thumbnail_depth, 0, 2, 0x4C, 0x4C, stage_context->unk_18[0]->depth_p->img_p);
+     sSide1PokemonThumbnail = GfxImage_Allocate(0, 2, 0x4C, 0x4C, 0);
+     sSide2PokemonThumbnail = GfxImage_Allocate(0, 2, 0x4C, 0x4C, 0);
+@@ -640,8 +648,16 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+         }
+     }
+ 
+-    arena_entry = BinArchive_GetFile(ASSET_LOAD2(stadium_models, 1, 1), arena_index);
+-    sStageBackdrop = arena_entry(2, 0);
++    if (getenv("PORT_BOOT_STAGE") != NULL) { // PORT debug: force a stage file of stadium_models
++        arena_index = atoi(getenv("PORT_BOOT_STAGE"));
++    }
++    {
++        BinArchive* arc = ASSET_LOAD2(stadium_models, 1, 1);
++        arena_entry = BinArchive_GetFile(arc, arena_index);
++        fprintf(stderr, "[stadium] archive %p flags 0x%x id 0x%x files %u -> file %d at %p\n", (void*)arc, arc ? arc->unk_00 : 0, arc ? arc->unk_02 : 0, arc ? arc->num_files : 0, arena_index, (void*)arena_entry);
++        if (arena_entry) { for (int k = 0; k < 64; k++) fprintf(stderr, "%02x%s", ((u8*)arena_entry)[k], (k % 16 == 15) ? "\n" : " "); }
++    }
++    sStageBackdrop = (void*)Port_CallBlobEntry(arena_entry, 2, 0);
+ 
+     model = Model_LoadByArchiveIndex(0x9A);
+     Battle_SelectComRoster();
+@@ -669,17 +685,17 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+     sSide2ThumbnailRoot = process_geo_layout(layout_pool, sSide2ThumbnailLayout);
+ 
+     // Selectors 0, 1, and 3 each attach geometry beneath a stage tint/scale callback.
+-    stage_layout = arena_entry(0, 0);
++    stage_layout = (void*)Port_CallBlobEntry(arena_entry, 0, 0);
+     if (stage_layout != NULL) {
+         GraphNode_AppendChild(&sStageLayout0, process_geo_layout(layout_pool, stage_layout));
+     }
+ 
+-    stage_layout = arena_entry(1, 0);
++    stage_layout = (void*)Port_CallBlobEntry(arena_entry, 1, 0);
+     if (stage_layout != NULL) {
+         GraphNode_AppendChild(&sStageLayout1, process_geo_layout(layout_pool, stage_layout));
+     }
+ 
+-    stage_layout = arena_entry(3, 0);
++    stage_layout = (void*)Port_CallBlobEntry(arena_entry, 3, 0);
+     if (stage_layout != NULL) {
+         GraphNode_AppendChild(&sStageLayout3, process_geo_layout(layout_pool, stage_layout));
+     }
+@@ -687,13 +703,14 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+     MainPool_FinalizeAllocation(layout_pool);
+ 
+     // callbackArg records whether this arena supplied fog, for Battle_SetStageTintColor.
+-    fog_parameters = arena_entry(4, 0);
++    fog_parameters = Port_VResolve(Port_CallBlobEntry(arena_entry, 4, 0)); // PORT: the stage blob returns its pseudo address
+     if (fog_parameters == NULL) {
+         sStageFog.node.callbackArg = 0;
+         sStageFog.node.flags &= ~1;
+     } else {
+-        sStageFog.unk_18.unk_00 = fog_parameters->unk_00;
+-        sStageFog.unk_18.unk_02 = fog_parameters->unk_02;
++        // PORT: big-endian data inside the stage file
++        sStageFog.unk_18.unk_00 = (s16)((((u8*)&fog_parameters->unk_00)[0] << 8) | ((u8*)&fog_parameters->unk_00)[1]);
++        sStageFog.unk_18.unk_02 = (s16)((((u8*)&fog_parameters->unk_02)[0] << 8) | ((u8*)&fog_parameters->unk_02)[1]);
+         sStageFog.unk_18.unk_04.rgba = fog_parameters->unk_04.rgba;
+         sStageFog.node.callbackArg = 1;
+     }

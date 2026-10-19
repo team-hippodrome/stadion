@@ -5,7 +5,9 @@ Values come from the decomp's linker map, so they are the ROM offsets / virtual 
 original build used. Leftover undefined names are written to build/leftover_syms.txt."""
 import re, subprocess, pathlib, sys
 root = pathlib.Path(__file__).resolve().parent.parent
-mapfile = root.parent / "pokestadium/build/pokestadium-us.map"
+# the unmodified decomp checkout and build the game is patched from (PORT_DECOMP_DIR, default ../pokestadium)
+decomp = pathlib.Path(__import__("os").environ.get("PORT_DECOMP_DIR", root.parent / "pokestadium"))
+mapfile = decomp / "build/pokestadium-us.map"
 lib = root / "build/libstadium_game.a"
 nm = subprocess.run(["nm", "-g", str(lib)], capture_output=True, text=True).stdout
 undef, defd = set(), set()
@@ -25,7 +27,8 @@ for l in mapfile.read_text(errors="replace").splitlines():
 ABS_OK = re.compile(r"^(D_[0-9A-Fa-f]+(_\w+)?|\w+_(ROM_START|ROM_END|TEXT_START|TEXT_END|VRAM|VRAM_END)|\w*relocs\w*|F3DEX2_\w+|gAudioData|__binary_\w+|_?[0-9A-F]{5,6}_ROM_\w+)$")
 out, left = [], []
 for n in need:
-    if n in vals and vals[n] < 0x100000000 and ABS_OK.match(n):
+    # named segment data (textures etc. at 0x0Nxxxxxx, a segment address) is as data-like as a D_ name
+    if n in vals and vals[n] < 0x100000000 and (ABS_OK.match(n) or vals[n] < 0x10000000):
         out.append(f".globl SYM({n})\n.set SYM({n}), 0x{vals[n]:X}")
     else:
         left.append(n)
