@@ -14,3 +14,4 @@ fast_to_battle          long    # the same route as to_battle
 pick3                   long
 to_battle_slow          long
 tour_labgb3             PORT_GB_ROM=gb/yellow_de.gb GBSAVE=gb/yellow_de.sav
+gbtower_quit            8200    PORT_GB_ROM=gb/yellow_de.gb GBSAVE=gb/gbtower_quit.sav  # GB Tower, menu Quit Game: crashed at 7564 (pool header overrun, self-destroying thread)
