@@ -373,6 +373,40 @@ static void MaybeScreenshot() {
     }
 }
 
+// Saves the picture just drawn as an 8-bit PPM (interp.cpp: in-between frames).
+void SaveScreen(const char* path) {
+    int w = 0, h = 0;
+    int count = 0;
+    if (SDL_Window** ws = SDL_GetWindows(&count)) {
+        if (count > 0) SDL_GetWindowSizeInPixels(ws[0], &w, &h);
+        SDL_free(ws);
+    }
+    auto interp = sWindow->GetInterpreterWeak().lock();
+    if (w <= 0 || h <= 0 || !interp) return;
+    std::vector<uint16_t> buf((size_t)w * h);
+    interp->mRapi->ReadFramebufferToCPU(0, (uint32_t)w, (uint32_t)h, buf.data());
+    bool full = gPortScreenW == (uint32_t)w && gPortScreenH == (uint32_t)h && gPortScreenBgra.size() == buf.size() * 4;
+    static const int scale = getenv("PORT_SHOT_SCALE") ? std::max(1, atoi(getenv("PORT_SHOT_SCALE"))) : 1; // 1/n size
+    if (FILE* f = fopen(path, "wb")) {
+        fprintf(f, "P6\n%d %d\n255\n", w / scale, h / scale);
+        for (size_t i = 0; i < buf.size(); i++) {
+            if (scale > 1 && ((i % w) % scale != 0 || (i / w) % scale != 0 || (int)(i % w) / scale >= w / scale ||
+                              (int)(i / w) / scale >= h / scale)) {
+                continue;
+            }
+            uint16_t v = buf[i];
+            uint8_t px[3] = { (uint8_t)(((v >> 11) & 31) * 255 / 31), (uint8_t)(((v >> 6) & 31) * 255 / 31), (uint8_t)(((v >> 1) & 31) * 255 / 31) };
+            if (full) {
+                px[0] = gPortScreenBgra[i * 4 + 2];
+                px[1] = gPortScreenBgra[i * 4 + 1];
+                px[2] = gPortScreenBgra[i * 4 + 0];
+            }
+            fwrite(px, 1, 3, f);
+        }
+        fclose(f);
+    }
+}
+
 // Shows the presented-frame rate in the window title (updated twice a second).
 static void UpdateFpsTitle() {
     static auto last = std::chrono::steady_clock::now();
@@ -401,6 +435,30 @@ bool TrackFrame(void* gfxCommands) {
 }
 
 bool RunFrame(void* gfxCommands) {
+    return RunFrameWith(gfxCommands, nullptr, false);
+}
+
+// mtxReplacements: interpolated matrices (interp.cpp); subFrame: an in-between frame, the display list drawn again
+bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame, bool readBack) {
+    static const std::unordered_map<Mtx*, MtxF> sNone;
+    const auto& replacements =
+        mtxReplacements ? *static_cast<const std::unordered_map<Mtx*, MtxF>*>(mtxReplacements) : sNone;
+    if (subFrame) {
+        if (!WindowIsRunning()) {
+            return false;
+        }
+        auto interp = sWindow->GetInterpreterWeak().lock();
+        if (!interp) return false;
+        sWindow->StartFrame();
+        interp->mReplayPass = true;
+        interp->mReplayReadback = readBack; // (Metal reads the screen back at the end of the next frame)
+        sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), replacements);
+        interp->mReplayPass = false;
+        interp->mReplayReadback = false;
+        Port_PacingNote(PORT_PACE_DRAWN, Port_SteadyNs());
+        UpdateFpsTitle();
+        return true;
+    }
     if (getenv("PORT_VALIDATE_DL")) ValidateList(static_cast<Gfx*>(gfxCommands), 0, "frame");
     if (!WindowIsRunning()) {
         return false;
@@ -439,11 +497,17 @@ bool RunFrame(void* gfxCommands) {
     // libultraship's frame limiter sleeps after a present until 1/60 s after the previous one; when retraces follow the
     // display's refresh (os_devices.cpp) it must not hold presents back (a display slightly faster than 60 Hz would
     // otherwise push every frame a little later in the refresh, until one missed it), so it only caps at 64 fps there
-    sWindow->SetTargetFps(Port_DisplayPaced() ? 64 : 60);
+    // (in-between frames come once per refresh: the limit then follows the display's refresh rate)
+    int targetFps = Port_DisplayPaced() ? 64 : 60;
+    if (mtxReplacements != nullptr) {
+        int64_t period = 0, vblank = 0;
+        if (Port_DisplayVblank(&period, &vblank) && period > 1000000) targetFps = (int)(1e9 / period) + 8;
+    }
+    sWindow->SetTargetFps(targetFps);
     gPortDrawLog = sCaptureFrame != 0 && getenv("PORT_DRAWLOG") != nullptr; // debug: list the draw states of the captured frame
     static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
     auto drawStart = std::chrono::steady_clock::now();
-    sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), {});
+    sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), replacements);
     Port_PacingNote(PORT_PACE_DRAWN, Port_SteadyNs());
     if (tracePacing) { // PORT_TRACE_PACING=1: presented frames more than 40 ms apart, and slow draws (os_devices.cpp)
         static auto lastPresent = drawStart;

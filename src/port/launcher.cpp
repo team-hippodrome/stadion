@@ -6,6 +6,7 @@
 // again); Debug adds a button that opens the save editor (tools/save_editor, needs python3) in the browser. Controls
 // swaps the player cards for the key and controller bindings of each player (libultraship's ControlDeck mappings).
 #include "launcher.h"
+#include "Engine.h"
 
 #include <chrono>
 #include <libultraship/libultraship.h>
@@ -54,6 +55,7 @@ struct State {
     std::string rom, save;
     std::array<GbSlot, 4> gb;
     bool autoPlay = false, debug = false;
+    bool smooth = false; // frame interpolation (interp.cpp)
 };
 
 std::string Key(const char* name) {
@@ -86,6 +88,7 @@ State Load() {
     }
     s.autoPlay = CVarGetInteger(Key("AutoPlay").c_str(), 0) != 0;
     s.debug = CVarGetInteger(Key("Debug").c_str(), 0) != 0;
+    s.smooth = CVarGetInteger("gPort.Interpolate", 0) != 0;
     return s;
 }
 
@@ -99,6 +102,7 @@ void Store(const State& s) {
     }
     CVarSetInteger(Key("AutoPlay").c_str(), s.autoPlay ? 1 : 0);
     CVarSetInteger(Key("Debug").c_str(), s.debug ? 1 : 0);
+    CVarSetInteger("gPort.Interpolate", s.smooth ? 1 : 0);
     CVarSave();
 }
 
@@ -900,6 +904,11 @@ class LauncherWindow : public Ship::GuiWindow {
             }
         }
         Check("Debug", &s.debug, x + 164, y + 88);
+        Check("Smooth motion", &s.smooth, x + 250, y + 88);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("3D scenes at the display's refresh rate: in-between frames are drawn between the game's\n"
+                              "own 30 or 20 frames per second (one game frame of extra delay)");
+        }
         if (Button(mControls ? "Players" : "Controls", x + 450, y + 86, 100, 26)) {
             mControls = !mControls;
         }
@@ -997,6 +1006,12 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
             lastFrame = now;
             if (playAfter != nullptr && frame >= atoi(playAfter) && CheckRom(state.rom).empty()) {
                 play = true;
+            }
+            // test hook: PORT_LAUNCHER_SHOT=<file.ppm> saves the launcher's picture at frame 60 and closes it
+            static const char* shot = getenv("PORT_LAUNCHER_SHOT");
+            if (shot != nullptr && frame >= 58) { // (Metal reads the screen back a frame late)
+                Port::SaveScreen(shot);
+                quit = frame >= 60;
             }
         }
         window->GetGui()->RemoveGuiWindow(launcher->GetName());

@@ -50,6 +50,7 @@ add_executable(pokestadium
   src/port/main.cpp
   src/port/Engine.cpp
   src/port/pacing.cpp
+  src/port/interp.cpp
   src/port/launcher.cpp
   src/port/shader_warmup.cpp
   src/port/stubs.c

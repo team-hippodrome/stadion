@@ -6,6 +6,7 @@
 #include <port_compat.h>
 
 #include "Engine.h"
+#include "interp.h"
 #include "pacing.h"
 
 #include <atomic>
@@ -1033,6 +1034,7 @@ static void PresentCpuFrame(void* fb, bool black, float xscale, bool repeatLine)
     }
     gDPFullSync(g++);
     gSPEndDisplayList(g++);
+    Port::CancelInterpolation();
     Port::RunFrame(dl);
 }
 
@@ -1109,8 +1111,9 @@ void Port::PumpRspTasks() {
             bool stopFrame, shotFrame;
             CheckCapture(&stopFrame, &shotFrame);
             if ((gfxCount++ % Port_RenderEvery()) == 0 || stopFrame || shotFrame) {
-                Port::RunFrame(t->t.data_ptr);
+                Port::RunGameFrame(t->t.data_ptr, stopFrame || shotFrame); // (interp.cpp: in-between frames)
             } else if (Port::TrackFrame(t->t.data_ptr)) { // not drawn, but its state changes must still happen
+                Port::CancelInterpolation();
                 Port::RunFrame(t->t.data_ptr);                  // renders to a texture: draw it after all
             }
             if (stopFrame) {
