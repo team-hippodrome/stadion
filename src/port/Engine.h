@@ -24,6 +24,8 @@ bool LoadRom(const char* path);
 std::string AppPath(const char* name);
 // the game window (after Init), for the launcher
 std::shared_ptr<Fast::Fast3dWindow> GetWindow();
+// starts building the shader programs earlier runs drew, and records new ones (shader_warmup.cpp; after Init)
+void StartShaderWarmup();
 const uint8_t* RomData();
 size_t RomSize();
 

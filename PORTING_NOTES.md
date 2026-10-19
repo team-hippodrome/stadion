@@ -253,7 +253,8 @@ input therefore always produces the same run, and the speed is only a throttle: 
 allows (~20x; the intro-to-team-select path takes ~10 s), `PORT_SPEED=10` caps at 10x, default 1x.
 `PORT_REALTIME=1` restores the old wall-clock threads.
 `PORT_TRACE_PACING=1` logs hitches: retraces that came late in wall-clock time (with how long the game was busy),
-presented frames more than 40 ms apart or slow to draw, and how long each new Metal shader took to build. A Metal shader
+presented frames more than 40 ms apart or slow to draw, and how long each new Metal shader took to build (also alone:
+`PORT_TRACE_SHADERS=1`; see Shader warm-up). A Metal shader
 now builds its pipeline only for the window's MSAA level (others on first use), not for every supported level. It also
 sums RSP tasks per retrace (`[task]`) and lists the game threads when a retrace waits more than 150 ms. That found the
 pause at boot and at the title-to-menu change (~0.35 s): each scene decodes its backgrounds in 300 JPEG tasks, and each
@@ -1158,3 +1159,46 @@ listening.
   battle music's level is within 0.5 dB throughout. Waveforms there correlate less (0.2-0.4): the crowd-noise loop's
   phase differs between the runs, and the computer's lead Pokémon is random (see above), so cries differ.
 - Linux (Xvfb, OpenGL) produces a bit-identical dump to macOS for the same run.
+
+## Shader warm-up
+
+Fast3D builds a shader program the first time a combiner/state combination is drawn, and that draw waits for it. With a
+warm Metal cache that is ~1 ms; on a fresh install or after an update (new binary, empty Metal cache) it is 300-700 ms
+per program, a visible hitch the first time each effect appears. The stored recordings draw 113 distinct programs
+(`to_battle` alone 48). So the port builds them ahead (`src/port/shader_warmup.cpp`, started at the end of
+`Port::Init`):
+
+- **The list**: `src/port/shader_warmup.txt` (packed into `pokestadium.o2r` as `port/shader_warmup.txt`), the programs
+  the recordings draw, ordered by how many recordings draw them (boot and menus first). `tools/shader_list.py --run`
+  plays all recordings with `PORT_TRACE_SHADERS=1` and rewrites it; lists recorded while playing can be added
+  (`tools/shader_list.py <shaders.txt>`). Plus `shaders.txt` next to `pokestadium.cfg.json`: each program this
+  installation draws that is in neither list is appended there, and later runs build it ahead too. Ids that a newer
+  build no longer draws only cost a build; a program is always built from its id by the current code.
+- **Metal**: worker threads (half the cores, 2-6) build each program's library and pipeline (`PrebuildShadersAsync` in
+  `gfx_metal.cpp`; Metal device calls are thread-safe). `CreateAndLoadNewShader` takes a finished one, waits for one
+  that is being built, or builds it itself (and the workers then skip it). The source generator
+  (`gfx_metal_build_shader`) keeps state in statics, so it runs under a lock; that part takes well under 1 ms. A
+  program built for another filter mode is dropped and built again. The launcher stays responsive (no launcher frame
+  later than 40 ms while it builds), and with Auto-play the game starts at once while the workers build.
+- **OpenGL, DX11**: no builder thread (an OpenGL context belongs to one thread). The interpreter builds the queued
+  programs on the render thread before each frame's first draw, up to 4 ms per frame (at least one), i.e. during the
+  launcher, or during the boot logos with Auto-play (`Interpreter::WarmupStep`). Checked on macOS's OpenGL backend:
+  the same picture with and without warm-up, all programs of `to_battle` built ahead. DX11 is not tested.
+- `PORT_NO_SHADER_WARMUP=1` turns it off (programs are still recorded). `PORT_SHADER_LIST=<file>` records into another
+  file (`tools/run_replays.py` gives each run its own, so test runs use the shipped list only).
+  `PORT_SHADER_THREADS=<n>` sets the number of Metal workers. `PORT_SHADER_SALT=<text>` adds a comment to every Metal
+  source so that each build misses the Metal cache (to measure cold builds: the cache of an unbundled binary is shared
+  and keyed by the source, so a copied binary is not reliably cold).
+- `PORT_TRACE_SHADERS=1` (or `PORT_TRACE_PACING=1`): `[shader] <id0>/<id1> built|prebuilt in X ms` per program at its
+  first draw (the time that draw waited), the size of the list, and when the warm-up is done.
+
+Measured on an M-series Mac (10 cores), cold (salted) Metal cache, `to_battle` at 1x, no launcher (Auto-play):
+
+| | first draws | waited in total | longest wait | graphics tasks > 100 ms |
+|---|---|---|---|---|
+| without warm-up | 34, all built | 11.7 s | 352 ms | 21 (max 1368 ms) |
+| warm-up, Auto-play | 34, 32 prebuilt | 1.7 s, all in the first second of boot (black screen) | 608 ms | 0 |
+| warm-up, launcher shown 8 s | 34, all prebuilt | 0 ms | 0 ms | 0 |
+
+All 113 programs take 8.5-13.5 s to build cold with 4-8 workers (35 s with one), ~0.1 s warm. Replays are unchanged
+(`tools/run_replays.py --all`: difference 0.00 everywhere).

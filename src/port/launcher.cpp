@@ -7,6 +7,7 @@
 // swaps the player cards for the key and controller bindings of each player (libultraship's ControlDeck mappings).
 #include "launcher.h"
 
+#include <chrono>
 #include <libultraship/libultraship.h>
 #include <SDL3/SDL.h>
 #include <imgui.h>
@@ -982,9 +983,18 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
         gSPEndDisplayList(&empty[0]);
         // test hook: PORT_LAUNCHER_PLAY_AFTER=<frames> presses PLAY after that many frames (when the ROM is valid)
         const char* playAfter = getenv("PORT_LAUNCHER_PLAY_AFTER");
+        // PORT_TRACE_PACING=1: launcher frames more than 40 ms apart (the shader warm-up runs meanwhile)
+        static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
+        auto lastFrame = std::chrono::steady_clock::now();
         for (int frame = 0; !play && !quit && window->IsRunning(); frame++) {
             window->HandleEvents();
             window->DrawAndRunGraphicsCommands(empty, {});
+            auto now = std::chrono::steady_clock::now();
+            if (tracePacing && frame > 0 && now - lastFrame > std::chrono::milliseconds(40)) {
+                fprintf(stderr, "[launcher] frame %d came %.0f ms after the last\n", frame,
+                        std::chrono::duration<double, std::milli>(now - lastFrame).count());
+            }
+            lastFrame = now;
             if (playAfter != nullptr && frame >= atoi(playAfter) && CheckRom(state.rom).empty()) {
                 play = true;
             }
