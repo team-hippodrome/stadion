@@ -1,4 +1,5 @@
 #include "Engine.h"
+#include "pacing.h"
 
 #include <libultraship/libultraship.h>
 #include <fast/Fast3dWindow.h>
@@ -35,6 +36,7 @@ extern void* (*gPortAddressResolver)(uintptr_t);
 extern "C" void* Port_ResolveN64Address(uintptr_t addr);
 
 extern "C" double Port_Speed();
+extern "C" bool Port_DisplayPaced();
 extern "C" bool Port_Lockstep();
 extern "C" uint64_t Port_ViTick();
 extern "C" bool Port_FreezeCheckEnabled();
@@ -148,7 +150,22 @@ bool Init() {
     auto cvars = std::make_shared<Ship::ConsoleVariable>(config);
     sContext->GetChildren().Add(cvars);
     CVarSetConsoleVariable(cvars);
-    if (Port_Speed() > 1.0) cvars->SetInteger("gVsyncEnabled", 0); // vsync would cap the speed-up at the display rate
+    // Vsync would cap the speed-up at the display rate: PORT_SPEED > 1 turns it off for that run. The config is saved
+    // with it (on the first run, from the settings menu), and later runs at normal speed then presented without vsync
+    // (frames shown whenever they were done, out of step with the display); the player's own value is therefore kept
+    // in gPort.VsyncSaved and restored by the next run at normal speed.
+    if (Port_Speed() > 1.0) {
+        if (!cvars->GetInteger("gPort.VsyncOverridden", 0)) {
+            cvars->SetInteger("gPort.VsyncSaved", cvars->GetInteger("gVsyncEnabled", 1));
+            cvars->SetInteger("gPort.VsyncOverridden", 1);
+        }
+        cvars->SetInteger("gVsyncEnabled", 0);
+    } else if (cvars->GetInteger("gPort.VsyncOverridden", 0)) {
+        cvars->SetInteger("gVsyncEnabled", cvars->GetInteger("gPort.VsyncSaved", 1));
+        cvars->ClearVariable("gPort.VsyncOverridden");
+        cvars->ClearVariable("gPort.VsyncSaved");
+        cvars->Save();
+    }
 
     sWindow = std::make_shared<Fast::Fast3dWindow>(std::vector<std::shared_ptr<Ship::GuiWindow>>({}), config, cvars);
 
@@ -205,6 +222,17 @@ bool Init() {
     WindowSetWindowComponent(sWindow);
     GfxSetFast3dWindow(sWindow);
     sWindow->Init();
+    // PORT_WINDOW_ON_TOP=1: the window stays above other windows without taking the keyboard focus (measuring the
+    // frame pacing with PORT_TRACE_PACING while working in another app: macOS stops presenting a covered window)
+    if (getenv("PORT_WINDOW_ON_TOP")) {
+        int n = 0;
+        SDL_Window** wins = SDL_GetWindows(&n);
+        for (int i = 0; wins && i < n; i++) {
+            SDL_SetWindowFocusable(wins[i], false);
+            SDL_SetWindowAlwaysOnTop(wins[i], true);
+        }
+        SDL_free(wins);
+    }
     // PORT_HIDDEN_WINDOW=1: render without showing the window (tools/run_replays.sh; screenshots still work)
     if (getenv("PORT_HIDDEN_WINDOW")) {
         int n = 0;
@@ -408,11 +436,15 @@ bool RunFrame(void* gfxCommands) {
         }
     }
     sWindow->StartFrame();
-    sWindow->SetTargetFps(60);
+    // libultraship's frame limiter sleeps after a present until 1/60 s after the previous one; when retraces follow the
+    // display's refresh (os_devices.cpp) it must not hold presents back (a display slightly faster than 60 Hz would
+    // otherwise push every frame a little later in the refresh, until one missed it), so it only caps at 64 fps there
+    sWindow->SetTargetFps(Port_DisplayPaced() ? 64 : 60);
     gPortDrawLog = sCaptureFrame != 0 && getenv("PORT_DRAWLOG") != nullptr; // debug: list the draw states of the captured frame
     static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
     auto drawStart = std::chrono::steady_clock::now();
     sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), {});
+    Port_PacingNote(PORT_PACE_DRAWN, Port_SteadyNs());
     if (tracePacing) { // PORT_TRACE_PACING=1: presented frames more than 40 ms apart, and slow draws (os_devices.cpp)
         static auto lastPresent = drawStart;
         auto now = std::chrono::steady_clock::now();
@@ -435,6 +467,13 @@ bool PumpFrame() {
         return false;
     }
     sWindow->HandleEvents();
+    { // the display the window is on sets the pacing (os_devices.cpp, LockstepClock)
+        int n = 0;
+        if (SDL_Window** ws = SDL_GetWindows(&n)) {
+            if (n > 0) Port_DisplayFollowWindow(ws[0]);
+            SDL_free(ws);
+        }
+    }
     // Poll the controllers here, on the window thread.
     if (auto deck = ControllerGetControlDeck()) {
         OSContPad pads[MAXCONTROLLERS] = {};

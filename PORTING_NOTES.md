@@ -261,6 +261,42 @@ pause at boot and at the title-to-menu change (~0.35 s): each scene decodes its 
 task waited for the next window-loop pass, which slept 1 ms; the loop now wakes when a task is queued
 (`Port::WaitForRspTasks`), and the pause is ~20 ms.
 
+### Frame pacing: retraces follow the display
+
+At normal speed the VI retraces are timed by the display the window is on (`RetraceSchedule` in `os_devices.cpp`,
+display clock in `src/port/pacing_mac.mm`): when it refreshes at a whole multiple of 60 Hz (within 2%: 59.94, 60, 120,
+240 Hz), a retrace comes 0.5 ms after every n-th vblank (n = refresh / 60; `PORT_PACING_LEAD_US` changes the 0.5 ms).
+The game then draws its frame early in a refresh and every frame stays on screen for the same number of refreshes; a
+30 fps scene shows each frame for exactly 2 refreshes at 60 Hz (4 at 120 Hz). Other refresh rates (75, 144 Hz),
+`PORT_SPEED` other than 1 and `PORT_DISPLAY_PACING=0` keep the free-running 1/60 s clock. Only wall-clock timing
+changes: virtual time, and with it every replay, stays the same. Only macOS reports the display's vblanks so far
+(CVDisplayLink); Linux and Windows keep the free-running clock.
+
+What it fixed (measured with `PORT_TRACE_PACING`):
+- The retrace thread's sleeps were coalesced by macOS and ended up to 7.5 ms late; the clock then caught up with the
+  next retrace (the 7 ms / 27 ms gaps). It now runs with a time-constraint (real-time) thread policy and wakes within
+  0.05 ms (`Port_PreciseTimingThread`).
+- The free-running clock drifted through the display's refresh. On this Mac (and the window server's compositing) a
+  frame handed to the GPU anywhere in refresh N is shown at the start of N+2, so a frame finishing right at a vblank
+  is shown a refresh early or late, and a 30 fps scene alternates 1 and 3 refreshes per frame. With retraces 0.5 ms
+  after the vblank, frames finish 2-6 ms into the refresh, far from it. At 120 Hz the refresh is half as long and the
+  free clock hit that edge a third of the time (estimated from the 60 Hz measurements; no 120 Hz display was at hand).
+- libultraship's frame limiter (sleeps after a present until 1/60 s after the previous one) caps at 64 fps while
+  retraces follow the display, so it can never push presents later on a display slightly faster than 60 Hz.
+- `PORT_SPEED` > 1 turns vsync off for that run; the config was saved with it (first run, settings menu), and later
+  normal-speed runs from that folder (`build/` after `tools/run_replays.py`) presented without vsync: frames went out
+  whenever they were done (about a third of the shown intervals off the 1/60 s grid). The player's value is now kept in
+  `gPort.VsyncSaved` and restored by the next normal-speed run. A config that already holds `"gVsyncEnabled": 0` from
+  before this is not changed: set it back to 1.
+
+`PORT_TRACE_PACING=1` prints every 600 retraces, for the last 10 s and in total, per event (`retrace`: delivered to the
+game; `drawn`: frame handed to the GPU; `shown`: on the display, from Metal's presented handler, macOS): interval
+percentiles, the share off the 1/60 s grid (more than 2 ms from a whole number of 1/60 s), rhythm breaks (an interval of
+a different number of 1/60 s than the one before) and how many intervals were 1, 2, 3 ... 1/60 s. `PORT_TRACE_PACING=2`
+also lists every interval with its phase in the display's refresh. The window must be visible to measure `shown`:
+macOS does not present a covered window; `PORT_WINDOW_ON_TOP=1` keeps it above other windows without taking the focus.
+Other game instances running at the same time (parallel test runs) disturb the numbers.
+
 - Every run records the pad state per frame to `build/last_input.rec` (`PORT_RECORD=<file>` to choose another name). A
   crash ends the recording at the crash frame, and the crash report prints `game frame N`. Packaged builds (AppImage,
   macOS app: `SHIP_HOME` set) write it to their settings folder instead (`~/.local/share/pokestadium`,
