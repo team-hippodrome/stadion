@@ -8,20 +8,38 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version to release (tag v<version>)
+        description: Version to release, e.g. 0.0.4 (a leading v is fine too; the tag is v<version>)
         required: true
 
 permissions:
   contents: write
 
 jobs:
+  # the version without a leading "v" ("v0.0.3" was tagged "vv0.0.3")
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        env:
+          INPUT: ${{ inputs.version }}
+        run: |
+          VERSION="${INPUT#v}"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+(\.[0-9]+)*$'; then
+            echo "::error::version must look like 0.0.4 (got '$INPUT')"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: version
     uses: ./.github/workflows/build.yml
     with:
-      version: ${{ inputs.version }}
+      version: ${{ needs.version.outputs.version }}
 
   release:
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -29,28 +47,30 @@ jobs:
         with:
           path: artifacts
       - name: Package
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
           mkdir -p dist
           for dir in artifacts/*/; do
             name=$(basename "$dir")
             if [ -n "$(find "$dir" -maxdepth 1 -name '*.AppImage')" ]; then
               # Linux: the AppImage on its own (made executable after download: chmod +x)
-              cp "$dir"/*.AppImage "dist/${name%-x64}-x86_64-v${{ inputs.version }}.AppImage"
+              cp "$dir"/*.AppImage "dist/${name%-x64}-x86_64-v${VERSION}.AppImage"
               continue
             fi
             if [ -f "$dir/$name.app.zip" ]; then
               # macOS: the app bundle, already zipped with ditto by build.yml
-              cp "$dir/$name.app.zip" "dist/${name}-v${{ inputs.version }}.zip"
+              cp "$dir/$name.app.zip" "dist/${name}-v${VERSION}.zip"
               continue
             fi
             cp README.md "$dir/README.md"
-            (cd "$dir" && zip -r "../../dist/${name}-v${{ inputs.version }}.zip" .)
+            (cd "$dir" && zip -r "../../dist/${name}-v${VERSION}.zip" .)
           done
           ls -l dist
       - name: Tag and publish
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
