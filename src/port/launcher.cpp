@@ -12,6 +12,7 @@
 #include <libultraship/libultraship.h>
 #include <SDL3/SDL.h>
 #include <imgui.h>
+#include <imgui_internal.h> // BringWindowToDisplayFront
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <libultraship/bridge/controllerbridge.h>
 #include <libultraship/bridge/resourcebridge.h>
@@ -585,6 +586,8 @@ class LauncherWindow : public Ship::GuiWindow {
         ImGui::Begin("##launcher", nullptr,
                      ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                          ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoScrollWithMouse);
+        // above libultraship's game view window ("Main Game"), which would otherwise cover it (and take the mouse)
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         // the 960x556 design, scaled to the window and centred
         mScale = std::min(vp->Size.x / kW, vp->Size.y / kH);
         mOrigin = ImVec2(vp->Pos.x + (vp->Size.x - kW * mScale) / 2, vp->Pos.y + (vp->Size.y - kH * mScale) / 2);
