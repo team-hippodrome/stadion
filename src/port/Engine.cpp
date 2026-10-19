@@ -167,6 +167,10 @@ bool Init() {
         cvars->Save();
     }
 
+    // ImGui windows (tooltips, menus) stay inside the game window: with multi-viewports on, one that reached past its
+    // edge became an OS window of its own, and the Metal backend crashed creating it (the launcher's wide tooltips)
+    cvars->SetInteger("gEnableMultiViewports", 0);
+
     sWindow = std::make_shared<Fast::Fast3dWindow>(std::vector<std::shared_ptr<Ship::GuiWindow>>({}), config, cvars);
 
     auto threadPool =
