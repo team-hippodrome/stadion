@@ -49,6 +49,7 @@ add_subdirectory(libultraship ${CMAKE_BINARY_DIR}/libultraship)
 add_executable(pokestadium
   src/port/main.cpp
   src/port/Engine.cpp
+  src/port/pacing.cpp
   src/port/launcher.cpp
   src/port/stubs.c
   src/port/port_platform.c
@@ -61,6 +62,10 @@ target_include_directories(pokestadium PRIVATE
 )
 target_compile_definitions(pokestadium PRIVATE F3DEX_GBI_2)
 target_link_libraries(pokestadium PRIVATE libultraship)
+if(APPLE)
+  target_sources(pokestadium PRIVATE src/port/pacing_mac.mm)
+  target_link_libraries(pokestadium PRIVATE "-framework CoreVideo" "-framework QuartzCore" "-framework Metal")
+endif()
 
 # ---------------------------------------------------------------------------------------------
 # Game code: the decompiled Pokemon Stadium (US) sources, compiled for the host.

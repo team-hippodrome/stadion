@@ -6,10 +6,12 @@
 #include <port_compat.h>
 
 #include "Engine.h"
+#include "pacing.h"
 
 #include <atomic>
 #include <csignal>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
@@ -677,11 +679,94 @@ bool TasksDrained() {
     return gTasks.empty() && gTasksProcessed == gTasksSubmitted;
 }
 
+// When the next VI retrace is due in wall-clock time (PORT_SPEED times real time). At normal speed retraces follow the
+// refresh of the display the window is on, when it runs at a whole multiple of 60 Hz (within 2%: 59.94, 60, 120, 240
+// Hz): every n-th vblank (n = refresh / 60), shortly after it. The game's frame is then drawn early in the refresh and
+// every drawn frame stays on screen for the same number of refreshes. A free-running 16.67 ms clock beat against the
+// display instead: retraces drifted through the refresh and were delayed by the window thread, frames drawn late in a
+// refresh missed it, and a 30 fps scene alternated 1 and 3 refreshes per frame (PORT_TRACE_PACING=1 shows it).
+// PORT_DISPLAY_PACING=0 turns it off (the free-running clock); PORT_PACING_LEAD_US sets how long after the vblank a
+// retrace comes (default 500).
+std::atomic<bool> gDisplayPaced{ false };
+
+class RetraceSchedule {
+  public:
+    void Wait() {
+        const double periodUs = 16667.0 / Port_Speed();
+        if (periodUs <= 1.0) return; // PORT_SPEED=max
+        int64_t now = Port_SteadyNs();
+        bool wasPaced = mPaced;
+        int64_t target = Port_Speed() == 1.0 ? DisplayTarget(now) : 0;
+        if (target == 0) { // the free-running clock
+            if (wasPaced) mNext = std::chrono::steady_clock::now();
+            mNext += std::chrono::microseconds((long long)periodUs);
+            auto wallNow = std::chrono::steady_clock::now();
+            if (mNext < wallNow - std::chrono::milliseconds(100)) mNext = wallNow; // do not race to catch up after a stall
+            std::this_thread::sleep_until(mNext);
+            return;
+        }
+        if (target > now) std::this_thread::sleep_for(std::chrono::nanoseconds(target - now));
+    }
+
+  private:
+    // the steady-clock time of the next retrace on the display's refresh grid; 0 when the display does not set it
+    int64_t DisplayTarget(int64_t now) {
+        static const bool sOn = !(getenv("PORT_DISPLAY_PACING") && atoi(getenv("PORT_DISPLAY_PACING")) == 0);
+        static const int64_t sLeadNs = getenv("PORT_PACING_LEAD_US") ? atoll(getenv("PORT_PACING_LEAD_US")) * 1000 : 500000;
+        constexpr double kRetraceNs = 1e9 / 60;
+        int64_t refresh = 0, vblank = 0;
+        int n = 0;
+        if (sOn && Port_DisplayVblank(&refresh, &vblank) && refresh > 1000000) {
+            n = (int)std::lround(kRetraceNs / refresh);
+            if (n < 1 || std::fabs(n * refresh - kRetraceNs) > 0.02 * kRetraceNs) n = 0;
+        }
+        if (n != mRefreshes || std::llabs(refresh - mRefreshNs) > mRefreshNs / 500) { // (the estimate settles slowly)
+            if (Port_PacingTrace()) {
+                if (n > 0) {
+                    fprintf(stderr, "[pacing] retraces follow the display: %.3f Hz, every %d refresh(es), %.1f ms after the vblank\n",
+                            1e9 / refresh, n, sLeadNs / 1e6);
+                } else {
+                    fprintf(stderr, "[pacing] retraces on the free-running clock (display: %s)\n",
+                            refresh > 0 ? (std::to_string(1e9 / refresh) + " Hz, not a multiple of 60 Hz").c_str()
+                                        : "refresh not known");
+                }
+            }
+            mRefreshes = n;
+            mRefreshNs = refresh;
+        }
+        mPaced = n > 0;
+        gDisplayPaced = mPaced;
+        if (!mPaced) {
+            mTarget = 0;
+            return 0;
+        }
+        int64_t base = vblank + sLeadNs;
+        double k;
+        if (mTarget == 0 || mTarget + n * refresh < now - 100000000) {
+            // the first retrace, or one after a stall: the next grid point (no racing to catch up)
+            k = std::ceil((double)(now - base) / refresh);
+        } else {
+            // n refreshes after the previous one, snapped to the grid (it follows the display's measured clock); one
+            // that is already late (the game was busy) comes at once, and the next is back on the grid
+            k = std::floor((double)(mTarget + n * refresh - base) / refresh + 0.5);
+        }
+        mTarget = base + (int64_t)k * refresh;
+        return mTarget;
+    }
+
+    std::chrono::steady_clock::time_point mNext = std::chrono::steady_clock::now();
+    int64_t mTarget = 0;
+    int64_t mRefreshNs = 0;
+    int mRefreshes = 0;
+    bool mPaced = false;
+};
+
 // The lockstep clock: waits until the game is idle, then delivers the next event in virtual time (an OS timer or
 // the next VI retrace, throttled to PORT_SPEED times real time).
 void LockstepClock() {
     const double periodUs = 16667.0 / Port_Speed();
-    auto nextWall = std::chrono::steady_clock::now();
+    RetraceSchedule schedule;
+    if (Port_Speed() == 1.0) Port_PreciseTimingThread();
     for (;;) {
         auto waitStart = std::chrono::steady_clock::now();
         bool reported = false;
@@ -742,12 +827,8 @@ void LockstepClock() {
             }
             lastTick = now;
         }
-        if (periodUs > 1.0) {
-            nextWall += std::chrono::microseconds((long long)periodUs);
-            auto now = std::chrono::steady_clock::now();
-            if (nextWall < now - std::chrono::milliseconds(100)) nextWall = now; // do not race to catch up after a stall
-            std::this_thread::sleep_until(nextWall);
-        }
+        schedule.Wait();
+        Port_PacingNote(PORT_PACE_RETRACE, Port_SteadyNs());
         {
             std::lock_guard<std::mutex> g(gClockLock);
             gVTime = std::max(nextVi, gVTime + gCountBump);
@@ -801,6 +882,11 @@ void LockstepClock() {
 }
 } // namespace
 
+// whether retraces follow the display's refresh (Engine.cpp then keeps libultraship's frame limiter out of the way)
+extern "C" bool Port_DisplayPaced() {
+    return gDisplayPaced.load();
+}
+
 extern "C" {
 
 void port_osViSetEvent(OSMesgQueue* mq, OSMesg msg, u32 retraceCount) {
@@ -831,10 +917,11 @@ void port_osCreateViManager(OSPri) {
     }
     std::thread([]() {
         u32 tick = 0;
-        auto next = std::chrono::steady_clock::now();
+        RetraceSchedule schedule;
+        if (Port_Speed() == 1.0) Port_PreciseTimingThread();
         while (!gStop) {
-            next += std::chrono::microseconds((long long)(16667 / Port_Speed()));
-            std::this_thread::sleep_until(next);
+            schedule.Wait();
+            Port_PacingNote(PORT_PACE_RETRACE, Port_SteadyNs());
             OSMesgQueue* q;
             OSMesg m;
             u32 every;
