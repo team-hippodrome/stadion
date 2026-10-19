@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include "port_platform.h"
+#include "interp.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -317,6 +318,7 @@ void* Port_GfxPrepareVtx(void* v, int n) {
 void* Port_GfxPrepareMtx(void* m) {
     if (((uintptr_t)m >> 32) == 0xFFFFFFFFull) m = (void*)((uintptr_t)m & 0xFFFFFFFFull);
     if (m == nullptr) return nullptr;
+    void* site = __builtin_return_address(0); // the gSPMatrix in game code (frame interpolation ids, interp.cpp)
     std::lock_guard<std::mutex> g(gLock);
     uintptr_t a = (uintptr_t)m;
     bool resolved;
@@ -325,7 +327,8 @@ void* Port_GfxPrepareMtx(void* m) {
         p = ResolveRaw((uint32_t)a, &resolved);
         if (!resolved) return m;
     }
-    if (InRaw(p)) return TranslateMtx((const uint8_t*)p);
+    if (InRaw(p)) return TranslateMtx((const uint8_t*)p); // ROM data: the same every frame
+    Port_InterpTagMtx(p, site);
     return (void*)p;
 }
 
@@ -389,6 +392,7 @@ int Port_IsRawData(const void* p) {
 }
 
 void Port_GfxFlushCache(void) {
+    Port_InterpMapsChanged();
     std::lock_guard<std::mutex> g(gLock);
     // Only the lookup table is dropped; translated lists may still be queued for the renderer, so the arena is kept
     // (it grows slowly; reclaiming it needs a frame fence).

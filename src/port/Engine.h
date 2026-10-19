@@ -16,6 +16,11 @@ bool Init();
 // Returns false once the window has been closed.
 bool RunFrame(void* gfxCommands);
 bool TrackFrame(void* gfxCommands);
+// RunFrame with interpolated matrices (an std::unordered_map<Mtx*, MtxF>, or null); subFrame: the display list drawn
+// again for an in-between frame (interp.cpp)
+bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame, bool readBack = false);
+// saves the picture just drawn as a PPM file
+void SaveScreen(const char* path);
 void Shutdown();
 
 // Cartridge ROM image the game reads through PI DMA (osEPiStartDma).

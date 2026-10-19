@@ -1238,3 +1238,92 @@ Measured on an M-series Mac (10 cores), cold (salted) Metal cache, `to_battle` a
 
 All 113 programs take 8.5-13.5 s to build cold with 4-8 workers (35 s with one), ~0.1 s warm. Replays are unchanged
 (`tools/run_replays.py --all`: difference 0.00 everywhere).
+
+## Frame interpolation ("Smooth motion")
+
+The game draws a new frame every 2nd or 3rd VI retrace (30 or 20 fps; menus mostly 30). With interpolation on, 3D
+scenes are shown at the display's refresh rate: between two game frames the renderer draws the newer frame's display
+list again with matrices blended between the two frames, once per refresh. Off by default; the launcher's "Smooth
+motion" (`gPort.Interpolate`) or `PORT_INTERPOLATE=1/0` (overrides the setting). Normal speed only.
+
+**What libultraship has and what Ship of Harkinian adds.** libultraship (this version) has the renderer hooks only:
+`Interpreter::Run(commands, mtx_replacements)` / `Fast3dWindow::DrawAndRunGraphicsCommands` take a map from `Mtx*` to
+the `MtxF` to use instead (looked up in `GfxSpMatrix`), plus `G_MW_SEGMENT_INTERP` / `mInterpolationIndex` (segment
+swaps for a given in-between frame) and `G_SETTILESIZE_INTERP` / `mInterpolationT` (tile scrolling blended at draw
+time). Recording matrices with ids and building the map is game code: SoH keeps it in its own repository
+(`soh/frame_interpolation.cpp`), which records every `Matrix_*` operation in a tree keyed by the actor and
+`OPEN_DISPS` scope and replays both frames' operations with blended parameters. Stadium's scene graph (`geo_render.c`)
+builds each matrix as a product on its own `MtxF` stack, and battle effects, menus and minigames emit matrices in many
+other places (107 `gSPMatrix` sites), so the port blends the final matrices instead (`src/port/interp.cpp`):
+
+- **Ids.** Every `gSPMatrix` in game code already goes through `Port_GfxPrepareMtx` (`src/port/sdk/ultra64.h`,
+  `gfx_translate.cpp`); it now also records the matrix with an id: the call site (`__builtin_return_address`), the
+  scene-graph node being drawn (`Port_InterpNode`, set in `Geo_ProcessNodeChildren`, `Geo_NodeReference`,
+  `Geo_NodeSwitchCase`) and how many matrices that site/node pair produced before in the frame. Frames are delimited
+  by `Gfx_SwapDisplayListBuffer` (`Port_InterpBeginFrame`, keyed by the display-list buffer, which is what the graphics
+  task points at). Matrices from ROM data (translated, the same every frame) are not recorded. The game-side changes are
+  these four calls (game repository, `geo_render.c`, `gfx_buffer.c`).
+- **Blending** (`Blend`): rows 0-2 of an affine matrix (the axes) are blended as direction (normalised lerp) and length
+  separately, so a turning part keeps its size; row 3 (translation) linearly; projections element-wise. Not blended
+  (shown as the game drew it): a matrix that turned more than 60 degrees in one game frame, moved more than 300 units
+  and more than half its distance from the origin (a camera cut, a reused node), a projection whose scale changed by
+  half, a matrix with no partner in the previous frame, and every matrix of a site/node group whose size changed
+  (particles coming and going: the n-th one may be another particle). Render targets (UI text, portraits) are always
+  drawn with the game's own matrices, so their pixels, which are read back into game memory, never depend on it.
+- **Presentation** (window thread, `Port::RunGameFrame` / `Port::PumpInterpolation`). A graphics task is drawn when
+  it arrives, as before, but as the first of k pictures, k = retraces since the previous game frame x refreshes per
+  retrace (2 at 60 Hz for a 30 fps scene, 4 at 120 Hz), with t = 1/k; the others follow 1 ms after each later vblank
+  (from the display clock, `Port_DisplayVblank`), the last one exactly as built. The picture is therefore one game
+  frame later than without (16.7 ms at 30 fps / 60 Hz), as in SoH. A new graphics task, a CPU-drawn frame, a frame
+  drawn for its state only, or a change of the game's segment/fragment maps (`Port_GfxFlushCache`: the scene unloads
+  data the list uses) ends the series. libultraship's frame limiter follows the display's rate while interpolating.
+- **Only lists that repaint the screen** are drawn again (`Interpreter::FrameRepaintsScreen`: a full-screen fill
+  rectangle in fill mode into a frame buffer). Menus that draw over the previous picture would pile up; they have
+  (almost) no matrices anyway. In the recordings every frame with recorded matrices repaints the screen.
+- **The game is not touched.** The display list stays valid: the game builds the next frame in its other buffer and
+  waits for that frame's task before reusing this one. In-between passes (`Interpreter::mReplayPass`) write nothing
+  to game memory (no render-target readback), leave the CPU-drawn-frame detection's draw stamps alone, and start from
+  the RSP/RDP state (segments, TMEM model, tiles, modes) the frame first started from; afterwards the state the first
+  drawing left is put back (`ReplayBegin` / `ReplayPassStart` / `ReplayEnd`), so the next frame renders as without
+  interpolation. Lockstep timing is unchanged (the passes run on the window thread between retraces).
+
+Pitfalls found on the way: Metal reads the screen back one frame late (the blit is encoded in the next `EndFrame`); an
+in-between frame consumed or expired that pending readback, and screenshots and the freeze detector then saw a stale
+picture (looked like a desync: white stop pictures, "picture unchanged" freezes). In-between frames now leave it for the
+next real frame (`gPortReplayFrame`), unless the port reads them back itself. Skipping the render-target draws in the
+in-between passes lost the portraits (the target is set up again in each pass), so they are drawn too.
+
+**Measured** (MacBook built-in display, 60 Hz, `boot_battle_move` with `PORT_BOOT=battle`, battle frames 1200-1800,
+`PORT_TRACE_PACING=1`, window visible): without interpolation 300 frames shown in 10 s, every one for 33.3 ms; with it
+599, each 16.7 ms (1 refresh: 99.8%, 0% off the refresh grid); retraces unchanged (600, p99 16.7 ms). No 120 Hz
+display was at hand: k would be 4 there.
+
+**Checked:**
+- `tools/run_replays.py` with interpolation off: difference 0.00 for all 20 recordings (the two GB Tower recordings
+  need a cartridge dump and were skipped).
+- With it on (`PORT_INTERPOLATE=1 PORT_INTERP_IMMEDIATE=1 PORT_RENDER_EVERY=1 PORT_SCREENSHOT_NOSTOP=1`): the same
+  stop pictures (0.00; `tour_fb` 0.01 and `tour_mg_r1c2` 0.05, as when every frame is drawn without interpolation: the
+  dither noise follows the number of frames drawn), i.e. the game frames are the same.
+- In-between pictures of the whole battle (frames 900-2400, 750 in-between frames, compared with the
+  neighbouring real frames): the in-between frame lies between its neighbours (median of min(prev-mid, mid-cur) /
+  prev-cur = 0.56); at the 5 large picture changes (camera cuts, flashes) it equals the new frame (no blend across a
+  cut). Camera pans, the Pokemon's moves and the team-select / VS screens' 3D models move in between; HUD boxes and
+  text stay put.
+- Coverage (`PORT_INTERP_LOG=1`, all recordings): every game frame with recorded matrices repaints the screen and
+  gets in-between frames (e.g. `boot_battle_move` 1810 of 1906 frames, the minigame tours ~1920 of ~4000, of which
+  ~1870 blend at least one matrix); frames without 3D (menus, cup grid, text screens) are shown as before.
+
+**Not interpolated / known limits** (all shown at the game's rate, as before): particles and other effects whose
+number changes every frame (send-out rays, confetti), anything turning faster than 60 degrees per game frame,
+vertex-animated or CPU-built geometry (fade quads, 2D sprites, text), texture scrolling (`G_SETTILESIZE_INTERP` would
+need game-side changes per effect), and menus that draw over the previous picture. Data a list reads that the game
+changes in place while building the next frame (single-buffered vertex arrays, if any) would show the newer state in
+the in-between frame. Only macOS reports vblanks; on Linux/Windows the in-between frames follow a 1/60 s clock after
+the game frame (so only up to 60 fps). DX11/OpenGL: the replay passes use the same interpreter path, not measured.
+
+Debug switches: `PORT_INTERP_LOG=1` (per game frame: matrices recorded / matched / blended, cuts and why;
+`=2` lists jumps), `PORT_INTERP_IMMEDIATE=1` (draw the in-between frames right after the frame: hidden-window and
+`PORT_SPEED=max` runs, with `PORT_RENDER_EVERY=1`), `PORT_INTERP_SHOTS=<first>-<last>` (every picture of those game
+frames as `interp_<frame>_<i>of<k>.ppm` in `PORT_SCREENSHOT_DIR`; `PORT_SHOT_SCALE=4` saves them at 1/4 size),
+`PORT_INTERP_JUMP=<units>` (the move threshold), `PORT_LAUNCHER_SHOT=<file.ppm>` (saves the launcher's picture and
+closes it).
