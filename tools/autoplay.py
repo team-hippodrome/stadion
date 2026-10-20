@@ -29,6 +29,7 @@ SOCK = "/tmp/pokestadium_bot.sock"  # unix socket paths must be short
 A, B, START, L, R, CU, CD, CL, CR = 0x8000, 0x4000, 0x1000, 0x20, 0x10, 0x8, 0x4, 0x2, 0x1
 DUP, DDOWN, DLEFT, DRIGHT = 0x0800, 0x0400, 0x0200, 0x0100
 STALL_FRAMES = 20000  # no decision, battle or team screen for this long (5.5 minutes of game time): stuck
+BATTLE_STALL_FRAMES = 60000  # in a running battle: a trapped Pokemon (Wrap) gets no menu for many turns
 MOVE_BUTTON = [CU, CR, CD, CL]          # move slots 1-4 in battle (BattleScene_SelectMoveFromButtons)
 PARTY3_BUTTON = [CU, CR, CD]            # party slots with three Pokemon (BattleScene_HandlePartySlotCursorInput)
 PARTY6_BUTTON = [CU, CL, B, CR, CD, A]  # party slots with more
@@ -1002,7 +1003,8 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
         choice, order = st.get("choice"), st.get("order")
         if choice and choice["age"] <= 2:
             last_choice = choice
-        if now - progress_tick > STALL_FRAMES and armed:
+        battling = 0 <= st["battle_age"] <= 30
+        if now - progress_tick > (BATTLE_STALL_FRAMES if battling else STALL_FRAMES) and armed:
             status.log("stuck: nothing happened for %d frames (frame %d)" % (STALL_FRAMES, now))
             status.set(phase="stuck at frame %d" % now, done=True)
             return
