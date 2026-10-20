@@ -558,7 +558,7 @@ def sim_turn(own, opp, own_mid, opp_mid):
     for who, mid in order:
         nxt = []
         for p, o, x in states:
-            if p < 0.02:  # too unlikely to matter
+            if p < 0.05:  # too unlikely to matter
                 continue
             if mid is None:
                 nxt.append((p, o, x))
@@ -599,8 +599,19 @@ def opp_moves(opp):
     return [mid for mid, _ in opp["moves"]] or [None]
 
 
-def sim_value(own0, opp0, own, opp, depth, own_mid):
-    """our expected standing after playing own_mid now and our best moves after it, for depth turns"""
+def sim_key(m):
+    return (int(m["hp"]), m["sleep"], m["para"], m["psn"], m["trapped"], m["charge"], m["recharge"], m["atk"], m["def"],
+            m["spd"], m["spc"])
+
+
+def sim_value(own0, opp0, own, opp, depth, own_mid, cache=None):
+    """our expected standing after playing own_mid now and our best moves after it, for depth turns (cache: the
+    positions already valued in this decision; misses and the like lead to the same ones again)"""
+    if cache is None:
+        cache = {}
+    key = (sim_key(own), sim_key(opp), depth, own_mid)
+    if key in cache:
+        return cache[key]
     results = []
     for k in opp_moves(opp):
         total = 0.0
@@ -609,30 +620,32 @@ def sim_value(own0, opp0, own, opp, depth, own_mid):
                 total += p * sim_score(own0, opp0, o, x, depth - 1)
             else:
                 nxt = [o["charge"]] if o["charge"] else [mid for mid, _ in o["moves"]]
-                total += p * max(sim_value(own0, opp0, o, x, depth - 1, mid) for mid in nxt)
+                total += p * max(sim_value(own0, opp0, o, x, depth - 1, mid, cache) for mid in nxt)
         results.append(total)
-    return OPP_BEST * min(results) + (1 - OPP_BEST) * sum(results) / len(results)
+    cache[key] = OPP_BEST * min(results) + (1 - OPP_BEST) * sum(results) / len(results)
+    return cache[key]
 
 
 def lookahead_values(own, opp, actions, party, depth=None):
     """the lookahead's value of each action: ("move", mid) or ("switch", party Pokemon)"""
     depth = depth or LOOKAHEAD_DEPTH
     o, x = sim_mon(own), sim_mon(opp)
-    values = []
+    values, cache = [], {}
     for kind, what in actions:
         if kind == "move":
-            values.append(sim_value(o, x, o, x, depth, what))
+            values.append(sim_value(o, x, o, x, depth, what, cache))
         else:  # switching: the newcomer takes the opponent's move this turn, then plays on; what the current one
             # keeps (its HP, out of harm's way) is not lost
             n = sim_mon(what)
-            results = []
+            results, sub = [], {}
+            d = min(depth, 2)  # a switch is looked at less far: there are many of them
             for k in opp_moves(x):
                 total = 0.0
                 for p, a, b in sim_turn(n, x, None, k):
-                    if depth <= 1 or a["hp"] <= 0 or b["hp"] <= 0:
-                        total += p * sim_score(n, x, a, b, depth - 1)
+                    if d <= 1 or a["hp"] <= 0 or b["hp"] <= 0:
+                        total += p * sim_score(n, x, a, b, d - 1 + (depth - d))
                     else:
-                        total += p * max(sim_value(n, x, a, b, depth - 1, mid) for mid, _ in a["moves"])
+                        total += p * max(sim_value(n, x, a, b, d - 1, mid, sub) for mid, _ in a["moves"])
                 results.append(total)
             values.append(OPP_BEST * min(results) + (1 - OPP_BEST) * sum(results) / len(results))
     return values
@@ -641,7 +654,8 @@ def lookahead_values(own, opp, actions, party, depth=None):
 def lookahead_sendout(cand, opp, depth=None):
     """how well a Pokemon sent in after a knock-out does (it acts this turn: no free hit)"""
     n, x = sim_mon(cand), sim_mon(opp)
-    return max(sim_value(n, x, n, x, depth or LOOKAHEAD_DEPTH, mid) for mid, _ in n["moves"])
+    cache = {}
+    return max(sim_value(n, x, n, x, depth or LOOKAHEAD_DEPTH, mid, cache) for mid, _ in n["moves"])
 
 
 def play_turn(game, brain, status, choice):
@@ -1118,6 +1132,7 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
                 in_battle = True
                 status.set(phase="battle %d" % (status.get("battles") + 1))
             play_turn(game, brain, status, choice)
+            progress_tick = game.state()["tick"]  # the game ran on while the bot thought
             game.wait(20)
             continue
         if 0 <= st["battle_age"] <= 30:  # battle animations and messages
