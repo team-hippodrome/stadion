@@ -398,7 +398,9 @@ def move_value(own, opp, mid):
     return v
 
 
-TRAP_PENALTY = 50.0  # a faster opponent with Wrap, Bind, Clamp or Fire Spin can keep a Pokemon from acting at all
+# a faster opponent with Wrap, Bind, Clamp or Fire Spin can keep a Pokemon from acting at all: as bad as being knocked
+# out (a Ninetales at 2 HP held Moltres with Fire Spin for 20 turns until it fainted)
+TRAP_PENALTY = 100.0
 
 
 def trapped_by(opp, mon):
