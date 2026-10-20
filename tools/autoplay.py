@@ -391,13 +391,21 @@ def move_value(own, opp, mid):
     return v
 
 
+TRAP_PENALTY = 50.0  # a faster opponent with Wrap, Bind, Clamp or Fire Spin can keep a Pokemon from acting at all
+
+
+def trapped_by(opp, mon):
+    return faster(opp, mon) and any(MOVEDATA.get(mid, {}).get("effect") == TRAP for mid, pp in opp["moves"] if mid and pp > 0)
+
+
 def offense(mon, opp):
     return max([move_value(mon, opp, mid) for mid, pp in mon["moves"] if mid and pp > 0] or [0.0])
 
 
 def matchup(mon, opp):
     """How well a Pokemon stands against the opponent: its best move's value minus the opponent's threat to it"""
-    return offense(mon, opp) - 100 * min(1.0, threat(opp, mon)) * (1.0 if faster(opp, mon) else 0.7)
+    return (offense(mon, opp) - 100 * min(1.0, threat(opp, mon)) * (1.0 if faster(opp, mon) else 0.7) -
+            (TRAP_PENALTY if trapped_by(opp, mon) else 0.0))
 
 
 def describe_move(own, opp, mid, pp):
@@ -475,7 +483,8 @@ def play_turn(game, brain, status, choice):
         actions.append(("switch", i))
         # the newcomer takes the opponent's next hit before it acts
         incoming = 100 * min(1.0, threat(opp, party[i]))
-        values.append(offense(party[i], opp) - incoming - SWITCH_COST + max(0.0, -here))
+        values.append(offense(party[i], opp) - incoming - SWITCH_COST + max(0.0, -here) -
+                      (TRAP_PENALTY if trapped_by(opp, party[i]) else 0.0))
     LAST_SWITCH["age"] = LAST_SWITCH.get("age", 99) + 1
     st = lambda m: "" if m["status"] == 0 else " status %#x" % m["status"]
     status.trace("%s %d/%d%s spd %d vs %s %d/%d%s spd %d (moves %s) | %s" % (
@@ -694,7 +703,12 @@ def choose_team(brain, status, order):
     if len(own) <= 3 or not opp:
         status.log("only %d of your Pokemon reported: sending in slots 1-3" % len(own))
         return list(range(min(3, len(own)))) or [0, 1, 2]
-    values = [sum(matchup(m, o) for o in opp) / len(opp) for m in own]
+    # the opponent sends in three of its six, likely the ones that beat ours: the worst three matchups count as much
+    # as the average (an Electric type's easy win against Golbat hid three Ground types)
+    values = []
+    for m in own:
+        each = sorted(matchup(m, o) for o in opp)
+        values.append(0.5 * sum(each) / len(each) + 0.5 * sum(each[:3]) / len(each[:3]))
     state = {"opponent_team": [{"name": o["species"], "level": o["level"], "types": types_text(o["types"])} for o in opp],
              "your_team": [{"name": m["species"], "level": m["level"], "types": types_text(m["types"])} for m in own]}
     opts = [(m["species"], "%s (%s): %s" % (m["species"], types_text(m["types"]), ", ".join(
