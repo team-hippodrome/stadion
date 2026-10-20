@@ -571,7 +571,17 @@ bool PumpFrame() {
     if (!WindowIsRunning()) {
         return false;
     }
-    sWindow->HandleEvents();
+    // window events: every frame at normal speed; when running faster (PORT_SPEED, fast-forward), at most every 4 ms of
+    // real time (polling them took a fifth of the window thread at full speed)
+    {
+        static auto sLastEvents = std::chrono::steady_clock::now() - std::chrono::seconds(1);
+        const auto now = std::chrono::steady_clock::now();
+        const bool fast = Port_Speed() > 1.0 || Port_FastForward() > 0.0;
+        if (!fast || now - sLastEvents >= std::chrono::milliseconds(4)) {
+            sWindow->HandleEvents();
+            sLastEvents = now;
+        }
+    }
     // Speed keys (os_devices.cpp, gFastForward): hold Tab to fast-forward (8x, no sound); F skips at full speed to the
     // next moment the game waits for you (battle command, a replacement, the team order), F again cancels.
     if (const bool* keys = SDL_GetKeyboardState(nullptr)) {

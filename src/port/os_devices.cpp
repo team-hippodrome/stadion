@@ -1165,7 +1165,10 @@ void Port::PumpRspTasks() {
         if (t->t.type == 4) { // M_NJPEGTASK: JPEG decode microcode, emulated on the host
             Port_RunJpegTask(t->t.data_ptr);
         }
-        if (t->t.type == M_AUDTASK) { // audio microcode, emulated on the host (audio_hle.cpp)
+        // audio microcode, emulated on the host (audio_hle.cpp); PORT_AUDIO_TASKS=0 skips it when nobody listens
+        // (the bot: a third of the window thread's time at full speed; only the sample buffers stay unwritten)
+        static const bool sAudioTasks = !(getenv("PORT_AUDIO_TASKS") && atoi(getenv("PORT_AUDIO_TASKS")) == 0);
+        if (t->t.type == M_AUDTASK && sAudioTasks) {
             Port_RunAudioTask(t->t.data_ptr, (uint32_t)t->t.data_size);
         }
         if (sTracePacing) { // PORT_TRACE_PACING=1: RSP tasks that took long on the window thread

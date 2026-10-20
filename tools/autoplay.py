@@ -871,6 +871,7 @@ def main():
                 env = dict(os.environ, PORT_BOT=sock, PORT_SPEED=args.speed or "max", PORT_REPLAY=os.path.abspath(args.route),
                            PORT_FLASH_FILE=save, PORT_RECORD=os.path.join(work, "game%d.rec" % i), PORT_SOUND="0",
                            PORT_GAME_LOG=os.path.join(work, "game%d.log" % i))
+                env.update(PORT_FREEZE_CHECK="0", PORT_AUDIO_TASKS="0")  # nobody listens; the bot detects stalls itself
                 if i >= args.show:
                     # nobody sees these: draw only every 60th frame and skip the freeze check (a GPU read-back per
                     # frame), which doubles what 20 games manage together
