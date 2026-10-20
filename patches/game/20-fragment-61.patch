@@ -52,6 +52,21 @@ index f2422c1b999487d656315892c8ad03e45922aae1..ad7a2af65709877c71ad76a0801ccd65
      }
  }
  
+diff --git a/src/fragments/61/fragment61_2DD710.c b/src/fragments/61/fragment61_2DD710.c
+index 2104352b51161b4bf0f129aa7e401031d6de5a99..0c0af77568059e4dc4d6a9488747aa40fe4d5a66 100644
+--- a/src/fragments/61/fragment61_2DD710.c
++++ b/src/fragments/61/fragment61_2DD710.c
+@@ -444,6 +444,10 @@ void Rental_HandleTeamConfirmation(RentalTeamTray* arg0) {
+     Controller* cont = &gControllers[arg0->unk_0002];
+     s16 i;
+ 
++    if (arg0->unk_0002 == 0) {
++        Port_BotRentalConfirm(); // PORT: autoplay bot (port_compat.h)
++    }
++
+     TeamSelection_RulePrompt_Open(0, cont);
+ 
+     switch (TeamSelection_RulePrompt_TryFinish(0)) {
 diff --git a/src/fragments/61/fragment61_2DFB60.c b/src/fragments/61/fragment61_2DFB60.c
 index 06ac67b65b2c2832794add050db1de727ea650d7..880348b471b7e072c47ca2ce2ccead80fe663ed0 100644
 --- a/src/fragments/61/fragment61_2DFB60.c

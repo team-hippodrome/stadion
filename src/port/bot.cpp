@@ -47,6 +47,8 @@ struct Order {
 bool gRentalSeen = false;
 uint64_t gRentalTick = 0;
 int gRentalSpecies = 0;
+uint64_t gRentalConfirmTick = 0;
+bool gRentalConfirmSeen = false;
 std::atomic<uint16_t> gPressButtons{ 0 };
 std::atomic<uint64_t> gPressUntil{ 0 }; // buttons held while the frame is below this
 
@@ -83,6 +85,9 @@ std::string BuildState() {
     if (gRentalSeen) {
         s += ",\"rental_age\":" + std::to_string(now - gRentalTick) + ",\"rental_species\":" +
              std::to_string(gRentalSpecies);
+    }
+    if (gRentalConfirmSeen) {
+        s += ",\"rental_confirm_age\":" + std::to_string(now - gRentalConfirmTick);
     }
     if (gOrder.seen) {
         s += ",\"order\":{\"age\":" + std::to_string(now - gOrder.tick) + ",\"sub\":" + std::to_string(gOrder.sub) +
@@ -208,6 +213,15 @@ extern "C" void Port_BotBattleChoice(const void* own, const void* opp, const voi
     gChoice.forced = forced;
     gChoice.side = side;
     gOwnSide = side;
+}
+
+extern "C" void Port_BotRentalConfirm(void) {
+    if (!Enabled()) {
+        return;
+    }
+    std::lock_guard<std::mutex> g(gLock);
+    gRentalConfirmSeen = true;
+    gRentalConfirmTick = Port_ViTick();
 }
 
 extern "C" void Port_BotRental(int species) {

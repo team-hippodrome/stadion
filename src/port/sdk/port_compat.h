@@ -165,6 +165,7 @@ void Port_BotBattleChoice(const void* own, const void* opp, const void* party, i
                           int activeSlot, int menu, int sub, int forced, int side); // player 1 has to act (each frame)
 void Port_BotOrderSelect(int sub, int picked);                          // player 1's team-order panel (every frame;
                                                                         // sub -1 while the screen fades in)
+void Port_BotRentalConfirm(void);   // player 1's rental team is complete: OK / OK to Register / Reselect (each frame)
 void Port_BotRental(int species);    // player 1's rental carousel waits (each frame); the species under the cursor
 // Full-screen 2D effects made for the 4:3 picture (the battle's strip wipe): the textured rectangles between these
 // markers are stretched over the whole width of a widescreen picture (libultraship patch, interpreter.cpp sWideRects).

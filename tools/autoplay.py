@@ -562,7 +562,8 @@ def pick_random_rental(game, rng, status):
     game.wait(30)
 
 
-def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0):
+def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0,
+             register=False):
     """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
     "random"; random_team: choose the rental team at random on the rental carousel."""
     def new_picks():
@@ -586,6 +587,9 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
     while game.state()["tick"] < route_end + 10:  # the route recording still plays: no presses of our own
         game.wait(30)
     progress_tick = game.state()["tick"]
+    rental_round = 0
+    registered = False
+    rejected = set()
     while status.get("wins") < wins:
         st = game.state()
         now = st["tick"]
@@ -596,8 +600,19 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             status.log("stuck: nothing happened for %d frames (frame %d)" % (STALL_FRAMES, now))
             status.set(phase="stuck at frame %d" % now, done=True)
             return
+        if team and st.get("rental_confirm_age", 99) <= 2:  # the team is complete: OK / OK to Register / ...
+            progress_tick = now
+            if register and not registered:
+                game.press(DDOWN, 2)  # "OK to Register": saved, picked as a registered team next time
+                game.wait(12)
+                registered = True
+                status.log("registering the team")
+            game.press(A)
+            game.wait(40)
+            continue
         if team and st.get("rental_age", 99) <= 2:
-            if now - last_rental_tick > 600:  # a new rental round (Gym Leader Castle asks again before every gym)
+            if status.get("battles") != rental_round:  # a new rental round (the castle asks again before every gym)
+                rental_round = status.get("battles")
                 rentals = 0
             progress_tick = now
             last_rental_tick = now
@@ -623,17 +638,31 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             if not armed:
                 armed = True
                 status.log("team-order screen: the bot plays from here")
-            if now - last_order_tick > 120 and not first_pick:  # a new battle's order screen
+            if now - last_order_tick > 120 and not first_pick and order["picked"] == 0:  # a new battle's order screen
                 picks = new_picks()
+                rejected = set()
             last_order_tick = now
             in_battle = False
             status.set(phase="choosing the team order (battle %d)" % (status.get("battles") + 1))
-            if order["sub"] == 0 and order["picked"] < len(picks):
+            if order["sub"] == 0 and order["picked"] < 6:
                 if first_pick and jitter:  # a different moment for each game: the game's random numbers differ
                     game.wait(jitter)
                 first_pick = False
-                game.press(ORDER_BUTTON[picks[order["picked"]]])
+                # the planned slot, else (taken, or not in the team) any other one that is not known to be refused
+                cands = [p for p in picks if p not in rejected] + [p for p in range(6) if p not in picks]
+                cands = [p for p in cands if p not in rejected]
+                if order["picked"] < len(picks) and picks[order["picked"]] not in rejected:
+                    slot = picks[order["picked"]]
+                else:
+                    slot = cands[0] if cands else 0
+                before = order["picked"]
+                game.press(ORDER_BUTTON[slot])
                 game.wait(10)
+                after = (game.state().get("order") or {}).get("picked", before)
+                if after == before:
+                    rejected.add(slot)
+                    if len(rejected) >= 6:
+                        rejected.clear()
             elif order["sub"] == 1:  # "Is this OK?" (cursor on Yes)
                 game.press(A)
                 game.wait(20)
@@ -719,6 +748,8 @@ def main():
                     help="Gym Leader Castle from the start: the bot goes there from the title screen, rents --team "
                          "and plays through it (with --games; no --route needed)")
     ap.add_argument("--team", help="six Pokemon to rent, e.g. Mewtwo,Alakazam,Snorlax,Starmie,Zapdos,Rhydon")
+    ap.add_argument("--register", action="store_true",
+                    help="with --team: register the team after the first rental round (saved in the game's save)")
     ap.add_argument("--random-team", action="store_true",
                     help="choose a random rental team on the rental carousel (the route ends before it)")
     args = ap.parse_args()
@@ -742,7 +773,7 @@ def main():
                 gs.log("connected")
                 import random
                 run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team,
-                         route_end)
+                         route_end, args.register)
             except (EOFError, BrokenPipeError, ConnectionResetError) as e:
                 gs.log("the game was closed (%s)" % type(e).__name__)
                 gs.set(phase="closed", done=True)
@@ -783,7 +814,7 @@ def main():
             print("game logs, saves and recordings: " + work, flush=True)
             rng = random.Random()
             for i in range(args.games):
-                sock = "/tmp/psbot_%d.sock" % i
+                sock = "/tmp/psbot_%d_%d.sock" % (os.getpid(), i)  # (other runs may be going)
                 save = os.path.join(work, "game%d.flash" % i)
                 if args.save:
                     shutil.copyfile(args.save, save)
