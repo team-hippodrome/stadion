@@ -301,6 +301,8 @@ class Brain:
 # Hyper Beam's recharge, Explosion), healing when low, and switching only out of a losing matchup.
 PHYSICAL = {"Normal", "Fighting", "Flying", "Poison", "Ground", "Rock", "Bug", "Ghost"}
 SLEEP, PARALYZE, POISON, HEAL, EXPLODE, CHARGE, FLY, HYPER_BEAM, TRAP, OHKO = 32, 67, 66, 56, 7, 39, 43, 80, 42, 38
+DREAM_EATER = 8
+ASLEEP = 0x07  # the status byte's sleep counter (Game Boy encoding)
 PRIORITY = {98}  # Quick Attack
 
 
@@ -311,6 +313,8 @@ def damage(att, dfn, mid):
         return 0.0
     eff = effectiveness(d["type"], dfn["types"])
     if eff == 0:
+        return 0.0
+    if d["effect"] == DREAM_EATER and not dfn.get("status", 0) & ASLEEP:  # fails on a Pokemon that is awake
         return 0.0
     name = MOVES.get(mid, "")
     if name in ("Seismic Toss", "Night Shade"):
