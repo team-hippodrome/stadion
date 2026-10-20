@@ -362,12 +362,16 @@ def move_value(own, opp, mid):
         if e in (SLEEP, PARALYZE, POISON) and threat(opp, own) >= 1.0:
             # the next hit knocks us out: no time to profit from it (Drowzee at 22 HP chose Hypnosis)
             return 5.0
+        # sleep and paralysis pay off through the hits that follow: worth more with a strong attack (Gengar slept a
+        # Porygon again and again that its attacks barely scratched)
+        best = max([move_value(own, opp, m) for m, pp in own["moves"]
+                    if m and pp > 0 and MOVEDATA.get(m, {}).get("power", 0) > 0] or [0.0])
         if e == SLEEP:
-            return 75 * acc if opp_status == 0 else 0.0
+            return (30 + 0.6 * best) * acc if opp_status == 0 else 0.0
         if e == PARALYZE:
             if opp_status != 0 or (d["type"] == "Electric" and "Ground" in opp["types"]):
                 return 0.0
-            return (55 if faster(opp, own) else 40) * acc
+            return ((25 if faster(opp, own) else 15) + 0.4 * best) * acc
         if e == POISON:
             return 30 * acc if opp_status == 0 and "Poison" not in opp["types"] else 0.0
         if e == HEAL:
@@ -486,7 +490,10 @@ def play_turn(game, brain, status, choice):
         actions.append(("switch", i))
         # the newcomer takes the opponent's next hit before it acts
         incoming = 100 * min(1.0, threat(opp, party[i]))
-        values.append(offense(party[i], opp) - incoming - SWITCH_COST + max(0.0, -here) -
+        # escaping a losing matchup is worth what the current Pokemon has left (at 3 HP Zapdos was switched out and
+        # Tauros took the hit instead)
+        keep = own["hp"] / max(1, own["max_hp"])
+        values.append(offense(party[i], opp) - incoming - SWITCH_COST + max(0.0, -here) * keep -
                       (TRAP_PENALTY if trapped_by(opp, party[i]) else 0.0))
     LAST_SWITCH["age"] = LAST_SWITCH.get("age", 99) + 1
     st = lambda m: "" if m["status"] == 0 else " status %#x" % m["status"]
