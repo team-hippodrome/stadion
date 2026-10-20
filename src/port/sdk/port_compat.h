@@ -168,6 +168,8 @@ void Port_BotOrderSelect(int sub, int picked);                          // playe
 void Port_BotOrderTeams(const void* own, int ownCount, const void* opp, int oppCount, int stride); // both teams there
 void Port_BotRentalConfirm(void);   // player 1's rental team is complete: OK / OK to Register / Reselect (each frame)
 void Port_BotRental(int species);    // player 1's rental carousel waits (each frame); the species under the cursor
+void Port_BotCastleRoom(int node);   // Gym Leader Castle's map waits for a room (each frame): the cursor's map node
+                                     // (gym_leader_castle.c castle_map_nodes), -1 while it moves or fades
 // Full-screen 2D effects made for the 4:3 picture (the battle's strip wipe): the textured rectangles between these
 // markers are stretched over the whole width of a widescreen picture (libultraship patch, interpreter.cpp sWideRects).
 #define gDPPortWideRectsBegin(pkt) gDPNoOpTag3(pkt, 0x50, 0, 1)

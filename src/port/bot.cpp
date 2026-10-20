@@ -50,6 +50,9 @@ uint64_t gRentalTick = 0;
 int gRentalSpecies = 0;
 uint64_t gRentalConfirmTick = 0;
 bool gRentalConfirmSeen = false;
+uint64_t gCastleTick = 0;
+int gCastleNode = -1;
+bool gCastleSeen = false;
 std::atomic<uint16_t> gPressButtons{ 0 };
 std::atomic<uint64_t> gPressUntil{ 0 }; // buttons held while the frame is below this
 
@@ -89,6 +92,9 @@ std::string BuildState() {
     }
     if (gRentalConfirmSeen) {
         s += ",\"rental_confirm_age\":" + std::to_string(now - gRentalConfirmTick);
+    }
+    if (gCastleSeen) {
+        s += ",\"castle_age\":" + std::to_string(now - gCastleTick) + ",\"castle_node\":" + std::to_string(gCastleNode);
     }
     if (gOrder.seen) {
         s += ",\"order\":{\"age\":" + std::to_string(now - gOrder.tick) + ",\"sub\":" + std::to_string(gOrder.sub) +
@@ -263,6 +269,16 @@ extern "C" void Port_BotRental(int species) {
     gRentalSeen = true;
     gRentalTick = Port_ViTick();
     gRentalSpecies = species;
+}
+
+extern "C" void Port_BotCastleRoom(int node) {
+    if (!Enabled()) {
+        return;
+    }
+    std::lock_guard<std::mutex> g(gLock);
+    gCastleSeen = true;
+    gCastleTick = Port_ViTick();
+    gCastleNode = node;
 }
 
 extern "C" void Port_BotOrderSelect(int sub, int picked) {

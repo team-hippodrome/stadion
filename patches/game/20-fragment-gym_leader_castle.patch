@@ -1,8 +1,16 @@
 diff --git a/src/fragments/gym_leader_castle/gym_leader_castle.c b/src/fragments/gym_leader_castle/gym_leader_castle.c
-index 479166351dfba6608fed6e69d7e09a16d86821e3..4b82706837d92ee68e16263474449dbc16a519bd 100644
+index 479166351dfba6608fed6e69d7e09a16d86821e3..a5087b6af7343e69b32d7dd05e7879b4396606ec 100644
 --- a/src/fragments/gym_leader_castle/gym_leader_castle.c
 +++ b/src/fragments/gym_leader_castle/gym_leader_castle.c
-@@ -630,7 +630,8 @@ void Glc_LoadTrainerPanels(void) {
+@@ -551,6 +551,7 @@ s32 Glc_SelectRoom(void) {
+         node = &castle_map_nodes[selected_map_node];
+ 
+         Controller_PollInputs();
++        Port_BotCastleRoom((StageContext_GetFadeMode() == 0 && cursor_move_timer == 0) ? selected_map_node : -1);
+ 
+         if (func_84A02074() == 0) {
+             if (StageContext_GetFadeMode() == 0) {
+@@ -630,7 +631,8 @@ void Glc_LoadTrainerPanels(void) {
      trainer_data = BinArchive_GetFile(trainer_data_archive, trainer_file_index);
  
      for (i = 0; i < trainer_count; i++) {

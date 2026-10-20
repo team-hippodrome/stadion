@@ -191,6 +191,10 @@ class GameStatus:
             self.data["log"] = ([time.strftime("%H:%M:%S ") + text] + self.data["log"])[:300]
         print("[%s] %s" % (self.data["name"], text), flush=True)
 
+    def trace(self, text):
+        """battle detail for the console log only (what each turn looked like, for reviewing lost battles)"""
+        print("[%s]     %s" % (self.data["name"], text), flush=True)
+
 
 PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>Autoplay</title><style>
 :root{--bg:#10141b;--card:#1a2130;--text:#e6e9ef;--dim:#8b93a3;--accent:#4c8dff;--good:#2ea043;--bad:#e5484d}
@@ -359,14 +363,17 @@ def move_value(own, opp, mid):
         return 6.0  # stat changes and the rest
     dmg = damage(own, opp, mid)
     frac = dmg / max(1, opp["hp"])
-    if frac >= 1.0:
-        v = 100 * acc + 30 + (15 if faster(own, opp) or mid in PRIORITY else 0)
-    else:
-        v = 100 * frac * acc
-        if d["effect"] in (CHARGE, FLY):  # two turns: the opponent hits first
-            v *= 0.6
-        if d["effect"] == HYPER_BEAM:  # recharge turn
-            v *= 0.65
+    if frac <= 0:
+        return 0.0
+    # the turns it takes to knock the opponent out with this move: hits needed (55% and 95% both need two), two turns
+    # per hit for a move that charges first (Sky Attack, Dig, Fly: the opponent acts meanwhile, even before a
+    # knock-out), a recharge turn after each Hyper Beam that does not knock out, and the misses
+    hits = max(1, math.ceil(1 / frac - 1e-9))
+    two_turn = d["effect"] in (CHARGE, FLY)
+    turns = 2 * hits if two_turn else (2 * hits - 1 if d["effect"] == HYPER_BEAM else hits)
+    v = 100 * acc / turns + 10 * min(1.0, frac) * acc
+    if hits == 1 and not two_turn:  # knocks out right now
+        v += 20 + (15 if faster(own, opp) or mid in PRIORITY else 0)
     if d["effect"] == EXPLODE:
         v *= 1.0 if hp_frac < 0.35 else 0.15
     # the opponent moves first and knocks us out: only a priority move still lands
@@ -461,6 +468,11 @@ def play_turn(game, brain, status, choice):
         incoming = 100 * min(1.0, threat(opp, party[i]))
         values.append(offense(party[i], opp) - incoming - SWITCH_COST + max(0.0, -here))
     LAST_SWITCH["age"] = LAST_SWITCH.get("age", 99) + 1
+    st = lambda m: "" if m["status"] == 0 else " status %#x" % m["status"]
+    status.trace("%s %d/%d%s spd %d vs %s %d/%d%s spd %d (moves %s) | %s" % (
+        own["species"], own["hp"], own["max_hp"], st(own), own["spd"], opp["species"], opp["hp"], opp["max_hp"], st(opp),
+        opp["spd"], ", ".join(MOVES.get(mid, "?") for mid, _ in opp["moves"] if mid),
+        ", ".join("%s %.0f" % (o[0], v) for o, v in zip(opts, values))))
     if not opts:  # no PP left anywhere: the game uses Struggle on its own
         game.press(A)
         return
@@ -490,6 +502,11 @@ def species_id(name):
     if key not in SPECIES_ID:
         sys.exit("unknown Pokemon '%s'" % name)
     return SPECIES_ID[key]
+
+
+# Gym Leader Castle's map (gym_leader_castle.c castle_map_nodes): the way from each room's node to a room, then A.
+# The gyms run 0 (Pewter) to 7 (Viridian); 8 is the passage to the Elite Four's map, which opens on their room (10).
+CASTLE_WAY = {"elite4": {0: DRIGHT, 1: DUP, 2: DUP, 3: DUP, 4: DUP, 5: DUP, 6: DRIGHT, 7: DRIGHT, 8: None, 10: A}}
 
 
 def castle_route(path):
@@ -629,7 +646,7 @@ def choose_team(brain, status, order):
 
 
 def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0,
-             register=False):
+             register=False, room=None):
     """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
     "random"; random_team: choose the rental team at random on the rental carousel."""
     def new_picks(order=None):
@@ -704,6 +721,15 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
                 status.set(phase="choosing a random rental team")
             rentals += 1
             pick_random_rental(game, rng, status)
+            continue
+        if room and st.get("castle_age", 99) <= 2 and st.get("castle_node", -1) >= 0:  # the castle's map: go to the room
+            progress_tick = now
+            step = CASTLE_WAY[room].get(st["castle_node"], A)
+            if step is None:  # the passage to the Elite Four: the map changes on its own
+                game.wait(10)
+            else:
+                game.press(step)
+                game.wait(12)
             continue
         if order and order["age"] <= 2:
             progress_tick = now
@@ -844,6 +870,9 @@ def main():
     ap.add_argument("--castle", action="store_true",
                     help="Gym Leader Castle from the start: the bot goes there from the title screen, rents --team "
                          "and plays through it (with --games; no --route needed)")
+    ap.add_argument("--room", choices=sorted(CASTLE_WAY),
+                    help="with --castle: go straight to this room on the castle's map (elite4: needs a save with all "
+                         "eight badges, --save)")
     ap.add_argument("--team", help="six Pokemon to rent, e.g. Mewtwo,Alakazam,Snorlax,Starmie,Zapdos,Rhydon")
     ap.add_argument("--exe", default=os.path.join(ROOT, "build", "pokestadium"), help="the game binary")
     ap.add_argument("--register", action="store_true",
@@ -871,7 +900,7 @@ def main():
                 gs.log("connected")
                 import random
                 run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team,
-                         route_end, args.register)
+                         route_end, args.register, args.room)
             except (EOFError, BrokenPipeError, ConnectionResetError) as e:
                 gs.log("the game was closed (%s)" % type(e).__name__)
                 gs.set(phase="closed", done=True)
