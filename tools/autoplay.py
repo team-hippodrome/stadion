@@ -576,13 +576,17 @@ def sim_turn(own, opp, own_mid, opp_mid):
     return states
 
 
-def sim_score(own0, opp0, own, opp):
-    """how much better the battle stands for us than at the start (about 100 per knock-out)"""
+SOONER = 20.0  # per turn a knock-out comes earlier (a wasted turn cost nothing when the knock-out still came in time)
+
+
+def sim_score(own0, opp0, own, opp, left=0):
+    """how much better the battle stands for us than at the start (about 100 per knock-out); left: turns of the
+    lookahead still unplayed when it ended"""
     v = 100.0 * (opp0["hp"] - opp["hp"]) / max(1, opp0["max_hp"]) - 100.0 * (own0["hp"] - own["hp"]) / max(1, own0["max_hp"])
     if opp["hp"] <= 0:
-        return v + 40.0
+        return v + 40.0 + SOONER * left
     if own["hp"] <= 0:
-        return v - 40.0
+        return v - 40.0 - SOONER * left
     for m, sign in ((opp, 1), (own, -1)):  # what a status still does in the turns after
         v += sign * (12.0 * min(m["sleep"], 3) + (15.0 if m["para"] else 0) + (8.0 if m["psn"] else 0) +
                      (25.0 if m["trapped"] else 0))
@@ -602,7 +606,7 @@ def sim_value(own0, opp0, own, opp, depth, own_mid):
         total = 0.0
         for p, o, x in sim_turn(own, opp, own_mid, k):
             if depth <= 1 or o["hp"] <= 0 or x["hp"] <= 0:
-                total += p * sim_score(own0, opp0, o, x)
+                total += p * sim_score(own0, opp0, o, x, depth - 1)
             else:
                 nxt = [o["charge"]] if o["charge"] else [mid for mid, _ in o["moves"]]
                 total += p * max(sim_value(own0, opp0, o, x, depth - 1, mid) for mid in nxt)
@@ -626,7 +630,7 @@ def lookahead_values(own, opp, actions, party, depth=None):
                 total = 0.0
                 for p, a, b in sim_turn(n, x, None, k):
                     if depth <= 1 or a["hp"] <= 0 or b["hp"] <= 0:
-                        total += p * sim_score(n, x, a, b)
+                        total += p * sim_score(n, x, a, b, depth - 1)
                     else:
                         total += p * max(sim_value(n, x, a, b, depth - 1, mid) for mid, _ in a["moves"])
                 results.append(total)
