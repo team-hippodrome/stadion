@@ -302,6 +302,7 @@ class Brain:
 PHYSICAL = {"Normal", "Fighting", "Flying", "Poison", "Ground", "Rock", "Bug", "Ghost"}
 SLEEP, PARALYZE, POISON, HEAL, EXPLODE, CHARGE, FLY, HYPER_BEAM, TRAP, OHKO = 32, 67, 66, 56, 7, 39, 43, 80, 42, 38
 DREAM_EATER = 8
+MULTI_HIT = {29: 3.0, 44: 2.0, 77: 2.0}  # Fury Attack and the like (2-5 hits, 3 on average), Double Kick, Twineedle
 ASLEEP = 0x07  # the status byte's sleep counter (Game Boy encoding)
 PRIORITY = {98}  # Quick Attack
 
@@ -332,7 +333,7 @@ def damage(att, dfn, mid):
     a, b = (att["atk"], dfn["def"]) if d["type"] in PHYSICAL else (att["spc"], dfn["spc"])
     base = ((2 * att["level"] / 5 + 2) * d["power"] * max(1, a) / max(1, b)) / 50 + 2
     stab = 1.5 if d["type"] in att["types"] else 1.0
-    return base * stab * eff * 0.925
+    return base * stab * eff * 0.925 * MULTI_HIT.get(d["effect"], 1.0)
 
 
 def threat(att, dfn):
@@ -450,6 +451,195 @@ def battle_state(own, opp, party, active):
                            for i, p in enumerate(party) if i != active and p["hp"] > 0]}
 
 
+# ---- lookahead: the next turns played out ------------------------------------------------------------------------
+# A small Game Boy-rules simulation of the two Pokemon in battle: speed order, accuracy (hit and miss as separate
+# outcomes), trapping moves, two-turn moves and Hyper Beam's recharge, sleep, paralysis, poison, healing, draining,
+# recoil, Explosion and stat changes. Each of our options is played against each of the opponent's moves for
+# LOOKAHEAD_DEPTH turns; the opponent is assumed to answer well (OPP_BEST of the worst case for us, the rest the
+# average). Damage is the average roll; critical hits, confusion and secondary effects are left out.
+LOOKAHEAD_DEPTH = 3  # turns (--lookahead; 0: the one-turn estimate alone)
+OPP_BEST = 0.6
+DRAIN, RECOIL = 3, 48
+STAT_CHANGE = {"Agility": (0, "spd", 2.0), "Amnesia": (0, "spc", 2.0), "Swords Dance": (0, "atk", 2.0),
+               "Barrier": (0, "def", 2.0), "Acid Armor": (0, "def", 2.0), "Reflect": (0, "def", 2.0),
+               "Growth": (0, "spc", 1.5), "Meditate": (0, "atk", 1.5), "Sharpen": (0, "atk", 1.5),
+               "Harden": (0, "def", 1.5), "Withdraw": (0, "def", 1.5), "Defense Curl": (0, "def", 1.5),
+               "Leer": (1, "def", 2 / 3.0), "Tail Whip": (1, "def", 2 / 3.0), "Growl": (1, "atk", 2 / 3.0),
+               "Screech": (1, "def", 0.5), "String Shot": (1, "spd", 2 / 3.0)}  # (0: user, 1: target, stat, factor)
+PARA, PSN, FRZ = 0x40, 0x08, 0x20
+
+
+def sim_mon(m):
+    """a Pokemon for the simulation: its stats, HP and status, plus the turn-to-turn state"""
+    s = dict(m)
+    st = m.get("status", 0)
+    s.update(sleep=(st & 7) or (3 if st & FRZ else 0), para=bool(st & PARA), psn=bool(st & PSN), trapped=0,
+             charge=0, recharge=False, moves=[(mid, pp) for mid, pp in m["moves"] if mid and pp > 0])
+    return s
+
+
+def sim_attack(att, dfn, mid, p, out):
+    """att uses move mid on dfn (both copies of their own): appends (probability, att, dfn) outcomes to out"""
+    if att["hp"] <= 0:
+        out.append((p, att, dfn))
+        return
+    if att["recharge"]:
+        att["recharge"] = False
+        out.append((p, att, dfn))
+        return
+    if att["sleep"] > 0:
+        att["sleep"] -= 1
+        out.append((p, att, dfn))
+        return
+    if att["trapped"] > 0:
+        att["trapped"] -= 1
+        out.append((p, att, dfn))
+        return
+    if att["para"]:  # fully paralysed a quarter of the time
+        out.append((p * 0.25, dict(att), dict(dfn)))
+        p *= 0.75
+    d = MOVEDATA.get(mid)
+    if d is None:
+        out.append((p, att, dfn))
+        return
+    if att["charge"]:
+        mid, att["charge"] = att["charge"], 0
+        d = MOVEDATA[mid]
+    elif d["effect"] in (CHARGE, FLY):
+        att["charge"] = mid
+        out.append((p, att, dfn))
+        return
+    acc = d["accuracy"] / 100.0 if d["accuracy"] < 100 else 1.0
+    if acc < 1.0:
+        out.append((p * (1 - acc), dict(att), dict(dfn)))
+        p *= acc
+    name, e = MOVES.get(mid, ""), d["effect"]
+    if d["power"] == 0 and name != "Night Shade":
+        if e == SLEEP and not dfn["sleep"] and not dfn["para"] and not dfn["psn"]:
+            dfn["sleep"] = 3
+        elif e == PARALYZE and not dfn["sleep"] and not dfn["para"] and not dfn["psn"] and not (
+                d["type"] == "Electric" and "Ground" in dfn["types"]):
+            dfn["para"] = True
+            dfn["spd"] = max(1, dfn["spd"] // 4)
+        elif e == POISON and not dfn["sleep"] and not dfn["para"] and "Poison" not in dfn["types"]:
+            dfn["psn"] = True
+        elif e == HEAL:
+            if name == "Rest":
+                att["hp"], att["sleep"], att["para"], att["psn"] = att["max_hp"], 2, False, False
+            else:
+                att["hp"] = min(att["max_hp"], att["hp"] + att["max_hp"] // 2)
+        elif name in STAT_CHANGE:
+            who, stat, f = STAT_CHANGE[name]
+            m = att if who == 0 else dfn
+            m[stat] = max(1, int(m[stat] * f))
+        out.append((p, att, dfn))
+        return
+    dmg = min(dfn["hp"], damage(att, dfn, mid))
+    dfn["hp"] -= dmg
+    if e == DRAIN or e == DREAM_EATER:
+        att["hp"] = min(att["max_hp"], att["hp"] + dmg / 2)
+    elif e == RECOIL:
+        att["hp"] = max(0.0, att["hp"] - dmg / 4)
+    elif e == EXPLODE:
+        att["hp"] = 0.0
+    elif e == HYPER_BEAM and dfn["hp"] > 0:
+        att["recharge"] = True
+    elif e == TRAP and dfn["hp"] > 0 and att["spd"] > dfn["spd"]:
+        dfn["trapped"] = 2  # it cannot act while the faster trapper keeps at it
+    out.append((p, att, dfn))
+
+
+def sim_turn(own, opp, own_mid, opp_mid):
+    """one turn with both moving (own_mid None: our side does not act, e.g. it just switched in) -> [(p, own, opp)]"""
+    own, opp = dict(own), dict(opp)
+    first_own = own_mid is not None and (own_mid in PRIORITY or (opp_mid not in PRIORITY and own["spd"] > opp["spd"]))
+    order = [("own", own_mid), ("opp", opp_mid)] if first_own else [("opp", opp_mid), ("own", own_mid)]
+    states = [(1.0, own, opp)]
+    for who, mid in order:
+        nxt = []
+        for p, o, x in states:
+            if p < 0.02:  # too unlikely to matter
+                continue
+            if mid is None:
+                nxt.append((p, o, x))
+            elif who == "own":
+                sim_attack(dict(o), dict(x), mid, p, nxt)
+            else:
+                part = []
+                sim_attack(dict(x), dict(o), mid, p, part)
+                nxt.extend((q, b, a) for q, a, b in part)
+        states = nxt
+    for _, o, x in states:  # poison at the end of the turn
+        for m in (o, x):
+            if m["psn"] and m["hp"] > 0:
+                m["hp"] = max(0.0, m["hp"] - m["max_hp"] / 16.0)
+    return states
+
+
+def sim_score(own0, opp0, own, opp):
+    """how much better the battle stands for us than at the start (about 100 per knock-out)"""
+    v = 100.0 * (opp0["hp"] - opp["hp"]) / max(1, opp0["max_hp"]) - 100.0 * (own0["hp"] - own["hp"]) / max(1, own0["max_hp"])
+    if opp["hp"] <= 0:
+        return v + 40.0
+    if own["hp"] <= 0:
+        return v - 40.0
+    for m, sign in ((opp, 1), (own, -1)):  # what a status still does in the turns after
+        v += sign * (12.0 * min(m["sleep"], 3) + (15.0 if m["para"] else 0) + (8.0 if m["psn"] else 0) +
+                     (25.0 if m["trapped"] else 0))
+    return v + 0.3 * matchup(own, opp)
+
+
+def opp_moves(opp):
+    if opp["charge"]:
+        return [opp["charge"]]
+    return [mid for mid, _ in opp["moves"]] or [None]
+
+
+def sim_value(own0, opp0, own, opp, depth, own_mid):
+    """our expected standing after playing own_mid now and our best moves after it, for depth turns"""
+    results = []
+    for k in opp_moves(opp):
+        total = 0.0
+        for p, o, x in sim_turn(own, opp, own_mid, k):
+            if depth <= 1 or o["hp"] <= 0 or x["hp"] <= 0:
+                total += p * sim_score(own0, opp0, o, x)
+            else:
+                nxt = [o["charge"]] if o["charge"] else [mid for mid, _ in o["moves"]]
+                total += p * max(sim_value(own0, opp0, o, x, depth - 1, mid) for mid in nxt)
+        results.append(total)
+    return OPP_BEST * min(results) + (1 - OPP_BEST) * sum(results) / len(results)
+
+
+def lookahead_values(own, opp, actions, party, depth=None):
+    """the lookahead's value of each action: ("move", mid) or ("switch", party Pokemon)"""
+    depth = depth or LOOKAHEAD_DEPTH
+    o, x = sim_mon(own), sim_mon(opp)
+    values = []
+    for kind, what in actions:
+        if kind == "move":
+            values.append(sim_value(o, x, o, x, depth, what))
+        else:  # switching: the newcomer takes the opponent's move this turn, then plays on; what the current one
+            # keeps (its HP, out of harm's way) is not lost
+            n = sim_mon(what)
+            results = []
+            for k in opp_moves(x):
+                total = 0.0
+                for p, a, b in sim_turn(n, x, None, k):
+                    if depth <= 1 or a["hp"] <= 0 or b["hp"] <= 0:
+                        total += p * sim_score(n, x, a, b)
+                    else:
+                        total += p * max(sim_value(n, x, a, b, depth - 1, mid) for mid, _ in a["moves"])
+                results.append(total)
+            values.append(OPP_BEST * min(results) + (1 - OPP_BEST) * sum(results) / len(results))
+    return values
+
+
+def lookahead_sendout(cand, opp, depth=None):
+    """how well a Pokemon sent in after a knock-out does (it acts this turn: no free hit)"""
+    n, x = sim_mon(cand), sim_mon(opp)
+    return max(sim_value(n, x, n, x, depth or LOOKAHEAD_DEPTH, mid) for mid, _ in n["moves"])
+
+
 def play_turn(game, brain, status, choice):
     LAST_SWITCH = status.data.setdefault("last_switch", {})
     own, opp = runtime_mon(choice["own"]), runtime_mon(choice["opp"])
@@ -467,7 +657,8 @@ def play_turn(game, brain, status, choice):
             return
         opts = [(party[i]["species"], "%s, %s, %d/%d HP" % (party[i]["species"], types_text(party[i]["types"]),
                                                              party[i]["hp"], party[i]["max_hp"])) for i in bench]
-        values = [matchup(party[i], opp) for i in bench]
+        values = ([lookahead_sendout(party[i], opp) for i in bench] if LOOKAHEAD_DEPTH else
+                  [matchup(party[i], opp) for i in bench])
         k, lp, fp = brain.decide(status, "Your Pokemon fainted. Which Pokemon should you send out next to beat %s?" %
                                  opp["species"], state, opts, values)
         status.log("send out %s (Laya %.0f%%, final %.0f%%)" % (party[bench[k]]["species"], lp * 100, fp * 100))
@@ -482,8 +673,9 @@ def play_turn(game, brain, status, choice):
             actions.append(("move", i))
             values.append(move_value(own, opp, mid))
     here = matchup(own, opp)
-    # voluntary switches only from a losing matchup, and not again soon after one (no switching back and forth)
-    may_switch = here < SWITCH_WHEN_BELOW and LAST_SWITCH.get("age", 99) >= SWITCH_COOLDOWN
+    # voluntary switches only from a losing matchup (the lookahead weighs every switch itself), and not again soon
+    # after one (no switching back and forth)
+    may_switch = (LOOKAHEAD_DEPTH or here < SWITCH_WHEN_BELOW) and LAST_SWITCH.get("age", 99) >= SWITCH_COOLDOWN
     for i in (bench if may_switch else []):
         if party[i]["species"] == LAST_SWITCH.get("from"):
             continue  # never straight back to the one just switched out
@@ -498,6 +690,9 @@ def play_turn(game, brain, status, choice):
         values.append(offense(party[i], opp) - incoming - SWITCH_COST + max(0.0, -here) * keep -
                       (TRAP_PENALTY if trapped_by(opp, party[i]) else 0.0))
     LAST_SWITCH["age"] = LAST_SWITCH.get("age", 99) + 1
+    if LOOKAHEAD_DEPTH and actions:  # the next turns played out replace the one-turn estimate
+        values = lookahead_values(own, opp, [("move", own["moves"][i][0]) if kind == "move" else ("switch", party[i])
+                                             for kind, i in actions], party)
     st = lambda m: "" if m["status"] == 0 else " status %#x" % m["status"]
     status.trace("%s %d/%d%s spd %d vs %s %d/%d%s spd %d (moves %s) | %s" % (
         own["species"], own["hp"], own["max_hp"], st(own), own["spd"], opp["species"], opp["hp"], opp["max_hp"], st(opp),
@@ -963,6 +1158,7 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
 
 
 def main():
+    global LOOKAHEAD_DEPTH
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pick", default="smart",
                     help="which three to send in: smart (default: Laya and the estimate against the opponent's team), "
@@ -989,6 +1185,9 @@ def main():
     ap.add_argument("--room", choices=sorted(CASTLE_WAY),
                     help="with --castle: go straight to this room on the castle's map (elite4: needs a save with all "
                          "eight badges, --save)")
+    ap.add_argument("--lookahead", type=int, default=LOOKAHEAD_DEPTH,
+                    help="turns the battle is played out ahead for each decision (default %d; 0: one-turn estimate)" %
+                         LOOKAHEAD_DEPTH)
     ap.add_argument("--round2", action="store_true", help="play Round 2 (PORT_ROUND2=1; the save is not changed)")
     ap.add_argument("--team", help="six Pokemon to rent, e.g. Mewtwo,Alakazam,Snorlax,Starmie,Zapdos,Rhydon, or draft: Laya "
                                        "drafts a well-rounded team from the rental list (different every run)")
@@ -998,6 +1197,7 @@ def main():
     ap.add_argument("--random-team", action="store_true",
                     help="choose a random rental team on the rental carousel (the route ends before it)")
     args = ap.parse_args()
+    LOOKAHEAD_DEPTH = args.lookahead
     picks = args.pick if args.pick in ("random", "smart") else [int(x) - 1 for x in args.pick.split(",")]
 
     status = Status()
