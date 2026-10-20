@@ -650,10 +650,11 @@ def weaknesses(mon):
 
 
 def draft_team(brain, status, roster, rng, size=6, shortlist=6):
-    """A rental team built one Pokemon at a time: each step offers Laya a random shortlist of strong candidates (a
-    different one every run), scored by overall strength (the battle estimate against the whole rental list), the
-    roster's Pokemon the team newly hits super effectively, weaknesses the team already has and types it already has
-    (a first draft took three Psychic types). -> species ids"""
+    """A rental team built one Pokemon at a time, judged by its answers: for every Pokemon in the rental list (the
+    pool the castle's trainers draw from too), the team's best matchup against it (the battle estimate). A team is
+    good when its average answer is good and its weakest answers are not bad; each step offers Laya a random
+    shortlist of the candidates that raise that the most (a different team every run). No type rules: overlapping
+    types and shared weaknesses simply add little. -> species ids"""
     mons, seen = [], set()
     for h in roster:
         m = party_mon(h)
@@ -664,38 +665,42 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
         mons.append(m)
     if len(mons) < size:
         return None
-    strength = {m["id"]: sum(matchup(m, o) for o in mons) / len(mons) for m in mons}
-    ranked = sorted(mons, key=lambda m: -strength[m["id"]])
+    vs = {m["id"]: [matchup(m, o) for o in mons] for m in mons}  # each one's matchup against each Pokemon
+    worst = max(1, len(mons) // 4)
+
+    def answers(team):
+        return [max(vs[m["id"]][j] for m in team) for j in range(len(mons))]
+
+    def score(team):  # the average answer plus the average of the weakest quarter
+        a = sorted(answers(team))
+        return sum(a) / len(a) + sum(a[:worst]) / worst
+
     team = []
-
-    def hits(m):  # the roster's Pokemon one of m's damaging moves hits super effectively
-        types = {MOVEDATA[mid]["type"] for mid, _ in m["moves"] if mid in MOVEDATA and MOVEDATA[mid]["power"] > 0}
-        return {o["id"] for o in mons if any(effectiveness(t, o["types"]) > 1 for t in types)}
-
     while len(team) < size:
-        pool = [m for m in ranked[:40] if m not in team]  # the strong part of the list
-        cands = rng.sample(pool, min(shortlist, len(pool)))
-        covered = set().union(*[hits(m) for m in team]) if team else set()
-        weak = [w for m in team for w in weaknesses(m)]
-        have = [t for m in team for t in set(m["types"])]
-        values, opts = [], []
-        for m in cands:
-            shared = sum(weak.count(w) for w in weaknesses(m))
-            same = sum(have.count(t) for t in set(m["types"]))
-            values.append(strength[m["id"]] + 0.4 * len(hits(m) - covered) - 12 * shared - 20 * same)
-            opts.append((m["species"], "%s (%s), level %d: %s; weak to %s" % (
-                m["species"], types_text(m["types"]), m["level"],
-                ", ".join(MOVES.get(mid, "?") for mid, _ in m["moves"] if mid),
-                ", ".join(sorted(weaknesses(m))) or "nothing")))
+        base = score(team) if team else 0.0
+        gains = sorted(((score(team + [m]) - base, i) for i, m in enumerate(mons) if m not in team), reverse=True)
+        top = [mons[i] for _, i in gains[:15]]  # the most useful picks now
+        cands = rng.sample(top, min(shortlist, len(top)))
+        gain = {mons[i]["id"]: g for g, i in gains}
+        values = [gain[m["id"]] for m in cands]
+        opts = [(m["species"], "%s (%s), level %d: %s; weak to %s" % (
+            m["species"], types_text(m["types"]), m["level"], ", ".join(MOVES.get(mid, "?") for mid, _ in m["moves"] if mid),
+            ", ".join(sorted(weaknesses(m))) or "nothing")) for m in cands]
+        hardest = []
+        if team:
+            a = answers(team)
+            hardest = [mons[j]["species"] for j in sorted(range(len(mons)), key=lambda j: a[j])[:5]]
         state = {"team_so_far": [{"name": m["species"], "types": types_text(m["types"])} for m in team],
-                 "team_weaknesses": sorted(set(weak)), "picks_left": size - len(team)}
-        k, lp, fp = brain.decide(status, "Which Pokemon makes this team the most well rounded and strongest for a long "
-                                 "series of battles against varied opponents?", state, opts, values)
-        status.trace("draft scores: " + ", ".join("%s %.0f (strength %.0f)" % (m["species"], v, strength[m["id"]])
-                                                  for m, v in zip(cands, values)))
+                 "opponents_the_team_has_no_good_answer_to": hardest, "picks_left": size - len(team)}
+        k, lp, fp = brain.decide(status, "Which Pokemon gives this team an answer to the most opponents, especially the "
+                                 "ones it cannot beat yet?", state, opts, values)
+        status.trace("draft gains: " + ", ".join("%s %.0f" % (m["species"], v) for m, v in zip(cands, values)))
         team.append(cands[k])
         status.log("draft: %s (Laya %.0f%%, final %.0f%%) from %s" % (
             cands[k]["species"], lp * 100, fp * 100, ", ".join(m["species"] for m in cands)))
+    a = answers(team)
+    status.log("draft: hardest opponents for this team: %s" % ", ".join(
+        "%s (%.0f)" % (mons[j]["species"], a[j]) for j in sorted(range(len(mons)), key=lambda j: a[j])[:5]))
     return [m["id"] for m in team]
 
 
