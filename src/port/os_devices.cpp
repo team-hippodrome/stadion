@@ -360,13 +360,46 @@ double Port_Speed() {
     return speed;
 }
 
+uint64_t Port_ViTick();
+
+// In-game fast-forward (the window thread's keys, Engine.cpp): 0 = off, else the speed factor (1e6: as fast as the host
+// allows). Used in place of PORT_SPEED while set. Sound is not played meanwhile (audio_out.cpp).
+std::atomic<double> gFastForward{ 0.0 };
+// "Skip to the next decision": fast-forward at full speed until the player has to act (Port_NoteDecision);
+// PORT_SKIP=1 starts with it on
+std::atomic<bool> gSkipToDecision{ getenv("PORT_SKIP") != nullptr && atoi(getenv("PORT_SKIP")) != 0 };
+
+void Port_SetFastForward(double factor) {
+    gFastForward = factor;
+}
+
+double Port_FastForward() {
+    return gSkipToDecision ? 1e6 : gFastForward.load();
+}
+
+void Port_SetSkipToDecision(bool on) {
+    gSkipToDecision = on;
+}
+
+bool Port_SkipToDecision() {
+    return gSkipToDecision;
+}
+
+// the game waits for the player (battle command menu, a replacement, the team-order screen): a skip ends here
+void Port_NoteDecision() {
+    if (gSkipToDecision.exchange(false)) {
+        fprintf(stderr, "[speed] skip stopped: your turn (frame %llu)\n", (unsigned long long)Port_ViTick());
+    }
+}
+
 } // extern "C"
 
 // Only every n-th frame is drawn when running fast (PORT_RENDER_EVERY overrides); the game cannot tell.
 static uint64_t Port_RenderEvery() {
     static uint64_t n = getenv("PORT_RENDER_EVERY") ? (uint64_t)std::max(1, atoi(getenv("PORT_RENDER_EVERY")))
                                                    : (uint64_t)std::min(10.0, Port_Speed());
-    return n;
+    const double ff = Port_FastForward();
+    return ff > 0.0 ? (uint64_t)std::min(10.0, std::max(2.0, ff)) : n;
 }
 
 // ---- Lockstep clock -------------------------------------------------------------------------------
@@ -598,6 +631,8 @@ void InputInit() {
 } // namespace
 
 // Records the frame the run reached, so a replay knows how long the recording lasted (also called on crash).
+extern "C" void Port_BotApplyPad(unsigned long long tick, uint16_t* button);
+
 extern "C" void Port_InputFinish() {
     if (gRecord != nullptr) {
         fprintf(gRecord, "# end %llu\n", (unsigned long long)gTick.load());
@@ -627,6 +662,7 @@ void LatchPads(uint64_t tick) {
         memcpy(p, gReplayCur, sizeof p);
         if (tick == gReplayEnd) fprintf(stderr, "[input] replay finished at frame %llu, live input from here\n", (unsigned long long)tick);
     }
+    Port_BotApplyPad(tick, &p[0].button); // autoplay bot (bot.cpp)
     if (gRecord != nullptr) {
         bool changed = !gRecordAny;
         for (int i = 0; i < MAXCONTROLLERS; i++) {
@@ -693,11 +729,13 @@ std::atomic<bool> gDisplayPaced{ false };
 class RetraceSchedule {
   public:
     void Wait() {
-        const double periodUs = 16667.0 / Port_Speed();
+        const double ff = Port_FastForward();
+        const double speed = ff > 0.0 ? ff : Port_Speed();
+        const double periodUs = 16667.0 / speed;
         if (periodUs <= 1.0) return; // PORT_SPEED=max
         int64_t now = Port_SteadyNs();
         bool wasPaced = mPaced;
-        int64_t target = Port_Speed() == 1.0 ? DisplayTarget(now) : 0;
+        int64_t target = speed == 1.0 ? DisplayTarget(now) : 0;
         if (target == 0) { // the free-running clock
             if (wasPaced) mNext = std::chrono::steady_clock::now();
             mNext += std::chrono::microseconds((long long)periodUs);

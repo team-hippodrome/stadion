@@ -407,6 +407,24 @@ index 56965571563b21a7557a154dd5ff135465583eb6..f1d73d71d63db8806786e996470fe607
      {
          0,
          0,
+diff --git a/src/fragments/battle_engine/battle_engine_2F74E0.c b/src/fragments/battle_engine/battle_engine_2F74E0.c
+index 6c09ac72e3d8f5549eaf114faad543625f04a8e5..0d08a0b50479efef2d0eb577ed07c53c2c0ddc69 100644
+--- a/src/fragments/battle_engine/battle_engine_2F74E0.c
++++ b/src/fragments/battle_engine/battle_engine_2F74E0.c
+@@ -1231,6 +1231,13 @@ void BattleScene_CollectPlayerAction(ActivePokemon* arg0, ActivePokemon* arg1) {
+     BattleMonRuntime* sp20 = &arg0->state.runtime;
+     BattleMonRuntime* sp1C = &arg1->state.runtime;
+ 
++    // PORT: the autoplay bot's view of player 1's decision (Port_BotBattleChoice in port_compat.h)
++    if (arg0->sessionTeams->teamMember[arg0->state.unk_2C]->unk_001 == 0) {
++        TeamRoster* roster = arg0->sessionTeams->teamMember[arg0->state.unk_2C];
++        Port_BotBattleChoice(sp20, sp1C, roster->pokemonPicked, roster->numberOfPokemonChosen, sizeof(BattleMon),
++                             arg0->state.unk_08, arg0->state.unk_04, arg0->state.unk_10, arg0->state.unk_2D == 0x10);
++    }
++
+     if (BattleScene_HandlePlayerForcedActionState(arg0, arg1) == 0) {
+         if (!(sp20->unk_4D & 0x60)) {
+             sp20->unk_4C &= ~8;
 diff --git a/src/fragments/battle_engine/battle_engine_2FA4D0.c b/src/fragments/battle_engine/battle_engine_2FA4D0.c
 index f8a3b8862d17edaf214dd05d2e29c313124d9ed4..04d469930dc549ddcf585afccc3df838e385cd08 100644
 --- a/src/fragments/battle_engine/battle_engine_2FA4D0.c
@@ -1436,7 +1454,7 @@ index 1463c36f9d91811ef32fd53a4bad18102a7318ed..2c672edf6347122f0a972b02f3bb0d10
      BattleAI_SeedRandomState(0x35);
  
 diff --git a/src/fragments/battle_engine/battle_engine_main.c b/src/fragments/battle_engine/battle_engine_main.c
-index f52b88d105b39060d8d3f853d6fec3aa56c62e86..bb6ea6b8d30afdff962692f8e4391f0d66357319 100644
+index f52b88d105b39060d8d3f853d6fec3aa56c62e86..489b3f7cb7ad014c1176c78aa7962edc61b20ded 100644
 --- a/src/fragments/battle_engine/battle_engine_main.c
 +++ b/src/fragments/battle_engine/battle_engine_main.c
 @@ -1,3 +1,5 @@
@@ -1521,7 +1539,15 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..bb6ea6b8d30afdff962692f8e4391f0d
  
      x = viewport->x;
      y = viewport->y;
-@@ -611,7 +619,7 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -469,6 +477,7 @@ void Battle_UpdateCompletionGate(void) {
+ // after a nonzero return. Latch 2 prevents repeating the audio shutdown request.
+ //@src/stage_loader.c
+ s32 Battle_FrameCallback(s32 fade_mode) {
++    Port_BotBattleFrame(); // PORT: autoplay bot (port_compat.h)
+     s32 battle_result = 0;
+ 
+     Cont_StartReadInputs();
+@@ -611,7 +620,7 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
      sBattleSides[1].unk_10 = PokeIcon_AllocFramebuffers(3);
      PokeIcon_OpenModelArchives();
  
@@ -1530,7 +1556,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..bb6ea6b8d30afdff962692f8e4391f0d
      GfxImage_Initialize(thumbnail_depth, 0, 2, 0x4C, 0x4C, stage_context->unk_18[0]->depth_p->img_p);
      sSide1PokemonThumbnail = GfxImage_Allocate(0, 2, 0x4C, 0x4C, 0);
      sSide2PokemonThumbnail = GfxImage_Allocate(0, 2, 0x4C, 0x4C, 0);
-@@ -640,8 +648,16 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -640,8 +649,16 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
          }
      }
  
@@ -1549,7 +1575,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..bb6ea6b8d30afdff962692f8e4391f0d
  
      model = Model_LoadByArchiveIndex(0x9A);
      Battle_SelectComRoster();
-@@ -669,17 +685,17 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -669,17 +686,17 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
      sSide2ThumbnailRoot = process_geo_layout(layout_pool, sSide2ThumbnailLayout);
  
      // Selectors 0, 1, and 3 each attach geometry beneath a stage tint/scale callback.
@@ -1570,7 +1596,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..bb6ea6b8d30afdff962692f8e4391f0d
      if (stage_layout != NULL) {
          GraphNode_AppendChild(&sStageLayout3, process_geo_layout(layout_pool, stage_layout));
      }
-@@ -687,13 +703,14 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -687,13 +704,14 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
      MainPool_FinalizeAllocation(layout_pool);
  
      // callbackArg records whether this arena supplied fog, for Battle_SetStageTintColor.

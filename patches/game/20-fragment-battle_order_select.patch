@@ -1,5 +1,5 @@
 diff --git a/src/fragments/battle_order_select/battle_order_select.c b/src/fragments/battle_order_select/battle_order_select.c
-index c9557c92f4db3a387993ecc741ecccabf6448d08..54944000cdb0feb8412b56a46ed3af0140942d83 100644
+index c9557c92f4db3a387993ecc741ecccabf6448d08..738208f7499857536e0634a8587b2f88a97531b8 100644
 --- a/src/fragments/battle_order_select/battle_order_select.c
 +++ b/src/fragments/battle_order_select/battle_order_select.c
 @@ -1,3 +1,5 @@
@@ -59,7 +59,7 @@ index c9557c92f4db3a387993ecc741ecccabf6448d08..54944000cdb0feb8412b56a46ed3af01
  
      if (BTN_IS_PRESSED(arg0, BTN_R)) {
          // clang-format off
-@@ -1049,6 +1062,24 @@ s32 BattleMenu_UpdateOrderSelectPanel(s32 arg0, unk_D_848037A0* arg1) {
+@@ -1049,6 +1062,27 @@ s32 BattleMenu_UpdateOrderSelectPanel(s32 arg0, unk_D_848037A0* arg1) {
          var_a0 = &gControllers[arg1->unk_0001];
      }
  
@@ -81,10 +81,13 @@ index c9557c92f4db3a387993ecc741ecccabf6448d08..54944000cdb0feb8412b56a46ed3af01
 +            arg1->unk_0008 = 0;
 +        }
 +    }
++    if (arg0 == 0 && !(arg1->unk_001C->unk_000 & 2) && arg1->unk_0001 == 0) {
++        Port_BotOrderSelect(arg1->unk_0005, arg1->unk_000B); // PORT: autoplay bot (port_compat.h)
++    }
      if (arg0 == 0) {
          switch (arg1->unk_0005) {
              case 0:
-@@ -1205,6 +1236,11 @@ void BattleMenu_AddOrderSelectPanel(s16 arg0, s16 arg1, TeamRoster* arg2, s32 ar
+@@ -1205,6 +1239,11 @@ void BattleMenu_AddOrderSelectPanel(s16 arg0, s16 arg1, TeamRoster* arg2, s32 ar
  
      for (i = 0; i < arg2->rosterInfo->numberOfPokemonCanBePicked; i++) {
          temp_s0 = &arg2->rosterInfo->unk_028[i];

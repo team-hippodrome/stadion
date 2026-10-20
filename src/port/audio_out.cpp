@@ -25,6 +25,7 @@
 
 extern "C" uint64_t Port_ViTick(void);
 extern "C" double Port_Speed();
+extern "C" double Port_FastForward();
 extern "C" void Port_GbAudioSetFrequency(int32_t freq);
 
 namespace {
@@ -112,6 +113,12 @@ void OpenStream() {
 
 void Output(const void* data, uint32_t bytes) {
     if (!Enabled() || gFreq <= 0) {
+        return;
+    }
+    if (Port_FastForward() > 0.0) { // fast-forward (Engine.cpp keys): no sound, and none piled up for afterwards
+        if (gStream != nullptr) {
+            SDL_ClearAudioStream(gStream);
+        }
         return;
     }
     OpenStream();

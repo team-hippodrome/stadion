@@ -36,6 +36,10 @@ extern void* (*gPortAddressResolver)(uintptr_t);
 extern "C" void* Port_ResolveN64Address(uintptr_t addr);
 
 extern "C" double Port_Speed();
+extern "C" void Port_SetFastForward(double factor);
+extern "C" double Port_FastForward();
+extern "C" void Port_SetSkipToDecision(bool on);
+extern "C" bool Port_SkipToDecision();
 extern "C" bool Port_DisplayPaced();
 extern "C" bool Port_Lockstep();
 extern "C" uint64_t Port_ViTick();
@@ -452,7 +456,8 @@ static void UpdateFpsTitle() {
     double dt = std::chrono::duration<double>(now - last).count();
     if (dt < 0.5) return;
     char title[96];
-    snprintf(title, sizeof title, "Pokemon Stadium - %.1f FPS", frames / dt);
+    snprintf(title, sizeof title, "Pokemon Stadium - %.1f FPS%s", frames / dt,
+             Port_SkipToDecision() ? "  [skipping to your turn: F]" : Port_FastForward() > 0.0 ? "  [fast-forward: Tab]" : "");
     int count = 0;
     if (SDL_Window** ws = SDL_GetWindows(&count)) {
         for (int i = 0; i < count; i++) SDL_SetWindowTitle(ws[i], title);
@@ -567,6 +572,18 @@ bool PumpFrame() {
         return false;
     }
     sWindow->HandleEvents();
+    // Speed keys (os_devices.cpp, gFastForward): hold Tab to fast-forward (8x, no sound); F skips at full speed to the
+    // next moment the game waits for you (battle command, a replacement, the team order), F again cancels.
+    if (const bool* keys = SDL_GetKeyboardState(nullptr)) {
+        static bool fWas = false;
+        const bool tab = keys[SDL_SCANCODE_TAB], f = keys[SDL_SCANCODE_F];
+        Port_SetFastForward(tab ? 8.0 : 0.0);
+        if (f && !fWas) {
+            Port_SetSkipToDecision(!Port_SkipToDecision());
+            fprintf(stderr, "[speed] skip to your next decision %s\n", Port_SkipToDecision() ? "on" : "off");
+        }
+        fWas = f;
+    }
     { // the display the window is on sets the pacing (os_devices.cpp, LockstepClock)
         int n = 0;
         if (SDL_Window** ws = SDL_GetWindows(&n)) {
