@@ -689,8 +689,19 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             last_order_tick = now
             in_battle = False
             status.set(phase="choosing the team order (battle %d)" % (status.get("battles") + 1))
-            if pick_spec == "smart" and picks_battle != status.get("battles") and order["picked"] == 0:
-                game.wait(10)  # the opponent's team is not reported yet: no presses before the choice
+            if pick_spec == "smart" and picks_battle != status.get("battles"):
+                # no choice for this battle yet: undo what an earlier press picked (A while getting through the
+                # screens between battles), then wait for the opponent's team and choose
+                if order["sub"] == 0 and order["picked"] > 0:
+                    game.press(L)  # undo the last pick
+                    game.wait(10)
+                elif order["sub"] == 1:  # "Is this OK?": Re-select
+                    game.press(DRIGHT, 2)
+                    game.wait(8)
+                    game.press(A)
+                    game.wait(20)
+                else:
+                    game.wait(10)
                 continue
             if order["sub"] == 0 and order["picked"] < 6:
                 if first_pick and jitter:  # a different moment for each game: the game's random numbers differ
