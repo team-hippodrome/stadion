@@ -940,7 +940,10 @@ def choose_team(brain, status, order):
     vs = [[matchup(m, o) for o in opp] for m in own]
 
     def trio_score(t):
-        a = sorted(max(vs[i][j] for i in t) for j in range(len(opp)))
+        # each of ours usually meets several of theirs (who comes in next is not ours to choose), so an answer counts
+        # half the best of the three and half their average (Zapdos ended up alone against Onix, which its moves
+        # cannot touch, because the other two had answered Onix)
+        a = sorted(0.5 * max(vs[i][j] for i in t) + 0.5 * sum(vs[i][j] for i in t) / 3 for j in range(len(opp)))
         return sum(a) / len(a) + sum(a[:2]) / 2
 
     trio = max(itertools.combinations(range(len(own)), 3), key=trio_score)
