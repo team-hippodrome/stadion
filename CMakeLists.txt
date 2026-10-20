@@ -40,13 +40,17 @@ endif()
 # libultraship is built as a subproject; it is the N64 SDK reimplementation
 # (windowing, Fast3D renderer, controllers, audio backends, resource manager).
 set(GBI_UCODE F3DEX_GBI_2 CACHE STRING "" FORCE)
+if(ANDROID)
+  # Android: OpenGL ES 3 renderer (libultraship fetches SDL3 and the other libraries itself, see android/)
+  set(USE_OPENGLES ON CACHE BOOL "" FORCE)
+endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # fmt 10.1 (distro spdlog) + clang 20: FMT_STRING's consteval check fails to compile; plain constexpr is enough
   add_compile_definitions(FMT_CONSTEVAL=)
 endif()
 add_subdirectory(libultraship ${CMAKE_BINARY_DIR}/libultraship)
 
-add_executable(pokestadium
+set(PORT_MAIN_SOURCES
   src/port/main.cpp
   src/port/Engine.cpp
   src/port/pacing.cpp
@@ -57,6 +61,14 @@ add_executable(pokestadium
   src/port/port_platform.c
   src/port/generated/abs_syms.S
 )
+if(ANDROID)
+  # SDL's Java activity (android/) loads the game as libmain.so and calls its main (SDL_main)
+  add_library(pokestadium SHARED ${PORT_MAIN_SOURCES})
+  set_target_properties(pokestadium PROPERTIES OUTPUT_NAME main)
+  target_link_libraries(pokestadium PRIVATE android log)
+else()
+  add_executable(pokestadium ${PORT_MAIN_SOURCES})
+endif()
 target_include_directories(pokestadium PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include
@@ -170,8 +182,12 @@ target_compile_definitions(port_os PRIVATE LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 ND
 target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/port_compat.h
   ${PORT_NO_WARNINGS})
 # the GB Tower's sound output uses SDL3 directly (same SDL3 the window uses)
-find_path(PORT_SDL3_INCLUDE SDL3/SDL.h HINTS /opt/homebrew/include /usr/local/include)
-set_source_files_properties(src/port/gb_audio_out.cpp src/port/audio_out.cpp PROPERTIES INCLUDE_DIRECTORIES "${PORT_SDL3_INCLUDE}")
+if(ANDROID)  # the SDL3 that libultraship fetched (no system copy to find)
+  target_link_libraries(port_os PRIVATE SDL3::Headers)
+else()
+  find_path(PORT_SDL3_INCLUDE SDL3/SDL.h HINTS /opt/homebrew/include /usr/local/include)
+  set_source_files_properties(src/port/gb_audio_out.cpp src/port/audio_out.cpp PROPERTIES INCLUDE_DIRECTORIES "${PORT_SDL3_INCLUDE}")
+endif()
 target_link_libraries(pokestadium PRIVATE port_os stadium_game port_os)
 if(WIN32)
   # a window-only program (no console window next to the game; main.cpp attaches to the console it was started from),
@@ -200,9 +216,11 @@ endif()
 # (the shader warm-up list goes into it too: a new list rebuilds shader_warmup.cpp, so the archive is packed again)
 set_property(SOURCE src/port/shader_warmup.cpp APPEND PROPERTY OBJECT_DEPENDS
              ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt)
+if(NOT ANDROID)  # Android: the Gradle build packs it into the app's assets (android/app/build.gradle)
 add_custom_command(TARGET pokestadium POST_BUILD
   COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py $<TARGET_FILE_DIR:pokestadium>/pokestadium.o2r
   COMMENT "Packing pokestadium.o2r")
+endif()
 
 # Debug aid: cmake -DPORT_ASAN=ON builds the game code and the port layer with AddressSanitizer (finds the
 # out-of-bounds writes that 32-bit struct layouts turn into on 64-bit).

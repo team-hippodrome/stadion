@@ -80,6 +80,21 @@ For Windows on ARM: `MINGW_TRIPLE=aarch64-w64-mingw32` and the `arm64-mingw-stat
 window-only program (no console window; see Run for its log output) with the icon and version information of
 `src/port/pokestadium.rc.in`.
 
+**Android** (64-bit ARM, Android 10 or newer; tested target: AYN Thor). Needs JDK 17 or 21, the Android SDK with NDK
+29.0.14206865, platform 36 and build-tools 36 (`sdkmanager "platforms;android-36" "build-tools;36.0.0"
+"ndk;29.0.14206865"`), CMake and Ninja. `android/local.properties` names the SDK and the CMake to use (`sdk.dir=...`,
+`cmake.dir=/opt/homebrew` with Homebrew's CMake):
+
+```bash
+cd android && ./gradlew assembleDebug    # app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+The app is `android/` (SDL's Java activity, from the SDL version libultraship fetches) around the game built from
+`CMakeLists.txt` as `libmain.so`, with the OpenGL ES 3 renderer. Config, logs and saves live in the app's folder,
+`/sdcard/Android/data/com.teamhippodrome.pokestadium/files`; files picked in the launcher (ROMs, saves) are copied into
+its `imported/` folder, since Android's file picker hands out content links rather than paths.
+
 The version (Windows file version, AppImage, `Info.plist`) is the `project()` version in `CMakeLists.txt` unless
 `-DPORT_VERSION=<version>` says otherwise. `.github/workflows/build.yml` builds Linux, macOS and Windows (x64, arm64);
 `.github/workflows/release.yml` builds them with the version it is given, tags the commit `v<version>` and `latest`,

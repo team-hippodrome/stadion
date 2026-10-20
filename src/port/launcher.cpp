@@ -238,9 +238,57 @@ std::string* gPickTarget = nullptr;
 std::string gPickResult;
 bool gPickDone = false;
 
+#if defined(__ANDROID__)
+// Android's file picker returns content:// URIs, which the game's file functions cannot open: copy the picked file into
+// the app's files (imported/<name>) and use that. The name comes from the URI's last part, e.g.
+// ".../document/primary%3ADownload%2FPokemon%20Stadium.z64" -> "Pokemon Stadium.z64".
+std::string ImportPicked(const std::string& uri) {
+    if (uri.rfind("content://", 0) != 0) {
+        return uri;
+    }
+    std::string decoded;
+    for (size_t i = 0; i < uri.size(); i++) {
+        if (uri[i] == '%' && i + 2 < uri.size()) {
+            decoded += (char)strtol(uri.substr(i + 1, 2).c_str(), nullptr, 16);
+            i += 2;
+        } else {
+            decoded += uri[i];
+        }
+    }
+    std::string name = decoded.substr(decoded.find_last_of("/:") + 1);
+    if (name.empty()) {
+        name = "picked";
+    }
+    std::error_code ec;
+    fs::path dir = fs::u8path(Ship::Context::GetPathRelativeToAppDirectory("imported"));
+    fs::create_directories(dir, ec);
+    std::string dst = (dir / fs::u8path(name)).string();
+    SDL_IOStream* in = SDL_IOFromFile(uri.c_str(), "rb");
+    if (in == nullptr) {
+        SPDLOG_WARN("could not open {}: {}", uri, SDL_GetError());
+        return "";
+    }
+    SDL_IOStream* out = SDL_IOFromFile(dst.c_str(), "wb");
+    if (out != nullptr) {
+        char chunk[65536];
+        size_t n;
+        while ((n = SDL_ReadIO(in, chunk, sizeof chunk)) > 0) {
+            SDL_WriteIO(out, chunk, n);
+        }
+        SDL_CloseIO(out);
+    }
+    SDL_CloseIO(in);
+    return out != nullptr ? dst : "";
+}
+#endif
+
 void PickCallback(void*, const char* const* files, int) {
+    std::string picked = files != nullptr && files[0] != nullptr ? files[0] : "";
+#if defined(__ANDROID__)
+    picked = ImportPicked(picked);
+#endif
     std::lock_guard<std::mutex> g(gPickLock);
-    gPickResult = files != nullptr && files[0] != nullptr ? files[0] : "";
+    gPickResult = picked;
     gPickDone = true;
 }
 
@@ -267,6 +315,9 @@ void Pick(std::string* target, bool save, const SDL_DialogFileFilter* filters, i
         gPickDone = false;
     }
     std::string start = !target->empty() ? *target : suggested;
+#if defined(__ANDROID__)
+    save = false; // saves stay in the app's files: "Change" imports an existing one (ImportPicked)
+#endif
     if (save) {
         SDL_ShowSaveFileDialog(PickCallback, nullptr, MainWindow(), filters, nfilters, start.empty() ? nullptr : start.c_str());
     } else {

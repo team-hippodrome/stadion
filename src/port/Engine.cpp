@@ -205,6 +205,22 @@ bool Init() {
 
     // Placeholder archive: libultraship's GUI needs a ResourceManager with at least one archive.
     // Game data is still read straight from the ROM at this milestone.
+#if defined(__ANDROID__)
+    // the archive ships as an app asset (android/app/build.gradle), which libzip cannot open in place: copy it to the
+    // app's files on every start (a fraction of a megabyte, and always the version that came with the app)
+    if (SDL_IOStream* in = SDL_IOFromFile("pokestadium.o2r", "rb")) {
+        std::string dst = Ship::Context::GetPathRelativeToAppDirectory("pokestadium.o2r");
+        if (SDL_IOStream* out = SDL_IOFromFile(dst.c_str(), "wb")) {
+            char chunk[65536];
+            size_t n;
+            while ((n = SDL_ReadIO(in, chunk, sizeof chunk)) > 0) {
+                SDL_WriteIO(out, chunk, n);
+            }
+            SDL_CloseIO(out);
+        }
+        SDL_CloseIO(in);
+    }
+#endif
     try {
         nlohmann::json rmArgs;
         rmArgs["archivePaths"] = std::vector<std::string>{ Ship::Context::LocateFileAcrossAppDirs("pokestadium.o2r") };

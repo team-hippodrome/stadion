@@ -10,6 +10,14 @@
 void bcopy(const void* src, void* dst, int n);
 int bcmp(const void* a, const void* b, int n);
 void bzero(void* p, int n);
+#elif defined(__ANDROID__)
+// Android's C library (bionic) has no bcmp, and its bzero/bcopy macros only take object pointers (the decomp passes
+// function addresses too)
+#undef bzero
+#undef bcopy
+#define bcmp(a, b, n) memcmp((const void*)(a), (const void*)(b), (size_t)(n))
+#define bzero(p, n) memset((void*)(p), 0, (size_t)(n))
+#define bcopy(src, dst, n) memmove((void*)(dst), (const void*)(src), (size_t)(n))
 #endif
 #include <stdio.h>
 #include <stdarg.h>
