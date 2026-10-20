@@ -111,6 +111,16 @@ Useful environment variables (all in PORTING_NOTES.md): `PORT_FLASH_FILE` (Stadi
 `PORT_GB_SAVE` (Transfer Pak cartridge of player 1; `PORT_GB_ROM2..4` for the others), `PORT_SOUND=0` (no sound
 output; it is on by default at normal speed).
 
+Speed keys while playing: hold **Tab** to fast-forward (8x, without sound); press **F** to skip at full speed to the
+next moment the game waits for you (your battle command, a replacement after a faint, the team order). F again stops.
+
+**Autoplay** (`tools/autoplay.py`): a bot plays the cups with your team. You pick the cup and register the team as
+usual; from the first team-order screen on it picks your Pokemon (`--pick 1,2,3` or `--pick random`) and decides
+every turn with [Laya](https://huggingface.co/convaiinnovations/laya), a local decision model, together with a battle
+estimate (damage formula, type chart, speed, knock-outs, status moves). A status window in the browser shows both
+Pokemon, the options with their probabilities and every decision. `--games 20 --route <recording>` runs 20 hidden
+games at once at full speed. Setup and options: `python3 tools/autoplay.py --help`.
+
 Sound: the game's music, sound effects, Pokémon cries and the announcer play through SDL3; the N64 audio microcode they
 need is emulated in `src/port/audio_hle.cpp`.
 
