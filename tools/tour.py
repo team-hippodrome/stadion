@@ -1,13 +1,14 @@
 #!/usr/bin/env python3 -I
 """Runs the same scripted input on the port and on ares and puts the pictures side by side.
 
-Usage: tools/tour.py <name> "<script>" [--port-only|--ares-only] [--port-env K=V ...]
+Usage: tools/tour.py <name> "<script>" [--port-only|--ares-only] [--keep-frames] [--port-env K=V ...]
 Script tokens (as tools/rec_script.py, from boot):
   A B Z START L R UP DOWN LEFT RIGHT CU CD CL CR, A+B ...   tap (held 6 frames, then 1 idle)
   hold:A:30                                                hold 30 frames
   <number>                                                 wait that many frames
   shot / shot:<label>                                      capture this frame on both sides
 Output: build/tour/<name>/<k>_<label>_port.png, _ares.png and a side-by-side <k>_<label>.png (port left, ares right).
+The port's raw frames (build/tour/<name>/port_shots) are deleted afterwards; --keep-frames keeps them.
 --audio also records the game's sound on both sides (build/tour/<name>/port.pcm: PORT_AUDIO_DUMP, the AI rate;
 ares.pcm: ARES_REF_WAV, 48 kHz) for tools/audio_compare.py. The port runs with its sound engine on (the recording
 carries "# game audio"; see Port_GameAudio in src/port/os_devices.cpp).
@@ -15,7 +16,7 @@ ares runs start from the title-screen state when the script begins with a wait o
 (ARES_TITLE_STATE, saved 1500 frames after boot), otherwise from boot.
 Needs ARES_REF_BUILD / ARES_REF_SRC (see tools/ares_ref/ref.sh).
 """
-import os, subprocess, sys, struct, zlib
+import os, shutil, subprocess, sys, struct, zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -178,6 +179,11 @@ def main():
         write_png(os.path.join(out, "%02d_%s.png" % (k, label)), W, 480, bytes(canvas))
         print("%02d_%s: port %s, ares %s" % (k, label, "yes" if label in port_shots else "-",
                                            "yes" if label in ares_shots else "-"))
+    # the port's raw frames (uncompressed, several MB each) are only needed for the pictures above: drop them unless
+    # --keep-frames, so runs do not pile up gigabytes in build/tour (the ares_*.ppm stay for --port-only reruns)
+    shotdir = os.path.join(out, "port_shots")
+    if "--keep-frames" not in flags and os.path.isdir(shotdir):
+        shutil.rmtree(shotdir)
 
 
 if __name__ == "__main__":

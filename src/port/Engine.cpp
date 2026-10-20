@@ -363,6 +363,21 @@ static void MaybeScreenshot() {
     }
     lastHash = hsh;
     lastChange = frame;
+    // the change-detected frames are uncompressed (~6 MB each at 1920x1080): stop saving them past a size budget,
+    // PORT_SCREENSHOT_MAX_MB (default 2048), so a long run cannot fill the disk; stop_ pictures are still saved
+    static const uint64_t budget = (getenv("PORT_SCREENSHOT_MAX_MB") ? strtoull(getenv("PORT_SCREENSHOT_MAX_MB"), nullptr, 10) : 2048) << 20;
+    static uint64_t written = 0;
+    const uint64_t size = (uint64_t)buf.size() * 3;
+    if (written + size > budget) {
+        static bool told = false;
+        if (!told) {
+            fprintf(stderr, "[shot] PORT_SCREENSHOT_MAX_MB reached (%llu MB written), no more changed frames saved\n",
+                    (unsigned long long)(written >> 20));
+            told = true;
+        }
+        return;
+    }
+    written += size;
     fprintf(stderr, "[shot] frame %d changed (nonzero samples %zu)\n", name, nz);
     char path[1024];
     snprintf(path, sizeof path, "%s/frame_%05d.ppm", dir, name);
