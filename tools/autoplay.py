@@ -920,8 +920,8 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
 
 
 def choose_team(brain, status, order):
-    """The three Pokemon to send in against the opponent's team, best first: each one's matchups against the
-    opponent's six (the battle estimate), averaged with Laya's view. -> slots (0-5)"""
+    """The three Pokemon to send in against the opponent's team, the lead first: the three whose answers to the
+    opponent's six (the battle estimate) are best together; Laya and the estimate pick the lead. -> slots (0-5)"""
     own = [party_mon(h) for h in order.get("own", [])]
     opp = [party_mon(h) for h in order.get("opp", [])]
     if any(m["species"].startswith("#") for m in own + opp):
@@ -933,21 +933,27 @@ def choose_team(brain, status, order):
     if len(own) <= 3 or not opp:
         status.log("only %d of your Pokemon reported: sending in slots 1-3" % len(own))
         return list(range(min(3, len(own)))) or [0, 1, 2]
-    # the opponent sends in three of its six, likely the ones that beat ours: the worst three matchups count as much
-    # as the average (an Electric type's easy win against Golbat hid three Ground types)
-    values = []
-    for m in own:
-        each = sorted(matchup(m, o) for o in opp)
-        values.append(0.5 * sum(each) / len(each) + 0.5 * sum(each[:3]) / len(each[:3]))
+    # the three as a set, judged like the draft: their best answer to each of the opponent's six, the average and
+    # the weakest two (the opponent sends in three, likely the ones that beat ours). Choosing each one on its own
+    # sent three Pokemon slower than a Ninetales with Fire Spin while a faster one waited on the bench.
+    import itertools
+    vs = [[matchup(m, o) for o in opp] for m in own]
+
+    def trio_score(t):
+        a = sorted(max(vs[i][j] for i in t) for j in range(len(opp)))
+        return sum(a) / len(a) + sum(a[:2]) / 2
+
+    trio = max(itertools.combinations(range(len(own)), 3), key=trio_score)
+    # who goes first: Laya and the estimate (each one's average matchup)
+    values = [sum(vs[i]) / len(opp) for i in trio]
     state = {"opponent_team": [{"name": o["species"], "level": o["level"], "types": types_text(o["types"])} for o in opp],
-             "your_team": [{"name": m["species"], "level": m["level"], "types": types_text(m["types"])} for m in own]}
-    opts = [(m["species"], "%s (%s): %s" % (m["species"], types_text(m["types"]), ", ".join(
-        MOVES.get(mid, "?") for mid, _ in m["moves"] if mid))) for m in own]
-    k, lp, fp = brain.decide(status, "Which Pokemon is strongest against the opponent's team (%s)?" %
+             "your_three": [{"name": own[i]["species"], "level": own[i]["level"], "types": types_text(own[i]["types"])}
+                            for i in trio]}
+    opts = [(own[i]["species"], "%s (%s): %s" % (own[i]["species"], types_text(own[i]["types"]), ", ".join(
+        MOVES.get(mid, "?") for mid, _ in own[i]["moves"] if mid))) for i in trio]
+    k, lp, fp = brain.decide(status, "Which of your three Pokemon should lead against the opponent's team (%s)?" %
                              ", ".join(o["species"] for o in opp), state, opts, values)
-    final = {o["name"]: o["p"] for o in status.get("options")}
-    order_slots = sorted(range(len(own)), key=lambda i: -final.get(own[i]["species"], 0))
-    picks = order_slots[:3]
+    picks = [trio[k]] + sorted((i for i in trio if i != trio[k]), key=lambda i: -sum(vs[i]))
     status.log("team vs %s: %s" % (", ".join(o["species"] for o in opp),
                                    ", ".join(own[i]["species"] for i in picks)))
     return picks
