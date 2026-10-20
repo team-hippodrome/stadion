@@ -17,6 +17,9 @@
 #include <sys/ucontext.h>
 #include <unistd.h>
 #endif
+#if defined(__ANDROID__)
+#include <android/log.h>
+#endif
 
 extern "C" void Main(void);
 extern "C" uint64_t Port_ViTick();
@@ -89,6 +92,9 @@ static void CrashHandler(int sig, siginfo_t* info, void* uctx) {
         dprintf(2, "  %p\n", frames[i]);
     }
     Port_InputFinish(); // the input recording now ends at the crash: replay it with PORT_REPLAY
+#if defined(__ANDROID__)
+    usleep(300000); // let ForwardStdioToLogcat pass the stack on before the process ends
+#endif
     _exit(128 + sig);
 }
 #endif
@@ -112,9 +118,42 @@ static void InstallSignalHandlers() {
     signal(SIGINT, [](int) { _exit(0); });
 }
 
+#if defined(__ANDROID__)
+// Android drops stdout/stderr: forward them, line by line, to the system log (adb logcat -s pokestadium), so the port's
+// messages and the crash handler's stack (written straight to fd 2) can be read
+static void ForwardStdioToLogcat() {
+    static int pipeFds[2];
+    if (pipe(pipeFds) != 0) {
+        return;
+    }
+    setvbuf(stdout, nullptr, _IOLBF, 0);
+    setvbuf(stderr, nullptr, _IONBF, 0);
+    dup2(pipeFds[1], 1);
+    dup2(pipeFds[1], 2);
+    std::thread([] {
+        char buf[1024];
+        std::string line;
+        ssize_t n;
+        while ((n = read(pipeFds[0], buf, sizeof buf)) > 0) {
+            for (ssize_t i = 0; i < n; i++) {
+                if (buf[i] == '\n') {
+                    __android_log_write(ANDROID_LOG_INFO, "pokestadium", line.c_str());
+                    line.clear();
+                } else {
+                    line += buf[i];
+                }
+            }
+        }
+    }).detach();
+}
+#endif
+
 int main(int argc, char** argv) {
 #if defined(_WIN32)
     AttachToConsole();
+#endif
+#if defined(__ANDROID__)
+    ForwardStdioToLogcat();
 #endif
     // The port tells N64 addresses (below 4 GB) from host pointers; keep host allocations above 4 GB (Windows).
     Port_ReserveLowAddressSpace();

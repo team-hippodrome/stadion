@@ -18,7 +18,10 @@
         android:isGame="true"
         android:appCategory="game"
         android:enableOnBackInvokedCallback="false"
-        android:hardwareAccelerated="true">
+        android:hardwareAccelerated="true"
+        android:allowNativeHeapPointerTagging="false">
+        <!-- heap pointer tagging (0xb4 in the top byte) is off: the port tells N64 addresses from host pointers by
+             their value and keeps host pointers in 64-bit fields that it compares and masks -->
 
         <activity android:name=".PokestadiumActivity"
             android:label="@string/app_name"
