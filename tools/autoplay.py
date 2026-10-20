@@ -614,7 +614,7 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
         game.wait(30)
     progress_tick = game.state()["tick"]
     rental_round = 0
-    smart_done = False
+    picks_battle = None
     registered = False
     rejected = set()
     while status.get("wins") < wins:
@@ -665,10 +665,11 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             if not armed:
                 armed = True
                 status.log("team-order screen: the bot plays from here")
-            if (now - last_order_tick > 120 or not smart_done) and order["picked"] == 0 and (
-                    not first_pick or pick_spec == "smart"):  # a new battle's order screen
+            # a new battle's order screen: choose once per battle (a Laya decision takes longer than the gap check)
+            if order["picked"] == 0 and picks_battle != status.get("battles") and (
+                    pick_spec != "smart" or order.get("opp")) and (not first_pick or pick_spec == "smart"):
                 picks = new_picks(order)
-                smart_done = pick_spec != "smart" or bool(order.get("opp"))
+                picks_battle = status.get("battles")
                 rejected = set()
             last_order_tick = now
             in_battle = False
