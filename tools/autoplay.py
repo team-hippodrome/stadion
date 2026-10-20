@@ -155,6 +155,9 @@ class Game:
     def wait(self, frames):
         self.req("wait %d" % frames)
 
+    def roster(self):
+        return self.req("roster").split()
+
 
 class Status:
     """What the status window shows: one entry per game (served as JSON to the page)"""
@@ -618,6 +621,61 @@ def pick_random_rental(game, rng, status):
     game.wait(30)
 
 
+def weaknesses(mon):
+    """the attacking types that hit this Pokemon super effectively"""
+    return {t for t in CHART if effectiveness(t, mon["types"]) > 1}
+
+
+def draft_team(brain, status, roster, rng, size=6, shortlist=6):
+    """A rental team built one Pokemon at a time: each step offers Laya a random shortlist of strong candidates (a
+    different one every run), scored by overall strength (the battle estimate against the whole rental list), the
+    roster's Pokemon the team newly hits super effectively, weaknesses the team already has and types it already has
+    (a first draft took three Psychic types). -> species ids"""
+    mons, seen = [], set()
+    for h in roster:
+        m = party_mon(h)
+        if m["species"].startswith("#") or m["species"] in seen:
+            continue
+        seen.add(m["species"])
+        m["id"] = bytes.fromhex(h)[0]
+        mons.append(m)
+    if len(mons) < size:
+        return None
+    strength = {m["id"]: sum(matchup(m, o) for o in mons) / len(mons) for m in mons}
+    ranked = sorted(mons, key=lambda m: -strength[m["id"]])
+    team = []
+
+    def hits(m):  # the roster's Pokemon one of m's damaging moves hits super effectively
+        types = {MOVEDATA[mid]["type"] for mid, _ in m["moves"] if mid in MOVEDATA and MOVEDATA[mid]["power"] > 0}
+        return {o["id"] for o in mons if any(effectiveness(t, o["types"]) > 1 for t in types)}
+
+    while len(team) < size:
+        pool = [m for m in ranked[:40] if m not in team]  # the strong part of the list
+        cands = rng.sample(pool, min(shortlist, len(pool)))
+        covered = set().union(*[hits(m) for m in team]) if team else set()
+        weak = [w for m in team for w in weaknesses(m)]
+        have = [t for m in team for t in set(m["types"])]
+        values, opts = [], []
+        for m in cands:
+            shared = sum(weak.count(w) for w in weaknesses(m))
+            same = sum(have.count(t) for t in set(m["types"]))
+            values.append(strength[m["id"]] + 0.4 * len(hits(m) - covered) - 12 * shared - 20 * same)
+            opts.append((m["species"], "%s (%s), level %d: %s; weak to %s" % (
+                m["species"], types_text(m["types"]), m["level"],
+                ", ".join(MOVES.get(mid, "?") for mid, _ in m["moves"] if mid),
+                ", ".join(sorted(weaknesses(m))) or "nothing")))
+        state = {"team_so_far": [{"name": m["species"], "types": types_text(m["types"])} for m in team],
+                 "team_weaknesses": sorted(set(weak)), "picks_left": size - len(team)}
+        k, lp, fp = brain.decide(status, "Which Pokemon makes this team the most well rounded and strongest for a long "
+                                 "series of battles against varied opponents?", state, opts, values)
+        status.trace("draft scores: " + ", ".join("%s %.0f (strength %.0f)" % (m["species"], v, strength[m["id"]])
+                                                  for m, v in zip(cands, values)))
+        team.append(cands[k])
+        status.log("draft: %s (Laya %.0f%%, final %.0f%%) from %s" % (
+            cands[k]["species"], lp * 100, fp * 100, ", ".join(m["species"] for m in cands)))
+    return [m["id"] for m in team]
+
+
 def choose_team(brain, status, order):
     """The three Pokemon to send in against the opponent's team, best first: each one's matchups against the
     opponent's six (the battle estimate), averaged with Laya's view. -> slots (0-5)"""
@@ -691,6 +749,19 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             status.log("stuck: nothing happened for %d frames (frame %d)" % (STALL_FRAMES, now))
             status.set(phase="stuck at frame %d" % now, done=True)
             return
+        if team == "draft" and st.get("rental_age", 99) <= 2:  # the carousel is up: draft from the rental list
+            roster = game.roster()
+            if not roster:
+                game.wait(10)
+                continue
+            team = draft_team(brain, status, roster, rng)
+            if team is None:
+                status.log("could not read the rental list: stopped")
+                status.set(phase="stopped: no rental list", done=True)
+                return
+            status.log("drafted team: %s" % ", ".join(SPECIES.get(t, "?") for t in team))
+            progress_tick = now
+            continue
         if team and st.get("rental_confirm_age", 99) <= 2:  # the team is complete: OK / OK to Register / ...
             progress_tick = now
             if register and not registered:
@@ -875,7 +946,9 @@ def main():
     ap.add_argument("--room", choices=sorted(CASTLE_WAY),
                     help="with --castle: go straight to this room on the castle's map (elite4: needs a save with all "
                          "eight badges, --save)")
-    ap.add_argument("--team", help="six Pokemon to rent, e.g. Mewtwo,Alakazam,Snorlax,Starmie,Zapdos,Rhydon")
+    ap.add_argument("--round2", action="store_true", help="play Round 2 (PORT_ROUND2=1; the save is not changed)")
+    ap.add_argument("--team", help="six Pokemon to rent, e.g. Mewtwo,Alakazam,Snorlax,Starmie,Zapdos,Rhydon, or draft: Laya "
+                                       "drafts a well-rounded team from the rental list (different every run)")
     ap.add_argument("--exe", default=os.path.join(ROOT, "build", "pokestadium"), help="the game binary")
     ap.add_argument("--register", action="store_true",
                     help="with --team: register the team after the first rental round (saved in the game's save)")
@@ -920,7 +993,11 @@ def main():
         threads.append(t)
 
     try:
-        team = [species_id(n) for n in args.team.split(",")] if args.team else None
+        team = None
+        if args.team == "draft":
+            team = "draft"  # Laya drafts it from the rental list when the carousel opens (draft_team)
+        elif args.team:
+            team = [species_id(n) for n in args.team.split(",")]
         if args.castle:
             if not args.rom or not team:
                 sys.exit("--castle needs --rom and --team")
@@ -951,6 +1028,8 @@ def main():
                            PORT_FLASH_FILE=save, PORT_RECORD=os.path.join(work, "game%d.rec" % i), PORT_SOUND="0",
                            PORT_GAME_LOG=os.path.join(work, "game%d.log" % i))
                 env.update(PORT_FREEZE_CHECK="0", PORT_AUDIO_TASKS="0")  # nobody listens; the bot detects stalls itself
+                if args.round2:
+                    env["PORT_ROUND2"] = "1"
                 if i >= args.show:
                     # nobody sees these: draw only every 60th frame and skip the freeze check (a GPU read-back per
                     # frame), which doubles what 20 games manage together

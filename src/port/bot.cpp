@@ -5,6 +5,7 @@
 //   state                  -> one JSON line (see BuildState)
 //   press <buttons> <n>    -> hold the buttons (N64 bit mask) for n frames, then release them for 2; answers "ok <frame>"
 //   wait <n>               -> answers "ok <frame>" after n frames
+//   roster                 -> the rental list once it has loaded: one hex word per BattleMon, space-separated
 // Not available on Windows (no unix sockets used there).
 #include <atomic>
 #include <chrono>
@@ -53,6 +54,7 @@ bool gRentalConfirmSeen = false;
 uint64_t gCastleTick = 0;
 int gCastleNode = -1;
 bool gCastleSeen = false;
+std::vector<std::vector<uint8_t>> gRoster; // the rental list (BattleMon each), for drafting a team
 std::atomic<uint16_t> gPressButtons{ 0 };
 std::atomic<uint64_t> gPressUntil{ 0 }; // buttons held while the frame is below this
 
@@ -147,6 +149,12 @@ void Serve(std::string path) {
             unsigned buttons = 0, n = 0;
             if (line == "state") {
                 reply = BuildState();
+            } else if (line == "roster") { // the rental list, one BattleMon per hex word (empty before it loads)
+                std::lock_guard<std::mutex> g(gLock);
+                for (size_t i = 0; i < gRoster.size(); i++) {
+                    reply += (i ? " " : "") + Hex(gRoster[i]);
+                }
+                reply += "\n";
             } else if (sscanf(line.c_str(), "press %u %u", &buttons, &n) == 2) {
                 const uint64_t start = Port_ViTick() + 1;
                 gPressButtons = (uint16_t)buttons;
@@ -269,6 +277,26 @@ extern "C" void Port_BotRental(int species) {
     gRentalSeen = true;
     gRentalTick = Port_ViTick();
     gRentalSpecies = species;
+}
+
+extern "C" int Port_ForceRound2(void) {
+    static const bool on = [] {
+        const char* p = getenv("PORT_ROUND2");
+        return p != nullptr && *p == '1';
+    }();
+    return on ? 1 : 0;
+}
+
+extern "C" void Port_BotRentalRoster(const void* mons, int count, int stride) {
+    if (!Enabled()) {
+        return;
+    }
+    std::lock_guard<std::mutex> g(gLock);
+    gRoster.clear();
+    for (int i = 0; i < count && i < 256; i++) {
+        const uint8_t* p = (const uint8_t*)mons + (size_t)i * stride;
+        gRoster.emplace_back(p, p + stride);
+    }
 }
 
 extern "C" void Port_BotCastleRoom(int node) {

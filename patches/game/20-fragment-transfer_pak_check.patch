@@ -1,5 +1,5 @@
 diff --git a/src/fragments/transfer_pak_check/transfer_pak_check.c b/src/fragments/transfer_pak_check/transfer_pak_check.c
-index 29c3617756ccb9ec7fba4b6e1e5830847a8b82b3..ec1c5cd52704eea60614b2a30b36689a95fceb63 100644
+index 29c3617756ccb9ec7fba4b6e1e5830847a8b82b3..9ee924a709a2aacf650fc4b5f1d9871d41da997c 100644
 --- a/src/fragments/transfer_pak_check/transfer_pak_check.c
 +++ b/src/fragments/transfer_pak_check/transfer_pak_check.c
 @@ -107,89 +107,78 @@ static char* D_82D065D4_jp[] = {
@@ -733,3 +733,21 @@ index 29c3617756ccb9ec7fba4b6e1e5830847a8b82b3..ec1c5cd52704eea60614b2a30b36689a
  
  #if !defined(VERSION_JP)
          // JP sets this combine mode in the icon display lists instead (D_82D08C70 and others).
+@@ -3410,7 +3341,7 @@ s32 TransferPak_CheckMain(s32 arg0, s32 arg1) {
+     Save_EnsureBankLoaded(2);
+     Save_GetModeSettings(&D_82D0AB90, 0);
+     Save_GetOptionsField02(&D_82D0AB98);
+-    sp53 = (D_82D0AB98 & 4) != 0;
++    sp53 = ((D_82D0AB98 & 4) != 0) || Port_ForceRound2(); // PORT: PORT_ROUND2=1 (not saved)
+     gSessionContext.inRound2 = sp53;
+     Gfx_InitDisplayListBuffers(0x10000, 0);
+     sp54 = StageContext_Allocate(1, 0, 2, 0, 2, 1);
+@@ -3471,7 +3402,7 @@ s32 TransferPak_CheckMain(s32 arg0, s32 arg1) {
+     Save_EnsureBankLoaded(2);
+     Save_GetModeSettings(&D_82D0AB90, 0);
+     Save_GetOptionsField02(&D_82D0AB98);
+-    sp53 = (D_82D0AB98 & 4) != 0;
++    sp53 = ((D_82D0AB98 & 4) != 0) || Port_ForceRound2(); // PORT: PORT_ROUND2=1 (not saved)
+     gSessionContext.inRound2 = sp53;
+     Gfx_InitDisplayListBuffers(0x10000, 0);
+     sp54 = StageContext_Allocate(1, 0, 2, 0, 2, 1);
