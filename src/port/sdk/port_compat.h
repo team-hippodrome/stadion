@@ -155,6 +155,9 @@ s32 port_osEPiStartDma(OSPiHandle*, OSIoMesg*, s32);
 // The game's sound engine runs unless switched off (PORT_GAME_AUDIO=0, or replaying an input recording made before
 // the engine was ported: src/port/os_devices.cpp). Off, its entry points return at once as they did then.
 int Port_GameAudio(void);
+// A horizontal view half-angle (binary angle, 0x10000 = 360 degrees) widened for the picture's shape: unchanged at 4:3,
+// wider at 16:9 (src/port/Engine.cpp). For game checks of what the camera sees, which assume the N64's 4:3 picture.
+s16 Port_WidenViewAngle(s16 angle);
 #define PORT_AUDIO_OFF() (!Port_GameAudio())
 // Audio interface: a virtual DMA FIFO in game time, played through SDL3 (src/port/audio_out.cpp)
 s32 port_osAiSetNextBuffer(void* buf, u32 size);

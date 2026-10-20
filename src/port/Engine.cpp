@@ -635,6 +635,20 @@ int AspectSetting() {
 #endif
 }
 
+} // namespace Port
+
+// Port_WidenViewAngle (src/port/sdk/port_compat.h): the half-angle whose tangent is the 4:3 one's times the width ratio
+extern "C" s16 Port_WidenViewAngle(s16 angle) {
+    if (Port::AspectSetting() != 1) {
+        return angle;
+    }
+    const double kBinToRad = 3.14159265358979323846 / 32768.0;
+    const double widened = atan(tan(angle * kBinToRad) * ((16.0 / 9.0) / (4.0 / 3.0)));
+    return (s16)lround(widened / kBinToRad);
+}
+
+namespace Port {
+
 void ApplyAspect() {
     const bool wide = AspectSetting() == 1;
     CVarSetInteger("gAdvancedResolution.Enabled", 1);

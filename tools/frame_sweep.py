@@ -3,15 +3,17 @@
 attract demos) at a glance, without filling the disk.
 
 Usage: tools/frame_sweep.py <out dir> <last frame> [--every N] [--aspect 4:3|16:9] [--rec recording] [--diff D]
+       tools/frame_sweep.py <out dir> <last frame> --rec replays/<name>.rec   (a stored recording, with its save)
 
 Runs build/pokestadium hidden at full speed (lockstep) from boot, with no input unless a recording is given, and asks
 for a picture every N game frames (default 12: 5 per second). Each picture is shrunk to a 320-pixel-wide thumbnail as
 soon as it is written and the full-size frame is deleted; a thumbnail is kept only when it differs from the last kept
 one by more than D (mean absolute difference per channel, 0-255, default 3), so still scenes leave one picture.
+A recording runs from a copy of its save, replays/<name>.flash or else replays/default.flash, as tools/run_replays.py.
 The kept thumbnails become contact sheets <out dir>/sheet_<n>.png (5 x 4 pictures each, in order) and
 <out dir>/frames.txt lists which game frame each picture shows. The ROM comes from $ROM.
 """
-import os, subprocess, sys, time
+import os, shutil, subprocess, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tour  # read_ppm, scale_to, write_png
@@ -62,7 +64,13 @@ def main():
         with open(rec, "w") as f:
             f.write("# pokestadium input recording v1: frame, then button stick_x stick_y for pads 1-4\n"
                     "# game audio\n# end %d\n" % last)
-    env = dict(os.environ, PORT_HIDDEN_WINDOW="1", PORT_ASPECT=aspect, PORT_REPLAY=os.path.abspath(rec),
+    flash = os.path.splitext(os.path.abspath(rec))[0] + ".flash"
+    if not os.path.exists(flash):
+        flash = os.path.join(ROOT, "replays", "default.flash")
+    flash_copy = os.path.join(out, "sweep.flash")
+    if os.path.exists(flash):
+        shutil.copyfile(flash, flash_copy)
+    env = dict(os.environ, PORT_FLASH_FILE=flash_copy, PORT_HIDDEN_WINDOW="1", PORT_ASPECT=aspect, PORT_REPLAY=os.path.abspath(rec),
                PORT_STOP_AT=str(last), PORT_SHOT_AT=",".join(str(f) for f in range(every, last + 1, every)),
                PORT_SCREENSHOT_DIR=shots, PORT_SCREENSHOT_MAX_MB="1", PORT_SPEED="max",
                PORT_RECORD=os.path.join(out, "last_sweep.rec"))
