@@ -507,46 +507,82 @@ def castle_route(path):
 
 
 def pick_rental(game, want, status):
-    """Finds species `want` on the rental carousel and takes it: walks every box (R) row by row (left to right, then
-    right to left, ...), reading the species under the cursor after each move. False when it is not there."""
+    """Takes species `want` from the rental carousel like a player would: the boxes list the Pokemon in Pokedex order,
+    so it goes to the box that holds it (R/L), then straight to its row and column, checking the species under the
+    cursor, with short pauses between moves. Once per game it learns where each box starts (status data
+    "rental_boxes"). Falls back to searching the box when the box has gaps. False when the Pokemon is not there."""
     def cur():
         return game.state().get("rental_species", 0)
 
-    def move(button):
+    def move(button, pause=10):
         before = cur()
         game.press(button, 2)
-        for _ in range(6):  # the carousel animates: wait until the cursor has really moved
-            game.wait(8)
+        for _ in range(8):  # the carousel animates: wait until the cursor has really moved
+            game.wait(pause)
             now = cur()
             if now != before:
                 return now
         return None  # it did not move: an edge
 
-    seen_boxes = set()
-    for _box in range(16):
-        first = cur()
-        if first in seen_boxes:  # back at a box already searched: all boxes done
-            break
-        seen_boxes.add(first)
-        while move(DUP) is not None:  # to the box's first row, first column
+    def to_corner():
+        while move(DUP, 6) is not None:
             pass
-        while move(DLEFT) is not None:
+        while move(DLEFT, 6) is not None:
             pass
+
+    boxes = status.data.get("rental_boxes")
+    if boxes is None:  # learn the boxes: first species of each, from the first box on
+        while move(L, 12) is not None:
+            pass
+        boxes = []
+        for _ in range(16):
+            to_corner()
+            boxes.append(cur())
+            if move(R, 12) is None:
+                break
+        while move(L, 12) is not None:  # back to the first box
+            pass
+        status.data["rental_boxes"] = boxes
+        status.data["rental_box"] = 0
+        status.log("rental boxes start with #%s" % ", #".join(str(x) for x in boxes))
+    # the box that holds `want`: the last one starting at or before it
+    target = max([i for i, first in enumerate(boxes) if first <= want] or [0])
+    here = status.data.get("rental_box", 0)
+    moved_box = here != target
+    while here < target and move(R, 12) is not None:
+        here += 1
+    while here > target and move(L, 12) is not None:
+        here -= 1
+    status.data["rental_box"] = here
+    # from where the cursor is to the Pokemon's place: three per row in Pokedex order, so rows and columns follow
+    # from the two numbers (no going back to the top of the box between picks)
+    now = cur()
+    if not (boxes[here] <= now) or moved_box:
+        to_corner()
+        now = cur()
+    pos_now, pos_want = now - boxes[here], want - boxes[here]
+    rows = pos_want // 3 - pos_now // 3
+    for _ in range(abs(rows)):
+        move(DDOWN if rows > 0 else DUP, 8)
+    cols = pos_want % 3 - pos_now % 3
+    for _ in range(abs(cols)):
+        move(DRIGHT if cols > 0 else DLEFT, 8)
+    if cur() != want:  # a gap in the box (a Pokemon not offered): look around in this box
+        to_corner()
         direction = DRIGHT
-        while True:
-            if cur() == want:
-                game.press(A)
-                game.wait(30)
-                return True
-            if move(direction) is not None:
+        while cur() != want:
+            if move(direction, 8) is not None:
                 continue
-            if move(DDOWN) is None:  # the box's last row
+            if move(DDOWN, 8) is None:
                 break
             direction = DLEFT if direction == DRIGHT else DRIGHT
-        if move(R) is None:
-            break
-    status.log("could not find %s on the rental carousel" % SPECIES.get(want, want))
-    return False
+    if cur() != want:
+        status.log("could not find %s on the rental carousel" % SPECIES.get(want, want))
+        return False
+    game.wait(12)  # a short look before taking it
+    game.press(A)
+    game.wait(30)
+    return True
 
 
 def pick_random_rental(game, rng, status):
