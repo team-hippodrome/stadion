@@ -1301,6 +1301,26 @@ index cc7f3672f5521d94c2468cdc948e116e9d4e56f6..6b579012b868e37eb8c9449dd311a83a
      AuxiliaryEffectNode* var_s0;
      s32 i;
      MtxF sp78;
+diff --git a/src/fragments/battle_engine/battle_engine_3597B0.c b/src/fragments/battle_engine/battle_engine_3597B0.c
+index 72f76ae0837fbdc7a220bee2404e3f0ca3e4a2b2..3a2b90dc86869952f8b462402fb9b2343d8c6f72 100644
+--- a/src/fragments/battle_engine/battle_engine_3597B0.c
++++ b/src/fragments/battle_engine/battle_engine_3597B0.c
+@@ -136,6 +136,7 @@ Gfx* BattleScene_BuildStripWipeDisplayList(Gfx* arg0, s32 arg1) {
+     temp_v1 = (arg1 + 1) & 1;
+ 
+     gSPDisplayList(arg0++, D_8438ABE8);
++    gDPPortWideRectsBegin(arg0++); // PORT: the wipe covers a widescreen picture too
+     gDPLoadTextureBlock_4b(arg0++, D_8438AA68, G_IM_FMT_I, 12, 48, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+                            G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+     gDPPipeSync(arg0++);
+@@ -160,6 +161,7 @@ Gfx* BattleScene_BuildStripWipeDisplayList(Gfx* arg0, s32 arg1) {
+                                 -(1 << 6), 1 << 10);
+     }
+ 
++    gDPPortWideRectsEnd(arg0++);
+     gSPDisplayList(arg0++, D_8438AC30);
+ 
+     return arg0;
 diff --git a/src/fragments/battle_engine/battle_engine_359F90.c b/src/fragments/battle_engine/battle_engine_359F90.c
 index 0e7bc5cd90773cec5f63484943f1341ed40768eb..a8be6591922daec8a5f00392fde2423397b5bc54 100644
 --- a/src/fragments/battle_engine/battle_engine_359F90.c

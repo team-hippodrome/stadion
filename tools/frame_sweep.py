@@ -2,11 +2,11 @@
 """Captures a run as a series of small pictures, to look over a whole stretch of the game (e.g. the intro and the
 attract demos) at a glance, without filling the disk.
 
-Usage: tools/frame_sweep.py <out dir> <last frame> [--every N] [--aspect 4:3|16:9] [--rec recording] [--diff D]
+Usage: tools/frame_sweep.py <out dir> <last frame> [--every N] [--aspect 4:3|16:9] [--rec recording] [--diff D] [--from F]
        tools/frame_sweep.py <out dir> <last frame> --rec replays/<name>.rec   (a stored recording, with its save)
 
 Runs build/pokestadium hidden at full speed (lockstep) from boot, with no input unless a recording is given, and asks
-for a picture every N game frames (default 12: 5 per second). Each picture is shrunk to a 320-pixel-wide thumbnail as
+for a picture every N game frames (default 12: 5 per second), from frame F on (default N). Each picture is shrunk to a 320-pixel-wide thumbnail as
 soon as it is written and the full-size frame is deleted; a thumbnail is kept only when it differs from the last kept
 one by more than D (mean absolute difference per channel, 0-255, default 3), so still scenes leave one picture.
 A recording runs from a copy of its save, replays/<name>.flash or else replays/default.flash, as tools/run_replays.py.
@@ -71,7 +71,7 @@ def main():
     if os.path.exists(flash):
         shutil.copyfile(flash, flash_copy)
     env = dict(os.environ, PORT_FLASH_FILE=flash_copy, PORT_HIDDEN_WINDOW="1", PORT_ASPECT=aspect, PORT_REPLAY=os.path.abspath(rec),
-               PORT_STOP_AT=str(last), PORT_SHOT_AT=",".join(str(f) for f in range(every, last + 1, every)),
+               PORT_STOP_AT=str(last), PORT_SHOT_AT=",".join(str(f) for f in range(int(arg("--from", every)), last + 1, every)),
                PORT_SCREENSHOT_DIR=shots, PORT_SCREENSHOT_MAX_MB="1", PORT_SPEED="max",
                PORT_RECORD=os.path.join(out, "last_sweep.rec"))
     rom = os.environ.get("ROM", "/Users/michael/Downloads/romis/Pokemon Stadium (USA).z64")
