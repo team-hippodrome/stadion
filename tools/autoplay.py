@@ -359,6 +359,9 @@ def move_value(own, opp, mid):
     opp_status = opp.get("status", 0)
     if d["power"] == 0 and MOVES.get(mid) not in ("Night Shade",):  # status moves
         e = d["effect"]
+        if e in (SLEEP, PARALYZE, POISON) and threat(opp, own) >= 1.0:
+            # the next hit knocks us out: no time to profit from it (Drowzee at 22 HP chose Hypnosis)
+            return 5.0
         if e == SLEEP:
             return 75 * acc if opp_status == 0 else 0.0
         if e == PARALYZE:
