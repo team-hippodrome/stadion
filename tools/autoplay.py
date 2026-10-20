@@ -27,6 +27,8 @@ SOCK = "/tmp/pokestadium_bot.sock"  # unix socket paths must be short
 
 # N64 controller bits
 A, B, START, L, R, CU, CD, CL, CR = 0x8000, 0x4000, 0x1000, 0x20, 0x10, 0x8, 0x4, 0x2, 0x1
+DUP, DDOWN, DLEFT, DRIGHT = 0x0800, 0x0400, 0x0200, 0x0100
+STALL_FRAMES = 20000  # no decision, battle or team screen for this long (5.5 minutes of game time): stuck
 MOVE_BUTTON = [CU, CR, CD, CL]          # move slots 1-4 in battle (BattleScene_SelectMoveFromButtons)
 PARTY3_BUTTON = [CU, CR, CD]            # party slots with three Pokemon (BattleScene_HandlePartySlotCursorInput)
 PARTY6_BUTTON = [CU, CL, B, CR, CD, A]  # party slots with more
@@ -478,8 +480,91 @@ def play_turn(game, brain, status, choice):
         game.press(slot_buttons[i])
 
 
-def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng):
-    """Plays one game until `wins` battles are won (or the game closes). pick_spec: slots (0-5) or "random"."""
+SPECIES_ID = {name.lower().replace(" ", ""): i for i, name in SPECIES.items()}
+
+
+def species_id(name):
+    key = name.lower().replace(" ", "").replace("-", "").replace(".", "").replace("'", "")
+    key = {"nidoran♀": "nidoranf", "nidoran♂": "nidoranm", "mrmime": "mrmime"}.get(key, key)
+    if key not in SPECIES_ID:
+        sys.exit("unknown Pokemon '%s'" % name)
+    return SPECIES_ID[key]
+
+
+def castle_route(path):
+    """An input recording from boot to Gym Leader Castle on the island map: A+Start through the title and the menus
+    into the Stadium area, then Left and Up (Pokemon Lab, then the castle). The bot presses A from there."""
+    lines = ["# pokestadium input recording v1: frame, then button stick_x stick_y for pads 1-4\n", "# game audio\n",
+             "0 0 0 0 0 0 0 0 0 0 0 0 0\n"]
+    for f in range(40, 361, 20):
+        lines.append("%d %d 0 0 0 0 0 0 0 0 0 0 0\n%d 0 0 0 0 0 0 0 0 0 0 0 0\n" % (f, A | START, f + 6))
+    for f, b in ((450, DLEFT), (500, DUP)):
+        lines.append("%d %d 0 0 0 0 0 0 0 0 0 0 0\n%d 0 0 0 0 0 0 0 0 0 0 0 0\n" % (f, b, f + 4))
+    lines.append("# end 540\n")
+    with open(path, "w") as f:
+        f.writelines(lines)
+
+
+def pick_rental(game, want, status):
+    """Finds species `want` on the rental carousel and takes it: walks every box (R) row by row (left to right, then
+    right to left, ...), reading the species under the cursor after each move. False when it is not there."""
+    def cur():
+        return game.state().get("rental_species", 0)
+
+    def move(button):
+        before = cur()
+        game.press(button, 2)
+        for _ in range(6):  # the carousel animates: wait until the cursor has really moved
+            game.wait(8)
+            now = cur()
+            if now != before:
+                return now
+        return None  # it did not move: an edge
+
+    seen_boxes = set()
+    for _box in range(16):
+        first = cur()
+        if first in seen_boxes:  # back at a box already searched: all boxes done
+            break
+        seen_boxes.add(first)
+        while move(DUP) is not None:  # to the box's first row, first column
+            pass
+        while move(DLEFT) is not None:
+            pass
+        direction = DRIGHT
+        while True:
+            if cur() == want:
+                game.press(A)
+                game.wait(30)
+                return True
+            if move(direction) is not None:
+                continue
+            if move(DDOWN) is None:  # the box's last row
+                break
+            direction = DLEFT if direction == DRIGHT else DRIGHT
+        if move(R) is None:
+            break
+    status.log("could not find %s on the rental carousel" % SPECIES.get(want, want))
+    return False
+
+
+def pick_random_rental(game, rng, status):
+    """On the rental carousel: a random box, row and column, then A (the game refuses duplicates and Pokemon over the
+    cup's limits; the carousel then simply waits again)"""
+    for _ in range(rng.randint(0, 4)):
+        game.press(R, 2)
+        game.wait(12)
+    for button, most in ((DDOWN, 5), (DRIGHT, 2)):
+        for _ in range(rng.randint(0, most)):
+            game.press(button, 2)
+            game.wait(12)
+    game.press(A)
+    game.wait(30)
+
+
+def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None):
+    """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
+    "random"; random_team: choose the rental team at random on the rental carousel."""
     def new_picks():
         p = rng.sample(range(6), 3) if pick_spec == "random" else list(pick_spec)
         if pick_spec == "random":
@@ -490,37 +575,74 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng):
     in_battle = False
     last_choice = None
     first_pick = True
-    picks_used = False
+    last_order_tick = -10**9
+    last_rental_tick = -10**9
+    progress_tick = 0
+    rentals = 0
     if armed:
         status.set(phase="playing")
     else:
         status.set(phase="waiting for the first team-order screen (choose your cup and team)")
     while status.get("wins") < wins:
         st = game.state()
+        now = st["tick"]
         choice, order = st.get("choice"), st.get("order")
         if choice and choice["age"] <= 2:
             last_choice = choice
+        if now - progress_tick > STALL_FRAMES and armed:
+            status.log("stuck: nothing happened for %d frames (frame %d)" % (STALL_FRAMES, now))
+            status.set(phase="stuck at frame %d" % now, done=True)
+            return
+        if team and st.get("rental_age", 99) <= 2:
+            progress_tick = now
+            last_rental_tick = now
+            if rentals < len(team):
+                status.set(phase="choosing rentals: %s" % SPECIES.get(team[rentals], "?"))
+                if pick_rental(game, team[rentals], status):
+                    status.log("rented %s" % SPECIES.get(team[rentals], "?"))
+                rentals += 1
+            else:
+                game.press(START)  # the team is complete: the game asks to register it
+                game.wait(30)
+            continue
+        if random_team and st.get("rental_age", 99) <= 2:
+            progress_tick = now
+            last_rental_tick = now
+            if rentals == 0:
+                status.set(phase="choosing a random rental team")
+            rentals += 1
+            pick_random_rental(game, rng, status)
+            continue
         if order and order["age"] <= 2:
+            progress_tick = now
             if not armed:
                 armed = True
                 status.log("team-order screen: the bot plays from here")
-            if in_battle:
-                in_battle = False
-            if order["sub"] == 0 and order["picked"] == 0 and not first_pick and picks_used:
-                picks = new_picks()  # a new battle's order screen
-                picks_used = False
+            if now - last_order_tick > 120 and not first_pick:  # a new battle's order screen
+                picks = new_picks()
+            last_order_tick = now
+            in_battle = False
             status.set(phase="choosing the team order (battle %d)" % (status.get("battles") + 1))
             if order["sub"] == 0 and order["picked"] < len(picks):
                 if first_pick and jitter:  # a different moment for each game: the game's random numbers differ
                     game.wait(jitter)
                 first_pick = False
-                picks_used = True
                 game.press(ORDER_BUTTON[picks[order["picked"]]])
                 game.wait(10)
-            elif order["sub"] in (1, 2):  # "Is this OK?" (cursor on Yes) / level-cap notice
+            elif order["sub"] == 1:  # "Is this OK?" (cursor on Yes)
                 game.press(A)
                 game.wait(20)
-            else:
+            elif order["sub"] == 2:  # the picks break the cup's rules (e.g. Poke Cup: 155 levels at most)
+                game.press(A)  # the notice clears the picks
+                game.wait(20)
+                if pick_spec != "random":
+                    status.log("your picks (slots %s) break this cup's rules (level cap); choose others with --pick" %
+                               ",".join(str(i + 1) for i in picks))
+                    status.set(phase="stopped: picks not allowed in this cup", done=True)
+                    return
+                status.log("slots %s break the cup's level cap: new random picks" % ",".join(str(i + 1) for i in picks))
+                picks = new_picks()
+            else:  # fading in (-1) or done (3)
                 game.wait(10)
             continue
         # player 1's command menu is waiting (sub 0), or a fainted Pokemon has to be replaced
@@ -528,6 +650,7 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng):
             if not armed:
                 game.wait(10)
                 continue
+            progress_tick = now
             if not in_battle:
                 in_battle = True
                 status.set(phase="battle %d" % (status.get("battles") + 1))
@@ -542,21 +665,29 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng):
             continue
         if in_battle:  # the battle screen is gone: who won?
             in_battle = False
-            own_alive = any(party_mon(p)["hp"] > 0 for p in (last_choice or {}).get("party", []))
+            progress_tick = now
+            # the game's own verdict (1/2: side 0/1 won, 3: draw; BattleScene_DetermineWinner and the knock-out rule)
+            result, side = st.get("result", 0), st.get("side", 0)
+            won = result in (1, 2) and result - 1 == side
             status.set(battles=status.get("battles") + 1)
-            if own_alive:
+            if won:
                 status.set(wins=status.get("wins") + 1)
                 status.log("battle won (%d/%d)" % (status.get("wins"), wins))
             else:
                 status.set(losses=status.get("losses") + 1)
-                status.log("battle lost, continuing the cup")
+                status.log("battle lost%s, continuing" % (" (draw)" if result == 3 else ""))
             status.set(own=None, opp=None, options=[], bench=[], last_switch={})
-        if armed:  # results, cup progress, retry prompts: advance
-            status.set(phase="between battles")
+        # results, cup progress, dialogs, retry prompts: advance (never right after a team or rental screen, where A
+        # would pick a Pokemon)
+        if armed and now - last_order_tick > 120 and now - last_rental_tick > 60:
+            if status.get("phase").startswith("choosing a random rental"):
+                status.set(phase="registering the team")
+            elif not status.get("phase").startswith("registering"):
+                status.set(phase="between battles")
             game.press(A)
             game.wait(40)
         else:
-            game.wait(30)
+            game.wait(20)
     status.set(phase="done: %d battles won, %d lost" % (status.get("wins"), status.get("losses")), done=True)
     status.log("done")
 
@@ -579,6 +710,12 @@ def main():
                                     "screen, with --games; its save: --save")
     ap.add_argument("--save", help="the Stadium save the route starts from (each game uses a copy)")
     ap.add_argument("--show", type=int, default=0, help="with --games: show the windows of the first n games")
+    ap.add_argument("--castle", action="store_true",
+                    help="Gym Leader Castle from the start: the bot goes there from the title screen, rents --team "
+                         "and plays through it (with --games; no --route needed)")
+    ap.add_argument("--team", help="six Pokemon to rent, e.g. Mewtwo,Alakazam,Snorlax,Starmie,Zapdos,Rhydon")
+    ap.add_argument("--random-team", action="store_true",
+                    help="choose a random rental team on the rental carousel (the route ends before it)")
     args = ap.parse_args()
     picks = "random" if args.pick == "random" else [int(x) - 1 for x in args.pick.split(",")]
 
@@ -599,7 +736,7 @@ def main():
                 game = Game(sock)
                 gs.log("connected")
                 import random
-                run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random())
+                run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team)
             except (EOFError, BrokenPipeError, ConnectionResetError) as e:
                 gs.log("the game was closed (%s)" % type(e).__name__)
                 gs.set(phase="closed", done=True)
@@ -617,6 +754,15 @@ def main():
         threads.append(t)
 
     try:
+        team = [species_id(n) for n in args.team.split(",")] if args.team else None
+        if args.castle:
+            if not args.rom or not team:
+                sys.exit("--castle needs --rom and --team")
+            import tempfile
+            args.route = os.path.join(tempfile.mkdtemp(prefix="autoplay_route_"), "castle.rec")
+            castle_route(args.route)
+            args.games = args.games or 1
+            args.save = args.save or os.path.join(ROOT, "replays", "default.flash")
         if args.games > 0:
             if not args.route or not args.rom:
                 sys.exit("--games needs --route (a recording to the first team-order screen) and --rom")

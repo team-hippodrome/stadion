@@ -53,10 +53,22 @@ index f2422c1b999487d656315892c8ad03e45922aae1..ad7a2af65709877c71ad76a0801ccd65
  }
  
 diff --git a/src/fragments/61/fragment61_2DFB60.c b/src/fragments/61/fragment61_2DFB60.c
-index 06ac67b65b2c2832794add050db1de727ea650d7..3c0a0d0e1bbb3627399c4cb47f9017d9fc39cee0 100644
+index 06ac67b65b2c2832794add050db1de727ea650d7..880348b471b7e072c47ca2ce2ccead80fe663ed0 100644
 --- a/src/fragments/61/fragment61_2DFB60.c
 +++ b/src/fragments/61/fragment61_2DFB60.c
-@@ -777,7 +777,7 @@ s32 Rental_MonMeetsCategoryFilter(BattleMon* arg0, s16 arg1, s16 arg2, s16 arg3)
+@@ -711,6 +711,11 @@ void Rental_CarouselStartPressed(RentalCarouselState* arg0) {
+ void Rental_CarouselHandleInput(RentalCarouselState* arg0) {
+     Controller* cont = &gControllers[arg0->unk_00003];
+ 
++    if (arg0->unk_00003 == 0) { // PORT: autoplay bot (port_compat.h)
++        unk_D_838067F0_0168* page = Rental_GetPage(arg0->unk_00140, arg0->unk_0000E);
++        Port_BotRental(page != NULL ? *(u16*)&page->unk_0000[arg0->unk_0000C].unk_004 : 0);
++    }
++
+     if (BTN_IS_PRESSED(cont, BTN_A)) {
+         Rental_CarouselConfirmMon(arg0);
+     } else if (BTN_IS_PRESSED(cont, BTN_B)) {
+@@ -777,7 +782,7 @@ s32 Rental_MonMeetsCategoryFilter(BattleMon* arg0, s16 arg1, s16 arg2, s16 arg3)
      s32 sp1C = 0;
  
      if ((arg0->unk_00.unk_00 > 0) && (arg0->unk_00.unk_00 < 0x98)) {

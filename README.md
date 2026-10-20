@@ -118,7 +118,7 @@ next moment the game waits for you (your battle command, a replacement after a f
 usual; from the first team-order screen on it picks your Pokemon (`--pick 1,2,3` or `--pick random`) and decides
 every turn with [Laya](https://huggingface.co/convaiinnovations/laya), a local decision model, together with a battle
 estimate (damage formula, type chart, speed, knock-outs, status moves). A status window in the browser shows both
-Pokemon, the options with their probabilities and every decision. `--games 20 --route <recording>` runs 20 hidden
+Pokemon, the options with their probabilities and every decision. `--games 10 --route <recording>` runs 10 hidden
 games at once at full speed. Setup and options: `python3 tools/autoplay.py --help`.
 
 Sound: the game's music, sound effects, Pokémon cries and the announcer play through SDL3; the N64 audio microcode they

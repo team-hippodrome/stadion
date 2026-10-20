@@ -1,5 +1,5 @@
 diff --git a/src/fragments/battle_order_select/battle_order_select.c b/src/fragments/battle_order_select/battle_order_select.c
-index c9557c92f4db3a387993ecc741ecccabf6448d08..738208f7499857536e0634a8587b2f88a97531b8 100644
+index c9557c92f4db3a387993ecc741ecccabf6448d08..426a9f644e8b654a78b2b6735d1554b4ed5348db 100644
 --- a/src/fragments/battle_order_select/battle_order_select.c
 +++ b/src/fragments/battle_order_select/battle_order_select.c
 @@ -1,3 +1,5 @@
@@ -28,7 +28,20 @@ index c9557c92f4db3a387993ecc741ecccabf6448d08..738208f7499857536e0634a8587b2f88
  
  void BattleMenu_DrawBottomActionButtons(void) {
      Gfx_DrawTiledRgba16Image(D_84803784);
-@@ -793,6 +798,11 @@ s32 BattleMenu_PicksExceedLevelCap(unk_D_848037A0* arg0) {
+@@ -767,6 +772,12 @@ void BattleMenu_UpdateComPanelAutoInput(void) {
+         if (D_84816450 > 0) {
+             D_84816450--;
+         }
++        // PORT: the script's last step answers "Is this OK?" at a fixed time; when the question came later (the port's
++        // frame timing can differ from the N64's), the computer's panel waited forever. After the script, it answers.
++        if ((D_84816450 == 0) && (ptr = D_848035E0[var_v0], ptr[D_8481644C].unk_00 == 0) &&
++            (D_848037A0[i].unk_0005 == 1)) {
++            D_84816428.buttonPressed = BTN_A;
++        }
+     }
+ }
+ 
+@@ -793,6 +804,11 @@ s32 BattleMenu_PicksExceedLevelCap(unk_D_848037A0* arg0) {
              var_v0 += arg0->unk_0018[arg0->unk_000C[i]].unk_24;
          }
  
@@ -40,7 +53,7 @@ index c9557c92f4db3a387993ecc741ecccabf6448d08..738208f7499857536e0634a8587b2f88
          if (D_84816420->ruleCategory == 3) {
              if ((arg0->unk_000B == 2) && (var_v0 >= 0x6A)) {
                  return 1;
-@@ -841,6 +851,7 @@ s32 BattleMenu_IsOrderSelectionComplete(unk_D_848037A0* arg0) {
+@@ -841,6 +857,7 @@ s32 BattleMenu_IsOrderSelectionComplete(unk_D_848037A0* arg0) {
  }
  
  void BattleMenu_SelectOrderSlot(unk_D_848037A0* arg0, s8 arg1, s32 arg2) {
@@ -48,7 +61,7 @@ index c9557c92f4db3a387993ecc741ecccabf6448d08..738208f7499857536e0634a8587b2f88
      if (arg1 >= arg0->unk_0017) {
          Audio_PlaySoundEffectById(SFX_MENU_ERROR);
          return;
-@@ -906,8 +917,10 @@ void BattleMenu_UndoLastOrderSelection(unk_D_848037A0* arg0) {
+@@ -906,8 +923,10 @@ void BattleMenu_UndoLastOrderSelection(unk_D_848037A0* arg0) {
      }
  }
  
@@ -59,7 +72,7 @@ index c9557c92f4db3a387993ecc741ecccabf6448d08..738208f7499857536e0634a8587b2f88
  
      if (BTN_IS_PRESSED(arg0, BTN_R)) {
          // clang-format off
-@@ -1049,6 +1062,27 @@ s32 BattleMenu_UpdateOrderSelectPanel(s32 arg0, unk_D_848037A0* arg1) {
+@@ -1049,6 +1068,27 @@ s32 BattleMenu_UpdateOrderSelectPanel(s32 arg0, unk_D_848037A0* arg1) {
          var_a0 = &gControllers[arg1->unk_0001];
      }
  
@@ -81,13 +94,13 @@ index c9557c92f4db3a387993ecc741ecccabf6448d08..738208f7499857536e0634a8587b2f88
 +            arg1->unk_0008 = 0;
 +        }
 +    }
-+    if (arg0 == 0 && !(arg1->unk_001C->unk_000 & 2) && arg1->unk_0001 == 0) {
-+        Port_BotOrderSelect(arg1->unk_0005, arg1->unk_000B); // PORT: autoplay bot (port_compat.h)
++    if (!(arg1->unk_001C->unk_000 & 2) && arg1->unk_0001 == 0) { // PORT: autoplay bot (port_compat.h)
++        Port_BotOrderSelect(arg0 == 0 ? arg1->unk_0005 : -1, arg1->unk_000B);
 +    }
      if (arg0 == 0) {
          switch (arg1->unk_0005) {
              case 0:
-@@ -1205,6 +1239,11 @@ void BattleMenu_AddOrderSelectPanel(s16 arg0, s16 arg1, TeamRoster* arg2, s32 ar
+@@ -1205,6 +1245,11 @@ void BattleMenu_AddOrderSelectPanel(s16 arg0, s16 arg1, TeamRoster* arg2, s32 ar
  
      for (i = 0; i < arg2->rosterInfo->numberOfPokemonCanBePicked; i++) {
          temp_s0 = &arg2->rosterInfo->unk_028[i];

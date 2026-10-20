@@ -160,10 +160,12 @@ int Port_GameAudio(void);
 s16 Port_WidenViewAngle(s16 angle);
 // Autoplay bot (src/port/bot.cpp, tools/autoplay.py): with PORT_BOT=<socket path> the game reports what a player would
 // decide on, and the bot answers with button presses. No effect otherwise.
-void Port_BotBattleFrame(void); // a battle is running (every battle frame)
+void Port_BotBattleFrame(int result); // a battle is running (every battle frame); result: 0, or 1/2 side 0/1 won, 3 draw
 void Port_BotBattleChoice(const void* own, const void* opp, const void* party, int partyCount, int partyStride,
-                          int activeSlot, int menu, int sub, int forced); // player 1 has to act (every such frame)
-void Port_BotOrderSelect(int sub, int picked);                          // player 1's team-order panel (every frame)
+                          int activeSlot, int menu, int sub, int forced, int side); // player 1 has to act (each frame)
+void Port_BotOrderSelect(int sub, int picked);                          // player 1's team-order panel (every frame;
+                                                                        // sub -1 while the screen fades in)
+void Port_BotRental(int species);    // player 1's rental carousel waits (each frame); the species under the cursor
 // Full-screen 2D effects made for the 4:3 picture (the battle's strip wipe): the textured rectangles between these
 // markers are stretched over the whole width of a widescreen picture (libultraship patch, interpreter.cpp sWideRects).
 #define gDPPortWideRectsBegin(pkt) gDPNoOpTag3(pkt, 0x50, 0, 1)

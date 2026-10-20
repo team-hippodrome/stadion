@@ -30,18 +30,23 @@ std::mutex gLock;
 bool gEnabled = false;
 uint64_t gBattleTick = 0;     // last battle frame
 bool gBattleSeen = false;
+int gBattleResult = 0;        // the battle's result (Port_BotBattleFrame)
+int gOwnSide = -1;            // player 1's side in the battle
 struct Choice {
     bool seen = false;
     uint64_t tick = 0;
     std::vector<uint8_t> own, opp;
     std::vector<std::vector<uint8_t>> party;
-    int active = 0, menu = 0, sub = 0, forced = 0;
+    int active = 0, menu = 0, sub = 0, forced = 0, side = 0;
 } gChoice;
 struct Order {
     bool seen = false;
     uint64_t tick = 0;
     int sub = 0, picked = 0;
 } gOrder;
+bool gRentalSeen = false;
+uint64_t gRentalTick = 0;
+int gRentalSpecies = 0;
 std::atomic<uint16_t> gPressButtons{ 0 };
 std::atomic<uint64_t> gPressUntil{ 0 }; // buttons held while the frame is below this
 
@@ -62,7 +67,8 @@ std::string BuildState() {
     const uint64_t now = Port_ViTick();
     char buf[96];
     std::string s = "{\"tick\":" + std::to_string(now);
-    snprintf(buf, sizeof buf, ",\"battle_age\":%lld", gBattleSeen ? (long long)(now - gBattleTick) : -1LL);
+    snprintf(buf, sizeof buf, ",\"battle_age\":%lld,\"result\":%d,\"side\":%d",
+             gBattleSeen ? (long long)(now - gBattleTick) : -1LL, gBattleResult, gOwnSide);
     s += buf;
     if (gChoice.seen) {
         s += ",\"choice\":{\"age\":" + std::to_string(now - gChoice.tick) + ",\"active\":" + std::to_string(gChoice.active) +
@@ -73,6 +79,10 @@ std::string BuildState() {
             s += (i ? ",\"" : "\"") + Hex(gChoice.party[i]) + "\"";
         }
         s += "]}";
+    }
+    if (gRentalSeen) {
+        s += ",\"rental_age\":" + std::to_string(now - gRentalTick) + ",\"rental_species\":" +
+             std::to_string(gRentalSpecies);
     }
     if (gOrder.seen) {
         s += ",\"order\":{\"age\":" + std::to_string(now - gOrder.tick) + ",\"sub\":" + std::to_string(gOrder.sub) +
@@ -164,17 +174,18 @@ extern "C" void Port_BotApplyPad(unsigned long long tick, uint16_t* button) {
     }
 }
 
-extern "C" void Port_BotBattleFrame(void) {
+extern "C" void Port_BotBattleFrame(int result) {
     if (!Enabled()) {
         return;
     }
     std::lock_guard<std::mutex> g(gLock);
     gBattleTick = Port_ViTick();
     gBattleSeen = true;
+    gBattleResult = result; // kept after the battle: the bot reads it once the battle screen is gone
 }
 
 extern "C" void Port_BotBattleChoice(const void* own, const void* opp, const void* party, int partyCount, int partyStride,
-                                     int activeSlot, int menu, int sub, int forced) {
+                                     int activeSlot, int menu, int sub, int forced, int side) {
     if ((menu == 0 && sub == 0) || forced) {
         Port_NoteDecision(); // the in-game "skip to the next decision" stops here (os_devices.cpp)
     }
@@ -195,10 +206,29 @@ extern "C" void Port_BotBattleChoice(const void* own, const void* opp, const voi
     gChoice.menu = menu;
     gChoice.sub = sub;
     gChoice.forced = forced;
+    gChoice.side = side;
+    gOwnSide = side;
+}
+
+extern "C" void Port_BotRental(int species) {
+    static bool told = false;
+    if (!told) { // where a route recording for random rental teams ends (tools/autoplay.py --random-team)
+        told = true;
+        fprintf(stderr, "[bot] rental carousel first waits for input at frame %llu\n", Port_ViTick());
+    }
+    if (!Enabled()) {
+        return;
+    }
+    std::lock_guard<std::mutex> g(gLock);
+    gRentalSeen = true;
+    gRentalTick = Port_ViTick();
+    gRentalSpecies = species;
 }
 
 extern "C" void Port_BotOrderSelect(int sub, int picked) {
-    Port_NoteDecision();
+    if (sub >= 0) {
+        Port_NoteDecision();
+    }
     if (!Enabled()) {
         return;
     }
