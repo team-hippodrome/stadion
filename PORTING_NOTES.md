@@ -239,7 +239,8 @@ Known gaps: selecting a menu entry crashes on a direct cartridge address read (`
 `port_hw_reg`); menu cards are drawn duplicated/clipped (texture repeat of render-to-texture cards); model animation is
 stubbed (intro models look "exploded"); audio, Transfer Pak and GB Tower emulation are stubbed.
 
-Debug aids: `PORT_SCREENSHOT_DIR` (+ `PORT_SCREENSHOT_STUCK=secs`, `PORT_SCREENSHOT_NOSTOP`, `PORT_SCREENSHOT_ALL`, `PORT_SCREENSHOT_MAX_MB` (default 2048: no more changed frames past that size)),
+Debug aids: `PORT_SCREENSHOT_DIR` (+ `PORT_SCREENSHOT_STUCK=secs`, `PORT_SCREENSHOT_NOSTOP`, `PORT_SCREENSHOT_ALL`, `PORT_SCREENSHOT_MAX_MB` (default 2048: no more changed frames past that size)), `PORT_ASPECT=4:3|16:9` (the
+picture's shape, else the launcher's Screen option), `PORT_NO_BACKDROP_STRETCH=1` (2D backdrops stay 4:3 in widescreen),
 `tools/shot_run.sh <rom> [max secs]` (`STEP`, `KEEP` env; builds `build/shots/sheet.png`, deletes the PPMs, kills the
 game), `tools/run_for.sh`, `PORT_AUTOSTART=<ms>` (taps Start; `PORT_AUTOA` taps Start+A), `PORT_SPEED=<n>`,
 `PORT_TRACE_STATE`, `PORT_TEXLOG`, `PORT_TRILOG`, `PORT_MTXLOG`, `PORT_OPLOG`, `PORT_TRACE_JPEG`, `PORT_ALLOCLOG`,

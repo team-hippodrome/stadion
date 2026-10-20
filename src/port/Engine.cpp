@@ -182,6 +182,7 @@ bool Init() {
     ResourceSetResourceManager(resourceManager);
 
     MigrateControls(cvars);
+    ApplyAspect();
     auto controlDeck = std::make_shared<LUS::ControlDeck>(std::vector<CONTROLLERBUTTONS_T>(), DefaultMappings(),
                                                           std::unordered_map<CONTROLLERBUTTONS_T, std::string>({
                                                               { BTN_A, "A" },
@@ -617,6 +618,31 @@ bool PumpFrame() {
         PublishPads(pads);
     }
     return true;
+}
+
+// The game picture's shape: 4:3 (the N64's) or 16:9 (the 3D scenes show more at the sides); the rest of the window gets
+// black bars (libultraship's fixed-aspect resolution settings), so only these two shapes need to look right.
+// gPort.Aspect is the launcher's Screen option (0 = 4:3, 1 = 16:9; 16:9 by default on Android, whose screens are wide);
+// PORT_ASPECT=4:3 or 16:9 overrides it (tests).
+int AspectSetting() {
+    if (const char* e = getenv("PORT_ASPECT")) {
+        return strcmp(e, "16:9") == 0 ? 1 : 0;
+    }
+#if defined(__ANDROID__)
+    return CVarGetInteger("gPort.Aspect", 1) != 0 ? 1 : 0;
+#else
+    return CVarGetInteger("gPort.Aspect", 0) != 0 ? 1 : 0;
+#endif
+}
+
+void ApplyAspect() {
+    const bool wide = AspectSetting() == 1;
+    CVarSetInteger("gAdvancedResolution.Enabled", 1);
+    CVarSetFloat("gAdvancedResolution.AspectRatioX", wide ? 16.0f : 4.0f);
+    CVarSetFloat("gAdvancedResolution.AspectRatioY", wide ? 9.0f : 3.0f);
+    CVarSetInteger("gAdvancedResolution.VerticalResolutionToggle", 0); // the window's resolution
+    CVarSetInteger("gAdvancedResolution.PixelPerfectMode", 0);
+    CVarSetInteger("gAdvancedResolution.IgnoreAspectCorrection", 0);
 }
 
 std::string AppPath(const char* name) {

@@ -57,6 +57,7 @@ struct State {
     std::array<GbSlot, 4> gb;
     bool autoPlay = false, debug = false;
     bool smooth = false; // frame interpolation (interp.cpp)
+    int aspect = 0;      // the game picture: 0 = 4:3, 1 = 16:9 (Engine.cpp, AspectSetting)
 };
 
 std::string Key(const char* name) {
@@ -90,6 +91,7 @@ State Load() {
     s.autoPlay = CVarGetInteger(Key("AutoPlay").c_str(), 0) != 0;
     s.debug = CVarGetInteger(Key("Debug").c_str(), 0) != 0;
     s.smooth = CVarGetInteger("gPort.Interpolate", 0) != 0;
+    s.aspect = Port::AspectSetting();
     return s;
 }
 
@@ -104,6 +106,8 @@ void Store(const State& s) {
     CVarSetInteger(Key("AutoPlay").c_str(), s.autoPlay ? 1 : 0);
     CVarSetInteger(Key("Debug").c_str(), s.debug ? 1 : 0);
     CVarSetInteger("gPort.Interpolate", s.smooth ? 1 : 0);
+    CVarSetInteger("gPort.Aspect", s.aspect);
+    Port::ApplyAspect();
     CVarSave();
 }
 
@@ -954,7 +958,7 @@ class LauncherWindow : public Ship::GuiWindow {
                 OpenSaveEditor(s.save);
             }
             if (!gEditorStatus.empty()) {
-                Text(x + 556, y + 88, gEditorStatus, gFonts.small, Theme::dim);
+                Text(x + 658, y + 61, gEditorStatus, gFonts.small, Theme::dim);
             }
         }
         Check("Debug", &s.debug, x + 164, y + 88);
@@ -965,6 +969,19 @@ class LauncherWindow : public Ship::GuiWindow {
         }
         if (Button(mControls ? "Players" : "Controls", x + 450, y + 86, 100, 26)) {
             mControls = !mControls;
+        }
+        // the game picture's shape (the rest of the window gets black bars)
+        Text(x + 566, y + 91, "Screen", gFonts.small, Theme::dim);
+        for (int a = 0; a < 2; a++) {
+            const bool on = s.aspect == a;
+            if (ColorButton(a == 0 ? "4:3" : "16:9", x + 616 + a * 56, y + 86, 52, 26, on ? 0x23406B : Theme::button,
+                            on ? 0x23406B : Theme::buttonHover)) {
+                s.aspect = a;
+                mChanged = true;
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip(a == 0 ? "The N64's picture shape" : "Widescreen: 3D scenes show more at the sides");
+            }
         }
 
         // PLAY: green, rounded, white border
@@ -1076,6 +1093,10 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
             return "";
         }
         if (sdl != nullptr && gameW > 0) {
+            // a window of the chosen shape (other shapes still work, with black bars)
+            if (gameH > 0) {
+                gameW = state.aspect == 1 ? gameH * 16 / 9 : gameH * 4 / 3;
+            }
             SDL_SetWindowSize(sdl, gameW, gameH);
             SDL_SetWindowPosition(sdl, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
             SDL_SetWindowTitle(sdl, "Pokémon Stadium");
