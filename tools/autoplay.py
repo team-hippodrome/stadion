@@ -112,7 +112,8 @@ def runtime_mon(hexstr):
 def party_mon(hexstr):
     """BattleMon (game/src/game_state.h): a party member"""
     b = bytes.fromhex(hexstr)
-    return {"species": SPECIES.get(u16(b, 0), "#%d" % u16(b, 0)), "hp": u16(b, 0x02), "max_hp": u16(b, 0x26),
+    # the species is the first byte (a registered team keeps a flag in the second)
+    return {"species": SPECIES.get(b[0], "#%d" % b[0]), "hp": u16(b, 0x02), "max_hp": u16(b, 0x26),
             "level": b[0x04], "types": [TYPES.get(b[0x06], "?"), TYPES.get(b[0x07], "?")],
             "moves": [(b[0x09 + i], b[0x20 + i] & 0x3F) for i in range(4)], "status": b[0x05],
             "atk": u16(b, 0x28), "def": u16(b, 0x2A), "spd": u16(b, 0x2C), "spc": u16(b, 0x2E)}
@@ -568,6 +569,10 @@ def choose_team(brain, status, order):
     own = [party_mon(h) for h in order.get("own", [])]
     opp = [party_mon(h) for h in order.get("opp", [])]
     if any(m["species"].startswith("#") for m in own + opp):
+        if not status.data.get("dumped_teams"):  # once, to see what the game reports
+            status.data["dumped_teams"] = True
+            print("[debug] undecodable teams: own %s opp %s" % ([h[:24] for h in order.get("own", [])],
+                                                              [h[:24] for h in order.get("opp", [])]), flush=True)
         return None  # the screen is not filled in yet (a registered team arrives a little later): ask again
     if len(own) <= 3 or not opp:
         return list(range(min(3, len(own)))) or [0, 1, 2]
