@@ -1109,7 +1109,7 @@ index c8bc6cd..f9afa95 100644
      switch (message) {
          case WM_GETDPISCALEDSIZE:
 diff --git a/src/fast/interpreter.cpp b/src/fast/interpreter.cpp
-index a1907a1..18b4eef 100644
+index a1907a1..f793313 100644
 --- a/src/fast/interpreter.cpp
 +++ b/src/fast/interpreter.cpp
 @@ -11,6 +11,7 @@
@@ -2179,7 +2179,7 @@ index a1907a1..18b4eef 100644
  
      struct LoadedVertex* ul = &mRsp->loaded_vertices[MAX_VERTICES + 0];
      struct LoadedVertex* ll = &mRsp->loaded_vertices[MAX_VERTICES + 1];
-@@ -2930,7 +3643,13 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
+@@ -2930,7 +3643,19 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
  
  void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry, uint8_t tile, int16_t uls,
                                          int16_t ult, int16_t dsdx, int16_t dtdy, bool flip) {
@@ -2191,10 +2191,16 @@ index a1907a1..18b4eef 100644
 +                mRdp->texture_tile[tile].fmt, mRdp->texture_tile[tile].siz, mRdp->texture_tile[tile].palette, mRdp->prim_color.r,
 +                mRdp->prim_color.g, mRdp->prim_color.b, mRdp->prim_color.a, mRdp->env_color.r, mRdp->env_color.g, mRdp->env_color.b,
 +                mRdp->env_color.a, (const void*)mRdp->loaded_texture[0].raw_addr);
++    // PORT: a rectangle whose left edge lies right of its right edge draws nothing on the RDP. The game produces them
++    // when a panel slides past the screen's left edge: the negative x wraps around in the 10.2 coordinates (e.g. the HP
++    // bar at 1010..34 as the battle menu leaves), which drew a line across the whole picture (checked against ares).
++    if (lrx <= ulx || lry <= uly) {
++        return;
++    }
      uint64_t saved_combine_mode = mRdp->combine_mode;
      if ((mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE)) == G_CYC_COPY) {
          // Per RDP Command Summary Set Tile's shift s and this dsdx should be set to 4 texels
-@@ -2953,6 +3672,58 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
+@@ -2953,6 +3678,58 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
          dsdx = -dsdx;
          dtdy = -dtdy;
      }
@@ -2253,7 +2259,7 @@ index a1907a1..18b4eef 100644
      int16_t width = !flip ? lrx - ulx : lry - uly;
      int16_t height = !flip ? lry - uly : lrx - ulx;
      float lrs = ((uls << 7) + dsdx * width) >> 7;
-@@ -2986,6 +3757,7 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
+@@ -2986,6 +3763,7 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
      mRdp->first_tile_index = tile;
  
      GfxDrawRectangle(ulx, uly, lrx, lry);
@@ -2261,7 +2267,7 @@ index a1907a1..18b4eef 100644
      if (saved_tile != tile) {
          mRdp->textures_changed[0] = true;
          mRdp->textures_changed[1] = true;
-@@ -3043,6 +3815,11 @@ void Interpreter::GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_
+@@ -3043,6 +3821,11 @@ void Interpreter::GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_
  }
  
  void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry) {
@@ -2273,7 +2279,7 @@ index a1907a1..18b4eef 100644
      if (mRdp->color_image_address == mRdp->z_buf_address) {
          // Fullscreen Z clears are redundant — already done by glClear at frame start.
          bool isFullScreen = (ulx <= 0 && uly <= 0 && lrx >= (int32_t)(mNativeDimensions.width - 1) * 4 &&
-@@ -3078,6 +3855,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
+@@ -3078,6 +3861,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
      }
      uint32_t mode = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE));
  
@@ -2297,7 +2303,7 @@ index a1907a1..18b4eef 100644
      // Expand fullscreen fill rects to cover widescreen viewports.
      // Without this, screen clears and fades only cover the native 4:3 area.
      if (ulx == 0 && uly == 0) {
-@@ -3116,8 +3910,175 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
+@@ -3116,8 +3916,175 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
      mRdp->z_buf_address = zBufAddr;
  }
  
@@ -2473,7 +2479,7 @@ index a1907a1..18b4eef 100644
  }
  
  void Interpreter::GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode) {
-@@ -3252,7 +4213,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
+@@ -3252,7 +4219,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
                            (float)(1 << 10) * realSW, (float)(1 << 10) * realSH, false);
  }
  
@@ -2497,7 +2503,7 @@ index a1907a1..18b4eef 100644
      // Segmented?
      if (w1 & 1) {
          uint32_t segNum = (uint32_t)(w1 >> 24);
-@@ -3377,6 +4354,10 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3377,6 +4360,10 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      const char* filename = (const char*)(cmd)->words.w1;
      uint32_t p = C0(16, 8);
      uint32_t l = C0(0, 16);
@@ -2508,7 +2514,7 @@ index a1907a1..18b4eef 100644
      if (p == 7) {
          g_exec_stack.openDisp(filename, l);
      } else if (p == 8) {
-@@ -3389,10 +4370,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3389,10 +4376,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      return false;
  }
  
@@ -2533,7 +2539,7 @@ index a1907a1..18b4eef 100644
  
      gfx->GfxSpMatrix(C0(0, 8) ^ F3DEX2_G_MTX_PUSH, (const int32_t*)gfx->SegAddr(mtxAddr));
      return false;
-@@ -3632,7 +4627,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3632,7 +4633,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
  
@@ -2555,7 +2561,7 @@ index a1907a1..18b4eef 100644
  
      return false;
  }
-@@ -3736,16 +4744,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3736,16 +4750,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
  }
  
  // F3D, F3DEX, and F3DEX2 do the same thing but F3DEX2 has its own opcode number
@@ -2582,7 +2588,7 @@ index a1907a1..18b4eef 100644
          (*cmd0) = subGFX;
          g_exec_stack.branch(cmd);
          return true; // shortcut cmd increment
-@@ -4018,7 +5036,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
+@@ -4018,7 +5042,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
      uintptr_t i = (uintptr_t)gfx->SegAddr(cmd->words.w1);
@@ -2654,7 +2660,7 @@ index a1907a1..18b4eef 100644
      char* imgData = (char*)i;
      uint32_t texFlags = 0;
      RawTexMetadata rawTexMetdata = {};
-@@ -4947,6 +6029,19 @@ static void gfx_step() {
+@@ -4947,6 +6035,19 @@ static void gfx_step() {
          } else {
              SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, for loaded ucode: {}", (uint8_t)opcode,
                              (uint32_t)ucode_handler_index);
@@ -2674,7 +2680,7 @@ index a1907a1..18b4eef 100644
          }
      } else {
          SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, invalid ucode: {}", (uint8_t)opcode, (uint32_t)ucode_handler_index);
-@@ -5005,8 +6100,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
+@@ -5005,8 +6106,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
      mGameFb = mRapi->CreateFramebuffer();
      mGameFbMsaaResolved = mRapi->CreateFramebuffer();
  
@@ -2685,7 +2691,7 @@ index a1907a1..18b4eef 100644
  
      for (int i = 0; i < MAX_SEGMENT_POINTERS; i++) {
          mSegmentPointers[i] = 0;
-@@ -5109,16 +6204,28 @@ void Interpreter::StartFrame() {
+@@ -5109,16 +6210,28 @@ void Interpreter::StartFrame() {
  
      mPrvDimensions = mCurDimensions;
      mPrevNativeDimensions = mNativeDimensions;
@@ -2723,7 +2729,7 @@ index a1907a1..18b4eef 100644
          }
          if (mMsaaLevel > 1 && !ViewportMatchesRendererResolution()) {
              mRapi->UpdateFramebufferParameters(mGameFbMsaaResolved, mCurDimensions.width, mCurDimensions.height, 1,
-@@ -5173,7 +6280,272 @@ void Interpreter::RunGuiOnly() {
+@@ -5173,7 +6286,272 @@ void Interpreter::RunGuiOnly() {
      }
  }
  
@@ -2996,7 +3002,7 @@ index a1907a1..18b4eef 100644
      SpReset();
  
      mGetPixelDepthPending.clear();
-@@ -5184,8 +6556,12 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5184,8 +6562,12 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
      mRapi->UpdateFramebufferParameters(0, mGfxCurrentWindowDimensions.width, mGfxCurrentWindowDimensions.height, 1,
                                         false, true, true, !mRendersToFb);
      mRapi->StartFrame();
@@ -3010,7 +3016,7 @@ index a1907a1..18b4eef 100644
      mRdp->viewport_or_scissor_changed = true;
      mRenderingState.viewport = {};
      mRenderingState.scissor = {};
-@@ -5194,7 +6570,23 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5194,7 +6576,23 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
      g_exec_stack.start((F3DGfx*)commands);
      while (!g_exec_stack.cmd_stack.empty()) {
          auto cmd = g_exec_stack.cmd_stack.top();
@@ -3034,7 +3040,7 @@ index a1907a1..18b4eef 100644
          if (dbg->IsDebugging()) {
              g_exec_stack.gfx_path.push_back(cmd);
              if (dbg->HasBreakPoint(g_exec_stack.gfx_path)) {
-@@ -5209,8 +6601,15 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5209,8 +6607,15 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
              }
              g_exec_stack.gfx_path.pop_back();
          }
@@ -3050,7 +3056,7 @@ index a1907a1..18b4eef 100644
  
      Flush();
      mGfxFrameBuffer = 0;
-@@ -5239,6 +6638,7 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5239,6 +6644,7 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
  }
  
  void Interpreter::EndFrame() {
