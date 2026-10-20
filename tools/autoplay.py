@@ -36,8 +36,10 @@ ORDER_BUTTON = [B, CL, CU, A, CD, CR]   # team-order screen slots 1-6 (BattleMen
 
 # Laya decides together with a simple estimate of each option (Laya alone is close to chance on unfamiliar decisions:
 # it repeated weak moves and switched back and forth). The final choice averages both, as probabilities.
-LAYA_WEIGHT = 0.5
-PRIOR_TEMPERATURE = 15.0  # estimate units (about expected damage) per factor e in the prior's odds
+# Laya's share is kept below the estimate's: at 0.5, Laya's vote alone carried a switch the estimate put 114 points
+# below attacking (the newcomer took the hit it predicted)
+LAYA_WEIGHT = 0.3
+PRIOR_TEMPERATURE = 8.0   # estimate units (about expected damage) per factor e in the prior's odds
 SWITCH_COST = 60.0        # a switch gives the opponent a free hit
 SWITCH_COOLDOWN = 3       # turns after a switch without another voluntary switch
 SWITCH_WHEN_BELOW = 0.0   # switching is considered only when the current matchup (matchup()) is below this
