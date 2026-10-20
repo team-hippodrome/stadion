@@ -575,6 +575,7 @@ def choose_team(brain, status, order):
                                                               [h[:24] for h in order.get("opp", [])]), flush=True)
         return None  # the screen is not filled in yet (a registered team arrives a little later): ask again
     if len(own) <= 3 or not opp:
+        status.log("only %d of your Pokemon reported: sending in slots 1-3" % len(own))
         return list(range(min(3, len(own)))) or [0, 1, 2]
     values = [sum(matchup(m, o) for o in opp) / len(opp) for m in own]
     state = {"opponent_team": [{"name": o["species"], "level": o["level"], "types": types_text(o["types"])} for o in opp],
