@@ -562,11 +562,37 @@ def pick_random_rental(game, rng, status):
     game.wait(30)
 
 
+def choose_team(brain, status, order):
+    """The three Pokemon to send in against the opponent's team, best first: each one's matchups against the
+    opponent's six (the battle estimate), averaged with Laya's view. -> slots (0-5)"""
+    own = [party_mon(h) for h in order.get("own", [])]
+    opp = [party_mon(h) for h in order.get("opp", [])]
+    if len(own) <= 3 or not opp:
+        return list(range(min(3, len(own)))) or [0, 1, 2]
+    values = [sum(matchup(m, o) for o in opp) / len(opp) for m in own]
+    state = {"opponent_team": [{"name": o["species"], "level": o["level"], "types": types_text(o["types"])} for o in opp],
+             "your_team": [{"name": m["species"], "level": m["level"], "types": types_text(m["types"])} for m in own]}
+    opts = [(m["species"], "%s (%s): %s" % (m["species"], types_text(m["types"]), ", ".join(
+        MOVES.get(mid, "?") for mid, _ in m["moves"] if mid))) for m in own]
+    k, lp, fp = brain.decide(status, "Which Pokemon is strongest against the opponent's team (%s)?" %
+                             ", ".join(o["species"] for o in opp), state, opts, values)
+    final = {o["name"]: o["p"] for o in status.get("options")}
+    order_slots = sorted(range(len(own)), key=lambda i: -final.get(own[i]["species"], 0))
+    picks = order_slots[:3]
+    status.log("team vs %s: %s" % (", ".join(o["species"] for o in opp),
+                                   ", ".join(own[i]["species"] for i in picks)))
+    return picks
+
+
 def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0,
              register=False):
     """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
     "random"; random_team: choose the rental team at random on the rental carousel."""
-    def new_picks():
+    def new_picks(order=None):
+        if pick_spec == "smart":
+            if order and order.get("opp"):
+                return choose_team(brain, status, order)
+            return [0, 1, 2]
         p = rng.sample(range(6), 3) if pick_spec == "random" else list(pick_spec)
         if pick_spec == "random":
             status.log("team order for this battle: slots %s" % ",".join(str(i + 1) for i in p))
@@ -588,6 +614,7 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
         game.wait(30)
     progress_tick = game.state()["tick"]
     rental_round = 0
+    smart_done = False
     registered = False
     rejected = set()
     while status.get("wins") < wins:
@@ -638,8 +665,10 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             if not armed:
                 armed = True
                 status.log("team-order screen: the bot plays from here")
-            if now - last_order_tick > 120 and not first_pick and order["picked"] == 0:  # a new battle's order screen
-                picks = new_picks()
+            if (now - last_order_tick > 120 or not smart_done) and order["picked"] == 0 and (
+                    not first_pick or pick_spec == "smart"):  # a new battle's order screen
+                picks = new_picks(order)
+                smart_done = pick_spec != "smart" or bool(order.get("opp"))
                 rejected = set()
             last_order_tick = now
             in_battle = False
@@ -728,8 +757,9 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--pick", default="1,2,3",
-                    help="team-order slots to send in, in order (default 1,2,3), or random: 3 random ones per battle")
+    ap.add_argument("--pick", default="smart",
+                    help="which three to send in: smart (default: Laya and the estimate against the opponent's team), "
+                         "random, or team-order slots in order, e.g. 1,2,3")
     ap.add_argument("--wins", type=int, default=8, help="battles to win before stopping (default 8, a cup)")
     ap.add_argument("--speed", default=None, help="game speed (PORT_SPEED: 2, max, ...; default 1, max with --games)")
     ap.add_argument("--rom", help="Stadium ROM (default: the launcher's choice; the launcher shows first)")
@@ -748,12 +778,13 @@ def main():
                     help="Gym Leader Castle from the start: the bot goes there from the title screen, rents --team "
                          "and plays through it (with --games; no --route needed)")
     ap.add_argument("--team", help="six Pokemon to rent, e.g. Mewtwo,Alakazam,Snorlax,Starmie,Zapdos,Rhydon")
+    ap.add_argument("--exe", default=os.path.join(ROOT, "build", "pokestadium"), help="the game binary")
     ap.add_argument("--register", action="store_true",
                     help="with --team: register the team after the first rental round (saved in the game's save)")
     ap.add_argument("--random-team", action="store_true",
                     help="choose a random rental team on the rental carousel (the route ends before it)")
     args = ap.parse_args()
-    picks = "random" if args.pick == "random" else [int(x) - 1 for x in args.pick.split(",")]
+    picks = args.pick if args.pick in ("random", "smart") else [int(x) - 1 for x in args.pick.split(",")]
 
     status = Status()
     url = serve_status(status, args.port)
@@ -762,7 +793,7 @@ def main():
         webbrowser.open(url)
     brain = Brain(args.model)
     procs, threads = [], []
-    exe = os.path.join(ROOT, "build", "pokestadium")
+    exe = os.path.abspath(args.exe)
 
     def start(index, sock, env, cmd, armed, jitter, name):
         gs = status.add_game(name)
@@ -784,7 +815,7 @@ def main():
                 gs.set(phase="error: %s" % e, done=True)
         if cmd is not None:
             log = open(env["PORT_GAME_LOG"], "w") if env.get("PORT_GAME_LOG") else subprocess.DEVNULL
-            procs.append(subprocess.Popen(cmd, cwd=os.path.join(ROOT, "build"), env=env, stdout=log,
+            procs.append(subprocess.Popen(cmd, cwd=os.path.dirname(exe), env=env, stdout=log,
                                           stderr=subprocess.STDOUT))
         t = threading.Thread(target=body, daemon=True)
         t.start()

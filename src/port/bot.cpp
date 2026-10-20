@@ -44,6 +44,7 @@ struct Order {
     uint64_t tick = 0;
     int sub = 0, picked = 0;
 } gOrder;
+std::vector<std::vector<uint8_t>> gOrderOwn, gOrderOpp; // both teams on the team-order screen
 bool gRentalSeen = false;
 uint64_t gRentalTick = 0;
 int gRentalSpecies = 0;
@@ -91,7 +92,16 @@ std::string BuildState() {
     }
     if (gOrder.seen) {
         s += ",\"order\":{\"age\":" + std::to_string(now - gOrder.tick) + ",\"sub\":" + std::to_string(gOrder.sub) +
-             ",\"picked\":" + std::to_string(gOrder.picked) + "}";
+             ",\"picked\":" + std::to_string(gOrder.picked);
+        for (int t = 0; t < 2; t++) {
+            const auto& team = t == 0 ? gOrderOwn : gOrderOpp;
+            s += t == 0 ? ",\"own\":[" : ",\"opp\":[";
+            for (size_t i = 0; i < team.size(); i++) {
+                s += (i ? ",\"" : "\"") + Hex(team[i]) + "\"";
+            }
+            s += "]";
+        }
+        s += "}";
     }
     s += "}\n";
     return s;
@@ -213,6 +223,22 @@ extern "C" void Port_BotBattleChoice(const void* own, const void* opp, const voi
     gChoice.forced = forced;
     gChoice.side = side;
     gOwnSide = side;
+}
+
+extern "C" void Port_BotOrderTeams(const void* own, int ownCount, const void* opp, int oppCount, int stride) {
+    if (!Enabled()) {
+        return;
+    }
+    std::lock_guard<std::mutex> g(gLock);
+    for (int t = 0; t < 2; t++) {
+        auto& team = t == 0 ? gOrderOwn : gOrderOpp;
+        const uint8_t* base = (const uint8_t*)(t == 0 ? own : opp);
+        const int count = t == 0 ? ownCount : oppCount;
+        team.clear();
+        for (int i = 0; i < count && i < 6; i++) {
+            team.emplace_back(base + (size_t)i * stride, base + (size_t)i * stride + stride);
+        }
+    }
 }
 
 extern "C" void Port_BotRentalConfirm(void) {
