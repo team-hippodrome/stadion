@@ -567,6 +567,8 @@ def choose_team(brain, status, order):
     opponent's six (the battle estimate), averaged with Laya's view. -> slots (0-5)"""
     own = [party_mon(h) for h in order.get("own", [])]
     opp = [party_mon(h) for h in order.get("opp", [])]
+    if any(m["species"].startswith("#") for m in own + opp):
+        return None  # the screen is not filled in yet (a registered team arrives a little later): ask again
     if len(own) <= 3 or not opp:
         return list(range(min(3, len(own)))) or [0, 1, 2]
     values = [sum(matchup(m, o) for o in opp) / len(opp) for m in own]
@@ -668,7 +670,11 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             # a new battle's order screen: choose once per battle (a Laya decision takes longer than the gap check)
             if order["picked"] == 0 and picks_battle != status.get("battles") and (
                     pick_spec != "smart" or order.get("opp")) and (not first_pick or pick_spec == "smart"):
-                picks = new_picks(order)
+                chosen = new_picks(order)
+                if chosen is None:
+                    game.wait(10)
+                    continue
+                picks = chosen
                 picks_battle = status.get("battles")
                 rejected = set()
             last_order_tick = now
