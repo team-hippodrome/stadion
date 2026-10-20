@@ -544,6 +544,11 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         int64_t period = 0, vblank = 0;
         if (Port_DisplayVblank(&period, &vblank) && period > 1000000) targetFps = (int)(1e9 / period) + 8;
     }
+    // faster than normal (PORT_SPEED, fast-forward): no frame limiter (a scene that renders to a texture draws every
+    // frame, and the 60 Hz limit then held the whole game to 60 drawn frames a second: the Elite Four arena)
+    if (Port_Speed() > 1.0 || Port_FastForward() > 0.0) {
+        targetFps = 100000;
+    }
     sWindow->SetTargetFps(targetFps);
     gPortDrawLog = sCaptureFrame != 0 && getenv("PORT_DRAWLOG") != nullptr; // debug: list the draw states of the captured frame
     static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
