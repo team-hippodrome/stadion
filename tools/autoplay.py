@@ -734,7 +734,7 @@ def choose_team(brain, status, order):
 
 
 def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0,
-             register=False, room=None):
+             register=False, room=None, max_losses=0):
     """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
     "random"; random_team: choose the rental team at random on the rental carousel."""
     def new_picks(order=None):
@@ -932,6 +932,12 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
                 status.log("battle won (%d/%d)" % (status.get("wins"), wins))
             else:
                 status.set(losses=status.get("losses") + 1)
+                if max_losses and status.get("losses") >= max_losses:
+                    status.log("battle lost%s: %d losses, stopping" % (" (draw)" if result == 3 else "",
+                                                                     status.get("losses")))
+                    status.set(phase="stopped after %d losses (%d wins)" % (status.get("losses"), status.get("wins")),
+                               done=True)
+                    return
                 status.log("battle lost%s, continuing" % (" (draw)" if result == 3 else ""))
             status.set(own=None, opp=None, options=[], bench=[], last_switch={})
         # results, cup progress, dialogs, retry prompts: advance (never right after a team or rental screen, where A
@@ -955,6 +961,8 @@ def main():
                     help="which three to send in: smart (default: Laya and the estimate against the opponent's team), "
                          "random, or team-order slots in order, e.g. 1,2,3")
     ap.add_argument("--wins", type=int, default=8, help="battles to win before stopping (default 8, a cup)")
+    ap.add_argument("--max-losses", type=int, default=0,
+                    help="stop a game (and close it) after this many lost battles (default 0: keep going)")
     ap.add_argument("--speed", default=None, help="game speed (PORT_SPEED: 2, max, ...; default 1, max with --games)")
     ap.add_argument("--rom", help="Stadium ROM (default: the launcher's choice; the launcher shows first)")
     ap.add_argument("--model", default="convaiinnovations/laya", help="Laya checkpoint")
@@ -996,6 +1004,7 @@ def main():
 
     def start(index, sock, env, cmd, armed, jitter, name):
         gs = status.add_game(name)
+        proc = []
 
         def body():
             try:
@@ -1003,7 +1012,9 @@ def main():
                 gs.log("connected")
                 import random
                 run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team,
-                         route_end, args.register, args.room)
+                         route_end, args.register, args.room, args.max_losses)
+                if proc and proc[0].poll() is None:  # finished (won, or lost too often): close its game
+                    proc[0].terminate()
             except (EOFError, BrokenPipeError, ConnectionResetError) as e:
                 gs.log("the game was closed (%s)" % type(e).__name__)
                 gs.set(phase="closed", done=True)
@@ -1014,8 +1025,9 @@ def main():
                 gs.set(phase="error: %s" % e, done=True)
         if cmd is not None:
             log = open(env["PORT_GAME_LOG"], "w") if env.get("PORT_GAME_LOG") else subprocess.DEVNULL
-            procs.append(subprocess.Popen(cmd, cwd=os.path.dirname(exe), env=env, stdout=log,
-                                          stderr=subprocess.STDOUT))
+            proc.append(subprocess.Popen(cmd, cwd=os.path.dirname(exe), env=env, stdout=log,
+                                         stderr=subprocess.STDOUT))
+            procs.append(proc[0])
         t = threading.Thread(target=body, daemon=True)
         t.start()
         threads.append(t)
