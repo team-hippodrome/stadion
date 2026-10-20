@@ -617,6 +617,7 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
     progress_tick = game.state()["tick"]
     rental_round = 0
     picks_battle = None
+    order_seen_since = {}
     registered = False
     rejected = set()
     while status.get("wins") < wins:
@@ -671,9 +672,12 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             if order["picked"] == 0 and picks_battle != status.get("battles") and (
                     pick_spec != "smart" or order.get("opp")) and (not first_pick or pick_spec == "smart"):
                 chosen = new_picks(order)
-                if chosen is None:
+                if chosen is None and now - order_seen_since.setdefault(status.get("battles"), now) < 600:
                     game.wait(10)
                     continue
+                if chosen is None:  # the teams never decoded: the first three
+                    status.log("could not read the teams: sending in slots 1-3")
+                    chosen = [0, 1, 2]
                 picks = chosen
                 picks_battle = status.get("battles")
                 rejected = set()
