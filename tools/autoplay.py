@@ -562,7 +562,7 @@ def pick_random_rental(game, rng, status):
     game.wait(30)
 
 
-def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None):
+def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0):
     """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
     "random"; random_team: choose the rental team at random on the rental carousel."""
     def new_picks():
@@ -583,6 +583,9 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
         status.set(phase="playing")
     else:
         status.set(phase="waiting for the first team-order screen (choose your cup and team)")
+    while game.state()["tick"] < route_end + 10:  # the route recording still plays: no presses of our own
+        game.wait(30)
+    progress_tick = game.state()["tick"]
     while status.get("wins") < wins:
         st = game.state()
         now = st["tick"]
@@ -594,6 +597,8 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             status.set(phase="stuck at frame %d" % now, done=True)
             return
         if team and st.get("rental_age", 99) <= 2:
+            if now - last_rental_tick > 600:  # a new rental round (Gym Leader Castle asks again before every gym)
+                rentals = 0
             progress_tick = now
             last_rental_tick = now
             if rentals < len(team):
@@ -736,7 +741,8 @@ def main():
                 game = Game(sock)
                 gs.log("connected")
                 import random
-                run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team)
+                run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team,
+                         route_end)
             except (EOFError, BrokenPipeError, ConnectionResetError) as e:
                 gs.log("the game was closed (%s)" % type(e).__name__)
                 gs.set(phase="closed", done=True)
@@ -763,6 +769,12 @@ def main():
             castle_route(args.route)
             args.games = args.games or 1
             args.save = args.save or os.path.join(ROOT, "replays", "default.flash")
+        route_end = 0
+        if args.route:
+            for line in open(args.route):
+                m = re.match(r"# end (\d+)", line)
+                if m:
+                    route_end = int(m.group(1))
         if args.games > 0:
             if not args.route or not args.rom:
                 sys.exit("--games needs --route (a recording to the first team-order screen) and --rom")
