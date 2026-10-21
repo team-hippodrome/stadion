@@ -61,7 +61,8 @@ extern "C" void Port_RunJpegTask(void* data) {
     const auto* qU = reinterpret_cast<const uint16_t*>(t->qU);
     const auto* qV = reinterpret_cast<const uint16_t*>(t->qV);
     static int n = 0;
-    if (getenv("PORT_TRACE_JPEG") && n++ < 5) fprintf(stderr, "[jpeg] addr=%p mb=%zu mode=%zu q=%p %p %p\n", (void*)mb, (size_t)t->mbCount, (size_t)t->mode, (const void*)qY, (const void*)qU, (const void*)qV);
+    static const bool trace = getenv("PORT_TRACE_JPEG") != nullptr;
+    if (trace && n++ < 5) fprintf(stderr, "[jpeg] addr=%p mb=%zu mode=%zu q=%p %p %p\n", (void*)mb, (size_t)t->mbCount, (size_t)t->mode, (const void*)qY, (const void*)qU, (const void*)qV);
     if (!mb || !qY || !qU || !qV) return;
     int yBlocks = t->mode == 0 ? 2 : 4; // 4:2:2 has two luma blocks per macroblock, 4:2:0 has four
     for (uintptr_t m = 0; m < t->mbCount; m++) {

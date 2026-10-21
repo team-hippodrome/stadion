@@ -787,7 +787,7 @@ index 4e2aaf4b1d0cf24cefec0d283f9b8117d02050c0..3f5d4c2a4cef6639a2bd5566cb643ceb
      return ret;
  }
 diff --git a/src/display_object_textures.c b/src/display_object_textures.c
-index 1145c3c6d05e90d22695ffceedbe2b63951933fc..f3d66b3f9da8b3b92b728240463e1717f33c7929 100644
+index 1145c3c6d05e90d22695ffceedbe2b63951933fc..4765af9366c744ff5ba2681acbf5d232a79eeb66 100644
 --- a/src/display_object_textures.c
 +++ b/src/display_object_textures.c
 @@ -1,4 +1,6 @@
@@ -983,7 +983,7 @@ index 1145c3c6d05e90d22695ffceedbe2b63951933fc..f3d66b3f9da8b3b92b728240463e1717
 +                }
 +            }
 +        }
-+        if (getenv("PORT_TRACE")) { int q; fprintf(stderr, "[model] blob=%p tableLink=0x%x:", (void*)blob, tableLink); for (q = 0; q < 0x40; q++) fprintf(stderr, "%s%02x", (q & 3) ? "" : " ", blob[q]); fputc(10, stderr); }
++        if (PORT_GETENV_ONCE("PORT_TRACE")) { int q; fprintf(stderr, "[model] blob=%p tableLink=0x%x:", (void*)blob, tableLink); for (q = 0; q < 0x40; q++) fprintf(stderr, "%s%02x", (q & 3) ? "" : " ", blob[q]); fputc(10, stderr); }
 +        if (tableLink == 0) {
 +            return NULL;
 +        }
@@ -996,7 +996,7 @@ index 1145c3c6d05e90d22695ffceedbe2b63951933fc..f3d66b3f9da8b3b92b728240463e1717
 +
 +        host = MainPool_AllocAligned(arg0, sizeof(ret_func_unk_D_800ABE10), 8);
 +        nodes = MainPool_AllocAligned(arg0, (count + 1) * sizeof(unk_D_86002F34*), 8);
-+        if (getenv("PORT_TRACE")) fprintf(stderr, "[model] table=%p count=%u layouts=%p host=%p nodes=%p\n", (void*)table, count, (void*)layouts, (void*)host, (void*)nodes);
++        if (PORT_GETENV_ONCE("PORT_TRACE")) fprintf(stderr, "[model] table=%p count=%u layouts=%p host=%p nodes=%p\n", (void*)table, count, (void*)layouts, (void*)host, (void*)nodes);
 +        if (host == NULL || nodes == NULL) {
 +            return NULL;
 +        }
@@ -1082,7 +1082,7 @@ index 1145c3c6d05e90d22695ffceedbe2b63951933fc..f3d66b3f9da8b3b92b728240463e1717
      MemoryBlock* sp20;
  
      sp2C = BinArchive_GetFile(D_800ABE10.unk_A04.unk_00, arg0 - 1);
-+    if (getenv("PORT_TRACE")) fprintf(stderr, "[model] index=%d archive=%p file=%p\n", arg0, (void*)D_800ABE10.unk_A04.unk_00, (void*)sp2C);
++    if (PORT_GETENV_ONCE("PORT_TRACE")) fprintf(stderr, "[model] index=%d archive=%p file=%p\n", arg0, (void*)D_800ABE10.unk_A04.unk_00, (void*)sp2C);
      if (sp2C != NULL) {
          sp20 = MainPool_AllocState(main_pool_get_available(), 0);
          sp28.raw = 0;
@@ -1187,7 +1187,7 @@ index 0dd73ab14b38198f7f4588e8417d454a645328cf..0a647784fc8a35d64703b3eecf41b3ca
  
  #endif // _19840_H_
 diff --git a/src/dma.c b/src/dma.c
-index a4688639b4efe4ff5a2281a735add06f79e6e151..a2e958c426c2bdf4a28f37e47fb801ceed7d8232 100644
+index a4688639b4efe4ff5a2281a735add06f79e6e151..67a2043526a33f7fadf89e24d878fdb3f4dda456 100644
 --- a/src/dma.c
 +++ b/src/dma.c
 @@ -1,13 +1,16 @@
@@ -1250,7 +1250,7 @@ index a4688639b4efe4ff5a2281a735add06f79e6e151..a2e958c426c2bdf4a28f37e47fb801ce
  
 -    temp_v0 = Util_Malloc(0x2C);
 +    temp_v0 = Util_Malloc(sizeof(struct UnkStruct80000E80));
-+    if (getenv("PORT_TRACE")) fprintf(stderr, "[flashq] alloc=%p arg0=%d\n", (void*)temp_v0, arg0);
++    if (PORT_GETENV_ONCE("PORT_TRACE")) fprintf(stderr, "[flashq] alloc=%p arg0=%d\n", (void*)temp_v0, arg0);
      if (temp_v0 != NULL) {
          if (arg0 == 0) {
              temp_v0->unk0 = 0xF5;
@@ -1383,7 +1383,7 @@ index 5d2cd94b608badc67a3eb52caff30d10cdef6f1d..e31b8d3b6bc51bc3a22589936f34c5b6
  
  #endif // _DMA_H_
 diff --git a/src/dp_intro.c b/src/dp_intro.c
-index c46aea4b588b4d137c1110afd5c272d29681da12..b60f03a4cfb69d0f3062f03fe1bfcb29b75201c3 100644
+index c46aea4b588b4d137c1110afd5c272d29681da12..98c9f04369b9da240bf5bd0a41d9cc8f3076b140 100644
 --- a/src/dp_intro.c
 +++ b/src/dp_intro.c
 @@ -1,3 +1,6 @@
@@ -1426,7 +1426,7 @@ index c46aea4b588b4d137c1110afd5c272d29681da12..b60f03a4cfb69d0f3062f03fe1bfcb29
      s32 width = 640;
      u16* buf = (u16*)D_80083CA0.unk_9E0->img_p;
  
-+    if (getenv("PORT_TRACE_VI")) fprintf(stderr, "[line] clear color 0x%04x buf %p caller %p slide 0x%lx\n", color, (void*)buf, __builtin_return_address(0), (unsigned long)Port_ImageSlide());
++    if (PORT_GETENV_ONCE("PORT_TRACE_VI")) fprintf(stderr, "[line] clear color 0x%04x buf %p caller %p slide 0x%lx\n", color, (void*)buf, __builtin_return_address(0), (unsigned long)Port_ImageSlide());
      while (width-- > 0) {
 -        *(buf)++ = color;
 +        *(buf)++ = (u16)((color << 8) | (color >> 8)); // PORT: frame buffers hold big-endian RGBA5551 (as N64 RDRAM)
@@ -1623,7 +1623,7 @@ index e96eaafb666f68229ceae03e13a611ecc2248d99..c8b479584bee71a933172e7b3ea5b412
  
  u8* Gallery_ProcessSceneInstance(unk_func_80031270* arg0) {
 diff --git a/src/game_state.c b/src/game_state.c
-index 87d3435139256141d53d4b406092f3c1fd03aaee..66b7dd4c3f7482e8a7965cabca82252ec9ea42d7 100644
+index 87d3435139256141d53d4b406092f3c1fd03aaee..fdf6912735c289c228da053c8e5973a29aeae9c7 100644
 --- a/src/game_state.c
 +++ b/src/game_state.c
 @@ -1,3 +1,8 @@
@@ -1688,7 +1688,7 @@ index 87d3435139256141d53d4b406092f3c1fd03aaee..66b7dd4c3f7482e8a7965cabca82252e
 +    // PORT debug boot: PORT_BOOT=battle starts "Battle Now!" (quick-battle teams, straight into the battle),
 +    // PORT_BOOT=menu the main menu, PORT_BOOT=<number> any game state (see variables.h); skips intro and title.
 +    {
-+        const char* boot = getenv("PORT_BOOT");
++        const char* boot = PORT_GETENV_ONCE("PORT_BOOT");
 +        if (boot != NULL && *boot != '\0') {
 +            if (strcmp(boot, "battle") == 0) {
 +                gCurrentGameState = STATE_BATTLE_NOW_1P;
@@ -1752,7 +1752,7 @@ index 28ed46d4aca3678d08c9fb8330d9aad1cbc6c878..138d5645843d09fc1bcff772a3f6b501
  TeamRoster* Trainer_GetSlots(void);
  s32 GbSave_GetActivePort(void);
 diff --git a/src/geo_layout.c b/src/geo_layout.c
-index bfcf09472fa6dc1b3f9c1406315e660253dd6356..147a117e43579e6a0a26d9dfbb59329163770634 100644
+index bfcf09472fa6dc1b3f9c1406315e660253dd6356..e863198172b6a4b814350542e07754cf7bca19a8 100644
 --- a/src/geo_layout.c
 +++ b/src/geo_layout.c
 @@ -47,13 +47,20 @@ static GeoLayoutCommandProc GeoLayoutJumpTable[] = {
@@ -2263,11 +2263,11 @@ index bfcf09472fa6dc1b3f9c1406315e660253dd6356..147a117e43579e6a0a26d9dfbb593291
  
      while (gGeoLayoutCommand != NULL) {
 -        GeoLayoutJumpTable[gGeoLayoutCommand[0x00]]();
-+        if (getenv("PORT_TRACE_GEO")) fprintf(stderr, "[geo-cmd] %p op=0x%x idx=%d\n", (void*)gGeoLayoutCommand, GL_U8(0x00), gCurGraphNodeIndex);
++        if (PORT_GETENV_ONCE("PORT_TRACE_GEO")) fprintf(stderr, "[geo-cmd] %p op=0x%x idx=%d\n", (void*)gGeoLayoutCommand, GL_U8(0x00), gCurGraphNodeIndex);
 +        GeoLayoutJumpTable[GL_U8(0x00)]();
      }
  
-+    if (getenv("PORT_TRACE_GEO")) Port_DumpGraph(gCurRootGraphNode, 0);
++    if (PORT_GETENV_ONCE("PORT_TRACE_GEO")) Port_DumpGraph(gCurRootGraphNode, 0);
      return gCurRootGraphNode;
  }
 diff --git a/src/geo_layout.h b/src/geo_layout.h
@@ -2320,7 +2320,7 @@ index b0ae9d9c0c2b810f50b3cafe572d3dfdd210e5d5..72890f0840c51eedaa1dad4cb90c1443
  typedef void (*GeoLayoutCommandProc)(void);
  
 diff --git a/src/geo_node.c b/src/geo_node.c
-index 6d1d70bc724ce1cea8f3f651862aa6f8470afe7a..144e55158a52a9d706ae3f377dd6ce48589b67af 100644
+index 6d1d70bc724ce1cea8f3f651862aa6f8470afe7a..8f974af9a0e0488af285a67254695edda0f7de01 100644
 --- a/src/geo_node.c
 +++ b/src/geo_node.c
 @@ -1,7 +1,10 @@
@@ -2338,12 +2338,12 @@ index 6d1d70bc724ce1cea8f3f651862aa6f8470afe7a..144e55158a52a9d706ae3f377dd6ce48
  }
  
  void GeoNode_SetCallback(GraphNode* arg0, GraphNodeCallback arg1, void* arg2) {
-+    if (getenv("PORT_TRACE_GEO")) fprintf(stderr, "[cb] in=%p\n", (void*)arg1);
++    if (PORT_GETENV_ONCE("PORT_TRACE_GEO")) fprintf(stderr, "[cb] in=%p\n", (void*)arg1);
      if (arg1 != NULL) {
 -        arg1 = Util_ConvertAddrToVirtAddr(arg1);
 +        arg1 = Port_ResolveCode((uintptr_t)arg1);
      }
-+    if (getenv("PORT_TRACE_GEO")) fprintf(stderr, "[cb] out=%p\n", (void*)arg1);
++    if (PORT_GETENV_ONCE("PORT_TRACE_GEO")) fprintf(stderr, "[cb] out=%p\n", (void*)arg1);
  
      if (arg0 != NULL) {
          arg0->callbackArg = arg2;
@@ -2408,7 +2408,7 @@ index ee505993c3650eb136381f268e912cd644f22de9..d347e65d462bc58766e9d2dcf92d3232
  unk_D_86002F34_alt19* GeoNode_CreateAmbientLight(MainPoolState* arg0, unk_D_86002F34_alt19* arg1, u8 r, u8 g, u8 b);
  unk_D_86002F34* GeoNode_CreateShadowContext(MainPoolState* arg0, unk_D_86002F34* arg1, s32 arg2,
 diff --git a/src/geo_render.c b/src/geo_render.c
-index d36f920884a0777288cece9433614bf4aef5d261..3f4ffc95319c9726a4909b973c05e75ae5b34654 100644
+index d36f920884a0777288cece9433614bf4aef5d261..f7aeb3ddde0ebee3e4f41c0b896834fa106087ee 100644
 --- a/src/geo_render.c
 +++ b/src/geo_render.c
 @@ -1,3 +1,5 @@
@@ -2538,7 +2538,7 @@ index d36f920884a0777288cece9433614bf4aef5d261..3f4ffc95319c9726a4909b973c05e75a
      s32 sp30;
  
      sp30 = 0;
-+    if (getenv("PORT_TRACE_GEO")) fprintf(stderr, "[animpart] scale=%d mtx=%d flags31=0x%x u30=%d node=%p\n", D_800AB970.unk_180, D_800AA8C8.unk_10A0, arg->unk_31, arg->unk_30, (void*)arg);
++    if (PORT_GETENV_ONCE("PORT_TRACE_GEO")) fprintf(stderr, "[animpart] scale=%d mtx=%d flags31=0x%x u30=%d node=%p\n", D_800AB970.unk_180, D_800AA8C8.unk_10A0, arg->unk_31, arg->unk_30, (void*)arg);
      sp90 = arg->unk_1E;
      sp78 = arg->unk_24;
  
@@ -2624,7 +2624,7 @@ index d36f920884a0777288cece9433614bf4aef5d261..3f4ffc95319c9726a4909b973c05e75a
  }
  
  void GeoRender_DisableTexture(UNUSED unk_D_800ABB10* arg0) {
-+    if (getenv("PORT_TRACE_GEO") && (D_800ABCB8 < D_800ABB28 || D_800ABCB8 >= D_800ABB28 + 10)) fprintf(stderr, "[slot] D_800ABCB8 off=%ld slotidx=%d\n", (long)(D_800ABCB8 - D_800ABB28), (int)D_800ABCBC);
++    if (PORT_GETENV_ONCE("PORT_TRACE_GEO") && (D_800ABCB8 < D_800ABB28 || D_800ABCB8 >= D_800ABB28 + 10)) fprintf(stderr, "[slot] D_800ABCB8 off=%ld slotidx=%d\n", (long)(D_800ABCB8 - D_800ABB28), (int)D_800ABCBC);
      if (D_800ABCB8->unk_18 != NULL) {
          gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF);
      }
@@ -2654,7 +2654,7 @@ index d36f920884a0777288cece9433614bf4aef5d261..3f4ffc95319c9726a4909b973c05e75a
  void GeoRender_SubmitMaterial(s16 arg0, MtxF* arg1) {
      if ((D_8006F120 != 0) && !(D_800ABB04 & 2) && (D_800ABB10.unk_01 > 0)) {
          GeoRender_SetTextureMode(arg0);
-+        if (getenv("PORT_TRACE_GEO") && GeoRender_NormalizeTextureFormat(arg0) > 9) fprintf(stderr, "[mat] layer=%d normalized=%d\n", arg0, GeoRender_NormalizeTextureFormat(arg0));
++        if (PORT_GETENV_ONCE("PORT_TRACE_GEO") && GeoRender_NormalizeTextureFormat(arg0) > 9) fprintf(stderr, "[mat] layer=%d normalized=%d\n", arg0, GeoRender_NormalizeTextureFormat(arg0));
          GeoRender_SelectMaterialSlot(GeoRender_NormalizeTextureFormat(arg0));
          D_800ABB08 = 0;
  
@@ -2976,7 +2976,7 @@ index a24db680215afb22bc2e82fb89a63ca5876f1d3d..6d54844d72327f465d95799f6c67a5fd
  void GfxImage_FillCurrent(Gfx** gfx_p, u16 fill_color);
  
 diff --git a/src/graphics_textures.c b/src/graphics_textures.c
-index 98c2fa168a8269f46c16798f6af9cc7971a519e4..d50f1c2550b570742ceb133de554a8f65476b03d 100644
+index 98c2fa168a8269f46c16798f6af9cc7971a519e4..a2eb7f3d7111578795109b326ccc862c3f8f5ccb 100644
 --- a/src/graphics_textures.c
 +++ b/src/graphics_textures.c
 @@ -1,3 +1,4 @@
@@ -3047,12 +3047,12 @@ index 98c2fa168a8269f46c16798f6af9cc7971a519e4..d50f1c2550b570742ceb133de554a8f6
      temp_s0 = &font_context->unk_00[font_context->unk_50];
      sp88 = Font_MapGlyphCode(arg2) * temp_s0->unk_00 * temp_s0->unk_02;
      sp86 = Font_GetGlyphAdvance(temp_s0, arg2);
-+    if (getenv("PORT_TRACE_FONT2")) { // PORT debug: every glyph drawn, with the set's data pointer and its first texels
++    if (PORT_GETENV_ONCE("PORT_TRACE_FONT2")) { // PORT debug: every glyph drawn, with the set's data pointer and its first texels
 +        const u8* g = (const u8*)temp_s0->unk_08 + sp88;
 +        fprintf(stderr, "[glyph] set %d base %p char %c at %d,%d bytes %02x%02x%02x%02x%02x%02x%02x%02x\n", font_context->unk_50,
 +                (const void*)temp_s0->unk_08, arg2 & 0xFF, arg0, arg1, g[0x20], g[0x21], g[0x22], g[0x23], g[0x40], g[0x41], g[0x42], g[0x43]);
 +    }
-+    if (getenv("PORT_TRACE_FONT")) {
++    if (PORT_GETENV_ONCE("PORT_TRACE_FONT")) {
 +        static u8 seen[6][256];
 +        if (!seen[font_context->unk_50][arg2 & 0xFF]++) {
 +            const u8* g = (const u8*)temp_s0->unk_08 + sp88;
@@ -3114,7 +3114,7 @@ index 5ca5681f57f4684791ea64af385a21fc6e9fdaa5..2ab4a57c66df217d05cf7c934faf9255
      return ret;
  }
 diff --git a/src/jpeg_stream.c b/src/jpeg_stream.c
-index 9e42cc44a4842f666893c0d23361241e4f5fc91a..7cc9c355b25c98d506becfd44e64ae47a3445597 100644
+index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a8be10438 100644
 --- a/src/jpeg_stream.c
 +++ b/src/jpeg_stream.c
 @@ -1,10 +1,13 @@
@@ -3189,7 +3189,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..7cc9c355b25c98d506becfd44e64ae47
      s32 sp24 = header->decompressed_size2 - header->decompressed_size1;
      u32 var_v0;
  
-+    if (getenv("PORT_TRACE")) fprintf(stderr, "[yay0] hdr=%p mem=%p hsize=0x%x d1=0x%x d2=0x%x patches=%u\n", (void*)in_header, (void*)memory, header->header_size, header->decompressed_size1, header->decompressed_size2, header->unk_14);
++    if (PORT_GETENV_ONCE("PORT_TRACE")) fprintf(stderr, "[yay0] hdr=%p mem=%p hsize=0x%x d1=0x%x d2=0x%x patches=%u\n", (void*)in_header, (void*)memory, header->header_size, header->decompressed_size1, header->decompressed_size2, header->unk_14);
      osInvalICache(memory, header->decompressed_size2);
      osInvalDCache(memory, header->decompressed_size2);
  
@@ -3607,11 +3607,11 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..7cc9c355b25c98d506becfd44e64ae47
 +                if (fn != NULL) {
 +                    return fn;
 +                }
-+                if (getenv("PORT_TRACE_GEO")) fprintf(stderr, "[code] trampoline %08lx -> %08x unresolved\n", (unsigned long)addr, target);
++                if (PORT_GETENV_ONCE("PORT_TRACE_GEO")) fprintf(stderr, "[code] trampoline %08lx -> %08x unresolved\n", (unsigned long)addr, target);
 +            }
 +        }
 +    }
-+    if (getenv("PORT_TRACE_GEO")) fprintf(stderr, "[code] unresolved %08lx (slot rom 0x%x)\n", (unsigned long)addr, rom);
++    if (PORT_GETENV_ONCE("PORT_TRACE_GEO")) fprintf(stderr, "[code] unresolved %08lx (slot rom 0x%x)\n", (unsigned long)addr, rom);
 +    return NULL; // MIPS code with no host counterpart
 +}
 +
@@ -3717,15 +3717,15 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..7cc9c355b25c98d506becfd44e64ae47
 +        return NULL; // PORT: archive failed to open
 +    }
 +
-+    if (getenv("PORT_TRACE")) fprintf(stderr, "[archive] %p file=%d flags=0x%x id=%d n=%u unk04=0x%x off=0x%x size=0x%x u08=0x%x\n", (void*)archive, file_number, archive->unk_00, archive->unk_02, archive->num_files, archive->unk_04, sp18->offset, sp18->size, sp18->unk_08);
++    if (PORT_GETENV_ONCE("PORT_TRACE")) fprintf(stderr, "[archive] %p file=%d flags=0x%x id=%d n=%u unk04=0x%x off=0x%x size=0x%x u08=0x%x\n", (void*)archive, file_number, archive->unk_00, archive->unk_02, archive->num_files, archive->unk_04, sp18->offset, sp18->size, sp18->unk_08);
      if (file_number < archive->num_files) {
          if (archive->unk_00 & 1) {
              var_a2 = (u8*)archive + sp18->offset;
 -        } else if (!(archive->unk_00 & 4) && (sp18->unk_08 != NULL)) {
 -            var_a2 = sp18->unk_08;
-+            if (getenv("PORT_DUMP_FRAGS")) {
++            if (PORT_GETENV_ONCE("PORT_DUMP_FRAGS")) {
 +                char path[512];
-+                snprintf(path, sizeof path, "%s/mem%04x_file%03d.bin", getenv("PORT_DUMP_FRAGS"), archive->unk_02, file_number);
++                snprintf(path, sizeof path, "%s/mem%04x_file%03d.bin", PORT_GETENV_ONCE("PORT_DUMP_FRAGS"), archive->unk_02, file_number);
 +                FILE* f = fopen(path, "wb");
 +                if (f) { fwrite(var_a2, 1, sp18->size, f); fclose(f); }
 +            }
@@ -3741,10 +3741,10 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..7cc9c355b25c98d506becfd44e64ae47
 -                if ((((u32*)var_a2->magic)[0] == 'FRAG') && (((u32*)var_a2->magic)[1] == 'MENT')) {
 +                if ((PORT_BE32(((u32*)var_a2->magic)[0]) == 'FRAG') && (PORT_BE32(((u32*)var_a2->magic)[1]) == 'MENT')) {
 +                    // Debug aid: PORT_DUMP_FRAGS=<dir> saves each fragment file as loaded (before relocation).
-+                    if (getenv("PORT_DUMP_FRAGS")) {
++                    if (PORT_GETENV_ONCE("PORT_DUMP_FRAGS")) {
 +                        char path[512];
 +                        u32 n = PORT_BE32(var_a2->relocOffset) + 4 + 4 * PORT_BE32(*(u32*)((u8*)var_a2 + PORT_BE32(var_a2->relocOffset)));
-+                        snprintf(path, sizeof path, "%s/arch%04x_file%03d.bin", getenv("PORT_DUMP_FRAGS"), archive->unk_02, file_number);
++                        snprintf(path, sizeof path, "%s/arch%04x_file%03d.bin", PORT_GETENV_ONCE("PORT_DUMP_FRAGS"), archive->unk_02, file_number);
 +                        FILE* f = fopen(path, "wb");
 +                        if (f) { fwrite(var_a2, 1, n, f); fclose(f); }
 +                    }
@@ -3984,7 +3984,7 @@ index d22c8ab0236357bfb3e93183f957a49b266ca22d..3318f035f8c8d657a146f41f5ee8d1b7
 +    return PORT_BE32(arg.rgba);
  }
 diff --git a/src/memmap.c b/src/memmap.c
-index a46c369996a35fd75fa474484e0a233d6df75183..24f5c5ebe9b072a9b03f59e5d3a4acd70c10cc0a 100644
+index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c334dadecf 100644
 --- a/src/memmap.c
 +++ b/src/memmap.c
 @@ -1,3 +1,5 @@
@@ -4031,7 +4031,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..24f5c5ebe9b072a9b03f59e5d3a4acd7
 +            sVBlobs[i].host = host;
 +            sVBlobs[i].size = size;
 +            sVBlobs[i].link = link;
-+            if (getenv("PORT_TRACE_VBLOB")) fprintf(stderr, "[vblob] alloc slot %d host %p size 0x%x link 0x%08x\n", i, host, size, link);
++            if (PORT_GETENV_ONCE("PORT_TRACE_VBLOB")) fprintf(stderr, "[vblob] alloc slot %d host %p size 0x%x link 0x%08x\n", i, host, size, link);
 +            return PORT_VBASE + (u32)i * 0x100000;
 +        }
 +    }
@@ -4042,7 +4042,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..24f5c5ebe9b072a9b03f59e5d3a4acd7
 +    int i;
 +    for (i = 0; i < PORT_VBLOBS; i++) {
 +        if (sVBlobs[i].host == (u8*)host) {
-+            if (getenv("PORT_TRACE_VBLOB")) fprintf(stderr, "[vblob] free slot %d host %p\n", i, host);
++            if (PORT_GETENV_ONCE("PORT_TRACE_VBLOB")) fprintf(stderr, "[vblob] free slot %d host %p\n", i, host);
 +            sVBlobs[i].host = NULL;
 +        }
 +    }
@@ -5117,7 +5117,7 @@ index c939ccc39edff50f0c891b9f13b33536709c3b18..49ccaa55a6f92961093e5853c3979f83
  s32 ModelAnim_IsEventFrame(DisplayObject* display_object, s16 frame_number);
  s32 ModelAnim_IsEventTrackNearEnd(DisplayObject* display_object);
 diff --git a/src/model_renderer.c b/src/model_renderer.c
-index f4ed7d6f364280acbcf96f8dae223f51512c655a..d096e1ed1a463b42241056f798659307eb89e9e9 100644
+index f4ed7d6f364280acbcf96f8dae223f51512c655a..6a80fac007bc1acb63a90f468f00df1b8777495b 100644
 --- a/src/model_renderer.c
 +++ b/src/model_renderer.c
 @@ -1,3 +1,7 @@
@@ -5248,7 +5248,7 @@ index f4ed7d6f364280acbcf96f8dae223f51512c655a..d096e1ed1a463b42241056f798659307
          sp34.unk_00 = ((((sp30->unk_12 - sp30->unk_10) << 6) * var_a0) / 255) + (sp30->unk_10 << 6);
      }
  
-+    if (getenv("PORT_TRACE_VARIANT")) {
++    if (PORT_GETENV_ONCE("PORT_TRACE_VARIANT")) {
 +        fprintf(stderr, "[variant] species %d nickname \"%s\" species name \"%s\" OT \"%s\" id 0x%04x range %d..%d -> %d\n",
 +                arg1->unk_00.unk_00, (const char*)arg1->unk_30, sp38, (const char*)arg1->unk_3B, arg1->unk_0E,
 +                sp30->unk_10, sp30->unk_12, sp34.unk_00);
@@ -5332,7 +5332,7 @@ index 9269159a8c72f47401d1fb36246cf78fa46b6204..b8bb157a5ede85b88edf6a0b8ca3d3d5
              }
              *var_v1 += 1;
 diff --git a/src/poke_icon.c b/src/poke_icon.c
-index cba11107343e39a23e4c68bb8a0cc0d130eafc5d..f2ab019e0334af0984e27b4c90ed485671da4481 100644
+index cba11107343e39a23e4c68bb8a0cc0d130eafc5d..03dac21f5358cfb7e92cd160204b7269a8628cfa 100644
 --- a/src/poke_icon.c
 +++ b/src/poke_icon.c
 @@ -1,3 +1,5 @@
@@ -5378,7 +5378,7 @@ index cba11107343e39a23e4c68bb8a0cc0d130eafc5d..f2ab019e0334af0984e27b4c90ed4856
      unk_func_8001A024_008* temp_s1;
      ModelNodeView* sp2C;
  
-+    if (getenv("PORT_TRACE_ICON")) {
++    if (PORT_GETENV_ONCE("PORT_TRACE_ICON")) {
 +        fprintf(stderr, "[icon] render slot %d species %ld img %p model %p\n", arg1, (long)(arg0->unk_08[arg1].unk_14.raw & 0xFFFF),
 +                (void*)arg0->unk_08[arg1].unk_0C->img_p, (void*)arg0->unk_04->loadedModel);
 +    }
@@ -5659,7 +5659,7 @@ index 11b12ea23e873d481e02af5c58d2932914b33e8d..f1734a22173b12b8e75b48113c7082c1
  
  #endif // _4B940_H_
 diff --git a/src/rsp.c b/src/rsp.c
-index b73474022308ddeba29a33e4c3b85822175f66dd..c4140c42e95e46d6668aeecaa982923f31d54b2e 100644
+index b73474022308ddeba29a33e4c3b85822175f66dd..1d5825900d4720d6e53f9efbf428e66abe851771 100644
 --- a/src/rsp.c
 +++ b/src/rsp.c
 @@ -1,4 +1,6 @@
@@ -5673,7 +5673,7 @@ index b73474022308ddeba29a33e4c3b85822175f66dd..c4140c42e95e46d6668aeecaa982923f
      while (true) {
          osRecvMesg(&D_80083BD0.queue1, (void*)&sp2C, OS_MESG_BLOCK);
  
-+        if (getenv("PORT_TRACE")) fprintf(stderr, "[rsp] req=%p type=0x%x\n", (void*)sp2C, (unsigned)(unsigned char)sp2C->unk0);
++        if (PORT_GETENV_ONCE("PORT_TRACE")) fprintf(stderr, "[rsp] req=%p type=0x%x\n", (void*)sp2C, (unsigned)(unsigned char)sp2C->unk0);
          switch (sp2C->unk0) {
              case 0xF0:
                  var_v0 = (OSMesg)INT2VOID(Storage_ReadRom(sp2C, 0));
@@ -5702,7 +5702,7 @@ index de98cd57653e1298841b44001a4e8da56c45a9d5..339648760f118d86f952c3f160d3e46b
  
  struct UnkStruct80000A80 {
 diff --git a/src/save_data.c b/src/save_data.c
-index a5ecc87c64df78eae93f21eecfc0a922594d9bb5..7b7035c412b7ad64a97de5ab35432efed8a2ed81 100644
+index a5ecc87c64df78eae93f21eecfc0a922594d9bb5..9e04f4b90645ee006416dd681d7f9afd2ce1ec3a 100644
 --- a/src/save_data.c
 +++ b/src/save_data.c
 @@ -1,3 +1,5 @@
@@ -5715,7 +5715,7 @@ index a5ecc87c64df78eae93f21eecfc0a922594d9bb5..7b7035c412b7ad64a97de5ab35432efe
  
  void Save_GetModeSettings(ModeSettings* settings, s16 round_index) {
      *settings = D_800AE4E8[2].unk_04.unk2->unk_1EA0.unk_0C[round_index];
-+    if (getenv("PORT_TRACE_SAVE")) { // PORT debug
++    if (PORT_GETENV_ONCE("PORT_TRACE_SAVE")) { // PORT debug
 +        const u8* b = (const u8*)settings;
 +        fprintf(stderr, "[save] mode settings %d: %02x %02x %02x %02x %02x %02x %02x %02x\n", round_index, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]);
 +        const u8* bank = (const u8*)D_800AE4E8[2].unk_04.unk2;
