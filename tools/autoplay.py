@@ -662,12 +662,13 @@ def sim_mon(m):
 
 
 def sim_pair(own, opp):
-    """both Pokemon for the simulation; a faster one using a trapping move keeps the other from acting (the bot
-    chose Surf three times against Onix while Bind held Vaporeon)"""
+    """both Pokemon for the simulation; one using a trapping move keeps the other from acting (the bot chose Surf
+    three times against Onix while Bind held Vaporeon), also when it is the slower one (Moltres's Fire Spin held a
+    faster Zapdos five turns of seven)"""
     o, x = sim_mon(own), sim_mon(opp)
-    if opp.get("flags", (0, 0))[0] & F_TRAPPING and x["spd"] > o["spd"]:
+    if opp.get("flags", (0, 0))[0] & F_TRAPPING:
         o["trapped"] = 2
-    if own.get("flags", (0, 0))[0] & F_TRAPPING and o["spd"] > x["spd"]:
+    if own.get("flags", (0, 0))[0] & F_TRAPPING:
         x["trapped"] = 2
     return o, x
 
@@ -754,8 +755,8 @@ def sim_attack(att, dfn, mid, p, out):
         att["hp"] = 0.0
     elif e == HYPER_BEAM and dfn["hp"] > 0:
         att["recharge"] = True
-    elif e == TRAP and dfn["hp"] > 0 and att["spd"] > dfn["spd"]:
-        dfn["trapped"] = 2  # it cannot act while the faster trapper keeps at it
+    elif e == TRAP and dfn["hp"] > 0 and dfn["trapped"] <= 0:
+        dfn["trapped"] = 2  # it cannot act while the trapper keeps at it (a faster one has acted this turn already)
     out.append((p, att, dfn))
 
 
@@ -1240,6 +1241,7 @@ CONFUSED_TURNS = 3.0   # turns of confusion (2-5), half of them spent hitting it
 DUEL_TURNS = 40        # longer duels count as a draw by the HP left
 LIGHT_SCREEN = 64
 STATUS_PLANS = {SLEEP, PARALYZE, POISON, LEECH_SEED, CONFUSE, LIGHT_SCREEN}
+TRAP_HOLD = 2.0        # turns a trapped Pokemon loses after each hit of Wrap, Fire Spin and the like (2-5 in all)
 BOOSTS = {"Amnesia": ("spc", 2.0), "Swords Dance": ("atk", 2.0), "Agility": ("spd", 2.0), "Barrier": ("def", 2.0),
           "Acid Armor": ("def", 2.0), "Reflect": ("def", 2.0), "Growth": ("spc", 1.5), "Meditate": ("atk", 1.5),
           "Sharpen": ("atk", 1.5), "Harden": ("def", 1.5), "Withdraw": ("def", 1.5), "Defense Curl": ("def", 1.5)}
@@ -1261,11 +1263,34 @@ STYLES = {
 STYLE_ORDER = ("balanced", "safe", "aggressive", "control", "bulky")  # the games of a run, in turn (--styles)
 
 
+def duel_status_moves(mids):
+    """of the moves that are not attacks, the ones the duel knows, one of each kind: the surest sleep or paralysis,
+    Toxic before the other poisons, the strongest boost of each stat, Recover before Rest"""
+    best = {}
+    for mid in mids:
+        d, name = MOVEDATA.get(mid), MOVES.get(mid, "")
+        if d is None or d["power"] > 0:
+            continue
+        if name in BOOSTS:
+            kind, rank = ("boost", BOOSTS[name][0]), BOOSTS[name][1]
+        elif name in HEALS:
+            kind, rank = ("heal",), 1 if name == "Rest" else 2
+        elif d["effect"] in STATUS_PLANS:
+            kind, rank = ("status", d["effect"]), d["accuracy"] + (50 if name == "Toxic" else 0)
+        else:
+            continue
+        if kind not in best or rank > best[kind][0]:
+            best[kind] = (rank, mid)
+    return [mid for _, mid in best.values()]
+
+
 def duel_plans(att, dfn):
     """the moves att may open a duel with: none, or one status move or boost that can work on dfn"""
     plans = [None]
     for mid, pp in att["moves"]:
         d = MOVEDATA.get(mid)
+        if mid and pp > 0 and d is not None and d["effect"] == TRAP and damage(att, dfn, mid) > 0:
+            plans.append(mid)  # wrap it again and again
         if not mid or pp <= 0 or d is None or d["power"] > 0:
             continue
         name, e = MOVES.get(mid, ""), d["effect"]
@@ -1285,11 +1310,15 @@ def duel_plans(att, dfn):
 def duel_side(m, plan, risk, status=1.0):
     return {"m": m, "hp": float(m["hp"]), "plan": plan, "risk": risk, "progress": 0.0, "setup": 0.0,
             "boost": {}, "screen": None, "sleep": 0.0, "para": 0.0, "conf": 0.0, "toxic": 0, "psn": 0.0,
-            "seeded": False, "heals": 2, "best": None, "status": status}
+            "seeded": False, "heals": 2, "best": None, "status": status, "held": 0.0}
 
 
 def duel_attack(s, t):
-    """s's best attack on t as it stands: (move, damage per hit, hit chance per turn ** risk, turns per hit)"""
+    """s's best attack on t as it stands: (move, damage per hit, hit chance per turn ** risk, turns per hit); a
+    trapping plan keeps to its move"""
+    if s["plan"] and MOVEDATA[s["plan"]]["effect"] == TRAP:
+        mid = s["plan"]
+        return (mid, damage(s["m"], dict(t["m"], hp=t["hp"]), mid), (MOVEDATA[mid]["accuracy"] / 100.0) ** s["risk"], 1.0)
     if s["best"] is None or s.get("best_hp") != t["hp"]:
         att = dict(s["m"], **{k: s["m"][k] * f for k, f in s["boost"].items() if k != "spd"})
         dfn = dict(t["m"], hp=t["hp"], status=ASLEEP if t["sleep"] > 0 else 0,
@@ -1319,6 +1348,9 @@ def duel_act(s, t):
     if s["sleep"] > 0:
         s["sleep"] -= 1
         return
+    if s["held"] > 0:
+        s["held"] -= 1
+        return
     act = 1.0 - 0.25 * s["para"]
     if s["conf"] > 0:
         s["conf"] -= 1
@@ -1333,7 +1365,7 @@ def duel_act(s, t):
         return
     if s["setup"] < 0:  # the sleep it put the opponent in still runs: attack meanwhile
         s["setup"] += 1
-    elif s["plan"] and s["setup"] < 1.0:  # its opening move, until it has worked
+    elif s["plan"] and s["setup"] < 1.0 and MOVEDATA[s["plan"]]["effect"] != TRAP:  # its opening move, until it worked
         mid = s["plan"]
         d = MOVEDATA[mid]
         name = MOVES.get(mid, "")
@@ -1372,6 +1404,8 @@ def duel_act(s, t):
         dealt = min(t["hp"], dmg)
         t["hp"] -= dealt
         e = MOVEDATA[mid]["effect"]
+        if e == TRAP and t["held"] <= 0:  # a new trap once the last has run out
+            t["held"] = TRAP_HOLD
         if e == DRAIN:
             s["hp"] = min(s["m"]["max_hp"], s["hp"] + dealt / 2.0)
         elif e == RECOIL:
@@ -1396,11 +1430,11 @@ def duel_when(s, t):
     """when in the turn s's move takes effect: the share of the turn its accumulated accuracy needs to make a whole
     hit (or a status move work), 1 when nothing lands this turn (asleep, healing, missing); ties go by speed"""
     mx = s["m"]["max_hp"]
-    if s["sleep"] > 0 or (s["heals"] > 0 and s["hp"] < 0.4 * mx and any(
+    if s["sleep"] > 0 or s["held"] > 0 or (s["heals"] > 0 and s["hp"] < 0.4 * mx and any(
             MOVES.get(mid) in HEALS for mid, pp in s["m"]["moves"] if mid and pp > 0)):
         return 1.0
     act = (1.0 - 0.25 * s["para"]) * (0.5 if s["conf"] > 0 else 1.0)
-    if s["plan"] and 0 <= s["setup"] < 1.0:
+    if s["plan"] and 0 <= s["setup"] < 1.0 and MOVEDATA[s["plan"]]["effect"] != TRAP:
         d = MOVEDATA[s["plan"]]
         sure = MOVES.get(s["plan"]) in BOOSTS or d["effect"] == LIGHT_SCREEN
         rate, need = (1.0 if sure else (d["accuracy"] / 100.0) ** s["risk"]) * act, 1.0 - s["setup"]
@@ -1536,9 +1570,12 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6, explore=False):
     opps = [dict(o, hp=o["hp"] + TRAINER_BONUS, max_hp=o["max_hp"] + TRAINER_BONUS,
                  **{k: o[k] + TRAINER_BONUS for k in ("atk", "def", "spd", "spc")}) for o in opps]
     # and with any attack they may know (the trainers' movesets are not the rentals': learnsets, load_learnsets)
+    # with their status moves too: Alakazam's Recover and Reflect, Clefable's Thunder Wave and Arbok's Glare had been
+    # left out, so the draft prepared for opponents weaker than the ones that stopped it
     if ALLOWED:
-        opps = [dict(o, moves=[(mid, 10) for mid in ALLOWED.get(o["id"], ()) if MOVEDATA[mid]["power"] > 0]
-                     or o["moves"]) for o in opps]
+        opps = [dict(o, moves=[(mid, 10) for mid in ALLOWED.get(o["id"], ()) if MOVEDATA[mid]["power"] > 0] +
+                     [(mid, 10) for mid in duel_status_moves(ALLOWED.get(o["id"], ()))]
+                     if ALLOWED.get(o["id"]) else o["moves"]) for o in opps]
     style = status.data.get("style")
     vs = {m["id"]: [team_matchup(m, o, style) for o in opps] for m in mons}  # each one's duel with each opponent
     dz = {m["id"]: [danger(o, m) for o in opps] for m in mons}  # and each opponent's danger to it
@@ -1596,6 +1633,10 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6, explore=False):
     return [m["id"] for m in team]
 
 
+RETRY_TRIO = 25.0  # what each loss against the same team takes off the three it was lost with
+RETRY_LEAD = 20.0  # and off its lead
+
+
 def choose_team(brain, status, order):
     """The three Pokemon to send in against the opponent's team, the lead first: the three whose answers to the
     opponent's six (the battle estimate) are best together; Laya and the estimate pick the lead. -> slots (0-5)"""
@@ -1625,7 +1666,13 @@ def choose_team(brain, status, order):
         a = sorted(0.5 * max(vs[i][j] for i in t) + 0.5 * sum(vs[i][j] for i in t) / 3 for j in range(len(opp)))
         return sum(a) / len(a) + sum(a[:2]) / 2 - SHARED_WEIGHT * shared_danger([dz[i] for i in t])
 
-    trio = max(itertools.combinations(range(len(own)), 3), key=trio_score)
+    # a retry against the same team tries something else: each loss costs the three it was lost with (and its lead)
+    # this much (game 4 sent Paras, Exeggutor and Gengar against Giovanni five times, and lost five times)
+    key = tuple(sorted(o["species"] for o in opp))
+    lost = status.data.setdefault("lost_picks", {}).get(key, [])
+    names = lambda t: tuple(sorted(own[i]["species"] for i in t))
+    trio = max(itertools.combinations(range(len(own)), 3),
+               key=lambda t: trio_score(t) - RETRY_TRIO * sum(1 for x, _ in lost if x == names(t)))
     # who goes first: Laya and the estimate. The opponent's lead cannot be foreseen (its choice weighs our team in a
     # way the matchups do not predict), so against each of its six a lead either stays in or makes way for the best
     # of the other two, which takes that opponent's hit on the way in; the lead counts its two worst such outcomes as
@@ -1639,7 +1686,8 @@ def choose_team(brain, status, order):
             out.append(max(vs[i][j], way_out))
         return out
 
-    values = [(lambda v: 0.5 * sum(v) / len(v) + 0.5 * sum(sorted(v)[:2]) / 2)(lead_outcomes(i)) for i in trio]
+    values = [(lambda v: 0.5 * sum(v) / len(v) + 0.5 * sum(sorted(v)[:2]) / 2)(lead_outcomes(i)) -
+              RETRY_LEAD * sum(1 for _, x in lost if x == own[i]["species"]) for i in trio]
     state = {"opponent_team": [{"name": o["species"], "level": o["level"], "types": types_text(o["types"])} for o in opp],
              "your_three": [{"name": own[i]["species"], "level": own[i]["level"], "types": types_text(own[i]["types"])}
                             for i in trio]}
@@ -1650,6 +1698,7 @@ def choose_team(brain, status, order):
     picks = [trio[k]] + sorted((i for i in trio if i != trio[k]), key=lambda i: -sum(vs[i]))
     status.set(team=[m["id"] for m in own], trio=[own[i]["id"] for i in picks], opp_team=[o["id"] for o in opp],
                opp_seen={}, party=[])
+    status.data["last_pick"] = (key, names(picks), own[picks[0]]["species"])
     status.log("team vs %s: %s" % (", ".join(o["species"] for o in opp),
                                    ", ".join(own[i]["species"] for i in picks)))
     return picks
@@ -1885,10 +1934,14 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             status.set(battles=status.get("battles") + 1)
             status.data["tries"] = 0 if won else status.data.get("tries", 0) + 1  # losses in a row (the same battle)
             if won:
+                status.data.pop("last_pick", None)
                 status.set(wins=status.get("wins") + 1)
                 status.log("battle won (%d/%d)" % (status.get("wins"), wins))
             else:
                 status.set(losses=status.get("losses") + 1)
+                if status.data.get("last_pick"):  # the next try against this team prefers another three or lead
+                    key, trio_names, lead = status.data.pop("last_pick")
+                    status.data.setdefault("lost_picks", {}).setdefault(key, []).append((trio_names, lead))
                 # the Elite Four and the champion are one series: a loss starts it over at the first of them (counted
                 # on, the wins said 13 of 13 after Lorelei, Bruno, a loss to Agatha, Lorelei, Bruno and Agatha)
                 e4 = 8 if leaders_only else 32
