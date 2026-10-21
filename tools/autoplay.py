@@ -557,6 +557,9 @@ def battle_state(own, opp, party, active):
 # LOOKAHEAD_DEPTH turns; the opponent is assumed to answer well (OPP_BEST of the worst case for us, the rest the
 # average). Damage is the average roll; critical hits, confusion and secondary effects are left out.
 LOOKAHEAD_DEPTH = 3  # turns (--lookahead; 0: the one-turn estimate alone)
+# gym leaders and the Elite Four decide a castle run (trainers 87% won, leaders 74%; Lt. Surge 17%): their battles
+# get a deeper lookahead (--leader-lookahead; about 1-5 s a decision instead of 0.1-0.5)
+LEADER_DEPTH = 5
 OPP_BEST = 0.6
 DRAIN, RECOIL = 3, 48
 STAT_CHANGE = {"Agility": (0, "spd", 2.0), "Amnesia": (0, "spc", 2.0), "Swords Dance": (0, "atk", 2.0),
@@ -807,7 +810,7 @@ def lookahead_values(own, opp, actions, bench, depth=None):
             n = sim_pair(what, opp)[0]  # a trap under way catches the newcomer too, unless it is faster
             others = tuple(b for b in rest if b["species"] != what["species"]) + (o,)
             results, sub = [], {}
-            d = min(depth, 2)  # a switch is looked at less far: there are many of them
+            d = min(depth, 2 if depth <= 3 else 3)  # a switch is looked at less far: there are many of them
             for k in opp_moves(x):
                 total = 0.0
                 for p, a, b in sim_turn(n, x, None, k):
@@ -848,7 +851,8 @@ def play_turn(game, brain, status, choice):
             return
         opts = [(party[i]["species"], "%s, %s, %d/%d HP" % (party[i]["species"], types_text(party[i]["types"]),
                                                              party[i]["hp"], party[i]["max_hp"])) for i in bench]
-        values = ([lookahead_sendout(party[i], opp, [party[j] for j in bench if j != i]) for i in bench]
+        depth = LEADER_DEPTH if status.data.get("leader") else LOOKAHEAD_DEPTH
+        values = ([lookahead_sendout(party[i], opp, [party[j] for j in bench if j != i], depth) for i in bench]
                   if LOOKAHEAD_DEPTH else
                   [matchup(party[i], opp) for i in bench])
         status.trace("send out against %s %d/%d spd %d (moves %s) | %s" % (
@@ -889,7 +893,8 @@ def play_turn(game, brain, status, choice):
     LAST_SWITCH["age"] = LAST_SWITCH.get("age", 99) + 1
     if LOOKAHEAD_DEPTH and actions:  # the next turns played out replace the one-turn estimate
         values = lookahead_values(own, opp, [("move", own["moves"][i][0]) if kind == "move" else ("switch", party[i])
-                                             for kind, i in actions], [party[i] for i in bench])
+                                             for kind, i in actions], [party[i] for i in bench],
+                                  LEADER_DEPTH if status.data.get("leader") else LOOKAHEAD_DEPTH)
     st = lambda m: "" if m["status"] == 0 else " status %#x" % m["status"]
     status.trace("%s %d/%d%s spd %d flags %02x/%02x vs %s %d/%d%s spd %d flags %02x/%02x (moves %s) | %s" % (
         own["species"], own["hp"], own["max_hp"], st(own), own["spd"], own["flags"][0], own["flags"][1], opp["species"],
@@ -1267,7 +1272,7 @@ def choose_team(brain, status, order):
 
 
 def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0,
-             register=False, room=None, max_losses=0, explore=False, draft_order=0):
+             register=False, room=None, max_losses=0, explore=False, draft_order=0, castle=False):
     """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
     "random"; random_team: choose the rental team at random on the rental carousel."""
     def new_picks(order=None):
@@ -1402,6 +1407,12 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
                 picks = chosen
                 picks_battle = status.get("battles")
                 rejected = set()
+                # in the castle each gym is three trainers and its leader, then the Elite Four (from the wins so far)
+                w = status.get("wins")
+                leader = castle and (w >= 32 or w % 4 == 3)
+                status.set(leader=leader)
+                if leader:
+                    status.log("%s: looking %d turns ahead" % ("Elite Four" if w >= 32 else "gym leader", LEADER_DEPTH))
             last_order_tick = now
             in_battle = False
             status.set(phase="choosing the team order (battle %d)" % (status.get("battles") + 1))
@@ -1511,7 +1522,7 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
 
 
 def main():
-    global LOOKAHEAD_DEPTH
+    global LOOKAHEAD_DEPTH, LEADER_DEPTH
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pick", default="smart",
                     help="which three to send in: smart (default: Laya and the estimate against the opponent's team), "
@@ -1545,6 +1556,8 @@ def main():
     ap.add_argument("--explore", type=int, default=1,
                     help="with --team draft and --games: this many games (the last ones) draft an experimental team: "
                          "a wider, looser shortlist that avoids what the other games took (default 1)")
+    ap.add_argument("--leader-lookahead", type=int, default=LEADER_DEPTH,
+                    help="with --castle: turns looked ahead in gym leader and Elite Four battles (default %d)" % LEADER_DEPTH)
     ap.add_argument("--round2", action="store_true", help="play Round 2 (PORT_ROUND2=1; the save is not changed)")
     ap.add_argument("--team", help="six Pokemon to rent, e.g. Mewtwo,Alakazam,Snorlax,Starmie,Zapdos,Rhydon, or draft: Laya "
                                        "drafts a well-rounded team from the rental list (different every run)")
@@ -1555,6 +1568,7 @@ def main():
                     help="choose a random rental team on the rental carousel (the route ends before it)")
     args = ap.parse_args()
     LOOKAHEAD_DEPTH = args.lookahead
+    LEADER_DEPTH = args.leader_lookahead if LOOKAHEAD_DEPTH else 0
     picks = args.pick if args.pick in ("random", "smart") else [int(x) - 1 for x in args.pick.split(",")]
 
     status = Status()
@@ -1581,7 +1595,7 @@ def main():
                 gs.log("connected")
                 import random
                 run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team,
-                         route_end, args.register, args.room, args.max_losses, explore, index)
+                         route_end, args.register, args.room, args.max_losses, explore, index, args.castle)
                 if proc and proc[0].poll() is None:  # finished (won, or lost too often): close its game
                     proc[0].terminate()
             except (EOFError, BrokenPipeError, ConnectionResetError) as e:
