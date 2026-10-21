@@ -1657,7 +1657,7 @@ def choose_team(brain, status, order):
 
 def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0,
              register=False, room=None, max_losses=0, explore=False, draft_order=0, castle=False,
-             leaders_only=False, max_tries=0):
+             leaders_only=False, max_tries=0, max_e4_runs=0):
     """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
     "random"; random_team: choose the rental team at random on the rental carousel."""
     def new_picks(order=None):
@@ -1892,9 +1892,17 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
                 # the Elite Four and the champion are one series: a loss starts it over at the first of them (counted
                 # on, the wins said 13 of 13 after Lorelei, Bruno, a loss to Agatha, Lorelei, Bruno and Agatha)
                 e4 = 8 if leaders_only else 32
-                if castle and status.get("wins") > e4:
-                    status.log("the Elite Four starts over (%d wins in it undone)" % (status.get("wins") - e4))
-                    status.set(wins=e4)
+                if castle and status.get("wins") >= e4:
+                    status.data["e4_runs"] = status.data.get("e4_runs", 0) + 1  # failed runs at the Elite Four
+                    if status.get("wins") > e4:
+                        status.log("the Elite Four starts over (%d wins in it undone)" % (status.get("wins") - e4))
+                        status.set(wins=e4)
+                    # every win over Lorelei or Bruno reset the losses in a row: games went round them for hours
+                    if max_e4_runs and status.data["e4_runs"] >= max_e4_runs:
+                        status.log("battle lost: %d failed Elite Four runs, stopping" % status.data["e4_runs"])
+                        status.set(phase="stopped after %d Elite Four runs (%d wins)" % (status.data["e4_runs"],
+                                                                                          status.get("wins")), done=True)
+                        return
                 if max_tries and status.data["tries"] >= max_tries:
                     status.log("battle lost: %d times in a row, stopping" % status.data["tries"])
                     status.set(phase="stopped after %d tries (%d wins)" % (status.data["tries"], status.get("wins")),
@@ -1966,6 +1974,8 @@ def main():
                          "balanced: every game alike)" % ", ".join(STYLE_ORDER))
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2),
                     help="worker processes for the lookahead's searches (default: all cores but two; 0: none)")
+    ap.add_argument("--max-e4-runs", type=int, default=5,
+                    help="with --castle: stop a game after this many failed runs at the Elite Four (default 5; 0: never)")
     ap.add_argument("--leader-lookahead", type=int, default=LEADER_DEPTH,
                     help="with --castle: turns looked ahead in gym leader and Elite Four battles (default %d)" % LEADER_DEPTH)
     ap.add_argument("--leaders-only", action="store_true",
@@ -2023,7 +2033,7 @@ def main():
                 import random
                 run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team,
                          route_end, args.register, args.room, args.max_losses, explore, index, args.castle,
-                         args.leaders_only, args.max_tries)
+                         args.leaders_only, args.max_tries, args.max_e4_runs)
                 if proc and proc[0].poll() is None:  # finished (won, or lost too often): close its game
                     proc[0].terminate()
             except (EOFError, BrokenPipeError, ConnectionResetError) as e:
