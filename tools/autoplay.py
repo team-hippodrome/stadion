@@ -113,7 +113,8 @@ def runtime_mon(hexstr):
             "level": b[0x26], "types": [TYPES.get(b[0x1C], "?"), TYPES.get(b[0x1D], "?")],
             "moves": [(b[0x1F + i], b[0x32 + i] & 0x3F) for i in range(4)], "status": b[0x15],
             "atk": u16(b, 0x2A), "def": u16(b, 0x2C), "spd": u16(b, 0x2E), "spc": u16(b, 0x30),
-            "flags": (b[0x4C], b[0x4D])}  # the battle status bytes (unk_4C: 0x40 out of reach, as the accuracy check reads)
+            "flags": (b[0x4C], b[0x4D]),  # the battle status bytes (unk_4C: 0x40 out of reach, as the accuracy check reads)
+            "acc": b[0x60] or 7, "eva": b[0x61] or 7}  # accuracy and evasion stages (unk_5C[4], [5]; 7: none)
 
 
 def party_mon(hexstr):
@@ -376,13 +377,27 @@ def damage(att, dfn, mid):
     return base * stab * eff * 0.925 * MULTI_HIT.get(d["effect"], 1.0)
 
 
+STAGE_MULTIPLIER = [None, (25, 100), (28, 100), (33, 100), (40, 100), (50, 100), (66, 100), (1, 1), (15, 10), (2, 1),
+                    (25, 10), (3, 1), (35, 10), (4, 1)]  # by stat stage 1-13 (battle_engine gStatStageMultipliers)
+
+
+def hit_chance(att, dfn, mid):
+    """the chance that att's move hits dfn, with att's accuracy stage and dfn's evasion stage as the game counts them
+    (func_84370790: Smokescreen and Kinesis made 100% moves miss half the time, unseen by the bot); Swift never misses"""
+    d = MOVEDATA.get(mid)
+    if d is None or MOVES.get(mid) == "Swift":
+        return 1.0
+    a = STAGE_MULTIPLIER[min(13, max(1, att.get("acc", 7)))]
+    e = STAGE_MULTIPLIER[min(13, max(1, 14 - dfn.get("eva", 7)))]
+    return min(255 / 256.0, d["accuracy"] / 100.0 * a[0] / a[1] * e[0] / e[1])
+
+
 def threat(att, dfn):
     """The share of dfn's current HP att's best move takes (1.0: a knock-out)"""
     best = 0.0
     for mid, pp in att["moves"]:
         if mid and pp > 0:
-            d = MOVEDATA.get(mid, {"accuracy": 100})
-            best = max(best, damage(att, dfn, mid) * d["accuracy"] / 100.0)
+            best = max(best, damage(att, dfn, mid) * hit_chance(att, dfn, mid))
     return min(1.5, best / max(1, dfn["hp"]))
 
 
@@ -403,7 +418,7 @@ def move_value(own, opp, mid, risk=1.0):
     d = MOVEDATA.get(mid)
     if d is None:
         return 0.0
-    acc = (d["accuracy"] / 100.0) ** risk
+    acc = hit_chance(own, opp, mid) ** risk
     hp_frac = own["hp"] / max(1, own["max_hp"])
     opp_status = opp.get("status", 0)
     if d["power"] == 0 and MOVES.get(mid) not in ("Night Shade",):  # status moves
@@ -528,7 +543,7 @@ PARA, PSN, FRZ = 0x40, 0x08, 0x20
 # turns): first byte 0x01 Bide, 0x10 charging a two-turn move, 0x20 using a trapping move, 0x40 out of reach (Dig,
 # Fly), 0x80 confused; second byte 0x80 seeded (Leech Seed)
 F_CHARGING, F_TRAPPING, F_CONFUSED, F2_SEEDED = 0x10, 0x20, 0x80, 0x80
-CONFUSE, LEECH_SEED = 49, 84
+CONFUSE, LEECH_SEED, ACC_DOWN, EVA_UP = 49, 84, 22, 15
 
 
 def sim_mon(m):
@@ -542,6 +557,7 @@ def sim_mon(m):
         charge = next((mid for mid, pp in m["moves"] if MOVEDATA.get(mid, {}).get("effect") in (CHARGE, FLY)), 0)
     s.update(sleep=(st & 7) or (3 if st & FRZ else 0), para=bool(st & PARA), psn=bool(st & PSN), trapped=0,
              charge=charge, recharge=False, conf=bool(f1 & F_CONFUSED), seed=bool(f2 & F2_SEEDED),
+             acc=m.get("acc", 7), eva=m.get("eva", 7),
              moves=[(mid, pp) for mid, pp in m["moves"] if mid and pp > 0])
     return s
 
@@ -597,7 +613,7 @@ def sim_attack(att, dfn, mid, p, out):
     if dfn["charge"] and MOVES.get(dfn["charge"]) in ("Dig", "Fly") and name != "Swift":
         out.append((p, att, dfn))  # underground or in the air: out of reach (Tentacruel's Hydro Pumps missed Dugtrio)
         return
-    acc = d["accuracy"] / 100.0 if d["accuracy"] < 100 else 1.0
+    acc = hit_chance(att, dfn, mid)
     if acc < 1.0:
         out.append((p * (1 - acc), dict(att), dict(dfn)))
         p *= acc
@@ -617,6 +633,10 @@ def sim_attack(att, dfn, mid, p, out):
                 att["hp"] = min(att["max_hp"], att["hp"] + att["max_hp"] // 2)
         elif e == CONFUSE:
             dfn["conf"] = True
+        elif e == ACC_DOWN:
+            dfn["acc"] = max(1, dfn["acc"] - 1)
+        elif e == EVA_UP:
+            att["eva"] = min(13, att["eva"] + 1)
         elif e == LEECH_SEED and "Grass" not in dfn["types"]:
             dfn["seed"] = True
         elif name in STAT_CHANGE:
@@ -704,7 +724,7 @@ def opp_moves(opp):
 
 def sim_key(m):
     return (int(m["hp"]), m["sleep"], m["para"], m["psn"], m["trapped"], m["charge"], m["recharge"], m["conf"], m["seed"],
-            m["atk"], m["def"], m["spd"], m["spc"])
+            m["acc"], m["eva"], m["atk"], m["def"], m["spd"], m["spc"])
 
 
 def sim_bench_in(opp, bench, depth, cache):
