@@ -154,7 +154,7 @@ function updateCard(el, g, i) {
   const trio = new Set(g.trio || []);
   const team = (g.team || []).map(id => icon(id, (trio.has(id) ? 'trio ' : '') + (out.has(id) ? 'out' : ''))).join('');
   const dots = (g.history || []).slice(-60).map(b => `<i class="${b.won ? '' : 'l'}"></i>`).join('');
-  const html = `<div class="row"><span class="name">${esc(g.name.replace(' (experimental)', ''))}${g.explore ? '<span class="tag">experimental</span>' : ''}</span><span class="small">${g.goal ? g.wins + ' / ' + g.goal : ''}</span></div>
+  const html = `<div class="row"><span class="name">${esc(g.name.replace(' (experimental)', ''))}${g.style && g.style !== 'balanced' ? '<span class="tag">' + esc(g.style) + '</span>' : ''}${g.explore ? '<span class="tag">experimental</span>' : ''}</span><span class="small">${g.goal ? g.wins + ' / ' + g.goal : ''}</span></div>
       <div class="phase" title="${esc(g.phase)}">${esc(g.phase)}</div>
       ${track(g)}
       <div class="dots" title="battles: won (green), lost (red)">${dots}</div>

@@ -1206,26 +1206,249 @@ def duel_turns(att, dfn, risk=1.0):
     return best
 
 
-def duel(m, o, risk=1.0):
-    """who wins the one-on-one, and by how much (about -130 to 130): both attack with their best move every turn;
-    the winner is the one that needs fewer turns (the faster one on a tie). The single-turn estimate called Zapdos
-    against Onix (it cannot hurt it; Rock Slide takes a third of its HP a turn) only mildly unfavourable."""
+# The duel plays the one-on-one out turn by turn on expected values: an attack lands a whole hit once its accuracy
+# has added up to one (a 70% move: a hit every 1.4 turns), at that point within the turn: of two hits in one turn the
+# earlier lands first (the faster on a tie) Each
+# side may open with one move that is not an attack (sleep, paralysis, poison, Leech Seed, confusion, Reflect,
+# Light Screen, a stat boost), and heals when low (Recover, Softboiled, Rest); draining and recoil count. Damage
+# alone made the fast special attackers the whole draft: Exeggutor's Hypnosis and Leech Seed, Snorlax's Rest and
+# Chansey's Reflect counted for nothing.
+SLEEP_TURNS = 3.0      # turns a sleeping Pokemon loses (Game Boy sleep: 1-7)
+SLEEPS_PER_DUEL = 2    # put to sleep again once it wakes, at most this often (the castle's trainers switch sleepers
+# out; re-sleeping without end made Jynx the best answer to 68 of 89 opponents and every draft's first pick)
+CONFUSED_TURNS = 3.0   # turns of confusion (2-5), half of them spent hitting itself
+DUEL_TURNS = 40        # longer duels count as a draw by the HP left
+LIGHT_SCREEN = 64
+STATUS_PLANS = {SLEEP, PARALYZE, POISON, LEECH_SEED, CONFUSE, LIGHT_SCREEN}
+BOOSTS = {"Amnesia": ("spc", 2.0), "Swords Dance": ("atk", 2.0), "Agility": ("spd", 2.0), "Barrier": ("def", 2.0),
+          "Acid Armor": ("def", 2.0), "Reflect": ("def", 2.0), "Growth": ("spc", 1.5), "Meditate": ("atk", 1.5),
+          "Sharpen": ("atk", 1.5), "Harden": ("def", 1.5), "Withdraw": ("def", 1.5), "Defense Curl": ("def", 1.5)}
+HEALS = {"Recover": 0.5, "Softboiled": 0.5, "Rest": 1.0}
+# A game's style weighs its team decisions (draft, the three, the lead) differently; battles are played alike.
+# risk: accuracy ** risk for our attacks (TEAM_RISK); status: how much our sleep, paralysis, poison and confusion
+# count; bulk: how much more a win counts the more HP it keeps.
+STYLES = {
+    "balanced": {"risk": TEAM_RISK, "status": 1.0, "bulk": 0.0, "text": "a balanced team"},
+    "safe": {"risk": 2.5, "status": 1.0, "bulk": 0.3,
+             "text": "a safe team: attacks that hit (90% or more) and few two-turn moves"},
+    "aggressive": {"risk": 0.8, "status": 0.6, "bulk": -0.3,
+                   "text": "an aggressive team: the hardest hitters, strong moves even when they miss at times"},
+    "control": {"risk": TEAM_RISK, "status": 1.5, "bulk": 0.0,
+                "text": "a control team: sleep, paralysis, poison and confusion before the attack"},
+    "bulky": {"risk": TEAM_RISK, "status": 1.0, "bulk": 1.0,
+              "text": "a bulky team: Pokemon that take hits and win with HP to spare, healing and Reflect"},
+}
+STYLE_ORDER = ("balanced", "safe", "aggressive", "control", "bulky")  # the games of a run, in turn (--styles)
+
+
+def duel_plans(att, dfn):
+    """the moves att may open a duel with: none, or one status move or boost that can work on dfn"""
+    plans = [None]
+    for mid, pp in att["moves"]:
+        d = MOVEDATA.get(mid)
+        if not mid or pp <= 0 or d is None or d["power"] > 0:
+            continue
+        name, e = MOVES.get(mid, ""), d["effect"]
+        if name in BOOSTS or e == LIGHT_SCREEN:
+            plans.append(mid)
+        elif e in STATUS_PLANS:
+            if e == PARALYZE and name == "Thunder Wave" and "Ground" in dfn["types"]:
+                continue
+            if e == POISON and "Poison" in dfn["types"]:
+                continue
+            if e == LEECH_SEED and "Grass" in dfn["types"]:
+                continue
+            plans.append(mid)
+    return plans
+
+
+def duel_side(m, plan, risk, status=1.0):
+    return {"m": m, "hp": float(m["hp"]), "plan": plan, "risk": risk, "progress": 0.0, "setup": 0.0,
+            "boost": {}, "screen": None, "sleep": 0.0, "para": 0.0, "conf": 0.0, "toxic": 0, "psn": 0.0,
+            "seeded": False, "heals": 2, "best": None, "status": status}
+
+
+def duel_attack(s, t):
+    """s's best attack on t as it stands: (move, damage per hit, hit chance per turn ** risk, turns per hit)"""
+    if s["best"] is None or s.get("best_hp") != t["hp"]:
+        att = dict(s["m"], **{k: s["m"][k] * f for k, f in s["boost"].items() if k != "spd"})
+        dfn = dict(t["m"], hp=t["hp"], status=ASLEEP if t["sleep"] > 0 else 0,
+                   **{k: t["m"][k] * f for k, f in t["boost"].items() if k != "spd"})
+        best = (float("inf"), None, 0.0, 0.0, 1.0)
+        for mid, pp in s["m"]["moves"]:
+            d = MOVEDATA.get(mid)
+            if not mid or pp <= 0 or d is None or d["effect"] == EXPLODE:
+                continue
+            dmg = damage(att, dfn, mid)
+            if t["screen"] and (d["type"] in PHYSICAL) == (t["screen"] == "def"):
+                dmg /= 2.0
+            if dmg <= 0:
+                continue
+            per = 2.0 if d["effect"] in (CHARGE, FLY, HYPER_BEAM) else 1.0
+            acc = (d["accuracy"] / 100.0) ** s["risk"]
+            turns = math.ceil(t["hp"] / dmg - 1e-9) * per / acc  # the turns it needs for the knock-out
+            if turns < best[0] or (turns == best[0] and dmg > best[2]):
+                best = (turns, mid, dmg, acc, per)
+        s["best"] = best[1:] if best[1] is not None else (None, 0.0, 0.0, 1.0)
+        s["best_hp"] = t["hp"]
+    return s["best"]
+
+
+def duel_act(s, t):
+    """one turn of s against t"""
+    if s["sleep"] > 0:
+        s["sleep"] -= 1
+        return
+    act = 1.0 - 0.25 * s["para"]
+    if s["conf"] > 0:
+        s["conf"] -= 1
+        act *= 0.5
+    heal = next((HEALS[MOVES[mid]] for mid, pp in s["m"]["moves"] if mid and pp > 0 and MOVES.get(mid) in HEALS), 0)
+    mx = s["m"]["max_hp"]
+    if heal and s["heals"] > 0 and s["hp"] < 0.4 * mx:  # heal when low (Rest: full, then two turns asleep)
+        s["heals"] -= 1
+        s["hp"] = min(mx, s["hp"] + heal * mx * act)
+        if heal >= 1.0:
+            s.update(sleep=2.0, para=0.0, toxic=0, psn=0.0)
+        return
+    if s["setup"] < 0:  # the sleep it put the opponent in still runs: attack meanwhile
+        s["setup"] += 1
+    elif s["plan"] and s["setup"] < 1.0:  # its opening move, until it has worked
+        mid = s["plan"]
+        d = MOVEDATA[mid]
+        name = MOVES.get(mid, "")
+        acc = 1.0 if name in BOOSTS or d["effect"] == LIGHT_SCREEN else (d["accuracy"] / 100.0) ** s["risk"]
+        s["setup"] += acc * act
+        if s["setup"] < 1.0:
+            return
+        if name in BOOSTS:
+            k, f = BOOSTS[name]
+            s["boost"][k] = s["boost"].get(k, 1.0) * f
+            s["best"] = t["best"] = None
+        elif d["effect"] == LIGHT_SCREEN:
+            s["screen"], t["best"] = "spc", None
+        elif d["effect"] == SLEEP:
+            t["sleep"], s["best"] = SLEEP_TURNS * s["status"], None
+            s["sleeps"] = s.get("sleeps", 0) + 1
+            # once it wakes, put it to sleep again (or attack on, after the last)
+            s["setup"] = -t["sleep"] if s["sleeps"] < SLEEPS_PER_DUEL else 1.0
+        elif d["effect"] == PARALYZE:
+            t["para"] = s["status"]
+        elif d["effect"] == POISON:
+            if name == "Toxic":
+                t["toxic"] = 1
+            t["psn"] = s["status"]
+        elif d["effect"] == LEECH_SEED:
+            t["seeded"] = True
+        elif d["effect"] == CONFUSE:
+            t["conf"] = CONFUSED_TURNS * s["status"]
+        return
+    mid, dmg, acc, per = duel_attack(s, t)
+    if mid is None:
+        return
+    s["progress"] += acc * act / per
+    if s["progress"] >= 1.0 - 1e-9:
+        s["progress"] -= 1.0
+        dealt = min(t["hp"], dmg)
+        t["hp"] -= dealt
+        e = MOVEDATA[mid]["effect"]
+        if e == DRAIN:
+            s["hp"] = min(s["m"]["max_hp"], s["hp"] + dealt / 2.0)
+        elif e == RECOIL:
+            s["hp"] -= dealt / 4.0
+
+
+def duel_tick(s, t):
+    """poison and Leech Seed at the end of the turn"""
+    mx = s["m"]["max_hp"]
+    if s["toxic"]:
+        s["hp"] -= mx * s["toxic"] / 16.0 * s["psn"]
+        s["toxic"] += 1
+    elif s["psn"]:
+        s["hp"] -= mx / 16.0 * s["psn"]
+    if s["seeded"]:
+        drained = min(s["hp"], mx / 16.0)
+        s["hp"] -= drained
+        t["hp"] = min(t["m"]["max_hp"], t["hp"] + drained)
+
+
+def duel_when(s, t):
+    """when in the turn s's move takes effect: the share of the turn its accumulated accuracy needs to make a whole
+    hit (or a status move work), 1 when nothing lands this turn (asleep, healing, missing); ties go by speed"""
+    mx = s["m"]["max_hp"]
+    if s["sleep"] > 0 or (s["heals"] > 0 and s["hp"] < 0.4 * mx and any(
+            MOVES.get(mid) in HEALS for mid, pp in s["m"]["moves"] if mid and pp > 0)):
+        return 1.0
+    act = (1.0 - 0.25 * s["para"]) * (0.5 if s["conf"] > 0 else 1.0)
+    if s["plan"] and 0 <= s["setup"] < 1.0:
+        d = MOVEDATA[s["plan"]]
+        sure = MOVES.get(s["plan"]) in BOOSTS or d["effect"] == LIGHT_SCREEN
+        rate, need = (1.0 if sure else (d["accuracy"] / 100.0) ** s["risk"]) * act, 1.0 - s["setup"]
+    else:
+        mid, dmg, acc, per = duel_attack(s, t)
+        if mid is None:
+            return 1.0
+        rate, need = acc * act / per, 1.0 - s["progress"]
+    return need / rate if need <= rate + 1e-9 else 1.0
+
+
+def duel_play(m, o, plan_m, plan_o, risk, style=None):
+    style = style or STYLES["balanced"]
+    a, b = duel_side(m, plan_m, risk, style["status"]), duel_side(o, plan_o, 1.0)
+    for turn in range(DUEL_TURNS):
+        spd_a = m["spd"] * a["boost"].get("spd", 1.0) * (0.25 if a["para"] else 1.0)
+        spd_b = o["spd"] * b["boost"].get("spd", 1.0) * (0.25 if b["para"] else 1.0)
+        wa, wb = duel_when(a, b), duel_when(b, a)
+        order = (a, b) if wa < wb - 1e-9 or (abs(wa - wb) <= 1e-9 and spd_a > spd_b) else (b, a)
+        for s, t in (order, order[::-1]):
+            duel_act(s, t)
+            if t["hp"] <= 0 or s["hp"] <= 0:
+                break
+        if a["hp"] > 0 and b["hp"] > 0:
+            duel_tick(a, b)
+            duel_tick(b, a)
+        if a["hp"] <= 0 or b["hp"] <= 0:
+            break
+    ka, kb = a["hp"] / max(1, m["hp"]), b["hp"] / max(1, o["hp"])
+    if b["hp"] <= 0 and a["hp"] > 0:
+        return 30.0 + 100.0 * min(1.0, ka) + style["bulk"] * 50.0 * (min(1.0, ka) - 0.5)
+    if a["hp"] <= 0:
+        return -30.0 - 100.0 * max(0.0, kb)
+    return 30.0 * (ka - kb)  # nobody fell: a draw, by the HP left
+
+
+def duel(m, o, risk=1.0, style=None):
+    """who wins the one-on-one, and by how much (about -130 to 130), each side with its best opening (duel_plans)
+    against the other's best answer to it (DUEL_TURNS above). The single-turn estimate called Zapdos against Onix
+    (it cannot hurt it; Rock Slide takes a third of its HP a turn) only mildly unfavourable."""
     if trapped_by(o, m):
         return -130.0  # a faster trapper never lets it act
-    ours, theirs = duel_turns(m, o, risk), duel_turns(o, m)
-    if ours == float("inf") and theirs == float("inf"):
-        return 0.0
-    first = faster(m, o)
-    if ours < theirs or (ours == theirs and first):
-        taken = (ours - (1 if first else 0)) / theirs  # the share of our HP its hits take meanwhile
-        return 30.0 + 100.0 * max(0.0, 1.0 - taken)
-    dealt = (theirs - (0 if first else 1)) / ours if ours != float("inf") else 0.0
-    return -30.0 - 100.0 * max(0.0, 1.0 - dealt)
+    key = (id(m), id(o), risk, m["hp"], o["hp"], id(style))
+    hit = DUEL_CACHE.get(key)
+    if hit is not None and hit[0] is m and hit[1] is o:
+        return hit[2]
+    theirs = duel_plans(o, m)
+    v = max(min(duel_play(m, o, p, q, risk, style) for q in theirs) for p in duel_plans(m, o))
+    if len(DUEL_CACHE) > 200000:
+        DUEL_CACHE.clear()
+    DUEL_CACHE[key] = (m, o, v)
+    return v
 
 
-def team_matchup(m, o):
-    """a matchup for team decisions: who wins the one-on-one (duel, accuracy weighed harder)"""
-    return duel(m, o, TEAM_RISK)
+DUEL_CACHE = {}
+
+
+def entered(o, k):
+    """k after switching in against o: o's best expected hit already taken"""
+    hit = max((damage(o, k, mid) * hit_chance(o, k, mid) for mid, pp in o["moves"] if mid and pp > 0), default=0.0)
+    return dict(k, hp=max(1, int(k["hp"] - hit)))
+
+
+def team_matchup(m, o, style=None):
+    """a matchup for team decisions: who wins the one-on-one (duel, accuracy weighed harder), as the game's style
+    weighs it"""
+    st = STYLES[style or "balanced"]
+    return duel(m, o, st["risk"], st)
 
 
 def shared_danger(dz):
@@ -1296,7 +1519,8 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6, explore=False):
     if ALLOWED:
         opps = [dict(o, moves=[(mid, 10) for mid in ALLOWED.get(o["id"], ()) if MOVEDATA[mid]["power"] > 0]
                      or o["moves"]) for o in opps]
-    vs = {m["id"]: [team_matchup(m, o) for o in opps] for m in mons}  # each one's duel with each opponent
+    style = status.data.get("style")
+    vs = {m["id"]: [team_matchup(m, o, style) for o in opps] for m in mons}  # each one's duel with each opponent
     dz = {m["id"]: [danger(o, m) for o in opps] for m in mons}  # and each opponent's danger to it
     worst = max(1, len(opps) // 4)
 
@@ -1335,7 +1559,8 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6, explore=False):
         if team:
             a = answers(team)
             hardest = [opps[j]["species"] for j in sorted(range(len(opps)), key=lambda j: a[j])[:5]]
-        state = {"team_so_far": [{"name": m["species"], "types": types_text(m["types"])} for m in team],
+        state = {"team_style": STYLES[style or "balanced"]["text"],
+                 "team_so_far": [{"name": m["species"], "types": types_text(m["types"])} for m in team],
                  "opponents_the_team_has_no_good_answer_to": hardest, "picks_left": size - len(team)}
         k, lp, fp = brain.decide(status, "Which Pokemon gives this team an answer to the most opponents, especially the "
                                  "ones it cannot beat yet, with attacks it can rely on?", state, opts, values)
@@ -1369,7 +1594,8 @@ def choose_team(brain, status, order):
     # the weakest two (the opponent sends in three, likely the ones that beat ours). Choosing each one on its own
     # sent three Pokemon slower than a Ninetales with Fire Spin while a faster one waited on the bench.
     import itertools
-    vs = [[team_matchup(m, o) for o in opp] for m in own]
+    style = status.data.get("style")
+    vs = [[team_matchup(m, o, style) for o in opp] for m in own]
     dz = [[danger(o, m) for o in opp] for m in own]
 
     def trio_score(t):
@@ -1380,10 +1606,20 @@ def choose_team(brain, status, order):
         return sum(a) / len(a) + sum(a[:2]) / 2 - SHARED_WEIGHT * shared_danger([dz[i] for i in t])
 
     trio = max(itertools.combinations(range(len(own)), 3), key=trio_score)
-    # who goes first: Laya and the estimate. The opponent's lead cannot be foreseen (any of its six, 10-23% each),
-    # so a lead counts its two worst matchups as much as its average: Gengar and Haunter led against Misty for the
-    # best average and lost all 13 times to the Starmie she led with (Psychic)
-    values = [0.5 * sum(vs[i]) / len(opp) + 0.5 * sum(sorted(vs[i])[:2]) / 2 for i in trio]
+    # who goes first: Laya and the estimate. The opponent's lead cannot be foreseen (its choice weighs our team in a
+    # way the matchups do not predict), so against each of its six a lead either stays in or makes way for the best
+    # of the other two, which takes that opponent's hit on the way in; the lead counts its two worst such outcomes as
+    # much as the average. Gengar and Haunter led against Misty for the best average and lost all 13 times to her
+    # Starmie; Articuno led against Lt. Surge and lost 39 of 47: against his Raichu the only way out was Nidoking
+    # taking a Surf on the way in, while a Nidoking lead could make way for a fresh bird against his others.
+    def lead_outcomes(i):
+        out = []
+        for j, o in enumerate(opp):
+            way_out = max((team_matchup(entered(o, own[k]), o, style) for k in trio if k != i), default=-130.0)
+            out.append(max(vs[i][j], way_out))
+        return out
+
+    values = [(lambda v: 0.5 * sum(v) / len(v) + 0.5 * sum(sorted(v)[:2]) / 2)(lead_outcomes(i)) for i in trio]
     state = {"opponent_team": [{"name": o["species"], "level": o["level"], "types": types_text(o["types"])} for o in opp],
              "your_three": [{"name": own[i]["species"], "level": own[i]["level"], "types": types_text(own[i]["types"])}
                             for i in trio]}
@@ -1476,7 +1712,7 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
                 status.log("could not read the rental list: stopped")
                 status.set(phase="stopped: no rental list", done=True)
                 return
-            status.log("drafted team: %s" % ", ".join(SPECIES.get(t, "?") for t in team))
+            status.log("drafted team (%s): %s" % (status.get("style") or "balanced", ", ".join(SPECIES.get(t, "?") for t in team)))
             status.set(team=list(team))
             progress_tick = now
             continue
@@ -1705,6 +1941,9 @@ def main():
     ap.add_argument("--explore", type=int, default=1,
                     help="with --team draft and --games: this many games (the last ones) draft an experimental team: "
                          "a wider, looser shortlist that avoids what the other games took (default 1)")
+    ap.add_argument("--styles", default=",".join(STYLE_ORDER),
+                    help="with --team draft: the games' team styles in turn, from %s (default all of them; "
+                         "balanced: every game alike)" % ", ".join(STYLE_ORDER))
     ap.add_argument("--leader-lookahead", type=int, default=LEADER_DEPTH,
                     help="with --castle: turns looked ahead in gym leader and Elite Four battles (default %d)" % LEADER_DEPTH)
     ap.add_argument("--leaders-only", action="store_true",
@@ -1746,7 +1985,9 @@ def main():
     def start(index, sock, env, cmd, armed, jitter, name):
         gs = status.add_game(name)
         explore = team == "draft" and index >= args.games - args.explore  # the last games of a run draft boldly
-        gs.set(thumb=os.path.join(thumbs, "game%d.ppm" % index), goal=args.wins, explore=explore)
+        styles = [x.strip() for x in args.styles.split(",") if x.strip() in STYLES] or ["balanced"]
+        style = styles[index % len(styles)]
+        gs.set(thumb=os.path.join(thumbs, "game%d.ppm" % index), goal=args.wins, explore=explore, style=style)
         proc = []
 
         def body():
