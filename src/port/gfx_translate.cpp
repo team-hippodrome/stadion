@@ -39,7 +39,24 @@ uintptr_t gListSegs[16]; // see TranslateList: segment bases set inside the list
 std::mutex gLock;
 std::unordered_map<const void*, Gfx*> gCache;
 std::unordered_map<const void*, void*> gDescCache; // Port_ConvertDesc
+// Translated lists, vertices and matrices. When the cache is dropped the arena is retired, not freed: lists built
+// from it may still be queued for the renderer, so it is freed once a few frames have been rendered since
+// (Port_GfxFrameDone). Without this every flush kept a full copy of the scene (gigabytes within minutes in battle).
 std::deque<std::vector<uint8_t>> gArena;
+size_t gArenaBytes = 0;
+uint64_t gFramesDone = 0;
+std::deque<std::pair<uint64_t, std::deque<std::vector<uint8_t>>>> gRetired; // frame count when retired, arena
+constexpr uint64_t kRetireFrames = 4;           // rendered frames before a retired arena is freed
+constexpr size_t kArenaLimit = 32u << 20;       // vertices and matrices are translated on every use: retire when larger
+
+void RetireArena() {
+    gCache.clear();
+    gDescCache.clear();
+    if (gArena.empty()) return;
+    gRetired.emplace_back(gFramesDone, std::move(gArena));
+    gArena.clear();
+    gArenaBytes = 0;
+}
 
 inline uint32_t Be32(const uint8_t* p) {
     return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | p[3];
@@ -124,6 +141,7 @@ const void* ResolveRaw0(uint32_t addr, bool* resolved) {
 
 uint8_t* Alloc(size_t n) {
     gArena.emplace_back(n + 16);
+    gArenaBytes += n + 16;
     uint8_t* p = gArena.back().data();
     return (uint8_t*)(((uintptr_t)p + 15) & ~(uintptr_t)15);
 }
@@ -404,10 +422,15 @@ int Port_IsRawData(const void* p) {
 void Port_GfxFlushCache(void) {
     Port_InterpMapsChanged();
     std::lock_guard<std::mutex> g(gLock);
-    // Only the lookup table is dropped; translated lists may still be queued for the renderer, so the arena is kept
-    // (it grows slowly; reclaiming it needs a frame fence).
-    gCache.clear();
-    gDescCache.clear();
+    RetireArena();
+}
+
+// A frame was rendered (or only tracked): frees arenas retired long enough ago that no queued list uses them.
+void Port_GfxFrameDone(void) {
+    std::lock_guard<std::mutex> g(gLock);
+    gFramesDone++;
+    while (!gRetired.empty() && gRetired.front().first + kRetireFrames <= gFramesDone) gRetired.pop_front();
+    if (gArenaBytes > kArenaLimit) RetireArena();
 }
 
 } // extern "C"
