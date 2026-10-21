@@ -1034,6 +1034,7 @@ def attack_options(m):
     return "sure attacks: %s; risky attacks: %s" % (", ".join(sure) or "none", ", ".join(risky) or "none")
 
 
+TRAINER_BONUS = 15       # the castle's Round 2 trainers have about this much more in every stat than the rentals
 DRAFT_OPPONENTS = 0.6    # the share of the rental list (strongest by total stats) the draft prepares for
 DRAFT_POOL = 30          # the shortlist is drawn from this many of the most useful picks, weighted by their gain
 DRAFT_TEMPERATURE = 10.0  # gain units per factor e in that weighting (lower: the very best almost always)
@@ -1062,6 +1063,9 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
     # the whole list, power that flattens Caterpie and Magikarp looked like strength)
     total = lambda m: m["max_hp"] + m["atk"] + m["def"] + m["spd"] + m["spc"]
     opps = sorted(mons, key=lambda m: -total(m))[:max(size, int(len(mons) * DRAFT_OPPONENTS))]
+    # as the trainers field them (58 species compared: HP and speed about 15 higher; their Ninetales outruns the birds)
+    opps = [dict(o, hp=o["hp"] + TRAINER_BONUS, max_hp=o["max_hp"] + TRAINER_BONUS,
+                 **{k: o[k] + TRAINER_BONUS for k in ("atk", "def", "spd", "spc")}) for o in opps]
     vs = {m["id"]: [team_matchup(m, o) for o in opps] for m in mons}  # each one's duel with each opponent
     dz = {m["id"]: [danger(o, m) for o in opps] for m in mons}  # and each opponent's danger to it
     worst = max(1, len(opps) // 4)
