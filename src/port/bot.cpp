@@ -6,6 +6,7 @@
 //   press <buttons> <n>    -> hold the buttons (N64 bit mask) for n frames, then release them for 2; answers "ok <frame>"
 //   wait <n>               -> answers "ok <frame>" after n frames
 //   roster                 -> the rental list once it has loaded: one hex word per BattleMon, space-separated
+//   thumb <path>           -> answers "ok" at once; the next drawn frame is written to path as a small PPM
 // Not available on Windows (no unix sockets used there).
 #include <atomic>
 #include <chrono>
@@ -25,6 +26,7 @@
 
 extern "C" unsigned long long Port_ViTick(void);
 extern "C" void Port_NoteDecision(void);
+extern "C" void Port_RequestThumb(const char* path); // Engine.cpp
 
 namespace {
 std::mutex gLock;
@@ -149,6 +151,9 @@ void Serve(std::string path) {
             unsigned buttons = 0, n = 0;
             if (line == "state") {
                 reply = BuildState();
+            } else if (line.rfind("thumb ", 0) == 0) {
+                Port_RequestThumb(line.c_str() + 6);
+                reply = "ok\n";
             } else if (line == "roster") { // the rental list, one BattleMon per hex word (empty before it loads)
                 std::lock_guard<std::mutex> g(gLock);
                 for (size_t i = 0; i < gRoster.size(); i++) {

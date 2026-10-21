@@ -15,11 +15,13 @@ game, as usual). From the first team-order screen on the bot plays: it picks you
 battle, and presses through the screens between battles until --wins battles are won (8: a Stadium cup) or you close
 the game. After a lost battle it continues the cup (the game asks whether to retry).
 
-A status window (a local web page, opened in your browser) shows both Pokemon, the options with Laya's probabilities
-and every decision. --no-browser leaves it closed (http://127.0.0.1:8777/), --model picks another Laya checkpoint.
+A status page (http://127.0.0.1:8777/, tools/autoplay_dashboard.html) shows every game: a live picture (also of hidden
+games), the team with the game's own icons (from the ROM), both Pokemon in battle, the options with Laya's
+probabilities and every decision. It does not open by itself (a page left open picks up the next run); --browser
+opens it. --model picks another Laya checkpoint.
 The bot holds controller 1 only when it acts; you can still press buttons yourself.
 """
-import argparse, json, math, os, re, socket, subprocess, sys, threading, time, webbrowser
+import argparse, json, math, os, re, socket, struct, subprocess, sys, threading, time, webbrowser, zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -106,7 +108,7 @@ def effectiveness(move_type, defender_types):
 def runtime_mon(hexstr):
     """BattleMonRuntime (game/src/3D140.h): the Pokemon in battle"""
     b = bytes.fromhex(hexstr)
-    return {"species": SPECIES.get(b[0x0B], "#%d" % b[0x0B]), "hp": u16(b, 0x0C), "max_hp": u16(b, 0x28),
+    return {"species": SPECIES.get(b[0x0B], "#%d" % b[0x0B]), "id": b[0x0B], "hp": u16(b, 0x0C), "max_hp": u16(b, 0x28),
             "level": b[0x26], "types": [TYPES.get(b[0x1C], "?"), TYPES.get(b[0x1D], "?")],
             "moves": [(b[0x1F + i], b[0x32 + i] & 0x3F) for i in range(4)], "status": b[0x15],
             "atk": u16(b, 0x2A), "def": u16(b, 0x2C), "spd": u16(b, 0x2E), "spc": u16(b, 0x30)}
@@ -116,7 +118,7 @@ def party_mon(hexstr):
     """BattleMon (game/src/game_state.h): a party member"""
     b = bytes.fromhex(hexstr)
     # the species is the first byte (a registered team keeps a flag in the second)
-    return {"species": SPECIES.get(b[0], "#%d" % b[0]), "hp": u16(b, 0x02), "max_hp": u16(b, 0x26),
+    return {"species": SPECIES.get(b[0], "#%d" % b[0]), "id": b[0], "hp": u16(b, 0x02), "max_hp": u16(b, 0x26),
             "level": b[0x04], "types": [TYPES.get(b[0x06], "?"), TYPES.get(b[0x07], "?")],
             "moves": [(b[0x09 + i], b[0x20 + i] & 0x3F) for i in range(4)], "status": b[0x05],
             "atk": u16(b, 0x28), "def": u16(b, 0x2A), "spd": u16(b, 0x2C), "spc": u16(b, 0x2E)}
@@ -159,6 +161,10 @@ class Game:
     def roster(self):
         return self.req("roster").split()
 
+    def thumb(self, path):
+        """asks for a small picture of the next frame (written to path by the game, for the status page)"""
+        self.req("thumb " + path)
+
 
 class Status:
     """What the status window shows: one entry per game (served as JSON to the page)"""
@@ -181,8 +187,9 @@ class Status:
 class GameStatus:
     def __init__(self, status, index, name):
         self.status, self.index = status, index
-        self.data = {"name": name, "phase": "starting", "own": None, "opp": None, "bench": [], "options": [],
-                     "log": [], "wins": 0, "losses": 0, "battles": 0, "done": False}
+        self.data = {"name": name, "phase": "starting", "own": None, "opp": None, "party": [], "options": [],
+                     "log": [], "wins": 0, "losses": 0, "battles": 0, "done": False, "team": [], "trio": [],
+                     "opp_team": [], "opp_seen": {}, "history": [], "thumb": None, "goal": 0}
 
     def set(self, **kw):
         with self.status.lock:
@@ -202,54 +209,84 @@ class GameStatus:
         print("[%s]     %s" % (self.data["name"], text), flush=True)
 
 
-PAGE = """<!doctype html><html><head><meta charset="utf-8"><title>Autoplay</title><style>
-:root{--bg:#10141b;--card:#1a2130;--text:#e6e9ef;--dim:#8b93a3;--accent:#4c8dff;--good:#2ea043;--bad:#e5484d}
-body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 -apple-system,system-ui,sans-serif}
-main{max-width:1100px;margin:0 auto;padding:16px;display:grid;gap:12px;grid-template-columns:1fr 1fr}
-section{background:var(--card);border-radius:10px;padding:12px 14px;min-width:0}
-h2{margin:0 0 8px;font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
-.wide{grid-column:1/-1}.mon{font-size:18px;font-weight:600}.dim{color:var(--dim)}
-.bar{height:8px;background:#2a3344;border-radius:4px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%}
-table{width:100%;border-collapse:collapse}td,th{padding:3px 6px;text-align:left}th{color:var(--dim);font-weight:500}
-td.p{width:35%}.pb{height:10px;background:var(--accent);border-radius:3px}.pick td{color:#fff;font-weight:600}
-#games tr{cursor:pointer}#games tr.sel td{background:#243049}.won{color:var(--good)}.lost{color:var(--bad)}
-#log{max-height:320px;overflow:auto;font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap}
-@media(max-width:700px){main{grid-template-columns:1fr}}
-</style></head><body><main>
-<section class="wide"><h2>Games</h2><div id="sum" class="dim"></div><table id="games"></table></section>
-<section><h2>Your Pokemon</h2><div id="own"></div></section>
-<section><h2>Opponent</h2><div id="opp"></div></section>
-<section class="wide"><h2>Last decision</h2><table id="opts"></table></section>
-<section class="wide"><h2>Bench</h2><div id="bench"></div></section>
-<section class="wide"><h2>Decisions</h2><div id="log"></div></section>
-</main><script>
-let sel=0;function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
-function mon(m){if(!m)return '<span class="dim">-</span>';const p=m.max_hp?Math.round(100*m.hp/m.max_hp):0;
-return `<div class="mon">${esc(m.species)} <span class="dim">L${m.level}</span></div><div class="dim">${esc(m.types)}</div>
-<div class="bar"><i style="width:${p}%;background:${p<25?'var(--bad)':'var(--good)'}"></i></div><div>${m.hp} / ${m.max_hp} HP</div>
-${(m.moves||[]).map(x=>`<div class="dim">${esc(x)}</div>`).join('')}`}
-async function tick(){try{const d=await (await fetch('state.json',{cache:'no-store'})).json();const gs=d.games||[];
-const w=gs.reduce((a,g)=>a+g.wins,0),l=gs.reduce((a,g)=>a+g.losses,0),done=gs.filter(g=>g.done).length;
-document.getElementById('sum').textContent=`${gs.length} games · ${done} finished · battles won ${w} · lost ${l}`;
-document.getElementById('games').innerHTML='<tr><th>game</th><th>phase</th><th>won</th><th>lost</th><th>last decision</th></tr>'+
-gs.map((g,i)=>`<tr class="${i==sel?'sel':''}" onclick="sel=${i};tick()"><td>${esc(g.name)}</td><td>${esc(g.phase)}</td>
-<td class="won">${g.wins}</td><td class="lost">${g.losses}</td><td class="dim">${esc((g.log[0]||'').slice(9))}</td></tr>`).join('');
-const g=gs[sel]||{};document.getElementById('own').innerHTML=mon(g.own);document.getElementById('opp').innerHTML=mon(g.opp);
-document.getElementById('opts').innerHTML='<tr><th>option</th><th>final</th><th></th><th>Laya</th><th>estimate</th></tr>'+
-(g.options||[]).map(o=>`<tr class="${o.picked?'pick':''}"><td>${o.picked?'▶ ':''}${esc(o.name)}</td>
-<td class="p"><div class="pb" style="width:${Math.round(o.p*100)}%"></div></td><td>${(o.p*100).toFixed(1)}%</td>
-<td>${(o.laya*100).toFixed(1)}%</td><td>${(o.prior*100).toFixed(1)}%</td></tr>`).join('');
-document.getElementById('bench').innerHTML=(g.bench||[]).map(b=>`<div>${esc(b)}</div>`).join('')||'<span class="dim">-</span>';
-document.getElementById('log').textContent=(g.log||[]).join('\\n')}catch(e){}}
-tick();setInterval(tick,700)</script></body></html>"""
+PAGE = os.path.join(ROOT, "tools", "autoplay_dashboard.html")
+ICONS_AT = 0x820000  # the ROM's Pokemon icons (game/yamls/us/rom.yaml pokemon_icons): 40x40 RGBA5551, one per species
 
 
-def serve_status(status, port):
+def png_bytes(w, h, rgba):
+    rows = b"".join(b"\0" + rgba[y * w * 4:(y + 1) * w * 4] for y in range(h))
+    chunk = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)) +
+            chunk(b"IDAT", zlib.compress(rows, 1)) + chunk(b"IEND", b""))
+
+
+def rom_icon(rom, species):
+    """the game's own icon of a species (1-151) as PNG, or None"""
+    if not rom or not 1 <= species <= 151:
+        return None
+    with open(rom, "rb") as f:
+        f.seek(ICONS_AT + 16 * species)
+        off, size = struct.unpack(">II", f.read(8))
+        if size != 40 * 40 * 2:
+            return None
+        f.seek(ICONS_AT + off)
+        data = f.read(size)
+    out = bytearray()
+    for k in range(0, len(data), 2):
+        v = (data[k] << 8) | data[k + 1]
+        out += bytes((((v >> 11) & 31) * 255 // 31, ((v >> 6) & 31) * 255 // 31, ((v >> 1) & 31) * 255 // 31,
+                      255 if v & 1 else 0))
+    return png_bytes(40, 40, bytes(out))
+
+
+def ppm_png(path):
+    """a game's thumbnail (PPM from the game, Port_RequestThumb) as PNG, or None"""
+    try:
+        data = open(path, "rb").read()
+    except OSError:
+        return None
+    parts = data.split(b"\n", 3)
+    if len(parts) < 4 or parts[0] != b"P6":
+        return None
+    w, h = (int(x) for x in parts[1].split())
+    rgb = parts[3][:w * h * 3]
+    if len(rgb) < w * h * 3:
+        return None
+    rgba = bytearray(w * h * 4)
+    rgba[0::4], rgba[1::4], rgba[2::4] = rgb[0::3], rgb[1::3], rgb[2::3]
+    rgba[3::4] = b"\xff" * (w * h)
+    return png_bytes(w, h, bytes(rgba))
+
+
+def serve_status(status, port, rom=None):
+    """the status page: / (tools/autoplay_dashboard.html), /state.json, /icon/<species>.png, /thumb/<game>.png"""
+    icons = {}
+
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            body = status.json().encode() if self.path.startswith("/state.json") else PAGE.encode()
+            path = self.path.split("?")[0]
+            body, kind = None, "text/html"
+            if path == "/state.json":
+                body, kind = status.json().encode(), "application/json"
+            elif path.startswith("/icon/") and path.endswith(".png"):
+                n = int(path[6:-4]) if path[6:-4].isdigit() else 0
+                if n not in icons:
+                    icons[n] = rom_icon(rom, n)
+                body, kind = icons[n], "image/png"
+            elif path.startswith("/thumb/") and path.endswith(".png"):
+                i = int(path[7:-4]) if path[7:-4].isdigit() else -1
+                with status.lock:
+                    p = status.games[i].get("thumb") if 0 <= i < len(status.games) else None
+                body, kind = (ppm_png(p) if p else None), "image/png"
+            elif path in ("/", "/index.html"):
+                body = open(PAGE, "rb").read()
+            if body is None:
+                self.send_response(404)
+                self.end_headers()
+                return
             self.send_response(200)
-            self.send_header("Content-Type", "application/json" if self.path.startswith("/state.json") else "text/html")
+            self.send_header("Content-Type", kind)
+            self.send_header("Cache-Control", "no-store" if kind != "image/png" or "/thumb/" in path else "max-age=3600")
             self.end_headers()
             self.wfile.write(body)
 
@@ -442,10 +479,17 @@ def describe_move(own, opp, mid, pp):
     return name, what
 
 
+STATUS_TEXT = lambda st: ("SLP" if st & 7 else "PSN" if st & 0x08 else "BRN" if st & 0x10 else "FRZ" if st & 0x20 else
+                          "PAR" if st & 0x40 else "")
+
+
 def mon_view(m):
-    return {"species": m["species"], "level": m["level"], "hp": m["hp"], "max_hp": m["max_hp"],
-            "types": types_text(m["types"]),
-            "moves": ["%s (%d PP)" % (MOVES.get(mid, "?"), pp) for mid, pp in m["moves"] if mid]}
+    """a Pokemon for the status page"""
+    return {"species": m["species"], "id": m.get("id", 0), "level": m["level"], "hp": m["hp"], "max_hp": m["max_hp"],
+            "types": types_text(m["types"]), "status": STATUS_TEXT(m.get("status", 0)), "spd": m.get("spd", 0),
+            "moves": [{"name": MOVES.get(mid, "?"), "pp": pp, "type": MOVEDATA.get(mid, {}).get("type", "?"),
+                       "power": MOVEDATA.get(mid, {}).get("power", 0), "acc": MOVEDATA.get(mid, {}).get("accuracy", 0)}
+                      for mid, pp in m["moves"] if mid]}
 
 
 def battle_state(own, opp, party, active):
@@ -700,9 +744,10 @@ def play_turn(game, brain, status, choice):
     own, opp = runtime_mon(choice["own"]), runtime_mon(choice["opp"])
     party = [party_mon(p) for p in choice["party"]]
     active = choice["active"]
-    status.set(own=mon_view(own), opp=mon_view(opp),
-               bench=["%s %d/%d HP%s" % (p["species"], p["hp"], p["max_hp"], " (in battle)" if i == active else "")
-                      for i, p in enumerate(party)])
+    seen = status.data.setdefault("opp_seen", {})  # the opponent's Pokemon met in this battle: HP share left
+    seen[str(opp["id"])] = round(opp["hp"] / max(1, opp["max_hp"]), 3)
+    status.set(own=mon_view(own), opp=mon_view(opp), opp_seen=dict(seen),
+               party=[dict(mon_view(p), active=i == active) for i, p in enumerate(party)])
     state = battle_state(own, opp, party, active)
     slot_buttons = PARTY3_BUTTON if len(party) <= 3 else PARTY6_BUTTON
     bench = [i for i, p in enumerate(party) if i != active and p["hp"] > 0]
@@ -1007,6 +1052,8 @@ def choose_team(brain, status, order):
     k, lp, fp = brain.decide(status, "Which of your three Pokemon should lead against the opponent's team (%s)?" %
                              ", ".join(o["species"] for o in opp), state, opts, values)
     picks = [trio[k]] + sorted((i for i in trio if i != trio[k]), key=lambda i: -sum(vs[i]))
+    status.set(team=[m["id"] for m in own], trio=[own[i]["id"] for i in picks], opp_team=[o["id"] for o in opp],
+               opp_seen={}, party=[])
     status.log("team vs %s: %s" % (", ".join(o["species"] for o in opp),
                                    ", ".join(own[i]["species"] for i in picks)))
     return picks
@@ -1046,7 +1093,11 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
     order_seen_since = {}
     registered = False
     rejected = set()
+    last_thumb = 0.0
     while status.get("wins") < wins:
+        if status.get("thumb") and time.time() - last_thumb > 1.0:  # a picture for the status page, once a second
+            game.thumb(status.get("thumb"))
+            last_thumb = time.time()
         st = game.state()
         now = st["tick"]
         choice, order = st.get("choice"), st.get("order")
@@ -1068,6 +1119,7 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
                 status.set(phase="stopped: no rental list", done=True)
                 return
             status.log("drafted team: %s" % ", ".join(SPECIES.get(t, "?") for t in team))
+            status.set(team=list(team))
             progress_tick = now
             continue
         if team and st.get("rental_confirm_age", 99) <= 2:  # the team is complete: OK / OK to Register / ...
@@ -1207,6 +1259,8 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             # the game's own verdict (1/2: side 0/1 won, 3: draw; BattleScene_DetermineWinner and the knock-out rule)
             result, side = st.get("result", 0), st.get("side", 0)
             won = result in (1, 2) and result - 1 == side
+            with status.status.lock:
+                status.data["history"].append({"won": won, "opp": status.data.get("opp_team", [])})
             status.set(battles=status.get("battles") + 1)
             if won:
                 status.set(wins=status.get("wins") + 1)
@@ -1220,7 +1274,7 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
                                done=True)
                     return
                 status.log("battle lost%s, continuing" % (" (draw)" if result == 3 else ""))
-            status.set(own=None, opp=None, options=[], bench=[], last_switch={})
+            status.set(own=None, opp=None, options=[], party=[], last_switch={})
         # results, cup progress, dialogs, retry prompts: advance (never right after a team or rental screen, where A
         # would pick a Pokemon)
         if armed and now - last_order_tick > 120 and now - last_rental_tick > 60:
@@ -1249,7 +1303,8 @@ def main():
     ap.add_argument("--rom", help="Stadium ROM (default: the launcher's choice; the launcher shows first)")
     ap.add_argument("--model", default="convaiinnovations/laya", help="Laya checkpoint")
     ap.add_argument("--port", type=int, default=8777, help="status window port")
-    ap.add_argument("--no-browser", action="store_true", help="do not open the status window")
+    ap.add_argument("--browser", action="store_true", help="open the status page in the browser")
+    ap.add_argument("--no-browser", action="store_true", help=argparse.SUPPRESS)  # the default now (kept for scripts)
     ap.add_argument("--attach", action="store_true", help="use a game already started with PORT_BOT=" + SOCK)
     ap.add_argument("--armed", action="store_true", help="play right away (e.g. attached in the middle of a cup)")
     ap.add_argument("--games", type=int, default=0,
@@ -1280,16 +1335,20 @@ def main():
     picks = args.pick if args.pick in ("random", "smart") else [int(x) - 1 for x in args.pick.split(",")]
 
     status = Status()
-    url = serve_status(status, args.port)
-    print("status window: " + url, flush=True)
-    if not args.no_browser:
+    url = serve_status(status, args.port, args.rom)
+    print("status page: " + url, flush=True)
+    if args.browser:
         webbrowser.open(url)
     brain = Brain(args.model)
     procs, threads = [], []
     exe = os.path.abspath(args.exe)
 
+    import tempfile
+    thumbs = tempfile.mkdtemp(prefix="autoplay_thumbs_")  # each game's latest picture for the status page
+
     def start(index, sock, env, cmd, armed, jitter, name):
         gs = status.add_game(name)
+        gs.set(thumb=os.path.join(thumbs, "game%d.ppm" % index), goal=args.wins)
         proc = []
 
         def body():
@@ -1376,6 +1435,8 @@ def main():
         for p in procs:
             if p.poll() is None:
                 p.terminate()
+        import shutil
+        shutil.rmtree(thumbs, ignore_errors=True)
 
 
 if __name__ == "__main__":

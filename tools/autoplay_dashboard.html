@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autoplay</title>
+<!-- The autoplay bot's status page (served by tools/autoplay.py): every game's live picture, team, battle and the
+     bot's decisions. Reads state.json, icon/<species>.png (the ROM's icons) and thumb/<game>.png. -->
+<style>
+:root {
+  --bg: #0e1218; --panel: #161c25; --panel2: #1d2531; --line: #2a3442; --text: #e7ebf1; --dim: #8a94a6;
+  --accent: #5b9dff; --good: #3fb950; --bad: #f2555a; --warn: #e3b341;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+header { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+header h1 { margin: 0; font-size: 18px; letter-spacing: .02em; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; color: var(--dim); font-size: 12px; }
+.chip b { color: var(--text); font-weight: 600; }
+main { padding: 16px 20px 40px; display: grid; gap: 16px; max-width: 1500px; margin: 0 auto; }
+h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-width: 0; }
+
+/* game cards */
+#games { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer; transition: border-color .15s, transform .15s; }
+.card:hover { border-color: #3b4a60; }
+.card.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.screen { position: relative; aspect-ratio: 4 / 3; background: #05070a; display: grid; place-items: center; }
+.screen img { width: 100%; height: 100%; object-fit: contain; image-rendering: auto; display: block; }
+.screen .none { position: absolute; color: #3a4556; font-size: 12px; }
+.screen img:not([src]) { display: none; }
+.screen img[src] ~ .none { display: none; }
+.badge { position: absolute; top: 8px; left: 8px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(10,14,20,.8); border: 1px solid var(--line); }
+.badge.live { color: var(--good); } .badge.done { color: var(--dim); } .badge.stop { color: var(--bad); }
+.score { position: absolute; top: 8px; right: 8px; font: 600 12px ui-monospace, SFMono-Regular, monospace; padding: 2px 8px; border-radius: 999px; background: rgba(10,14,20,.8); border: 1px solid var(--line); }
+.cardbody { padding: 10px 12px 12px; display: grid; gap: 8px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.name { font-weight: 600; }
+.phase { color: var(--dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.track { display: flex; gap: 3px; }
+.track span { flex: 1; height: 6px; border-radius: 2px; background: #283241; }
+.track span.on { background: var(--accent); } .track span.e4 { flex: 1.25; } .track span.e4.on { background: #b98cff; }
+.dots { display: flex; flex-wrap: wrap; gap: 3px; min-height: 8px; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+.dots i.l { background: var(--bad); }
+.team { display: flex; gap: 4px; }
+.icon { width: 36px; height: 36px; image-rendering: pixelated; border-radius: 8px; background: var(--panel2); border: 1px solid transparent; }
+.icon.trio { border-color: var(--accent); background: #1f2c44; }
+.icon.out { filter: grayscale(1) brightness(.5); }
+
+/* battle */
+#detail { display: grid; gap: 16px; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.vs { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: start; }
+.vs .mid { align-self: center; color: var(--dim); font-weight: 700; }
+.mon { background: var(--panel2); border-radius: 10px; padding: 12px; display: grid; gap: 6px; min-width: 0; }
+.monhead { display: flex; gap: 10px; align-items: center; }
+.monhead img { width: 64px; height: 64px; image-rendering: pixelated; }
+.monname { font-size: 17px; font-weight: 650; }
+.types { display: flex; gap: 4px; flex-wrap: wrap; }
+.type { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 1px 6px; border-radius: 4px; color: #fff; }
+.hp { height: 8px; border-radius: 4px; background: #2a3442; overflow: hidden; }
+.hp i { display: block; height: 100%; border-radius: 4px; }
+.small { font-size: 12px; color: var(--dim); }
+.st { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: #463a1a; color: var(--warn); margin-left: 6px; }
+.moves { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px; }
+.move { font-size: 12px; padding: 3px 7px; border-radius: 6px; background: #0f141b; border-left: 3px solid #555; min-width: 0; }
+.move b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.move span { display: block; color: var(--dim); font-size: 11px; }
+.unseen { opacity: .35; }
+.sides { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.slot { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.slot .icon { width: 32px; height: 32px; }
+.slot .grow { flex: 1; min-width: 0; }
+.slot.act .name { color: var(--accent); }
+#opts .opt { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); }
+#opts .opt:last-child { border-bottom: 0; }
+#opts .opt.pick .on { color: #fff; font-weight: 650; }
+.bars { display: grid; gap: 2px; }
+.bars i { display: block; height: 6px; border-radius: 3px; }
+.num { font: 12px ui-monospace, SFMono-Regular, monospace; text-align: right; color: var(--dim); }
+.legend { display: flex; gap: 12px; font-size: 11px; color: var(--dim); margin-bottom: 6px; }
+.legend i { display: inline-block; width: 10px; height: 6px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+#log { max-height: 360px; overflow: auto; font: 12px/1.6 ui-monospace, SFMono-Regular, monospace; color: #c5ccd8; }
+#log div:nth-child(odd) { background: rgba(255,255,255,.02); }
+.empty { color: var(--dim); font-size: 13px; padding: 8px 0; }
+@media (max-width: 900px) { #detail { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { main, header { padding-left: 16px; padding-right: 16px; } .vs { grid-template-columns: 1fr; } .vs .mid { display: none; } .sides { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header><h1>Autoplay</h1><div class="chips" id="sum"></div></header>
+<main>
+  <section id="games"></section>
+  <section id="detail">
+    <div class="panel">
+      <h2 id="battletitle">Battle</h2>
+      <div id="battle"></div>
+      <div class="sides">
+        <div><h2>Your three</h2><div id="party"></div></div>
+        <div><h2>Opponent's team</h2><div id="oppteam"></div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Last decision</h2>
+      <div class="legend"><span><i style="background:var(--accent)"></i>final</span><span><i style="background:#b98cff"></i>Laya</span><span><i style="background:#6b7a90"></i>estimate</span></div>
+      <div id="opts"></div>
+    </div>
+  </section>
+  <section class="panel"><h2>Decisions</h2><div id="log"></div></section>
+</main>
+<script>
+const TYPE = {Normal:'#9a9a7c', Fire:'#e2733a', Water:'#4f86e8', Electric:'#e0b528', Grass:'#5fae45', Ice:'#62c3c3',
+  Fighting:'#b8352f', Poison:'#9b4a9b', Ground:'#c9a24f', Flying:'#8f7fe0', Psychic:'#e5507e', Bug:'#9aaa25',
+  Rock:'#a9923a', Ghost:'#6a568f', Dragon:'#6c3fe6'};
+let sel = 0, state = {games: []};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const icon = (id, cls = '') => id ? `<img class="icon ${cls}" src="icon/${id}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : '';
+const hpColor = f => f > .5 ? 'var(--good)' : f > .2 ? 'var(--warn)' : 'var(--bad)';
+const hpBar = f => `<div class="hp"><i style="width:${Math.max(0, Math.min(100, f * 100))}%;background:${hpColor(f)}"></i></div>`;
+const types = t => (t || '').split('/').map(x => `<span class="type" style="background:${TYPE[x] || '#555'}">${esc(x)}</span>`).join('');
+
+function track(g) {
+  if (g.goal !== 37) {  // not a whole castle: a plain bar
+    const f = g.goal ? g.wins / g.goal : 0;
+    return `<div class="hp"><i style="width:${Math.min(100, f * 100)}%;background:var(--accent)"></i></div>`;
+  }
+  let h = '';  // eight gyms of four battles, then the Elite Four and the champion (five)
+  for (let k = 0; k < 8; k++) h += `<span class="${g.wins >= 4 * (k + 1) ? 'on' : ''}" title="gym ${k + 1}"></span>`;
+  h += `<span class="e4 ${g.wins >= 37 ? 'on' : ''}" title="Elite Four"></span>`;
+  return `<div class="track">${h}</div>`;
+}
+
+function cardShell(i) {  // built once per game; only its text parts change afterwards (no flicker)
+  const el = document.createElement('article');
+  el.className = 'card';
+  el.dataset.i = i;
+  el.innerHTML = `<div class="screen"><img data-thumb="${i}" alt=""><span class="none">no picture yet</span>
+    <span class="badge"></span><span class="score"></span></div><div class="cardbody"></div>`;
+  return el;
+}
+
+function updateCard(el, g, i) {
+  const live = !g.done, stopped = /stopped|stuck|error|closed/.test(g.phase || '');
+  el.classList.toggle('sel', i === sel);
+  const badge = el.querySelector('.badge');
+  badge.className = 'badge ' + (live ? 'live' : stopped ? 'stop' : 'done');
+  badge.textContent = live ? '● live' : stopped ? 'stopped' : 'done';
+  el.querySelector('.score').innerHTML = `<span style="color:var(--good)">${g.wins}</span> – <span style="color:var(--bad)">${g.losses}</span>`;
+  const out = new Set((g.party || []).filter(p => p.hp <= 0).map(p => p.id));
+  const trio = new Set(g.trio || []);
+  const team = (g.team || []).map(id => icon(id, (trio.has(id) ? 'trio ' : '') + (out.has(id) ? 'out' : ''))).join('');
+  const dots = (g.history || []).slice(-60).map(b => `<i class="${b.won ? '' : 'l'}"></i>`).join('');
+  const html = `<div class="row"><span class="name">${esc(g.name)}</span><span class="small">${g.goal ? g.wins + ' / ' + g.goal : ''}</span></div>
+      <div class="phase" title="${esc(g.phase)}">${esc(g.phase)}</div>
+      ${track(g)}
+      <div class="dots" title="battles: won (green), lost (red)">${dots}</div>
+      <div class="team">${team || '<span class="small">team not chosen yet</span>'}</div>`;
+  const body = el.querySelector('.cardbody');
+  if (body.dataset.html !== html) { body.innerHTML = html; body.dataset.html = html; }  // icons are not reloaded
+}
+
+function monHtml(m, mine) {
+  if (!m) return '<div class="mon"><div class="empty">no battle</div></div>';
+  const f = m.max_hp ? m.hp / m.max_hp : 0;
+  const moves = mine ? `<div class="moves">${(m.moves || []).map(x =>
+      `<div class="move" style="border-left-color:${TYPE[x.type] || '#555'}"><b>${esc(x.name)}</b><span>${x.power ? 'power ' + x.power + ' · ' : ''}${x.acc}% · ${x.pp} PP</span></div>`).join('')}</div>`
+    : `<div class="small">${(m.moves || []).map(x => esc(x.name)).join(' · ')}</div>`;
+  return `<div class="mon"><div class="monhead">${m.id ? `<img src="icon/${m.id}.png" alt="">` : ''}<div>
+      <div class="monname">${esc(m.species)} <span class="small">L${m.level}</span>${m.status ? `<span class="st">${m.status}</span>` : ''}</div>
+      <div class="types">${types(m.types)}</div></div></div>
+    ${hpBar(f)}<div class="row small"><span>${m.hp} / ${m.max_hp} HP</span><span>speed ${m.spd}</span></div>${moves}</div>`;
+}
+
+function renderDetail() {
+  const g = state.games[sel];
+  if (!g) return;
+  $('battletitle').textContent = `Battle · ${g.name}`;
+  $('battle').innerHTML = `<div class="vs">${monHtml(g.own, true)}<div class="mid">VS</div>${monHtml(g.opp, false)}</div>`;
+  $('party').innerHTML = (g.party || []).map(p => `<div class="slot ${p.active ? 'act' : ''}">${icon(p.id, p.hp <= 0 ? 'out' : '')}
+      <div class="grow"><div class="row"><span class="name">${esc(p.species)}${p.status ? `<span class="st">${p.status}</span>` : ''}</span><span class="small">${p.hp}/${p.max_hp}</span></div>${hpBar(p.max_hp ? p.hp / p.max_hp : 0)}</div></div>`).join('')
+    || '<div class="empty">between battles</div>';
+  const seen = g.opp_seen || {};
+  $('oppteam').innerHTML = (g.opp_team || []).map(id => {
+    const f = seen[id];
+    return `<div class="slot ${g.opp && g.opp.id === id ? 'act' : ''} ${f === undefined ? 'unseen' : ''}" title="${f === undefined ? 'not met in this battle yet' : ''}">
+      ${icon(id, f === 0 ? 'out' : '')}<div class="grow">${f === undefined ? '' : hpBar(f)}</div></div>`;
+  }).join('') || '<div class="empty">unknown</div>';
+  $('opts').innerHTML = (g.options || []).map(o => `<div class="opt ${o.picked ? 'pick' : ''}"><div>
+      <div class="on">${o.picked ? '▶ ' : ''}${esc(o.name)}</div><div class="bars">
+      <i style="width:${o.p * 100}%;background:var(--accent)"></i><i style="width:${o.laya * 100}%;background:#b98cff"></i><i style="width:${o.prior * 100}%;background:#6b7a90"></i></div></div>
+      <div class="num">${(o.p * 100).toFixed(0)}%<br>${(o.laya * 100).toFixed(0)} · ${(o.prior * 100).toFixed(0)}</div></div>`).join('')
+    || '<div class="empty">no decision yet</div>';
+  $('log').innerHTML = (g.log || []).map(l => `<div>${esc(l)}</div>`).join('');
+}
+
+function render() {
+  const gs = state.games || [];
+  const w = gs.reduce((a, g) => a + g.wins, 0), l = gs.reduce((a, g) => a + g.losses, 0);
+  const live = gs.filter(g => !g.done).length, best = gs.reduce((a, g) => Math.max(a, g.wins), 0);
+  $('sum').innerHTML = `<span class="chip"><b>${gs.length}</b> games</span><span class="chip"><b>${live}</b> running</span>
+    <span class="chip">won <b>${w}</b> · lost <b>${l}</b></span><span class="chip">best <b>${best}</b> wins</span>`;
+  const cards = $('games');
+  while (cards.children.length < gs.length) cards.appendChild(cardShell(cards.children.length));
+  while (cards.children.length > gs.length) cards.lastElementChild.remove();
+  gs.forEach((g, i) => updateCard(cards.children[i], g, i));
+  renderDetail();
+}
+
+$('games').addEventListener('click', e => {
+  const c = e.target.closest('.card');
+  if (c) { sel = +c.dataset.i; render(); }
+});
+
+async function poll() {
+  try { state = await (await fetch('state.json', {cache: 'no-store'})).json(); render(); } catch (e) {}
+  setTimeout(poll, 700);
+}
+
+function thumbs() {  // one picture request per game at a time (a slow one is not stacked up)
+  document.querySelectorAll('img[data-thumb]').forEach(img => {
+    if (img.dataset.busy) return;
+    img.dataset.busy = 1;
+    const next = new Image();
+    next.onload = () => { img.src = next.src; delete img.dataset.busy; };
+    next.onerror = () => { delete img.dataset.busy; };
+    next.src = `thumb/${img.dataset.thumb}.png?t=${Date.now()}`;
+  });
+  setTimeout(thumbs, 1000);
+}
+poll(); thumbs();
+</script>
+</body>
+</html>

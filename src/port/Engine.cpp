@@ -27,6 +27,8 @@
 #include <unistd.h>
 #include <chrono>
 #include <SDL3/SDL.h>
+#include <mutex>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -311,12 +313,59 @@ static void ValidateList(const Gfx* g, int depth, const char* path) {
     }
 }
 
+// Autoplay dashboard (bot.cpp "thumb <path>"): the next presented frame, shrunk to kThumbW pixels wide, is written
+// to the path as a PPM (through a temporary file, so a reader never sees half of it). Works with hidden windows.
+namespace {
+std::mutex gThumbLock;
+std::string gThumbPath; // empty: no picture wanted
+constexpr int kThumbW = 320;
+}
+
+extern "C" void Port_RequestThumb(const char* path) {
+    std::lock_guard<std::mutex> g(gThumbLock);
+    gThumbPath = path;
+}
+
+static void WriteThumb(const std::string& path, const std::vector<uint16_t>& buf, int w, int h) {
+    const bool full = gPortScreenW == (uint32_t)w && gPortScreenH == (uint32_t)h && gPortScreenBgra.size() == buf.size() * 4;
+    const int tw = std::min(kThumbW, w), th = std::max(1, h * tw / w);
+    std::string tmp = path + ".tmp";
+    FILE* f = fopen(tmp.c_str(), "wb");
+    if (!f) return;
+    fprintf(f, "P6\n%d %d\n255\n", tw, th);
+    std::vector<uint8_t> row((size_t)tw * 3);
+    for (int y = 0; y < th; y++) {
+        const int sy = y * h / th;
+        for (int x = 0; x < tw; x++) {
+            const size_t i = (size_t)sy * w + (size_t)(x * w / tw);
+            if (full) {
+                row[x * 3] = gPortScreenBgra[i * 4 + 2];
+                row[x * 3 + 1] = gPortScreenBgra[i * 4 + 1];
+                row[x * 3 + 2] = gPortScreenBgra[i * 4];
+            } else {
+                const uint16_t v = buf[i];
+                row[x * 3] = (uint8_t)(((v >> 11) & 31) * 255 / 31);
+                row[x * 3 + 1] = (uint8_t)(((v >> 6) & 31) * 255 / 31);
+                row[x * 3 + 2] = (uint8_t)(((v >> 1) & 31) * 255 / 31);
+            }
+        }
+        fwrite(row.data(), 1, row.size(), f);
+    }
+    fclose(f);
+    rename(tmp.c_str(), path.c_str());
+}
+
 // Debug aid (PORT_SCREENSHOT_DIR=dir): writes the presented frame as a PPM every 120 frames (the Metal readback
 // returns the previous frame as RGBA5551). Convert with tools/ppm2png.py.
 static void MaybeScreenshot() {
     static const char* dir = getenv("PORT_SCREENSHOT_DIR");
     static int frame = 0;
-    if (!dir && !Port_FreezeCheckEnabled()) return;
+    std::string thumb;
+    {
+        std::lock_guard<std::mutex> g(gThumbLock);
+        thumb.swap(gThumbPath);
+    }
+    if (!dir && !Port_FreezeCheckEnabled() && thumb.empty()) return;
     ++frame;
     int w = sWindow->GetWidth(), h = sWindow->GetHeight();
     {   // the drawable can be larger than the window in points (Retina): read the full pixel size
@@ -332,6 +381,10 @@ static void MaybeScreenshot() {
     if (!interp) return;
     std::vector<uint16_t> buf((size_t)w * h);
     interp->mRapi->ReadFramebufferToCPU(0, (uint32_t)w, (uint32_t)h, buf.data());
+    if (!thumb.empty()) {
+        WriteThumb(thumb, buf, w, h);
+        if (!dir && !Port_FreezeCheckEnabled()) return;
+    }
     {   // freeze detection: hash of a sparse sample of the presented picture
         // channels quantized to 3 bits: the per-frame shader noise (N64 dither emulation) must not count as change
         uint64_t fh = 1469598103934665603ull;
