@@ -1633,6 +1633,12 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
                 status.log("battle won (%d/%d)" % (status.get("wins"), wins))
             else:
                 status.set(losses=status.get("losses") + 1)
+                # the Elite Four and the champion are one series: a loss starts it over at the first of them (counted
+                # on, the wins said 13 of 13 after Lorelei, Bruno, a loss to Agatha, Lorelei, Bruno and Agatha)
+                e4 = 8 if leaders_only else 32
+                if castle and status.get("wins") > e4:
+                    status.log("the Elite Four starts over (%d wins in it undone)" % (status.get("wins") - e4))
+                    status.set(wins=e4)
                 if max_tries and status.data["tries"] >= max_tries:
                     status.log("battle lost: %d times in a row, stopping" % status.data["tries"])
                     status.set(phase="stopped after %d tries (%d wins)" % (status.data["tries"], status.get("wins")),
