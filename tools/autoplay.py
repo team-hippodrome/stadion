@@ -1214,7 +1214,7 @@ def choose_team(brain, status, order):
 
 
 def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0,
-             register=False, room=None, max_losses=0, explore=False, order=0):
+             register=False, room=None, max_losses=0, explore=False, draft_order=0):
     """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
     "random"; random_team: choose the rental team at random on the rental carousel."""
     def new_picks(order=None):
@@ -1275,7 +1275,7 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             waited = status.data.setdefault("draft_wait", time.time())  # after the games before it (see BATCH_DRAFTED)
             with BATCH_LOCK:
                 done = sum(BATCH_DRAFTED.values())
-            if done < 6 * order and time.time() - waited < 120:
+            if done < 6 * draft_order and time.time() - waited < 120:
                 status.set(phase="waiting for the drafts of the games before")
                 progress_tick = now
                 game.wait(30)
