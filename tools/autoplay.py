@@ -351,12 +351,20 @@ def faster(a, b):
     return a["spd"] > b["spd"] or (a["spd"] == b["spd"] and False)
 
 
-def move_value(own, opp, mid):
-    """How much a move does for winning, about 0-130 (100: takes the opponent's remaining HP)"""
+# Building and choosing teams counts a miss harder than its average (accuracy ** TEAM_RISK: 70% counts as 59%,
+# 85% as 78%): over three Pokemon a miss often costs one, and a Pokemon whose damage hangs on Thunder (the rental
+# Zapdos has no sure attack) is less dependable than its average says. Battle decisions use plain accuracy (the
+# lookahead plays hits and misses out).
+TEAM_RISK = 1.5
+
+
+def move_value(own, opp, mid, risk=1.0):
+    """How much a move does for winning, about 0-130 (100: takes the opponent's remaining HP); risk: TEAM_RISK when
+    judging teams"""
     d = MOVEDATA.get(mid)
     if d is None:
         return 0.0
-    acc = d["accuracy"] / 100.0
+    acc = (d["accuracy"] / 100.0) ** risk
     hp_frac = own["hp"] / max(1, own["max_hp"])
     opp_status = opp.get("status", 0)
     if d["power"] == 0 and MOVES.get(mid) not in ("Night Shade",):  # status moves
@@ -366,7 +374,7 @@ def move_value(own, opp, mid):
             return 5.0
         # sleep and paralysis pay off through the hits that follow: worth more with a strong attack (Gengar slept a
         # Porygon again and again that its attacks barely scratched)
-        best = max([move_value(own, opp, m) for m, pp in own["moves"]
+        best = max([move_value(own, opp, m, risk) for m, pp in own["moves"]
                     if m and pp > 0 and MOVEDATA.get(m, {}).get("power", 0) > 0] or [0.0])
         if e == SLEEP:
             return (30 + 0.6 * best) * acc if opp_status == 0 else 0.0
@@ -409,13 +417,13 @@ def trapped_by(opp, mon):
     return faster(opp, mon) and any(MOVEDATA.get(mid, {}).get("effect") == TRAP for mid, pp in opp["moves"] if mid and pp > 0)
 
 
-def offense(mon, opp):
-    return max([move_value(mon, opp, mid) for mid, pp in mon["moves"] if mid and pp > 0] or [0.0])
+def offense(mon, opp, risk=1.0):
+    return max([move_value(mon, opp, mid, risk) for mid, pp in mon["moves"] if mid and pp > 0] or [0.0])
 
 
-def matchup(mon, opp):
+def matchup(mon, opp, risk=1.0):
     """How well a Pokemon stands against the opponent: its best move's value minus the opponent's threat to it"""
-    return (offense(mon, opp) - 100 * min(1.0, threat(opp, mon)) * (1.0 if faster(opp, mon) else 0.7) -
+    return (offense(mon, opp, risk) - 100 * min(1.0, threat(opp, mon)) * (1.0 if faster(opp, mon) else 0.7) -
             (TRAP_PENALTY if trapped_by(opp, mon) else 0.0))
 
 
@@ -580,14 +588,22 @@ def sim_turn(own, opp, own_mid, opp_mid):
 SOONER = 20.0  # per turn a knock-out comes earlier (a wasted turn cost nothing when the knock-out still came in time)
 
 
+def worth(m):
+    """what a Pokemon's HP is worth for later: a paralysed one is hit first whenever it comes back (and sometimes
+    cannot move), a sleeping one loses turns, a poisoned one keeps losing HP; saving such a one by switching gains
+    little"""
+    return 0.6 if m.get("para") else 0.7 if m.get("sleep") else 0.8 if m.get("psn") else 1.0
+
+
 def sim_score(own0, opp0, own, opp, left=0):
     """how much better the battle stands for us than at the start (about 100 per knock-out); left: turns of the
     lookahead still unplayed when it ended"""
-    v = 100.0 * (opp0["hp"] - opp["hp"]) / max(1, opp0["max_hp"]) - 100.0 * (own0["hp"] - own["hp"]) / max(1, own0["max_hp"])
+    v = (100.0 * (opp0["hp"] - opp["hp"]) / max(1, opp0["max_hp"]) -
+         100.0 * worth(own0) * (own0["hp"] - own["hp"]) / max(1, own0["max_hp"]))
     if opp["hp"] <= 0:
         return v + 40.0 + SOONER * left
-    if own["hp"] <= 0:
-        return v - 40.0 - SOONER * left
+    if own["hp"] <= 0:  # the loss is what it had left (its HP is counted above; a nearly spent one costs little)
+        return v - (40.0 + SOONER * left) * worth(own0) * own0["hp"] / max(1, own0["max_hp"])
     for m, sign in ((opp, 1), (own, -1)):  # what a status still does in the turns after
         v += sign * (12.0 * min(m["sleep"], 3) + (15.0 if m["para"] else 0) + (8.0 if m["psn"] else 0) +
                      (25.0 if m["trapped"] else 0))
@@ -605,58 +621,78 @@ def sim_key(m):
             m["spd"], m["spc"])
 
 
-def sim_value(own0, opp0, own, opp, depth, own_mid, cache=None):
+def sim_bench_in(opp, bench, depth, cache):
+    """after our Pokemon faints, the best of the bench comes in without taking a hit and plays the turns left"""
+    best = None
+    for i, b in enumerate(bench):
+        rest = bench[:i] + bench[i + 1:]
+        v = max(sim_value(b, opp, b, opp, depth, mid, cache, rest) for mid, _ in b["moves"]) if b["moves"] else 0.0
+        best = v if best is None else max(best, v)
+    return best or 0.0
+
+
+def sim_value(own0, opp0, own, opp, depth, own_mid, cache=None, bench=()):
     """our expected standing after playing own_mid now and our best moves after it, for depth turns (cache: the
-    positions already valued in this decision; misses and the like lead to the same ones again)"""
+    positions already valued in this decision; misses and the like lead to the same ones again). bench: the rest of
+    our team (sim_mon), which comes in when ours faints"""
     if cache is None:
         cache = {}
-    key = (sim_key(own), sim_key(opp), depth, own_mid)
+    key = (sim_key(own), sim_key(opp), depth, own_mid, tuple(b["species"] for b in bench))
     if key in cache:
         return cache[key]
     results = []
     for k in opp_moves(opp):
         total = 0.0
         for p, o, x in sim_turn(own, opp, own_mid, k):
-            if depth <= 1 or o["hp"] <= 0 or x["hp"] <= 0:
+            if o["hp"] <= 0 and x["hp"] > 0 and depth > 1 and bench:
+                # a faint brings the next one in free (no hit on the way in, unlike a switch)
+                total += p * (sim_score(own0, opp0, o, x, depth - 1) + sim_bench_in(x, bench, depth - 1, cache))
+            elif depth <= 1 or o["hp"] <= 0 or x["hp"] <= 0:
                 total += p * sim_score(own0, opp0, o, x, depth - 1)
             else:
                 nxt = [o["charge"]] if o["charge"] else [mid for mid, _ in o["moves"]]
-                total += p * max(sim_value(own0, opp0, o, x, depth - 1, mid, cache) for mid in nxt)
+                total += p * max(sim_value(own0, opp0, o, x, depth - 1, mid, cache, bench) for mid in nxt)
         results.append(total)
     cache[key] = OPP_BEST * min(results) + (1 - OPP_BEST) * sum(results) / len(results)
     return cache[key]
 
 
-def lookahead_values(own, opp, actions, party, depth=None):
-    """the lookahead's value of each action: ("move", mid) or ("switch", party Pokemon)"""
+def lookahead_values(own, opp, actions, bench, depth=None):
+    """the lookahead's value of each action: ("move", mid) or ("switch", party Pokemon); bench: our other Pokemon
+    still able to fight"""
     depth = depth or LOOKAHEAD_DEPTH
     o, x = sim_mon(own), sim_mon(opp)
+    rest = tuple(sim_mon(b) for b in bench)
     values, cache = [], {}
     for kind, what in actions:
         if kind == "move":
-            values.append(sim_value(o, x, o, x, depth, what, cache))
+            values.append(sim_value(o, x, o, x, depth, what, cache, rest))
         else:  # switching: the newcomer takes the opponent's move this turn, then plays on; what the current one
             # keeps (its HP, out of harm's way) is not lost
             n = sim_mon(what)
+            others = tuple(b for b in rest if b["species"] != what["species"]) + (o,)
             results, sub = [], {}
             d = min(depth, 2)  # a switch is looked at less far: there are many of them
             for k in opp_moves(x):
                 total = 0.0
                 for p, a, b in sim_turn(n, x, None, k):
-                    if d <= 1 or a["hp"] <= 0 or b["hp"] <= 0:
+                    if a["hp"] <= 0 and b["hp"] > 0 and d > 1:
+                        total += p * (sim_score(n, x, a, b, d - 1 + (depth - d)) + sim_bench_in(b, others, d - 1, sub))
+                    elif d <= 1 or a["hp"] <= 0 or b["hp"] <= 0:
                         total += p * sim_score(n, x, a, b, d - 1 + (depth - d))
                     else:
-                        total += p * max(sim_value(n, x, a, b, d - 1, mid, sub) for mid, _ in a["moves"])
+                        total += p * max(sim_value(n, x, a, b, d - 1, mid, sub, others) for mid, _ in a["moves"])
                 results.append(total)
             values.append(OPP_BEST * min(results) + (1 - OPP_BEST) * sum(results) / len(results))
     return values
 
 
-def lookahead_sendout(cand, opp, depth=None):
-    """how well a Pokemon sent in after a knock-out does (it acts this turn: no free hit)"""
+def lookahead_sendout(cand, opp, bench=(), depth=None):
+    """how well a Pokemon sent in after a knock-out does (it acts this turn: no free hit); bench: the others left"""
     n, x = sim_mon(cand), sim_mon(opp)
+    rest = tuple(sim_mon(b) for b in bench)
     cache = {}
-    return max(sim_value(n, x, n, x, depth or LOOKAHEAD_DEPTH, mid, cache) for mid, _ in n["moves"])
+    return max(sim_value(n, x, n, x, depth or LOOKAHEAD_DEPTH, mid, cache, rest) for mid, _ in n["moves"])
 
 
 def play_turn(game, brain, status, choice):
@@ -676,7 +712,8 @@ def play_turn(game, brain, status, choice):
             return
         opts = [(party[i]["species"], "%s, %s, %d/%d HP" % (party[i]["species"], types_text(party[i]["types"]),
                                                              party[i]["hp"], party[i]["max_hp"])) for i in bench]
-        values = ([lookahead_sendout(party[i], opp) for i in bench] if LOOKAHEAD_DEPTH else
+        values = ([lookahead_sendout(party[i], opp, [party[j] for j in bench if j != i]) for i in bench]
+                  if LOOKAHEAD_DEPTH else
                   [matchup(party[i], opp) for i in bench])
         k, lp, fp = brain.decide(status, "Your Pokemon fainted. Which Pokemon should you send out next to beat %s?" %
                                  opp["species"], state, opts, values)
@@ -711,7 +748,7 @@ def play_turn(game, brain, status, choice):
     LAST_SWITCH["age"] = LAST_SWITCH.get("age", 99) + 1
     if LOOKAHEAD_DEPTH and actions:  # the next turns played out replace the one-turn estimate
         values = lookahead_values(own, opp, [("move", own["moves"][i][0]) if kind == "move" else ("switch", party[i])
-                                             for kind, i in actions], party)
+                                             for kind, i in actions], [party[i] for i in bench])
     st = lambda m: "" if m["status"] == 0 else " status %#x" % m["status"]
     status.trace("%s %d/%d%s spd %d vs %s %d/%d%s spd %d (moves %s) | %s" % (
         own["species"], own["hp"], own["max_hp"], st(own), own["spd"], opp["species"], opp["hp"], opp["max_hp"], st(opp),
@@ -865,6 +902,18 @@ def weaknesses(mon):
     return {t for t in CHART if effectiveness(t, mon["types"]) > 1}
 
 
+def attack_options(m):
+    """its attacks for Laya: sure ones (single turn, 90%+ accuracy) and risky ones (misses often, or charges first)"""
+    sure, risky = [], []
+    for mid, _ in m["moves"]:
+        d = MOVEDATA.get(mid)
+        if not mid or d is None or (d["power"] == 0 and MOVES.get(mid) not in ("Night Shade", "Seismic Toss")):
+            continue
+        name = "%s (%s, %d%%)" % (MOVES.get(mid, "?"), d["type"], d["accuracy"])
+        (risky if d["accuracy"] < 90 or d["effect"] in (CHARGE, FLY, HYPER_BEAM) else sure).append(name)
+    return "sure attacks: %s; risky attacks: %s" % (", ".join(sure) or "none", ", ".join(risky) or "none")
+
+
 def draft_team(brain, status, roster, rng, size=6, shortlist=6):
     """A rental team built one Pokemon at a time, judged by its answers: for every Pokemon in the rental list (the
     pool the castle's trainers draw from too), the team's best matchup against it (the battle estimate). A team is
@@ -881,7 +930,7 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
         mons.append(m)
     if len(mons) < size:
         return None
-    vs = {m["id"]: [matchup(m, o) for o in mons] for m in mons}  # each one's matchup against each Pokemon
+    vs = {m["id"]: [matchup(m, o, TEAM_RISK) for o in mons] for m in mons}  # each one's matchup against each Pokemon
     worst = max(1, len(mons) // 4)
 
     def answers(team):
@@ -900,7 +949,7 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
         gain = {mons[i]["id"]: g for g, i in gains}
         values = [gain[m["id"]] for m in cands]
         opts = [(m["species"], "%s (%s), level %d: %s; weak to %s" % (
-            m["species"], types_text(m["types"]), m["level"], ", ".join(MOVES.get(mid, "?") for mid, _ in m["moves"] if mid),
+            m["species"], types_text(m["types"]), m["level"], attack_options(m),
             ", ".join(sorted(weaknesses(m))) or "nothing")) for m in cands]
         hardest = []
         if team:
@@ -909,7 +958,7 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
         state = {"team_so_far": [{"name": m["species"], "types": types_text(m["types"])} for m in team],
                  "opponents_the_team_has_no_good_answer_to": hardest, "picks_left": size - len(team)}
         k, lp, fp = brain.decide(status, "Which Pokemon gives this team an answer to the most opponents, especially the "
-                                 "ones it cannot beat yet?", state, opts, values)
+                                 "ones it cannot beat yet, with attacks it can rely on?", state, opts, values)
         status.trace("draft gains: " + ", ".join("%s %.0f" % (m["species"], v) for m, v in zip(cands, values)))
         team.append(cands[k])
         status.log("draft: %s (Laya %.0f%%, final %.0f%%) from %s" % (
@@ -938,7 +987,7 @@ def choose_team(brain, status, order):
     # the weakest two (the opponent sends in three, likely the ones that beat ours). Choosing each one on its own
     # sent three Pokemon slower than a Ninetales with Fire Spin while a faster one waited on the bench.
     import itertools
-    vs = [[matchup(m, o) for o in opp] for m in own]
+    vs = [[matchup(m, o, TEAM_RISK) for o in opp] for m in own]
 
     def trio_score(t):
         # each of ours usually meets several of theirs (who comes in next is not ours to choose), so an answer counts
