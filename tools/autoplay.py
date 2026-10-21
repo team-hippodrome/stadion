@@ -1025,7 +1025,13 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
     worst = max(1, len(mons) // 4)
 
     def answers(team):
-        return [max(vs[m["id"]][j] for m in team) for j in range(len(mons))]
+        # depth: the best answer and, less, the second best (one star covering much of the list alone made a team
+        # look complete; in a three-on-three the first answer is often down or shut out)
+        out = []
+        for j in range(len(mons)):
+            v = sorted((vs[m["id"]][j] for m in team), reverse=True)
+            out.append(v[0] if len(v) == 1 else 0.6 * v[0] + 0.4 * v[1])
+        return out
 
     def score(team):  # the average answer plus the average of the weakest quarter, less the shared danger
         a = sorted(answers(team))
