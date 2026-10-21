@@ -941,6 +941,24 @@ def lookahead_values(own, opp, actions, bench, depth=None, opp_bench=()):
     return values
 
 
+# The searches run in worker processes: one Python process thinks for one game at a time (the interpreter lock), so
+# five games in leader battles waited for each other's searches on one core (five decisions at once: 27 s, in the
+# workers 9 s). A decision stays one search: its actions share what the first one worked out (split up, 16 s).
+SEARCH_POOL = None
+
+
+def search_init(depth, leader_depth):
+    global LOOKAHEAD_DEPTH, LEADER_DEPTH
+    LOOKAHEAD_DEPTH, LEADER_DEPTH = depth, leader_depth
+
+
+def searches(calls):
+    """[(function, args)] -> their results, in the worker processes when there are some"""
+    if SEARCH_POOL is None:
+        return [f(*a) for f, a in calls]
+    return [job.result() for job in [SEARCH_POOL.submit(f, *a) for f, a in calls]]
+
+
 def lookahead_sendout(cand, opp, bench=(), depth=None, opp_bench=()):
     """how well a Pokemon sent in after a knock-out does (it acts this turn: no free hit); bench: the others left"""
     n, x = sim_pair(cand, opp)
@@ -976,7 +994,8 @@ def play_turn(game, brain, status, choice):
         opts = [(party[i]["species"], "%s, %s, %d/%d HP" % (party[i]["species"], types_text(party[i]["types"]),
                                                              party[i]["hp"], party[i]["max_hp"])) for i in bench]
         depth = LEADER_DEPTH if status.data.get("leader") else LOOKAHEAD_DEPTH
-        values = ([lookahead_sendout(party[i], opp, [party[j] for j in bench if j != i], depth, opp_bench) for i in bench]
+        values = (searches([(lookahead_sendout, (party[i], opp, [party[j] for j in bench if j != i], depth, opp_bench))
+                            for i in bench])
                   if LOOKAHEAD_DEPTH else
                   [matchup(party[i], opp) for i in bench])
         status.trace("send out against %s %d/%d spd %d (moves %s) | %s" % (
@@ -1016,9 +1035,10 @@ def play_turn(game, brain, status, choice):
                       (TRAP_PENALTY if trapped_by(opp, party[i]) else 0.0))
     LAST_SWITCH["age"] = LAST_SWITCH.get("age", 99) + 1
     if LOOKAHEAD_DEPTH and actions:  # the next turns played out replace the one-turn estimate
-        values = lookahead_values(own, opp, [("move", own["moves"][i][0]) if kind == "move" else ("switch", party[i])
-                                             for kind, i in actions], [party[i] for i in bench],
-                                  LEADER_DEPTH if status.data.get("leader") else LOOKAHEAD_DEPTH, opp_bench)
+        depth = LEADER_DEPTH if status.data.get("leader") else LOOKAHEAD_DEPTH
+        values = searches([(lookahead_values, (own, opp, [("move", own["moves"][i][0]) if kind == "move" else
+                                                          ("switch", party[i]) for kind, i in actions],
+                                               [party[j] for j in bench], depth, opp_bench))])[0]
     st = lambda m: "" if m["status"] == 0 else " status %#x" % m["status"]
     status.trace("%s %d/%d%s spd %d flags %02x/%02x vs %s %d/%d%s spd %d flags %02x/%02x (moves %s) | %s" % (
         own["species"], own["hp"], own["max_hp"], st(own), own["spd"], own["flags"][0], own["flags"][1], opp["species"],
@@ -1944,6 +1964,8 @@ def main():
     ap.add_argument("--styles", default=",".join(STYLE_ORDER),
                     help="with --team draft: the games' team styles in turn, from %s (default all of them; "
                          "balanced: every game alike)" % ", ".join(STYLE_ORDER))
+    ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2),
+                    help="worker processes for the lookahead's searches (default: all cores but two; 0: none)")
     ap.add_argument("--leader-lookahead", type=int, default=LEADER_DEPTH,
                     help="with --castle: turns looked ahead in gym leader and Elite Four battles (default %d)" % LEADER_DEPTH)
     ap.add_argument("--leaders-only", action="store_true",
@@ -1962,6 +1984,10 @@ def main():
     args = ap.parse_args()
     LOOKAHEAD_DEPTH = args.lookahead
     LEADER_DEPTH = args.leader_lookahead if LOOKAHEAD_DEPTH else 0
+    global SEARCH_POOL
+    if LOOKAHEAD_DEPTH and args.workers > 0:
+        from concurrent.futures import ProcessPoolExecutor
+        SEARCH_POOL = ProcessPoolExecutor(args.workers, initializer=search_init, initargs=(LOOKAHEAD_DEPTH, LEADER_DEPTH))
     picks = args.pick if args.pick in ("random", "smart") else [int(x) - 1 for x in args.pick.split(",")]
     global ALLOWED
     import glob
