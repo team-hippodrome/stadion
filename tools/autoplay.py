@@ -1076,8 +1076,8 @@ def attack_options(m):
 TRAINER_BONUS = 15       # the castle's Round 2 trainers have about this much more in every stat than the rentals
 DRAFT_OPPONENTS = 0.6    # the share of the rental list (strongest by total stats) the draft prepares for
 DRAFT_POOL = 30          # the shortlist is drawn from this many of the most useful picks, weighted by their gain
-DRAFT_TEMPERATURE = 10.0  # gain units per factor e in that weighting (lower: the very best almost always)
-BATCH_VARIETY = 8.0      # a species drafted by another game of this run counts this much less per game
+DRAFT_TEMPERATURE = 15.0  # gain units per factor e in that weighting (lower: the very best almost always)
+BATCH_VARIETY = 12.0     # a species drafted by another game of this run counts this much less per game
 BATCH_DRAFTED = {}       # species id -> games of this run that drafted it
 BATCH_LOCK = threading.Lock()
 
