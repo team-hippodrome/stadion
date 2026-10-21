@@ -947,6 +947,36 @@ def weaknesses(mon):
     return {t for t in CHART if effectiveness(t, mon["types"]) > 1}
 
 
+# Team decisions put defence first: the estimate's one-on-one favours raw power (the legendary birds), but a team
+# loses to the opponents that endanger several of its Pokemon at once (one Rock Slide user threatens all three birds).
+DEFENCE_WEIGHT = 0.3  # extra weight on the opponent's danger in each matchup of a team decision
+SHARED_WEIGHT = 40.0  # per opponent: the danger it poses to our Pokemon beyond the most endangered one
+
+
+def danger(o, m):
+    """how dangerous opponent o is to our m, about 0-2: its best hit's share of m's HP (a knock-out: 1), less when m
+    moves first, plus 1 for a faster trapper (m may never act)"""
+    return min(1.0, threat(o, m)) * (1.0 if faster(o, m) else 0.7) + (1.0 if trapped_by(o, m) else 0.0)
+
+
+def team_matchup(m, o):
+    """a matchup for team decisions: the estimate (accuracy weighed harder) with the opponent's danger weighed more"""
+    return matchup(m, o, TEAM_RISK) - 100.0 * DEFENCE_WEIGHT * min(1.0, danger(o, m))
+
+
+def shared_danger(dz):
+    """dz: per member of a team, its danger from each opponent -> the average over opponents of the danger beyond the
+    most endangered member, scaled to a team of three (three birds against Onix: high; each opponent endangering
+    only one of ours: low)"""
+    if len(dz) < 2:
+        return 0.0
+    total = 0.0
+    for j in range(len(dz[0])):
+        d = sorted((row[j] for row in dz), reverse=True)
+        total += sum(d[1:])
+    return total / len(dz[0]) * 2.0 / (len(dz) - 1)
+
+
 def attack_options(m):
     """its attacks for Laya: sure ones (single turn, 90%+ accuracy) and risky ones (misses often, or charges first)"""
     sure, risky = [], []
@@ -975,15 +1005,16 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
         mons.append(m)
     if len(mons) < size:
         return None
-    vs = {m["id"]: [matchup(m, o, TEAM_RISK) for o in mons] for m in mons}  # each one's matchup against each Pokemon
+    vs = {m["id"]: [team_matchup(m, o) for o in mons] for m in mons}  # each one's matchup against each Pokemon
+    dz = {m["id"]: [danger(o, m) for o in mons] for m in mons}  # and each Pokemon's danger to it
     worst = max(1, len(mons) // 4)
 
     def answers(team):
         return [max(vs[m["id"]][j] for m in team) for j in range(len(mons))]
 
-    def score(team):  # the average answer plus the average of the weakest quarter
+    def score(team):  # the average answer plus the average of the weakest quarter, less the shared danger
         a = sorted(answers(team))
-        return sum(a) / len(a) + sum(a[:worst]) / worst
+        return sum(a) / len(a) + sum(a[:worst]) / worst - SHARED_WEIGHT * shared_danger([dz[m["id"]] for m in team])
 
     team = []
     while len(team) < size:
@@ -1032,14 +1063,15 @@ def choose_team(brain, status, order):
     # the weakest two (the opponent sends in three, likely the ones that beat ours). Choosing each one on its own
     # sent three Pokemon slower than a Ninetales with Fire Spin while a faster one waited on the bench.
     import itertools
-    vs = [[matchup(m, o, TEAM_RISK) for o in opp] for m in own]
+    vs = [[team_matchup(m, o) for o in opp] for m in own]
+    dz = [[danger(o, m) for o in opp] for m in own]
 
     def trio_score(t):
         # each of ours usually meets several of theirs (who comes in next is not ours to choose), so an answer counts
         # half the best of the three and half their average (Zapdos ended up alone against Onix, which its moves
         # cannot touch, because the other two had answered Onix)
         a = sorted(0.5 * max(vs[i][j] for i in t) + 0.5 * sum(vs[i][j] for i in t) / 3 for j in range(len(opp)))
-        return sum(a) / len(a) + sum(a[:2]) / 2
+        return sum(a) / len(a) + sum(a[:2]) / 2 - SHARED_WEIGHT * shared_danger([dz[i] for i in t])
 
     trio = max(itertools.combinations(range(len(own)), 3), key=trio_score)
     # who goes first: Laya and the estimate (each one's average matchup)
