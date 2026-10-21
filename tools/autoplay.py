@@ -523,13 +523,37 @@ STAT_CHANGE = {"Agility": (0, "spd", 2.0), "Amnesia": (0, "spc", 2.0), "Swords D
 PARA, PSN, FRZ = 0x40, 0x08, 0x20
 
 
+# the battle status bytes of a Pokemon in battle (runtime_mon "flags"; Game Boy layout, checked against 310 traced
+# turns): first byte 0x01 Bide, 0x10 charging a two-turn move, 0x20 using a trapping move, 0x40 out of reach (Dig,
+# Fly), 0x80 confused; second byte 0x80 seeded (Leech Seed)
+F_CHARGING, F_TRAPPING, F_CONFUSED, F2_SEEDED = 0x10, 0x20, 0x80, 0x80
+CONFUSE, LEECH_SEED = 49, 84
+
+
 def sim_mon(m):
-    """a Pokemon for the simulation: its stats, HP and status, plus the turn-to-turn state"""
+    """a Pokemon for the simulation: its stats, HP and status, plus the turn-to-turn state (from its battle status
+    bytes when it is in battle: a two-turn move under way, confusion, Leech Seed)"""
     s = dict(m)
     st = m.get("status", 0)
+    f1, f2 = m.get("flags", (0, 0))
+    charge = 0
+    if f1 & F_CHARGING:  # its next action is the move it is charging (underground with Dig: out of reach)
+        charge = next((mid for mid, pp in m["moves"] if MOVEDATA.get(mid, {}).get("effect") in (CHARGE, FLY)), 0)
     s.update(sleep=(st & 7) or (3 if st & FRZ else 0), para=bool(st & PARA), psn=bool(st & PSN), trapped=0,
-             charge=0, recharge=False, moves=[(mid, pp) for mid, pp in m["moves"] if mid and pp > 0])
+             charge=charge, recharge=False, conf=bool(f1 & F_CONFUSED), seed=bool(f2 & F2_SEEDED),
+             moves=[(mid, pp) for mid, pp in m["moves"] if mid and pp > 0])
     return s
+
+
+def sim_pair(own, opp):
+    """both Pokemon for the simulation; a faster one using a trapping move keeps the other from acting (the bot
+    chose Surf three times against Onix while Bind held Vaporeon)"""
+    o, x = sim_mon(own), sim_mon(opp)
+    if opp.get("flags", (0, 0))[0] & F_TRAPPING and x["spd"] > o["spd"]:
+        o["trapped"] = 2
+    if own.get("flags", (0, 0))[0] & F_TRAPPING and o["spd"] > x["spd"]:
+        x["trapped"] = 2
+    return o, x
 
 
 def sim_attack(att, dfn, mid, p, out):
@@ -552,6 +576,11 @@ def sim_attack(att, dfn, mid, p, out):
     if att["para"]:  # fully paralysed a quarter of the time
         out.append((p * 0.25, dict(att), dict(dfn)))
         p *= 0.75
+    if att["conf"]:  # confused: hurts itself half the time (a typeless 40-power hit against its own defence)
+        hurt = dict(att)
+        hurt["hp"] = max(0.0, hurt["hp"] - (((2 * att["level"] / 5 + 2) * 40 * att["atk"] / max(1, att["def"])) / 50 + 2))
+        out.append((p * 0.5, hurt, dict(dfn)))
+        p *= 0.5
     d = MOVEDATA.get(mid)
     if d is None:
         out.append((p, att, dfn))
@@ -585,6 +614,10 @@ def sim_attack(att, dfn, mid, p, out):
                 att["hp"], att["sleep"], att["para"], att["psn"] = att["max_hp"], 2, False, False
             else:
                 att["hp"] = min(att["max_hp"], att["hp"] + att["max_hp"] // 2)
+        elif e == CONFUSE:
+            dfn["conf"] = True
+        elif e == LEECH_SEED and "Grass" not in dfn["types"]:
+            dfn["seed"] = True
         elif name in STAT_CHANGE:
             who, stat, f = STAT_CHANGE[name]
             m = att if who == 0 else dfn
@@ -626,10 +659,14 @@ def sim_turn(own, opp, own_mid, opp_mid):
                 sim_attack(dict(x), dict(o), mid, p, part)
                 nxt.extend((q, b, a) for q, a, b in part)
         states = nxt
-    for _, o, x in states:  # poison at the end of the turn
-        for m in (o, x):
+    for _, o, x in states:  # poison and Leech Seed at the end of the turn
+        for m, other in ((o, x), (x, o)):
             if m["psn"] and m["hp"] > 0:
                 m["hp"] = max(0.0, m["hp"] - m["max_hp"] / 16.0)
+            if m["seed"] and m["hp"] > 0 and other["hp"] > 0:
+                drain = min(m["hp"], m["max_hp"] / 16.0)
+                m["hp"] -= drain
+                other["hp"] = min(other["max_hp"], other["hp"] + drain)
     return states
 
 
@@ -654,7 +691,7 @@ def sim_score(own0, opp0, own, opp, left=0):
         return v - (40.0 + SOONER * left) * worth(own0) * own0["hp"] / max(1, own0["max_hp"])
     for m, sign in ((opp, 1), (own, -1)):  # what a status still does in the turns after
         v += sign * (12.0 * min(m["sleep"], 3) + (15.0 if m["para"] else 0) + (8.0 if m["psn"] else 0) +
-                     (25.0 if m["trapped"] else 0))
+                     (25.0 if m["trapped"] else 0) + (10.0 if m["conf"] else 0) + (6.0 if m["seed"] else 0))
     return v + 0.3 * matchup(own, opp)
 
 
@@ -665,8 +702,8 @@ def opp_moves(opp):
 
 
 def sim_key(m):
-    return (int(m["hp"]), m["sleep"], m["para"], m["psn"], m["trapped"], m["charge"], m["recharge"], m["atk"], m["def"],
-            m["spd"], m["spc"])
+    return (int(m["hp"]), m["sleep"], m["para"], m["psn"], m["trapped"], m["charge"], m["recharge"], m["conf"], m["seed"],
+            m["atk"], m["def"], m["spd"], m["spc"])
 
 
 def sim_bench_in(opp, bench, depth, cache):
@@ -709,7 +746,7 @@ def lookahead_values(own, opp, actions, bench, depth=None):
     """the lookahead's value of each action: ("move", mid) or ("switch", party Pokemon); bench: our other Pokemon
     still able to fight"""
     depth = depth or LOOKAHEAD_DEPTH
-    o, x = sim_mon(own), sim_mon(opp)
+    o, x = sim_pair(own, opp)
     rest = tuple(sim_mon(b) for b in bench)
     values, cache = [], {}
     for kind, what in actions:
@@ -717,7 +754,7 @@ def lookahead_values(own, opp, actions, bench, depth=None):
             values.append(sim_value(o, x, o, x, depth, what, cache, rest))
         else:  # switching: the newcomer takes the opponent's move this turn, then plays on; what the current one
             # keeps (its HP, out of harm's way) is not lost
-            n = sim_mon(what)
+            n = sim_pair(what, opp)[0]  # a trap under way catches the newcomer too, unless it is faster
             others = tuple(b for b in rest if b["species"] != what["species"]) + (o,)
             results, sub = [], {}
             d = min(depth, 2)  # a switch is looked at less far: there are many of them
@@ -737,7 +774,7 @@ def lookahead_values(own, opp, actions, bench, depth=None):
 
 def lookahead_sendout(cand, opp, bench=(), depth=None):
     """how well a Pokemon sent in after a knock-out does (it acts this turn: no free hit); bench: the others left"""
-    n, x = sim_mon(cand), sim_mon(opp)
+    n, x = sim_pair(cand, opp)
     rest = tuple(sim_mon(b) for b in bench)
     cache = {}
     return max(sim_value(n, x, n, x, depth or LOOKAHEAD_DEPTH, mid, cache, rest) for mid, _ in n["moves"])
