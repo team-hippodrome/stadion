@@ -65,6 +65,16 @@ inline uint16_t Be16(const uint8_t* p) {
     return (uint16_t)(((uint32_t)p[0] << 8) | p[1]);
 }
 
+// debug switches, read once: getenv scans the whole environment, and these are checked per command and per matrix
+bool ValidateDL() {
+    static const bool v = getenv("PORT_VALIDATE_DL") != nullptr;
+    return v;
+}
+bool MtxLog() {
+    static const bool v = getenv("PORT_MTXLOG") != nullptr;
+    return v;
+}
+
 bool InRaw(const void* p) {
     uintptr_t a = (uintptr_t)p;
     if (Port_VIsRaw(p)) return true;
@@ -76,14 +86,14 @@ bool InRaw(const void* p) {
         if (size > gSegments[i].size) size = gSegments[i].size;
         if (a < gSegments[i].vaddr + size) {
             static int shown = 0;
-            if (getenv("PORT_VALIDATE_DL") && shown++ < 6) fprintf(stderr, "[raw] %p in segment %d base=%p size=0x%zx (map size 0x%zx)\n", p, i, (void*)gSegments[i].vaddr, size, gSegments[i].size);
+            if (ValidateDL() && shown++ < 6) fprintf(stderr, "[raw] %p in segment %d base=%p size=0x%zx (map size 0x%zx)\n", p, i, (void*)gSegments[i].vaddr, size, gSegments[i].size);
             return true;
         }
     }
     for (int i = 0; i < 240; i++) {
         if (gFragments[i].vaddr != 0 && a >= gFragments[i].vaddr && a < gFragments[i].vaddr + gFragments[i].size) {
             static int shownF = 0;
-            if (getenv("PORT_VALIDATE_DL") && shownF++ < 6) fprintf(stderr, "[raw] %p in fragment slot %d base=%p size=0x%zx\n", p, i, (void*)gFragments[i].vaddr, gFragments[i].size);
+            if (ValidateDL() && shownF++ < 6) fprintf(stderr, "[raw] %p in fragment slot %d base=%p size=0x%zx\n", p, i, (void*)gFragments[i].vaddr, gFragments[i].size);
             return true;
         }
     }
@@ -158,7 +168,7 @@ Vtx* TranslateVtx(const uint8_t* raw, int n) {
 void* TranslateMtx(const uint8_t* raw) {
     uint32_t* out = (uint32_t*)Alloc(64);
     for (int i = 0; i < 16; i++) out[i] = Be32(raw + i * 4);
-    if (getenv("PORT_MTXLOG")) fprintf(stderr, "[mtxtr] raw=%p -> %p\n", (const void*)raw, (void*)out);
+    if (MtxLog()) fprintf(stderr, "[mtxtr] raw=%p -> %p\n", (const void*)raw, (void*)out);
     return out;
 }
 
@@ -254,7 +264,7 @@ Gfx* TranslateList(const uint8_t* raw) {
             default:
                 break;
         }
-        if (getenv("PORT_VALIDATE_DL") && op > 0x08 && op < 0xD7) {
+        if (ValidateDL() && op > 0x08 && op < 0xD7) {
             static int shown = 0;
             if (shown++ < 4) {
                 fprintf(stderr, "[xlat] invalid opcode %02x at raw %p (cmd #%d) list start %p:", op, (const void*)p, count, (const void*)raw);
@@ -284,7 +294,7 @@ void* Port_GfxPrepareDL(uintptr_t dl) {
     if ((dl >> 32) == 0xFFFFFFFFull) dl &= 0xFFFFFFFFull; // an s32 address sign-extended into 64 bits
     if (dl == 0) {
         static int shown = 0;
-        if (getenv("PORT_VALIDATE_DL") && shown++ < 3) {
+        if (ValidateDL() && shown++ < 3) {
             void* fr[10];
             int n = Port_Backtrace(fr, 10);
             fprintf(stderr, "@null-dl slide=0x%lx:", (unsigned long)Port_ImageSlide());
@@ -302,7 +312,7 @@ void* Port_GfxPrepareDL(uintptr_t dl) {
     }
     if (InRaw(p)) {
         memset(gListSegs, 0, sizeof gListSegs);
-        if (getenv("PORT_VALIDATE_DL")) {
+        if (ValidateDL()) {
             uint8_t op0 = *(const uint8_t*)p;
             static int shownT = 0;
             if (op0 > 0x08 && op0 < 0xD7 && shownT++ < 3) {
@@ -369,7 +379,7 @@ void* Port_ConvertDesc(void* link) {
     auto it = gDescCache.find(p);
     if (it != gDescCache.end()) return it->second;
     const uint8_t* s = (const uint8_t*)p;
-    if (getenv("PORT_VALIDATE_DL")) {
+    if (ValidateDL()) {
         static int shownD = 0;
         if (shownD++ < 8) {
             fprintf(stderr, "[desc] link=%p raw=%p:", link, p);

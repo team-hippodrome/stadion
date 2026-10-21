@@ -207,6 +207,16 @@ extern long long int rspbootTextStart[], rspbootTextEnd[];
 extern long long int aspMainTextStart[], aspMainTextEnd[];
 extern long long int aspMainDataStart[], aspMainDataEnd[];
 
+// A debug switch from the environment, read once per call site: getenv scans the whole environment, and the port's
+// debug checks sit in per-frame and per-draw code (Font_DrawChar, the geo renderer, the battle HUD). The switches
+// are set before launch and never change while the game runs. (Statement expression: the game builds with clang.)
+#define PORT_GETENV_ONCE(name)                                                  \
+    ({                                                                          \
+        static const char* sPortEnvValue_ = (const char*)1; /* 1: not read */   \
+        if (sPortEnvValue_ == (const char*)1) sPortEnvValue_ = getenv(name);    \
+        sPortEnvValue_;                                                         \
+    })
+
 #ifdef __cplusplus
 }
 #endif

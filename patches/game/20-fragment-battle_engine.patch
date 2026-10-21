@@ -160,7 +160,7 @@ index 09454ed115097da5b6796f74c5dac6befc148f9d..18a724b04646f640319c00262f47465a
  s32 BattleAI_RandomBelowInclusive(s32 arg0);
  void BattleAI_SeedRandomState(u8 arg0);
 diff --git a/src/fragments/battle_engine/battle_engine_2EC3C0.c b/src/fragments/battle_engine/battle_engine_2EC3C0.c
-index af8b2f357f40d3449cd9cc57d8664a00362fa738..90f611a47533cb14c0ecf43ddcb67255021eacf0 100644
+index af8b2f357f40d3449cd9cc57d8664a00362fa738..5facee9898b5d307d1b3991feee73cc2e360c313 100644
 --- a/src/fragments/battle_engine/battle_engine_2EC3C0.c
 +++ b/src/fragments/battle_engine/battle_engine_2EC3C0.c
 @@ -1,3 +1,5 @@
@@ -293,7 +293,7 @@ index af8b2f357f40d3449cd9cc57d8664a00362fa738..90f611a47533cb14c0ecf43ddcb67255
  
  void BattleScene_TickRow16PlayCryAndSpeciesSound(ActivePokemon* active_pokemon) {
      UNUSED s32 pad;
-+    if (getenv("PORT_TRACE_BATTLE")) fprintf(stderr, "[battle] cry: battler %p roster %p teams %p idx %d\n", (void*)active_pokemon, (void*)active_pokemon->unk_724, (void*)active_pokemon->sessionTeams, (int)active_pokemon->state.unk_08);
++    if (PORT_GETENV_ONCE("PORT_TRACE_BATTLE")) fprintf(stderr, "[battle] cry: battler %p roster %p teams %p idx %d\n", (void*)active_pokemon, (void*)active_pokemon->unk_724, (void*)active_pokemon->sessionTeams, (int)active_pokemon->state.unk_08);
      BattleMon* ptr = &active_pokemon->unk_724->pokemonPicked[active_pokemon->state.unk_08];
      ActivePokemonState* sp24 = &active_pokemon->state;
  
@@ -430,7 +430,7 @@ index 6c09ac72e3d8f5549eaf114faad543625f04a8e5..6a1611255bb59a2a7d0d97f91a3728ba
          if (!(sp20->unk_4D & 0x60)) {
              sp20->unk_4C &= ~8;
 diff --git a/src/fragments/battle_engine/battle_engine_2FA4D0.c b/src/fragments/battle_engine/battle_engine_2FA4D0.c
-index f8a3b8862d17edaf214dd05d2e29c313124d9ed4..04d469930dc549ddcf585afccc3df838e385cd08 100644
+index f8a3b8862d17edaf214dd05d2e29c313124d9ed4..a91f4ded68e7996484b49d5ff22d95b68aacccc3 100644
 --- a/src/fragments/battle_engine/battle_engine_2FA4D0.c
 +++ b/src/fragments/battle_engine/battle_engine_2FA4D0.c
 @@ -1,4 +1,10 @@
@@ -552,7 +552,7 @@ index f8a3b8862d17edaf214dd05d2e29c313124d9ed4..04d469930dc549ddcf585afccc3df838
          Gfx_SetEnvColor(0xFF, 0x64, 0xFF, 0xFF);
      }
      Font_SetActive(2, 0);
-+    if (getenv("PORT_TRACE_HUD")) { // PORT debug
++    if (PORT_GETENV_ONCE("PORT_TRACE_HUD")) { // PORT debug
 +        fprintf(stderr, "[hud] label:");
 +        for (int k = 0; k < 12 && arg3[k]; k++) fprintf(stderr, " %02x", (u8)arg3[k]);
 +        fputc('\n', stderr);
@@ -564,7 +564,7 @@ index f8a3b8862d17edaf214dd05d2e29c313124d9ed4..04d469930dc549ddcf585afccc3df838
      Font_BeginTranslucentTextRendering();
      Font_SetActive(2, 0);
  
-+    if (getenv("PORT_TRACE_HUD")) { // PORT debug
++    if (PORT_GETENV_ONCE("PORT_TRACE_HUD")) { // PORT debug
 +        const u8* nn = (const u8*)Battle_GetActiveMonNickname(arg0);
 +        fprintf(stderr, "[hud] nick:");
 +        for (int k = 0; k < 12 && nn[k]; k++) fprintf(stderr, " %02x", nn[k]);
@@ -577,8 +577,8 @@ index f8a3b8862d17edaf214dd05d2e29c313124d9ed4..04d469930dc549ddcf585afccc3df838
      if (arg3 < 9) { sp28 = 0x400; } else { sp28 = 0; }
      // clang-format on
  
-+    if (getenv("PORT_SKIP_BORDER")) return 0; // PORT debug
-+    if (getenv("PORT_TRACE_HUD")) { // PORT debug
++    if (PORT_GETENV_ONCE("PORT_SKIP_BORDER")) return 0; // PORT debug
++    if (PORT_GETENV_ONCE("PORT_TRACE_HUD")) { // PORT debug
 +        const u8* t = (const u8*)Util_ConvertAddrToVirtAddr((uintptr_t)arg4);
 +        static int n;
 +        if (t != NULL && n++ < 40) fprintf(stderr, "[border] %p -> %p %02x%02x %02x%02x %02x%02x %02x%02x | %02x%02x %02x%02x\n", (void*)arg4, (const void*)t, t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[64], t[65], t[66], t[67]);
@@ -750,7 +750,7 @@ index 883360294ba05bc180fa8857710d4eb6f2cc5eaf..44e4326acf090b5cbf2cdf70733bc974
  #endif
      if (gSessionContext.mode != 8) {
 diff --git a/src/fragments/battle_engine/battle_engine_313D60.c b/src/fragments/battle_engine/battle_engine_313D60.c
-index e2dca54b8eb1b66ff3ea445e8ab7c41227284187..9eea2405673e408eb1b5df9d820bf05a050e6fb6 100644
+index e2dca54b8eb1b66ff3ea445e8ab7c41227284187..97ee36abade5059bd9c69419057974221ea5a775 100644
 --- a/src/fragments/battle_engine/battle_engine_313D60.c
 +++ b/src/fragments/battle_engine/battle_engine_313D60.c
 @@ -1,3 +1,6 @@
@@ -817,7 +817,7 @@ index e2dca54b8eb1b66ff3ea445e8ab7c41227284187..9eea2405673e408eb1b5df9d820bf05a
  
 +unsigned long long Port_ViTick(void);
  void BattleScene_Update(CameraNode* arg0) {
-+    if (getenv("PORT_TRACE_BATTLE")) { // logs the scene director's phase fields whenever one changes
++    if (PORT_GETENV_ONCE("PORT_TRACE_BATTLE")) { // logs the scene director's phase fields whenever one changes
 +        static int last[6] = { -99, -99, -99, -99, -99, -99 };
 +        int now[6] = { (int)sBattleScene.unk_00->unk_1C, (int)sBattleScene.unk_00->unk_30, (int)sBattleScene.unk_00->unk_18,
 +                       (int)sBattleScene.unk_00->unk_40, (int)sBattleScene.unk_00->unk_44, (int)sBattleScene.unk_00->unk_20 };
@@ -1467,7 +1467,7 @@ index 1463c36f9d91811ef32fd53a4bad18102a7318ed..68d1ec7acc72ff9dc9e4a423fcd3b0f6
      BattleAI_SeedRandomState(0x35);
  
 diff --git a/src/fragments/battle_engine/battle_engine_main.c b/src/fragments/battle_engine/battle_engine_main.c
-index f52b88d105b39060d8d3f853d6fec3aa56c62e86..dd76b201824f26dbaeed61417d3f775df0f343aa 100644
+index f52b88d105b39060d8d3f853d6fec3aa56c62e86..9f25b6b825705eab2cb3ccec92ce25fe3a5db580 100644
 --- a/src/fragments/battle_engine/battle_engine_main.c
 +++ b/src/fragments/battle_engine/battle_engine_main.c
 @@ -1,3 +1,5 @@
@@ -1534,7 +1534,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..dd76b201824f26dbaeed61417d3f775d
  
          GfxImage_SetRenderTarget(&gDisplayListHead, thumbnail);
          GfxImage_FillCurrent(&gDisplayListHead, 0x10D);
-+        if (getenv("PORT_TRACE_BATTLE")) {
++        if (PORT_GETENV_ONCE("PORT_TRACE_BATTLE")) {
 +            extern unsigned long long Port_ViTick(void);
 +            GraphNode* c = (GraphNode*)camera_node->node.children;
 +            fprintf(stderr, "[thumb] frame %llu image %p %dx%d children %p\n", Port_ViTick(), (void*)thumbnail->img_p,
@@ -1575,8 +1575,8 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..dd76b201824f26dbaeed61417d3f775d
  
 -    arena_entry = BinArchive_GetFile(ASSET_LOAD2(stadium_models, 1, 1), arena_index);
 -    sStageBackdrop = arena_entry(2, 0);
-+    if (getenv("PORT_BOOT_STAGE") != NULL) { // PORT debug: force a stage file of stadium_models
-+        arena_index = atoi(getenv("PORT_BOOT_STAGE"));
++    if (PORT_GETENV_ONCE("PORT_BOOT_STAGE") != NULL) { // PORT debug: force a stage file of stadium_models
++        arena_index = atoi(PORT_GETENV_ONCE("PORT_BOOT_STAGE"));
 +    }
 +    {
 +        BinArchive* arc = ASSET_LOAD2(stadium_models, 1, 1);
