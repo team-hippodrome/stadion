@@ -2149,7 +2149,7 @@ def main():
                 if i >= args.show:
                     # nobody sees these: draw only every 60th frame and skip the freeze check (a GPU read-back per
                     # frame), which doubles what 20 games manage together
-                    env.update(PORT_HIDDEN_WINDOW="1", PORT_RENDER_EVERY="60", PORT_FREEZE_CHECK="0")
+                    env.update(PORT_HIDDEN_WINDOW="1", PORT_RENDER_EVERY="60", PORT_FREEZE_CHECK="0", PORT_HEADLESS="1")
                 start(i, sock, env, [exe, args.rom], True, rng.randint(1, 240),
                       "game %d%s" % (i + 1, " (experimental)" if team == "draft" and i >= args.games - args.explore else ""))
         else:

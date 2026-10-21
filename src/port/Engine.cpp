@@ -262,7 +262,7 @@ bool Init() {
         SDL_free(wins);
     }
     // PORT_HIDDEN_WINDOW=1: render without showing the window (tools/run_replays.sh; screenshots still work)
-    if (getenv("PORT_HIDDEN_WINDOW")) {
+    if (getenv("PORT_HIDDEN_WINDOW") || Headless()) {
         int n = 0;
         SDL_Window** wins = SDL_GetWindows(&n);
         for (int i = 0; wins && i < n; i++) SDL_HideWindow(wins[i]);
@@ -315,7 +315,8 @@ static void ValidateList(const Gfx* g, int depth, const char* path) {
 }
 
 // Autoplay dashboard (bot.cpp "thumb <path>"): the next presented frame, shrunk to kThumbW pixels wide, is written
-// to the path as a PPM (through a temporary file, so a reader never sees half of it). Works with hidden windows.
+// to the path as a PPM (through a temporary file, so a reader never sees half of it). Works with hidden windows. The
+// screen readback returns the frame drawn after it was asked for, so a picture can take two drawn frames.
 namespace {
 std::mutex gThumbLock;
 std::string gThumbPath; // empty: no picture wanted
@@ -325,6 +326,19 @@ constexpr int kThumbW = 320;
 extern "C" void Port_RequestThumb(const char* path) {
     std::lock_guard<std::mutex> g(gThumbLock);
     gThumbPath = path;
+}
+
+bool ThumbPending() {
+    std::lock_guard<std::mutex> g(gThumbLock);
+    return !gThumbPath.empty();
+}
+
+// PORT_HEADLESS=1 (tools/autoplay.py, the games nobody watches): no frame is drawn, only tracked (TrackFrame), except
+// the ones a thumbnail needs; the window stays hidden. The GPU then sits idle; game logic, the bot channel, audio
+// and the clock never depended on drawing. Screenshots (PORT_SCREENSHOT_DIR, PORT_STOP_AT) need drawn frames.
+bool Headless() {
+    static const bool on = getenv("PORT_HEADLESS") != nullptr && atoi(getenv("PORT_HEADLESS")) != 0;
+    return on;
 }
 
 static void WriteThumb(const std::string& path, const std::vector<uint16_t>& buf, int w, int h) {
@@ -361,12 +375,16 @@ static void WriteThumb(const std::string& path, const std::vector<uint16_t>& buf
 static void MaybeScreenshot() {
     static const char* dir = getenv("PORT_SCREENSHOT_DIR");
     static int frame = 0;
+    static bool sReadbackDue = false; // the screen readback was asked for at the last drawn frame: this frame comes back
     std::string thumb;
+    bool thumbWanted;
     {
         std::lock_guard<std::mutex> g(gThumbLock);
-        thumb.swap(gThumbPath);
+        thumbWanted = !gThumbPath.empty();
+        if (sReadbackDue) thumb.swap(gThumbPath);
     }
-    if (!dir && !Port_FreezeCheckEnabled() && thumb.empty()) return;
+    sReadbackDue = false;
+    if (!dir && !Port_FreezeCheckEnabled() && !thumbWanted) return;
     ++frame;
     int w = sWindow->GetWidth(), h = sWindow->GetHeight();
     {   // the drawable can be larger than the window in points (Retina): read the full pixel size
@@ -382,8 +400,9 @@ static void MaybeScreenshot() {
     if (!interp) return;
     std::vector<uint16_t> buf((size_t)w * h);
     interp->mRapi->ReadFramebufferToCPU(0, (uint32_t)w, (uint32_t)h, buf.data());
-    if (!thumb.empty()) {
-        WriteThumb(thumb, buf, w, h);
+    sReadbackDue = true;
+    if (thumbWanted) { // without a readback due, this one only asks for the next drawn frame's picture
+        if (!thumb.empty()) WriteThumb(thumb, buf, w, h);
         if (!dir && !Port_FreezeCheckEnabled()) return;
     }
     {   // freeze detection: hash of a sparse sample of the presented picture
@@ -538,6 +557,16 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
     static const std::unordered_map<Mtx*, MtxF> sNone;
     const auto& replacements =
         mtxReplacements ? *static_cast<const std::unordered_map<Mtx*, MtxF>*>(mtxReplacements) : sNone;
+    if (Headless() && !ThumbPending()) { // PORT_HEADLESS: tracked like a frame that is not drawn (window events: PumpFrame)
+        if (!WindowIsRunning()) {
+            return false;
+        }
+        if (!subFrame) {
+            TrackFrame(gfxCommands);
+            Port_GfxFrameDone();
+        }
+        return true;
+    }
     if (subFrame) {
         if (!WindowIsRunning()) {
             return false;

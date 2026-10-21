@@ -427,8 +427,10 @@ std::atomic<uint64_t> gPictureChangedTick{ 0 }; // last game frame whose present
 // window thread hashes every presented frame and reports changes here; the clock reports a freeze when the picture
 // has not changed for PORT_FREEZE_FRAMES game frames (default 300 = 5 s), whether frames are still drawn or not.
 extern "C" bool Port_FreezeCheckEnabled() {
-    static bool on = getenv("PORT_FREEZE_CHECK") ? atoi(getenv("PORT_FREEZE_CHECK")) != 0
-                                                 : (getenv("PORT_REPLAY") != nullptr || getenv("PORT_SCREENSHOT_DIR") != nullptr);
+    // (not with PORT_HEADLESS: hardly any frame is drawn)
+    static bool on = !Port::Headless() &&
+                     (getenv("PORT_FREEZE_CHECK") ? atoi(getenv("PORT_FREEZE_CHECK")) != 0
+                                                  : (getenv("PORT_REPLAY") != nullptr || getenv("PORT_SCREENSHOT_DIR") != nullptr));
     return on;
 }
 
@@ -1148,9 +1150,12 @@ void Port::PumpRspTasks() {
             static uint64_t gfxCount = 0;
             bool stopFrame, shotFrame;
             CheckCapture(&stopFrame, &shotFrame);
-            if ((gfxCount++ % Port_RenderEvery()) == 0 || stopFrame || shotFrame) {
+            // PORT_HEADLESS: drawn only for a thumbnail (RunFrame tracks the others), off-screen renders included
+            const bool due = Port::Headless() ? Port::ThumbPending() : gfxCount % Port_RenderEvery() == 0;
+            gfxCount++;
+            if (due || stopFrame || shotFrame) {
                 Port::RunGameFrame(t->t.data_ptr, stopFrame || shotFrame); // (interp.cpp: in-between frames)
-            } else if (Port::TrackFrame(t->t.data_ptr)) { // not drawn, but its state changes must still happen
+            } else if (Port::TrackFrame(t->t.data_ptr) && !Port::Headless()) { // not drawn, but its state changes must still happen
                 Port::CancelInterpolation();
                 Port::RunFrame(t->t.data_ptr);                  // renders to a texture: draw it after all
             }
