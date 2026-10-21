@@ -111,7 +111,8 @@ def runtime_mon(hexstr):
     return {"species": SPECIES.get(b[0x0B], "#%d" % b[0x0B]), "id": b[0x0B], "hp": u16(b, 0x0C), "max_hp": u16(b, 0x28),
             "level": b[0x26], "types": [TYPES.get(b[0x1C], "?"), TYPES.get(b[0x1D], "?")],
             "moves": [(b[0x1F + i], b[0x32 + i] & 0x3F) for i in range(4)], "status": b[0x15],
-            "atk": u16(b, 0x2A), "def": u16(b, 0x2C), "spd": u16(b, 0x2E), "spc": u16(b, 0x30)}
+            "atk": u16(b, 0x2A), "def": u16(b, 0x2C), "spd": u16(b, 0x2E), "spc": u16(b, 0x30),
+            "flags": (b[0x4C], b[0x4D])}  # the battle status bytes (unk_4C: 0x40 out of reach, as the accuracy check reads)
 
 
 def party_mon(hexstr):
@@ -803,9 +804,9 @@ def play_turn(game, brain, status, choice):
         values = lookahead_values(own, opp, [("move", own["moves"][i][0]) if kind == "move" else ("switch", party[i])
                                              for kind, i in actions], [party[i] for i in bench])
     st = lambda m: "" if m["status"] == 0 else " status %#x" % m["status"]
-    status.trace("%s %d/%d%s spd %d vs %s %d/%d%s spd %d (moves %s) | %s" % (
-        own["species"], own["hp"], own["max_hp"], st(own), own["spd"], opp["species"], opp["hp"], opp["max_hp"], st(opp),
-        opp["spd"], ", ".join(MOVES.get(mid, "?") for mid, _ in opp["moves"] if mid),
+    status.trace("%s %d/%d%s spd %d flags %02x/%02x vs %s %d/%d%s spd %d flags %02x/%02x (moves %s) | %s" % (
+        own["species"], own["hp"], own["max_hp"], st(own), own["spd"], own["flags"][0], own["flags"][1], opp["species"],
+        opp["hp"], opp["max_hp"], st(opp), opp["spd"], opp["flags"][0], opp["flags"][1], ", ".join(MOVES.get(mid, "?") for mid, _ in opp["moves"] if mid),
         ", ".join("%s %.0f" % (o[0], v) for o, v in zip(opts, values))))
     if not opts:  # no PP left anywhere: any move button makes the game use Struggle (A alone left the move menu open)
         status.log("%s vs %s: no PP left, Struggle" % (own["species"], opp["species"]))
