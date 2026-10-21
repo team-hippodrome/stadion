@@ -163,6 +163,8 @@ s16 Port_WidenViewAngle(s16 angle);
 void Port_BotBattleFrame(int result); // a battle is running (every battle frame); result: 0, or 1/2 side 0/1 won, 3 draw
 void Port_BotBattleChoice(const void* own, const void* opp, const void* party, int partyCount, int partyStride,
                           int activeSlot, int menu, int sub, int forced, int side); // player 1 has to act (each frame)
+void Port_BotBattleOpponents(const void* party, int count, int stride, int active); // the opponent's picks (before
+                                                                                 // each Port_BotBattleChoice)
 void Port_BotOrderSelect(int sub, int picked);                          // player 1's team-order panel (every frame;
                                                                         // sub -1 while the screen fades in)
 void Port_BotOrderTeams(const void* own, int ownCount, const void* opp, int oppCount, int stride); // both teams there

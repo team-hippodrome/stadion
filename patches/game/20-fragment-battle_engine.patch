@@ -408,16 +408,19 @@ index 56965571563b21a7557a154dd5ff135465583eb6..f1d73d71d63db8806786e996470fe607
          0,
          0,
 diff --git a/src/fragments/battle_engine/battle_engine_2F74E0.c b/src/fragments/battle_engine/battle_engine_2F74E0.c
-index 6c09ac72e3d8f5549eaf114faad543625f04a8e5..8d1067f478e229bf3665f2a87d041342e61ba8a6 100644
+index 6c09ac72e3d8f5549eaf114faad543625f04a8e5..6a1611255bb59a2a7d0d97f91a3728bae417b403 100644
 --- a/src/fragments/battle_engine/battle_engine_2F74E0.c
 +++ b/src/fragments/battle_engine/battle_engine_2F74E0.c
-@@ -1231,6 +1231,14 @@ void BattleScene_CollectPlayerAction(ActivePokemon* arg0, ActivePokemon* arg1) {
+@@ -1231,6 +1231,17 @@ void BattleScene_CollectPlayerAction(ActivePokemon* arg0, ActivePokemon* arg1) {
      BattleMonRuntime* sp20 = &arg0->state.runtime;
      BattleMonRuntime* sp1C = &arg1->state.runtime;
  
 +    // PORT: the autoplay bot's view of player 1's decision (Port_BotBattleChoice in port_compat.h)
 +    if (arg0->sessionTeams->teamMember[arg0->state.unk_2C]->unk_001 == 0) {
 +        TeamRoster* roster = arg0->sessionTeams->teamMember[arg0->state.unk_2C];
++        TeamRoster* opponents = arg1->sessionTeams->teamMember[arg1->state.unk_2C];
++        Port_BotBattleOpponents(opponents->pokemonPicked, opponents->numberOfPokemonChosen, sizeof(BattleMon),
++                                arg1->state.unk_08);
 +        Port_BotBattleChoice(sp20, sp1C, roster->pokemonPicked, roster->numberOfPokemonChosen, sizeof(BattleMon),
 +                             arg0->state.unk_08, arg0->state.unk_04, arg0->state.unk_10, arg0->state.unk_2D == 0x10,
 +                             BattleScene_GetParticipantSideIndex(arg0));

@@ -826,23 +826,68 @@ def sim_key(m):
             m["acc"], m["eva"], m["atk"], m["def"], m["spd"], m["spc"])
 
 
-def sim_bench_in(opp, bench, depth, cache):
+# The three-on-three around a decision: when the opponent's Pokemon faints, its best remaining one comes in (the
+# game shows the bot their three: Port_BotBattleOpponents); and every line of play is scored by the change in the
+# team outlook too: for each opponent still able to fight, how our best remaining Pokemon fares against it (the duel).
+# Losing the only answer to a Pokemon still to come (Nidoking against Raichu) costs more than its HP.
+OUTLOOK_WEIGHT = 0.5
+
+
+def outlook(duels, ours, theirs):
+    """the average over their remaining Pokemon of our best duel against each (species names)"""
+    if not theirs:
+        return 130.0
+    if not ours:
+        return -130.0
+    return sum(max(duels.get((m, o), 0.0) for m in ours) for o in theirs) / len(theirs)
+
+
+def plan(cache, ours, theirs):
+    """sets up the outlook for a decision: the duels of our Pokemon with theirs, and the outlook now"""
+    duels = {(m["species"], o["species"]): duel(m, o) for m in ours for o in theirs}
+    cache["plan"] = {"duels": duels, "root": outlook(duels, [m["species"] for m in ours], [o["species"] for o in theirs])}
+
+
+def leaf_outlook(cache, own, opp, bench, opp_bench):
+    """OUTLOOK_WEIGHT times the change of the team outlook from the decision to this line's end"""
+    p = cache.get("plan")
+    if not p:
+        return 0.0
+    ours = [m["species"] for m in (own,) + tuple(bench) if m["hp"] > 0]
+    theirs = [m["species"] for m in (opp,) + tuple(opp_bench) if m["hp"] > 0]
+    return OUTLOOK_WEIGHT * (outlook(p["duels"], ours, theirs) - p["root"])
+
+
+def sim_bench_in(opp, bench, depth, cache, opp_bench=()):
     """after our Pokemon faints, the best of the bench comes in without taking a hit and plays the turns left"""
     best = None
     for i, b in enumerate(bench):
         rest = bench[:i] + bench[i + 1:]
-        v = max(sim_value(b, opp, b, opp, depth, mid, cache, rest) for mid, _ in b["moves"]) if b["moves"] else 0.0
+        v = (max(sim_value(b, opp, b, opp, depth, mid, cache, rest, opp_bench) for mid, _ in b["moves"])
+             if b["moves"] else 0.0)
         best = v if best is None else max(best, v)
     return best or 0.0
 
 
-def sim_value(own0, opp0, own, opp, depth, own_mid, cache=None, bench=()):
+def sim_opp_in(own, opp_bench, depth, cache, bench=()):
+    """after the opponent's Pokemon faints, its best remaining one against ours comes in and plays the turns left"""
+    worst = None
+    for i, n in enumerate(opp_bench):
+        rest = opp_bench[:i] + opp_bench[i + 1:]
+        v = (max(sim_value(own, n, own, n, depth, mid, cache, bench, rest) for mid, _ in own["moves"])
+             if own["moves"] else 0.0)
+        worst = v if worst is None else min(worst, v)
+    return worst or 0.0
+
+
+def sim_value(own0, opp0, own, opp, depth, own_mid, cache=None, bench=(), opp_bench=()):
     """our expected standing after playing own_mid now and our best moves after it, for depth turns (cache: the
     positions already valued in this decision; misses and the like lead to the same ones again). bench: the rest of
-    our team (sim_mon), which comes in when ours faints"""
+    our team (sim_mon), which comes in when ours faints; opp_bench: the opponent's"""
     if cache is None:
         cache = {}
-    key = (sim_key(own), sim_key(opp), depth, own_mid, tuple(b["species"] for b in bench))
+    key = (sim_key(own), sim_key(opp), depth, own_mid, tuple(b["species"] for b in bench),
+           tuple(b["species"] for b in opp_bench))
     if key in cache:
         return cache[key]
     results = []
@@ -851,53 +896,59 @@ def sim_value(own0, opp0, own, opp, depth, own_mid, cache=None, bench=()):
         for p, o, x in sim_turn(own, opp, own_mid, k):
             if o["hp"] <= 0 and x["hp"] > 0 and depth > 1 and bench:
                 # a faint brings the next one in free (no hit on the way in, unlike a switch)
-                total += p * (sim_score(own0, opp0, o, x, depth - 1) + sim_bench_in(x, bench, depth - 1, cache))
+                total += p * (sim_score(own0, opp0, o, x, depth - 1) + sim_bench_in(x, bench, depth - 1, cache, opp_bench))
+            elif x["hp"] <= 0 and o["hp"] > 0 and depth > 1 and opp_bench:
+                total += p * (sim_score(own0, opp0, o, x, depth - 1) + sim_opp_in(o, opp_bench, depth - 1, cache, bench))
             elif depth <= 1 or o["hp"] <= 0 or x["hp"] <= 0:
-                total += p * sim_score(own0, opp0, o, x, depth - 1)
+                total += p * (sim_score(own0, opp0, o, x, depth - 1) + leaf_outlook(cache, o, x, bench, opp_bench))
             else:
                 nxt = [o["charge"]] if o["charge"] else [mid for mid, _ in o["moves"]]
-                total += p * max(sim_value(own0, opp0, o, x, depth - 1, mid, cache, bench) for mid in nxt)
+                total += p * max(sim_value(own0, opp0, o, x, depth - 1, mid, cache, bench, opp_bench) for mid in nxt)
         results.append(total)
     cache[key] = OPP_BEST * min(results) + (1 - OPP_BEST) * sum(results) / len(results)
     return cache[key]
 
 
-def lookahead_values(own, opp, actions, bench, depth=None):
+def lookahead_values(own, opp, actions, bench, depth=None, opp_bench=()):
     """the lookahead's value of each action: ("move", mid) or ("switch", party Pokemon); bench: our other Pokemon
-    still able to fight"""
+    still able to fight; opp_bench: the opponent's"""
     depth = depth or LOOKAHEAD_DEPTH
     o, x = sim_pair(own, opp)
     rest = tuple(sim_mon(b) for b in bench)
+    their = tuple(sim_mon(b) for b in opp_bench)
     values, cache = [], {}
+    plan(cache, [own] + list(bench), [opp] + list(opp_bench))
     for kind, what in actions:
         if kind == "move":
-            values.append(sim_value(o, x, o, x, depth, what, cache, rest))
+            values.append(sim_value(o, x, o, x, depth, what, cache, rest, their))
         else:  # switching: the newcomer takes the opponent's move this turn, then plays on; what the current one
             # keeps (its HP, out of harm's way) is not lost
             n = sim_pair(what, opp)[0]  # a trap under way catches the newcomer too, unless it is faster
             others = tuple(b for b in rest if b["species"] != what["species"]) + (o,)
-            results, sub = [], {}
+            results, sub = [], {"plan": cache["plan"]}
             d = min(depth, 2 if depth <= 3 else 3)  # a switch is looked at less far: there are many of them
             for k in opp_moves(x):
                 total = 0.0
                 for p, a, b in sim_turn(n, x, None, k):
                     if a["hp"] <= 0 and b["hp"] > 0 and d > 1:
-                        total += p * (sim_score(n, x, a, b, d - 1 + (depth - d)) + sim_bench_in(b, others, d - 1, sub))
+                        total += p * (sim_score(n, x, a, b, d - 1 + (depth - d)) + sim_bench_in(b, others, d - 1, sub, their))
                     elif d <= 1 or a["hp"] <= 0 or b["hp"] <= 0:
-                        total += p * sim_score(n, x, a, b, d - 1 + (depth - d))
+                        total += p * (sim_score(n, x, a, b, d - 1 + (depth - d)) + leaf_outlook(sub, a, b, others, their))
                     else:
-                        total += p * max(sim_value(n, x, a, b, d - 1, mid, sub, others) for mid, _ in a["moves"])
+                        total += p * max(sim_value(n, x, a, b, d - 1, mid, sub, others, their) for mid, _ in a["moves"])
                 results.append(total)
             values.append(OPP_BEST * min(results) + (1 - OPP_BEST) * sum(results) / len(results))
     return values
 
 
-def lookahead_sendout(cand, opp, bench=(), depth=None):
+def lookahead_sendout(cand, opp, bench=(), depth=None, opp_bench=()):
     """how well a Pokemon sent in after a knock-out does (it acts this turn: no free hit); bench: the others left"""
     n, x = sim_pair(cand, opp)
     rest = tuple(sim_mon(b) for b in bench)
+    their = tuple(sim_mon(b) for b in opp_bench)
     cache = {}
-    return max(sim_value(n, x, n, x, depth or LOOKAHEAD_DEPTH, mid, cache, rest) for mid, _ in n["moves"])
+    plan(cache, [cand] + list(bench), [opp] + list(opp_bench))
+    return max(sim_value(n, x, n, x, depth or LOOKAHEAD_DEPTH, mid, cache, rest, their) for mid, _ in n["moves"])
 
 
 def play_turn(game, brain, status, choice):
@@ -905,8 +956,14 @@ def play_turn(game, brain, status, choice):
     own, opp = runtime_mon(choice["own"]), runtime_mon(choice["opp"])
     party = [party_mon(p) for p in choice["party"]]
     active = choice["active"]
+    # the opponent's three (Port_BotBattleOpponents): the ones still able to fight besides the active one
+    opp_party = [party_mon(p) for p in choice.get("opp_party", [])]
+    opp_bench = [m for i, m in enumerate(opp_party) if i != choice.get("opp_active", -1) and m["hp"] > 0
+                 and not m["species"].startswith("#")]
     seen = status.data.setdefault("opp_seen", {})  # the opponent's Pokemon met in this battle: HP share left
     seen[str(opp["id"])] = round(opp["hp"] / max(1, opp["max_hp"]), 3)
+    for m in opp_party:  # their three, with the HP the game reports
+        seen[str(m["id"])] = round(m["hp"] / max(1, m["max_hp"]), 3)
     status.set(own=mon_view(own), opp=mon_view(opp), opp_seen=dict(seen),
                party=[dict(mon_view(p), active=i == active) for i, p in enumerate(party)])
     state = battle_state(own, opp, party, active)
@@ -919,7 +976,7 @@ def play_turn(game, brain, status, choice):
         opts = [(party[i]["species"], "%s, %s, %d/%d HP" % (party[i]["species"], types_text(party[i]["types"]),
                                                              party[i]["hp"], party[i]["max_hp"])) for i in bench]
         depth = LEADER_DEPTH if status.data.get("leader") else LOOKAHEAD_DEPTH
-        values = ([lookahead_sendout(party[i], opp, [party[j] for j in bench if j != i], depth) for i in bench]
+        values = ([lookahead_sendout(party[i], opp, [party[j] for j in bench if j != i], depth, opp_bench) for i in bench]
                   if LOOKAHEAD_DEPTH else
                   [matchup(party[i], opp) for i in bench])
         status.trace("send out against %s %d/%d spd %d (moves %s) | %s" % (
@@ -961,7 +1018,7 @@ def play_turn(game, brain, status, choice):
     if LOOKAHEAD_DEPTH and actions:  # the next turns played out replace the one-turn estimate
         values = lookahead_values(own, opp, [("move", own["moves"][i][0]) if kind == "move" else ("switch", party[i])
                                              for kind, i in actions], [party[i] for i in bench],
-                                  LEADER_DEPTH if status.data.get("leader") else LOOKAHEAD_DEPTH)
+                                  LEADER_DEPTH if status.data.get("leader") else LOOKAHEAD_DEPTH, opp_bench)
     st = lambda m: "" if m["status"] == 0 else " status %#x" % m["status"]
     status.trace("%s %d/%d%s spd %d flags %02x/%02x vs %s %d/%d%s spd %d flags %02x/%02x (moves %s) | %s" % (
         own["species"], own["hp"], own["max_hp"], st(own), own["spd"], own["flags"][0], own["flags"][1], opp["species"],

@@ -41,6 +41,8 @@ struct Choice {
     std::vector<uint8_t> own, opp;
     std::vector<std::vector<uint8_t>> party;
     int active = 0, menu = 0, sub = 0, forced = 0, side = 0;
+    std::vector<std::vector<uint8_t>> oppParty; // the opponent's picks (BattleMon each), Port_BotBattleOpponents
+    int oppActive = 0;
 } gChoice;
 struct Order {
     bool seen = false;
@@ -88,7 +90,11 @@ std::string BuildState() {
         for (size_t i = 0; i < gChoice.party.size(); i++) {
             s += (i ? ",\"" : "\"") + Hex(gChoice.party[i]) + "\"";
         }
-        s += "]}";
+        s += "],\"opp_party\":[";
+        for (size_t i = 0; i < gChoice.oppParty.size(); i++) {
+            s += (i ? ",\"" : "\"") + Hex(gChoice.oppParty[i]) + "\"";
+        }
+        s += "],\"opp_active\":" + std::to_string(gChoice.oppActive) + "}";
     }
     if (gRentalSeen) {
         s += ",\"rental_age\":" + std::to_string(now - gRentalTick) + ",\"rental_species\":" +
@@ -242,6 +248,19 @@ extern "C" void Port_BotBattleChoice(const void* own, const void* opp, const voi
     gChoice.forced = forced;
     gChoice.side = side;
     gOwnSide = side;
+}
+
+extern "C" void Port_BotBattleOpponents(const void* party, int count, int stride, int active) {
+    if (!Enabled()) {
+        return;
+    }
+    std::lock_guard<std::mutex> g(gLock);
+    gChoice.oppParty.clear();
+    for (int i = 0; i < count && i < 6; i++) {
+        const uint8_t* p = (const uint8_t*)party + (size_t)i * stride;
+        gChoice.oppParty.emplace_back(p, p + stride);
+    }
+    gChoice.oppActive = active;
 }
 
 extern "C" void Port_BotOrderTeams(const void* own, int ownCount, const void* opp, int oppCount, int stride) {
