@@ -562,11 +562,14 @@ def sim_attack(att, dfn, mid, p, out):
         att["charge"] = mid
         out.append((p, att, dfn))
         return
+    name, e = MOVES.get(mid, ""), d["effect"]
+    if dfn["charge"] and MOVES.get(dfn["charge"]) in ("Dig", "Fly") and name != "Swift":
+        out.append((p, att, dfn))  # underground or in the air: out of reach (Tentacruel's Hydro Pumps missed Dugtrio)
+        return
     acc = d["accuracy"] / 100.0 if d["accuracy"] < 100 else 1.0
     if acc < 1.0:
         out.append((p * (1 - acc), dict(att), dict(dfn)))
         p *= acc
-    name, e = MOVES.get(mid, ""), d["effect"]
     if d["power"] == 0 and name != "Night Shade":
         if e == SLEEP and not dfn["sleep"] and not dfn["para"] and not dfn["psn"]:
             dfn["sleep"] = 3
