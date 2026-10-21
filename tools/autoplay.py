@@ -989,6 +989,13 @@ def attack_options(m):
     return "sure attacks: %s; risky attacks: %s" % (", ".join(sure) or "none", ", ".join(risky) or "none")
 
 
+DRAFT_POOL = 30          # the shortlist is drawn from this many of the most useful picks, weighted by their gain
+DRAFT_TEMPERATURE = 10.0  # gain units per factor e in that weighting (lower: the very best almost always)
+BATCH_VARIETY = 8.0      # a species drafted by another game of this run counts this much less per game
+BATCH_DRAFTED = {}       # species id -> games of this run that drafted it
+BATCH_LOCK = threading.Lock()
+
+
 def draft_team(brain, status, roster, rng, size=6, shortlist=6):
     """A rental team built one Pokemon at a time, judged by its answers: for every Pokemon in the rental list (the
     pool the castle's trainers draw from too), the team's best matchup against it (the battle estimate). A team is
@@ -1020,8 +1027,14 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
     while len(team) < size:
         base = score(team) if team else 0.0
         gains = sorted(((score(team + [m]) - base, i) for i, m in enumerate(mons) if m not in team), reverse=True)
-        top = [mons[i] for _, i in gains[:15]]  # the most useful picks now
-        cands = rng.sample(top, min(shortlist, len(top)))
+        with BATCH_LOCK:  # what the other games already took counts a little less (a run covers more Pokemon)
+            gains = sorted(((g - BATCH_VARIETY * BATCH_DRAFTED.get(mons[i]["id"], 0), i) for g, i in gains), reverse=True)
+        top = gains[:DRAFT_POOL]
+        cands = []  # drawn without repeats, the more useful the likelier (five games no longer draft alike)
+        while top and len(cands) < shortlist:
+            weights = [math.exp((g - top[0][0]) / DRAFT_TEMPERATURE) for g, _ in top]
+            k = rng.choices(range(len(top)), weights)[0]
+            cands.append(mons[top.pop(k)[1]])
         gain = {mons[i]["id"]: g for g, i in gains}
         values = [gain[m["id"]] for m in cands]
         opts = [(m["species"], "%s (%s), level %d: %s; weak to %s" % (
@@ -1037,6 +1050,8 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
                                  "ones it cannot beat yet, with attacks it can rely on?", state, opts, values)
         status.trace("draft gains: " + ", ".join("%s %.0f" % (m["species"], v) for m, v in zip(cands, values)))
         team.append(cands[k])
+        with BATCH_LOCK:  # at once: the other games draft at the same time
+            BATCH_DRAFTED[cands[k]["id"]] = BATCH_DRAFTED.get(cands[k]["id"], 0) + 1
         status.log("draft: %s (Laya %.0f%%, final %.0f%%) from %s" % (
             cands[k]["species"], lp * 100, fp * 100, ", ".join(m["species"] for m in cands)))
     a = answers(team)
