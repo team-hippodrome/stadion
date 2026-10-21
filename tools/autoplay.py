@@ -1668,7 +1668,7 @@ def choose_team(brain, status, order):
 
     # a retry against the same team tries something else: each loss costs the three it was lost with (and its lead)
     # this much (game 4 sent Paras, Exeggutor and Gengar against Giovanni five times, and lost five times)
-    key = tuple(sorted(o["species"] for o in opp))
+    key = ", ".join(sorted(o["species"] for o in opp))  # (a string: the status page sends status.data as JSON)
     lost = status.data.setdefault("lost_picks", {}).get(key, [])
     names = lambda t: tuple(sorted(own[i]["species"] for i in t))
     trio = max(itertools.combinations(range(len(own)), 3),
