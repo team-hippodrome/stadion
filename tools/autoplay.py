@@ -89,10 +89,15 @@ def load_tables():
         mid, effect, power, typ, acc, pp = m.groups()
         movedata[int(mid)] = {"power": int(power), "type": TYPES.get(int(typ), "?"), "effect": int(effect),
                               "accuracy": round(int(acc, 0) * 100 / 255), "pp": int(pp)}
-    return species, moves, movedata
+    # base speed per species (gSpeciesData: id, hp, attack, defence, speed, special, ...): the critical hit chance
+    table = src[src.index("SpeciesData gSpeciesData"):]
+    table = table[:table.index("};")]
+    base_speed = {int(m.group(1)): int(m.group(5)) for m in
+                  re.finditer(r"\{ *(\d+), (\d+), (\d+), (\d+), (\d+), (\d+),", table)}
+    return species, moves, movedata, base_speed
 
 
-SPECIES, MOVES, MOVEDATA = load_tables()
+SPECIES, MOVES, MOVEDATA, BASE_SPEED = load_tables()
 
 
 def u16(b, o):
@@ -348,6 +353,28 @@ ASLEEP = 0x07  # the status byte's sleep counter (Game Boy encoding)
 PRIORITY = {98}  # Quick Attack
 
 
+HIGH_CRIT = {2, 75, 152, 163}  # Karate Chop, Razor Leaf, Crabhammer, Slash (battle_engine gHighCritMoves)
+F2_FOCUS = 0x04                 # Focus Energy (second battle status byte)
+
+
+def crit_chance(att, mid):
+    """the chance of a critical hit as the game rolls it (Battle_CheckCriticalHit, the Stadium rules): from the
+    attacker's base speed, four times for Focus Energy, eight times for the high-critical moves (Slash from a fast
+    Pokemon almost always)"""
+    base = BASE_SPEED.get(att.get("id") or SPECIES_ID_OF.get(att.get("species"), 0), 70)
+    t = (base + 76) >> 2
+    t = t * 4 + 160 if att.get("flags", (0, 0))[1] & F2_FOCUS else t * 2
+    t = t * 4 if mid in HIGH_CRIT else t >> 1
+    return max(1, min(255, t)) / 256.0
+
+
+def crit_factor(att, mid):
+    """expected damage over a hit without a critical hit: a critical hit counts the attacker's level twice (about
+    1.9 at level 50)"""
+    level = att.get("level", 50)
+    return 1.0 + crit_chance(att, mid) * ((4 * level / 5 + 2) / (2 * level / 5 + 2) - 1.0)
+
+
 def damage(att, dfn, mid):
     """Expected damage of one hit (before accuracy) with the Generation 1 formula (average random factor)"""
     d = MOVEDATA.get(mid)
@@ -374,7 +401,7 @@ def damage(att, dfn, mid):
     a, b = (att["atk"], dfn["def"]) if d["type"] in PHYSICAL else (att["spc"], dfn["spc"])
     base = ((2 * att["level"] / 5 + 2) * d["power"] * max(1, a) / max(1, b)) / 50 + 2
     stab = 1.5 if d["type"] in att["types"] else 1.0
-    return base * stab * eff * 0.925 * MULTI_HIT.get(d["effect"], 1.0)
+    return base * stab * eff * 0.925 * MULTI_HIT.get(d["effect"], 1.0) * crit_factor(att, mid)
 
 
 STAGE_MULTIPLIER = [None, (25, 100), (28, 100), (33, 100), (40, 100), (50, 100), (66, 100), (1, 1), (15, 10), (2, 1),
@@ -890,6 +917,7 @@ def play_turn(game, brain, status, choice):
 
 
 SPECIES_ID = {name.lower().replace(" ", ""): i for i, name in SPECIES.items()}
+SPECIES_ID_OF = {name: i for i, name in SPECIES.items()}  # for Pokemon without an id (the crit chance)
 
 
 def species_id(name):
