@@ -98,6 +98,72 @@ def load_tables():
 
 
 SPECIES, MOVES, MOVEDATA, BASE_SPEED = load_tables()
+STADIUM_TM_EXTRA = {6: (6, 0x2E), 12: (6, 0x42), 48: (6, 0x42), 49: (6, 0x42), 50: (6, 0x06), 51: (6, 0x06),
+                    141: (6, 0x16), 150: (1, 0x7F), 151: (6, 0x7F)}  # Battle_MarkIllegalMoves: extra TM/HM bits
+
+
+def load_learnsets(gb_rom=None):
+    """the moves each species may know (Pokedex number -> move ids), as the game's move check allows them
+    (battle_engine Battle_MarkIllegalMoves): starting moves, TM/HM learnsets (gSpeciesData; TM numbers in
+    D_80073230) with Stadium's extra bits, and the level-up moves of the species and of what it evolved from, which
+    come from a Game Boy Pokemon ROM (its evolutions/moves table, found by Bulbasaur's entry). Without the ROM the
+    level-up moves are missing. 98% of the castle trainers' moves are allowed (Raichu's Surf is not)."""
+    import struct
+    src = re.sub(r"/\*.*?\*/", "", open(os.path.join(ROOT, "game", "src", "pokemon_stats.c")).read(), flags=re.S)
+    body = src[src.index("{", src.index("u8 D_80073230[0x420]")):]
+    raw = [int(x, 16) for x in re.findall(r"0x([0-9A-Fa-f]{2})\b", body)]
+    tm_moves, dex_to_internal = raw[:55], raw[0x37:0x37 + 152]
+    gb = open(os.path.join(ROOT, "game", "src", "gb_data.c")).read()
+    table = gb[gb.index("SpeciesData gSpeciesData"):]
+    table = table[:table.index("};")]
+    species = {}
+    for line in table.splitlines():
+        n = [int(x, 0) for x in re.findall(r"0x[0-9A-Fa-f]+|\d+", line)] if line.strip().startswith("{") else []
+        if len(n) >= 22:
+            species[n[0]] = {"start": [x for x in n[10:14] if x], "tm": n[15:22]}
+    levelup, pre = {}, {}
+    if gb_rom and os.path.exists(gb_rom):
+        rom = open(gb_rom, "rb").read()
+        at = rom.find(bytes([1, 0x10, 0x09, 0, 0x07, 0x49, 0x0D, 0x16, 0x14, 0x4D, 0x1B, 0x4B, 0x22, 0x4A, 0x29, 0x4F,
+                             0x30, 0x4C, 0]))
+        if at > 0:
+            bank = at // 0x4000
+            ptr = struct.pack("<H", 0x4000 + at % 0x4000)
+            tab = next((i - 2 * 0x98 for i in range(bank * 0x4000, bank * 0x4000 + 0x4000)
+                        if rom[i:i + 2] == ptr and i - 2 * 0x98 >= bank * 0x4000), None)
+
+            def entry(internal):  # -> (evolution targets, level-up moves)
+                i = bank * 0x4000 + struct.unpack("<H", rom[tab + 2 * internal - 2:tab + 2 * internal])[0] - 0x4000
+                evo, moves = [], []
+                while rom[i]:
+                    evo.append(rom[i + 3] if rom[i] == 2 else rom[i + 2])
+                    i += 4 if rom[i] == 2 else 3
+                i += 1
+                while rom[i]:
+                    moves.append(rom[i + 1])
+                    i += 2
+                return evo, moves
+            internal_to_dex = {v: d for d, v in enumerate(dex_to_internal) if d}
+            for d in range(1, 152):
+                evo, levelup[d] = entry(dex_to_internal[d])
+                for t in evo:
+                    if t in internal_to_dex:
+                        pre[internal_to_dex[t]] = d
+    allowed = {}
+    for d in range(1, 152):
+        moves, e = set(species[d]["start"]) | set(levelup.get(d, ())), d
+        while e in pre:  # what it learned before evolving
+            e = pre[e]
+            moves |= set(species[e]["start"]) | set(levelup.get(e, ()))
+        for i in range(55):
+            bits = species[d]["tm"][i // 8] | (STADIUM_TM_EXTRA[d][1] if STADIUM_TM_EXTRA.get(d, (9,))[0] == i // 8 else 0)
+            if (bits >> (i % 8)) & 1:
+                moves.add(tm_moves[i])
+        allowed[d] = sorted(m for m in moves if m in MOVEDATA)
+    return allowed
+
+
+ALLOWED = {}  # filled in main() (load_learnsets); empty: the draft judges opponents by the rentals' own moves
 
 
 def u16(b, o):
@@ -1169,6 +1235,10 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6, explore=False):
     # as the trainers field them (58 species compared: HP and speed about 15 higher; their Ninetales outruns the birds)
     opps = [dict(o, hp=o["hp"] + TRAINER_BONUS, max_hp=o["max_hp"] + TRAINER_BONUS,
                  **{k: o[k] + TRAINER_BONUS for k in ("atk", "def", "spd", "spc")}) for o in opps]
+    # and with any attack they may know (the trainers' movesets are not the rentals': learnsets, load_learnsets)
+    if ALLOWED:
+        opps = [dict(o, moves=[(mid, 10) for mid in ALLOWED.get(o["id"], ()) if MOVEDATA[mid]["power"] > 0]
+                     or o["moves"]) for o in opps]
     vs = {m["id"]: [team_matchup(m, o) for o in opps] for m in mons}  # each one's duel with each opponent
     dz = {m["id"]: [danger(o, m) for o in opps] for m in mons}  # and each opponent's danger to it
     worst = max(1, len(opps) // 4)
@@ -1568,6 +1638,8 @@ def main():
     ap.add_argument("--leaders-only", action="store_true",
                     help="with --castle: only the gym leaders (PORT_CASTLE_LEADERS_ONLY=1; then the Elite Four and the "
                          "champion as usual: 13 battles in all, so use --wins 13)")
+    ap.add_argument("--gb-rom", default=os.environ.get("PORT_GB_ROM"),
+                    help="a Game Boy Pokemon ROM for the level-up learnsets (default $PORT_GB_ROM, else gb/*.gb)")
     ap.add_argument("--round2", action="store_true", help="play Round 2 (PORT_ROUND2=1; the save is not changed)")
     ap.add_argument("--team", help="six Pokemon to rent, e.g. Mewtwo,Alakazam,Snorlax,Starmie,Zapdos,Rhydon, or draft: Laya "
                                        "drafts a well-rounded team from the rental list (different every run)")
@@ -1580,6 +1652,12 @@ def main():
     LOOKAHEAD_DEPTH = args.lookahead
     LEADER_DEPTH = args.leader_lookahead if LOOKAHEAD_DEPTH else 0
     picks = args.pick if args.pick in ("random", "smart") else [int(x) - 1 for x in args.pick.split(",")]
+    global ALLOWED
+    import glob
+    gb_rom = args.gb_rom or next(iter(sorted(glob.glob(os.path.join(ROOT, "gb", "*.gb")))), None)
+    ALLOWED = load_learnsets(gb_rom)
+    print("learnsets: %s" % ("level-up moves from " + os.path.basename(gb_rom) if gb_rom else
+                             "TM/HM and starting moves only (no Game Boy ROM)"), flush=True)
 
     status = Status()
     url = serve_status(status, args.port, args.rom)
