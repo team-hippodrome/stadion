@@ -558,8 +558,9 @@ def battle_state(own, opp, party, active):
 # average). Damage is the average roll; critical hits, confusion and secondary effects are left out.
 LOOKAHEAD_DEPTH = 3  # turns (--lookahead; 0: the one-turn estimate alone)
 # gym leaders and the Elite Four decide a castle run (trainers 87% won, leaders 74%; Lt. Surge 17%): their battles
-# get a deeper lookahead (--leader-lookahead; about 1-5 s a decision instead of 0.1-0.5)
-LEADER_DEPTH = 5
+# get a deeper lookahead (--leader-lookahead; up to about 2 s a decision instead of 0.1-0.5; 5 turns took up to 7 s,
+# too slow with five games sharing the bot)
+LEADER_DEPTH = 4
 OPP_BEST = 0.6
 DRAIN, RECOIL = 3, 48
 STAT_CHANGE = {"Agility": (0, "spd", 2.0), "Amnesia": (0, "spc", 2.0), "Swords Dance": (0, "atk", 2.0),
@@ -1306,7 +1307,11 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
     registered = False
     rejected = set()
     last_thumb = 0.0
+    last_poll = time.time()
     while status.get("wins") < wins:
+        if time.time() - last_poll > 2.0:  # the bot was busy elsewhere (another game's long decision): the game ran on
+            progress_tick = game.state()["tick"]  # unattended, which is no sign of a stuck game
+        last_poll = time.time()
         if status.get("thumb") and time.time() - last_thumb > 1.0:  # a picture for the status page, once a second
             game.thumb(status.get("thumb"))
             last_thumb = time.time()
