@@ -744,6 +744,12 @@ def play_turn(game, brain, status, choice):
     own, opp = runtime_mon(choice["own"]), runtime_mon(choice["opp"])
     party = [party_mon(p) for p in choice["party"]]
     active = choice["active"]
+    track = status.data.setdefault("exp_track", {})
+    if choice["forced"]:
+        EXP.fainted(track)
+    else:
+        EXP.observe(track, own["species"], own["hp"] / max(1, own["max_hp"]), opp["species"],
+                    opp["hp"] / max(1, opp["max_hp"]))
     seen = status.data.setdefault("opp_seen", {})  # the opponent's Pokemon met in this battle: HP share left
     seen[str(opp["id"])] = round(opp["hp"] / max(1, opp["max_hp"]), 3)
     status.set(own=mon_view(own), opp=mon_view(opp), opp_seen=dict(seen),
@@ -947,6 +953,99 @@ def weaknesses(mon):
     return {t for t in CHART if effectiveness(t, mon["types"]) > 1}
 
 
+# ---- experience: how our species actually fared against each opponent species --------------------------------------
+# The battle estimate plays an idealised one-on-one; the team decisions (draft, the three for a battle) blend it with
+# what happened in earlier battles: per pair (ours, theirs) the turns they faced each other, the share of HP dealt
+# and taken per turn, knock-outs and faints. Kept in EXPERIENCE (build/, not in git), updated after every battle;
+# --learn imports the decision logs of earlier runs. (Zapdos fainted 23 times against Onix without one knock-out,
+# while the estimate kept sending it in.)
+EXPERIENCE = os.path.join(ROOT, "build", "autoplay_experience.json")
+EXP_PRIOR = 4.0  # evidence (knock-outs + faints + turns / 3) at which experience counts as much as the estimate
+TRACE_LINE = re.compile(r"\[([^\]]+)\]     (.+?) (\d+)/(\d+)(?: status \S+)? spd \d+ vs (.+?) (\d+)/(\d+)")
+
+
+class Experience:
+    def __init__(self, path=EXPERIENCE):
+        self.path, self.lock = path, threading.Lock()
+        try:
+            self.pairs = json.load(open(path))
+        except (OSError, ValueError):
+            self.pairs = {}
+
+    def _pair(self, own, opp):
+        return self.pairs.setdefault(own + "|" + opp, [0, 0.0, 0.0, 0, 0])  # turns, dealt, taken, kos, faints
+
+    def observe(self, track, own, own_frac, opp, opp_frac):
+        """one decision seen in battle; track: the game's state between calls ({} at the start of a battle)"""
+        with self.lock:
+            p = track.get("prev")
+            if p and p[0] == own:
+                e = self._pair(p[0], p[2])
+                if p[2] == opp:  # the same two again: what the last turn did to each
+                    e[0] += 1
+                    e[1] += max(0.0, p[3] - opp_frac)
+                    e[2] += max(0.0, p[1] - own_frac)
+                else:  # ours stayed in, theirs is gone: knocked out (or switched)
+                    e[3] += 1
+            track["prev"] = (own, own_frac, opp, opp_frac)
+
+    def fainted(self, track):
+        """ours fainted (a replacement is being chosen): against the one it last faced"""
+        with self.lock:
+            p = track.get("prev")
+            if p:
+                self._pair(p[0], p[2])[4] += 1
+            track["prev"] = None
+
+    def value(self, own, opp, estimate):
+        """the estimate blended with experience for this pair (same scale: about 100 per knock-out)"""
+        e = self.pairs.get(own + "|" + opp)
+        if not e:
+            return estimate
+        turns, dealt, taken, kos, faints = e
+        evidence = kos + faints + turns / 3.0
+        exchange = (dealt - taken) / turns if turns else 0.0
+        seen = 120.0 * (kos - faints) / (kos + faints + 2) + 100.0 * exchange
+        w = evidence / (evidence + EXP_PRIOR)
+        return (1 - w) * estimate + w * seen
+
+    def save(self):
+        with self.lock:
+            data = json.dumps(self.pairs, sort_keys=True)
+        tmp = self.path + ".tmp"
+        try:
+            with open(tmp, "w") as f:
+                f.write(data)
+            os.replace(tmp, self.path)
+        except OSError:
+            pass
+
+    def learn_log(self, path):
+        """adds the battles of an earlier run's console log (its decision trace lines)"""
+        tracks = {}
+        for line in open(path, errors="replace"):
+            m = TRACE_LINE.match(line)
+            if m:
+                self.observe(tracks.setdefault(m.group(1), {}), m.group(2), int(m.group(3)) / max(1, int(m.group(4))),
+                             m.group(5), int(m.group(6)) / max(1, int(m.group(7))))
+                continue
+            m = re.match(r"\[([^\]]+)\] (send out|team vs|battle (won|lost))", line)
+            if m:
+                t = tracks.setdefault(m.group(1), {})
+                if m.group(2) == "send out":
+                    self.fainted(t)
+                t["prev"] = None
+
+
+EXP = Experience.__new__(Experience)  # replaced in main(); empty until then (the estimate alone)
+EXP.pairs, EXP.lock, EXP.path = {}, threading.Lock(), None
+
+
+def team_matchup(m, o):
+    """a matchup for team decisions: the estimate (accuracy weighed harder) blended with experience"""
+    return EXP.value(m["species"], o["species"], matchup(m, o, TEAM_RISK))
+
+
 def attack_options(m):
     """its attacks for Laya: sure ones (single turn, 90%+ accuracy) and risky ones (misses often, or charges first)"""
     sure, risky = [], []
@@ -959,12 +1058,13 @@ def attack_options(m):
     return "sure attacks: %s; risky attacks: %s" % (", ".join(sure) or "none", ", ".join(risky) or "none")
 
 
-def draft_team(brain, status, roster, rng, size=6, shortlist=6):
+def draft_team(brain, status, roster, rng, size=6, shortlist=6, ban=()):
     """A rental team built one Pokemon at a time, judged by its answers: for every Pokemon in the rental list (the
     pool the castle's trainers draw from too), the team's best matchup against it (the battle estimate). A team is
     good when its average answer is good and its weakest answers are not bad; each step offers Laya a random
     shortlist of the candidates that raise that the most (a different team every run). No type rules: overlapping
-    types and shared weaknesses simply add little. -> species ids"""
+    types and shared weaknesses simply add little. ban: species ids never picked (they still count as opponents).
+    -> species ids"""
     mons, seen = [], set()
     for h in roster:
         m = party_mon(h)
@@ -975,7 +1075,7 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
         mons.append(m)
     if len(mons) < size:
         return None
-    vs = {m["id"]: [matchup(m, o, TEAM_RISK) for o in mons] for m in mons}  # each one's matchup against each Pokemon
+    vs = {m["id"]: [team_matchup(m, o) for o in mons] for m in mons}  # each one's matchup against each Pokemon
     worst = max(1, len(mons) // 4)
 
     def answers(team):
@@ -988,7 +1088,8 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
     team = []
     while len(team) < size:
         base = score(team) if team else 0.0
-        gains = sorted(((score(team + [m]) - base, i) for i, m in enumerate(mons) if m not in team), reverse=True)
+        gains = sorted(((score(team + [m]) - base, i) for i, m in enumerate(mons) if m not in team and m["id"] not in ban),
+                       reverse=True)
         top = [mons[i] for _, i in gains[:15]]  # the most useful picks now
         cands = rng.sample(top, min(shortlist, len(top)))
         gain = {mons[i]["id"]: g for g, i in gains}
@@ -1032,7 +1133,7 @@ def choose_team(brain, status, order):
     # the weakest two (the opponent sends in three, likely the ones that beat ours). Choosing each one on its own
     # sent three Pokemon slower than a Ninetales with Fire Spin while a faster one waited on the bench.
     import itertools
-    vs = [[matchup(m, o, TEAM_RISK) for o in opp] for m in own]
+    vs = [[team_matchup(m, o) for o in opp] for m in own]
 
     def trio_score(t):
         # each of ours usually meets several of theirs (who comes in next is not ours to choose), so an answer counts
@@ -1053,14 +1154,14 @@ def choose_team(brain, status, order):
                              ", ".join(o["species"] for o in opp), state, opts, values)
     picks = [trio[k]] + sorted((i for i in trio if i != trio[k]), key=lambda i: -sum(vs[i]))
     status.set(team=[m["id"] for m in own], trio=[own[i]["id"] for i in picks], opp_team=[o["id"] for o in opp],
-               opp_seen={}, party=[])
+               opp_seen={}, party=[], exp_track={})
     status.log("team vs %s: %s" % (", ".join(o["species"] for o in opp),
                                    ", ".join(own[i]["species"] for i in picks)))
     return picks
 
 
 def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0,
-             register=False, room=None, max_losses=0):
+             register=False, room=None, max_losses=0, ban=()):
     """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
     "random"; random_team: choose the rental team at random on the rental carousel."""
     def new_picks(order=None):
@@ -1113,7 +1214,7 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             if not roster:
                 game.wait(10)
                 continue
-            team = draft_team(brain, status, roster, rng)
+            team = draft_team(brain, status, roster, rng, ban=ban)
             if team is None:
                 status.log("could not read the rental list: stopped")
                 status.set(phase="stopped: no rental list", done=True)
@@ -1261,6 +1362,8 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             won = result in (1, 2) and result - 1 == side
             with status.status.lock:
                 status.data["history"].append({"won": won, "opp": status.data.get("opp_team", [])})
+                status.data["exp_track"] = {}
+            EXP.save()
             status.set(battles=status.get("battles") + 1)
             if won:
                 status.set(wins=status.get("wins") + 1)
@@ -1322,6 +1425,9 @@ def main():
     ap.add_argument("--lookahead", type=int, default=LOOKAHEAD_DEPTH,
                     help="turns the battle is played out ahead for each decision (default %d; 0: one-turn estimate)" %
                          LOOKAHEAD_DEPTH)
+    ap.add_argument("--learn", nargs="+", metavar="LOG",
+                    help="add the battles in these console logs of earlier runs to the experience file, then exit")
+    ap.add_argument("--ban", help="with --team draft: species the draft never picks, e.g. Zapdos,Articuno,Moltres")
     ap.add_argument("--round2", action="store_true", help="play Round 2 (PORT_ROUND2=1; the save is not changed)")
     ap.add_argument("--team", help="six Pokemon to rent, e.g. Mewtwo,Alakazam,Snorlax,Starmie,Zapdos,Rhydon, or draft: Laya "
                                        "drafts a well-rounded team from the rental list (different every run)")
@@ -1333,6 +1439,16 @@ def main():
     args = ap.parse_args()
     LOOKAHEAD_DEPTH = args.lookahead
     picks = args.pick if args.pick in ("random", "smart") else [int(x) - 1 for x in args.pick.split(",")]
+    global EXP
+    EXP = Experience()
+    if args.learn:
+        before = sum(e[0] + e[3] + e[4] for e in EXP.pairs.values())
+        for path in args.learn:
+            EXP.learn_log(path)
+        EXP.save()
+        print("experience: %d pairs, %d new observations (%s)" % (
+            len(EXP.pairs), sum(e[0] + e[3] + e[4] for e in EXP.pairs.values()) - before, EXP.path))
+        return
 
     status = Status()
     url = serve_status(status, args.port, args.rom)
@@ -1357,7 +1473,7 @@ def main():
                 gs.log("connected")
                 import random
                 run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team,
-                         route_end, args.register, args.room, args.max_losses)
+                         route_end, args.register, args.room, args.max_losses, ban)
                 if proc and proc[0].poll() is None:  # finished (won, or lost too often): close its game
                     proc[0].terminate()
             except (EOFError, BrokenPipeError, ConnectionResetError) as e:
@@ -1378,6 +1494,7 @@ def main():
         threads.append(t)
 
     try:
+        ban = {species_id(n) for n in args.ban.split(",")} if args.ban else set()
         team = None
         if args.team == "draft":
             team = "draft"  # Laya drafts it from the rental list when the carousel opens (draft_team)
