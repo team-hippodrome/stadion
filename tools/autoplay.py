@@ -1080,7 +1080,9 @@ DRAFT_TEMPERATURE = 10.0  # gain units per factor e in that weighting (lower: th
 BATCH_VARIETY = 8.0      # a species drafted by another game of this run counts this much less per game
 BATCH_DRAFTED = {}       # species id -> games of this run that drafted it
 BATCH_LOCK = threading.Lock()
-BATCH_EXPECTED = 0       # picks the regular games of this run make; an experimental draft waits for them (main)
+# the games of a run draft one after another (each waits for the picks of the games before it, up to two minutes):
+# drafting all at once, two games took the very same team
+
 
 
 EXPLORE_POOL, EXPLORE_TEMPERATURE, EXPLORE_VARIETY = 60, 45.0, 3.0  # an experimental draft: wider, looser, and
@@ -1212,7 +1214,7 @@ def choose_team(brain, status, order):
 
 
 def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0,
-             register=False, room=None, max_losses=0, explore=False):
+             register=False, room=None, max_losses=0, explore=False, order=0):
     """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
     "random"; random_team: choose the rental team at random on the rental carousel."""
     def new_picks(order=None):
@@ -1270,15 +1272,14 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
                     f.write("\n".join(roster) + "\n")
             except OSError:
                 pass
-            if explore:  # after the others (up to two minutes), so it knows what to stay away from
-                waited = status.data.setdefault("explore_wait", time.time())
-                with BATCH_LOCK:
-                    done = sum(BATCH_DRAFTED.values())
-                if done < BATCH_EXPECTED and time.time() - waited < 120:
-                    status.set(phase="waiting for the other drafts")
-                    progress_tick = now
-                    game.wait(30)
-                    continue
+            waited = status.data.setdefault("draft_wait", time.time())  # after the games before it (see BATCH_DRAFTED)
+            with BATCH_LOCK:
+                done = sum(BATCH_DRAFTED.values())
+            if done < 6 * order and time.time() - waited < 120:
+                status.set(phase="waiting for the drafts of the games before")
+                progress_tick = now
+                game.wait(30)
+                continue
             team = draft_team(brain, status, roster, rng, explore=explore)
             if team is None:
                 status.log("could not read the rental list: stopped")
@@ -1502,8 +1503,6 @@ def main():
     args = ap.parse_args()
     LOOKAHEAD_DEPTH = args.lookahead
     picks = args.pick if args.pick in ("random", "smart") else [int(x) - 1 for x in args.pick.split(",")]
-    global BATCH_EXPECTED
-    BATCH_EXPECTED = 6 * max(0, args.games - args.explore)
 
     status = Status()
     url = serve_status(status, args.port, args.rom)
@@ -1529,7 +1528,7 @@ def main():
                 gs.log("connected")
                 import random
                 run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team,
-                         route_end, args.register, args.room, args.max_losses, explore)
+                         route_end, args.register, args.room, args.max_losses, explore, index)
                 if proc and proc[0].poll() is None:  # finished (won, or lost too often): close its game
                     proc[0].terminate()
             except (EOFError, BrokenPipeError, ConnectionResetError) as e:
