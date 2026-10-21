@@ -1065,8 +1065,9 @@ def duel_turns(att, dfn, risk=1.0):
     best = float("inf")
     for mid, pp in att["moves"]:
         d = MOVEDATA.get(mid)
-        if not mid or pp <= 0 or d is None:
-            continue
+        if not mid or pp <= 0 or d is None or d["effect"] == EXPLODE:
+            continue  # (Explosion and Selfdestruct end the duel with the user: counted as a repeatable attack, they
+            # made Cloyster the lead against Misty, where it could do nothing and was switched out at once)
         dmg = damage(att, dfn, mid)
         if dmg <= 0:
             continue
