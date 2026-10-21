@@ -399,6 +399,8 @@ def damage(att, dfn, mid):
     if d["effect"] == OHKO:
         return float(dfn["hp"]) if att["spd"] >= dfn["spd"] else 0.0
     a, b = (att["atk"], dfn["def"]) if d["type"] in PHYSICAL else (att["spc"], dfn["spc"])
+    if d["effect"] == EXPLODE:  # Explosion and Selfdestruct halve the target's defence (Battle_CalcDamage, effect 7)
+        b = max(1, b // 2)
     base = ((2 * att["level"] / 5 + 2) * d["power"] * max(1, a) / max(1, b)) / 50 + 2
     stab = 1.5 if d["type"] in att["types"] else 1.0
     return base * stab * eff * 0.925 * MULTI_HIT.get(d["effect"], 1.0) * crit_factor(att, mid)
@@ -1244,8 +1246,10 @@ def choose_team(brain, status, order):
         return sum(a) / len(a) + sum(a[:2]) / 2 - SHARED_WEIGHT * shared_danger([dz[i] for i in t])
 
     trio = max(itertools.combinations(range(len(own)), 3), key=trio_score)
-    # who goes first: Laya and the estimate (each one's average matchup)
-    values = [sum(vs[i]) / len(opp) for i in trio]
+    # who goes first: Laya and the estimate. The opponent's lead cannot be foreseen (any of its six, 10-23% each),
+    # so a lead counts its two worst matchups as much as its average: Gengar and Haunter led against Misty for the
+    # best average and lost all 13 times to the Starmie she led with (Psychic)
+    values = [0.5 * sum(vs[i]) / len(opp) + 0.5 * sum(sorted(vs[i])[:2]) / 2 for i in trio]
     state = {"opponent_team": [{"name": o["species"], "level": o["level"], "types": types_text(o["types"])} for o in opp],
              "your_three": [{"name": own[i]["species"], "level": own[i]["level"], "types": types_text(own[i]["types"])}
                             for i in trio]}
