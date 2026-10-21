@@ -799,8 +799,11 @@ def play_turn(game, brain, status, choice):
         own["species"], own["hp"], own["max_hp"], st(own), own["spd"], opp["species"], opp["hp"], opp["max_hp"], st(opp),
         opp["spd"], ", ".join(MOVES.get(mid, "?") for mid, _ in opp["moves"] if mid),
         ", ".join("%s %.0f" % (o[0], v) for o, v in zip(opts, values))))
-    if not opts:  # no PP left anywhere: the game uses Struggle on its own
+    if not opts:  # no PP left anywhere: any move button makes the game use Struggle (A alone left the move menu open)
+        status.log("%s vs %s: no PP left, Struggle" % (own["species"], opp["species"]))
         game.press(A)
+        game.wait(6)
+        game.press(MOVE_BUTTON[0])
         return
     k, lp, fp = brain.decide(status, "Which action gives %s the best chance to defeat the opponent's %s and win the battle?" %
                              (own["species"], opp["species"]), state, opts, values)
