@@ -967,9 +967,43 @@ def danger(o, m):
     return min(1.0, threat(o, m)) * (1.0 if faster(o, m) else 0.7) + (1.0 if trapped_by(o, m) else 0.0)
 
 
+def duel_turns(att, dfn, risk=1.0):
+    """the turns att needs to knock dfn out with its best attack, on average (misses, charging and recharge turns
+    included; accuracy ** risk); inf when it cannot hurt dfn"""
+    best = float("inf")
+    for mid, pp in att["moves"]:
+        d = MOVEDATA.get(mid)
+        if not mid or pp <= 0 or d is None:
+            continue
+        dmg = damage(att, dfn, mid)
+        if dmg <= 0:
+            continue
+        hits = max(1, math.ceil(dfn["hp"] / dmg - 1e-9))
+        turns = 2 * hits if d["effect"] in (CHARGE, FLY) else (2 * hits - 1 if d["effect"] == HYPER_BEAM else hits)
+        best = min(best, turns / ((d["accuracy"] / 100.0) ** risk))
+    return best
+
+
+def duel(m, o, risk=1.0):
+    """who wins the one-on-one, and by how much (about -130 to 130): both attack with their best move every turn;
+    the winner is the one that needs fewer turns (the faster one on a tie). The single-turn estimate called Zapdos
+    against Onix (it cannot hurt it; Rock Slide takes a third of its HP a turn) only mildly unfavourable."""
+    if trapped_by(o, m):
+        return -130.0  # a faster trapper never lets it act
+    ours, theirs = duel_turns(m, o, risk), duel_turns(o, m)
+    if ours == float("inf") and theirs == float("inf"):
+        return 0.0
+    first = faster(m, o)
+    if ours < theirs or (ours == theirs and first):
+        taken = (ours - (1 if first else 0)) / theirs  # the share of our HP its hits take meanwhile
+        return 30.0 + 100.0 * max(0.0, 1.0 - taken)
+    dealt = (theirs - (0 if first else 1)) / ours if ours != float("inf") else 0.0
+    return -30.0 - 100.0 * max(0.0, 1.0 - dealt)
+
+
 def team_matchup(m, o):
-    """a matchup for team decisions: the estimate (accuracy weighed harder) with the opponent's danger weighed more"""
-    return matchup(m, o, TEAM_RISK) - 100.0 * DEFENCE_WEIGHT * min(1.0, danger(o, m))
+    """a matchup for team decisions: who wins the one-on-one (duel, accuracy weighed harder)"""
+    return duel(m, o, TEAM_RISK)
 
 
 def shared_danger(dz):
@@ -997,6 +1031,7 @@ def attack_options(m):
     return "sure attacks: %s; risky attacks: %s" % (", ".join(sure) or "none", ", ".join(risky) or "none")
 
 
+DRAFT_OPPONENTS = 0.6    # the share of the rental list (strongest by total stats) the draft prepares for
 DRAFT_POOL = 30          # the shortlist is drawn from this many of the most useful picks, weighted by their gain
 DRAFT_TEMPERATURE = 10.0  # gain units per factor e in that weighting (lower: the very best almost always)
 BATCH_VARIETY = 8.0      # a species drafted by another game of this run counts this much less per game
@@ -1020,15 +1055,19 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
         mons.append(m)
     if len(mons) < size:
         return None
-    vs = {m["id"]: [team_matchup(m, o) for o in mons] for m in mons}  # each one's matchup against each Pokemon
-    dz = {m["id"]: [danger(o, m) for o in mons] for m in mons}  # and each Pokemon's danger to it
-    worst = max(1, len(mons) // 4)
+    # the opponents to prepare for: the stronger part of the list (the castle's trainers use evolved Pokemon; against
+    # the whole list, power that flattens Caterpie and Magikarp looked like strength)
+    total = lambda m: m["max_hp"] + m["atk"] + m["def"] + m["spd"] + m["spc"]
+    opps = sorted(mons, key=lambda m: -total(m))[:max(size, int(len(mons) * DRAFT_OPPONENTS))]
+    vs = {m["id"]: [team_matchup(m, o) for o in opps] for m in mons}  # each one's duel with each opponent
+    dz = {m["id"]: [danger(o, m) for o in opps] for m in mons}  # and each opponent's danger to it
+    worst = max(1, len(opps) // 4)
 
     def answers(team):
         # depth: the best answer and, less, the second best (one star covering much of the list alone made a team
         # look complete; in a three-on-three the first answer is often down or shut out)
         out = []
-        for j in range(len(mons)):
+        for j in range(len(opps)):
             v = sorted((vs[m["id"]][j] for m in team), reverse=True)
             out.append(v[0] if len(v) == 1 else 0.6 * v[0] + 0.4 * v[1])
         return out
@@ -1057,7 +1096,7 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
         hardest = []
         if team:
             a = answers(team)
-            hardest = [mons[j]["species"] for j in sorted(range(len(mons)), key=lambda j: a[j])[:5]]
+            hardest = [opps[j]["species"] for j in sorted(range(len(opps)), key=lambda j: a[j])[:5]]
         state = {"team_so_far": [{"name": m["species"], "types": types_text(m["types"])} for m in team],
                  "opponents_the_team_has_no_good_answer_to": hardest, "picks_left": size - len(team)}
         k, lp, fp = brain.decide(status, "Which Pokemon gives this team an answer to the most opponents, especially the "
@@ -1070,7 +1109,7 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
             cands[k]["species"], lp * 100, fp * 100, ", ".join(m["species"] for m in cands)))
     a = answers(team)
     status.log("draft: hardest opponents for this team: %s" % ", ".join(
-        "%s (%.0f)" % (mons[j]["species"], a[j]) for j in sorted(range(len(mons)), key=lambda j: a[j])[:5]))
+        "%s (%.0f)" % (opps[j]["species"], a[j]) for j in sorted(range(len(opps)), key=lambda j: a[j])[:5]))
     return [m["id"] for m in team]
 
 
