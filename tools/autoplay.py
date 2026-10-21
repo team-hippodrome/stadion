@@ -813,12 +813,36 @@ def sim_score(own0, opp0, own, opp, left=0):
     for m, sign in ((opp, 1), (own, -1)):  # what a status still does in the turns after
         v += sign * (12.0 * min(m["sleep"], 3) + (15.0 if m["para"] else 0) + (8.0 if m["psn"] else 0) +
                      (25.0 if m["trapped"] else 0) + (10.0 if m["conf"] else 0) + (6.0 if m["seed"] else 0))
-    return v + 0.3 * matchup(own, opp)
+    return v + 0.3 * leaf_duel(own, opp)
 
 
-def opp_moves(opp):
+# How the two on the field fare from a line's end on: the duel (DUEL_TURNS), not the one-turn estimate, which
+# could not see that a faster trapper never lets ours act (Lapras chose Ice Beam fifteen times under Rapidash's Fire
+# Spin) or that a healer recovers more than ours takes off (Starmie against Chansey's Softboiled)
+LEAF_DUELS = {}
+
+
+def leaf_duel(own, opp):
+    key = (own["species"], int(own["hp"]), own["spd"], bool(own["para"]), own["sleep"] > 0, own["atk"], own["spc"],
+           opp["species"], int(opp["hp"]), opp["spd"], bool(opp["para"]), opp["sleep"] > 0, opp["atk"], opp["spc"])
+    v = LEAF_DUELS.get(key)
+    if v is None:
+        if len(LEAF_DUELS) > 200000:
+            LEAF_DUELS.clear()
+        v = LEAF_DUELS[key] = duel(own, opp)
+    return v
+
+
+def opp_moves(opp, own=None):
+    """the moves the opponent may use against own: all of them, but a two-turn move under way, and a faster trapper
+    traps (Rapidash used Fire Spin every turn it could, fifteen in a row: the bot had counted on the turns it might
+    not, and kept Lapras in)"""
     if opp["charge"]:
         return [opp["charge"]]
+    if own is not None and opp["spd"] > own["spd"]:
+        trap = next((mid for mid, pp in opp["moves"] if MOVEDATA.get(mid, {}).get("effect") == TRAP), None)
+        if trap:
+            return [trap]
     return [mid for mid, _ in opp["moves"]] or [None]
 
 
@@ -896,7 +920,7 @@ def sim_value(own0, opp0, own, opp, depth, own_mid, cache=None, bench=(), opp_be
     if key in cache:
         return cache[key]
     results = []
-    for k in opp_moves(opp):
+    for k in opp_moves(opp, own):
         total = 0.0
         for p, o, x in sim_turn(own, opp, own_mid, k):
             if o["hp"] <= 0 and x["hp"] > 0 and depth > 1 and bench:
@@ -932,7 +956,7 @@ def lookahead_values(own, opp, actions, bench, depth=None, opp_bench=()):
             others = tuple(b for b in rest if b["species"] != what["species"]) + (o,)
             results, sub = [], {"plan": cache["plan"]}
             d = min(depth, 2 if depth <= 3 else 3)  # a switch is looked at less far: there are many of them
-            for k in opp_moves(x):
+            for k in opp_moves(x, n):
                 total = 0.0
                 for p, a, b in sim_turn(n, x, None, k):
                     if a["hp"] <= 0 and b["hp"] > 0 and d > 1:
@@ -1244,7 +1268,7 @@ SLEEPS_PER_DUEL = 2    # put to sleep again once it wakes, at most this often (t
 CONFUSED_TURNS = 3.0   # turns of confusion (2-5), half of them spent hitting itself
 DUEL_TURNS = 40        # longer duels count as a draw by the HP left
 LIGHT_SCREEN = 64
-STATUS_PLANS = {SLEEP, PARALYZE, POISON, LEECH_SEED, CONFUSE, LIGHT_SCREEN}
+STATUS_PLANS = {SLEEP, PARALYZE, POISON, LEECH_SEED, CONFUSE, LIGHT_SCREEN, EVA_UP, ACC_DOWN}
 TRAP_HOLD = 2.0        # turns a trapped Pokemon loses after each hit of Wrap, Fire Spin and the like (2-5 in all)
 BOOSTS = {"Amnesia": ("spc", 2.0), "Swords Dance": ("atk", 2.0), "Agility": ("spd", 2.0), "Barrier": ("def", 2.0),
           "Acid Armor": ("def", 2.0), "Reflect": ("def", 2.0), "Growth": ("spc", 1.5), "Meditate": ("atk", 1.5),
@@ -1279,7 +1303,7 @@ def duel_status_moves(mids):
             kind, rank = ("boost", BOOSTS[name][0]), BOOSTS[name][1]
         elif name in HEALS:
             kind, rank = ("heal",), 1 if name == "Rest" else 2
-        elif d["effect"] in STATUS_PLANS:
+        elif d["effect"] in STATUS_PLANS:  # (Minimize and Double Team, Sand-Attack and Flash among them)
             kind, rank = ("status", d["effect"]), d["accuracy"] + (50 if name == "Toxic" else 0)
         else:
             continue
@@ -1314,7 +1338,9 @@ def duel_plans(att, dfn):
 def duel_side(m, plan, risk, status=1.0):
     return {"m": m, "hp": float(m["hp"]), "plan": plan, "risk": risk, "progress": 0.0, "setup": 0.0,
             "boost": {}, "screen": None, "sleep": 0.0, "para": 0.0, "conf": 0.0, "toxic": 0, "psn": 0.0,
-            "seeded": False, "heals": 2, "best": None, "status": status, "held": 0.0}
+            "seeded": False, "best": None, "status": status, "held": 0.0, "acc": m.get("acc", 7), "eva": m.get("eva", 7),
+            # as often as the move has PP (two at most made Chansey's Softboiled look beatable)
+            "heals": min(8, max([pp for mid, pp in m["moves"] if mid and MOVES.get(mid) in HEALS] or [0]))}
 
 
 def duel_attack(s, t):
@@ -1322,10 +1348,11 @@ def duel_attack(s, t):
     trapping plan keeps to its move"""
     if s["plan"] and MOVEDATA[s["plan"]]["effect"] == TRAP:
         mid = s["plan"]
-        return (mid, damage(s["m"], dict(t["m"], hp=t["hp"]), mid), (MOVEDATA[mid]["accuracy"] / 100.0) ** s["risk"], 1.0)
+        return (mid, damage(s["m"], dict(t["m"], hp=t["hp"]), mid),
+                hit_chance(dict(s["m"], acc=s["acc"]), dict(t["m"], eva=t["eva"]), mid) ** s["risk"], 1.0)
     if s["best"] is None or s.get("best_hp") != t["hp"]:
-        att = dict(s["m"], **{k: s["m"][k] * f for k, f in s["boost"].items() if k != "spd"})
-        dfn = dict(t["m"], hp=t["hp"], status=ASLEEP if t["sleep"] > 0 else 0,
+        att = dict(s["m"], acc=s["acc"], **{k: s["m"][k] * f for k, f in s["boost"].items() if k != "spd"})
+        dfn = dict(t["m"], hp=t["hp"], status=ASLEEP if t["sleep"] > 0 else 0, eva=t["eva"],
                    **{k: t["m"][k] * f for k, f in t["boost"].items() if k != "spd"})
         best = (float("inf"), None, 0.0, 0.0, 1.0)
         for mid, pp in s["m"]["moves"]:
@@ -1338,7 +1365,7 @@ def duel_attack(s, t):
             if dmg <= 0:
                 continue
             per = 2.0 if d["effect"] in (CHARGE, FLY, HYPER_BEAM) else 1.0
-            acc = (d["accuracy"] / 100.0) ** s["risk"]
+            acc = hit_chance(att, dfn, mid) ** s["risk"]  # (with the accuracy and evasion stages)
             turns = math.ceil(t["hp"] / dmg - 1e-9) * per / acc  # the turns it needs for the knock-out
             if turns < best[0] or (turns == best[0] and dmg > best[2]):
                 best = (turns, mid, dmg, acc, per)
@@ -1398,6 +1425,10 @@ def duel_act(s, t):
             t["seeded"] = True
         elif d["effect"] == CONFUSE:
             t["conf"] = CONFUSED_TURNS * s["status"]
+        elif d["effect"] == EVA_UP:  # (Minimize: Chansey's Softboiled outlasted a Starmie that kept missing)
+            s["eva"], t["best"] = min(13, s["eva"] + 1), None
+        elif d["effect"] == ACC_DOWN:
+            t["acc"], t["best"] = max(1, t["acc"] - 1), None
         return
     mid, dmg, acc, per = duel_attack(s, t)
     if mid is None:
