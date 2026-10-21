@@ -857,7 +857,7 @@ index 4e2aaf4b1d0cf24cefec0d283f9b8117d02050c0..3f5d4c2a4cef6639a2bd5566cb643ceb
      return ret;
  }
 diff --git a/src/display_object_textures.c b/src/display_object_textures.c
-index 1145c3c6d05e90d22695ffceedbe2b63951933fc..f3d66b3f9da8b3b92b728240463e1717f33c7929 100644
+index 1145c3c6d05e90d22695ffceedbe2b63951933fc..5c52e53ffabc900a8d98eed4e55ac764f90e6046 100644
 --- a/src/display_object_textures.c
 +++ b/src/display_object_textures.c
 @@ -1,4 +1,6 @@
@@ -1139,7 +1139,45 @@ index 1145c3c6d05e90d22695ffceedbe2b63951933fc..f3d66b3f9da8b3b92b728240463e1717
          var_s0++;
          var_s2++;
      }
-@@ -383,7 +518,7 @@ s32 PokeIcon_RequestFrameLoadWithVariant(ModelLoadContext* arg0, u16 arg1, arg1_
+@@ -286,6 +421,12 @@ void PokeIcon_StartThread(void) {
+     osStartThread(&D_800ABE10.unk_000);
+ }
+ 
++// PORT: twice the size: a model buffer holds the loaded model file and then the graph nodes built from its layouts,
++// and those nodes are larger on the host (64-bit pointers). At 0x3C000 the largest models ran out of room and lost
++// their last nodes without a trace: Raichu's head (a hole into the body where the face belongs), Dodrio's heads,
++// Pidgeotto's legs, Kangaskhan's feet.
++#define MODEL_BUFFER_SIZE (0x3C000 * 2)
++
+ ModelLoadContext* PokeIcon_AllocFramebuffers(u32 flags) {
+     s16 i = 1;
+     ModelLoadContext* temp_v0 = main_pool_alloc(sizeof(ModelLoadContext), 1);
+@@ -300,12 +441,12 @@ ModelLoadContext* PokeIcon_AllocFramebuffers(u32 flags) {
+     temp_v0->colorVariant.raw = 0;
+ 
+     if (flags & 1) {
+-        temp_v0->modelBuffers[0] = main_pool_alloc(0x3C000, 1);
++        temp_v0->modelBuffers[0] = main_pool_alloc(MODEL_BUFFER_SIZE, 1);
+         if (flags & 4) {
+-            temp_v0->modelBuffers[1] = main_pool_alloc(0x3C000, 1);
++            temp_v0->modelBuffers[1] = main_pool_alloc(MODEL_BUFFER_SIZE, 1);
+         } else if (flags & 8) {
+             for (i = 1; i < 5; i++) {
+-                temp_v0->modelBuffers[i] = main_pool_alloc(0x3C000, 1);
++                temp_v0->modelBuffers[i] = main_pool_alloc(MODEL_BUFFER_SIZE, 1);
+             }
+         }
+     }
+@@ -358,7 +499,7 @@ s32 PokeIcon_RequestFrameLoad(ModelLoadContext* arg0, u16 arg1, arg1_func_80010C
+             sp18->unk_08 = 0;
+             sp18->unk_0C = 0;
+             sp18->unk_10 = arg0->modelBuffers[var_v1];
+-            sp18->unk_14 = 0x3C000;
++            sp18->unk_14 = MODEL_BUFFER_SIZE;
+             sp18->unk_18 = arg2;
+ 
+             if ((arg0->loadedModel != NULL) && (arg0->loadedModel->modelId == arg1) && (arg0->colorVariant.raw == sp18->unk_18.raw)) {
+@@ -383,7 +524,7 @@ s32 PokeIcon_RequestFrameLoadWithVariant(ModelLoadContext* arg0, u16 arg1, arg1_
      return 0;
  }
  
@@ -1148,7 +1186,7 @@ index 1145c3c6d05e90d22695ffceedbe2b63951933fc..f3d66b3f9da8b3b92b728240463e1717
      s32 sp1C = 0;
      sp18_func_800198E4* temp_v0;
  
-@@ -480,6 +615,7 @@ unk_D_86002F30* Model_LoadByArchiveIndex(s32 arg0) {
+@@ -480,6 +621,7 @@ unk_D_86002F30* Model_LoadByArchiveIndex(s32 arg0) {
      MemoryBlock* sp20;
  
      sp2C = BinArchive_GetFile(D_800ABE10.unk_A04.unk_00, arg0 - 1);
@@ -1156,7 +1194,7 @@ index 1145c3c6d05e90d22695ffceedbe2b63951933fc..f3d66b3f9da8b3b92b728240463e1717
      if (sp2C != NULL) {
          sp20 = MainPool_AllocState(main_pool_get_available(), 0);
          sp28.raw = 0;
-@@ -506,10 +642,10 @@ unk_D_86002F30* Model_LoadForPokemon(BattleMon* arg0) {
+@@ -506,10 +648,10 @@ unk_D_86002F30* Model_LoadForPokemon(BattleMon* arg0) {
      return sp24;
  }
  
@@ -1169,7 +1207,7 @@ index 1145c3c6d05e90d22695ffceedbe2b63951933fc..f3d66b3f9da8b3b92b728240463e1717
      MemoryBlock* sp20;
  
      sp2C = BinArchive_GetFile(D_800ABE10.unk_A04.unk_00, arg0 - 1);
-@@ -532,14 +668,14 @@ arg1_func_80019420* BattleAnim_LoadResourceTable(s32 arg0) {
+@@ -532,14 +674,14 @@ arg1_func_80019420* BattleAnim_LoadResourceTable(s32 arg0) {
      sp24 = BinArchive_GetFile(D_800ABE10.unk_A04.unk_04, arg0);
      if (sp24 != NULL) {
          sp1C = MainPool_AllocState(main_pool_get_available(), 0);
