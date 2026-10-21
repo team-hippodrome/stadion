@@ -1163,6 +1163,11 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             if not roster:
                 game.wait(10)
                 continue
+            try:  # kept for looking at the draft offline (build/, not in git)
+                with open(os.path.join(ROOT, "build", "autoplay_roster.txt"), "w") as f:
+                    f.write("\n".join(roster) + "\n")
+            except OSError:
+                pass
             team = draft_team(brain, status, roster, rng)
             if team is None:
                 status.log("could not read the rental list: stopped")
