@@ -292,6 +292,14 @@ extern "C" int Port_ForceRound2(void) {
     return on ? 1 : 0;
 }
 
+extern "C" int Port_CastleLeadersOnly(void) {
+    static const bool on = [] {
+        const char* p = getenv("PORT_CASTLE_LEADERS_ONLY");
+        return p != nullptr && *p == '1';
+    }();
+    return on ? 1 : 0;
+}
+
 extern "C" void Port_BotRentalRoster(const void* mons, int count, int stride) {
     if (!Enabled()) {
         return;

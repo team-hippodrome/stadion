@@ -170,6 +170,8 @@ void Port_BotRentalConfirm(void);   // player 1's rental team is complete: OK / 
 void Port_BotRental(int species);    // player 1's rental carousel waits (each frame); the species under the cursor
 void Port_BotRentalRoster(const void* mons, int count, int stride); // the rental list (BattleMon each) is loaded
 s32 Port_ForceRound2(void);          // PORT_ROUND2=1: play Round 2 whatever the save says (transfer_pak_check.c)
+s32 Port_CastleLeadersOnly(void);    // PORT_CASTLE_LEADERS_ONLY=1: Gym Leader Castle without the trainers before
+                                     // each leader (session.c Team_LoadOpponentPreset; for testing)
 void Port_BotCastleRoom(int node);   // Gym Leader Castle's map waits for a room (each frame): the cursor's map node
                                      // (gym_leader_castle.c castle_map_nodes), -1 while it moves or fades
 // Full-screen 2D effects made for the 4:3 picture (the battle's strip wipe): the textured rectangles between these

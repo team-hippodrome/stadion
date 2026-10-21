@@ -6075,7 +6075,7 @@ index 214a46e2f6e1b8bfd18732883fc13d93e3ef8480..748e80f0cf3ab7a126fb3018b9ab9d68
  void Sched_Init(void);
  void Sched_AddClient(unk_D_800AA660*);
 diff --git a/src/session.c b/src/session.c
-index b745cb6d834a4e694580d8c986f951c66fd95d1b..ce5a6cfc3fd71a9fa36d304ee4e7afee3b0650ad 100644
+index b745cb6d834a4e694580d8c986f951c66fd95d1b..82478caf6b0c523d41e658efa1ad7f54ce2da3a0 100644
 --- a/src/session.c
 +++ b/src/session.c
 @@ -122,6 +122,26 @@ void Team_AddTrainer(s32 arg0, TeamRoster* arg1) {
@@ -6141,6 +6141,18 @@ index b745cb6d834a4e694580d8c986f951c66fd95d1b..ce5a6cfc3fd71a9fa36d304ee4e7afee
  
      if (arg3 != 0) {
          Team_ScaleOpponentToLevel(Team_GetHighestPartyLevel());
+@@ -452,6 +474,11 @@ void Team_LoadOpponentPreset(void) {
+                 var_s0 = 6;
+                 break;
+         }
++    } else if ((gSessionContext.mode == 7) && (sp24 < 8) && Port_CastleLeadersOnly()) {
++        // PORT: PORT_CASTLE_LEADERS_ONLY=1 (testing): each gym's leader at once, as its fourth and last battle, so
++        // that winning it clears the gym (BattlePrep_ConfirmCastleRules) and a loss retries the leader
++        gSessionContext.roundOrDemoId = 4;
++        var_s0 = 3;
+     }
+ 
+     main_pool_push_state('RIVL');
 diff --git a/src/stage_loader.c b/src/stage_loader.c
 index c2495aa952cbe826699b767cf5642d96db848db7..f458e35831e4b7e71ec754df1aa794133db007fa 100644
 --- a/src/stage_loader.c

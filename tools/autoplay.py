@@ -1273,7 +1273,8 @@ def choose_team(brain, status, order):
 
 
 def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0,
-             register=False, room=None, max_losses=0, explore=False, draft_order=0, castle=False):
+             register=False, room=None, max_losses=0, explore=False, draft_order=0, castle=False,
+             leaders_only=False):
     """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
     "random"; random_team: choose the rental team at random on the rental carousel."""
     def new_picks(order=None):
@@ -1414,10 +1415,11 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
                 rejected = set()
                 # in the castle each gym is three trainers and its leader, then the Elite Four (from the wins so far)
                 w = status.get("wins")
-                leader = castle and (w >= 32 or w % 4 == 3)
+                leader = castle and (leaders_only or w >= 32 or w % 4 == 3)
                 status.set(leader=leader)
                 if leader:
-                    status.log("%s: looking %d turns ahead" % ("Elite Four" if w >= 32 else "gym leader", LEADER_DEPTH))
+                    status.log("%s: looking %d turns ahead" % ("Elite Four" if w >= (8 if leaders_only else 32) else
+                                                               "gym leader", LEADER_DEPTH))
             last_order_tick = now
             in_battle = False
             status.set(phase="choosing the team order (battle %d)" % (status.get("battles") + 1))
@@ -1563,6 +1565,9 @@ def main():
                          "a wider, looser shortlist that avoids what the other games took (default 1)")
     ap.add_argument("--leader-lookahead", type=int, default=LEADER_DEPTH,
                     help="with --castle: turns looked ahead in gym leader and Elite Four battles (default %d)" % LEADER_DEPTH)
+    ap.add_argument("--leaders-only", action="store_true",
+                    help="with --castle: only the gym leaders (PORT_CASTLE_LEADERS_ONLY=1; then the Elite Four and the "
+                         "champion as usual: 13 battles in all, so use --wins 13)")
     ap.add_argument("--round2", action="store_true", help="play Round 2 (PORT_ROUND2=1; the save is not changed)")
     ap.add_argument("--team", help="six Pokemon to rent, e.g. Mewtwo,Alakazam,Snorlax,Starmie,Zapdos,Rhydon, or draft: Laya "
                                        "drafts a well-rounded team from the rental list (different every run)")
@@ -1600,7 +1605,8 @@ def main():
                 gs.log("connected")
                 import random
                 run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team,
-                         route_end, args.register, args.room, args.max_losses, explore, index, args.castle)
+                         route_end, args.register, args.room, args.max_losses, explore, index, args.castle,
+                         args.leaders_only)
                 if proc and proc[0].poll() is None:  # finished (won, or lost too often): close its game
                     proc[0].terminate()
             except (EOFError, BrokenPipeError, ConnectionResetError) as e:
@@ -1658,6 +1664,8 @@ def main():
                 env.update(PORT_FREEZE_CHECK="0", PORT_AUDIO_TASKS="0")  # nobody listens; the bot detects stalls itself
                 if args.round2:
                     env["PORT_ROUND2"] = "1"
+                if args.leaders_only:
+                    env["PORT_CASTLE_LEADERS_ONLY"] = "1"
                 if i >= args.show:
                     # nobody sees these: draw only every 60th frame and skip the freeze check (a GPU read-back per
                     # frame), which doubles what 20 games manage together
