@@ -760,6 +760,11 @@ def play_turn(game, brain, status, choice):
         values = ([lookahead_sendout(party[i], opp, [party[j] for j in bench if j != i]) for i in bench]
                   if LOOKAHEAD_DEPTH else
                   [matchup(party[i], opp) for i in bench])
+        status.trace("send out against %s %d/%d spd %d (moves %s) | %s" % (
+            opp["species"], opp["hp"], opp["max_hp"], opp["spd"],
+            ", ".join(MOVES.get(mid, "?") for mid, _ in opp["moves"] if mid),
+            ", ".join("%s %d/%d %.0f" % (party[i]["species"], party[i]["hp"], party[i]["max_hp"], v)
+                      for i, v in zip(bench, values))))
         k, lp, fp = brain.decide(status, "Your Pokemon fainted. Which Pokemon should you send out next to beat %s?" %
                                  opp["species"], state, opts, values)
         status.log("send out %s (Laya %.0f%%, final %.0f%%)" % (party[bench[k]]["species"], lp * 100, fp * 100))
