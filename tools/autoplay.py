@@ -1344,7 +1344,7 @@ def choose_team(brain, status, order):
 
 def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0,
              register=False, room=None, max_losses=0, explore=False, draft_order=0, castle=False,
-             leaders_only=False):
+             leaders_only=False, max_tries=0):
     """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
     "random"; random_team: choose the rental team at random on the rental carousel."""
     def new_picks(order=None):
@@ -1570,11 +1570,17 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
             with status.status.lock:
                 status.data["history"].append({"won": won, "opp": status.data.get("opp_team", [])})
             status.set(battles=status.get("battles") + 1)
+            status.data["tries"] = 0 if won else status.data.get("tries", 0) + 1  # losses in a row (the same battle)
             if won:
                 status.set(wins=status.get("wins") + 1)
                 status.log("battle won (%d/%d)" % (status.get("wins"), wins))
             else:
                 status.set(losses=status.get("losses") + 1)
+                if max_tries and status.data["tries"] >= max_tries:
+                    status.log("battle lost: %d times in a row, stopping" % status.data["tries"])
+                    status.set(phase="stopped after %d tries (%d wins)" % (status.data["tries"], status.get("wins")),
+                               done=True)
+                    return
                 if max_losses and status.get("losses") >= max_losses:
                     status.log("battle lost%s: %d losses, stopping" % (" (draw)" if result == 3 else "",
                                                                      status.get("losses")))
@@ -1605,6 +1611,9 @@ def main():
                     help="which three to send in: smart (default: Laya and the estimate against the opponent's team), "
                          "random, or team-order slots in order, e.g. 1,2,3")
     ap.add_argument("--wins", type=int, default=8, help="battles to win before stopping (default 8, a cup)")
+    ap.add_argument("--max-tries", type=int, default=0,
+                    help="stop a game after losing the same battle this many times in a row (default 0: keep going); "
+                         "with --max-losses 0, each battle is retried until won, for measuring win rates per opponent")
     ap.add_argument("--max-losses", type=int, default=0,
                     help="stop a game (and close it) after this many lost battles (default 0: keep going)")
     ap.add_argument("--speed", default=None, help="game speed (PORT_SPEED: 2, max, ...; default 1, max with --games)")
@@ -1684,7 +1693,7 @@ def main():
                 import random
                 run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team,
                          route_end, args.register, args.room, args.max_losses, explore, index, args.castle,
-                         args.leaders_only)
+                         args.leaders_only, args.max_tries)
                 if proc and proc[0].poll() is None:  # finished (won, or lost too often): close its game
                     proc[0].terminate()
             except (EOFError, BrokenPipeError, ConnectionResetError) as e:
