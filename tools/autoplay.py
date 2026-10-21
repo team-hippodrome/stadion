@@ -834,19 +834,23 @@ def sim_key(m):
 OUTLOOK_WEIGHT = 0.5
 
 
-def outlook(duels, ours, theirs):
-    """the average over their remaining Pokemon of our best duel against each (species names)"""
-    if not theirs:
+def outlook(duels, ours, theirs, total=None):
+    """the average over their Pokemon of our best duel against each (species names); total: how many they had at
+    the decision, the ones knocked out since counting as won (as an average over the remaining ones, knocking out a
+    Pokemon we beat lowered it: Jynx, our last, put a Machamp at 3 HP to sleep eight times rather than knock it out
+    and face the two fresh ones after it)"""
+    total = max(total or len(theirs), len(theirs))
+    if not total:
         return 130.0
-    if not ours:
-        return -130.0
-    return sum(max(duels.get((m, o), 0.0) for m in ours) for o in theirs) / len(theirs)
+    alive = sum(max(duels.get((m, o), 0.0) for m in ours) if ours else -130.0 for o in theirs)
+    return (alive + 130.0 * (total - len(theirs))) / total
 
 
 def plan(cache, ours, theirs):
     """sets up the outlook for a decision: the duels of our Pokemon with theirs, and the outlook now"""
     duels = {(m["species"], o["species"]): duel(m, o) for m in ours for o in theirs}
-    cache["plan"] = {"duels": duels, "root": outlook(duels, [m["species"] for m in ours], [o["species"] for o in theirs])}
+    cache["plan"] = {"duels": duels, "root": outlook(duels, [m["species"] for m in ours], [o["species"] for o in theirs]),
+                     "total": len(theirs)}
 
 
 def leaf_outlook(cache, own, opp, bench, opp_bench):
@@ -856,7 +860,7 @@ def leaf_outlook(cache, own, opp, bench, opp_bench):
         return 0.0
     ours = [m["species"] for m in (own,) + tuple(bench) if m["hp"] > 0]
     theirs = [m["species"] for m in (opp,) + tuple(opp_bench) if m["hp"] > 0]
-    return OUTLOOK_WEIGHT * (outlook(p["duels"], ours, theirs) - p["root"])
+    return OUTLOOK_WEIGHT * (outlook(p["duels"], ours, theirs, p["total"]) - p["root"])
 
 
 def sim_bench_in(opp, bench, depth, cache, opp_bench=()):
