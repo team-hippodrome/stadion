@@ -1080,9 +1080,14 @@ DRAFT_TEMPERATURE = 15.0  # gain units per factor e in that weighting (lower: th
 BATCH_VARIETY = 12.0     # a species drafted by another game of this run counts this much less per game
 BATCH_DRAFTED = {}       # species id -> games of this run that drafted it
 BATCH_LOCK = threading.Lock()
+BATCH_EXPECTED = 0       # picks the regular games of this run make; an experimental draft waits for them (main)
 
 
-def draft_team(brain, status, roster, rng, size=6, shortlist=6):
+EXPLORE_POOL, EXPLORE_TEMPERATURE, EXPLORE_VARIETY = 60, 45.0, 3.0  # an experimental draft: wider, looser, and
+# three times as wary of what the other games took
+
+
+def draft_team(brain, status, roster, rng, size=6, shortlist=6, explore=False):
     """A rental team built one Pokemon at a time, judged by its answers: for every Pokemon in the rental list (the
     pool the castle's trainers draw from too), the team's best matchup against it (the battle estimate). A team is
     good when its average answer is good and its weakest answers are not bad; each step offers Laya a random
@@ -1127,11 +1132,12 @@ def draft_team(brain, status, roster, rng, size=6, shortlist=6):
         base = score(team) if team else 0.0
         gains = sorted(((score(team + [m]) - base, i) for i, m in enumerate(mons) if m not in team), reverse=True)
         with BATCH_LOCK:  # what the other games already took counts a little less (a run covers more Pokemon)
-            gains = sorted(((g - BATCH_VARIETY * BATCH_DRAFTED.get(mons[i]["id"], 0), i) for g, i in gains), reverse=True)
-        top = gains[:DRAFT_POOL]
+            gains = sorted(((g - BATCH_VARIETY * (EXPLORE_VARIETY if explore else 1) * BATCH_DRAFTED.get(mons[i]["id"], 0), i)
+                            for g, i in gains), reverse=True)
+        top = gains[:EXPLORE_POOL if explore else DRAFT_POOL]
         cands = []  # drawn without repeats, the more useful the likelier (five games no longer draft alike)
         while top and len(cands) < shortlist:
-            weights = [math.exp((g - top[0][0]) / DRAFT_TEMPERATURE) for g, _ in top]
+            weights = [math.exp((g - top[0][0]) / (EXPLORE_TEMPERATURE if explore else DRAFT_TEMPERATURE)) for g, _ in top]
             k = rng.choices(range(len(top)), weights)[0]
             cands.append(mons[top.pop(k)[1]])
         gain = {mons[i]["id"]: g for g, i in gains}
@@ -1206,7 +1212,7 @@ def choose_team(brain, status, order):
 
 
 def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_team=False, team=None, route_end=0,
-             register=False, room=None, max_losses=0):
+             register=False, room=None, max_losses=0, explore=False):
     """Plays one game until `wins` battles are won (or the game closes, or it stalls). pick_spec: slots (0-5) or
     "random"; random_team: choose the rental team at random on the rental carousel."""
     def new_picks(order=None):
@@ -1264,7 +1270,16 @@ def run_game(game, brain, status, pick_spec, wins, armed, jitter, rng, random_te
                     f.write("\n".join(roster) + "\n")
             except OSError:
                 pass
-            team = draft_team(brain, status, roster, rng)
+            if explore:  # after the others (up to two minutes), so it knows what to stay away from
+                waited = status.data.setdefault("explore_wait", time.time())
+                with BATCH_LOCK:
+                    done = sum(BATCH_DRAFTED.values())
+                if done < BATCH_EXPECTED and time.time() - waited < 120:
+                    status.set(phase="waiting for the other drafts")
+                    progress_tick = now
+                    game.wait(30)
+                    continue
+            team = draft_team(brain, status, roster, rng, explore=explore)
             if team is None:
                 status.log("could not read the rental list: stopped")
                 status.set(phase="stopped: no rental list", done=True)
@@ -1473,6 +1488,9 @@ def main():
     ap.add_argument("--lookahead", type=int, default=LOOKAHEAD_DEPTH,
                     help="turns the battle is played out ahead for each decision (default %d; 0: one-turn estimate)" %
                          LOOKAHEAD_DEPTH)
+    ap.add_argument("--explore", type=int, default=1,
+                    help="with --team draft and --games: this many games (the last ones) draft an experimental team: "
+                         "a wider, looser shortlist that avoids what the other games took (default 1)")
     ap.add_argument("--round2", action="store_true", help="play Round 2 (PORT_ROUND2=1; the save is not changed)")
     ap.add_argument("--team", help="six Pokemon to rent, e.g. Mewtwo,Alakazam,Snorlax,Starmie,Zapdos,Rhydon, or draft: Laya "
                                        "drafts a well-rounded team from the rental list (different every run)")
@@ -1484,6 +1502,8 @@ def main():
     args = ap.parse_args()
     LOOKAHEAD_DEPTH = args.lookahead
     picks = args.pick if args.pick in ("random", "smart") else [int(x) - 1 for x in args.pick.split(",")]
+    global BATCH_EXPECTED
+    BATCH_EXPECTED = 6 * max(0, args.games - args.explore)
 
     status = Status()
     url = serve_status(status, args.port, args.rom)
@@ -1499,7 +1519,8 @@ def main():
 
     def start(index, sock, env, cmd, armed, jitter, name):
         gs = status.add_game(name)
-        gs.set(thumb=os.path.join(thumbs, "game%d.ppm" % index), goal=args.wins)
+        explore = team == "draft" and index >= args.games - args.explore  # the last games of a run draft boldly
+        gs.set(thumb=os.path.join(thumbs, "game%d.ppm" % index), goal=args.wins, explore=explore)
         proc = []
 
         def body():
@@ -1508,7 +1529,7 @@ def main():
                 gs.log("connected")
                 import random
                 run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team,
-                         route_end, args.register, args.room, args.max_losses)
+                         route_end, args.register, args.room, args.max_losses, explore)
                 if proc and proc[0].poll() is None:  # finished (won, or lost too often): close its game
                     proc[0].terminate()
             except (EOFError, BrokenPipeError, ConnectionResetError) as e:
@@ -1570,7 +1591,8 @@ def main():
                     # nobody sees these: draw only every 60th frame and skip the freeze check (a GPU read-back per
                     # frame), which doubles what 20 games manage together
                     env.update(PORT_HIDDEN_WINDOW="1", PORT_RENDER_EVERY="60", PORT_FREEZE_CHECK="0")
-                start(i, sock, env, [exe, args.rom], True, rng.randint(1, 240), "game %d" % (i + 1))
+                start(i, sock, env, [exe, args.rom], True, rng.randint(1, 240),
+                      "game %d%s" % (i + 1, " (experimental)" if team == "draft" and i >= args.games - args.explore else ""))
         else:
             env = dict(os.environ, PORT_BOT=SOCK, PORT_SPEED=args.speed or "1")
             cmd = None if args.attach else [exe] + ([args.rom] if args.rom else [])

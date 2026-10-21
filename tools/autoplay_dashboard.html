@@ -38,6 +38,7 @@ h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--dim); tex
 .cardbody { padding: 10px 12px 12px; display: grid; gap: 8px; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .name { font-weight: 600; }
+.tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #c9a7ff; background: #2b2140; border-radius: 4px; padding: 1px 6px; margin-left: 6px; }
 .phase { color: var(--dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .track { display: flex; gap: 3px; }
 .track span { flex: 1; height: 6px; border-radius: 2px; background: #283241; }
@@ -153,7 +154,7 @@ function updateCard(el, g, i) {
   const trio = new Set(g.trio || []);
   const team = (g.team || []).map(id => icon(id, (trio.has(id) ? 'trio ' : '') + (out.has(id) ? 'out' : ''))).join('');
   const dots = (g.history || []).slice(-60).map(b => `<i class="${b.won ? '' : 'l'}"></i>`).join('');
-  const html = `<div class="row"><span class="name">${esc(g.name)}</span><span class="small">${g.goal ? g.wins + ' / ' + g.goal : ''}</span></div>
+  const html = `<div class="row"><span class="name">${esc(g.name.replace(' (experimental)', ''))}${g.explore ? '<span class="tag">experimental</span>' : ''}</span><span class="small">${g.goal ? g.wins + ' / ' + g.goal : ''}</span></div>
       <div class="phase" title="${esc(g.phase)}">${esc(g.phase)}</div>
       ${track(g)}
       <div class="dots" title="battles: won (green), lost (red)">${dots}</div>
