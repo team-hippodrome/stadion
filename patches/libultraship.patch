@@ -834,23 +834,46 @@ index afc07db..e0f6fd8 100644
      mCurrentFilterMode = mode;
      gfx_texture_cache_clear();
 diff --git a/src/fast/backends/gfx_opengl.cpp b/src/fast/backends/gfx_opengl.cpp
-index 6c4dfc8..cccb050 100644
+index 6c4dfc8..9219c15 100644
 --- a/src/fast/backends/gfx_opengl.cpp
 +++ b/src/fast/backends/gfx_opengl.cpp
-@@ -1,3 +1,4 @@
+@@ -1,9 +1,11 @@
 +#include <unordered_set>
  #include "ship/window/Window.h"
  #ifdef ENABLE_OPENGL
  
-@@ -244,6 +245,17 @@ std::optional<std::string> opengl_include_fs(const std::string& path) {
+ #include <stdint.h>
+ #include <stdbool.h>
+ #include <stdio.h>
++#include <string.h>
+ 
+ #include <map>
+ #include <unordered_map>
+@@ -244,6 +246,33 @@ std::optional<std::string> opengl_include_fs(const std::string& path) {
      return *inc;
  }
  
 +// PORT: dual-source blending (GL 3.3 / ARB_blend_func_extended), as the Metal backend: the colour blends by a second
 +// shader output's alpha while the alpha written is the N64 coverage bit. PORT_GL_NO_DUAL=1: the old blending.
++// OpenGL ES: with GL_EXT_blend_func_extended (Adreno, Mali, PowerVR have it). Without it effects that read the
++// screen back as a texture saw the wrong alpha: the Poke Ball send-out burst came out grey and blocky.
 +static bool DualSource() {
 +#ifdef USE_OPENGLES
-+    return false;
++    static const bool on = [] {
++        if (getenv("PORT_GL_NO_DUAL") != nullptr) {
++            return false;
++        }
++        GLint n = 0;
++        glGetIntegerv(GL_NUM_EXTENSIONS, &n);
++        for (GLint i = 0; i < n; i++) {
++            const char* ext = (const char*)glGetStringi(GL_EXTENSIONS, (GLuint)i);
++            if (ext != nullptr && strcmp(ext, "GL_EXT_blend_func_extended") == 0) {
++                return true;
++            }
++        }
++        return false;
++    }();
++    return on;
 +#else
 +    static const bool on = getenv("PORT_GL_NO_DUAL") == nullptr;
 +    return on;
@@ -860,7 +883,7 @@ index 6c4dfc8..cccb050 100644
  std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
      prism::Processor processor;
      prism::ContextItems mContext = {
-@@ -289,6 +301,7 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
+@@ -289,6 +318,7 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
          { "o_three_point_filtering", mCurrentFilterMode == FILTER_THREE_POINT },
          { "append_formula", (InvokeFunc)append_formula },
  #ifdef __APPLE__
@@ -868,15 +891,18 @@ index 6c4dfc8..cccb050 100644
          { "GLSL_VERSION", "#version 410 core" },
          { "attr", "in" },
          { "opengles", false },
-@@ -296,6 +309,7 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
+@@ -296,21 +326,42 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
          { "texture", "texture" },
          { "vOutColor", "vOutColor" },
  #elif defined(USE_OPENGLES)
+-        { "GLSL_VERSION", "#version 300 es\nprecision mediump float;" },
 +        { "dual_source", DualSource() },
-         { "GLSL_VERSION", "#version 300 es\nprecision mediump float;" },
++        { "GLSL_VERSION", DualSource() && cc_features.opt_alpha
++                              ? "#version 300 es\n#extension GL_EXT_blend_func_extended : require\nprecision mediump float;"
++                              : "#version 300 es\nprecision mediump float;" },
          { "attr", "in" },
          { "opengles", true },
-@@ -303,14 +317,26 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
+         { "core_opengl", false },
          { "texture", "texture" },
          { "vOutColor", "vOutColor" },
  #else
@@ -899,12 +925,18 @@ index 6c4dfc8..cccb050 100644
 +#else
 +    const bool coreOrEs = false;
 +#endif
++#ifdef USE_OPENGLES
++    mContext["dual_out"] = false;
++    mContext["dual_out_es"] = dualOut; // (the outputs' indices as layout qualifiers: ES has no glBindFragDataLocationIndexed)
++#else
 +    mContext["dual_out"] = dualOut;
++    mContext["dual_out_es"] = false;
++#endif
 +    mContext["single_out"] = !dualOut && coreOrEs;
      processor.populate(mContext);
      auto init = std::make_shared<Ship::ResourceInitData>();
      init->Type = (uint32_t)Ship::ResourceType::Shader;
-@@ -414,6 +440,15 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
+@@ -414,6 +465,15 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
      gfx_cc_get_features(shader_id0, shader_id1, &cc_features);
      const auto fs_buf = BuildFsShader(cc_features);
      const auto vs_buf = BuildVsShader(cc_features);
@@ -920,7 +952,7 @@ index 6c4dfc8..cccb050 100644
      const GLchar* sources[2] = { vs_buf.data(), fs_buf.data() };
      const GLint lengths[2] = { (GLint)vs_buf.size(), (GLint)fs_buf.size() };
      GLint success;
-@@ -449,7 +484,21 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
+@@ -449,7 +509,21 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
      GLuint shader_program = glCreateProgram();
      glAttachShader(shader_program, vertex_shader);
      glAttachShader(shader_program, fragment_shader);
@@ -942,11 +974,15 @@ index 6c4dfc8..cccb050 100644
  
      size_t cnt = 0;
  
-@@ -730,7 +779,17 @@ void GfxRenderingAPIOGL::Init() {
+@@ -730,7 +804,17 @@ void GfxRenderingAPIOGL::Init() {
      glEnable(GL_DEPTH_CLAMP);
  #endif
      glDepthFunc(GL_LEQUAL);
-+#ifndef USE_OPENGLES
+-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
++#ifndef GL_SRC1_ALPHA
++#define GL_SRC1_ALPHA 0x8589           // GL_SRC1_ALPHA_EXT
++#define GL_ONE_MINUS_SRC1_ALPHA 0x88FB // GL_ONE_MINUS_SRC1_ALPHA_EXT
++#endif
 +    // PORT: dual-source, as gfx_metal.cpp: RGB = src * a + dst * (1 - a) with a = the shader's second output's alpha;
 +    // alpha = coverage (the first output's alpha: 1, or 0 for o_invisible draws, which keep the old alpha)
 +    if (DualSource()) {
@@ -954,13 +990,10 @@ index 6c4dfc8..cccb050 100644
 +    } else {
 +        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 +    }
-+#else
-     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-+#endif
  
      mFrameBuffers.resize(1); // for the default screen buffer
  
-@@ -759,6 +818,15 @@ void GfxRenderingAPIOGL::StartFrame() {
+@@ -759,6 +843,15 @@ void GfxRenderingAPIOGL::StartFrame() {
  }
  
  void GfxRenderingAPIOGL::EndFrame() {
@@ -976,7 +1009,7 @@ index 6c4dfc8..cccb050 100644
      glFlush();
  }
  
-@@ -797,10 +865,19 @@ int GfxRenderingAPIOGL::CreateFramebuffer() {
+@@ -797,10 +890,19 @@ int GfxRenderingAPIOGL::CreateFramebuffer() {
      return i;
  }
  
@@ -996,7 +1029,7 @@ index 6c4dfc8..cccb050 100644
  
      width = std::max(width, 1U);
      height = std::max(height, 1U);
-@@ -812,12 +889,16 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
+@@ -812,12 +914,16 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
          if (fb.width != width || fb.height != height || fb.msaa_level != msaa_level) {
              if (msaa_level <= 1) {
                  glBindTexture(GL_TEXTURE_2D, fb.clrbuf);
@@ -1015,7 +1048,7 @@ index 6c4dfc8..cccb050 100644
                  glBindRenderbuffer(GL_RENDERBUFFER, 0);
                  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, fb.clrbufMsaa);
              }
-@@ -856,6 +937,27 @@ void GfxRenderingAPIOGL::StartDrawToFramebuffer(int fb_id, float noise_scale) {
+@@ -856,6 +962,27 @@ void GfxRenderingAPIOGL::StartDrawToFramebuffer(int fb_id, float noise_scale) {
      }
      glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo);
      mCurrentFrameBuffer = fb_id;
@@ -1043,7 +1076,7 @@ index 6c4dfc8..cccb050 100644
  }
  
  void GfxRenderingAPIOGL::ClearFramebuffer(bool color, bool depth) {
-@@ -928,6 +1030,10 @@ void GfxRenderingAPIOGL::SelectTextureFb(int fb_id) {
+@@ -928,6 +1055,10 @@ void GfxRenderingAPIOGL::SelectTextureFb(int fb_id) {
      if (texId >= textures.size()) {
          textures.resize((size_t)texId + 1);
      }
@@ -1054,7 +1087,7 @@ index 6c4dfc8..cccb050 100644
      SelectTexture(tile, texId);
  }
  
-@@ -1003,6 +1109,9 @@ void GfxRenderingAPIOGL::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0
+@@ -1003,6 +1134,9 @@ void GfxRenderingAPIOGL::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0
      }
  }
  
@@ -1064,7 +1097,7 @@ index 6c4dfc8..cccb050 100644
  void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFrameBuffers.size()) {
          return;
-@@ -1016,7 +1125,30 @@ void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_
+@@ -1016,7 +1150,30 @@ void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_
  
      std::vector<uint8_t> rgba8(width * height * 4);
      glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba8.data());
@@ -3204,30 +3237,596 @@ index bf87639..babfa5f 100644
          out.color = float4(texel, 1.0);
      @end
 diff --git a/src/fast/shaders/opengl/default.shader.glsl b/src/fast/shaders/opengl/default.shader.glsl
-index 3693c79..2c8741a 100644
+index 3693c79..7903afd 100644
 --- a/src/fast/shaders/opengl/default.shader.glsl
 +++ b/src/fast/shaders/opengl/default.shader.glsl
-@@ -79,7 +79,13 @@
-         @end
-     }
- @else
+@@ -1,297 +1,318 @@
+-@prism(type='fragment', name='Fast3D Fragment Shader', version='1.0.0', description='Ported shader to prism', author='Emill & Prism Team')
+-
+-@{GLSL_VERSION}
+-
+-@if(VERTEX_SHADER)
+-    @{attr} vec4 aVtxPos;
+-
+-    @for(i in 0..2)
+-        @if(o_textures[i])
+-            @{attr} vec2 aTexCoord@{i};
+-            @{out} vec2 vTexCoord@{i};
+-            @{update_floats(2)}
+-            @for(j in 0..2)
+-                @if(o_clamp[i][j])
+-                    @if(j == 0)
+-                        @{attr} float aTexClampS@{i};
+-                        @{out} float vTexClampS@{i};
+-                    @else
+-                        @{attr} float aTexClampT@{i};
+-                        @{out} float vTexClampT@{i};
+-                    @end
+-                    @{update_floats(1)}
+-                @end
+-            @end
+-        @end
+-    @end
+-
+-    @if(o_fog)
+-        @{attr} vec4 aFog;
+-        @{out} vec4 vFog;
+-        @{update_floats(4)}
+-    @end
+-
+-    @if(o_grayscale)
+-        @{attr} vec4 aGrayscaleColor;
+-        @{out} vec4 vGrayscaleColor;
+-        @{update_floats(4)}
+-    @end
+-
+-    @for(i in 0..o_inputs)
+-        @if(o_alpha)
+-            @{attr} vec4 aInput@{i + 1};
+-            @{out} vec4 vInput@{i + 1};
+-            @{update_floats(4)}
+-        @else
+-            @{attr} vec3 aInput@{i + 1};
+-            @{out} vec3 vInput@{i + 1};
+-            @{update_floats(3)}
+-        @end
+-    @end
+-
+-    void main() {
+-        @for(i in 0..2)
+-            @if(o_textures[i])
+-                vTexCoord@{i} = aTexCoord@{i};
+-                @for(j in 0..2)
+-                    @if(o_clamp[i][j])
+-                        @if(j == 0)
+-                            vTexClampS@{i} = aTexClampS@{i};
+-                        @else
+-                            vTexClampT@{i} = aTexClampT@{i};
+-                        @end
+-                    @end
+-                @end
+-            @end
+-        @end
+-        @if(o_fog)
+-            vFog = aFog;
+-        @end
+-        @if(o_grayscale)
+-            vGrayscaleColor = aGrayscaleColor;
+-        @end
+-        @for(i in 0..o_inputs)
+-            vInput@{i + 1} = aInput@{i + 1};
+-        @end
+-        gl_Position = aVtxPos;
+-        @if(opengles)
+-            gl_Position.z *= 0.3f;
+-        @end
+-    }
+-@else
 -    @if(core_opengl || opengles)
+-    out vec4 vOutColor;
+-    @end
+-
+-    @for(i in 0..2)
+-        @if(o_textures[i])
+-            @{attr} vec2 vTexCoord@{i};
+-            @for(j in 0..2)
+-                @if(o_clamp[i][j])
+-                    @if(j == 0)
+-                        @{attr} float vTexClampS@{i};
+-                    @else
+-                        @{attr} float vTexClampT@{i};
+-                    @end
+-                @end
+-            @end
+-        @end
+-    @end
+-
+-    @if(o_fog) @{attr} vec4 vFog;
+-    @if(o_grayscale) @{attr} vec4 vGrayscaleColor;
+-
+-    @for(i in 0..o_inputs)
+-        @if(o_alpha)
+-            @{attr} vec4 vInput@{i + 1};
+-        @else
+-            @{attr} vec3 vInput@{i + 1};
+-        @end
+-    @end
+-
+-    @if(o_textures[0]) uniform sampler2D uTex0;
+-    @if(o_textures[1]) uniform sampler2D uTex1;
+-
+-    @if(o_masks[0]) uniform sampler2D uTexMask0;
+-    @if(o_masks[1]) uniform sampler2D uTexMask1;
+-
+-    @if(o_blend[0]) uniform sampler2D uTexBlend0;
+-    @if(o_blend[1]) uniform sampler2D uTexBlend1;
+-
+-    uniform int frame_count;
+-    uniform float noise_scale;
+-
+-    @if(o_prim_depth)
+-    uniform float prim_depth;
+-    @end
+-
+-    uniform int texture_width[2];
+-    uniform int texture_height[2];
+-    uniform int texture_filtering[2];
+-
+-    #define TEX_OFFSET(off) @{texture}(tex, texCoord - off / texSize)
+-    #define WRAP(x, low, high) clamp((x), (low), (high))
+-
+-    float random(in vec3 value) {
+-        float random = dot(sin(value), vec3(12.9898, 78.233, 37.719));
+-        return fract(sin(random) * 143758.5453);
+-    }
+-
+-    vec4 fromLinear(vec4 linearRGB){
+-        bvec3 cutoff = lessThan(linearRGB.rgb, vec3(0.0031308));
+-        vec3 higher = vec3(1.055)*pow(linearRGB.rgb, vec3(1.0/2.4)) - vec3(0.055);
+-        vec3 lower = linearRGB.rgb * vec3(12.92);
+-        return vec4(mix(higher, lower, cutoff), linearRGB.a);
+-    }
+-
+-    vec4 filter3point(in sampler2D tex, in vec2 texCoord, in vec2 texSize) {
+-        vec2 offset = fract(texCoord*texSize - vec2(0.5));
+-        offset -= step(1.0, offset.x + offset.y);
+-        vec4 c0 = TEX_OFFSET(offset);
+-        vec4 c1 = TEX_OFFSET(vec2(offset.x - sign(offset.x), offset.y));
+-        vec4 c2 = TEX_OFFSET(vec2(offset.x, offset.y - sign(offset.y)));
+-        return c0 + abs(offset.x)*(c1-c0) + abs(offset.y)*(c2-c0);
+-    }
+-
+-    vec4 hookTexture2D(in int id, sampler2D tex, in vec2 uv, in vec2 texSize) {
+-    @if(o_three_point_filtering)
+-        if(texture_filtering[id] == @{FILTER_THREE_POINT}) {
+-            return filter3point(tex, uv, texSize);
+-        }
+-    @end
+-        return @{texture}(tex, uv);
+-    }
+-
+-    #define TEX_SIZE(tex) vec2(texture_width[tex], texture_height[tex])
+-
+-    void main() {
+-        @for(i in 0..2)
+-            @if(o_textures[i])
+-                @{s = o_clamp[i][0]}
+-                @{t = o_clamp[i][1]}
+-
+-                vec2 texSize@{i} = TEX_SIZE(@{i});
+-
+-                @if(!s && !t)
+-                    vec2 vTexCoordAdj@{i} = vTexCoord@{i};
+-                @else
+-                    @if(s && t)
+-                        vec2 vTexCoordAdj@{i} = clamp(vTexCoord@{i}, 0.5 / texSize@{i}, vec2(vTexClampS@{i}, vTexClampT@{i}));
+-                    @elseif(s)
+-                        vec2 vTexCoordAdj@{i} = vec2(clamp(vTexCoord@{i}.s, 0.5 / texSize@{i}.s, vTexClampS@{i}), vTexCoord@{i}.t);
+-                    @else
+-                        vec2 vTexCoordAdj@{i} = vec2(vTexCoord@{i}.s, clamp(vTexCoord@{i}.t, 0.5 / texSize@{i}.t, vTexClampT@{i}));
+-                    @end
+-                @end
+-
+-                vec4 texVal@{i} = hookTexture2D(@{i}, uTex@{i}, vTexCoordAdj@{i}, texSize@{i});
+-
+-                @if(o_masks[i])
+-                    @if(opengles) 
+-                        vec2 maskSize@{i} = vec2(textureSize(uTexMask@{i}, 0));
+-                    @else 
+-                        vec2 maskSize@{i} = textureSize(uTexMask@{i}, 0);
+-                    @end
+-
+-                    vec4 maskVal@{i} = hookTexture2D(@{i}, uTexMask@{i}, vTexCoordAdj@{i}, maskSize@{i});
+-
+-                    @if(o_blend[i])
+-                        vec4 blendVal@{i} = hookTexture2D(@{i}, uTexBlend@{i}, vTexCoordAdj@{i}, texSize@{i});
+-                    @else
+-                        vec4 blendVal@{i} = vec4(0, 0, 0, 0);
+-                    @end
+-
+-                    texVal@{i} = mix(texVal@{i}, blendVal@{i}, maskVal@{i}.a);
+-                @end
+-            @end
+-        @end
+-
+-        @if(o_alpha) 
+-            vec4 texel;
+-        @else 
+-            vec3 texel;
+-        @end
+-
+-        @if(o_2cyc)
+-            @{f_range = 2}
+-        @else
+-            @{f_range = 1}
+-        @end
+-
+-        @for(c in 0..f_range)
+-            @if(c == 1)
+-                @if(o_alpha)
+-                    @if(o_c[c][1][2] == SHADER_COMBINED)
+-                        texel.a = WRAP(texel.a, -1.01, 1.01);
+-                    @else
+-                        texel.a = WRAP(texel.a, -0.51, 1.51);
+-                    @end
+-                @end
+-
+-                @if(o_c[c][0][2] == SHADER_COMBINED)
+-                    texel.rgb = WRAP(texel.rgb, -1.01, 1.01);
+-                @else
+-                    texel.rgb = WRAP(texel.rgb, -0.51, 1.51);
+-                @end
+-            @end
+-
+-            @if(!o_color_alpha_same[c] && o_alpha)
+-                texel = vec4(@{
+-                append_formula(o_c[c], o_do_single[c][0],
+-                            o_do_multiply[c][0], o_do_mix[c][0], false, false, true, c == 0)
+-                }, @{append_formula(o_c[c], o_do_single[c][1],
+-                            o_do_multiply[c][1], o_do_mix[c][1], true, true, true, c == 0)
+-                });
+-            @else
+-                texel = @{append_formula(o_c[c], o_do_single[c][0],
+-                            o_do_multiply[c][0], o_do_mix[c][0], o_alpha, false,
+-                            o_alpha, c == 0)};
+-            @end
+-        @end
+-
+-        texel = WRAP(texel, -0.51, 1.51);
+-        texel = clamp(texel, 0.0, 1.0);
+-        // TODO discard if alpha is 0?
+-        @if(o_fog)
+-            @if(o_alpha)
+-                texel = vec4(mix(texel.rgb, vFog.rgb, vFog.a), texel.a);
+-            @else
+-                texel = mix(texel, vFog.rgb, vFog.a);
+-            @end
+-        @end
+-
+-        @if(o_texture_edge && o_alpha)
+-            if (texel.a > 0.19) texel.a = 1.0; else discard;
+-        @end
+-
+-        @if(o_alpha && o_noise)
+-            texel.a *= floor(clamp(random(vec3(floor(gl_FragCoord.xy * noise_scale), float(frame_count))) + texel.a, 0.0, 1.0));
+-        @end
+-
+-        @if(o_grayscale)
+-            float intensity = (texel.r + texel.g + texel.b) / 3.0;
+-            vec3 new_texel = vGrayscaleColor.rgb * intensity;
+-            texel.rgb = mix(texel.rgb, new_texel, vGrayscaleColor.a);
+-        @end
+-
+-        @if(o_alpha)
+-            @if(o_alpha_threshold)
+-                if (texel.a < 8.0 / 256.0) discard;
+-            @end
+-            @if(o_invisible)
+-                texel.a = 0.0;
+-            @end
+-            @{vOutColor} = texel;
+-        @else
+-            @{vOutColor} = vec4(texel, 1.0);
+-        @end
+-
+-        @if(srgb_mode)
+-            @{vOutColor} = fromLinear(@{vOutColor});
+-        @end
+-
+-        @if(o_prim_depth)
+-            gl_FragDepth = prim_depth;
+-        @end
+-    }
++@prism(type='fragment', name='Fast3D Fragment Shader', version='1.0.0', description='Ported shader to prism', author='Emill & Prism Team')
++
++@{GLSL_VERSION}
++
++@if(VERTEX_SHADER)
++    @{attr} vec4 aVtxPos;
++
++    @for(i in 0..2)
++        @if(o_textures[i])
++            @{attr} vec2 aTexCoord@{i};
++            @{out} vec2 vTexCoord@{i};
++            @{update_floats(2)}
++            @for(j in 0..2)
++                @if(o_clamp[i][j])
++                    @if(j == 0)
++                        @{attr} float aTexClampS@{i};
++                        @{out} float vTexClampS@{i};
++                    @else
++                        @{attr} float aTexClampT@{i};
++                        @{out} float vTexClampT@{i};
++                    @end
++                    @{update_floats(1)}
++                @end
++            @end
++        @end
++    @end
++
++    @if(o_fog)
++        @{attr} vec4 aFog;
++        @{out} vec4 vFog;
++        @{update_floats(4)}
++    @end
++
++    @if(o_grayscale)
++        @{attr} vec4 aGrayscaleColor;
++        @{out} vec4 vGrayscaleColor;
++        @{update_floats(4)}
++    @end
++
++    @for(i in 0..o_inputs)
++        @if(o_alpha)
++            @{attr} vec4 aInput@{i + 1};
++            @{out} vec4 vInput@{i + 1};
++            @{update_floats(4)}
++        @else
++            @{attr} vec3 aInput@{i + 1};
++            @{out} vec3 vInput@{i + 1};
++            @{update_floats(3)}
++        @end
++    @end
++
++    void main() {
++        @for(i in 0..2)
++            @if(o_textures[i])
++                vTexCoord@{i} = aTexCoord@{i};
++                @for(j in 0..2)
++                    @if(o_clamp[i][j])
++                        @if(j == 0)
++                            vTexClampS@{i} = aTexClampS@{i};
++                        @else
++                            vTexClampT@{i} = aTexClampT@{i};
++                        @end
++                    @end
++                @end
++            @end
++        @end
++        @if(o_fog)
++            vFog = aFog;
++        @end
++        @if(o_grayscale)
++            vGrayscaleColor = aGrayscaleColor;
++        @end
++        @for(i in 0..o_inputs)
++            vInput@{i + 1} = aInput@{i + 1};
++        @end
++        gl_Position = aVtxPos;
++        @if(opengles)
++            gl_Position.z *= 0.3f;
++        @end
++    }
++@else
 +    @if(dual_out)
 +    // PORT: dual-source blending (gfx_opengl.cpp binds them to colour 0, index 0 and 1): colour blends by
 +    // vOutColor1.a; the alpha written is vOutColor.a
 +    out vec4 vOutColor;
 +    out vec4 vOutColor1;
 +    @end
++    @if(dual_out_es)
++    layout(location = 0, index = 0) out vec4 vOutColor;
++    layout(location = 0, index = 1) out vec4 vOutColor1;
++    @end
 +    @if(single_out)
-     out vec4 vOutColor;
-     @end
- 
-@@ -278,10 +284,21 @@
-             @if(o_alpha_threshold)
-                 if (texel.a < 8.0 / 256.0) discard;
-             @end
--            @if(o_invisible)
--                texel.a = 0.0;
++    out vec4 vOutColor;
++    @end
++
++    @for(i in 0..2)
++        @if(o_textures[i])
++            @{attr} vec2 vTexCoord@{i};
++            @for(j in 0..2)
++                @if(o_clamp[i][j])
++                    @if(j == 0)
++                        @{attr} float vTexClampS@{i};
++                    @else
++                        @{attr} float vTexClampT@{i};
++                    @end
++                @end
++            @end
++        @end
++    @end
++
++    @if(o_fog) @{attr} vec4 vFog;
++    @if(o_grayscale) @{attr} vec4 vGrayscaleColor;
++
++    @for(i in 0..o_inputs)
++        @if(o_alpha)
++            @{attr} vec4 vInput@{i + 1};
++        @else
++            @{attr} vec3 vInput@{i + 1};
++        @end
++    @end
++
++    @if(o_textures[0]) uniform sampler2D uTex0;
++    @if(o_textures[1]) uniform sampler2D uTex1;
++
++    @if(o_masks[0]) uniform sampler2D uTexMask0;
++    @if(o_masks[1]) uniform sampler2D uTexMask1;
++
++    @if(o_blend[0]) uniform sampler2D uTexBlend0;
++    @if(o_blend[1]) uniform sampler2D uTexBlend1;
++
++    uniform int frame_count;
++    uniform float noise_scale;
++
++    @if(o_prim_depth)
++    uniform float prim_depth;
++    @end
++
++    uniform int texture_width[2];
++    uniform int texture_height[2];
++    uniform int texture_filtering[2];
++
++    #define TEX_OFFSET(off) @{texture}(tex, texCoord - off / texSize)
++    #define WRAP(x, low, high) clamp((x), (low), (high))
++
++    float random(in vec3 value) {
++        float random = dot(sin(value), vec3(12.9898, 78.233, 37.719));
++        return fract(sin(random) * 143758.5453);
++    }
++
++    vec4 fromLinear(vec4 linearRGB){
++        bvec3 cutoff = lessThan(linearRGB.rgb, vec3(0.0031308));
++        vec3 higher = vec3(1.055)*pow(linearRGB.rgb, vec3(1.0/2.4)) - vec3(0.055);
++        vec3 lower = linearRGB.rgb * vec3(12.92);
++        return vec4(mix(higher, lower, cutoff), linearRGB.a);
++    }
++
++    vec4 filter3point(in sampler2D tex, in vec2 texCoord, in vec2 texSize) {
++        vec2 offset = fract(texCoord*texSize - vec2(0.5));
++        offset -= step(1.0, offset.x + offset.y);
++        vec4 c0 = TEX_OFFSET(offset);
++        vec4 c1 = TEX_OFFSET(vec2(offset.x - sign(offset.x), offset.y));
++        vec4 c2 = TEX_OFFSET(vec2(offset.x, offset.y - sign(offset.y)));
++        return c0 + abs(offset.x)*(c1-c0) + abs(offset.y)*(c2-c0);
++    }
++
++    vec4 hookTexture2D(in int id, sampler2D tex, in vec2 uv, in vec2 texSize) {
++    @if(o_three_point_filtering)
++        if(texture_filtering[id] == @{FILTER_THREE_POINT}) {
++            return filter3point(tex, uv, texSize);
++        }
++    @end
++        return @{texture}(tex, uv);
++    }
++
++    #define TEX_SIZE(tex) vec2(texture_width[tex], texture_height[tex])
++
++    void main() {
++        @for(i in 0..2)
++            @if(o_textures[i])
++                @{s = o_clamp[i][0]}
++                @{t = o_clamp[i][1]}
++
++                vec2 texSize@{i} = TEX_SIZE(@{i});
++
++                @if(!s && !t)
++                    vec2 vTexCoordAdj@{i} = vTexCoord@{i};
++                @else
++                    @if(s && t)
++                        vec2 vTexCoordAdj@{i} = clamp(vTexCoord@{i}, 0.5 / texSize@{i}, vec2(vTexClampS@{i}, vTexClampT@{i}));
++                    @elseif(s)
++                        vec2 vTexCoordAdj@{i} = vec2(clamp(vTexCoord@{i}.s, 0.5 / texSize@{i}.s, vTexClampS@{i}), vTexCoord@{i}.t);
++                    @else
++                        vec2 vTexCoordAdj@{i} = vec2(vTexCoord@{i}.s, clamp(vTexCoord@{i}.t, 0.5 / texSize@{i}.t, vTexClampT@{i}));
++                    @end
++                @end
++
++                vec4 texVal@{i} = hookTexture2D(@{i}, uTex@{i}, vTexCoordAdj@{i}, texSize@{i});
++
++                @if(o_masks[i])
++                    @if(opengles) 
++                        vec2 maskSize@{i} = vec2(textureSize(uTexMask@{i}, 0));
++                    @else 
++                        vec2 maskSize@{i} = textureSize(uTexMask@{i}, 0);
++                    @end
++
++                    vec4 maskVal@{i} = hookTexture2D(@{i}, uTexMask@{i}, vTexCoordAdj@{i}, maskSize@{i});
++
++                    @if(o_blend[i])
++                        vec4 blendVal@{i} = hookTexture2D(@{i}, uTexBlend@{i}, vTexCoordAdj@{i}, texSize@{i});
++                    @else
++                        vec4 blendVal@{i} = vec4(0, 0, 0, 0);
++                    @end
++
++                    texVal@{i} = mix(texVal@{i}, blendVal@{i}, maskVal@{i}.a);
++                @end
++            @end
++        @end
++
++        @if(o_alpha) 
++            vec4 texel;
++        @else 
++            vec3 texel;
++        @end
++
++        @if(o_2cyc)
++            @{f_range = 2}
++        @else
++            @{f_range = 1}
++        @end
++
++        @for(c in 0..f_range)
++            @if(c == 1)
++                @if(o_alpha)
++                    @if(o_c[c][1][2] == SHADER_COMBINED)
++                        texel.a = WRAP(texel.a, -1.01, 1.01);
++                    @else
++                        texel.a = WRAP(texel.a, -0.51, 1.51);
++                    @end
++                @end
++
++                @if(o_c[c][0][2] == SHADER_COMBINED)
++                    texel.rgb = WRAP(texel.rgb, -1.01, 1.01);
++                @else
++                    texel.rgb = WRAP(texel.rgb, -0.51, 1.51);
++                @end
++            @end
++
++            @if(!o_color_alpha_same[c] && o_alpha)
++                texel = vec4(@{
++                append_formula(o_c[c], o_do_single[c][0],
++                            o_do_multiply[c][0], o_do_mix[c][0], false, false, true, c == 0)
++                }, @{append_formula(o_c[c], o_do_single[c][1],
++                            o_do_multiply[c][1], o_do_mix[c][1], true, true, true, c == 0)
++                });
++            @else
++                texel = @{append_formula(o_c[c], o_do_single[c][0],
++                            o_do_multiply[c][0], o_do_mix[c][0], o_alpha, false,
++                            o_alpha, c == 0)};
++            @end
++        @end
++
++        texel = WRAP(texel, -0.51, 1.51);
++        texel = clamp(texel, 0.0, 1.0);
++        // TODO discard if alpha is 0?
++        @if(o_fog)
++            @if(o_alpha)
++                texel = vec4(mix(texel.rgb, vFog.rgb, vFog.a), texel.a);
++            @else
++                texel = mix(texel, vFog.rgb, vFog.a);
++            @end
++        @end
++
++        @if(o_texture_edge && o_alpha)
++            if (texel.a > 0.19) texel.a = 1.0; else discard;
++        @end
++
++        @if(o_alpha && o_noise)
++            texel.a *= floor(clamp(random(vec3(floor(gl_FragCoord.xy * noise_scale), float(frame_count))) + texel.a, 0.0, 1.0));
++        @end
++
++        @if(o_grayscale)
++            float intensity = (texel.r + texel.g + texel.b) / 3.0;
++            vec3 new_texel = vGrayscaleColor.rgb * intensity;
++            texel.rgb = mix(texel.rgb, new_texel, vGrayscaleColor.a);
++        @end
++
++        @if(o_alpha)
++            @if(o_alpha_threshold)
++                if (texel.a < 8.0 / 256.0) discard;
++            @end
 +            @if(dual_source)
 +                // PORT: the alpha written is the N64 coverage bit: 1 for every drawn pixel, kept (0) for o_invisible
 +                // draws; the blend alpha goes to the second output (as default.shader.metal)
@@ -3242,11 +3841,21 @@ index 3693c79..2c8741a 100644
 +                    texel.a = 0.0;
 +                @end
 +                @{vOutColor} = texel;
-             @end
--            @{vOutColor} = texel;
-         @else
-             @{vOutColor} = vec4(texel, 1.0);
-         @end
++            @end
++        @else
++            @{vOutColor} = vec4(texel, 1.0);
++        @end
++
++        @if(srgb_mode)
++            @{vOutColor} = fromLinear(@{vOutColor});
++        @end
++
++        @if(o_prim_depth)
++            gl_FragDepth = prim_depth;
++        @end
++    }
+ @end
+\ No newline at end of file
 diff --git a/src/ship/debug/CrashHandler.cpp b/src/ship/debug/CrashHandler.cpp
 index 63d5b07..a83bce7 100644
 --- a/src/ship/debug/CrashHandler.cpp
