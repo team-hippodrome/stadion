@@ -241,7 +241,7 @@ stubbed (intro models look "exploded"); audio, Transfer Pak and GB Tower emulati
 
 Debug aids: `PORT_SCREENSHOT_DIR` (+ `PORT_SCREENSHOT_STUCK=secs`, `PORT_SCREENSHOT_NOSTOP`, `PORT_SCREENSHOT_ALL`, `PORT_SCREENSHOT_MAX_MB` (default 2048: no more changed frames past that size)), `PORT_ASPECT=4:3|16:9` (the
 picture's shape, else the launcher's Screen option), `PORT_NO_BACKDROP_STRETCH=1` (2D backdrops stay 4:3 in widescreen), `PORT_NO_2D_LOCK=1` (2D screens are not kept
-inside the 4:3 area), `PORT_NO_2D_CLIP=1` (2D shapes in 3D scenes are not cut at the 4:3 sides),
+inside the 4:3 area), `PORT_NO_WIDE_PATTERN=1` (the menus' patterned backdrops stay 4:3 in widescreen), `PORT_NO_2D_CLIP=1` (2D shapes in 3D scenes are not cut at the 4:3 sides),
 `tools/shot_run.sh <rom> [max secs]` (`STEP`, `KEEP` env; builds `build/shots/sheet.png`, deletes the PPMs, kills the
 game), `tools/run_for.sh`, `PORT_AUTOSTART=<ms>` (taps Start; `PORT_AUTOA` taps Start+A), `PORT_SPEED=<n>`,
 `PORT_TRACE_STATE`, `PORT_TEXLOG`, `PORT_TRILOG`, `PORT_MTXLOG`, `PORT_OPLOG`, `PORT_TRACE_JPEG`, `PORT_ALLOCLOG`,
@@ -1111,6 +1111,15 @@ buffers kept what an earlier scene left there and the margins flickered as the b
 same on every backend). The first frame buffer the game selects in a frame gets two black fill rectangles left and
 right of the picture (interpreter GfxDpSetColorImage); 3D scenes redraw the margins on top, and a 4:3 window is not
 touched. `PORT_NO_MARGIN_CLEAR=1` restores the old behaviour.
+
+Patterned menu backdrops in widescreen: the main menu, Game Pak Check, Battle Now, Options and the GB screens draw
+their wallpaper (the "POKéMON" pattern, the green "GB" pattern, the cream pattern of the fades) as one textured
+rectangle over the whole N64 screen with a small repeating tile (WRAP or MIRROR, the rectangle several periods wide).
+In a picture wider than 4:3 that rectangle reaches both screen edges with its texture coordinates continued
+(interpreter GfxDpTextureRectangle, `sWidePattern`), so the pattern goes on at its own size instead of being
+stretched, and only it is drawn past the 2D screen's 4:3 lock: panels, text, icons and cursors keep their 4:3 place
+and size. Screens with a picture backdrop (title, the hub map, Kids Club, JPEG backgrounds; clamped tiles) stay
+pillarboxed. Nothing changes at 4:3. `PORT_NO_WIDE_PATTERN=1` turns it off.
 
 ## Game sound: music, sound effects, voices
 
