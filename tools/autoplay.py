@@ -1288,7 +1288,10 @@ STYLES = {
     "bulky": {"risk": TEAM_RISK, "status": 1.0, "bulk": 1.0,
               "text": "a bulky team: Pokemon that take hits and win with HP to spare, healing and Reflect"},
 }
-STYLE_ORDER = ("balanced", "safe", "aggressive", "control", "bulky")  # the games of a run, in turn (--styles)
+STYLE_ORDER = ("balanced", "safe", "aggressive", "control", "bulky")
+# the games of a run, in turn (--styles): over four batches of all five, balanced games got furthest (on average to
+# the 12th of 13 leaders, three of the four full clears), aggressive 9.8, safe 8.0, bulky 7.8, control 6.0
+DEFAULT_STYLES = ("balanced", "aggressive", "balanced", "safe", "balanced")
 
 
 def duel_status_moves(mids):
@@ -2059,9 +2062,9 @@ def main():
     ap.add_argument("--explore", type=int, default=1,
                     help="with --team draft and --games: this many games (the last ones) draft an experimental team: "
                          "a wider, looser shortlist that avoids what the other games took (default 1)")
-    ap.add_argument("--styles", default=",".join(STYLE_ORDER),
-                    help="with --team draft: the games' team styles in turn, from %s (default all of them; "
-                         "balanced: every game alike)" % ", ".join(STYLE_ORDER))
+    ap.add_argument("--styles", default=",".join(DEFAULT_STYLES),
+                    help="with --team draft: the games' team styles in turn, from %s (default %s; "
+                         "balanced: every game alike)" % (", ".join(STYLE_ORDER), ",".join(DEFAULT_STYLES)))
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2),
                     help="worker processes for the lookahead's searches (default: all cores but two; 0: none)")
     ap.add_argument("--max-e4-runs", type=int, default=5,
