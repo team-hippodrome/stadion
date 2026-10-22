@@ -385,7 +385,7 @@ s32 port_osRecvMesg(OSMesgQueue* mq, OSMesg* msg, s32 flag) {
             continue;
         }
         TRACE("thread %d blocks on recv %p", (int)tlsSelf->id, (void*)mq);
-        tlsSelf->blockedDepth = Port_Backtrace(tlsSelf->blockedAt, 16);
+        tlsSelf->blockedDepth = Port_BacktraceFast(tlsSelf->blockedAt, 16);
         tlsSelf->blockCount++;
         DumpStack("recv", (int)tlsSelf->id);
         tlsSelf->state = State::Waiting;
