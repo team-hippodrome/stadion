@@ -1127,8 +1127,15 @@ In a picture wider than 4:3 that rectangle reaches both screen edges with its te
 stretched, and only it is drawn past the 2D screen's 4:3 lock: panels, text, icons and cursors keep their 4:3 place
 and size. Screens with a picture backdrop (title, the hub map, Kids Club, JPEG backgrounds; clamped tiles) stay
 pillarboxed, and so do patterns drawn as full-width bands (the GB screens' shaded "GB" wallpaper, the gallery's film
-screen, where panels fill the rows between the bands and widened bands would leave gaps). Nothing changes at 4:3.
-`PORT_NO_WIDE_PATTERN=1` turns it off.
+screen, where panels fill the rows between the bands and widened bands would leave gaps).
+
+So that the switch between such a widescreen menu and a 4:3 screen does not flicker: full-screen fades (one colour,
+every vertex on a side of the 4:3 frame) cover the whole picture on 2D screens too, past their 4:3 lock (over a
+widened pattern only the middle used to fade; around a 4:3 picture the margins now fade with it), while wipes with a
+textured edge or over part of the screen keep the lock. The single-colour frames the game draws with the CPU between
+screens (white, black; `PresentCpuFrame`) are shown full width when the frame before covered the whole picture
+(`Port_LastFrameFilledWide`), instead of a 4:3 frame between two widescreen ones. Nothing changes at 4:3.
+`PORT_NO_WIDE_PATTERN=1` turns all of this off.
 
 ## Game sound: music, sound effects, voices
 
