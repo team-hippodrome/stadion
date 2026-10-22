@@ -57,6 +57,7 @@ set(PORT_MAIN_SOURCES
   src/port/interp.cpp
   src/port/launcher.cpp
   src/port/shader_warmup.cpp
+  src/port/touch_controls.cpp
   src/port/stubs.c
   src/port/port_platform.c
   src/port/generated/abs_syms.S
@@ -65,7 +66,8 @@ if(ANDROID)
   # SDL's Java activity (android/) loads the game as libmain.so and calls its main (SDL_main)
   add_library(pokestadium SHARED ${PORT_MAIN_SOURCES})
   set_target_properties(pokestadium PROPERTIES OUTPUT_NAME main)
-  target_link_libraries(pokestadium PRIVATE android log)
+  target_link_libraries(pokestadium PRIVATE android log EGL)
+  target_sources(pokestadium PRIVATE src/port/pacing_android.cpp)
   # bind the library's own symbols inside it: the N64 addresses in src/port/generated/abs_syms.S are absolute symbols,
   # which must stay fixed numbers rather than go through the dynamic loader (which would relocate them)
   target_link_options(pokestadium PRIVATE -Wl,-Bsymbolic)

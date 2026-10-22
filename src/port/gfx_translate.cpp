@@ -39,13 +39,40 @@ uintptr_t gListSegs[16]; // see TranslateList: segment bases set inside the list
 std::mutex gLock;
 std::unordered_map<const void*, Gfx*> gCache;
 std::unordered_map<const void*, void*> gDescCache; // Port_ConvertDesc
+// Translated lists, vertices and matrices. When the cache is dropped the arena is retired, not freed: lists built
+// from it may still be queued for the renderer, so it is freed once a few frames have been rendered since
+// (Port_GfxFrameDone). Without this every flush kept a full copy of the scene (gigabytes within minutes in battle).
 std::deque<std::vector<uint8_t>> gArena;
+size_t gArenaBytes = 0;
+uint64_t gFramesDone = 0;
+std::deque<std::pair<uint64_t, std::deque<std::vector<uint8_t>>>> gRetired; // frame count when retired, arena
+constexpr uint64_t kRetireFrames = 4;           // rendered frames before a retired arena is freed
+constexpr size_t kArenaLimit = 32u << 20;       // vertices and matrices are translated on every use: retire when larger
+
+void RetireArena() {
+    gCache.clear();
+    gDescCache.clear();
+    if (gArena.empty()) return;
+    gRetired.emplace_back(gFramesDone, std::move(gArena));
+    gArena.clear();
+    gArenaBytes = 0;
+}
 
 inline uint32_t Be32(const uint8_t* p) {
     return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | p[3];
 }
 inline uint16_t Be16(const uint8_t* p) {
     return (uint16_t)(((uint32_t)p[0] << 8) | p[1]);
+}
+
+// debug switches, read once: getenv scans the whole environment, and these are checked per command and per matrix
+bool ValidateDL() {
+    static const bool v = getenv("PORT_VALIDATE_DL") != nullptr;
+    return v;
+}
+bool MtxLog() {
+    static const bool v = getenv("PORT_MTXLOG") != nullptr;
+    return v;
 }
 
 bool InRaw(const void* p) {
@@ -59,14 +86,14 @@ bool InRaw(const void* p) {
         if (size > gSegments[i].size) size = gSegments[i].size;
         if (a < gSegments[i].vaddr + size) {
             static int shown = 0;
-            if (getenv("PORT_VALIDATE_DL") && shown++ < 6) fprintf(stderr, "[raw] %p in segment %d base=%p size=0x%zx (map size 0x%zx)\n", p, i, (void*)gSegments[i].vaddr, size, gSegments[i].size);
+            if (ValidateDL() && shown++ < 6) fprintf(stderr, "[raw] %p in segment %d base=%p size=0x%zx (map size 0x%zx)\n", p, i, (void*)gSegments[i].vaddr, size, gSegments[i].size);
             return true;
         }
     }
     for (int i = 0; i < 240; i++) {
         if (gFragments[i].vaddr != 0 && a >= gFragments[i].vaddr && a < gFragments[i].vaddr + gFragments[i].size) {
             static int shownF = 0;
-            if (getenv("PORT_VALIDATE_DL") && shownF++ < 6) fprintf(stderr, "[raw] %p in fragment slot %d base=%p size=0x%zx\n", p, i, (void*)gFragments[i].vaddr, gFragments[i].size);
+            if (ValidateDL() && shownF++ < 6) fprintf(stderr, "[raw] %p in fragment slot %d base=%p size=0x%zx\n", p, i, (void*)gFragments[i].vaddr, gFragments[i].size);
             return true;
         }
     }
@@ -114,6 +141,7 @@ const void* ResolveRaw0(uint32_t addr, bool* resolved) {
 
 uint8_t* Alloc(size_t n) {
     gArena.emplace_back(n + 16);
+    gArenaBytes += n + 16;
     uint8_t* p = gArena.back().data();
     return (uint8_t*)(((uintptr_t)p + 15) & ~(uintptr_t)15);
 }
@@ -140,7 +168,7 @@ Vtx* TranslateVtx(const uint8_t* raw, int n) {
 void* TranslateMtx(const uint8_t* raw) {
     uint32_t* out = (uint32_t*)Alloc(64);
     for (int i = 0; i < 16; i++) out[i] = Be32(raw + i * 4);
-    if (getenv("PORT_MTXLOG")) fprintf(stderr, "[mtxtr] raw=%p -> %p\n", (const void*)raw, (void*)out);
+    if (MtxLog()) fprintf(stderr, "[mtxtr] raw=%p -> %p\n", (const void*)raw, (void*)out);
     return out;
 }
 
@@ -236,7 +264,7 @@ Gfx* TranslateList(const uint8_t* raw) {
             default:
                 break;
         }
-        if (getenv("PORT_VALIDATE_DL") && op > 0x08 && op < 0xD7) {
+        if (ValidateDL() && op > 0x08 && op < 0xD7) {
             static int shown = 0;
             if (shown++ < 4) {
                 fprintf(stderr, "[xlat] invalid opcode %02x at raw %p (cmd #%d) list start %p:", op, (const void*)p, count, (const void*)raw);
@@ -266,7 +294,7 @@ void* Port_GfxPrepareDL(uintptr_t dl) {
     if ((dl >> 32) == 0xFFFFFFFFull) dl &= 0xFFFFFFFFull; // an s32 address sign-extended into 64 bits
     if (dl == 0) {
         static int shown = 0;
-        if (getenv("PORT_VALIDATE_DL") && shown++ < 3) {
+        if (ValidateDL() && shown++ < 3) {
             void* fr[10];
             int n = Port_Backtrace(fr, 10);
             fprintf(stderr, "@null-dl slide=0x%lx:", (unsigned long)Port_ImageSlide());
@@ -284,7 +312,7 @@ void* Port_GfxPrepareDL(uintptr_t dl) {
     }
     if (InRaw(p)) {
         memset(gListSegs, 0, sizeof gListSegs);
-        if (getenv("PORT_VALIDATE_DL")) {
+        if (ValidateDL()) {
             uint8_t op0 = *(const uint8_t*)p;
             static int shownT = 0;
             if (op0 > 0x08 && op0 < 0xD7 && shownT++ < 3) {
@@ -351,7 +379,7 @@ void* Port_ConvertDesc(void* link) {
     auto it = gDescCache.find(p);
     if (it != gDescCache.end()) return it->second;
     const uint8_t* s = (const uint8_t*)p;
-    if (getenv("PORT_VALIDATE_DL")) {
+    if (ValidateDL()) {
         static int shownD = 0;
         if (shownD++ < 8) {
             fprintf(stderr, "[desc] link=%p raw=%p:", link, p);
@@ -394,10 +422,15 @@ int Port_IsRawData(const void* p) {
 void Port_GfxFlushCache(void) {
     Port_InterpMapsChanged();
     std::lock_guard<std::mutex> g(gLock);
-    // Only the lookup table is dropped; translated lists may still be queued for the renderer, so the arena is kept
-    // (it grows slowly; reclaiming it needs a frame fence).
-    gCache.clear();
-    gDescCache.clear();
+    RetireArena();
+}
+
+// A frame was rendered (or only tracked): frees arenas retired long enough ago that no queued list uses them.
+void Port_GfxFrameDone(void) {
+    std::lock_guard<std::mutex> g(gLock);
+    gFramesDone++;
+    while (!gRetired.empty() && gRetired.front().first + kRetireFrames <= gFramesDone) gRetired.pop_front();
+    if (gArenaBytes > kArenaLimit) RetireArena();
 }
 
 } // extern "C"
