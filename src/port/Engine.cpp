@@ -41,6 +41,7 @@ extern "C" bool Port_Lockstep();
 extern "C" uint64_t Port_ViTick();
 extern "C" bool Port_FreezeCheckEnabled();
 extern "C" void Port_NotePictureHash(uint64_t hash);
+extern "C" void Port_GfxFrameDone(void);
 
 // PORT_STOP_AT: the frame to save regardless of the change detection (as stop_<frame>.ppm).
 static uint64_t sCaptureFrame = 0;
@@ -511,6 +512,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
     }
     if (!sWindow->IsFrameReady()) {
         if (!TrackFrame(gfxCommands)) {
+            Port_GfxFrameDone();
             return true;
         }
     }
@@ -543,6 +545,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         lastPresent = now;
     }
     gPortDrawLog = false;
+    Port_GfxFrameDone();
     MaybeScreenshot();
     UpdateFpsTitle();
     return true;
