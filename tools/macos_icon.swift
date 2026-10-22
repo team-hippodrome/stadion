@@ -1,10 +1,19 @@
 // Draws the macOS app icon (tools/macos/AppIcon.png): "Pokémon" in yellow with a blue outline over a red, black-outlined
 // "STADIUM" (both Superclarendon Black), on a blue sky with clouds. Lettering only, no game art.
 // Usage: swift tools/macos_icon.swift <output .png>
+//        swift tools/macos_icon.swift --android-background|--android-foreground <output .png>
+// The Android modes draw the two layers of the adaptive launcher icon (android/app/src/main/res, see
+// tools/make_android_icons.sh): the sky and clouds edge to edge, and the lettering alone on transparency, both 0.8 times
+// the macOS size, so that what the macOS tile shows fills the 72 dp of 108 dp a launcher's mask shows and the lettering
+// stays inside the 66 dp safe zone.
 import AppKit
 import CoreText
 
-let out = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "AppIcon.png"
+let args = Array(CommandLine.arguments.dropFirst())
+let mode = args.first(where: { $0.hasPrefix("--") }) ?? ""
+let out = args.first(where: { !$0.hasPrefix("--") }) ?? "AppIcon.png"
+let android = !mode.isEmpty
+let drawSky = mode != "--android-foreground", drawLetters = mode != "--android-background"
 
 func rgb(_ hex: UInt32, _ a: CGFloat = 1) -> CGColor {
     CGColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
@@ -17,7 +26,14 @@ let ctx = CGContext(data: nil, width: 1024, height: 1024, bitsPerComponent: 8, b
 
 // ---- tile: macOS icon grid (an 824 pt rounded square), sky and clouds ------------------------------------------------
 let tile = CGRect(x: 100, y: 100, width: 824, height: 824)
-let shape = CGPath(roundedRect: tile, cornerWidth: 185, cornerHeight: 185, transform: nil)
+let shape = android ? CGPath(rect: CGRect(x: -400, y: -400, width: 1824, height: 1824), transform: nil)
+                    : CGPath(roundedRect: tile, cornerWidth: 185, cornerHeight: 185, transform: nil)
+if android { // everything 0.8 times as large, around the centre
+    ctx.translateBy(x: 512, y: 512)
+    ctx.scaleBy(x: 0.8, y: 0.8)
+    ctx.translateBy(x: -512, y: -512)
+}
+if drawSky {
 ctx.saveGState()
 ctx.setShadow(offset: CGSize(width: 0, height: -10), blur: 24, color: rgb(0x000000, 0.35))
 ctx.addPath(shape)
@@ -29,7 +45,8 @@ ctx.addPath(shape)
 ctx.clip()
 let sky = CGGradient(colorsSpace: nil, colors: [rgb(0x1D4FB8), rgb(0x3F86E0), rgb(0x8EC6F4)] as CFArray,
                      locations: [0, 0.55, 1])!
-ctx.drawLinearGradient(sky, start: CGPoint(x: 0, y: tile.maxY), end: CGPoint(x: 0, y: tile.minY), options: [])
+ctx.drawLinearGradient(sky, start: CGPoint(x: 0, y: tile.maxY), end: CGPoint(x: 0, y: tile.minY),
+                       options: android ? [.drawsBeforeStartLocation, .drawsAfterEndLocation] : [])
 // clouds: clusters of white puffs (x, y, radius)
 let clouds: [[(CGFloat, CGFloat, CGFloat)]] = [
     [(170, 850, 45), (230, 870, 60), (295, 850, 45)], [(600, 890, 40), (665, 905, 55), (730, 885, 42)],
@@ -47,6 +64,7 @@ for cluster in clouds {
     ctx.restoreGState()
 }
 ctx.restoreGState()
+}
 
 // ---- lettering -------------------------------------------------------------------------------------------------------
 // text centred on cx, sitting on `baseline`, scaled to maxW wide and about targetH tall; strokes outermost
@@ -91,11 +109,13 @@ func word(_ text: String, font: String, cx: CGFloat, baseline: CGFloat, maxW: CG
     }
 }
 
+if drawLetters {
 ctx.setShadow(offset: CGSize(width: 0, height: -8), blur: 10, color: rgb(0x0A1A3A, 0.45))
 word("Pokémon", font: "Superclarendon-Black", cx: 512, baseline: 530, maxW: 600, targetH: 175, fill: rgb(0xFFCB05),
      strokes: [(rgb(0x1B2A55), 44), (rgb(0x2E5EB8), 28)])
 word("STADIUM", font: "Superclarendon-Black", cx: 512, baseline: 340, maxW: 620, targetH: 150, fill: rgb(0xE3350D),
      strokes: [(rgb(0x0E0E10), 34)])
+}
 
 let rep = NSBitmapImageRep(cgImage: ctx.makeImage()!)
 try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out))
