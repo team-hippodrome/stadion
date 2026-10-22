@@ -341,6 +341,15 @@ bool Headless() {
     return on;
 }
 
+// Frames that render to a texture are drawn in headless mode too: menus draw their backgrounds into a texture once
+// and show it for many frames after; tracked only, it stayed black or held old memory (static on the team-order
+// screen, the previous screen's background behind the next one)
+static bool sForceDraw = false;
+
+void SetForceDraw(bool on) {
+    sForceDraw = on;
+}
+
 static void WriteThumb(const std::string& path, const std::vector<uint16_t>& buf, int w, int h) {
     const bool full = gPortScreenW == (uint32_t)w && gPortScreenH == (uint32_t)h && gPortScreenBgra.size() == buf.size() * 4;
     const int tw = std::min(kThumbW, w), th = std::max(1, h * tw / w);
@@ -558,7 +567,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
     static const std::unordered_map<Mtx*, MtxF> sNone;
     const auto& replacements =
         mtxReplacements ? *static_cast<const std::unordered_map<Mtx*, MtxF>*>(mtxReplacements) : sNone;
-    if (Headless() && !ThumbPending()) { // PORT_HEADLESS: tracked like a frame that is not drawn (window events: PumpFrame)
+    if (Headless() && !ThumbPending() && !sForceDraw) { // PORT_HEADLESS: tracked like a frame not drawn (window events: PumpFrame)
         if (!WindowIsRunning()) {
             return false;
         }

@@ -2045,6 +2045,8 @@ def main():
                                     "screen, with --games; its save: --save")
     ap.add_argument("--save", help="the Stadium save the route starts from (each game uses a copy)")
     ap.add_argument("--show", type=int, default=0, help="with --games: show the windows of the first n games")
+    ap.add_argument("--no-headless", action="store_true",
+                    help="with --games: hidden games draw every frame (PORT_HEADLESS=0), to compare their pictures")
     ap.add_argument("--castle", action="store_true",
                     help="Gym Leader Castle from the start: the bot goes there from the title screen, rents --team "
                          "and plays through it (with --games; no --route needed)")
@@ -2185,6 +2187,8 @@ def main():
                     # nobody sees these: draw only every 60th frame and skip the freeze check (a GPU read-back per
                     # frame), which doubles what 20 games manage together
                     env.update(PORT_HIDDEN_WINDOW="1", PORT_RENDER_EVERY="60", PORT_FREEZE_CHECK="0", PORT_HEADLESS="1")
+                    if args.no_headless:  # every frame drawn, as in a window (to check what headless mode shows)
+                        env.update(PORT_RENDER_EVERY="1", PORT_HEADLESS="0")
                 start(i, sock, env, [exe, args.rom], True, rng.randint(1, 240),
                       "game %d%s" % (i + 1, " (experimental)" if team == "draft" and i >= args.games - args.explore else ""))
         else:

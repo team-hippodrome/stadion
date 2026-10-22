@@ -1154,14 +1154,16 @@ void Port::PumpRspTasks() {
             static uint64_t gfxCount = 0;
             bool stopFrame, shotFrame;
             CheckCapture(&stopFrame, &shotFrame);
-            // PORT_HEADLESS: drawn only for a thumbnail (RunFrame tracks the others), off-screen renders included
+            // PORT_HEADLESS: drawn only for a thumbnail or an off-screen render (RunFrame tracks the others)
             const bool due = Port::Headless() ? Port::ThumbPending() : gfxCount % Port_RenderEvery() == 0;
             gfxCount++;
             if (due || stopFrame || shotFrame) {
                 Port::RunGameFrame(t->t.data_ptr, stopFrame || shotFrame); // (interp.cpp: in-between frames)
-            } else if (Port::TrackFrame(t->t.data_ptr) && !Port::Headless()) { // not drawn, but its state changes must still happen
+            } else if (Port::TrackFrame(t->t.data_ptr)) { // not drawn, but its state changes must still happen
                 Port::CancelInterpolation();
+                Port::SetForceDraw(true);
                 Port::RunFrame(t->t.data_ptr);                  // renders to a texture: draw it after all
+                Port::SetForceDraw(false);
             }
             if (stopFrame) {
                 fprintf(stderr, "[stop] reached frame %llu\n", (unsigned long long)gTick.load());

@@ -19,6 +19,8 @@ bool TrackFrame(void* gfxCommands);
 // PORT_HEADLESS=1: frames are only tracked, not drawn, except while a thumbnail is wanted (ThumbPending)
 bool Headless();
 bool ThumbPending();
+// a frame that renders to a texture later frames show: drawn in headless mode too (os_devices.cpp)
+void SetForceDraw(bool on);
 // RunFrame with interpolated matrices (an std::unordered_map<Mtx*, MtxF>, or null); subFrame: the display list drawn
 // again for an in-between frame (interp.cpp)
 bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame, bool readBack = false);
