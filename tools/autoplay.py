@@ -636,6 +636,7 @@ OPP_BEST = 0.6
 # the Surf without having hit.
 AI_SHARE = 0.7      # of the weight on the move the computer would pick (the rest: the worse of its two best)
 AI_SECOND = 0.2     # of that, on its second best
+AI_TRAP_FASTER, AI_TRAP_SLOWER = 0.85, 0.3  # the computer's score of a trapping move, faster or slower than ours
 
 
 def ai_scores(opp, own, moves):
@@ -654,6 +655,9 @@ def ai_scores(opp, own, moves):
                 share *= 0.5
             if d["effect"] == EXPLODE:  # it weighs its own HP lost against it (unk_16): a full-HP Gengar did not
                 share -= opp["hp"] / max(1.0, opp["max_hp"])  # explode, yet all of Starmie's moves looked alike
+            if d["effect"] == TRAP and not own.get("trapped"):  # the hold counts: faster trappers in the logs spent
+                share = max(share, AI_TRAP_FASTER if opp["spd"] > own["spd"] else AI_TRAP_SLOWER)  # many turns
+                # trapping (Rapidash 42%, Ninetales 36%), the damage alone had made the model pick it almost never
             out.append(share * hit_chance(opp, own, mid))
         elif d["effect"] in (SLEEP, PARALYZE, POISON) and not (own["sleep"] or own["para"] or own["psn"]):
             out.append(0.35 * hit_chance(opp, own, mid))

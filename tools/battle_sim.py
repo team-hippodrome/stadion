@@ -415,12 +415,28 @@ def play_battle(our_six, their_six, status, brain, rng, log=None):
     theirs = [theirs_all[i] for i in ai_team(theirs_all, ours_all, rng)]
     b = Battle(ours, theirs, rng, log)
     status.data["last_switch"] = {}
+    return fight(b, status, brain, rng)
+
+
+def fight(b, status, brain, rng, first=None):
+    """plays a battle on from its position; first: our first action instead of the bot's (("switch", party slot),
+    "stay": the bot's best action other than a switch, "sacrifice": no switch as long as this Pokemon is in).
+    -> (won, turns)"""
+    ours, theirs = b.side
+    keep = b.active[0]
     for turn in range(200):
         b.turns = turn
         me, you = b.mon(0), b.mon(1)
         party = [m.party() for m in ours]
         opp_bench = [m.party() for i, m in enumerate(theirs) if i != b.active[1] and m.hp > 0]
-        kind, i = ap.decide_turn(brain, status, me.view(), you.view(), party, b.active[0], opp_bench, False)
+        if turn == 0 and isinstance(first, tuple):
+            kind, i = first
+        else:
+            if (turn == 0 and first == "stay") or (first == "sacrifice" and b.active[0] == keep):
+                status.data["last_switch"] = {"age": -1}  # no switch now
+            kind, i = ap.decide_turn(brain, status, me.view(), you.view(), party, b.active[0], opp_bench, False)
+            if (turn == 0 and first == "stay") or (first == "sacrifice" and b.active[0] == keep):
+                status.data["last_switch"] = {}
         mine = None
         if kind == "switch":
             b.switch(0, i)
