@@ -56,6 +56,7 @@ set(PORT_MAIN_SOURCES
   src/port/pacing.cpp
   src/port/interp.cpp
   src/port/launcher.cpp
+  src/port/mods.cpp
   src/port/shader_warmup.cpp
   src/port/touch_controls.cpp
   src/port/stubs.c
@@ -80,6 +81,8 @@ target_include_directories(pokestadium PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include/libultraship
 )
 target_compile_definitions(pokestadium PRIVATE F3DEX_GBI_2)
+# mods compare their "min_port_version" with it
+set_source_files_properties(src/port/mods.cpp PROPERTIES COMPILE_DEFINITIONS "PORT_VERSION_STRING=\"${PORT_VERSION}\"")
 target_link_libraries(pokestadium PRIVATE libultraship)
 if(APPLE)
   target_sources(pokestadium PRIVATE src/port/pacing_mac.mm)

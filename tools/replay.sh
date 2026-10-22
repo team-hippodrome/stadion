@@ -21,6 +21,8 @@ mkdir -p build/shots
 python3 -I -c 'import os,sys; d=sys.argv[1]; [os.remove(os.path.join(d,f)) for f in os.listdir(d) if f.endswith((".ppm",".png"))]' build/shots
 cd build || exit 1
 export PORT_EXIT_ON_FREEZE="${PORT_EXIT_ON_FREEZE:-1}" PORT_SPEED="${PORT_SPEED:-max}" PORT_RECORD="${PORT_RECORD:-last_replay.rec}"
+# replays run the unmodded game unless asked (PORT_MODS=a.o2r|b, see docs/MODDING.md)
+export PORT_MODS="${PORT_MODS:-off}"
 [ "$REC" != "-" ] && export PORT_REPLAY="$REC"
 [ -n "$STOP" ] && export PORT_STOP_AT="$STOP" PORT_SCREENSHOT_DIR=shots
 [ -n "$UNTIL" ] && export PORT_SCREENSHOT_DIR=shots

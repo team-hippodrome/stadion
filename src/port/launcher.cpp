@@ -5,11 +5,13 @@
 // (PORT_FLASH_FILE, PORT_GB_ROM*, PORT_GB_SAVE*). Auto-play skips it next time (hold Shift while starting to see it
 // again); Debug adds a button that opens the save editor (tools/save_editor, needs python3) in the browser. Controls
 // swaps the player cards for the key and controller bindings of each player (libultraship's ControlDeck mappings).
+// Mods lists the mods in the mods folder (mods.cpp): switch them on or off, change their priority, Apply & Restart.
 // Android (or PORT_LAUNCHER_HANDHELD=1) shows a handheld layout instead: the Stadium cartridge and a big PLAY, the
 // Transfer Pak cards and the controls on pages of their own, everything reachable with the gamepad (D-pad or stick
 // moves the focus, A presses, B goes back) as well as by touch.
 #include "launcher.h"
 #include "Engine.h"
+#include "mods.h"
 
 #include <chrono>
 #include <libultraship/libultraship.h>
@@ -713,6 +715,14 @@ class LauncherWindow : public Ship::GuiWindow {
         ImGui::PopStyleVar(2);
     }
 
+    void ShowMods() {
+        if (Handheld()) {
+            GoToPage(kPageMods);
+        } else {
+            OpenMods(true);
+        }
+    }
+
   protected:
     void UpdateElement() override {
     }
@@ -733,9 +743,14 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(16, 10, "Pokémon Stadium", gFonts.title);
         Text(190, 11, "|", gFonts.title, Theme::cardBorder);
         Text(206, 14, "PC port · Transfer Pak", gFonts.body, Theme::dim);
+        if (Button(mMods ? "Players##mods" : ModsButtonLabel().c_str(), kW - 16 - 130, 10, 130, 26)) {
+            OpenMods(!mMods);
+        }
         dl->AddRectFilled(P(0, 44), P(kW, 45), Hex(Theme::cardBorder));
 
-        if (mControls) {
+        if (mMods) {
+            ModsPanel(16, 58, kW - 32, 366);
+        } else if (mControls) {
             ControlsPanel(16, 58, kW - 32, 366);
         } else {
             for (int i = 0; i < 4; i++) {
@@ -936,6 +951,168 @@ class LauncherWindow : public Ship::GuiWindow {
         }
     }
 
+    // ---- mods (mods.cpp) ----
+
+    std::string ModsButtonLabel() const {
+        size_t on = 0;
+        for (const auto& m : Port::Mods::Mounted()) on += m.mounted;
+        return "Mods · " + (on == 0 ? std::string("off") : std::to_string(on) + " on");
+    }
+
+    // the folder's mods in the stored order, with this run's results (what was mounted, problems, conflicts)
+    void OpenMods(bool open) {
+        mMods = open;
+        if (!open) {
+            return;
+        }
+        mControls = false;
+        mModList = Port::Mods::Scan();
+        for (auto& m : mModList) {
+            for (const auto& r : Port::Mods::Mounted()) {
+                if (r.id != m.id) {
+                    continue;
+                }
+                m.mounted = r.mounted;
+                m.problems = r.problems;
+                m.notes = r.notes;
+                // (manifests are only read for the mods opened at start)
+                m.name = r.name;
+                m.version = r.version;
+                m.author = r.author;
+                m.description = r.description;
+            }
+        }
+        mModsPage = 0;
+        mModsStatus.clear();
+    }
+
+    // true when the list differs from what this run mounted
+    bool ModsPending() const {
+        std::vector<std::string> now, listed;
+        for (const auto& m : Port::Mods::Mounted()) {
+            if (m.mounted) now.push_back(m.id);
+        }
+        for (const auto& m : mModList) {
+            if (m.enabled && m.problems.empty()) listed.push_back(m.id);
+        }
+        return now != listed;
+    }
+
+    void ApplyMods() {
+        std::vector<std::string> enabled, disabled;
+        for (const auto& m : mModList) {
+            (m.enabled ? enabled : disabled).push_back(m.id);
+        }
+        Port::Mods::StoreLists(enabled, disabled);
+        Store(*mState);
+        if (!Port::Mods::Restart()) {
+            mModsStatus = "Saved. Restart the game to use the new list.";
+        }
+    }
+
+    // Mods: one row per mod in priority order (the top one wins where two mods change the same file). A row: on/off,
+    // name, version and author, then what it overrides or why it did not load; Up/Down change the priority.
+    // Shown in place of the player cards.
+    void ModsPanel(float x, float y, float w, float h) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "MODS", gFonts.body, Theme::players[0]);
+        std::string folder = Port::Mods::Folder();
+        if (folder.size() > 70) folder = "…" + folder.substr(folder.size() - 69);
+        Text(x + 70, y + 15, folder, gFonts.small, Theme::dim);
+        if (!Handheld() && Button("Open folder", x + w - 216, y + 9, 100, 26)) {
+            std::string url = "file://" + Port::Mods::Folder();
+            SDL_OpenURL(url.c_str());
+        }
+        if (Button("Done", x + w - 108, y + 9, 94, 26)) {
+            mMods = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+
+        constexpr int kRows = 6;
+        constexpr float kRowH = 44;
+        if (mModList.empty()) {
+            Text(x + 14, y + 60, "No mods yet. Put .o2r files or mod folders into the folder above.", gFonts.body);
+            Text(x + 14, y + 82, "How to make one: docs/MODDING.md", gFonts.small, Theme::dim);
+        }
+        const int pages = std::max(1, ((int)mModList.size() + kRows - 1) / kRows);
+        mModsPage = std::min(mModsPage, pages - 1);
+        int priority = 0;
+        for (int i = 0; i < (int)mModList.size(); i++) {
+            priority += mModList[i].enabled;
+            int row = i - mModsPage * kRows;
+            if (row < 0 || row >= kRows) {
+                continue;
+            }
+            ModRow(i, mModList[i].enabled ? priority : 0, x + 14, y + 52 + row * kRowH, w - 28);
+        }
+
+        // footer: pages, the result, Apply & Restart
+        const float fy = y + h - 38;
+        dl->AddRectFilled(P(x, fy - 8), P(x + w, fy - 7), Hex(Theme::cardBorder));
+        if (pages > 1) {
+            if (Button("<##modpage", x + 14, fy, 30, 26)) mModsPage = std::max(0, mModsPage - 1);
+            Text(x + 52, fy + 5, std::to_string(mModsPage + 1) + " / " + std::to_string(pages), gFonts.small, Theme::dim);
+            if (Button(">##modpage", x + 92, fy, 30, 26)) mModsPage = std::min(pages - 1, mModsPage + 1);
+        }
+        std::string info = !mModsStatus.empty()          ? mModsStatus
+                           : Port::Mods::ListFromEnvironment() ? "PORT_MODS chose this run's mods; the list applies without it."
+                                                               : "Top of the list wins. Mods load when the game starts.";
+        Text(x + (pages > 1 ? 136 : 14), fy + 6, info, gFonts.small, Theme::dim);
+        const bool pending = ModsPending();
+        ImGui::BeginDisabled(!pending && !Port::Mods::ListFromEnvironment());
+        if (ColorButton("Apply & Restart", x + w - 164, fy, 150, 26, pending ? Theme::green : Theme::button,
+                        pending ? 0x37B24D : Theme::buttonHover)) {
+            ApplyMods();
+        }
+        ImGui::EndDisabled();
+    }
+
+    void ModRow(int i, int priority, float x, float y, float w) {
+        Port::Mods::Mod& m = mModList[i];
+        ImGui::PushID(i);
+        // state: green loaded, red enabled but not loaded, yellow after a restart, grey off
+        uint32_t color = !m.enabled                    ? Theme::dim
+                         : !m.problems.empty()         ? Theme::red
+                         : m.mounted                   ? Theme::green
+                                                       : Theme::players[0];
+        Check("##on", &m.enabled, x, y + 6);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip(m.enabled ? "On: loaded when the game starts" : "Off");
+        }
+        ImGui::GetWindowDrawList()->AddCircleFilled(P(x + 34, y + 14), 4 * mScale, Hex(color));
+        std::string title = (priority > 0 ? std::to_string(priority) + ". " : "") + m.Title();
+        if (title.size() > 40) title = title.substr(0, 39) + "…";
+        Text(x + 44, y + 4, title, gFonts.game, m.enabled ? Theme::text : Theme::dim);
+        std::string meta = m.version;
+        if (!m.author.empty()) meta += (meta.empty() ? "by " : " · by ") + m.author;
+        if (m.folder) meta += meta.empty() ? "folder" : " · folder";
+        Text(x + 380, y + 7, meta, gFonts.small, Theme::dim);
+        // second line: why it did not load, what it changes, or what it is
+        std::string detail;
+        uint32_t detailColor = Theme::dim;
+        if (m.enabled && !m.problems.empty()) {
+            detail = "Not loaded: " + m.problems[0];
+            detailColor = Theme::red;
+        } else if (m.enabled && !m.mounted) {
+            detail = "Loads after Apply & Restart";
+        } else if (m.mounted && !m.notes.empty()) {
+            for (const auto& n : m.notes) detail += (detail.empty() ? "" : " · ") + n;
+        } else {
+            detail = m.description;
+        }
+        if (detail.size() > 110) detail = detail.substr(0, 109) + "…";
+        Text(x + 44, y + 25, detail, gFonts.small, detailColor);
+        if (Button("Up", x + w - 112, y + 6, 52, 26) && i > 0) {
+            std::swap(mModList[i], mModList[i - 1]);
+        }
+        if (Button("Down", x + w - 54, y + 6, 54, 26) && i + 1 < (int)mModList.size()) {
+            std::swap(mModList[i], mModList[i + 1]);
+        }
+        ImGui::PopID();
+    }
+
     void InputRow(int i, float x, float y) {
         const Input& in = kInputs[i];
         ImGui::PushID(i);
@@ -1031,6 +1208,7 @@ class LauncherWindow : public Ship::GuiWindow {
         }
         if (Button(mControls ? "Players" : "Controls", x + 450, y + 86, 100, 26)) {
             mControls = !mControls;
+            mMods = false;
         }
         // the game picture's shape (the rest of the window gets black bars)
         Text(x + 566, y + 91, "Screen", gFonts.small, Theme::dim);
@@ -1065,7 +1243,7 @@ class LauncherWindow : public Ship::GuiWindow {
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Start the game directly next time (hold Shift while starting to see this launcher)");
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mMods) {
             *mPlay = true;
         }
         (void)mQuit;
@@ -1155,6 +1333,9 @@ class LauncherWindow : public Ship::GuiWindow {
     void GoToPage(int page) {
         mPage = page;
         mControls = page == kPageControls;
+        if ((page == kPageMods) != mMods) {
+            OpenMods(page == kPageMods);
+        }
         mFocus = -1; // the page's default item
         mNavItems.clear();
     }
@@ -1165,12 +1346,15 @@ class LauncherWindow : public Ship::GuiWindow {
             GoToPage(kPageHome);
             mNavBack = false;
         }
-        if (mPage == kPageControls && !mControls) { // the panel's Done button
+        if ((mPage == kPageControls && !mControls) || (mPage == kPageMods && !mMods)) { // the panel's Done button
             GoToPage(kPageHome);
         }
         ImDrawList* dl = ImGui::GetWindowDrawList();
         Text(24, 14, "Pokémon Stadium", gFonts.title);
-        const char* pageName = mPage == kPageTransferPak ? "Transfer Pak" : mPage == kPageControls ? "Controls" : "";
+        const char* pageName = mPage == kPageTransferPak ? "Transfer Pak"
+                               : mPage == kPageControls ? "Controls"
+                               : mPage == kPageMods     ? "Mods"
+                                                        : "";
         Text(220, 17, pageName, gFonts.body, Theme::dim);
         dl->AddRectFilled(P(0, 50), P(kW, 51), Hex(Theme::cardBorder));
 
@@ -1178,6 +1362,12 @@ class LauncherWindow : public Ship::GuiWindow {
             for (int i = 0; i < 4; i++) {
                 PlayerCard(i, 16 + i * (222 + 14), 62, 222, 366);
             }
+            mDefaultFocus = 0;
+            if (Button("Back", 16, 444, 160, 48, gFonts.game)) {
+                GoToPage(kPageHome);
+            }
+        } else if (mPage == kPageMods) {
+            ModsPanel(16, 62, kW - 32, 366);
             mDefaultFocus = 0;
             if (Button("Back", 16, 444, 160, 48, gFonts.game)) {
                 GoToPage(kPageHome);
@@ -1265,6 +1455,10 @@ class LauncherWindow : public Ship::GuiWindow {
             mChanged = true;
         }
         y += bh + 14;
+        if (Button(ModsButtonLabel().c_str(), rx, y, bw, bh, gFonts.game)) {
+            GoToPage(kPageMods);
+        }
+        y += bh + 14;
         Text(rx + 4, y + 8, s.aspect == 1 ? "16:9: 3D scenes show more at the sides." : "4:3: the N64's picture shape.",
              gFonts.small, Theme::dim);
         Text(rx + 4, y + 28, "Smooth motion draws in-between frames (one frame of extra delay).", gFonts.small, Theme::dim);
@@ -1276,7 +1470,7 @@ class LauncherWindow : public Ship::GuiWindow {
     struct NavRect {
         ImVec2 min, max;
     };
-    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2;
+    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2, kPageMods = 3;
     int mPage = kPageHome;
     std::vector<NavRect> mNavItems, mNavPrev; // this frame's and last frame's focus targets, in drawing order
     int mFocus = -1, mDefaultFocus = 0;
@@ -1290,6 +1484,10 @@ class LauncherWindow : public Ship::GuiWindow {
     Fast::Fast3dGui* mGui;
     std::shared_ptr<Ship::Window> mWindow;
     bool mControls = false; // the controls panel instead of the player cards
+    bool mMods = false;     // the mods panel instead of the player cards
+    std::vector<Port::Mods::Mod> mModList; // the panel's list: changed there, stored by Apply & Restart
+    int mModsPage = 0;
+    std::string mModsStatus;
     int mPort = 0;          // whose controls it shows
     int mCapture = -1;      // the input (kInputs) waiting for a key or controller input, -1: none
     std::string mCaptureId; // the binding it replaces ("": adds one)
@@ -1334,6 +1532,10 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
         auto launcher = std::make_shared<LauncherWindow>(&state, &play, &quit, gui.get(), window);
         launcher->Init();
         launcher->Show();
+        // test hook: PORT_LAUNCHER_MODS=1 opens the mods panel
+        if (getenv("PORT_LAUNCHER_MODS") != nullptr) {
+            launcher->ShowMods();
+        }
         window->GetGui()->AddGuiWindow(launcher);
         static Gfx empty[1];
         gSPEndDisplayList(&empty[0]);

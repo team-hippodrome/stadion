@@ -83,6 +83,7 @@ def run_one(name, stop, env_extra, rom, update):
             # shader warm-up: the shipped list only; programs drawn are recorded in the run's own file
             "PORT_SHADER_LIST": os.path.join(tmp, "shaders.txt"),
         })
+        env.setdefault("PORT_MODS", "off")  # the references are of the unmodded game (src/port/mods.cpp)
         missing = [v for k, v in env_extra.items() if (k == "GBSAVE" or k == "PORT_GB_ROM")
                    and not os.path.exists(os.path.join(ROOT, v))]
         if missing:

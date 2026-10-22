@@ -1,6 +1,7 @@
 # Mod support: concept
 
-Status: proposal for the team to discuss. Nothing in it is implemented yet.
+Status: proposal for the team to discuss. Phase 0 (the loader, the list and the Mods window) is implemented; section 10
+says how, and where it differs from the text below. Mod authors: see [MODDING.md](MODDING.md).
 
 This document describes how the Pokémon Stadium port could support mods. The model is
 [Lighthouse](https://github.com/HarbourMasters/Lighthouse), the Banjo-Kazooie port, which is also built on
@@ -419,7 +420,7 @@ Estimates are for one developer who knows the port. "Verified" means checked wit
 
 | Phase | Content | Estimate |
 |---|---|---|
-| **0. Foundation** | `mods/` discovery; mounting in reverse priority; `PORT_MODS` and the CVar; manifest parsing and validation (`pokestadium` object, ROM SHA-1, port version); a `version` file in `pokestadium.o2r` (`make_o2r.py`); log summary; `PORT_MODS=off` in the replay and tour tools; mod list in `.rec` headers; `tools/mods/pack.py` (folder → `.o2r`, like `make_o2r.py`) | 3–4 days |
+| **0. Foundation** (done, §10) | `mods/` discovery; mounting in reverse priority; `PORT_MODS` and the CVar; manifest parsing and validation (`pokestadium` object, ROM SHA-1, port version); a `version` file in `pokestadium.o2r` (`make_o2r.py`); log summary; `PORT_MODS=off` in the replay and tour tools; mod list in `.rec` headers; `tools/mods/pack.py` (folder → `.o2r`, like `make_o2r.py`) | 3–4 days |
 | **1. Texture packs** | hash lookup in the `ImportTexture` patch; PNG decode and cache; SD and `alt/` HD with scale; runtime toggle with cache flush; `PORT_TEXTURE_DUMP`; excluding frame buffers and JPEG; fixture and a sample pack (for example HD main-menu buttons) | 1–1.5 weeks |
 | **2. ROM unit overrides** | `rom_units.inc` generated from `pokestadium-us.yaml` and the archive tables; virtual ROM builder (member append + table patch); `Port_RomRangeEnd` + PI redirect; fragment and code exclusions; `tools/mods/export.py` (dump units and members by name; builds on `PORT_DUMP_FRAGS`); `check.py` | 1.5–2 weeks |
 | **3. Text** | `Text_GetStringTable` merge; text export and import (JSON, escapes); research on encoding and font coverage; a sample "typo fixes" or translation pack | ~1 week |
@@ -459,3 +460,60 @@ any order. Phase 5 can start after phase 0 and be developed in parallel.
     with `SHIP_HOME` as Lighthouse documents it)?
 11. **Randomizer**: Lighthouse ships one. A Stadium "rental/trainer randomizer" would be a generator for phase-4 data
     mods (an `.o2r` written by a tool) and needs no engine support. Is that wanted, and should it live in the launcher?
+
+## 10. Phase 0 as implemented (October 2026)
+
+What exists now: `src/port/mods.cpp` (loader), the Mods panel in `src/port/launcher.cpp`, `tools/mods/pack.py`,
+`tools/mods/test_mods.py`, the example `tools/mods/examples/hello-mod`, and [MODDING.md](MODDING.md) for authors.
+
+**As proposed**
+
+- `<app dir>/mods` holds `.o2r`/`.zip` files and loose folders; `.`/`~` names are skipped (`~` stays reserved).
+- `gSettings.Mods.Enabled` (and `gSettings.Mods.Disabled`), `|`-separated, **first entry = highest priority**. The mods
+  are mounted with `ArchiveManager::AddArchive` in reverse list order after `pokestadium.o2r`, so libultraship's "last
+  added wins" matches the list. This answers open question 7; `tools/mods/test_mods.py` pins it down for `PORT_MODS`
+  and the stored list, for archives and folders, and against the base archive.
+- `PORT_MODS=off` / `PORT_MODS=a.o2r|b` for one run; `tools/replay.sh`, `tools/run_replays.py` and `tools/tour.py`
+  default to `off`. Recordings get a `# mods <list>` line, and a replay with a different list prints a warning.
+- Manifest checks: `pokestadium.format`, `min_port_version` (against the CMake `PORT_VERSION`), `game_version`,
+  `requires`, `conflicts`, `exclusive`. A mod that fails is not mounted; the reason is in the log and on its row in the
+  Mods panel. Conflicts between files are reported per mod ("replaces N files of the base game", "overrides N files of
+  X", "N files overridden by X") in the log and the panel.
+- Apply & Restart, as in Lighthouse: the panel stores the lists and starts the program again (`execv` on macOS and
+  Linux, a new process on Windows). Android cannot restart itself: the panel says to restart the app.
+- `tools/mods/pack.py` (folder → `.o2r`, manifest check, leaves out files identical to the base archive).
+
+**Where reality differed, and what was changed**
+
+- **There is an in-game UI now.** §1.3 and §7.2 assumed none; since then `src/port/launcher.cpp` draws the launcher
+  inside the game window on all platforms (the release builds use it; the Swift launcher only remains for
+  `tools/make_app.sh`). The Mods window therefore came in phase 0, as a panel of that launcher (a header button on
+  the desktop layout, a page of the handheld one), instead of phase 6. The Swift launcher has no Mods card (phase 5 is
+  still open for it); with it, mods follow the stored list and `PORT_MODS`.
+- **What a mod can override in phase 0.** `pokestadium.o2r` now holds more than §1.3 lists: shaders, ImGui fonts, the
+  launcher pictures (`textures/launcher/*.png`), the shader warm-up list and `portVersion`. Those are the only paths the
+  port reads through the virtual file system, so phase 0 mods replace exactly these. The example mod replaces
+  `textures/launcher/n64.png`; game data needs phases 1–4.
+- **Loose folders are ordinary list entries.** §5.1 step 3 mounts every folder on top of everything; here a folder is
+  listed, switched on and off, and ordered like an archive, so a work-in-progress folder can be disabled from the panel.
+- **New mods are switched on at the top of the list** (dropping a mod in means "use it"); entries that are no longer in
+  the folder drop out of the lists the next time they are stored.
+- **`game_version`** is the ROM header's CRC1, `0x90F5D9B3` (as SoH and Lighthouse use their ROM's CRC); the number in
+  §4.3 was a placeholder. `validHashes` stays empty and the port checks the field itself, so `pokestadium.o2r` needs no
+  `version` file yet.
+- **No ROM SHA-1 check before mounting.** Mods are mounted in `Port::Init`, before the launcher has picked a ROM
+  (`main.cpp`). In phase 0 mods cannot touch game data, so nothing depends on the ROM yet; the check belongs to phase 2,
+  where the virtual ROM is built after `LoadRom`.
+- **`requires`/`conflicts`** match a mod's manifest name or its file name. Of two conflicting mods the one lower in
+  the list stays off (Lighthouse quarantines both romhacks; with a priority list the lower one is the natural loser).
+  `exclusive`: the highest exclusive mod in the list loads alone, the others stay off.
+- **Code mods.** Phase 0 defines no hooks, so none were added. The only rule is the negative one from §5.5: a
+  manifest with `main` or `binaries` is refused ("this port does not run code from mods"). `ENABLE_SCRIPTING` stays off.
+- **`PORT_MODS_CHECK=1`** (new): mount, print the report including every path that more than one archive holds, and
+  exit (1 if an enabled mod failed). Authors use it to check a mod; the test uses it, which needs no ROM and no window.
+- **`PORT_LAUNCHER_MODS=1`** (new test hook) opens the panel at start, for `PORT_LAUNCHER_SHOT` screenshots.
+- `affects`, `kind` and `settings` are read by nobody yet (save profiles, badges and tweaks are phases 4–6).
+
+**Next:** phase 1 (texture packs keyed by the content hash in `ImportTexture`, `PORT_TEXTURE_DUMP`) can now build on
+this loader: the mounted mods' `textures/**` files are already in the virtual file system, and the panel and the
+conflict report cover them without changes.

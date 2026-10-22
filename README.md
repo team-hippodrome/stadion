@@ -111,6 +111,11 @@ Useful environment variables (all in PORTING_NOTES.md): `PORT_FLASH_FILE` (Stadi
 `PORT_GB_SAVE` (Transfer Pak cartridge of player 1; `PORT_GB_ROM2..4` for the others), `PORT_SOUND=0` (no sound
 output; it is on by default at normal speed).
 
+Mods: `.o2r` archives or folders in the `mods` folder (`build/mods` in a developer build) are loaded on top of the
+port's own files; the launcher's Mods button switches them on and off and sets their priority. How to make one:
+[docs/MODDING.md](docs/MODDING.md); the plan for game-data mods: [docs/MODS_CONCEPT.md](docs/MODS_CONCEPT.md).
+`PORT_MODS=off` (or `a.o2r|b`) chooses the mods for one run.
+
 Sound: the game's music, sound effects, Pokémon cries and the announcer play through SDL3; the N64 audio microcode they
 need is emulated in `src/port/audio_hle.cpp`.
 

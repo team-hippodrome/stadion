@@ -295,6 +295,7 @@ extern "C" int Port_ViFrameBufferState(const void* addr) { // -1: none shown yet
     return gViFbs.count((uintptr_t)addr) ? 1 : 0;
 }
 extern "C" bool Port_Lockstep();
+extern "C" const char* Port_ModsSignature(void); // mods.cpp
 void port_osViSwapBuffer(void* fb) {
     {
         std::lock_guard<std::mutex> v(gViFbLock);
@@ -551,10 +552,17 @@ void InputInit() {
     if (rp != nullptr) {
         if (FILE* f = fopen(rp, "r")) {
             char line[256];
+            std::string recordedMods; // "# mods a.o2r|b": the mods the recording was made with (mods.cpp)
             while (fgets(line, sizeof line, f)) {
                 if (line[0] == '#') {
                     unsigned long long end;
                     if (sscanf(line, "# end %llu", &end) == 1) gReplayEnd = end;
+                    if (strncmp(line, "# mods ", 7) == 0) {
+                        recordedMods = line + 7;
+                        while (!recordedMods.empty() && (recordedMods.back() == '\n' || recordedMods.back() == '\r')) {
+                            recordedMods.pop_back();
+                        }
+                    }
                     continue;
                 }
                 PadFrame pf = {};
@@ -573,6 +581,11 @@ void InputInit() {
                 gReplay.push_back(pf);
             }
             fclose(f);
+            if (recordedMods != Port_ModsSignature()) {
+                // mods can change what the game does: the replay may go elsewhere than the recording
+                fprintf(stderr, "[input] the recording was made with mods \"%s\", this run has \"%s\"\n",
+                        recordedMods.c_str(), Port_ModsSignature());
+            }
             if (!gReplay.empty()) gReplayEnd = std::max(gReplayEnd, gReplay.back().tick);
             fprintf(stderr, "[input] replaying %zu input changes from %s (until frame %llu)\n", gReplay.size(), rp,
                     (unsigned long long)gReplayEnd);
@@ -591,6 +604,9 @@ void InputInit() {
         fprintf(gRecord, "# pokestadium input recording v1: frame, then button stick_x stick_y for pads 1-4\n");
         if (Port_GameAudio()) {
             fprintf(gRecord, "# game audio\n"); // made with the sound engine running (see Port_GameAudio)
+        }
+        if (*Port_ModsSignature() != '\0') {
+            fprintf(gRecord, "# mods %s\n", Port_ModsSignature()); // the mounted mods (mods.cpp)
         }
         fflush(gRecord);
     }

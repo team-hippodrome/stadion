@@ -1,0 +1,12 @@
+{
+  "name": "Hello Mod",
+  "author": "team-hippodrome",
+  "version": "1.0.0",
+  "description": "Example mod: replaces the N64 picture in the launcher's bottom bar.",
+  "license": "CC0-1.0",
+  "pokestadium": {
+    "format": 1,
+    "kind": ["port"],
+    "affects": ["cosmetic"]
+  }
+}

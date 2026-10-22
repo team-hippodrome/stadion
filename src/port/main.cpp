@@ -2,6 +2,7 @@
 #include "interp.h"
 #include "port_platform.h"
 #include "launcher.h"
+#include "mods.h"
 
 #include <string>
 
@@ -186,6 +187,7 @@ int main(int argc, char** argv) {
     Port_AltSignalStack();
     InstallSignalHandlers();
     Port::UseShipHomeDefaults();
+    Port::Mods::SetCommandLine(argc, argv);
     // With a ROM argument the game starts right away (scripts, replays); without one, the launcher (launcher.cpp)
     // asks for the ROM, the save and the Transfer Pak cartridges in the game window first.
     std::string romPath = argc > 1 ? argv[1] : "";

@@ -1,4 +1,5 @@
 #include "Engine.h"
+#include "mods.h"
 #include "touch_controls.h"
 #include "pacing.h"
 
@@ -239,6 +240,8 @@ bool Init() {
     } catch (const std::exception& e) {
         SPDLOG_WARN("ResourceManager init deferred: {}", e.what());
     }
+    // mods in <app dir>/mods, on top of pokestadium.o2r (mods.cpp)
+    Mods::Mount();
 
     auto console = std::make_shared<Ship::Console>();
     sContext->GetChildren().Add(console);

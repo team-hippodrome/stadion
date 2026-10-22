@@ -105,6 +105,7 @@ def main():
         env = dict(os.environ, PORT_REPLAY=rec, PORT_STOP_AT=str(end), PORT_SCREENSHOT_DIR=shotdir,
                    PORT_SHOT_AT=",".join(str(f) for f, _ in shots), PORT_SPEED="max", PORT_EXIT_ON_FREEZE="1",
                    PORT_RECORD="last_tour.rec")
+        env.setdefault("PORT_MODS", "off")  # comparisons run the unmodded game (src/port/mods.cpp)
         if "--audio" in flags:
             env["PORT_AUDIO_DUMP"] = os.path.join(out, "port.pcm")
         for kv in flags:
