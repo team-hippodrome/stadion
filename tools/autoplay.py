@@ -1049,7 +1049,6 @@ def lookahead_sendout(cand, opp, bench=(), depth=None, opp_bench=()):
 
 
 def play_turn(game, brain, status, choice):
-    LAST_SWITCH = status.data.setdefault("last_switch", {})
     own, opp = runtime_mon(choice["own"]), runtime_mon(choice["opp"])
     party = [party_mon(p) for p in choice["party"]]
     active = choice["active"]
@@ -1063,13 +1062,34 @@ def play_turn(game, brain, status, choice):
         seen[str(m["id"])] = round(m["hp"] / max(1, m["max_hp"]), 3)
     status.set(own=mon_view(own), opp=mon_view(opp), opp_seen=dict(seen),
                party=[dict(mon_view(p), active=i == active) for i, p in enumerate(party)])
-    state = battle_state(own, opp, party, active)
     slot_buttons = PARTY3_BUTTON if len(party) <= 3 else PARTY6_BUTTON
+    kind, i = decide_turn(brain, status, own, opp, party, active, opp_bench, choice["forced"])
+    if kind == "send":
+        game.press(slot_buttons[i])
+    elif kind == "struggle":  # no PP left anywhere: any move button makes the game use Struggle (A alone left the
+        game.press(A)          # move menu open)
+        game.wait(6)
+        game.press(MOVE_BUTTON[0])
+    elif kind == "move":
+        game.press(A)          # BATTLE
+        game.wait(6)
+        game.press(MOVE_BUTTON[i])
+    elif kind == "switch":
+        game.press(B)          # POKEMON
+        game.wait(6)
+        game.press(slot_buttons[i])
+
+
+def decide_turn(brain, status, own, opp, party, active, opp_bench, forced):
+    """the bot's choice for this turn (the game's or tools/battle_sim.py's): ("send", party slot) after a faint,
+    ("move", move slot), ("switch", party slot), ("struggle", 0) or (None, 0) for nothing to do"""
+    LAST_SWITCH = status.data.setdefault("last_switch", {})
+    state = battle_state(own, opp, party, active)
     bench = [i for i, p in enumerate(party) if i != active and p["hp"] > 0]
 
-    if choice["forced"]:
+    if forced:
         if not bench:
-            return
+            return None, 0
         opts = [(party[i]["species"], "%s, %s, %d/%d HP" % (party[i]["species"], types_text(party[i]["types"]),
                                                              party[i]["hp"], party[i]["max_hp"])) for i in bench]
         depth = LEADER_DEPTH if status.data.get("leader") else LOOKAHEAD_DEPTH
@@ -1085,8 +1105,7 @@ def play_turn(game, brain, status, choice):
         k, lp, fp = brain.decide(status, "Your Pokemon fainted. Which Pokemon should you send out next to beat %s?" %
                                  opp["species"], state, opts, values)
         status.log("send out %s (Laya %.0f%%, final %.0f%%)" % (party[bench[k]]["species"], lp * 100, fp * 100))
-        game.press(slot_buttons[bench[k]])
-        return
+        return "send", bench[k]
 
     opts, actions, values = [], [], []
     for i, (mid, pp) in enumerate(own["moves"]):
@@ -1137,12 +1156,9 @@ def play_turn(game, brain, status, choice):
         own["species"], own["hp"], own["max_hp"], st(own), own["spd"], own["flags"][0], own["flags"][1], opp["species"],
         opp["hp"], opp["max_hp"], st(opp), opp["spd"], opp["flags"][0], opp["flags"][1], ", ".join(MOVES.get(mid, "?") for mid, _ in opp["moves"] if mid),
         ", ".join("%s %.0f" % (o[0], v) for o, v in zip(opts, values))))
-    if not opts:  # no PP left anywhere: any move button makes the game use Struggle (A alone left the move menu open)
+    if not opts:  # no PP left anywhere: Struggle
         status.log("%s vs %s: no PP left, Struggle" % (own["species"], opp["species"]))
-        game.press(A)
-        game.wait(6)
-        game.press(MOVE_BUTTON[0])
-        return
+        return "struggle", 0
     k, lp, fp = brain.decide(status, "Which action gives %s the best chance to defeat the opponent's %s and win the battle?" %
                              (own["species"], opp["species"]), state, opts, values)
     kind, i = actions[k]
@@ -1150,14 +1166,7 @@ def play_turn(game, brain, status, choice):
                                                           fp * 100))
     if kind == "switch":
         LAST_SWITCH.update({"from": own["species"], "age": 0})
-    if kind == "move":
-        game.press(A)          # BATTLE
-        game.wait(6)
-        game.press(MOVE_BUTTON[i])
-    else:
-        game.press(B)          # POKEMON
-        game.wait(6)
-        game.press(slot_buttons[i])
+    return kind, i
 
 
 SPECIES_ID = {name.lower().replace(" ", ""): i for i, name in SPECIES.items()}
