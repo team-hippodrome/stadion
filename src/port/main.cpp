@@ -18,7 +18,9 @@
 #include <unistd.h>
 #endif
 #if defined(__ANDROID__)
+#include <SDL3/SDL_system.h>
 #include <android/log.h>
+#include <fstream>
 #endif
 
 extern "C" void Main(void);
@@ -146,6 +148,29 @@ static void ForwardStdioToLogcat() {
         }
     }).detach();
 }
+
+// Android apps get no environment from a shell: the debug switches (PORT_TRACE_PACING and the like) come from
+// port_env.txt in the app's folder instead, one NAME=VALUE per line (adb push it to
+// /sdcard/Android/data/com.teamhippodrome.pokestadium/files/). Read before anything checks them.
+static void LoadEnvFile() {
+    const char* dir = SDL_GetAndroidExternalStoragePath();
+    if (dir == nullptr) {
+        return;
+    }
+    std::ifstream f(std::string(dir) + "/port_env.txt");
+    std::string line;
+    while (std::getline(f, line)) {
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        size_t eq = line.find('=');
+        if (line.empty() || line[0] == '#' || eq == std::string::npos || eq == 0) {
+            continue;
+        }
+        setenv(line.substr(0, eq).c_str(), line.substr(eq + 1).c_str(), 1);
+        fprintf(stderr, "port_env.txt: %s\n", line.c_str());
+    }
+}
 #endif
 
 int main(int argc, char** argv) {
@@ -154,6 +179,7 @@ int main(int argc, char** argv) {
 #endif
 #if defined(__ANDROID__)
     ForwardStdioToLogcat();
+    LoadEnvFile();
 #endif
     // The port tells N64 addresses (below 4 GB) from host pointers; keep host allocations above 4 GB (Windows).
     Port_ReserveLowAddressSpace();

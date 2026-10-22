@@ -340,7 +340,8 @@ s32 port_osSendMesg(OSMesgQueue* mq, OSMesg msg, s32 flag) {
         gWaiters[mq].send.push_back(tlsSelf);
         WaitForToken(lk, tlsSelf);
     }
-    if (getenv("PORT_TRACE_OPS")) fprintf(stderr, "[op] t%d send %p\n", tlsSelf ? (int)tlsSelf->id : -1, (void*)mq);
+    static const bool traceOps = getenv("PORT_TRACE_OPS") != nullptr;
+    if (traceOps) fprintf(stderr, "[op] t%d send %p\n", tlsSelf ? (int)tlsSelf->id : -1, (void*)mq);
     PushLocked(mq, msg, false);
     if (tlsSelf != nullptr) {
         WaitForToken(lk, tlsSelf);
@@ -384,7 +385,7 @@ s32 port_osRecvMesg(OSMesgQueue* mq, OSMesg* msg, s32 flag) {
             continue;
         }
         TRACE("thread %d blocks on recv %p", (int)tlsSelf->id, (void*)mq);
-        tlsSelf->blockedDepth = Port_Backtrace(tlsSelf->blockedAt, 16);
+        tlsSelf->blockedDepth = Port_BacktraceFast(tlsSelf->blockedAt, 16);
         tlsSelf->blockCount++;
         DumpStack("recv", (int)tlsSelf->id);
         tlsSelf->state = State::Waiting;
@@ -392,7 +393,8 @@ s32 port_osRecvMesg(OSMesgQueue* mq, OSMesg* msg, s32 flag) {
         gWaiters[mq].recv.push_back(tlsSelf);
         WaitForToken(lk, tlsSelf);
     }
-    if (getenv("PORT_TRACE_OPS")) fprintf(stderr, "[op] t%d recv %p\n", tlsSelf ? (int)tlsSelf->id : -1, (void*)mq);
+    static const bool traceOps = getenv("PORT_TRACE_OPS") != nullptr;
+    if (traceOps) fprintf(stderr, "[op] t%d recv %p\n", tlsSelf ? (int)tlsSelf->id : -1, (void*)mq);
     if (msg != nullptr) {
         *msg = Buf(mq)[mq->first];
     }

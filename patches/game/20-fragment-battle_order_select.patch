@@ -1,5 +1,5 @@
 diff --git a/src/fragments/battle_order_select/battle_order_select.c b/src/fragments/battle_order_select/battle_order_select.c
-index c9557c92f4db3a387993ecc741ecccabf6448d08..54944000cdb0feb8412b56a46ed3af0140942d83 100644
+index c9557c92f4db3a387993ecc741ecccabf6448d08..25d680d6369341c7a70827c1fd8d9241abef44b8 100644
 --- a/src/fragments/battle_order_select/battle_order_select.c
 +++ b/src/fragments/battle_order_select/battle_order_select.c
 @@ -1,3 +1,5 @@
@@ -32,7 +32,7 @@ index c9557c92f4db3a387993ecc741ecccabf6448d08..54944000cdb0feb8412b56a46ed3af01
              var_v0 += arg0->unk_0018[arg0->unk_000C[i]].unk_24;
          }
  
-+        if (getenv("PORT_TRACE_MENU")) {
++        if (PORT_GETENV_ONCE("PORT_TRACE_MENU")) {
 +            fprintf(stderr, "[order] levelcap: rule %d picks %d sum %d levels", D_84816420->ruleCategory, arg0->unk_000B, var_v0);
 +            for (i = 0; i < 6; i++) fprintf(stderr, " %d(sp %d)", arg0->unk_0018[i].unk_24, arg0->unk_0018[i].unk_00.unk_00);
 +            fputc('\n', stderr);
@@ -44,7 +44,7 @@ index c9557c92f4db3a387993ecc741ecccabf6448d08..54944000cdb0feb8412b56a46ed3af01
  }
  
  void BattleMenu_SelectOrderSlot(unk_D_848037A0* arg0, s8 arg1, s32 arg2) {
-+    if (getenv("PORT_TRACE_MENU")) fprintf(stderr, "[order] slot %d of %d, picked %d, sub %d, lvlcap %d, sel %d\n", arg1, arg0->unk_0017, arg0->unk_000B, arg0->unk_0005, (int)BattleMenu_PicksExceedLevelCap(arg0), (int)BattleMenu_IsSlotAlreadySelected(arg0, arg1));
++    if (PORT_GETENV_ONCE("PORT_TRACE_MENU")) fprintf(stderr, "[order] slot %d of %d, picked %d, sub %d, lvlcap %d, sel %d\n", arg1, arg0->unk_0017, arg0->unk_000B, arg0->unk_0005, (int)BattleMenu_PicksExceedLevelCap(arg0), (int)BattleMenu_IsSlotAlreadySelected(arg0, arg1));
      if (arg1 >= arg0->unk_0017) {
          Audio_PlaySoundEffectById(SFX_MENU_ERROR);
          return;
@@ -55,7 +55,7 @@ index c9557c92f4db3a387993ecc741ecccabf6448d08..54944000cdb0feb8412b56a46ed3af01
 +unsigned long long Port_ViTick(void);
  void BattleMenu_HandleOrderSelectPanel_PartyInput(Controller* arg0, unk_D_848037A0* arg1) {
      s32 temp_a2 = BTN_IS_DOWN(arg0, BTN_R);
-+    if (getenv("PORT_TRACE_MENU") && arg0->buttonPressed) fprintf(stderr, "[order] frame %llu panel %p pressed 0x%04x down 0x%04x\n", Port_ViTick(), (void*)arg1, arg0->buttonPressed, arg0->buttonDown);
++    if (PORT_GETENV_ONCE("PORT_TRACE_MENU") && arg0->buttonPressed) fprintf(stderr, "[order] frame %llu panel %p pressed 0x%04x down 0x%04x\n", Port_ViTick(), (void*)arg1, arg0->buttonPressed, arg0->buttonDown);
  
      if (BTN_IS_PRESSED(arg0, BTN_R)) {
          // clang-format off
@@ -63,7 +63,7 @@ index c9557c92f4db3a387993ecc741ecccabf6448d08..54944000cdb0feb8412b56a46ed3af01
          var_a0 = &gControllers[arg1->unk_0001];
      }
  
-+    if (getenv("PORT_TRACE_MENU")) {
++    if (PORT_GETENV_ONCE("PORT_TRACE_MENU")) {
 +        static s8 lastSub[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 +        int k = (int)(arg1 - D_848037A0) & 7;
 +        if (lastSub[k] != arg1->unk_0005 || (var_a0->buttonPressed && arg1->unk_0005 != 0))
@@ -72,7 +72,7 @@ index c9557c92f4db3a387993ecc741ecccabf6448d08..54944000cdb0feb8412b56a46ed3af01
 +    }
 +    // PORT debug boot (PORT_BOOT set): the player's picks are made automatically (first slots, then confirm) so a
 +    // battle starts without input.
-+    if (arg0 == 0 && getenv("PORT_BOOT") != NULL && !(arg1->unk_001C->unk_000 & 2)) {
++    if (arg0 == 0 && PORT_GETENV_ONCE("PORT_BOOT") != NULL && !(arg1->unk_001C->unk_000 & 2)) {
 +        if (arg1->unk_0005 == 0) {
 +            BattleMenu_SelectOrderSlot(arg1, arg1->unk_000B, 0);
 +        } else if (arg1->unk_0005 == 1) {
@@ -88,7 +88,7 @@ index c9557c92f4db3a387993ecc741ecccabf6448d08..54944000cdb0feb8412b56a46ed3af01
  
      for (i = 0; i < arg2->rosterInfo->numberOfPokemonCanBePicked; i++) {
          temp_s0 = &arg2->rosterInfo->unk_028[i];
-+        if (getenv("PORT_TRACE_MENU")) {
++        if (PORT_GETENV_ONCE("PORT_TRACE_MENU")) {
 +            fprintf(stderr, "[order] roster %p mon %d before prepare:", (void*)arg2, i);
 +            for (int k = 0; k < 0x30; k++) fprintf(stderr, " %02x", ((u8*)temp_s0)[k]);
 +            fputc('\n', stderr);

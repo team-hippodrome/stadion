@@ -599,6 +599,13 @@ Fixes found this way:
   then 256x224 indices; Game Boy device / Stadium borders) is drawn. SGB *_TRN transfers sample VRAM one frame later.
 - The status strip sits at line 208 (ares), not 212. Checked against ares on the same save: border, colours and layout
   match (remaining per-pixel differences: a one-pixel fringe from horizontal resampling).
+- Screen mask (MASK_EN) on a Game Boy Color: Yellow showed ~30 red-orange frames with stray tiles before the copyright
+  screen (ares: white). Yellow masks the screen (GB frames 62-128) while it sends its border through VRAM, and in
+  between converts its palettes through a still-null base pointer (WRAM 0xDEE6), i.e. from ROM 0x0000: colour 0x00FF.
+  The N64 emulator hides all of that: with a Pokémon cartridge it ignores BG palette writes (0xFF69) while MASK_EN is
+  set (context 0x5402), and while the mask is in effect (0x5401, updated at frame end, 4 frames late after a cancel)
+  it does not hand the frame to its RSP task, so the last picture stays. Its CGB palettes start as white, white,
+  black, black. The core now does the same (gb_core.c: maskShown, shown[]).
 - Verified (German Yellow, gb/yellow_de.gb): Game Pak check shows the save's trainer; tower boots with the border
   and Game Freak intro; the core matches ares on the same save (pixel-identical garbage map from a broken save,
   which is how the save generator bug was found); new game through Oak's intro and naming, in-game SAVE written back
@@ -1285,7 +1292,10 @@ other places (107 `gSPMatrix` sites), so the port blends the final matrices inst
   it arrives, as before, but as the first of k pictures, k = retraces since the previous game frame x refreshes per
   retrace (2 at 60 Hz for a 30 fps scene, 4 at 120 Hz), with t = 1/k; the others follow 1 ms after each later vblank
   (from the display clock, `Port_DisplayVblank`), the last one exactly as built. The picture is therefore one game
-  frame later than without (16.7 ms at 30 fps / 60 Hz), as in SoH. A new graphics task, a CPU-drawn frame, a frame
+  frame later than without (16.7 ms at 30 fps / 60 Hz), as in SoH. A frame more than 4 retraces after the previous
+  one (a hitch, or a fast run drawing every n-th frame) is not blended: over such a gap many of a model's matrices
+  turn past the 60-degree cut while the ones skinned to them still blend, and limbs stretch across the screen
+  (Clefairy in the title's fall, blended from 20 retraces back). A new graphics task, a CPU-drawn frame, a frame
   drawn for its state only, or a change of the game's segment/fragment maps (`Port_GfxFlushCache`: the scene unloads
   data the list uses) ends the series. libultraship's frame limiter follows the display's rate while interpolating.
 - **Only lists that repaint the screen** are drawn again (`Interpreter::FrameRepaintsScreen`: a full-screen fill

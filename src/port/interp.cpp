@@ -202,7 +202,8 @@ bool Blend(const MtxF& a, const MtxF& b, float t, MtxF* out, Stats* st) {
     if (move > JumpLimit() && move > 0.5f * std::sqrt(std::max(ta, tb))) { // moved far, relative to where it is
         st->cuts++;
         st->cutMove++;
-        if (getenv("PORT_INTERP_LOG") && atoi(getenv("PORT_INTERP_LOG")) >= 2) {
+        static const bool logJumps = getenv("PORT_INTERP_LOG") && atoi(getenv("PORT_INTERP_LOG")) >= 2;
+        if (logJumps) {
             fprintf(stderr, "[interp]   jump %.1f from %.1f %.1f %.1f to %.1f %.1f %.1f\n", move, a.mf[3][0], a.mf[3][1],
                     a.mf[3][2], b.mf[3][0], b.mf[3][1], b.mf[3][2]);
         }
@@ -249,6 +250,11 @@ bool Logging() {
     return v;
 }
 
+const char* ShotDir() {
+    static const char* dir = getenv("PORT_SCREENSHOT_DIR");
+    return dir;
+}
+
 bool ShotWanted(uint64_t tick) {
     static uint64_t first = 1, last = 0;
     static bool parsed = false;
@@ -262,13 +268,13 @@ bool ShotWanted(uint64_t tick) {
             }
         }
     }
-    return tick >= first && tick <= last && getenv("PORT_SCREENSHOT_DIR") != nullptr;
+    return tick >= first && tick <= last && ShotDir() != nullptr;
 }
 
 void Shot(uint64_t tick, int i, int k) {
     if (!ShotWanted(tick)) return;
     char path[1024];
-    snprintf(path, sizeof path, "%s/interp_%05llu_%dof%d.ppm", getenv("PORT_SCREENSHOT_DIR"), (unsigned long long)tick,
+    snprintf(path, sizeof path, "%s/interp_%05llu_%dof%d.ppm", ShotDir(), (unsigned long long)tick,
              i + 1, k);
     Port::SaveScreen(path);
 }
@@ -358,7 +364,11 @@ void RunGameFrame(void* gfxCommands, bool exact) {
     bool grid = !immediate && Port_DisplayVblank(&period, &vblank) && period > 1000000;
     int perRetrace = grid ? std::max(1, (int)std::lround(1e9 / 60.0 / period)) : 1;
     int k = 0;
-    if (cur && gPrev && !exact && tick > gPrevTick) {
+    // The game draws every 2nd or 3rd retrace. A longer gap (a hitch, or a fast run drawing every n-th frame) is not
+    // blended: over it many of a model's matrices turn too far and are cut while the ones skinned to them still blend,
+    // and limbs stretch across the screen (Clefairy in the title's fall, blended from 20 retraces back).
+    const uint64_t kMaxGap = 4;
+    if (cur && gPrev && !exact && tick > gPrevTick && tick - gPrevTick <= kMaxGap) {
         k = (int)std::min<uint64_t>((tick - gPrevTick) * perRetrace, 8);
     }
     Stats st;

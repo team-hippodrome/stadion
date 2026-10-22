@@ -82,6 +82,33 @@ static inline int Port_Backtrace(void** frames, int max) {
 #endif
 }
 
+// Port_Backtrace for hot paths (where a game thread blocks, for the stall report). On Android the unwinder looks up
+// every frame's unwind tables through dl_iterate_phdr: done on each blocking receive, that was ~15% of the CPU and ran
+// under the scheduler lock. arm64 Android code keeps frame records (x29 chain), so walk those instead; the crash
+// handler keeps the unwinder, which also gets through signal frames.
+#if defined(__ANDROID__) && defined(__aarch64__)
+static inline __attribute__((noinline)) int Port_BacktraceFast(void** frames, int max) {
+    const uintptr_t* fp = (const uintptr_t*)__builtin_frame_address(0);
+    int n = 0;
+    while (fp != NULL && n < max) {
+        uintptr_t next = fp[0];
+        uintptr_t lr = fp[1] & 0x0000FFFFFFFFFFFFull; // (without a pointer-authentication code)
+        if (lr == 0) {
+            break;
+        }
+        frames[n++] = (void*)lr;
+        // the stack grows down: a caller's record lies a little above, 16-byte aligned
+        if (next <= (uintptr_t)fp || next - (uintptr_t)fp > (1u << 20) || (next & 15) != 0) {
+            break;
+        }
+        fp = (const uintptr_t*)next;
+    }
+    return n;
+}
+#else
+#define Port_BacktraceFast Port_Backtrace
+#endif
+
 // Whether n bytes at p can be read (debug checks only).
 static inline int Port_Readable(const void* p, size_t n) {
     char tmp[16];

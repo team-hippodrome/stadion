@@ -932,7 +932,7 @@ index be3ee049f6c3da9afb0781604e8afd33fd981cbe..3d249a10a41d3ff68af3745a46179328
  
      return arr[16];
 diff --git a/src/audio_sound_state.c b/src/audio_sound_state.c
-index 563b1adf5eab34aaf2bea1fe3b091bf918454b4d..a3bea5aeba336a03cb37815ad0512c81814cb074 100644
+index 563b1adf5eab34aaf2bea1fe3b091bf918454b4d..4dc2a90af2a86a8b19f7186e8fbc63488a661eea 100644
 --- a/src/audio_sound_state.c
 +++ b/src/audio_sound_state.c
 @@ -1,3 +1,5 @@
@@ -969,7 +969,7 @@ index 563b1adf5eab34aaf2bea1fe3b091bf918454b4d..a3bea5aeba336a03cb37815ad0512c81
      if (temp_v0 != 0) {
          var_s1 += temp_v0 * 1000;
      }
-+    if (getenv("PORT_TRACE_ACTIVITY")) {
++    if (PORT_GETENV_ONCE("PORT_TRACE_ACTIVITY")) {
 +        extern unsigned long long Port_ViTick(void);
 +        static unsigned long long last = 0;
 +        if (Port_ViTick() >= last + 60) {
@@ -1035,7 +1035,7 @@ index 5ccd65729c17fe23d782be029f83f802ff736f27..75cca98db7a1c1cd4c7b950f71cd98a6
        Audio_QueueFadeSoundCommand(D_80078A18, (s32)D_80078A1C[0]);
    }
 diff --git a/src/audio_stream.c b/src/audio_stream.c
-index 4dd9085c612bbfc1d6f5103aac479f3614aeaaf6..224bf397aadbdf0e01a1168015c2b2ec837474ff 100644
+index 4dd9085c612bbfc1d6f5103aac479f3614aeaaf6..177d88f3f70c3865599d6ace22fedafe5d556617 100644
 --- a/src/audio_stream.c
 +++ b/src/audio_stream.c
 @@ -1,3 +1,6 @@
@@ -1078,7 +1078,7 @@ index 4dd9085c612bbfc1d6f5103aac479f3614aeaaf6..224bf397aadbdf0e01a1168015c2b2ec
              D_800FCEF0[arg0] = 3;
          }
  
-+        if (getenv("PORT_TRACE_SFX")) {
++        if (PORT_GETENV_ONCE("PORT_TRACE_SFX")) {
 +            extern unsigned long long Port_ViTick(void);
 +            fprintf(stderr, "[stream] frame %llu start %u rom 0x%x vol %u delay %u\n", Port_ViTick(), (unsigned)arg0,
 +                    (unsigned)arg1, (unsigned)arg2, (unsigned)arg3);
@@ -1760,7 +1760,7 @@ index e604f5be18bcbbae1c5d60fdeb5509a33d594647..7ff2aa05fe500a398d650f550adc718b
      union {
          f32             f;
 diff --git a/src/libnumus/player.c b/src/libnumus/player.c
-index 6edce866855615507b7090ac6f8b0b3c9d9f236f..8b919a7fe644511ea469d37d3516c8d47f8f258c 100644
+index 6edce866855615507b7090ac6f8b0b3c9d9f236f..4d37a640299a04d60a125e0a4f036edc76cc6825 100644
 --- a/src/libnumus/player.c
 +++ b/src/libnumus/player.c
 @@ -1,6 +1,10 @@
@@ -1873,7 +1873,7 @@ index 6edce866855615507b7090ac6f8b0b3c9d9f236f..8b919a7fe644511ea469d37d3516c8d4
  
      effect_handle = mus_current_handle;
      mus_current_handle++;
-+    if (getenv("PORT_TRACE_SFX")) {
++    if (PORT_GETENV_ONCE("PORT_TRACE_SFX")) {
 +        extern unsigned long long Port_ViTick(void);
 +        fprintf(stderr, "[sfx] frame %llu handle %u effect %d table %p caller %p\n", Port_ViTick(), (unsigned)effect_handle,
 +                (int)effect_id, (void*)fx_bank_ptr, __builtin_return_address(0));
@@ -1892,7 +1892,7 @@ index 6edce866855615507b7090ac6f8b0b3c9d9f236f..8b919a7fe644511ea469d37d3516c8d4
      UNUSED s32 pad;
      u8* queue;
      u32 mask;
-+    if (getenv("PORT_TRACE_SFX")) {
++    if (PORT_GETENV_ONCE("PORT_TRACE_SFX")) {
 +        extern unsigned long long Port_ViTick(void);
 +        fprintf(stderr, "[sfx] frame %llu fade handle %d over %u frames, caller %p\n", Port_ViTick(), (int)channel_handle,
 +                (unsigned)duration_frames, __builtin_return_address(0));
@@ -2012,7 +2012,7 @@ index 6edce866855615507b7090ac6f8b0b3c9d9f236f..8b919a7fe644511ea469d37d3516c8d4
 -        Audio_RelocatePointerArray(song_data->volume_data, song_data, count);
 -        Audio_RelocatePointerArray(song_data->pitchbend_data, song_data, count);
 +    count = Audio_PortRelocateSong(song_data); // PORT: was an in-place relocation to 32-bit pointers
-+    if (getenv("PORT_TRACE_SFX")) {
++    if (PORT_GETENV_ONCE("PORT_TRACE_SFX")) {
 +        fprintf(stderr, "[song] %p bank %p channels %u handle %d\n", (void*)song_data, (void*)sample_bank_ptr, (unsigned)count, (int)song_handle);
      }
  

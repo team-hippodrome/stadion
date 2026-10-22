@@ -202,7 +202,8 @@ s32 port_osEPiStartDma(OSPiHandle* h, OSIoMesg* mb, s32 direction) {
         port_PostMesgFromIrq(mb->hdr.retQueue, (OSMesg)mb);
         return 0;
     }
-    if (getenv("PORT_TRACE")) {
+    static const bool trace = getenv("PORT_TRACE") != nullptr;
+    if (trace) {
         fprintf(stderr, "[dma] dir=%d type=%d dev=0x%x dram=%p size=0x%zx\n", direction, h->type, mb->devAddr, mb->dramAddr, (size_t)mb->size);
     }
     if (IsFlash(h)) {
@@ -617,7 +618,8 @@ void LatchPads(uint64_t tick) {
     if (autoStart != nullptr) {
         uint64_t ms = tick * 1000 / 60;
         uint64_t period = atol(autoStart) > 0 ? (uint64_t)atol(autoStart) : 5000;
-        if (ms > 8000 && (ms % period) < 150) p[0].button |= getenv("PORT_AUTOA") ? (CONT_A | CONT_START) : CONT_START;
+        static const bool autoA = getenv("PORT_AUTOA") != nullptr;
+        if (ms > 8000 && (ms % period) < 150) p[0].button |= autoA ? (CONT_A | CONT_START) : CONT_START;
     }
     if (tick <= gReplayEnd && (!gReplay.empty() || gReplayEnd != 0)) {
         while (gReplayIdx < gReplay.size() && gReplay[gReplayIdx].tick <= tick) {
@@ -689,6 +691,8 @@ bool TasksDrained() {
 // PORT_DISPLAY_PACING=0 turns it off (the free-running clock); PORT_PACING_LEAD_US sets how long after the vblank a
 // retrace comes (default 500).
 std::atomic<bool> gDisplayPaced{ false };
+std::atomic<int64_t> gRetraceVblank{ 0 }; // the vblank the last paced retrace followed (steady clock), 0: not paced
+std::atomic<int64_t> gRetracePeriod{ 0 };
 
 class RetraceSchedule {
   public:
@@ -737,6 +741,7 @@ class RetraceSchedule {
         }
         mPaced = n > 0;
         gDisplayPaced = mPaced;
+        if (!mPaced) gRetraceVblank = 0;
         if (!mPaced) {
             mTarget = 0;
             return 0;
@@ -752,6 +757,8 @@ class RetraceSchedule {
             k = std::floor((double)(mTarget + n * refresh - base) / refresh + 0.5);
         }
         mTarget = base + (int64_t)k * refresh;
+        gRetraceVblank = mTarget - sLeadNs;
+        gRetracePeriod = refresh;
         return mTarget;
     }
 
@@ -888,6 +895,13 @@ extern "C" bool Port_DisplayPaced() {
     return gDisplayPaced.load();
 }
 
+// the vblank the latest retrace followed and the refresh period, when retraces follow the display (else false)
+extern "C" bool Port_LastRetraceVblank(int64_t* vblankNs, int64_t* periodNs) {
+    *vblankNs = gRetraceVblank.load();
+    *periodNs = gRetracePeriod.load();
+    return *vblankNs != 0 && *periodNs > 0;
+}
+
 extern "C" {
 
 void port_osViSetEvent(OSMesgQueue* mq, OSMesg msg, u32 retraceCount) {
@@ -949,7 +963,9 @@ extern "C" {
 void osSpTaskLoad(OSTask* t) { gLoaded = t; }
 
 void osSpTaskStartGo(OSTask* t) {
-    if (getenv("PORT_TRACE")) fprintf(stderr, "[sp] task type=%u flags=0x%x data=%p\n", (t ? t : gLoaded)->t.type, (t ? t : gLoaded)->t.flags, (void*)(t ? t : gLoaded)->t.data_ptr);
+    static const bool trace = getenv("PORT_TRACE") != nullptr;
+    static const bool asyncTasks = getenv("PORT_ASYNC_TASKS") != nullptr;
+    if (trace) fprintf(stderr, "[sp] task type=%u flags=0x%x data=%p\n", (t ? t : gLoaded)->t.type, (t ? t : gLoaded)->t.flags, (void*)(t ? t : gLoaded)->t.data_ptr);
     std::unique_lock<std::mutex> g(gTaskLock);
     gTasks.push_back(t ? t : gLoaded);
     uint64_t mine = ++gTasksSubmitted;
@@ -961,7 +977,7 @@ void osSpTaskStartGo(OSTask* t) {
     if (Port_Lockstep()) {
         while (!gStop && !gTaskDoneCv.wait_for(g, std::chrono::milliseconds(250), [&] { return gTasksProcessed >= mine; })) {
         }
-    } else if (!getenv("PORT_ASYNC_TASKS")) {
+    } else if (!asyncTasks) {
         gTaskDoneCv.wait_for(g, std::chrono::milliseconds(250), [&] { return gTasksProcessed >= mine; });
     }
 }
