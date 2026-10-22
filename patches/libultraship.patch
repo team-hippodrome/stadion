@@ -1,5 +1,5 @@
 diff --git a/include/fast/backends/gfx_direct3d_common.h b/include/fast/backends/gfx_direct3d_common.h
-index 4ba2d35..db264c0 100644
+index 4ba2d35..480e844 100644
 --- a/include/fast/backends/gfx_direct3d_common.h
 +++ b/include/fast/backends/gfx_direct3d_common.h
 @@ -149,6 +149,7 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
@@ -10,6 +10,167 @@ index 4ba2d35..db264c0 100644
      void ReadFramebufferToCPU(int fbId, uint32_t width, uint32_t height, uint16_t* rgba16Buf) override;
      void ResolveMSAAColorBuffer(int fbIdTarger, int fbIdSrc) override;
      std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
+@@ -162,11 +163,11 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
+     ImTextureID GetTextureById(int id) override;
+     /** @} */
+ 
+-    PFN_D3D11_CREATE_DEVICE mDX11CreateDevice;
++    PFN_D3D11_CREATE_DEVICE mDX11CreateDevice = nullptr;
+     Microsoft::WRL::ComPtr<ID3D11DeviceContext> mContext;
+     Microsoft::WRL::ComPtr<ID3D11Device> mDevice;
+     GfxWindowBackendDXGI* mWindowBackend = nullptr;
+-    D3D_FEATURE_LEVEL mFeatureLevel;
++    D3D_FEATURE_LEVEL mFeatureLevel = {};
+ 
+     std::shared_ptr<Ship::ConsoleVariable> mConsoleVariable;
+     std::shared_ptr<Ship::ResourceManager> mResourceManager;
+@@ -175,12 +176,12 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
+     void CreateDepthStencilObjects(uint32_t width, uint32_t height, uint32_t msaa_count, ID3D11DepthStencilView** view,
+                                    ID3D11ShaderResourceView** srv);
+ 
+-    HMODULE mDX11Module;
++    HMODULE mDX11Module = nullptr;
+ 
+-    HMODULE mCompilerModule;
+-    pD3DCompile mD3dCompile;
++    HMODULE mCompilerModule = nullptr;
++    pD3DCompile mD3dCompile = nullptr;
+ 
+-    uint32_t mMsaaNumQualityLevels[D3D11_MAX_MULTISAMPLE_SAMPLE_COUNT];
++    uint32_t mMsaaNumQualityLevels[D3D11_MAX_MULTISAMPLE_SAMPLE_COUNT] = {};
+ 
+     Microsoft::WRL::ComPtr<ID3D11RasterizerState> mRasterizerState;
+     Microsoft::WRL::ComPtr<ID3D11DepthStencilState> mDepthStencilState;
+@@ -196,30 +197,30 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
+     Microsoft::WRL::ComPtr<ID3D11ComputeShader> mComputeShader;
+     Microsoft::WRL::ComPtr<ID3D11ComputeShader> mComputeShaderMsaa;
+     Microsoft::WRL::ComPtr<ID3DBlob> mComputeShaderMsaaBlob;
+-    size_t mCoordBufferSize;
++    size_t mCoordBufferSize = 0;
+ 
+ #if DEBUG_D3D
+     Microsoft::WRL::ComPtr<ID3D11Debug> debug;
+ #endif
+ 
+-    PerFrameCB mPerFrameCbData;
+-    PerDrawCB mPerDrawCbData;
+-    PerPrimDepthCB mPerPrimDepthCbData;
++    PerFrameCB mPerFrameCbData = {};
++    PerDrawCB mPerDrawCbData = {};
++    PerPrimDepthCB mPerPrimDepthCbData = {};
+ 
+     std::map<std::pair<uint64_t, uint32_t>, struct ShaderProgramD3D11> mShaderProgramPool;
+ 
+     std::vector<struct TextureData> mTextures;
+-    int mCurrentTile;
++    int mCurrentTile = 0;
+     uint32_t mCurrentTextureIds[SHADER_MAX_TEXTURES] = {};
+ 
+     std::vector<FramebufferDX11> mFrameBuffers;
+ 
+     // Current state
+ 
+-    struct ShaderProgramD3D11* mShaderProgram;
++    struct ShaderProgramD3D11* mShaderProgram = nullptr;
+ 
+-    int32_t mRenderTargetHeight;
+-    int mCurrentFramebuffer;
++    int32_t mRenderTargetHeight = 0;
++    int mCurrentFramebuffer = 0;
+     FilteringMode mCurrentFilterMode = FILTER_NONE;
+ 
+     // Previous states (to prevent setting states needlessly)
+diff --git a/include/fast/backends/gfx_dxgi.h b/include/fast/backends/gfx_dxgi.h
+index f381184..b475bf0 100644
+--- a/include/fast/backends/gfx_dxgi.h
++++ b/include/fast/backends/gfx_dxgi.h
+@@ -88,19 +88,19 @@ class GfxWindowBackendDXGI final : public GfxWindowBackend {
+     void UpdateMousePrevPos();
+     void ApplyMouseCaptureClip();
+ 
+-    std::tuple<HMONITOR, RECT, BOOL> mMonitor; // 0: Handle, 1: Display Monitor Rect, 2: Is_Primary
+-    uint32_t current_width, current_height;    // Width and height of client areas
++    std::tuple<HMONITOR, RECT, BOOL> mMonitor;      // 0: Handle, 1: Display Monitor Rect, 2: Is_Primary
++    uint32_t current_width = 0, current_height = 0; // Width and height of client areas
+     std::vector<std::tuple<HMONITOR, RECT, BOOL>> monitor_list;
+-    int32_t mPosX, mPosY; // Screen coordinates
+-    double mDetectedHz;
+-    double mDisplayPeriod; // (1000 / dxgi.mDetectedHz) in ms
+-    void (*mOnAllKeysUp)(void);
+-    POINT mRawMouseDeltaBuf;
+-    float mMouseWheel[2];
+-    bool mIsMouseCaptured;
+-    bool mIsMouseHovered;
+-    bool mInFocus;
+-    bool mHasMousePosition;
++    int32_t mPosX = 0, mPosY = 0; // Screen coordinates
++    double mDetectedHz = 0;
++    double mDisplayPeriod = 0; // (1000 / dxgi.mDetectedHz) in ms
++    void (*mOnAllKeysUp)(void) = nullptr;
++    POINT mRawMouseDeltaBuf = {};
++    float mMouseWheel[2] = {};
++    bool mIsMouseCaptured = false;
++    bool mIsMouseHovered = false;
++    bool mInFocus = false;
++    bool mHasMousePosition = false;
+ 
+     // These need to be public to be accessible in the window callback
+     std::shared_ptr<Ship::FileDrop> mFileDrop;
+@@ -112,35 +112,35 @@ class GfxWindowBackendDXGI final : public GfxWindowBackend {
+     void ApplyMaxFrameLatency(bool first);
+     void ToggleBorderlessWindowFullScreen(bool enable, bool callCallback);
+ 
+-    HWND h_wnd;
++    HWND h_wnd = nullptr;
+     // These four only apply in windowed mode.
+ 
+-    HMODULE dxgi_module;
+-    HRESULT(__stdcall* CreateDXGIFactory1)(REFIID riid, void** factory);
+-    HRESULT(__stdcall* CreateDXGIFactory2)(UINT flags, REFIID iid, void** factory);
++    HMODULE dxgi_module = nullptr;
++    HRESULT(__stdcall* CreateDXGIFactory1)(REFIID riid, void** factory) = nullptr;
++    HRESULT(__stdcall* CreateDXGIFactory2)(UINT flags, REFIID iid, void** factory) = nullptr;
+ 
+-    bool mLastMaximizedState;
++    bool mLastMaximizedState = false;
+ 
+-    bool mDXGI11_4;
++    bool mDXGI11_4 = false;
+     Microsoft::WRL::ComPtr<IDXGIFactory2> mFactory;
+     Microsoft::WRL::ComPtr<IDXGISwapChain1> swap_chain;
+-    HANDLE mWaitableObject;
++    HANDLE mWaitableObject = nullptr;
+     Microsoft::WRL::ComPtr<IUnknown> mSwapChainDevice; // D3D11 Device or D3D12 Command Queue
+     std::function<void()> mBeforeDestroySwapChainFn;
+-    uint64_t mFrameTimeStamp; // in units of 1/FRAME_INTERVAL_NS_DENOMINATOR nanoseconds
++    uint64_t mFrameTimeStamp = 0; // in units of 1/FRAME_INTERVAL_NS_DENOMINATOR nanoseconds
+     std::map<UINT, DXGI_FRAME_STATISTICS> mFrameStats;
+     std::set<std::pair<UINT, UINT>> mPendingFrameStats;
+-    bool mDroppedFrame;
+-    bool mZeroLatency;
+-    uint32_t mMaxFrameLatency;
+-    uint32_t mAppliedMaxFrameLatency;
+-    HANDLE mTimer;
+-    bool mTearingSupport;
+-    bool mMousePressed[5];
+-    LARGE_INTEGER mPreviousPresentTime;
+-
+-    RAWINPUTDEVICE mRawInputDevice[1];
+-    POINT mPrevMouseCursorPos;
++    bool mDroppedFrame = false;
++    bool mZeroLatency = false;
++    uint32_t mMaxFrameLatency = 0;
++    uint32_t mAppliedMaxFrameLatency = 0;
++    HANDLE mTimer = nullptr;
++    bool mTearingSupport = false;
++    bool mMousePressed[5] = {};
++    LARGE_INTEGER mPreviousPresentTime = {};
++
++    RAWINPUTDEVICE mRawInputDevice[1] = {};
++    POINT mPrevMouseCursorPos = {};
+ 
+     std::shared_ptr<Ship::Config> mConfig;
+ };
 diff --git a/include/fast/backends/gfx_metal.h b/include/fast/backends/gfx_metal.h
 index 51d5e2d..1424f27 100644
 --- a/include/fast/backends/gfx_metal.h
@@ -166,6 +327,30 @@ index 3eb0996..c665c4c 100644
      virtual void ResolveMSAAColorBuffer(int fbIdTarger, int fbIdSrc) = 0;
      virtual std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
      GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) = 0;
+diff --git a/include/fast/backends/gfx_window_manager_api.h b/include/fast/backends/gfx_window_manager_api.h
+index 3759991..1c518b3 100644
+--- a/include/fast/backends/gfx_window_manager_api.h
++++ b/include/fast/backends/gfx_window_manager_api.h
+@@ -42,13 +42,13 @@ class GfxWindowBackend {
+     virtual bool IsFullscreen() = 0;
+ 
+   protected:
+-    void (*mOnFullscreenChanged)(bool isNowFullscreen);
+-    bool (*mOnKeyDown)(int scancode);
+-    bool (*mOnKeyUp)(int scancode);
+-    bool (*mOnMouseButtonDown)(int btn);
+-    bool (*mOnMouseButtonUp)(int btn);
++    void (*mOnFullscreenChanged)(bool isNowFullscreen) = nullptr;
++    bool (*mOnKeyDown)(int scancode) = nullptr;
++    bool (*mOnKeyUp)(int scancode) = nullptr;
++    bool (*mOnMouseButtonDown)(int btn) = nullptr;
++    bool (*mOnMouseButtonUp)(int btn) = nullptr;
+     uint32_t mTargetFps = 60;
+-    bool mFullScreen;
++    bool mFullScreen = false;
+     bool mIsRunning = true;
+     bool mVsyncEnabled = true;
+ };
 diff --git a/include/fast/interpreter.h b/include/fast/interpreter.h
 index a7334a9..5736855 100644
 --- a/include/fast/interpreter.h
@@ -430,6 +615,34 @@ index f747b81..f54b1f1 100644
      // Convert RGBA32 → RGBA16 with nearest-neighbor scaling from actual texture
      // dimensions to requested output dimensions, respecting RowPitch for row stride
      for (uint32_t j = 0; j < height; j++) {
+diff --git a/src/fast/backends/gfx_dxgi.cpp b/src/fast/backends/gfx_dxgi.cpp
+index dd8cce5..c510610 100644
+--- a/src/fast/backends/gfx_dxgi.cpp
++++ b/src/fast/backends/gfx_dxgi.cpp
+@@ -34,6 +34,7 @@
+ #include "fast/backends/gfx_screen_config.h"
+ #include "fast/interpreter.h"
+ #include "fast/Fast3dGui.h"
++#include "spdlog/spdlog.h"
+ 
+ #define DECLARE_GFX_DXGI_FUNCTIONS
+ #include "fast/backends/gfx_dxgi.h"
+@@ -1128,6 +1129,7 @@ bool GfxWindowBackendDXGI::IsFullscreen() {
+ void ThrowIfFailed(HRESULT res) {
+     if (FAILED(res)) {
+         fprintf(stderr, "Error: 0x%08X\n", res);
++        SPDLOG_CRITICAL("HRESULT failed: 0x{:08X}", (uint32_t)res);
+         throw Ship::HResultException(res);
+     }
+ }
+@@ -1136,6 +1138,7 @@ void ThrowIfFailed(HRESULT res, HWND h_wnd, const char* message) {
+     if (FAILED(res)) {
+         char full_message[256];
+         snprintf(full_message, sizeof(full_message), "%s\n\nHRESULT: 0x%08X", message, res);
++        SPDLOG_CRITICAL("{} (HRESULT 0x{:08X})", message, (uint32_t)res);
+         MessageBoxA(h_wnd, full_message, "Error", MB_OK | MB_ICONERROR);
+         throw Ship::HResultException(res, message);
+     }
 diff --git a/src/fast/backends/gfx_metal.cpp b/src/fast/backends/gfx_metal.cpp
 index afc07db..e0f6fd8 100644
 --- a/src/fast/backends/gfx_metal.cpp
