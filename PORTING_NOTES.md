@@ -1119,14 +1119,16 @@ same on every backend). The first frame buffer the game selects in a frame gets 
 right of the picture (interpreter GfxDpSetColorImage); 3D scenes redraw the margins on top, and a 4:3 window is not
 touched. `PORT_NO_MARGIN_CLEAR=1` restores the old behaviour.
 
-Patterned menu backdrops in widescreen: the main menu, Game Pak Check, Battle Now, Options and the GB screens draw
-their wallpaper (the "POKéMON" pattern, the green "GB" pattern, the cream pattern of the fades) as one textured
+Patterned menu backdrops in widescreen: the main menu, Game Pak Check, Battle Now and Options draw their wallpaper
+(the "POKéMON" pattern, the green pattern of Options, the cream pattern of the fades) as one textured
 rectangle over the whole N64 screen with a small repeating tile (WRAP or MIRROR, the rectangle several periods wide).
 In a picture wider than 4:3 that rectangle reaches both screen edges with its texture coordinates continued
 (interpreter GfxDpTextureRectangle, `sWidePattern`), so the pattern goes on at its own size instead of being
 stretched, and only it is drawn past the 2D screen's 4:3 lock: panels, text, icons and cursors keep their 4:3 place
 and size. Screens with a picture backdrop (title, the hub map, Kids Club, JPEG backgrounds; clamped tiles) stay
-pillarboxed. Nothing changes at 4:3. `PORT_NO_WIDE_PATTERN=1` turns it off.
+pillarboxed, and so do patterns drawn as full-width bands (the GB screens' shaded "GB" wallpaper, the gallery's film
+screen, where panels fill the rows between the bands and widened bands would leave gaps). Nothing changes at 4:3.
+`PORT_NO_WIDE_PATTERN=1` turns it off.
 
 ## Game sound: music, sound effects, voices
 
