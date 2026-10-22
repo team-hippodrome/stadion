@@ -5,6 +5,9 @@
 // (PORT_FLASH_FILE, PORT_GB_ROM*, PORT_GB_SAVE*). Auto-play skips it next time (hold Shift while starting to see it
 // again); Debug adds a button that opens the save editor (tools/save_editor, needs python3) in the browser. Controls
 // swaps the player cards for the key and controller bindings of each player (libultraship's ControlDeck mappings).
+// Android (or PORT_LAUNCHER_HANDHELD=1) shows a handheld layout instead: the Stadium cartridge and a big PLAY, the
+// Transfer Pak cards and the controls on pages of their own, everything reachable with the gamepad (D-pad or stick
+// moves the focus, A presses, B goes back) as well as by touch.
 #include "launcher.h"
 #include "Engine.h"
 
@@ -32,6 +35,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -57,6 +61,7 @@ struct State {
     std::array<GbSlot, 4> gb;
     bool autoPlay = false, debug = false;
     bool smooth = false; // frame interpolation (interp.cpp)
+    int aspect = 0;      // the game picture: 0 = 4:3, 1 = 16:9 (Engine.cpp, AspectSetting)
 };
 
 std::string Key(const char* name) {
@@ -90,6 +95,7 @@ State Load() {
     s.autoPlay = CVarGetInteger(Key("AutoPlay").c_str(), 0) != 0;
     s.debug = CVarGetInteger(Key("Debug").c_str(), 0) != 0;
     s.smooth = CVarGetInteger("gPort.Interpolate", 0) != 0;
+    s.aspect = Port::AspectSetting();
     return s;
 }
 
@@ -104,6 +110,8 @@ void Store(const State& s) {
     CVarSetInteger(Key("AutoPlay").c_str(), s.autoPlay ? 1 : 0);
     CVarSetInteger(Key("Debug").c_str(), s.debug ? 1 : 0);
     CVarSetInteger("gPort.Interpolate", s.smooth ? 1 : 0);
+    CVarSetInteger("gPort.Aspect", s.aspect);
+    Port::ApplyAspect();
     CVarSave();
 }
 
@@ -238,9 +246,57 @@ std::string* gPickTarget = nullptr;
 std::string gPickResult;
 bool gPickDone = false;
 
+#if defined(__ANDROID__)
+// Android's file picker returns content:// URIs, which the game's file functions cannot open: copy the picked file into
+// the app's files (imported/<name>) and use that. The name comes from the URI's last part, e.g.
+// ".../document/primary%3ADownload%2FPokemon%20Stadium.z64" -> "Pokemon Stadium.z64".
+std::string ImportPicked(const std::string& uri) {
+    if (uri.rfind("content://", 0) != 0) {
+        return uri;
+    }
+    std::string decoded;
+    for (size_t i = 0; i < uri.size(); i++) {
+        if (uri[i] == '%' && i + 2 < uri.size()) {
+            decoded += (char)strtol(uri.substr(i + 1, 2).c_str(), nullptr, 16);
+            i += 2;
+        } else {
+            decoded += uri[i];
+        }
+    }
+    std::string name = decoded.substr(decoded.find_last_of("/:") + 1);
+    if (name.empty()) {
+        name = "picked";
+    }
+    std::error_code ec;
+    fs::path dir = fs::u8path(Ship::Context::GetPathRelativeToAppDirectory("imported"));
+    fs::create_directories(dir, ec);
+    std::string dst = (dir / fs::u8path(name)).string();
+    SDL_IOStream* in = SDL_IOFromFile(uri.c_str(), "rb");
+    if (in == nullptr) {
+        SPDLOG_WARN("could not open {}: {}", uri, SDL_GetError());
+        return "";
+    }
+    SDL_IOStream* out = SDL_IOFromFile(dst.c_str(), "wb");
+    if (out != nullptr) {
+        char chunk[65536];
+        size_t n;
+        while ((n = SDL_ReadIO(in, chunk, sizeof chunk)) > 0) {
+            SDL_WriteIO(out, chunk, n);
+        }
+        SDL_CloseIO(out);
+    }
+    SDL_CloseIO(in);
+    return out != nullptr ? dst : "";
+}
+#endif
+
 void PickCallback(void*, const char* const* files, int) {
+    std::string picked = files != nullptr && files[0] != nullptr ? files[0] : "";
+#if defined(__ANDROID__)
+    picked = ImportPicked(picked);
+#endif
     std::lock_guard<std::mutex> g(gPickLock);
-    gPickResult = files != nullptr && files[0] != nullptr ? files[0] : "";
+    gPickResult = picked;
     gPickDone = true;
 }
 
@@ -267,6 +323,9 @@ void Pick(std::string* target, bool save, const SDL_DialogFileFilter* filters, i
         gPickDone = false;
     }
     std::string start = !target->empty() ? *target : suggested;
+#if defined(__ANDROID__)
+    save = false; // saves stay in the app's files: "Change" imports an existing one (ImportPicked)
+#endif
     if (save) {
         SDL_ShowSaveFileDialog(PickCallback, nullptr, MainWindow(), filters, nfilters, start.empty() ? nullptr : start.c_str());
     } else {
@@ -568,6 +627,52 @@ void ResetBindings(int port) {
 // ---- the launcher window ---------------------------------------------------------------------------------------------
 
 constexpr float kW = 960, kH = 556; // the design size (Launcher.swift)
+constexpr float kHandheldH = 540;   // the handheld layout's design height (16:9, the Thor's and most phones' shape)
+
+bool Handheld() {
+#if defined(__ANDROID__)
+    return true;
+#else
+    static const bool on = getenv("PORT_LAUNCHER_HANDHELD") != nullptr;
+    return on;
+#endif
+}
+
+// The gamepads' navigation inputs (all connected pads; the left stick counts as the D-pad), plus the keyboard's.
+struct NavInput {
+    bool up = false, down = false, left = false, right = false, accept = false, back = false;
+};
+
+NavInput ReadNavInput() {
+    NavInput in;
+    int n = 0;
+    if (SDL_JoystickID* ids = SDL_GetGamepads(&n)) {
+        for (int i = 0; i < n; i++) {
+            SDL_Gamepad* g = SDL_GetGamepadFromID(ids[i]);
+            if (g == nullptr) {
+                g = SDL_OpenGamepad(ids[i]); // stays open (libultraship's deck opens them too)
+            }
+            if (g == nullptr) {
+                continue;
+            }
+            const int x = SDL_GetGamepadAxis(g, SDL_GAMEPAD_AXIS_LEFTX), y = SDL_GetGamepadAxis(g, SDL_GAMEPAD_AXIS_LEFTY);
+            in.up |= SDL_GetGamepadButton(g, SDL_GAMEPAD_BUTTON_DPAD_UP) || y < -20000;
+            in.down |= SDL_GetGamepadButton(g, SDL_GAMEPAD_BUTTON_DPAD_DOWN) || y > 20000;
+            in.left |= SDL_GetGamepadButton(g, SDL_GAMEPAD_BUTTON_DPAD_LEFT) || x < -20000;
+            in.right |= SDL_GetGamepadButton(g, SDL_GAMEPAD_BUTTON_DPAD_RIGHT) || x > 20000;
+            in.accept |= SDL_GetGamepadButton(g, SDL_GAMEPAD_BUTTON_SOUTH) || SDL_GetGamepadButton(g, SDL_GAMEPAD_BUTTON_START);
+            in.back |= SDL_GetGamepadButton(g, SDL_GAMEPAD_BUTTON_EAST);
+        }
+        SDL_free(ids);
+    }
+    in.up |= ImGui::IsKeyDown(ImGuiKey_UpArrow);
+    in.down |= ImGui::IsKeyDown(ImGuiKey_DownArrow);
+    in.left |= ImGui::IsKeyDown(ImGuiKey_LeftArrow);
+    in.right |= ImGui::IsKeyDown(ImGuiKey_RightArrow);
+    in.accept |= ImGui::IsKeyDown(ImGuiKey_Enter) || ImGui::IsKeyDown(ImGuiKey_Space);
+    in.back |= ImGui::IsKeyDown(ImGuiKey_Escape) || ImGui::IsKeyDown(ImGuiKey_AppBack); // (Android's back button)
+    return in;
+}
 
 class LauncherWindow : public Ship::GuiWindow {
   public:
@@ -589,8 +694,9 @@ class LauncherWindow : public Ship::GuiWindow {
         // above libultraship's game view window ("Main Game"), which would otherwise cover it (and take the mouse)
         ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         // the 960x556 design, scaled to the window and centred
-        mScale = std::min(vp->Size.x / kW, vp->Size.y / kH);
-        mOrigin = ImVec2(vp->Pos.x + (vp->Size.x - kW * mScale) / 2, vp->Pos.y + (vp->Size.y - kH * mScale) / 2);
+        const float designH = Handheld() ? kHandheldH : kH;
+        mScale = std::min(vp->Size.x / kW, vp->Size.y / designH);
+        mOrigin = ImVec2(vp->Pos.x + (vp->Size.x - kW * mScale) / 2, vp->Pos.y + (vp->Size.y - designH * mScale) / 2);
         ImGui::PushStyleColor(ImGuiCol_Text, HexV(Theme::text));
         ImGui::PushStyleColor(ImGuiCol_Button, HexV(Theme::button));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, HexV(Theme::buttonHover));
@@ -614,6 +720,13 @@ class LauncherWindow : public Ship::GuiWindow {
     void DrawElement() override {
         State& s = *mState;
         mChanged = ApplyPick();
+        if (Handheld()) {
+            DrawHandheld();
+            if (mChanged) {
+                Store(s);
+            }
+            return;
+        }
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
         // header: title | subtitle, line
@@ -658,7 +771,7 @@ class LauncherWindow : public Ship::GuiWindow {
         bool clicked = ImGui::Button(label, ImVec2(w * mScale, h * mScale));
         ImGui::SetWindowFontScale(1.0f);
         if (font != nullptr) ImGui::PopFont();
-        return clicked;
+        return NavItem() || clicked;
     }
 
     bool Check(const char* label, bool* v, float x, float y) {
@@ -667,6 +780,10 @@ class LauncherWindow : public Ship::GuiWindow {
         ImGui::SetWindowFontScale(mScale);
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2 * mScale, 2 * mScale));
         bool changed = ImGui::Checkbox(label, v);
+        if (NavItem()) {
+            *v = !*v;
+            changed = true;
+        }
         ImGui::PopStyleVar();
         ImGui::SetWindowFontScale(1.0f);
         if (gFonts.body != nullptr) ImGui::PopFont();
@@ -903,7 +1020,7 @@ class LauncherWindow : public Ship::GuiWindow {
                 OpenSaveEditor(s.save);
             }
             if (!gEditorStatus.empty()) {
-                Text(x + 556, y + 88, gEditorStatus, gFonts.small, Theme::dim);
+                Text(x + 658, y + 61, gEditorStatus, gFonts.small, Theme::dim);
             }
         }
         Check("Debug", &s.debug, x + 164, y + 88);
@@ -914,6 +1031,19 @@ class LauncherWindow : public Ship::GuiWindow {
         }
         if (Button(mControls ? "Players" : "Controls", x + 450, y + 86, 100, 26)) {
             mControls = !mControls;
+        }
+        // the game picture's shape (the rest of the window gets black bars)
+        Text(x + 566, y + 91, "Screen", gFonts.small, Theme::dim);
+        for (int a = 0; a < 2; a++) {
+            const bool on = s.aspect == a;
+            if (ColorButton(a == 0 ? "4:3" : "16:9", x + 616 + a * 56, y + 86, 52, 26, on ? 0x23406B : Theme::button,
+                            on ? 0x23406B : Theme::buttonHover)) {
+                s.aspect = a;
+                mChanged = true;
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip(a == 0 ? "The N64's picture shape" : "Widescreen: 3D scenes show more at the sides");
+            }
         }
 
         // PLAY: green, rounded, white border
@@ -941,6 +1071,219 @@ class LauncherWindow : public Ship::GuiWindow {
         (void)mQuit;
     }
 
+    // ---- handheld layout ----
+
+    // The last ImGui item as a gamepad focus target: true when it has the focus and A was pressed this frame.
+    bool NavItem() {
+        if (!Handheld()) {
+            return false;
+        }
+        const int index = (int)mNavItems.size();
+        mNavItems.push_back({ ImGui::GetItemRectMin(), ImGui::GetItemRectMax() });
+        if (index != mFocus || mCapture >= 0) {
+            return false;
+        }
+        const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+        const float pad = 3 * mScale;
+        ImGui::GetWindowDrawList()->AddRect(ImVec2(a.x - pad, a.y - pad), ImVec2(b.x + pad, b.y + pad),
+                                            Hex(Theme::players[0]), 8 * mScale, 0, 3 * mScale);
+        return mNavAccept;
+    }
+
+    // Moves the focus to the nearest item in the pressed direction (last frame's item rectangles); presses repeat
+    // while held. A presses the focused item (NavItem), B leaves the page.
+    void NavBeginFrame() {
+        NavInput in = ReadNavInput();
+        auto edge = [](bool now, bool& was) {
+            bool pressed = now && !was;
+            was = now;
+            return pressed;
+        };
+        mNavAccept = edge(in.accept, mWasAccept) && mCapture < 0;
+        mNavBack = edge(in.back, mWasBack) && mCapture < 0;
+        int dx = in.left ? -1 : in.right ? 1 : 0, dy = in.up ? -1 : in.down ? 1 : 0;
+        auto now = std::chrono::steady_clock::now();
+        bool move = false;
+        if (dx != 0 || dy != 0) {
+            if (dx != mHeldDx || dy != mHeldDy) {
+                move = true;
+                mRepeatAt = now + std::chrono::milliseconds(400);
+            } else if (now >= mRepeatAt) {
+                move = true;
+                mRepeatAt = now + std::chrono::milliseconds(130);
+            }
+        }
+        mHeldDx = dx;
+        mHeldDy = dy;
+        if (mNavPrev.empty()) {
+            mFocus = -1; // (the page's items are not known before its first frame)
+        } else if (mFocus < 0 || mFocus >= (int)mNavPrev.size()) {
+            mFocus = mDefaultFocus;
+        }
+        if (move && mCapture < 0 && mFocus >= 0 && mFocus < (int)mNavPrev.size()) {
+            auto center = [](const NavRect& r) { return ImVec2((r.min.x + r.max.x) / 2, (r.min.y + r.max.y) / 2); };
+            ImVec2 c = center(mNavPrev[mFocus]);
+            float best = 1e30f;
+            int bestIndex = -1;
+            for (int i = 0; i < (int)mNavPrev.size(); i++) {
+                ImVec2 o = center(mNavPrev[i]);
+                float along = dx != 0 ? (o.x - c.x) * dx : (o.y - c.y) * dy;
+                float across = dx != 0 ? std::fabs(o.y - c.y) : std::fabs(o.x - c.x);
+                if (i == mFocus || along <= 1.0f) {
+                    continue;
+                }
+                float score = along + 2.0f * across; // straight ahead first
+                if (score < best) {
+                    best = score;
+                    bestIndex = i;
+                }
+            }
+            if (bestIndex >= 0) {
+                mFocus = bestIndex;
+            }
+        }
+        mNavItems.clear();
+    }
+
+    void NavEndFrame() {
+        mNavPrev = mNavItems;
+        if (mFocus < 0 && !mNavPrev.empty()) {
+            mFocus = mDefaultFocus;
+        }
+    }
+
+    void GoToPage(int page) {
+        mPage = page;
+        mControls = page == kPageControls;
+        mFocus = -1; // the page's default item
+        mNavItems.clear();
+    }
+
+    void DrawHandheld() {
+        NavBeginFrame();
+        if (mNavBack && mPage != kPageHome) {
+            GoToPage(kPageHome);
+            mNavBack = false;
+        }
+        if (mPage == kPageControls && !mControls) { // the panel's Done button
+            GoToPage(kPageHome);
+        }
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        Text(24, 14, "Pokémon Stadium", gFonts.title);
+        const char* pageName = mPage == kPageTransferPak ? "Transfer Pak" : mPage == kPageControls ? "Controls" : "";
+        Text(220, 17, pageName, gFonts.body, Theme::dim);
+        dl->AddRectFilled(P(0, 50), P(kW, 51), Hex(Theme::cardBorder));
+
+        if (mPage == kPageTransferPak) {
+            for (int i = 0; i < 4; i++) {
+                PlayerCard(i, 16 + i * (222 + 14), 62, 222, 366);
+            }
+            mDefaultFocus = 0;
+            if (Button("Back", 16, 444, 160, 48, gFonts.game)) {
+                GoToPage(kPageHome);
+            }
+        } else if (mPage == kPageControls) {
+            ControlsPanel(16, 62, kW - 32, 366);
+            mDefaultFocus = 0;
+            ImGui::BeginDisabled(mCapture >= 0);
+            if (Button("Back", 16, 444, 160, 48, gFonts.game)) {
+                GoToPage(kPageHome);
+            }
+            ImGui::EndDisabled();
+        } else {
+            HandheldHome();
+        }
+        Text(24, 512, mPage == kPageHome ? "A  select     D-pad  move     touch works too"
+                                         : "A  select     D-pad  move     B  back",
+             gFonts.small, Theme::dim);
+        NavEndFrame();
+    }
+
+    void HandheldHome() {
+        State& s = *mState;
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        // the Stadium cartridge: picture, ROM and save
+        const float cx = 24, cy = 66, cw = 440, ch = 426;
+        dl->AddRectFilled(P(cx, cy), P(cx + cw, cy + ch), Hex(Theme::card), 10 * mScale);
+        dl->AddRect(P(cx, cy), P(cx + cw, cy + ch), Hex(Theme::cardBorder), 10 * mScale);
+        Image("pokestadium", cx + (cw - 190) / 2, cy + 20, 190, 190);
+        std::string romError = CheckRom(s.rom);
+        Text(cx + 24, cy + 228, romError.empty() ? "Pokémon Stadium (USA)" : (s.rom.empty() ? "No Stadium ROM" : FileName(s.rom)),
+             gFonts.title);
+        dl->AddCircleFilled(P(cx + 30, cy + 272), 5 * mScale, Hex(romError.empty() ? Theme::green : Theme::red));
+        Text(cx + 42, cy + 263, romError.empty() ? "ROM OK" : romError, gFonts.game, romError.empty() ? Theme::green : Theme::red);
+        std::string saveName = "Save: " + FileName(s.save);
+        if (saveName.size() > 40) saveName = saveName.substr(0, 39) + "…";
+        Text(cx + 24, cy + 296, saveName, gFonts.body, Theme::dim);
+        if (Button(s.rom.empty() ? "Load ROM" : "Change ROM", cx + 24, cy + 340, 190, 56, gFonts.game)) {
+            Pick(&s.rom, false, kRomFilter, 2);
+        }
+        if (Button("Change save", cx + cw - 214, cy + 340, 190, 56, gFonts.game)) {
+            Pick(&s.save, true, kSaveFilter, 2, s.save);
+        }
+
+        // PLAY (the default focus: A starts the game right away)
+        const float rx = 488, rw = kW - 24 - rx;
+        ImGui::BeginDisabled(!romError.empty());
+        ImGui::PushStyleColor(ImGuiCol_Button, HexV(Theme::green));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(Hex(0x37B24D)));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(Hex(0x268A39)));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 10 * mScale);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2 * mScale);
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1, 1, 1, 0.85f));
+        mDefaultFocus = (int)mNavItems.size();
+        if (Button("PLAY", rx, cy, rw, 150, gFonts.play) && romError.empty()) {
+            *mPlay = true;
+        }
+        ImGui::PopStyleColor(5);
+        ImGui::PopStyleVar(2);
+        ImGui::EndDisabled();
+        if (!romError.empty()) {
+            mDefaultFocus = -1; // (set below: the ROM button)
+        }
+
+        // options, two per row
+        const float bw = (rw - 14) / 2, bh = 60;
+        float y = cy + 170;
+        int on = 0;
+        for (const GbSlot& g : s.gb) on += g.enabled && !g.rom.empty();
+        std::string pak = "Transfer Pak · " + (on == 0 ? std::string("off") : std::to_string(on) + " on");
+        if (Button(pak.c_str(), rx, y, bw, bh, gFonts.game)) {
+            GoToPage(kPageTransferPak);
+        }
+        if (Button("Controls", rx + bw + 14, y, bw, bh, gFonts.game)) {
+            GoToPage(kPageControls);
+        }
+        y += bh + 14;
+        if (Button(s.aspect == 1 ? "Screen · 16:9" : "Screen · 4:3", rx, y, bw, bh, gFonts.game)) {
+            s.aspect = 1 - s.aspect;
+            mChanged = true;
+        }
+        if (Button(s.smooth ? "Smooth motion · on" : "Smooth motion · off", rx + bw + 14, y, bw, bh, gFonts.game)) {
+            s.smooth = !s.smooth;
+            mChanged = true;
+        }
+        y += bh + 14;
+        Text(rx + 4, y + 8, s.aspect == 1 ? "16:9: 3D scenes show more at the sides." : "4:3: the N64's picture shape.",
+             gFonts.small, Theme::dim);
+        Text(rx + 4, y + 28, "Smooth motion draws in-between frames (one frame of extra delay).", gFonts.small, Theme::dim);
+        if (mDefaultFocus < 0) {
+            mDefaultFocus = 0; // no valid ROM: the first item, Load ROM
+        }
+    }
+
+    struct NavRect {
+        ImVec2 min, max;
+    };
+    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2;
+    int mPage = kPageHome;
+    std::vector<NavRect> mNavItems, mNavPrev; // this frame's and last frame's focus targets, in drawing order
+    int mFocus = -1, mDefaultFocus = 0;
+    bool mNavAccept = false, mNavBack = false, mWasAccept = true, mWasBack = true; // (held at start: not a press)
+    int mHeldDx = 0, mHeldDy = 0;
+    std::chrono::steady_clock::time_point mRepeatAt;
+
     State* mState;
     bool* mPlay;
     bool* mQuit;
@@ -967,7 +1310,8 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
     // start directly: the stored ROM, unless Shift is held (or it is no longer valid)
     window->HandleEvents();
     bool shift = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
-    if (!(state.autoPlay && !shift && CheckRom(state.rom).empty())) {
+    // (the handheld layout has no Auto-play: without a Shift key there would be no way back to the launcher)
+    if (!(state.autoPlay && !shift && !Handheld() && CheckRom(state.rom).empty())) {
         LoadFonts(); // before the first frame: ImGui builds its font atlas then
         if (gFonts.body != nullptr) {
             ImGui::GetIO().FontDefault = gFonts.body;
@@ -1025,6 +1369,10 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
             return "";
         }
         if (sdl != nullptr && gameW > 0) {
+            // a window of the chosen shape (other shapes still work, with black bars)
+            if (gameH > 0) {
+                gameW = state.aspect == 1 ? gameH * 16 / 9 : gameH * 4 / 3;
+            }
             SDL_SetWindowSize(sdl, gameW, gameH);
             SDL_SetWindowPosition(sdl, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
             SDL_SetWindowTitle(sdl, "Pokémon Stadium");

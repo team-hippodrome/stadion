@@ -6142,10 +6142,28 @@ index b745cb6d834a4e694580d8c986f951c66fd95d1b..ce5a6cfc3fd71a9fa36d304ee4e7afee
      if (arg3 != 0) {
          Team_ScaleOpponentToLevel(Team_GetHighestPartyLevel());
 diff --git a/src/stage_loader.c b/src/stage_loader.c
-index c2495aa952cbe826699b767cf5642d96db848db7..60ee725f6b6b88091282bcc0e81ddae0c908318b 100644
+index c2495aa952cbe826699b767cf5642d96db848db7..f458e35831e4b7e71ec754df1aa794133db007fa 100644
 --- a/src/stage_loader.c
 +++ b/src/stage_loader.c
-@@ -328,14 +328,14 @@ void StageLoader_SetupFrame(void) {
+@@ -78,11 +78,13 @@ static Vp D_80068C18 = { {
+     },
+ } };
+ 
++// PORT: the scene fade (StageFade_Update) reaches one screen width past each side: on a widescreen display the 3D scene
++// also fills the sides, which a 0..320 quad left unfaded (the overhang is clipped on a 4:3 screen)
+ static Vtx D_80068C28[] = {
+-    VTX(0, 240, 0, 0, 0, 0x00, 0x00, 0x81, 0xFF),
+-    VTX(0, 0, 0, 0, 0, 0x00, 0x00, 0x81, 0xFF),
+-    VTX(320, 0, 0, 0, 0, 0x00, 0x00, 0x81, 0xFF),
+-    VTX(320, 240, 0, 0, 0, 0x00, 0x00, 0x81, 0xFF),
++    VTX(-320, 240, 0, 0, 0, 0x00, 0x00, 0x81, 0xFF),
++    VTX(-320, 0, 0, 0, 0, 0x00, 0x00, 0x81, 0xFF),
++    VTX(640, 0, 0, 0, 0, 0x00, 0x00, 0x81, 0xFF),
++    VTX(640, 240, 0, 0, 0, 0x00, 0x00, 0x81, 0xFF),
+ };
+ 
+ static Gfx D_80068C68[] = {
+@@ -328,14 +330,14 @@ void StageLoader_SetupFrame(void) {
      Gfx_SetDefaultRenderState();
      Gfx_SetDefaultGeometryState();
  
@@ -6164,7 +6182,7 @@ index c2495aa952cbe826699b767cf5642d96db848db7..60ee725f6b6b88091282bcc0e81ddae0
      }
  
      Gfx_SetScissorRect(&gDisplayListHead, 0, 0, stage->width, stage->height);
-@@ -597,7 +597,7 @@ void TextRenderer_SetupGlyphState(void) {
+@@ -597,7 +599,7 @@ void TextRenderer_SetupGlyphState(void) {
      gDPSetPrimColor(D_800A74B0++, 0, 0, 255, 255, 255, 255);
      gDPSetRenderMode(D_800A74B0++, G_RM_TEX_EDGE, G_RM_TEX_EDGE2);
      gDPSetCombineMode(D_800A74B0++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);

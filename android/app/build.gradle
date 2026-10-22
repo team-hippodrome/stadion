@@ -1,0 +1,64 @@
+// The Android app: SDL's Java activity (src/main/java/org/libsdl/app, from SDL 3.4.12, the version libultraship
+// fetches) loads the game, built from the repository's CMakeLists.txt as libmain.so.
+plugins {
+    id "com.android.application"
+}
+
+def repo = rootProject.projectDir.parentFile
+
+android {
+    namespace = "com.teamhippodrome.pokestadium"
+    compileSdk = 36
+    ndkVersion = "29.0.14206865"
+
+    defaultConfig {
+        applicationId = "com.teamhippodrome.pokestadium"
+        minSdk = 29
+        targetSdk = 36
+        versionCode = 1
+        versionName = project.findProperty("portVersion") ?: "0.0.3"
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_STL=c++_static", "-DPORT_VERSION=${versionName}"
+                abiFilters "arm64-v8a"  // the game's code is 64-bit only
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            // the game runs too slowly without optimization; debug builds differ only in signing and debuggability
+            externalNativeBuild { cmake { arguments "-DCMAKE_BUILD_TYPE=RelWithDebInfo" } }
+        }
+        release {
+            minifyEnabled = false
+            externalNativeBuild { cmake { arguments "-DCMAKE_BUILD_TYPE=RelWithDebInfo" } }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("${repo}/CMakeLists.txt")
+        }
+    }
+
+    sourceSets.main.assets.srcDirs += layout.buildDirectory.dir("generated/o2r")
+
+    packaging {
+        // libmain.so carries debug info for crash stacks (tools/symbolize.sh); keep it out of the stripped copy check
+        jniLibs.keepDebugSymbols += ["**/libmain.so"]
+    }
+
+    lint {
+        abortOnError = false
+    }
+}
+
+// the game's resources (shaders, fonts, shader warm-up list) as an asset; main.cpp copies it to the app's files
+def packO2r = tasks.register("packO2r", Exec) {
+    def out = layout.buildDirectory.file("generated/o2r/pokestadium.o2r")
+    outputs.file(out)
+    outputs.upToDateWhen { false } // packing takes a fraction of a second
+    commandLine "python3", "-I", "${repo}/tools/make_o2r.py", out.get().asFile.path
+}
+tasks.named("preBuild") { dependsOn packO2r }

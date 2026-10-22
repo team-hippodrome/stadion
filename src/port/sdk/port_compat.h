@@ -10,6 +10,14 @@
 void bcopy(const void* src, void* dst, int n);
 int bcmp(const void* a, const void* b, int n);
 void bzero(void* p, int n);
+#elif defined(__ANDROID__)
+// Android's C library (bionic) has no bcmp, and its bzero/bcopy macros only take object pointers (the decomp passes
+// function addresses too)
+#undef bzero
+#undef bcopy
+#define bcmp(a, b, n) memcmp((const void*)(a), (const void*)(b), (size_t)(n))
+#define bzero(p, n) memset((void*)(p), 0, (size_t)(n))
+#define bcopy(src, dst, n) memmove((void*)(dst), (const void*)(src), (size_t)(n))
 #endif
 #include <stdio.h>
 #include <stdarg.h>
@@ -147,6 +155,13 @@ s32 port_osEPiStartDma(OSPiHandle*, OSIoMesg*, s32);
 // The game's sound engine runs unless switched off (PORT_GAME_AUDIO=0, or replaying an input recording made before
 // the engine was ported: src/port/os_devices.cpp). Off, its entry points return at once as they did then.
 int Port_GameAudio(void);
+// A horizontal view half-angle (binary angle, 0x10000 = 360 degrees) widened for the picture's shape: unchanged at 4:3,
+// wider at 16:9 (src/port/Engine.cpp). For game checks of what the camera sees, which assume the N64's 4:3 picture.
+s16 Port_WidenViewAngle(s16 angle);
+// Full-screen 2D effects made for the 4:3 picture (the battle's strip wipe): the textured rectangles between these
+// markers are stretched over the whole width of a widescreen picture (libultraship patch, interpreter.cpp sWideRects).
+#define gDPPortWideRectsBegin(pkt) gDPNoOpTag3(pkt, 0x50, 0, 1)
+#define gDPPortWideRectsEnd(pkt) gDPNoOpTag3(pkt, 0x50, 0, 0)
 #define PORT_AUDIO_OFF() (!Port_GameAudio())
 // Audio interface: a virtual DMA FIFO in game time, played through SDL3 (src/port/audio_out.cpp)
 s32 port_osAiSetNextBuffer(void* buf, u32 size);

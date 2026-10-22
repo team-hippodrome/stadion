@@ -728,7 +728,7 @@ index 883360294ba05bc180fa8857710d4eb6f2cc5eaf..44e4326acf090b5cbf2cdf70733bc974
  #endif
      if (gSessionContext.mode != 8) {
 diff --git a/src/fragments/battle_engine/battle_engine_313D60.c b/src/fragments/battle_engine/battle_engine_313D60.c
-index e2dca54b8eb1b66ff3ea445e8ab7c41227284187..46698b70a6c1c869386c95d85f8e0e6a0f0eec09 100644
+index e2dca54b8eb1b66ff3ea445e8ab7c41227284187..97ee36abade5059bd9c69419057974221ea5a775 100644
 --- a/src/fragments/battle_engine/battle_engine_313D60.c
 +++ b/src/fragments/battle_engine/battle_engine_313D60.c
 @@ -1,3 +1,6 @@
@@ -772,7 +772,24 @@ index e2dca54b8eb1b66ff3ea445e8ab7c41227284187..46698b70a6c1c869386c95d85f8e0e6a
                  sBattleScene.unk_00->unk_30++;
              }
              break;
-@@ -685,7 +688,17 @@ void BattleScene_UpdateOwnerVisibilityDouble(CameraNode* arg0) {
+@@ -268,6 +271,8 @@ u16 BattleScene_IsOwnerInViewWedge(ActivePokemon* arg0, CameraNode* arg1, Active
+     f32 sp38;
+     s32 sp34 = 0;
+ 
++    // PORT: arg3 is the half-angle of the 4:3 picture; at 16:9 the sides show more (Port_WidenViewAngle)
++    arg3 = Port_WidenViewAngle(arg3);
+     BattleAnim_CalculateDistanceAngles(&arg1->view.targetPosition, &arg1->view.eyePosition, &sp48, &sp46, &sp44);
+     sp40 = (COSS((sp44 - 0x8000)) * 50.0f) + arg1->view.eyePosition.z;
+     sp38 = (SINS((sp44 - 0x8000)) * 30.0f) + arg1->view.eyePosition.x;
+@@ -309,6 +314,7 @@ u16 BattleScene_IsOwnerInViewWedgeAlt(ActivePokemon* arg0, CameraNode* arg1, Act
+     s32 sp5C;
+ 
+     sp5C = 0;
++    arg3 = Port_WidenViewAngle(arg3); // PORT: as in BattleScene_IsOwnerInViewWedge
+     BattleAnim_CalculateDistanceAngles(&arg1->view.targetPosition, &arg1->view.eyePosition, &sp70, &sp6E, &sp6C);
+     sp60.z = (COSS((sp6C - 0x8000)) * 30.0f) + arg1->view.eyePosition.z;
+     sp60.x = (SINS((sp6C - 0x8000)) * 30.0f) + arg1->view.eyePosition.x;
+@@ -685,7 +691,17 @@ void BattleScene_UpdateOwnerVisibilityDouble(CameraNode* arg0) {
      BattleScene_HideFaintedOwners();
  }
  
@@ -1284,6 +1301,26 @@ index cc7f3672f5521d94c2468cdc948e116e9d4e56f6..6b579012b868e37eb8c9449dd311a83a
      AuxiliaryEffectNode* var_s0;
      s32 i;
      MtxF sp78;
+diff --git a/src/fragments/battle_engine/battle_engine_3597B0.c b/src/fragments/battle_engine/battle_engine_3597B0.c
+index 72f76ae0837fbdc7a220bee2404e3f0ca3e4a2b2..3a2b90dc86869952f8b462402fb9b2343d8c6f72 100644
+--- a/src/fragments/battle_engine/battle_engine_3597B0.c
++++ b/src/fragments/battle_engine/battle_engine_3597B0.c
+@@ -136,6 +136,7 @@ Gfx* BattleScene_BuildStripWipeDisplayList(Gfx* arg0, s32 arg1) {
+     temp_v1 = (arg1 + 1) & 1;
+ 
+     gSPDisplayList(arg0++, D_8438ABE8);
++    gDPPortWideRectsBegin(arg0++); // PORT: the wipe covers a widescreen picture too
+     gDPLoadTextureBlock_4b(arg0++, D_8438AA68, G_IM_FMT_I, 12, 48, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+                            G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+     gDPPipeSync(arg0++);
+@@ -160,6 +161,7 @@ Gfx* BattleScene_BuildStripWipeDisplayList(Gfx* arg0, s32 arg1) {
+                                 -(1 << 6), 1 << 10);
+     }
+ 
++    gDPPortWideRectsEnd(arg0++);
+     gSPDisplayList(arg0++, D_8438AC30);
+ 
+     return arg0;
 diff --git a/src/fragments/battle_engine/battle_engine_359F90.c b/src/fragments/battle_engine/battle_engine_359F90.c
 index 0e7bc5cd90773cec5f63484943f1341ed40768eb..a8be6591922daec8a5f00392fde2423397b5bc54 100644
 --- a/src/fragments/battle_engine/battle_engine_359F90.c
@@ -1337,7 +1374,7 @@ index 2d35ee2a19e970aaf95a39c954d0ca2df22379e1..6091345938b61fcb8dda8141bbcf696c
  #include "moves.h"
  #include "src/text_system.h"
 diff --git a/src/fragments/battle_engine/battle_engine_361050.c b/src/fragments/battle_engine/battle_engine_361050.c
-index 1463c36f9d91811ef32fd53a4bad18102a7318ed..2c672edf6347122f0a972b02f3bb0d10979a3f5f 100644
+index 1463c36f9d91811ef32fd53a4bad18102a7318ed..d0ed865a218bd8064f8e2610c243292c632378fd 100644
 --- a/src/fragments/battle_engine/battle_engine_361050.c
 +++ b/src/fragments/battle_engine/battle_engine_361050.c
 @@ -66,10 +66,19 @@ static u8 D_8438B0D8[] = {
@@ -1362,6 +1399,15 @@ index 1463c36f9d91811ef32fd53a4bad18102a7318ed..2c672edf6347122f0a972b02f3bb0d10
  }
  
  void func_843767DC(void) {
+@@ -3443,7 +3452,7 @@ s32 BattleAI_SelectBestScoredMove(BattleAiMonState* arg0, UNUSED BattleAiMonStat
+     var_s4 = 0x80000002;
+     var_s5 = 0x80000002;
+     sp6C = 0;
+-    sp70 = ptr->unk_57 * 0;
++    sp70 = 0; // PORT: was ptr->unk_57 * 0 with ptr not yet set (a crash where the compiler keeps the load)
+ 
+     D_843C60C0[D_843C60E8].unk_02 = arg2;
+ 
 @@ -3525,7 +3534,7 @@ u16 BattleAI_ComputeDifficultyThreshold(u8 arg0, u8 arg1) {
  }
  

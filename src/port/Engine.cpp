@@ -1,4 +1,5 @@
 #include "Engine.h"
+#include "touch_controls.h"
 #include "pacing.h"
 
 #include <libultraship/libultraship.h>
@@ -171,6 +172,13 @@ bool Init() {
     // ImGui windows (tooltips, menus) stay inside the game window: with multi-viewports on, one that reached past its
     // edge became an OS window of its own, and the Metal backend crashed creating it (the launcher's wide tooltips)
     cvars->SetInteger("gEnableMultiViewports", 0);
+#if defined(__ANDROID__)
+    // Android: always fullscreen. A plain SDL window leaves the status and navigation bars over the picture; a
+    // fullscreen one puts the activity in immersive mode (SDLActivity). Windowed fullscreen: the display keeps its
+    // mode (an exclusive mode would ask the system for a display mode switch).
+    config->SetBool("Window.Fullscreen.Enabled", true);
+    cvars->SetInteger("gSdlWindowedFullscreen", 1);
+#endif
 
     sWindow = std::make_shared<Fast::Fast3dWindow>(std::vector<std::shared_ptr<Ship::GuiWindow>>({}), config, cvars);
 
@@ -183,6 +191,7 @@ bool Init() {
     ResourceSetResourceManager(resourceManager);
 
     MigrateControls(cvars);
+    ApplyAspect();
     auto controlDeck = std::make_shared<LUS::ControlDeck>(std::vector<CONTROLLERBUTTONS_T>(), DefaultMappings(),
                                                           std::unordered_map<CONTROLLERBUTTONS_T, std::string>({
                                                               { BTN_A, "A" },
@@ -206,6 +215,22 @@ bool Init() {
 
     // Placeholder archive: libultraship's GUI needs a ResourceManager with at least one archive.
     // Game data is still read straight from the ROM at this milestone.
+#if defined(__ANDROID__)
+    // the archive ships as an app asset (android/app/build.gradle), which libzip cannot open in place: copy it to the
+    // app's files on every start (a fraction of a megabyte, and always the version that came with the app)
+    if (SDL_IOStream* in = SDL_IOFromFile("pokestadium.o2r", "rb")) {
+        std::string dst = Ship::Context::GetPathRelativeToAppDirectory("pokestadium.o2r");
+        if (SDL_IOStream* out = SDL_IOFromFile(dst.c_str(), "wb")) {
+            char chunk[65536];
+            size_t n;
+            while ((n = SDL_ReadIO(in, chunk, sizeof chunk)) > 0) {
+                SDL_WriteIO(out, chunk, n);
+            }
+            SDL_CloseIO(out);
+        }
+        SDL_CloseIO(in);
+    }
+#endif
     try {
         nlohmann::json rmArgs;
         rmArgs["archivePaths"] = std::vector<std::string>{ Ship::Context::LocateFileAcrossAppDirs("pokestadium.o2r") };
@@ -531,6 +556,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
     gPortDrawLog = sCaptureFrame != 0 && drawLog; // debug: list the draw states of the captured frame
     static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
     auto drawStart = std::chrono::steady_clock::now();
+    Port_BeforePresent();
     sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), replacements);
     Port_PacingNote(PORT_PACE_DRAWN, Port_SteadyNs());
     if (tracePacing) { // PORT_TRACE_PACING=1: presented frames more than 40 ms apart, and slow draws (os_devices.cpp)
@@ -607,9 +633,49 @@ bool PumpFrame() {
             if (pads[0].button != last) fprintf(stderr, "[pad] button 0x%04x\n", pads[0].button);
             last = pads[0].button;
         }
+        Port_TouchControlsApply(&pads[0], sWindow->GetGui().get()); // the on-screen controller (touch_controls.cpp)
         PublishPads(pads);
     }
     return true;
+}
+
+// The game picture's shape: 4:3 (the N64's) or 16:9 (the 3D scenes show more at the sides); the rest of the window gets
+// black bars (libultraship's fixed-aspect resolution settings), so only these two shapes need to look right.
+// gPort.Aspect is the launcher's Screen option (0 = 4:3, 1 = 16:9; 16:9 by default on Android, whose screens are wide);
+// PORT_ASPECT=4:3 or 16:9 overrides it (tests).
+int AspectSetting() {
+    if (const char* e = getenv("PORT_ASPECT")) {
+        return strcmp(e, "16:9") == 0 ? 1 : 0;
+    }
+#if defined(__ANDROID__)
+    return CVarGetInteger("gPort.Aspect", 1) != 0 ? 1 : 0;
+#else
+    return CVarGetInteger("gPort.Aspect", 0) != 0 ? 1 : 0;
+#endif
+}
+
+} // namespace Port
+
+// Port_WidenViewAngle (src/port/sdk/port_compat.h): the half-angle whose tangent is the 4:3 one's times the width ratio
+extern "C" s16 Port_WidenViewAngle(s16 angle) {
+    if (Port::AspectSetting() != 1) {
+        return angle;
+    }
+    const double kBinToRad = 3.14159265358979323846 / 32768.0;
+    const double widened = atan(tan(angle * kBinToRad) * ((16.0 / 9.0) / (4.0 / 3.0)));
+    return (s16)lround(widened / kBinToRad);
+}
+
+namespace Port {
+
+void ApplyAspect() {
+    const bool wide = AspectSetting() == 1;
+    CVarSetInteger("gAdvancedResolution.Enabled", 1);
+    CVarSetFloat("gAdvancedResolution.AspectRatioX", wide ? 16.0f : 4.0f);
+    CVarSetFloat("gAdvancedResolution.AspectRatioY", wide ? 9.0f : 3.0f);
+    CVarSetInteger("gAdvancedResolution.VerticalResolutionToggle", 0); // the window's resolution
+    CVarSetInteger("gAdvancedResolution.PixelPerfectMode", 0);
+    CVarSetInteger("gAdvancedResolution.IgnoreAspectCorrection", 0);
 }
 
 std::string AppPath(const char* name) {

@@ -80,6 +80,21 @@ For Windows on ARM: `MINGW_TRIPLE=aarch64-w64-mingw32` and the `arm64-mingw-stat
 window-only program (no console window; see Run for its log output) with the icon and version information of
 `src/port/pokestadium.rc.in`.
 
+**Android** (64-bit ARM, Android 10 or newer; tested target: AYN Thor). Needs JDK 17 or 21, the Android SDK with NDK
+29.0.14206865, platform 36 and build-tools 36 (`sdkmanager "platforms;android-36" "build-tools;36.0.0"
+"ndk;29.0.14206865"`), CMake and Ninja. `android/local.properties` names the SDK and the CMake to use (`sdk.dir=...`,
+`cmake.dir=/opt/homebrew` with Homebrew's CMake):
+
+```bash
+cd android && ./gradlew assembleDebug    # app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+The app is `android/` (SDL's Java activity, from the SDL version libultraship fetches) around the game built from
+`CMakeLists.txt` as `libmain.so`, with the OpenGL ES 3 renderer. Config, logs and saves live in the app's folder,
+`/sdcard/Android/data/com.teamhippodrome.pokestadium/files`; files picked in the launcher (ROMs, saves) are copied into
+its `imported/` folder, since Android's file picker hands out content links rather than paths.
+
 The version (Windows file version, AppImage, `Info.plist`) is the `project()` version in `CMakeLists.txt` unless
 `-DPORT_VERSION=<version>` says otherwise. `.github/workflows/build.yml` builds Linux, macOS and Windows (x64, arm64);
 `.github/workflows/release.yml` builds them with the version it is given, tags the commit `v<version>` and `latest`,
@@ -88,7 +103,9 @@ and publishes a GitHub release. Both run by hand from the Actions tab.
 Start `pokestadium` (`pokestadium.exe` on Windows) without arguments to get the launcher (all platforms): pick the
 Stadium ROM and save and, per player, a Game Boy cartridge and save for the Transfer Pak, then PLAY. The choices are
 remembered (`pokestadium.cfg.json`); Auto-play skips the launcher next time (hold Shift while starting to see it again),
-and Debug adds a save-editor button (needs python3). With a ROM path as argument the game starts right away:
+and Debug adds a save-editor button (needs python3). Screen picks the picture's shape, 4:3 (the N64's) or 16:9
+(widescreen: 3D scenes show more at the sides); a window of another shape gets black bars (`PORT_ASPECT=4:3|16:9`
+overrides it). With a ROM path as argument the game starts right away:
 `cd build && ./pokestadium "/path/to/Pokemon Stadium (USA).z64"`.
 Useful environment variables (all in PORTING_NOTES.md): `PORT_FLASH_FILE` (Stadium save), `PORT_GB_ROM` /
 `PORT_GB_SAVE` (Transfer Pak cartridge of player 1; `PORT_GB_ROM2..4` for the others), `PORT_SOUND=0` (no sound
@@ -118,7 +135,8 @@ per player with the launcher's Controls button:
 - `libultraship/` — submodule; the port's renderer changes are in `patches/libultraship.patch`
 - `ghostship-ref/` — submodule (fonts used by `tools/make_o2r.py`)
 - `tools/` — launcher, save editor, ares comparison tooling (`tools/tour.py`), replay helpers
-  (`tools/run_replays.py` plays all stored recordings without showing the window and reports which still pass)
+  (`tools/run_replays.py` plays all stored recordings without showing the window and reports which still pass;
+  `tools/frame_sweep.py` captures a stretch of the game at 5 pictures per second, skipping repeats, as contact sheets)
 - `replays/` — input recordings used as regression tests
 - `PORTING_NOTES.md` — what was done, how it was checked against ares, debug switches
 

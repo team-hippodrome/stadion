@@ -55,6 +55,22 @@ index 80a157ff3738fd0ea8465aa09f36571e37d968c6..eb0385d466bb9a93402555b9cb81dc6f
  
      Save_EnsureBankLoaded(2);
      Save_GetModeSettings(&D_86B0EBB8, 0);
+diff --git a/src/fragments/demo_scenes/demo_scenes_161000.c b/src/fragments/demo_scenes/demo_scenes_161000.c
+index 574e5344dffe380896da6ed6baed5eb9d53255ad..99891e0431ca5b802908c704422ffd448e34c060 100644
+--- a/src/fragments/demo_scenes/demo_scenes_161000.c
++++ b/src/fragments/demo_scenes/demo_scenes_161000.c
+@@ -20,6 +20,11 @@ u16 Diorama_IsModelInCameraCone(CameraNode* arg0, DisplayObject* arg1, s16 arg2,
+     f32 sp38;
+     s32 sp34 = 0;
+ 
++    // PORT: arg2/arg3 are the camera's left/right half-angles for the 4:3 picture; at 16:9 the screen shows more at
++    // the sides, and the intro's line-up hid a Pokémon (Kabutops, Scyther) while it was still in view there
++    arg2 = Port_WidenViewAngle(arg2);
++    arg3 = Port_WidenViewAngle(arg3);
++
+     Vec3f_CalculateDistanceAngles(&arg0->view.targetPosition, &arg0->view.eyePosition, &sp48, &sp46, &sp44);
+     sp40 = (COSS(sp44 + 0x8000) * arg5) + arg0->view.eyePosition.z;
+     sp38 = (SINS(sp44 + 0x8000) * arg5) + arg0->view.eyePosition.x;
 diff --git a/src/fragments/demo_scenes/demo_scenes_161590.c b/src/fragments/demo_scenes/demo_scenes_161590.c
 index 7f6d1b423905dea2d06a918fe100462f56bbdd6a..52c1826ceb5dc681777e2a92c347bc6d42319306 100644
 --- a/src/fragments/demo_scenes/demo_scenes_161590.c

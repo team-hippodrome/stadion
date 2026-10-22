@@ -1,0 +1,21 @@
+diff --git a/src/fragments/title_screen/title_screen.c b/src/fragments/title_screen/title_screen.c
+index f702297d5f983a370bd798eda772d4fcd8de07fd..0e82f535f7ee94c69a3656b33e314c0d38317b0d 100644
+--- a/src/fragments/title_screen/title_screen.c
++++ b/src/fragments/title_screen/title_screen.c
+@@ -233,12 +233,12 @@ void Title_PickDemoMatchup(u8* arg0) {
+     Session_SetupDemoBattle(arg0[0], arg0[1], Title_FindEligibleDemoEntry(temp_s0, arg0[2]), Title_FindEligibleDemoEntry(sp38, arg0[2]));
+ }
+ 
+-static u8 gTitleAttractDemoScenarios[2][4] = {
++// PORT: one array (the decomp splits it in two, D_82100E6C being rows 2-5): Title_StartAttractDemo indexes rows 0-5
++// through gTitleAttractDemoScenarios, which on the N64 run on into the second half; on a host the two need not be
++// adjacent (Android: the later attract rounds read past the end and loaded stadium file 23 of 18)
++static u8 gTitleAttractDemoScenarios[6][4] = {
+     { 4, 0, 1, 3 },
+     { 5, 0, 2, 9 },
+-};
+-
+-static u8 D_82100E6C[4][4] = {
+     { 3, 3, 4, 13 },
+     { 6, 3, 8, 3 },
+     { 7, 4, 16, 9 },

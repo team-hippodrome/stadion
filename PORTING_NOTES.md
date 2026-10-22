@@ -239,7 +239,9 @@ Known gaps: selecting a menu entry crashes on a direct cartridge address read (`
 `port_hw_reg`); menu cards are drawn duplicated/clipped (texture repeat of render-to-texture cards); model animation is
 stubbed (intro models look "exploded"); audio, Transfer Pak and GB Tower emulation are stubbed.
 
-Debug aids: `PORT_SCREENSHOT_DIR` (+ `PORT_SCREENSHOT_STUCK=secs`, `PORT_SCREENSHOT_NOSTOP`, `PORT_SCREENSHOT_ALL`, `PORT_SCREENSHOT_MAX_MB` (default 2048: no more changed frames past that size)),
+Debug aids: `PORT_SCREENSHOT_DIR` (+ `PORT_SCREENSHOT_STUCK=secs`, `PORT_SCREENSHOT_NOSTOP`, `PORT_SCREENSHOT_ALL`, `PORT_SCREENSHOT_MAX_MB` (default 2048: no more changed frames past that size)), `PORT_ASPECT=4:3|16:9` (the
+picture's shape, else the launcher's Screen option), `PORT_NO_BACKDROP_STRETCH=1` (2D backdrops stay 4:3 in widescreen), `PORT_NO_2D_LOCK=1` (2D screens are not kept
+inside the 4:3 area), `PORT_NO_2D_CLIP=1` (2D shapes in 3D scenes are not cut at the 4:3 sides),
 `tools/shot_run.sh <rom> [max secs]` (`STEP`, `KEEP` env; builds `build/shots/sheet.png`, deletes the PPMs, kills the
 game), `tools/run_for.sh`, `PORT_AUTOSTART=<ms>` (taps Start; `PORT_AUTOA` taps Start+A), `PORT_SPEED=<n>`,
 `PORT_TRACE_STATE`, `PORT_TEXLOG`, `PORT_TRILOG`, `PORT_MTXLOG`, `PORT_OPLOG`, `PORT_TRACE_JPEG`, `PORT_ALLOCLOG`,
@@ -1281,7 +1283,10 @@ other places (107 `gSPMatrix` sites), so the port blends the final matrices inst
   it arrives, as before, but as the first of k pictures, k = retraces since the previous game frame x refreshes per
   retrace (2 at 60 Hz for a 30 fps scene, 4 at 120 Hz), with t = 1/k; the others follow 1 ms after each later vblank
   (from the display clock, `Port_DisplayVblank`), the last one exactly as built. The picture is therefore one game
-  frame later than without (16.7 ms at 30 fps / 60 Hz), as in SoH. A new graphics task, a CPU-drawn frame, a frame
+  frame later than without (16.7 ms at 30 fps / 60 Hz), as in SoH. A frame more than 4 retraces after the previous
+  one (a hitch, or a fast run drawing every n-th frame) is not blended: over such a gap many of a model's matrices
+  turn past the 60-degree cut while the ones skinned to them still blend, and limbs stretch across the screen
+  (Clefairy in the title's fall, blended from 20 retraces back). A new graphics task, a CPU-drawn frame, a frame
   drawn for its state only, or a change of the game's segment/fragment maps (`Port_GfxFlushCache`: the scene unloads
   data the list uses) ends the series. libultraship's frame limiter follows the display's rate while interpolating.
 - **Only lists that repaint the screen** are drawn again (`Interpreter::FrameRepaintsScreen`: a full-screen fill

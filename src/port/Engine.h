@@ -27,6 +27,9 @@ void Shutdown();
 bool LoadRom(const char* path);
 // a file in the app's data folder (next to pokestadium.cfg.json: SHIP_HOME, e.g. the macOS app's Application Support)
 std::string AppPath(const char* name);
+// The game picture's shape (Engine.cpp): 0 = 4:3, 1 = 16:9. ApplyAspect hands it to the renderer.
+int AspectSetting();
+void ApplyAspect();
 // the game window (after Init), for the launcher
 std::shared_ptr<Fast::Fast3dWindow> GetWindow();
 // starts building the shader programs earlier runs drew, and records new ones (shader_warmup.cpp; after Init)
