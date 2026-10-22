@@ -620,14 +620,57 @@ def battle_state(own, opp, party, active):
 # A small Game Boy-rules simulation of the two Pokemon in battle: speed order, accuracy (hit and miss as separate
 # outcomes), trapping moves, two-turn moves and Hyper Beam's recharge, sleep, paralysis, poison, healing, draining,
 # recoil, Explosion and stat changes. Each of our options is played against each of the opponent's moves for
-# LOOKAHEAD_DEPTH turns; the opponent is assumed to answer well (OPP_BEST of the worst case for us, the rest the
-# average). Damage is the average roll; critical hits, confusion and secondary effects are left out.
+# LOOKAHEAD_DEPTH turns; the opponent answers as the computer would, with some weight on the worst case for us
+# (opp_answer). Damage is the average roll; critical hits, confusion and secondary effects are left out.
 LOOKAHEAD_DEPTH = 3  # turns (--lookahead; 0: the one-turn estimate alone)
 # gym leaders and the Elite Four decide a castle run (trainers 87% won, leaders 74%; Lt. Surge 17%): their battles
 # get a deeper lookahead (--leader-lookahead; up to about 2 s a decision instead of 0.1-0.5; 5 turns took up to 7 s,
 # too slow with five games sharing the bot)
 LEADER_DEPTH = 4
 OPP_BEST = 0.6
+# The castle's computer opponent scores each move one turn ahead and takes the best, now and then the second best
+# (battle_engine_361050.c: BattleAI_BuildMoveCandidateScores, BattleAI_SelectBestScoredMove): mainly the damage as a
+# share of our HP, a knock-out counting most, times its hit chance, and a lesser value for a status move. The rest
+# of the weight (1 - AI_SHARE) is on the worse for us of its two best. An even average over its moves had counted Slowbro's
+# Amnesia like its Surf: Articuno at 32 HP charged Sky Attack against the turn Slowbro might waste, and fainted to
+# the Surf without having hit.
+AI_SHARE = 0.7      # of the weight on the move the computer would pick (the rest: the worse of its two best)
+AI_SECOND = 0.2     # of that, on its second best
+
+
+def ai_scores(opp, own, moves):
+    """the computer's rough score of each of its moves against own (BattleAI_* above): damage share of own's HP,
+    a knock-out 1, times the hit chance; a status move that can still take hold 0.35, a stat boost 0.2"""
+    out = []
+    for mid in moves:
+        d = MOVEDATA.get(mid)
+        if mid is None or d is None:
+            out.append(0.0)
+            continue
+        if d["power"] > 0 or MOVES.get(mid) in ("Night Shade", "Seismic Toss"):
+            share = min(1.0, damage(opp, own, mid) / max(1.0, own["hp"]))
+            if d["effect"] in (CHARGE, FLY, HYPER_BEAM):
+                share *= 0.5
+            out.append(share * hit_chance(opp, own, mid))
+        elif d["effect"] in (SLEEP, PARALYZE, POISON) and not (own["sleep"] or own["para"] or own["psn"]):
+            out.append(0.35 * hit_chance(opp, own, mid))
+        elif d["effect"] == HEAL and opp["hp"] < opp["max_hp"] / 2:
+            out.append(0.5)
+        else:
+            out.append(0.2 if MOVES.get(mid) in STAT_CHANGE else 0.05)
+    return out
+
+
+def opp_answer(results, scores=None):
+    """our value when the opponent answers (results: our value after each of its moves; scores: the computer's
+    score of each): AI_SHARE on the move it would pick (its second best now and then), the rest the worst for us"""
+    if not scores or len(results) == 1:
+        return OPP_BEST * min(results) + (1 - OPP_BEST) * sum(results) / len(results)
+    order = sorted(range(len(results)), key=lambda i: -scores[i])
+    picked = (1 - AI_SECOND) * results[order[0]] + AI_SECOND * results[order[1]]
+    # the caution: the worse of the two it would pick, not of all its moves (Slowbro's Amnesia, which it scores far
+    # below the Surf that knocks Articuno out, kept a Sky Attack nearly level with Ice Beam)
+    return AI_SHARE * picked + (1 - AI_SHARE) * min(results[order[0]], results[order[1]])
 DRAIN, RECOIL = 3, 48
 STAT_CHANGE = {"Agility": (0, "spd", 2.0), "Amnesia": (0, "spc", 2.0), "Swords Dance": (0, "atk", 2.0),
                "Barrier": (0, "def", 2.0), "Acid Armor": (0, "def", 2.0), "Reflect": (0, "def", 2.0),
@@ -920,7 +963,8 @@ def sim_value(own0, opp0, own, opp, depth, own_mid, cache=None, bench=(), opp_be
     if key in cache:
         return cache[key]
     results = []
-    for k in opp_moves(opp, own):
+    ks = opp_moves(opp, own)
+    for k in ks:
         total = 0.0
         for p, o, x in sim_turn(own, opp, own_mid, k):
             if o["hp"] <= 0 and x["hp"] > 0 and depth > 1 and bench:
@@ -934,7 +978,7 @@ def sim_value(own0, opp0, own, opp, depth, own_mid, cache=None, bench=(), opp_be
                 nxt = [o["charge"]] if o["charge"] else [mid for mid, _ in o["moves"]]
                 total += p * max(sim_value(own0, opp0, o, x, depth - 1, mid, cache, bench, opp_bench) for mid in nxt)
         results.append(total)
-    cache[key] = OPP_BEST * min(results) + (1 - OPP_BEST) * sum(results) / len(results)
+    cache[key] = opp_answer(results, ai_scores(opp, own, ks))
     return cache[key]
 
 
@@ -956,7 +1000,8 @@ def lookahead_values(own, opp, actions, bench, depth=None, opp_bench=()):
             others = tuple(b for b in rest if b["species"] != what["species"]) + (o,)
             results, sub = [], {"plan": cache["plan"]}
             d = min(depth, 2 if depth <= 3 else 3)  # a switch is looked at less far: there are many of them
-            for k in opp_moves(x, n):
+            ks = opp_moves(x, n)
+            for k in ks:
                 total = 0.0
                 for p, a, b in sim_turn(n, x, None, k):
                     if a["hp"] <= 0 and b["hp"] > 0 and d > 1:
@@ -966,7 +1011,7 @@ def lookahead_values(own, opp, actions, bench, depth=None, opp_bench=()):
                     else:
                         total += p * max(sim_value(n, x, a, b, d - 1, mid, sub, others, their) for mid, _ in a["moves"])
                 results.append(total)
-            values.append(OPP_BEST * min(results) + (1 - OPP_BEST) * sum(results) / len(results))
+            values.append(opp_answer(results, ai_scores(x, n, ks)))
     return values
 
 
