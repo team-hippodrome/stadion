@@ -1122,6 +1122,16 @@ def play_turn(game, brain, status, choice):
         # when the lookahead saw no difference between its moves)
         values = [v - 15.0 if kind == "move" and MOVEDATA.get(own["moves"][i][0], {}).get("power", 0) > 0 and
                   damage(own, opp, own["moves"][i][0]) <= 0 else v for v, (kind, i) in zip(values, actions)]
+        # a sure knock-out is taken: faster, 90%+ to hit, no charge turn, enough even on a low roll. Within the
+        # lookahead, knocking out a Tangela at 1 HP let a Raichu in that beat Articuno, so Mimic or a switch looked
+        # better; it only put Raichu off, while Tangela kept its turns (Sleep Powder, Body Slam).
+        sure = [k for k, (kind, i) in enumerate(actions) if kind == "move" and faster(own, opp) and
+                MOVEDATA.get(own["moves"][i][0], {}).get("effect") not in (CHARGE, FLY, EXPLODE) and
+                hit_chance(own, opp, own["moves"][i][0]) >= 0.9 and
+                damage(own, opp, own["moves"][i][0]) / crit_factor(own, own["moves"][i][0]) * 217 / 236 >= opp["hp"]]
+        if sure:
+            k = max(sure, key=lambda k: values[k])
+            values[k] = max(values[k], max(values) + 1.0)
     st = lambda m: "" if m["status"] == 0 else " status %#x" % m["status"]
     status.trace("%s %d/%d%s spd %d flags %02x/%02x vs %s %d/%d%s spd %d flags %02x/%02x (moves %s) | %s" % (
         own["species"], own["hp"], own["max_hp"], st(own), own["spd"], own["flags"][0], own["flags"][1], opp["species"],
