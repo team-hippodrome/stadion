@@ -75,11 +75,16 @@ static struct {
     int hdmaLeft; // HBlank DMA: 16-byte blocks still to copy (0: idle)
     u8 bgAttr[160];
     u16 color[144][160]; // BGR555 per pixel
+    u16 shown[144][160]; // the picture handed to the presentation (kept while the screen is masked)
+    int shownLcdOn;
     u32 frameCycles; // CPU cycles since the frame started (time stamp for the tower's sound mixer)
     int trnCmd, trnFrames;
     u8 trnArg;
-    // the N64 emulator's "border shown" flag (context 0x5404): a CHR_TRN/PCT_TRN packet, then MASK_EN back to 0
-    u8 maskEn, maskEnSeen, borderTrn;
+    // MASK_EN as the N64 emulator keeps it: maskEn is the last value sent (context 0x5402), maskShown the one in effect
+    // (0x5401: copied at each frame end, 4 frames late after a cancel, unmaskDelay = 0x5DD2). While maskShown is set
+    // the emulator does not hand the frame to its RSP task, so the last picture stays (Game Boy Color too).
+    // The "border shown" flag (context 0x5404): a CHR_TRN/PCT_TRN packet, then the mask back to 0.
+    u8 maskEn, maskShown, unmaskDelay, borderTrn;
     int frameDone;
     int initialised;
 } G;
@@ -333,6 +338,10 @@ static void WriteIo(u16 a, u8 v) {
             return;
         case 0x68: G.bcps = v & 0xBF; return;
         case 0x69:
+            // as the N64 emulator: with a Pokémon cartridge (variant set) BG palette writes are ignored while MASK_EN is
+            // on. Yellow converts its palettes through a null pointer during its border transfer (colour 0x00FF from
+            // ROM 0x0000, a red-orange screen); these writes never reach the tower's screen.
+            if (*EMU_FIELD(gEmu, OFF_VARIANT) != 0 && G.maskEn) return;
             G.bgPal[G.bcps & 0x3F] = v;
             if (G.bcps & 0x80) G.bcps = (u8)(0x80 | ((G.bcps + 1) & 0x3F));
             return;
@@ -558,6 +567,8 @@ static void SgbCommand(void) {
             }
             if (d[9] & 0x40) {
                 G.sgbMask = 0;
+                G.maskEn = 0;
+                G.unmaskDelay = 4;
             }
             break;
         }
@@ -574,11 +585,16 @@ static void SgbCommand(void) {
             break;
         case 0x16: // ATTR_SET
             SgbAttrSet(d[1] & 0x3F);
-            if (d[1] & 0x40) G.sgbMask = 0;
+            if (d[1] & 0x40) {
+                G.sgbMask = 0;
+                G.maskEn = 0;
+                G.unmaskDelay = 4;
+            }
             break;
         case 0x17: // MASK_EN
             G.sgbMask = d[1] & 3;
             G.maskEn = d[1] & 3;
+            G.unmaskDelay = G.maskEn ? 0 : 4;
             if (G.sgbMask == 1) memcpy(G.frozen, G.shades, sizeof(G.frozen));
             break;
         default:
@@ -1206,8 +1222,10 @@ static void Reset(void* emu) {
     G.cgb = (G.rom[0x143] & 0x80) != 0 && !getenv("PORT_GB_NO_CGB");
     if (G.cgb) { // Game Boy Color after its boot ROM (A = 0x11 tells the game); palettes start white
         G.a = 0x11; G.f = 0x80; G.b = 0x00; G.c = 0x00; G.d = 0xFF; G.e = 0x56; G.h = 0x00; G.l = 0x0D;
-        memset(G.bgPal, 0xFF, sizeof(G.bgPal));
-        memset(G.objPal, 0xFF, sizeof(G.objPal));
+        for (int i = 0; i < 64; i += 8) { // as the N64 emulator: colours 0-1 white, 2-3 black in every palette
+            memcpy(&G.bgPal[i], "\xFF\x7F\xFF\x7F", 4);
+            memcpy(&G.objPal[i], "\xFF\x7F\xFF\x7F", 4);
+        }
         G.svbk = 1;
     } else { // Super Game Boy after its boot ROM
         G.a = 0x01; G.f = 0x00; G.b = 0x00; G.c = 0x14; G.d = 0x00; G.e = 0x00; G.h = 0xC0; G.l = 0x60;
@@ -1262,11 +1280,21 @@ int GbCpu_Execute(void* emu, int cycles) {
     if (G.trnFrames && --G.trnFrames == 0) {
         SgbTransfer(G.trnCmd, G.trnArg);
     }
-    // as the N64 emulator's frame end (gb_tower_emulator_code_asm.s, 0x8120A010): when MASK_EN changed to 0 after a
-    // border transfer, raise context byte 0x5404; the GB Tower then starts its frame switching (slide from the Game Boy
-    // frame to the game's own border, Z cycles the Doduo/Dodrio layouts: gb_tower_emulator_7F9A0.c, D_8122C4E3)
-    if (G.maskEn != G.maskEnSeen) {
-        G.maskEnSeen = G.maskEn;
+    // the frame goes to the presentation unless the screen is masked (the N64 emulator skips its VBlank hand-over to the
+    // RSP task while context 0x5401 is set, 0x8120B0C4): games mask the screen while they load their border through
+    // VRAM, so the transfer's tiles are never shown
+    if (!G.maskShown) {
+        memcpy(G.shown, G.color, sizeof(G.shown));
+        G.shownLcdOn = (G.io[0x40] & 0x80) != 0;
+    }
+    // as the N64 emulator's frame end (gb_tower_emulator_code_asm.s, 0x8120A010): the mask in effect follows MASK_EN,
+    // after a cancel 4 frames late. When it changed to 0 after a border transfer, raise context byte 0x5404; the GB
+    // Tower then starts its frame switching (slide from the Game Boy frame to the game's own border, Z cycles the
+    // Doduo/Dodrio layouts: gb_tower_emulator_7F9A0.c, D_8122C4E3)
+    if (G.unmaskDelay) {
+        G.unmaskDelay--;
+    } else if (G.maskEn != G.maskShown) {
+        G.maskShown = G.maskEn;
         if (G.maskEn == 0 && G.borderTrn) {
             *EMU_FIELD(emu, OFF_BORDER_SHOWN) = 1;
             G.borderTrn = 0;
@@ -1330,7 +1358,7 @@ void Port_GbPresent(void* frameBuffer, const void* statusStrip, const void* fram
                 }
             }
             if (inGb && !borderDrawn && G.cgb) {
-                c = (G.io[0x40] & 0x80) ? Rgba5551(G.color[gy][gx]) : 0xFFFF;
+                c = G.shownLcdOn ? Rgba5551(G.shown[gy][gx]) : 0xFFFF;
             } else if (inGb && !borderDrawn) {
                 if (G.sgbMask == 2) {
                     c = 0x0001;

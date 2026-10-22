@@ -599,6 +599,13 @@ Fixes found this way:
   then 256x224 indices; Game Boy device / Stadium borders) is drawn. SGB *_TRN transfers sample VRAM one frame later.
 - The status strip sits at line 208 (ares), not 212. Checked against ares on the same save: border, colours and layout
   match (remaining per-pixel differences: a one-pixel fringe from horizontal resampling).
+- Screen mask (MASK_EN) on a Game Boy Color: Yellow showed ~30 red-orange frames with stray tiles before the copyright
+  screen (ares: white). Yellow masks the screen (GB frames 62-128) while it sends its border through VRAM, and in
+  between converts its palettes through a still-null base pointer (WRAM 0xDEE6), i.e. from ROM 0x0000: colour 0x00FF.
+  The N64 emulator hides all of that: with a Pokémon cartridge it ignores BG palette writes (0xFF69) while MASK_EN is
+  set (context 0x5402), and while the mask is in effect (0x5401, updated at frame end, 4 frames late after a cancel)
+  it does not hand the frame to its RSP task, so the last picture stays. Its CGB palettes start as white, white,
+  black, black. The core now does the same (gb_core.c: maskShown, shown[]).
 - Verified (German Yellow, gb/yellow_de.gb): Game Pak check shows the save's trainer; tower boots with the border
   and Game Freak intro; the core matches ares on the same save (pixel-identical garbage map from a broken save,
   which is how the save generator bug was found); new game through Oak's intro and naming, in-game SAVE written back

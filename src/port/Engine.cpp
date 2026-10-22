@@ -41,6 +41,7 @@ extern "C" bool Port_Lockstep();
 extern "C" uint64_t Port_ViTick();
 extern "C" bool Port_FreezeCheckEnabled();
 extern "C" void Port_NotePictureHash(uint64_t hash);
+extern "C" void Port_GfxFrameDone(void);
 
 // PORT_STOP_AT: the frame to save regardless of the change detection (as stop_<frame>.ppm).
 static uint64_t sCaptureFrame = 0;
@@ -371,7 +372,8 @@ static void MaybeScreenshot() {
     if (hsh == lastHash && !all) {
         // Picture unchanged (black or stuck) for ~6 s: the capture run has nothing more to show, so end it.
         static int stuckFrames = getenv("PORT_SCREENSHOT_STUCK") ? atoi(getenv("PORT_SCREENSHOT_STUCK")) * 60 : 360;
-        if (frame - lastChange > stuckFrames && !getenv("PORT_SCREENSHOT_NOSTOP")) {
+        static const bool noStop = getenv("PORT_SCREENSHOT_NOSTOP") != nullptr;
+        if (frame - lastChange > stuckFrames && !noStop) {
             fprintf(stderr, "[shot] screen unchanged since frame %d, stopping\n", lastChange);
             fflush(stderr);
             _exit(0);
@@ -495,7 +497,8 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         UpdateFpsTitle();
         return true;
     }
-    if (getenv("PORT_VALIDATE_DL")) ValidateList(static_cast<Gfx*>(gfxCommands), 0, "frame");
+    static const bool validateDL = getenv("PORT_VALIDATE_DL") != nullptr;
+    if (validateDL) ValidateList(static_cast<Gfx*>(gfxCommands), 0, "frame");
     if (!WindowIsRunning()) {
         return false;
     }
@@ -526,6 +529,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
     }
     if (!sWindow->IsFrameReady()) {
         if (!TrackFrame(gfxCommands)) {
+            Port_GfxFrameDone();
             return true;
         }
     }
@@ -540,7 +544,8 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         if (Port_DisplayVblank(&period, &vblank) && period > 1000000) targetFps = (int)(1e9 / period) + 8;
     }
     sWindow->SetTargetFps(targetFps);
-    gPortDrawLog = sCaptureFrame != 0 && getenv("PORT_DRAWLOG") != nullptr; // debug: list the draw states of the captured frame
+    static const bool drawLog = getenv("PORT_DRAWLOG") != nullptr;
+    gPortDrawLog = sCaptureFrame != 0 && drawLog; // debug: list the draw states of the captured frame
     static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
     auto drawStart = std::chrono::steady_clock::now();
     sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), replacements);
@@ -557,6 +562,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         lastPresent = now;
     }
     gPortDrawLog = false;
+    Port_GfxFrameDone();
     MaybeScreenshot();
     UpdateFpsTitle();
     return true;
@@ -589,11 +595,13 @@ bool PumpFrame() {
             static auto t0 = std::chrono::steady_clock::now();
             long ms = (long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
             long period = atol(autoStart) > 0 ? atol(autoStart) : 5000;
-            if (ms > 8000 && (ms % period) < 150) pads[0].button |= getenv("PORT_AUTOA") ? (CONT_A | CONT_START) : CONT_START;
+            static const bool autoA = getenv("PORT_AUTOA") != nullptr;
+            if (ms > 8000 && (ms % period) < 150) pads[0].button |= autoA ? (CONT_A | CONT_START) : CONT_START;
         }
         // Debug aid: PORT_KEYTEST=1 pushes real SDL key events (arrows = C-buttons, X = A) through the window's event
         // queue every second, to check the keyboard path end to end; PORT_TRACE_PADS=1 logs pad state changes.
-        if (getenv("PORT_KEYTEST")) {
+        static const bool keyTest = getenv("PORT_KEYTEST") != nullptr;
+        if (keyTest) {
             static int n = 0;
             static const SDL_Scancode keys[] = { SDL_SCANCODE_UP, SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT, SDL_SCANCODE_DOWN, SDL_SCANCODE_X };
             int phase = n++ % 120;
@@ -610,7 +618,8 @@ bool PumpFrame() {
                 SDL_PushEvent(&ev);
             }
         }
-        if (getenv("PORT_TRACE_PADS")) {
+        static const bool tracePads = getenv("PORT_TRACE_PADS") != nullptr;
+        if (tracePads) {
             static uint32_t last = 0;
             if (pads[0].button != last) fprintf(stderr, "[pad] button 0x%04x\n", pads[0].button);
             last = pads[0].button;
