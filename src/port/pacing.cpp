@@ -1,5 +1,6 @@
 // Frame pacing helpers: which display the window is on, and the PORT_TRACE_PACING statistics.
-// The display's refresh clock itself is platform code (pacing_mac.mm; other platforms do not report it yet).
+// The display's refresh clock itself is platform code (pacing_mac.mm, pacing_android.cpp; other platforms do not report
+// it yet).
 #include "pacing.h"
 
 #include <SDL3/SDL.h>
@@ -22,7 +23,7 @@ extern "C" int64_t Port_SteadyNs(void) {
 
 #if defined(__APPLE__)
 void Port_MacFollowDisplay(double x, double y); // pacing_mac.mm: the display at that global point (points)
-#else
+#elif !defined(__ANDROID__)
 extern "C" bool Port_DisplayVblank(int64_t*, int64_t*) {
     return false;
 }
