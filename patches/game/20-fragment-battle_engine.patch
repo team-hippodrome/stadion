@@ -1374,7 +1374,7 @@ index 2d35ee2a19e970aaf95a39c954d0ca2df22379e1..6091345938b61fcb8dda8141bbcf696c
  #include "moves.h"
  #include "src/text_system.h"
 diff --git a/src/fragments/battle_engine/battle_engine_361050.c b/src/fragments/battle_engine/battle_engine_361050.c
-index 1463c36f9d91811ef32fd53a4bad18102a7318ed..2c672edf6347122f0a972b02f3bb0d10979a3f5f 100644
+index 1463c36f9d91811ef32fd53a4bad18102a7318ed..d0ed865a218bd8064f8e2610c243292c632378fd 100644
 --- a/src/fragments/battle_engine/battle_engine_361050.c
 +++ b/src/fragments/battle_engine/battle_engine_361050.c
 @@ -66,10 +66,19 @@ static u8 D_8438B0D8[] = {
@@ -1399,6 +1399,15 @@ index 1463c36f9d91811ef32fd53a4bad18102a7318ed..2c672edf6347122f0a972b02f3bb0d10
  }
  
  void func_843767DC(void) {
+@@ -3443,7 +3452,7 @@ s32 BattleAI_SelectBestScoredMove(BattleAiMonState* arg0, UNUSED BattleAiMonStat
+     var_s4 = 0x80000002;
+     var_s5 = 0x80000002;
+     sp6C = 0;
+-    sp70 = ptr->unk_57 * 0;
++    sp70 = 0; // PORT: was ptr->unk_57 * 0 with ptr not yet set (a crash where the compiler keeps the load)
+ 
+     D_843C60C0[D_843C60E8].unk_02 = arg2;
+ 
 @@ -3525,7 +3534,7 @@ u16 BattleAI_ComputeDifficultyThreshold(u8 arg0, u8 arg1) {
  }
  
