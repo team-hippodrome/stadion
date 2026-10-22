@@ -640,7 +640,8 @@ AI_SECOND = 0.2     # of that, on its second best
 
 def ai_scores(opp, own, moves):
     """the computer's rough score of each of its moves against own (BattleAI_* above): damage share of own's HP,
-    a knock-out 1, times the hit chance; a status move that can still take hold 0.35, a stat boost 0.2"""
+    a knock-out 1, times the hit chance (Explosion less the user's own HP); a status move that can still take hold
+    0.35, confusion or Leech Seed 0.3, a stat boost 0.2"""
     out = []
     for mid in moves:
         d = MOVEDATA.get(mid)
@@ -651,9 +652,13 @@ def ai_scores(opp, own, moves):
             share = min(1.0, damage(opp, own, mid) / max(1.0, own["hp"]))
             if d["effect"] in (CHARGE, FLY, HYPER_BEAM):
                 share *= 0.5
+            if d["effect"] == EXPLODE:  # it weighs its own HP lost against it (unk_16): a full-HP Gengar did not
+                share -= opp["hp"] / max(1.0, opp["max_hp"])  # explode, yet all of Starmie's moves looked alike
             out.append(share * hit_chance(opp, own, mid))
         elif d["effect"] in (SLEEP, PARALYZE, POISON) and not (own["sleep"] or own["para"] or own["psn"]):
             out.append(0.35 * hit_chance(opp, own, mid))
+        elif (d["effect"] == CONFUSE and not own["conf"]) or (d["effect"] == LEECH_SEED and not own["seed"]):
+            out.append(0.3 * hit_chance(opp, own, mid))
         elif d["effect"] == HEAL and opp["hp"] < opp["max_hp"] / 2:
             out.append(0.5)
         else:
@@ -1113,6 +1118,10 @@ def play_turn(game, brain, status, choice):
         values = searches([(lookahead_values, (own, opp, [("move", own["moves"][i][0]) if kind == "move" else
                                                           ("switch", party[i]) for kind, i in actions],
                                                [party[j] for j in bench], depth, opp_bench))])[0]
+        # an attack that cannot touch the opponent never wins a near tie (Starmie chose Tri Attack against a Ghost
+        # when the lookahead saw no difference between its moves)
+        values = [v - 15.0 if kind == "move" and MOVEDATA.get(own["moves"][i][0], {}).get("power", 0) > 0 and
+                  damage(own, opp, own["moves"][i][0]) <= 0 else v for v, (kind, i) in zip(values, actions)]
     st = lambda m: "" if m["status"] == 0 else " status %#x" % m["status"]
     status.trace("%s %d/%d%s spd %d flags %02x/%02x vs %s %d/%d%s spd %d flags %02x/%02x (moves %s) | %s" % (
         own["species"], own["hp"], own["max_hp"], st(own), own["spd"], own["flags"][0], own["flags"][1], opp["species"],
