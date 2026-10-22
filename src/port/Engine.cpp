@@ -1,4 +1,5 @@
 #include "Engine.h"
+#include "touch_controls.h"
 #include "pacing.h"
 
 #include <libultraship/libultraship.h>
@@ -631,6 +632,7 @@ bool PumpFrame() {
             if (pads[0].button != last) fprintf(stderr, "[pad] button 0x%04x\n", pads[0].button);
             last = pads[0].button;
         }
+        Port_TouchControlsApply(&pads[0], sWindow->GetGui().get()); // the on-screen controller (touch_controls.cpp)
         PublishPads(pads);
     }
     return true;

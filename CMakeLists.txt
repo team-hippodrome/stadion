@@ -57,6 +57,7 @@ set(PORT_MAIN_SOURCES
   src/port/interp.cpp
   src/port/launcher.cpp
   src/port/shader_warmup.cpp
+  src/port/touch_controls.cpp
   src/port/stubs.c
   src/port/port_platform.c
   src/port/generated/abs_syms.S
