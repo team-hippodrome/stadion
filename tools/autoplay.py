@@ -1060,6 +1060,12 @@ def play_turn(game, brain, status, choice):
     opp_party = [party_mon(p) for p in choice.get("opp_party", [])]
     opp_bench = [m for i, m in enumerate(opp_party) if i != choice.get("opp_active", -1) and m["hp"] > 0
                  and not m["species"].startswith("#")]
+    if opp_party and not status.data.get("opp_party_logged"):  # their three as the game has them, once a battle
+        status.data["opp_party_logged"] = True  # (tools/battle_sim.py reads these for its leaders' exact stats)
+        for m in opp_party:
+            status.trace("opponent party: %s L%d hp %d atk %d def %d spd %d spc %d moves %s" % (
+                m["species"], m["level"], m["max_hp"], m["atk"], m["def"], m["spd"], m["spc"],
+                ", ".join(MOVES.get(mid, "?") for mid, _ in m["moves"] if mid)))
     seen = status.data.setdefault("opp_seen", {})  # the opponent's Pokemon met in this battle: HP share left
     seen[str(opp["id"])] = round(opp["hp"] / max(1, opp["max_hp"]), 3)
     for m in opp_party:  # their three, with the HP the game reports
@@ -1814,6 +1820,7 @@ def choose_team(brain, status, order):
     status.set(team=[m["id"] for m in own], trio=[own[i]["id"] for i in picks], opp_team=[o["id"] for o in opp],
                opp_seen={}, party=[])
     status.data["last_pick"] = (key, names(picks), own[picks[0]]["species"])
+    status.data["opp_party_logged"] = False
     status.log("team vs %s: %s" % (", ".join(o["species"] for o in opp),
                                    ", ".join(own[i]["species"] for i in picks)))
     return picks

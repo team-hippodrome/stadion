@@ -324,11 +324,18 @@ class Battle:
                 o.hp = min(o.max_hp, o.hp + drain)
 
     def switch(self, s, i):
-        self.mon(s).fresh()
-        self.mon(1 - s).trapping = 0
-        self.mon(1 - s).trapped = 0
+        leaving, other = self.mon(s), self.mon(1 - s)
+        # a trap goes on against the Pokemon that comes in (Game Boy: switching out does not escape Wrap or Fire
+        # Spin); it ends when the trapper leaves or the trapped one faints
+        held = other.trapping if (leaving.trapped and leaving.hp > 0) else 0
+        if not held:
+            other.trapping = 0
+        if leaving.trapping:
+            other.trapped = 0
+        leaving.fresh()
         self.active[s] = i
         self.mon(s).fresh()
+        self.mon(s).trapped = held
         self.say("%s in %s" % ("we send" if s == 0 else "they send", self.mon(s).species))
 
 
@@ -362,12 +369,14 @@ def ai_send(battle):
 
 
 def ai_team(six, ours, rng):
-    """three of its six and the lead: the ones its scoring likes best against our six"""
+    """three of its six, the lead first: the leader's first-listed Pokemon always (in the logs Raichu was in 99% of
+    Lt. Surge's battles, Charizard in 91% of Blaine's, Venomoth in 90% of Koga's), the other two and the lead the ones
+    its scoring likes best against our six"""
     def worth(o):
         return sum(max(ap.ai_scores(aiv(o), aiv(m), [x for x, _ in o.moves]) or [0.0]) for m in ours) - \
             sum(max(ap.ai_scores(aiv(m), aiv(o), [x for x, _ in m.moves]) or [0.0]) for m in ours)
-    ranked = sorted(range(len(six)), key=lambda i: (-worth(six[i]), rng.random()))
-    return ranked[:3]
+    rest = sorted(range(1, len(six)), key=lambda i: (-worth(six[i]), rng.random()))[:2]
+    return sorted([0] + rest, key=lambda i: (-worth(six[i]), rng.random()))
 
 
 # ---- our side: the bot's own code ------------------------------------------------------------------------------
@@ -496,9 +505,10 @@ def load_rentals(path):
 
 
 def load_leaders(logs, rentals):
-    """the leaders' teams in castle order: their six species (as each battle's team line shows them) and the moves
-    seen; stats the rentals' plus TRAINER_BONUS"""
-    teams, moves = {}, collections.defaultdict(set)
+    """the leaders' teams in castle order: their six species (as each battle's team line shows them) with the game's
+    own stats and moves where a log has them (autoplay's "opponent party" lines), else the moves seen and the
+    rentals' stats plus TRAINER_BONUS"""
+    teams, moves, exact = {}, collections.defaultdict(set), {}
     for p in logs:
         wins = collections.Counter()
         for line in open(p, errors="replace"):
@@ -507,6 +517,11 @@ def load_leaders(logs, rentals):
                 if m:
                     pos = min(wins[m[1]], 12)
                     teams.setdefault(pos, collections.Counter())[tuple(s.strip() for s in m[2].split(","))] += 1
+                m = re.search(r"opponent party: (.+?) L(\d+) hp (\d+) atk (\d+) def (\d+) spd (\d+) spc (\d+) moves (.*)$", seg)
+                if m:  # the game's own numbers (autoplay logs them once a battle)
+                    exact[m[1]] = {"level": int(m[2]), "max_hp": int(m[3]), "atk": int(m[4]), "def": int(m[5]),
+                                   "spd": int(m[6]), "spc": int(m[7]), "moves": m[8].strip().split(", ")}
+                    continue
                 m = re.search(r"vs (\w[\w ]*?) \d+/\d+.*?\(moves (.*?)\)", seg)
                 if m:
                     moves[m[1]] |= set(m[2].split(", "))
@@ -527,6 +542,12 @@ def load_leaders(logs, rentals):
         for n in six:
             r = rentals.get(n)
             if r is None:
+                continue
+            if n in exact:
+                x = exact[n]
+                mv = [(mid_of[y], ap.MOVEDATA.get(mid_of[y], {}).get("pp", 10)) for y in x["moves"] if y in mid_of]
+                team.append(dict(r, level=x["level"], hp=x["max_hp"], max_hp=x["max_hp"], moves=mv or r["moves"],
+                                 **{k: x[k] for k in ("atk", "def", "spd", "spc")}))
                 continue
             mv = [(mid_of[x], ap.MOVEDATA.get(mid_of[x], {}).get("pp", 10)) for x in sorted(moves.get(n, ())) if x in mid_of][:4]
             B = ap.TRAINER_BONUS
