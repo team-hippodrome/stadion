@@ -12,7 +12,9 @@
 #include <thread>
 #include <csignal>
 #if defined(_WIN32)
+#include <exception>
 #include <io.h>
+#include <spdlog/spdlog.h>
 #else
 #include <sys/ucontext.h>
 #include <unistd.h>
@@ -51,7 +53,11 @@ static void AttachToConsole() {
     SetStdHandle(STD_ERROR_HANDLE, (HANDLE)_get_osfhandle(_fileno(stderr)));
 }
 
-// Prints the crash address and the unwound frames plus the image base; resolve with the PDB/map file.
+// libultraship's handler, replaced by CrashHandler below: it writes the registers and a traceback to the log file
+static LPTOP_LEVEL_EXCEPTION_FILTER sShipCrashHandler = nullptr;
+
+// Prints the crash address and the unwound frames plus the image base; resolve with the PDB/map file. Then lets
+// libultraship's handler write the crash to the log: without a console, stderr goes nowhere.
 static LONG WINAPI CrashHandler(EXCEPTION_POINTERS* ep) {
     void* frames[48];
     int n = Port_Backtrace(frames, 48);
@@ -63,8 +69,28 @@ static LONG WINAPI CrashHandler(EXCEPTION_POINTERS* ep) {
         fprintf(stderr, "  %p\n", frames[i]);
     }
     fflush(stderr);
+    if (sShipCrashHandler != nullptr) {
+        sShipCrashHandler(ep);
+    }
     _exit(3);
     return EXCEPTION_EXECUTE_HANDLER;
+}
+
+// An uncaught C++ exception (a failed D3D call, for one) ends in std::terminate, which no exception filter sees
+static void TerminateHandler() {
+    const char* what = "unknown exception";
+    try {
+        if (std::exception_ptr e = std::current_exception()) {
+            std::rethrow_exception(e);
+        }
+    } catch (const std::exception& e) {
+        what = e.what();
+    } catch (...) {
+    }
+    fprintf(stderr, "\n*** terminate: %s\n", what);
+    SPDLOG_CRITICAL("Uncaught exception: {}", what);
+    spdlog::shutdown();
+    _exit(3);
 }
 #else
 // Prints the crashing thread's stack as raw addresses plus the image slide; resolve with tools/symbolize.sh.
@@ -101,10 +127,15 @@ static void CrashHandler(int sig, siginfo_t* info, void* uctx) {
 }
 #endif
 
-// Installed after Port::Init: libultraship's own crash handler (Linux, Windows) replaces earlier handlers.
+// Installed after Port::Init: libultraship's own crash handler (Linux, Windows) replaces earlier handlers. On Windows
+// it is kept and called after ours, so crashes still reach the log file.
 static void InstallSignalHandlers() {
 #if defined(_WIN32)
-    SetUnhandledExceptionFilter(CrashHandler);
+    LPTOP_LEVEL_EXCEPTION_FILTER previous = SetUnhandledExceptionFilter(CrashHandler);
+    if (previous != CrashHandler) {
+        sShipCrashHandler = previous;
+    }
+    std::set_terminate(TerminateHandler);
 #else
     struct sigaction sa = {};
     sa.sa_sigaction = CrashHandler;
