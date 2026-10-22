@@ -171,6 +171,13 @@ bool Init() {
     // ImGui windows (tooltips, menus) stay inside the game window: with multi-viewports on, one that reached past its
     // edge became an OS window of its own, and the Metal backend crashed creating it (the launcher's wide tooltips)
     cvars->SetInteger("gEnableMultiViewports", 0);
+#if defined(__ANDROID__)
+    // Android: always fullscreen. A plain SDL window leaves the status and navigation bars over the picture; a
+    // fullscreen one puts the activity in immersive mode (SDLActivity). Windowed fullscreen: the display keeps its
+    // mode (an exclusive mode would ask the system for a display mode switch).
+    config->SetBool("Window.Fullscreen.Enabled", true);
+    cvars->SetInteger("gSdlWindowedFullscreen", 1);
+#endif
 
     sWindow = std::make_shared<Fast::Fast3dWindow>(std::vector<std::shared_ptr<Ship::GuiWindow>>({}), config, cvars);
 
