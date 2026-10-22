@@ -1276,7 +1276,10 @@ other places (107 `gSPMatrix` sites), so the port blends the final matrices inst
   it arrives, as before, but as the first of k pictures, k = retraces since the previous game frame x refreshes per
   retrace (2 at 60 Hz for a 30 fps scene, 4 at 120 Hz), with t = 1/k; the others follow 1 ms after each later vblank
   (from the display clock, `Port_DisplayVblank`), the last one exactly as built. The picture is therefore one game
-  frame later than without (16.7 ms at 30 fps / 60 Hz), as in SoH. A new graphics task, a CPU-drawn frame, a frame
+  frame later than without (16.7 ms at 30 fps / 60 Hz), as in SoH. A frame more than 4 retraces after the previous
+  one (a hitch, or a fast run drawing every n-th frame) is not blended: over such a gap many of a model's matrices
+  turn past the 60-degree cut while the ones skinned to them still blend, and limbs stretch across the screen
+  (Clefairy in the title's fall, blended from 20 retraces back). A new graphics task, a CPU-drawn frame, a frame
   drawn for its state only, or a change of the game's segment/fragment maps (`Port_GfxFlushCache`: the scene unloads
   data the list uses) ends the series. libultraship's frame limiter follows the display's rate while interpolating.
 - **Only lists that repaint the screen** are drawn again (`Interpreter::FrameRepaintsScreen`: a full-screen fill

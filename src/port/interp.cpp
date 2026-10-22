@@ -358,7 +358,11 @@ void RunGameFrame(void* gfxCommands, bool exact) {
     bool grid = !immediate && Port_DisplayVblank(&period, &vblank) && period > 1000000;
     int perRetrace = grid ? std::max(1, (int)std::lround(1e9 / 60.0 / period)) : 1;
     int k = 0;
-    if (cur && gPrev && !exact && tick > gPrevTick) {
+    // The game draws every 2nd or 3rd retrace. A longer gap (a hitch, or a fast run drawing every n-th frame) is not
+    // blended: over it many of a model's matrices turn too far and are cut while the ones skinned to them still blend,
+    // and limbs stretch across the screen (Clefairy in the title's fall, blended from 20 retraces back).
+    const uint64_t kMaxGap = 4;
+    if (cur && gPrev && !exact && tick > gPrevTick && tick - gPrevTick <= kMaxGap) {
         k = (int)std::min<uint64_t>((tick - gPrevTick) * perRetrace, 8);
     }
     Stats st;
