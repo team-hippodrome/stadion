@@ -16,6 +16,10 @@ bool Port_DisplayVblank(int64_t* periodNs, int64_t* vblankNs);
 // Window thread: follows the window to the display it is on (the first call starts the display clock).
 void Port_DisplayFollowWindow(void* sdlWindow);
 
+// Window thread, right before a game frame is drawn and presented: Android sets when it is to appear
+// (pacing_android.cpp); nothing elsewhere.
+void Port_BeforePresent(void);
+
 // Makes the calling thread's sleeps end on time (the thread that delivers VI retraces).
 void Port_PreciseTimingThread(void);
 

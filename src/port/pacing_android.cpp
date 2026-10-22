@@ -4,6 +4,8 @@
 // AYN Thor's panel reports 60 Hz but refreshes at ~59.35 Hz: the measured period, not the reported one, counts.)
 #include "pacing.h"
 
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <android/choreographer.h>
 #include <android/looper.h>
 #include <sys/resource.h>
@@ -97,6 +99,26 @@ extern "C" bool Port_DisplayVblank(int64_t* periodNs, int64_t* vblankNs) {
     *periodNs = (int64_t)gPeriod;
     *vblankNs = gAnchor;
     return true;
+}
+
+// The frame about to be presented (window thread, before the swap) appears at the second refresh after the retrace
+// that started it, never earlier: a frame whose draw and swap took 15 ms showed one refresh later than one that took
+// 18 ms, so 30 fps scenes alternated 1 and 3 refreshes per frame whenever draws took about a refresh (a busy device).
+// The frame then waits in the queue when it is early (eglPresentationTimeANDROID, what Android's Swappy does).
+// PORT_PRESENT_REFRESHES=n sets the refreshes (0: off).
+extern "C" bool Port_LastRetraceVblank(int64_t* vblankNs, int64_t* periodNs);
+
+extern "C" void Port_BeforePresent(void) {
+    static const int refreshes = getenv("PORT_PRESENT_REFRESHES") ? atoi(getenv("PORT_PRESENT_REFRESHES")) : 2;
+    static auto presentationTime =
+        (PFNEGLPRESENTATIONTIMEANDROIDPROC)eglGetProcAddress("eglPresentationTimeANDROID");
+    int64_t vblank, period;
+    if (refreshes <= 0 || presentationTime == nullptr || !Port_LastRetraceVblank(&vblank, &period)) {
+        return;
+    }
+    // (a little before that refresh: SurfaceFlinger shows a buffer at the first refresh at or after its time)
+    int64_t at = vblank + refreshes * period - period / 4;
+    presentationTime(eglGetCurrentDisplay(), eglGetCurrentSurface(EGL_DRAW), (EGLnsecsANDROID)at);
 }
 
 // The thread that delivers VI retraces: a display-urgent priority (as Android's own UI and render threads use), so

@@ -556,6 +556,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
     gPortDrawLog = sCaptureFrame != 0 && drawLog; // debug: list the draw states of the captured frame
     static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
     auto drawStart = std::chrono::steady_clock::now();
+    Port_BeforePresent();
     sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), replacements);
     Port_PacingNote(PORT_PACE_DRAWN, Port_SteadyNs());
     if (tracePacing) { // PORT_TRACE_PACING=1: presented frames more than 40 ms apart, and slow draws (os_devices.cpp)

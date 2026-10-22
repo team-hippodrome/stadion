@@ -23,7 +23,12 @@ extern "C" int64_t Port_SteadyNs(void) {
 
 #if defined(__APPLE__)
 void Port_MacFollowDisplay(double x, double y); // pacing_mac.mm: the display at that global point (points)
-#elif !defined(__ANDROID__)
+#endif
+#if !defined(__ANDROID__)
+extern "C" void Port_BeforePresent(void) {
+}
+#endif
+#if !defined(__APPLE__) && !defined(__ANDROID__)
 extern "C" bool Port_DisplayVblank(int64_t*, int64_t*) {
     return false;
 }

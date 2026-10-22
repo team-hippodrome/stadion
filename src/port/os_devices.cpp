@@ -691,6 +691,8 @@ bool TasksDrained() {
 // PORT_DISPLAY_PACING=0 turns it off (the free-running clock); PORT_PACING_LEAD_US sets how long after the vblank a
 // retrace comes (default 500).
 std::atomic<bool> gDisplayPaced{ false };
+std::atomic<int64_t> gRetraceVblank{ 0 }; // the vblank the last paced retrace followed (steady clock), 0: not paced
+std::atomic<int64_t> gRetracePeriod{ 0 };
 
 class RetraceSchedule {
   public:
@@ -739,6 +741,7 @@ class RetraceSchedule {
         }
         mPaced = n > 0;
         gDisplayPaced = mPaced;
+        if (!mPaced) gRetraceVblank = 0;
         if (!mPaced) {
             mTarget = 0;
             return 0;
@@ -754,6 +757,8 @@ class RetraceSchedule {
             k = std::floor((double)(mTarget + n * refresh - base) / refresh + 0.5);
         }
         mTarget = base + (int64_t)k * refresh;
+        gRetraceVblank = mTarget - sLeadNs;
+        gRetracePeriod = refresh;
         return mTarget;
     }
 
@@ -888,6 +893,13 @@ void LockstepClock() {
 // whether retraces follow the display's refresh (Engine.cpp then keeps libultraship's frame limiter out of the way)
 extern "C" bool Port_DisplayPaced() {
     return gDisplayPaced.load();
+}
+
+// the vblank the latest retrace followed and the refresh period, when retraces follow the display (else false)
+extern "C" bool Port_LastRetraceVblank(int64_t* vblankNs, int64_t* periodNs) {
+    *vblankNs = gRetraceVblank.load();
+    *periodNs = gRetracePeriod.load();
+    return *vblankNs != 0 && *periodNs > 0;
 }
 
 extern "C" {
