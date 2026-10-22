@@ -1035,6 +1035,60 @@ def search_init(depth, leader_depth):
     LOOKAHEAD_DEPTH, LEADER_DEPTH = depth, leader_depth
 
 
+class PyPySearches:
+    """The search workers under PyPy (several times faster at the lookahead than CPython). The bot itself stays on
+    CPython (Laya needs PyTorch), and multiprocessing cannot start PyPy workers from it (they inherit CPython's library
+    paths), so each worker is a plain process (autoplay.py --search-worker) taking pickled jobs on a pipe."""
+
+    def __init__(self, exe, n, depth, leader_depth):
+        import pickle, queue
+        from concurrent.futures import ThreadPoolExecutor
+        self.pickle = pickle
+        self.idle = queue.Queue()
+        env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
+        for _ in range(n):
+            w = subprocess.Popen([exe, "-u", os.path.abspath(__file__), "--search-worker", str(depth), str(leader_depth)],
+                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, env=env)
+            self.idle.put(w)
+        self.threads = ThreadPoolExecutor(n)
+
+    def _run(self, name, args):
+        w = self.idle.get()
+        try:
+            data = self.pickle.dumps((name, args), protocol=4)
+            w.stdin.write(struct.pack("<I", len(data)) + data)
+            w.stdin.flush()
+            size = struct.unpack("<I", w.stdout.read(4))[0]
+            ok, result = self.pickle.loads(w.stdout.read(size))
+        finally:
+            self.idle.put(w)
+        if not ok:
+            raise RuntimeError("search worker: " + result)
+        return result
+
+    def submit(self, f, *args):
+        return self.threads.submit(self._run, f.__name__, args)
+
+
+def search_worker(depth, leader_depth):
+    """autoplay.py --search-worker: runs the lookahead's searches sent by the bot (PyPySearches)"""
+    import pickle, traceback
+    search_init(depth, leader_depth)
+    inp, out = sys.stdin.buffer, sys.stdout.buffer
+    while True:
+        head = inp.read(4)
+        if len(head) < 4:
+            return
+        name, args = pickle.loads(inp.read(struct.unpack("<I", head)[0]))
+        try:
+            reply = (True, globals()[name](*args))
+        except Exception:
+            reply = (False, traceback.format_exc())
+        data = pickle.dumps(reply, protocol=4)
+        out.write(struct.pack("<I", len(data)) + data)
+        out.flush()
+
+
 def searches(calls):
     """[(function, args)] -> their results, in the worker processes when there are some"""
     if SEARCH_POOL is None:
@@ -2149,6 +2203,8 @@ def main():
     ap.add_argument("--styles", default=",".join(DEFAULT_STYLES),
                     help="with --team draft: the games' team styles in turn, from %s (default %s; "
                          "balanced: every game alike)" % (", ".join(STYLE_ORDER), ",".join(DEFAULT_STYLES)))
+    ap.add_argument("--pypy", default="auto",
+                    help="run the lookahead's workers under this PyPy (default auto: pypy3 if installed; none: CPython)")
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2),
                     help="worker processes for the lookahead's searches (default: all cores but two; 0: none)")
     ap.add_argument("--max-e4-runs", type=int, default=5,
@@ -2174,8 +2230,14 @@ def main():
     LEADER_DEPTH = args.leader_lookahead if LOOKAHEAD_DEPTH else 0
     global SEARCH_POOL
     if LOOKAHEAD_DEPTH and args.workers > 0:
-        from concurrent.futures import ProcessPoolExecutor
-        SEARCH_POOL = ProcessPoolExecutor(args.workers, initializer=search_init, initargs=(LOOKAHEAD_DEPTH, LEADER_DEPTH))
+        import shutil
+        pypy = args.pypy if args.pypy != "auto" else shutil.which("pypy3")
+        if pypy and args.pypy != "none":
+            SEARCH_POOL = PyPySearches(pypy, args.workers, LOOKAHEAD_DEPTH, LEADER_DEPTH)
+            print("lookahead: %d workers under %s" % (args.workers, pypy), flush=True)
+        else:
+            from concurrent.futures import ProcessPoolExecutor
+            SEARCH_POOL = ProcessPoolExecutor(args.workers, initializer=search_init, initargs=(LOOKAHEAD_DEPTH, LEADER_DEPTH))
     picks = args.pick if args.pick in ("random", "smart") else [int(x) - 1 for x in args.pick.split(",")]
     global ALLOWED
     import glob
@@ -2304,4 +2366,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) == 4 and sys.argv[1] == "--search-worker":
+        search_worker(int(sys.argv[2]), int(sys.argv[3]))
+    else:
+        main()
