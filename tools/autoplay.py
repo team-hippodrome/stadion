@@ -2078,7 +2078,8 @@ def main():
                     help="a Game Boy Pokemon ROM for the level-up learnsets (default $PORT_GB_ROM, else gb/*.gb)")
     ap.add_argument("--round2", action="store_true", help="play Round 2 (PORT_ROUND2=1; the save is not changed)")
     ap.add_argument("--team", help="six Pokemon to rent, e.g. Mewtwo,Alakazam,Snorlax,Starmie,Zapdos,Rhydon, or draft: Laya "
-                                       "drafts a well-rounded team from the rental list (different every run)")
+                                       "drafts a well-rounded team from the rental list (different every run); "
+                                       "teams separated by ';' go to the games in turn")
     ap.add_argument("--exe", default=os.path.join(ROOT, "build", "pokestadium"), help="the game binary")
     ap.add_argument("--register", action="store_true",
                     help="with --team: register the team after the first rental round (saved in the game's save)")
@@ -2124,7 +2125,10 @@ def main():
                 game = Game(sock)
                 gs.log("connected")
                 import random
-                run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, team,
+                own = team[index % len(team)] if per_game else team  # (--team "six;six;...": a team per game)
+                if per_game:
+                    gs.log("fixed team: %s" % ", ".join(SPECIES.get(t, "?") for t in own))
+                run_game(game, brain, gs, picks, args.wins, armed, jitter, random.Random(), args.random_team, own,
                          route_end, args.register, args.room, args.max_losses, explore, index, args.castle,
                          args.leaders_only, args.max_tries, args.max_e4_runs)
                 if proc and proc[0].poll() is None:  # finished (won, or lost too often): close its game
@@ -2147,9 +2151,11 @@ def main():
         threads.append(t)
 
     try:
-        team = None
+        team, per_game = None, False
         if args.team == "draft":
             team = "draft"  # Laya drafts it from the rental list when the carousel opens (draft_team)
+        elif args.team and ";" in args.team:  # a team per game, in turn (the teams that cleared the castle, side by side)
+            team, per_game = [[species_id(n) for n in t.split(",")] for t in args.team.split(";") if t.strip()], True
         elif args.team:
             team = [species_id(n) for n in args.team.split(",")]
         if args.castle:
