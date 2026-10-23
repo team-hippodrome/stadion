@@ -29,6 +29,11 @@ arguments, each shows the launcher (below):
   Log output: start it from a console (`pokestadium.exe` in cmd/PowerShell writes there), redirect it
   (`pokestadium.exe 2> log.txt`), or set `PORT_CONSOLE=1` for a console window of its own.
 
+Renderer: `Window.Backend` in `pokestadium.cfg.json` (Id 1 DirectX 11, 2 OpenGL, 3 Metal, 4 Vulkan). Vulkan (Windows
+and Linux builds; macOS only when built with `-DLUS_ENABLE_VULKAN=ON` against Homebrew's `molten-vk`,
+`vulkan-loader` and `glslang`) is used only where a Vulkan driver is installed, otherwise the default renderer. It is
+work in progress: it does not draw the game yet.
+
 ## Build
 
 The game code needs clang (for Windows: llvm-mingw); GCC and MSVC are not supported.
@@ -53,7 +58,7 @@ release download is this app; see Run).
 
 ```bash
 sudo apt install clang lld cmake ninja-build python3 libsdl3-dev libglew-dev libgl-dev libzip-dev libbz2-dev \
-  zlib1g-dev nlohmann-json3-dev libtinyxml2-dev libspdlog-dev
+  zlib1g-dev nlohmann-json3-dev libtinyxml2-dev libspdlog-dev glslang-dev
 cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cmake --build build
 ```
@@ -70,13 +75,14 @@ executables that link anything besides glibc and OpenGL.
 `bin` directory on `PATH`, vcpkg in `$VCPKG_ROOT`):
 
 ```bash
-$VCPKG_ROOT/vcpkg install sdl3 glew libzip nlohmann-json tinyxml2 spdlog zlib bzip2 --triplet x64-mingw-static
+$VCPKG_ROOT/vcpkg install sdl3 glew libzip nlohmann-json tinyxml2 spdlog zlib bzip2 glslang --triplet x64-mingw-static
 cmake -S . -B build-win -G Ninja -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
   -DVCPKG_TARGET_TRIPLET=x64-mingw-static -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$PWD/cmake/toolchain-mingw-clang.cmake
 cmake --build build-win
 ```
 
-For Windows on ARM: `MINGW_TRIPLE=aarch64-w64-mingw32` and the `arm64-mingw-static` triplet. `pokestadium.exe` is a
+For Windows on ARM: `MINGW_TRIPLE=aarch64-w64-mingw32` and the `arm64-mingw-static` triplet (with llvm-mingw's
+`bin` on `PATH` for the vcpkg install too, or vcpkg may build glslang with a GCC mingw that does not link). `pokestadium.exe` is a
 window-only program (no console window; see Run for its log output) with the icon and version information of
 `src/port/pokestadium.rc.in`.
 

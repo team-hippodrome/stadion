@@ -1,3 +1,89 @@
+diff --git a/cmake/dependencies/common.cmake b/cmake/dependencies/common.cmake
+index ff2045c..6086c48 100644
+--- a/cmake/dependencies/common.cmake
++++ b/cmake/dependencies/common.cmake
+@@ -35,6 +35,55 @@ target_sources(ImGui
+ 
+ target_include_directories(ImGui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
+ 
++# ========= Vulkan =============
++# PORT: Vulkan rendering backend (gfx_vulkan.cpp). Nothing links against a Vulkan loader: volk resolves the entry points
++# at run time from the library SDL loads (vulkan-1.dll, libvulkan.so.1, MoltenVK), so a machine without a Vulkan driver
++# still starts on the other backends. Shaders are compiled to SPIR-V at run time with glslang.
++if(APPLE OR ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
++    set(_lus_vulkan_default OFF) # macOS has Metal; MoltenVK builds are opt-in (development)
++else()
++    set(_lus_vulkan_default ON)
++endif()
++option(LUS_ENABLE_VULKAN "Build the Vulkan rendering backend" ${_lus_vulkan_default})
++
++if(LUS_ENABLE_VULKAN)
++    # The static glslang of some distributions (Ubuntu) names SPIRV-Tools-opt/SPIRV-Tools as link dependencies without
++    # finding them itself: found first, they resolve to the imported targets (with their own dependencies)
++    find_package(SPIRV-Tools-opt CONFIG QUIET)
++    find_package(glslang CONFIG QUIET)
++    if(NOT glslang_FOUND)
++        message(WARNING "glslang not found: the Vulkan rendering backend is not built")
++        set(LUS_ENABLE_VULKAN OFF) # this configure only (installing glslang brings it back)
++    endif()
++endif()
++
++if(LUS_ENABLE_VULKAN)
++
++    FetchContent_Declare(
++        VulkanHeaders
++        GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
++        GIT_TAG v1.4.304
++    )
++    FetchContent_MakeAvailable(VulkanHeaders)
++
++    FetchContent_Declare(
++        volk
++        GIT_REPOSITORY https://github.com/zeux/volk.git
++        GIT_TAG 1.4.304
++        SOURCE_SUBDIR do-not-build # only volk.c/volk.h are used (target below)
++    )
++    FetchContent_MakeAvailable(volk)
++
++    add_library(lus_volk STATIC ${volk_SOURCE_DIR}/volk.c)
++    target_include_directories(lus_volk PUBLIC ${volk_SOURCE_DIR})
++    target_link_libraries(lus_volk PUBLIC Vulkan::Headers ${CMAKE_DL_LIBS})
++    target_compile_definitions(lus_volk PUBLIC VK_NO_PROTOTYPES)
++
++    target_sources(ImGui PRIVATE ${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp)
++    target_compile_definitions(ImGui PUBLIC IMGUI_IMPL_VULKAN_USE_VOLK)
++    target_link_libraries(ImGui PUBLIC lus_volk)
++endif()
++
+ # ========= StormLib =============
+ if(INCLUDE_MPQ_SUPPORT)
+     set(stormlib_patch_file ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies/patches/stormlib-optimizations.patch)
+diff --git a/include/fast/Fast3dGui.h b/include/fast/Fast3dGui.h
+index 8dacf3e..ad26a73 100644
+--- a/include/fast/Fast3dGui.h
++++ b/include/fast/Fast3dGui.h
+@@ -43,6 +43,9 @@ typedef struct {
+             void* Window;           ///< SDL_Window*
+             SDL_Renderer* Renderer; ///< SDL_Renderer* (for Metal layer)
+         } Metal;
++        struct {
++            void* Window; ///< SDL_Window* (PORT: Vulkan backend)
++        } Vulkan;
+         struct {
+             uint32_t Width;  ///< Framebuffer width in pixels.
+             uint32_t Height; ///< Framebuffer height in pixels.
+diff --git a/include/fast/Fast3dWindow.h b/include/fast/Fast3dWindow.h
+index 728fa13..a8b8b9b 100644
+--- a/include/fast/Fast3dWindow.h
++++ b/include/fast/Fast3dWindow.h
+@@ -28,6 +28,7 @@ enum WindowBackend {
+     FAST3D_DXGI_DX11 = 1,
+     FAST3D_SDL_OPENGL = 2,
+     FAST3D_SDL_METAL = 3,
++    FAST3D_SDL_VULKAN = 4, // PORT
+ };
+ 
+ /**
 diff --git a/include/fast/backends/gfx_direct3d_common.h b/include/fast/backends/gfx_direct3d_common.h
 index 4ba2d35..480e844 100644
 --- a/include/fast/backends/gfx_direct3d_common.h
@@ -327,6 +413,316 @@ index 3eb0996..c665c4c 100644
      virtual void ResolveMSAAColorBuffer(int fbIdTarger, int fbIdSrc) = 0;
      virtual std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
      GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) = 0;
+diff --git a/include/fast/backends/gfx_vulkan.h b/include/fast/backends/gfx_vulkan.h
+new file mode 100644
+index 0000000..27fe367
+--- /dev/null
++++ b/include/fast/backends/gfx_vulkan.h
+@@ -0,0 +1,304 @@
++//
++//  gfx_vulkan.h
++//  libultraship
++//
++//  PORT: Vulkan rendering backend for fast3d, adapted from Kenix3/libultraship#1265 (KiritoDv) to this tree's
++//  rendering API (CPU-transformed vertices, per-combiner shaders). Mirrors the Metal backend's deferred
++//  per-framebuffer command buffers: every framebuffer drawn during a frame records into its own primary command
++//  buffer, and EndFrame submits them in framebuffer-id order with the screen (fb 0, the swapchain image) last,
++//  followed by the present.
++//
++//  The Vulkan entry points come from volk, loaded at run time from the library SDL loads, so nothing links against
++//  a Vulkan loader.
++//
++#pragma once
++#ifdef ENABLE_VULKAN
++
++#include "gfx_rendering_api.h"
++#include "../interpreter.h"
++
++#include <volk.h>
++#include <unordered_map>
++#include <vector>
++#include <map>
++
++struct SDL_Window;
++struct ImDrawData;
++
++namespace Ship {
++class ConsoleVariable;
++class ResourceManager;
++} // namespace Ship
++
++namespace Fast {
++
++constexpr uint32_t VK_FRAMES_IN_FLIGHT = 3;
++
++// cantor pairing for the shader pool key (same scheme as Metal)
++static inline size_t vk_cantor(uint64_t a, uint64_t b) {
++    return (a + b) * (a + b + 1) / 2 + b;
++}
++
++struct vk_hash_pair_shader_ids {
++    size_t operator()(const std::pair<uint64_t, uint64_t>& p) const {
++        return vk_cantor(p.first, p.second);
++    }
++};
++
++struct ShaderProgramVK {
++    uint64_t shader_id0;
++    uint64_t shader_id1;
++
++    uint8_t numInputs;
++    uint8_t numFloats;
++    bool usedTextures[SHADER_MAX_TEXTURES];
++    bool useAlphaBlend = false;
++    bool markedForDeletion = false;
++
++    VkShaderModule vs = VK_NULL_HANDLE;
++    VkShaderModule fs = VK_NULL_HANDLE;
++
++    // Pipelines keyed by packed render state (msaa level, depth test/write, compare op, render pass family),
++    // created lazily on first use.
++    std::map<uint32_t, VkPipeline> pipelines;
++};
++
++struct TextureDataVK {
++    VkImage image = VK_NULL_HANDLE;
++    VkDeviceMemory memory = VK_NULL_HANDLE;
++    VkImageView view = VK_NULL_HANDLE;
++    VkSampler sampler = VK_NULL_HANDLE; // owned by the sampler cache
++    VkDescriptorSet imguiSet = VK_NULL_HANDLE;
++    uint32_t width = 0;
++    uint32_t height = 0;
++    uint32_t filtering = 0;
++    bool linear_filtering = false;
++    bool isSwapchainAlias = false; // fb 0: the image belongs to the swapchain
++};
++
++struct FramebufferVK {
++    uint32_t mTextureId = 0;
++
++    VkImage mDepthImage = VK_NULL_HANDLE;
++    VkDeviceMemory mDepthMemory = VK_NULL_HANDLE;
++    VkImageView mDepthView = VK_NULL_HANDLE;
++
++    // MSAA attachments (resolve target is the main texture)
++    VkImage mMsaaImage = VK_NULL_HANDLE;
++    VkDeviceMemory mMsaaMemory = VK_NULL_HANDLE;
++    VkImageView mMsaaView = VK_NULL_HANDLE;
++    VkImage mMsaaDepthImage = VK_NULL_HANDLE;
++    VkDeviceMemory mMsaaDepthMemory = VK_NULL_HANDLE;
++    VkImageView mMsaaDepthView = VK_NULL_HANDLE;
++
++    VkFramebuffer mFramebuffer = VK_NULL_HANDLE;
++    VkRenderPass mRenderPass = VK_NULL_HANDLE; // canonical, owned by the pass cache
++
++    uint32_t mWidth = 0;
++    uint32_t mHeight = 0;
++    uint32_t mMsaaLevel = 1;
++    bool mHasDepthBuffer = false;
++    bool mRenderTarget = false;
++
++    // Per-frame recording state
++    VkCommandBuffer mCommandBuffer = VK_NULL_HANDLE;
++    bool mPassActive = false;
++
++    VkPipeline mLastPipeline = VK_NULL_HANDLE;
++    VkViewport mViewport = {};
++    VkRect2D mScissor = {};
++};
++
++class GfxRenderingAPIVK final : public GfxRenderingAPI {
++  public:
++    GfxRenderingAPIVK(std::shared_ptr<Ship::ConsoleVariable> consoleVariable = nullptr,
++                      std::shared_ptr<Ship::ResourceManager> resourceManager = nullptr);
++    ~GfxRenderingAPIVK() override = default;
++    const char* GetName() override;
++    int GetMaxTextureSize() override;
++    GfxClipParameters GetClipParameters() override;
++    void UnloadShader(ShaderProgram* oldPrg) override;
++    void LoadShader(ShaderProgram* newPrg) override;
++    ShaderProgram* CreateAndLoadNewShader(uint64_t shaderId0, uint64_t shaderId1) override;
++    ShaderProgram* LookupShader(uint64_t shaderId0, uint64_t shaderId1) override;
++    void ShaderGetInfo(ShaderProgram* prg, uint8_t* numInputs, bool usedTextures[2]) override;
++    void ClearShaderCache() override;
++    uint32_t NewTexture() override;
++    void SelectTexture(int tile, uint32_t textureId) override;
++    void UploadTexture(const uint8_t* rgba32Buf, uint32_t width, uint32_t height) override;
++    void SetSamplerParameters(int sampler, bool linear_filter, uint32_t cms, uint32_t cmt) override;
++    void SetDepthTestAndMask(bool depth_test, bool z_upd) override;
++    void SetCurrentPrimDepth(float depth) override;
++    void SetZmodeDecal(bool decal) override;
++    void SetViewport(int x, int y, int width, int height) override;
++    void SetScissor(int x, int y, int width, int height) override;
++    void SetUseAlpha(bool useAlpha) override;
++    void DrawTriangles(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris) override;
++    void Init() override;
++    void OnResize() override;
++    void StartFrame() override;
++    void EndFrame() override;
++    void FinishRender() override;
++    int CreateFramebuffer() override;
++    void UpdateFramebufferParameters(int fb_id, uint32_t width, uint32_t height, uint32_t msaa_level,
++                                     bool opengl_invertY, bool render_target, bool has_depth_buffer,
++                                     bool can_extract_depth) override;
++    void StartDrawToFramebuffer(int fbId, float noiseScale) override;
++    void CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0,
++                         int dstX1, int dstY1) override;
++    void ClearFramebuffer(bool color, bool depth) override;
++    void ClearDepthRegion(int x, int y, int w, int h) override;
++    bool ClearFramebufferColor(float r, float g, float b, float a) override;
++    void ReadFramebufferToCPU(int fbId, uint32_t width, uint32_t height, uint16_t* rgba16Buf) override;
++    void ResolveMSAAColorBuffer(int fbIdTarger, int fbIdSrc) override;
++    std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
++    GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) override;
++    void* GetFramebufferTextureId(int fbId) override;
++    void SelectTextureFb(int fbId) override;
++    void DeleteTexture(uint32_t texId) override;
++    void SetTextureFilter(FilteringMode mode) override;
++    FilteringMode GetTextureFilter() override;
++    void SetSrgbMode() override;
++    ImTextureID GetTextureById(int id) override;
++
++    // Called from Fast3dGui (mirrors the Metal backend's custom ImGui hooks). VulkanInit creates the instance and
++    // device; the window backend calls it before Init().
++    bool VulkanInit(SDL_Window* window);
++    void NewFrame();
++    void RenderDrawData(ImDrawData* drawData);
++    void ShutdownImGui();
++
++  private:
++    struct FrameSlot {
++        VkFence fence = VK_NULL_HANDLE;
++        bool fenceInFlight = false;
++        VkCommandPool commandPool = VK_NULL_HANDLE;
++        VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
++        VkSemaphore imageAvailable = VK_NULL_HANDLE;
++        VkSemaphore renderFinished = VK_NULL_HANDLE;
++
++        VkBuffer vertexBuffer = VK_NULL_HANDLE;
++        VkDeviceMemory vertexMemory = VK_NULL_HANDLE;
++        uint8_t* vertexMapped = nullptr;
++
++        VkBuffer stagingBuffer = VK_NULL_HANDLE;
++        VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
++        uint8_t* stagingMapped = nullptr;
++        size_t stagingCapacity = 0;
++
++        std::vector<std::pair<VkImage, VkDeviceMemory>> garbageImages;
++        std::vector<VkImageView> garbageViews;
++        std::vector<VkBuffer> garbageBuffers;
++        std::vector<VkDeviceMemory> garbageMemory;
++    };
++
++    struct ReadbackBuffer {
++        VkBuffer buffer = VK_NULL_HANDLE;
++        VkDeviceMemory memory = VK_NULL_HANDLE;
++        uint8_t* mapped = nullptr;
++        size_t capacity = 0;
++    };
++
++    uint32_t FindMemoryType(uint32_t typeBits, VkMemoryPropertyFlags props);
++    void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props, VkBuffer& buffer,
++                      VkDeviceMemory& memory, uint8_t** mapped);
++    void EnsureReadbackBuffer(ReadbackBuffer& rb, size_t size);
++    void CreateImage(uint32_t width, uint32_t height, VkSampleCountFlagBits samples, VkFormat format,
++                     VkImageUsageFlags usage, VkImage& image, VkDeviceMemory& memory);
++    VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect);
++    void TransitionToGeneral(VkCommandBuffer cmd, VkImage image, VkImageAspectFlags aspect);
++    void FullBarrier(VkCommandBuffer cmd);
++    VkCommandBuffer BeginOneShot();
++    void EndOneShot(VkCommandBuffer cmd);
++    VkRenderPass GetRenderPass(uint32_t msaaLevel, bool hasDepth);
++    VkSampler GetSampler(bool linear, uint32_t cms, uint32_t cmt);
++    void EnsureUploadCmd();
++    void GrowStaging(FrameSlot& slot, size_t needed);
++    void CreateSwapchain(uint32_t width, uint32_t height);
++    void DestroySwapchainViews();
++    void RebuildScreenFramebuffer();
++    void EnsurePassActive(int fbId);
++    void EndPass(FramebufferVK& fb);
++    void SubmitFramebufferAndWait(int fbId);
++    void CollectGarbage(FrameSlot& slot);
++    void DestroyTextureData(TextureDataVK& tex, bool deferred);
++
++    SDL_Window* mWindow = nullptr;
++
++    std::shared_ptr<Ship::ConsoleVariable> mConsoleVariable;
++    VkInstance mInstance = VK_NULL_HANDLE;
++    VkSurfaceKHR mSurface = VK_NULL_HANDLE;
++    VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
++    VkDevice mDevice = VK_NULL_HANDLE;
++    uint32_t mQueueFamily = 0;
++    VkQueue mQueue = VK_NULL_HANDLE;
++    VkPhysicalDeviceProperties mDeviceProps = {};
++    bool mHasMirrorClampToEdge = false;
++    bool mHasDepthClamp = false;
++    bool mHasDualSrcBlend = false;
++
++    VkSwapchainKHR mSwapchain = VK_NULL_HANDLE;
++    VkFormat mSwapchainFormat = VK_FORMAT_B8G8R8A8_UNORM;
++    VkExtent2D mSwapchainExtent = {};
++    std::vector<VkImage> mSwapchainImages;
++    std::vector<VkImageView> mSwapchainViews;
++    std::vector<VkFramebuffer> mSwapchainFramebuffers;
++    std::vector<bool> mSwapchainImageUsed; // first-use layout tracking
++    uint32_t mSwapchainImageIndex = 0;
++    bool mSwapchainNeedsRecreate = false;
++    bool mVsync = true;
++    bool mFrameActive = false;
++
++    FrameSlot mFrames[VK_FRAMES_IN_FLIGHT];
++    uint32_t mFrameSlot = 0;
++
++    size_t mVertexRingOffset = 0;
++    size_t mVertexRingCapacity = 0;
++    size_t mStagingOffset = 0;
++
++    VkCommandBuffer mUploadCmd = VK_NULL_HANDLE;
++
++    std::map<uint32_t, VkRenderPass> mRenderPassCache; // key: msaa | (hasDepth << 8)
++    std::map<uint32_t, VkSampler> mSamplerCache;       // key: linear | cms<<1 | cmt<<9
++
++    std::unordered_map<std::pair<uint64_t, uint64_t>, ShaderProgramVK, vk_hash_pair_shader_ids> mShaderProgramPool;
++
++    std::vector<TextureDataVK> mTextures;
++    std::vector<FramebufferVK> mFramebuffers;
++    std::vector<int> mDrawnFramebuffers;
++
++    TextureDataVK mDummyTexture; // bound to unused sampler slots
++
++    ShaderProgramVK* mShaderProgram = nullptr;
++
++    int mCurrentTile = 0;
++    uint32_t mCurrentTextureIds[SHADER_MAX_TEXTURES] = {};
++
++    int32_t mRenderTargetHeight = 0;
++    int mCurrentFramebuffer = 0;
++    FilteringMode mCurrentFilterMode = FILTER_THREE_POINT;
++    float mNoiseScale = 1.0f;
++    int32_t mFrameCount = 0;
++
++    // Offscreen readbacks (synchronous) and the deferred screen readback (mirrors Metal: the copy is recorded at the
++    // end of a frame, the CPU reads it in the next one once that frame's fence has signalled)
++    ReadbackBuffer mReadback;
++    ReadbackBuffer mScreenReadback;
++    uint32_t mScreenReadbackWidth = 0;
++    uint32_t mScreenReadbackHeight = 0;
++    bool mScreenReadbackRequested = false;
++    bool mScreenReadbackDataReady = false;
++    uint32_t mScreenReadbackSlot = 0;
++
++    bool mImGuiInitialized = false;
++};
++
++} // namespace Fast
++
++// Loads the Vulkan library for SDL (with the Homebrew MoltenVK locations as a fallback on macOS); before a window with
++// SDL_WINDOW_VULKAN is created.
++bool Vulkan_LoadLibrary();
++// A Vulkan driver with at least one device is installed.
++bool Vulkan_IsSupported();
++
++#endif
 diff --git a/include/fast/backends/gfx_window_manager_api.h b/include/fast/backends/gfx_window_manager_api.h
 index 3759991..1c518b3 100644
 --- a/include/fast/backends/gfx_window_manager_api.h
@@ -482,11 +878,203 @@ index 3019a6c..ed1997f 100644
  
  #define NUM_SEGMENTS (16)
  #define SEGMENT_OFFSET(a) ((u32)(a)&0x00FFFFFF)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index cfab4be..11c73da 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -168,6 +168,11 @@ endif()
+ 
+ target_link_libraries(libultraship PUBLIC prism monocypher)
+ 
++if(LUS_ENABLE_VULKAN) # PORT: Vulkan backend (cmake/dependencies/common.cmake)
++    target_compile_definitions(libultraship PUBLIC ENABLE_VULKAN)
++    target_link_libraries(libultraship PRIVATE lus_volk glslang::glslang glslang::glslang-default-resource-limits)
++endif()
++
+ if(ENABLE_SCRIPTING)
+     target_compile_definitions(libultraship PUBLIC ENABLE_SCRIPTING)
+     if(ENABLE_TCC_COMPILER)
+diff --git a/src/fast/Fast3dGui.cpp b/src/fast/Fast3dGui.cpp
+index 893dcd5..c5f4f22 100644
+--- a/src/fast/Fast3dGui.cpp
++++ b/src/fast/Fast3dGui.cpp
+@@ -7,6 +7,7 @@
+ #include "ship/config/Config.h"
+ #include "ship/resource/ResourceManager.h"
+ #include "fast/backends/gfx_metal.h"
++#include "fast/backends/gfx_vulkan.h"
+ #include "fast/interpreter.h"
+ #include "fast/backends/gfx_rendering_api.h"
+ #include "fast/resource/type/Texture.h"
+@@ -32,6 +33,10 @@
+ #include <imgui_impl_sdl3.h>
+ #endif
+ 
++#ifdef ENABLE_VULKAN
++#include <imgui_impl_sdl3.h>
++#endif
++
+ #if defined(ENABLE_DX11) || defined(ENABLE_DX12)
+ #include <imgui_impl_dx11.h>
+ #include <imgui_impl_win32.h>
+@@ -93,7 +98,8 @@ void Fast3dGui::HandleWindowEvents(Fast::WindowEvent event) {
+ 
+     switch (window->GetWindowBackend()) {
+         case WindowBackend::FAST3D_SDL_OPENGL:
+-        case WindowBackend::FAST3D_SDL_METAL: {
++        case WindowBackend::FAST3D_SDL_METAL:
++        case WindowBackend::FAST3D_SDL_VULKAN: {
+             ImGui_ImplSDL3_ProcessEvent(static_cast<const SDL_Event*>(event.Sdl.Event));
+ #if defined(__ANDROID__) || defined(__IOS__)
+             SDL_Window* sdlWindow = window->GetWindowBackend() == WindowBackend::FAST3D_SDL_OPENGL
+@@ -135,6 +141,15 @@ void Fast3dGui::ImGuiWMInit() {
+             ImGui_ImplSDL3_InitForMetal(static_cast<SDL_Window*>(mImpl.Metal.Window));
+             break;
+ #endif
++#ifdef ENABLE_VULKAN
++        case WindowBackend::FAST3D_SDL_VULKAN:
++            SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
++            if (mConsoleVariables->GetInteger(CVAR_ALLOW_BACKGROUND_INPUTS, 1)) {
++                SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
++            }
++            ImGui_ImplSDL3_InitForVulkan(static_cast<SDL_Window*>(mImpl.Vulkan.Window));
++            break;
++#endif
+ #if defined(ENABLE_DX11) || defined(ENABLE_DX12)
+         case WindowBackend::FAST3D_DXGI_DX11:
+             ImGui_ImplWin32_Init(mImpl.Dx11.Window);
+@@ -161,6 +176,11 @@ void Fast3dGui::ImGuiWMShutdown() {
+             ImGui_ImplSDL3_Shutdown();
+             break;
+ #endif
++#ifdef ENABLE_VULKAN
++        case WindowBackend::FAST3D_SDL_VULKAN:
++            ImGui_ImplSDL3_Shutdown();
++            break;
++#endif
+ #if defined(ENABLE_DX11) || defined(ENABLE_DX12)
+         case WindowBackend::FAST3D_DXGI_DX11:
+             ImGui_ImplWin32_Shutdown();
+@@ -194,6 +214,14 @@ void Fast3dGui::ImGuiBackendInit() {
+         }
+ #endif
+ 
++#ifdef ENABLE_VULKAN
++        case WindowBackend::FAST3D_SDL_VULKAN: {
++            GfxRenderingAPIVK* api = (GfxRenderingAPIVK*)mInterpreter.lock()->GetCurrentRenderingAPI();
++            api->VulkanInit(static_cast<SDL_Window*>(mImpl.Vulkan.Window));
++            break;
++        }
++#endif
++
+ #ifdef ENABLE_DX11
+         case WindowBackend::FAST3D_DXGI_DX11:
+             ImGui_ImplDX11_Init(static_cast<ID3D11Device*>(mImpl.Dx11.Device),
+@@ -218,6 +246,13 @@ void Fast3dGui::ImGuiBackendShutdown() {
+             ImGui_ImplMetal_Shutdown();
+             break;
+ #endif
++#ifdef ENABLE_VULKAN
++        case WindowBackend::FAST3D_SDL_VULKAN: {
++            GfxRenderingAPIVK* api = (GfxRenderingAPIVK*)mInterpreter.lock()->GetCurrentRenderingAPI();
++            api->ShutdownImGui();
++            break;
++        }
++#endif
+ #if defined(ENABLE_DX11) || defined(ENABLE_DX12)
+         case WindowBackend::FAST3D_DXGI_DX11:
+             ImGui_ImplDX11_Shutdown();
+@@ -249,6 +284,13 @@ void Fast3dGui::ImGuiBackendNewFrame() {
+             api->NewFrame();
+             break;
+         }
++#endif
++#ifdef ENABLE_VULKAN
++        case WindowBackend::FAST3D_SDL_VULKAN: {
++            GfxRenderingAPIVK* api = (GfxRenderingAPIVK*)mInterpreter.lock()->GetCurrentRenderingAPI();
++            api->NewFrame();
++            break;
++        }
+ #endif
+         default:
+             break;
+@@ -260,6 +302,7 @@ void Fast3dGui::ImGuiWMNewFrame() {
+     switch (window->GetWindowBackend()) {
+         case WindowBackend::FAST3D_SDL_OPENGL:
+         case WindowBackend::FAST3D_SDL_METAL:
++        case WindowBackend::FAST3D_SDL_VULKAN:
+             ImGui_ImplSDL3_NewFrame();
+             break;
+ #ifdef ENABLE_DX11
+@@ -277,7 +320,8 @@ void Fast3dGui::ImGuiWMNewFrame() {
+ void Fast3dGui::RefreshImGuiGamepads() {
+     auto window = mWindow;
+     auto backend = window->GetWindowBackend();
+-    if (backend != WindowBackend::FAST3D_SDL_OPENGL && backend != WindowBackend::FAST3D_SDL_METAL) {
++    if (backend != WindowBackend::FAST3D_SDL_OPENGL && backend != WindowBackend::FAST3D_SDL_METAL &&
++        backend != WindowBackend::FAST3D_SDL_VULKAN) {
+         return;
+     }
+ 
+@@ -301,6 +345,14 @@ void Fast3dGui::ImGuiRenderDrawData(ImDrawData* data) {
+         }
+ #endif
+ 
++#ifdef ENABLE_VULKAN
++        case WindowBackend::FAST3D_SDL_VULKAN: {
++            GfxRenderingAPIVK* api = (GfxRenderingAPIVK*)mInterpreter.lock()->GetCurrentRenderingAPI();
++            api->RenderDrawData(data);
++            break;
++        }
++#endif
++
+ #ifdef ENABLE_DX11
+         case WindowBackend::FAST3D_DXGI_DX11:
+             ImGui_ImplDX11_RenderDrawData(data);
 diff --git a/src/fast/Fast3dWindow.cpp b/src/fast/Fast3dWindow.cpp
-index b80c990..c014be4 100644
+index b80c990..719941e 100644
 --- a/src/fast/Fast3dWindow.cpp
 +++ b/src/fast/Fast3dWindow.cpp
-@@ -226,13 +226,19 @@ void Fast3dWindow::EndFrame() {
+@@ -11,6 +11,7 @@
+ #include "fast/backends/gfx_dxgi.h"
+ #include "fast/backends/gfx_opengl.h"
+ #include "fast/backends/gfx_metal.h"
++#include "fast/backends/gfx_vulkan.h"
+ #include "fast/backends/gfx_direct3d_common.h"
+ #include "fast/backends/gfx_direct3d11.h"
+ #include "fast/backends/gfx_window_manager_api.h"
+@@ -160,6 +161,14 @@ uint16_t Fast3dWindow::GetPixelDepth(float x, float y) {
+ }
+ 
+ void Fast3dWindow::InitWindowManager() {
++#ifdef ENABLE_VULKAN
++    // PORT: Vulkan is used only when the config asks for it (Window.Backend.Id 4) and a driver with a device is
++    // installed; otherwise the default backend. Probed only then: the probe (SDL video + a Vulkan instance before the
++    // window exists) stalled the OpenGL backend on macOS.
++    if (GetConfig()->GetInt("Window.Backend.Id", -1) == WindowBackend::FAST3D_SDL_VULKAN && Vulkan_IsSupported()) {
++        AddAvailableWindowBackend(WindowBackend::FAST3D_SDL_VULKAN);
++    }
++#endif
+     SetWindowBackend(GetSavedWindowBackend());
+ 
+     switch (GetWindowBackend()) {
+@@ -190,6 +199,15 @@ void Fast3dWindow::InitWindowManager() {
+             mRenderingApi = new GfxRenderingAPIMetal(GetConsoleVariables(),
+                                                      GetContext()->GetChildren().GetFirst<Ship::ResourceManager>());
+             break;
++#endif
++#ifdef ENABLE_VULKAN
++        case WindowBackend::FAST3D_SDL_VULKAN:
++            mWindowManagerApi =
++                new GfxWindowBackendSDL(GetConfig(), GetContext()->GetChildren().GetFirst<Ship::FileDrop>(),
++                                        GetConsoleVariables(), std::dynamic_pointer_cast<Fast::Fast3dGui>(GetGui()));
++            mRenderingApi = new GfxRenderingAPIVK(GetConsoleVariables(),
++                                                  GetContext()->GetChildren().GetFirst<Ship::ResourceManager>());
++            break;
+ #endif
+         default:
+             SPDLOG_ERROR("Could not load the correct rendering backend");
+@@ -226,13 +244,19 @@ void Fast3dWindow::EndFrame() {
  }
  
  bool Fast3dWindow::IsFrameReady() {
@@ -508,6 +1096,17 @@ index b80c990..c014be4 100644
      }
  
      auto gui = GetGui();
+@@ -463,6 +487,10 @@ std::string Fast3dWindow::GetWindowBackendName() {
+ #ifdef __APPLE__
+         case WindowBackend::FAST3D_SDL_METAL:
+             return "Metal";
++#endif
++#ifdef ENABLE_VULKAN
++        case WindowBackend::FAST3D_SDL_VULKAN:
++            return "Vulkan";
+ #endif
+         default:
+             return "";
 diff --git a/src/fast/backends/gfx_direct3d11.cpp b/src/fast/backends/gfx_direct3d11.cpp
 index f747b81..f54b1f1 100644
 --- a/src/fast/backends/gfx_direct3d11.cpp
@@ -1374,11 +1973,14 @@ index 6c4dfc8..c739b1c 100644
          uint8_t r = (rgba8[i * 4 + 0] >> 3) & 0x1F;
          uint8_t g = (rgba8[i * 4 + 1] >> 3) & 0x1F;
 diff --git a/src/fast/backends/gfx_sdl.cpp b/src/fast/backends/gfx_sdl.cpp
-index c8bc6cd..f9afa95 100644
+index c8bc6cd..ff6981d 100644
 --- a/src/fast/backends/gfx_sdl.cpp
 +++ b/src/fast/backends/gfx_sdl.cpp
-@@ -38,8 +38,8 @@
+@@ -36,10 +36,11 @@
+ 
+ #include "ship/window/gui/Gui.h"
  #include "fast/Fast3dGui.h"
++#include "fast/backends/gfx_vulkan.h"
  
  #ifdef _WIN32
 -#include <WTypesbase.h>
@@ -1388,7 +1990,7 @@ index c8bc6cd..f9afa95 100644
  #endif
  
  #define GFX_BACKEND_NAME "SDL"
-@@ -307,6 +307,9 @@ void GfxWindowBackendSDL::Close() {
+@@ -307,6 +308,9 @@ void GfxWindowBackendSDL::Close() {
  }
  
  #ifdef _WIN32
@@ -1398,6 +2000,1994 @@ index c8bc6cd..f9afa95 100644
  static LRESULT CALLBACK gfx_sdl_wnd_proc(HWND h_wnd, UINT message, WPARAM w_param, LPARAM l_param) {
      switch (message) {
          case WM_GETDPISCALEDSIZE:
+@@ -341,17 +345,23 @@ void GfxWindowBackendSDL::Init(const char* gameName, const char* gfxApiName, boo
+ 
+     SDL_SetEventEnabled(SDL_EVENT_DROP_FILE, true);
+ 
++    // PORT: Vulkan backend (gfx_vulkan.cpp): a window with a Vulkan surface, no GL context or SDL renderer
++#ifdef ENABLE_VULKAN
++    const bool use_vulkan = strcmp(gfxApiName, "Vulkan") == 0;
++#else
++    constexpr bool use_vulkan = false;
++#endif
+ #if defined(__APPLE__)
+-    bool use_opengl = strcmp(gfxApiName, "OpenGL") == 0;
++    bool use_opengl = !use_vulkan && strcmp(gfxApiName, "OpenGL") == 0;
+ #else
+-    constexpr bool use_opengl = true;
++    const bool use_opengl = !use_vulkan;
+ #endif
+ 
+     if (use_opengl) {
+         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+         SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+         SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+-    } else {
++    } else if (!use_vulkan) {
+         SDL_SetHint(SDL_HINT_RENDER_DRIVER, "metal");
+     }
+ 
+@@ -391,6 +401,13 @@ void GfxWindowBackendSDL::Init(const char* gameName, const char* gfxApiName, boo
+ 
+     if (use_opengl) {
+         flags = flags | SDL_WINDOW_OPENGL;
++    } else if (use_vulkan) {
++#ifdef ENABLE_VULKAN
++        if (!Vulkan_LoadLibrary()) {
++            SPDLOG_ERROR("Could not load the Vulkan library: {}", SDL_GetError());
++        }
++#endif
++        flags = flags | SDL_WINDOW_VULKAN;
+     } else {
+         flags = flags | SDL_WINDOW_METAL;
+     }
+@@ -437,6 +454,12 @@ void GfxWindowBackendSDL::Init(const char* gameName, const char* gfxApiName, boo
+         SDL_GL_SetSwapInterval(mVsyncEnabled ? 1 : 0);
+ 
+         window_impl.Opengl = { mWnd, mCtx };
++    } else if (use_vulkan) {
++        if (startFullScreen) {
++            SetFullscreenImpl(true, false);
++        }
++        SDL_GetWindowSizeInPixels(mWnd, &mWindowWidth, &mWindowHeight);
++        window_impl.Vulkan = { mWnd };
+     } else {
+         mRenderer = SDL_CreateRenderer(mWnd, nullptr);
+         if (mRenderer == nullptr) {
+diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
+new file mode 100644
+index 0000000..469b2a5
+--- /dev/null
++++ b/src/fast/backends/gfx_vulkan.cpp
+@@ -0,0 +1,1928 @@
++//
++//  gfx_vulkan.cpp
++//  libultraship
++//
++//  PORT: Vulkan rendering backend for fast3d, adapted from Kenix3/libultraship#1265 (KiritoDv) to this tree's
++//  rendering API. Architecturally it mirrors the Metal backend: per-framebuffer command buffers recorded during the
++//  frame and submitted in framebuffer order at EndFrame, with the swapchain (fb 0) last.
++//
++//  Simplifications kept from #1265, chosen for correctness and portability (MoltenVK included):
++//   - every image lives in VK_IMAGE_LAYOUT_GENERAL (except the swapchain image, which transitions to PRESENT_SRC at
++//     the end of the screen command buffer),
++//   - render passes always LOAD/STORE; clears go through vkCmdClearAttachments,
++//   - pipelines are created lazily per (shader, depth/msaa state) combination.
++//
++//  Phase 1 (this state): device, swapchain, framebuffers, textures, readback and ImGui. Game draws are not
++//  rendered yet (DrawTriangles records nothing); the shader template and pipelines come next.
++//
++#ifdef ENABLE_VULKAN
++
++#include "fast/backends/gfx_vulkan.h"
++
++#include <vector>
++#include <algorithm>
++#include <cstring>
++#include <sstream>
++#include <unordered_set>
++
++#include <SDL3/SDL.h>
++#include <SDL3/SDL_vulkan.h>
++#include <spdlog/spdlog.h>
++#include <glslang/Include/glslang_c_interface.h>
++#include <glslang/Public/resource_limits_c.h>
++
++#include <imgui_impl_vulkan.h>
++
++#include "libultraship/libultra/gbi.h"
++#include "ship/config/ConsoleVariable.h"
++#include "ship/resource/ResourceManager.h"
++
++#define VK_CHECK(expr)                                                          \
++    do {                                                                        \
++        VkResult _res = (expr);                                                 \
++        if (_res != VK_SUCCESS) {                                               \
++            SPDLOG_ERROR("Vulkan error {} at {}: " #expr, (int)_res, __LINE__); \
++        }                                                                       \
++    } while (0)
++
++namespace Fast {
++
++extern std::vector<uint8_t> gPortScreenBgra; // interpreter.cpp
++extern uint32_t gPortScreenW, gPortScreenH;
++extern bool gPortReplayFrame; // interpreter.cpp (frame interpolation)
++
++static std::shared_ptr<Ship::ResourceManager> sVKResourceManager;
++
++GfxRenderingAPIVK::GfxRenderingAPIVK(std::shared_ptr<Ship::ConsoleVariable> consoleVariable,
++                                     std::shared_ptr<Ship::ResourceManager> resourceManager)
++    : mConsoleVariable(std::move(consoleVariable)) {
++    sVKResourceManager = std::move(resourceManager);
++}
++
++// MARK: - Shader compilation (GLSL -> SPIR-V via glslang)
++
++// Returns an empty vector (and logs the error with the numbered source) when the source does not compile.
++static std::vector<uint32_t> CompileGlslToSpirv(const std::string& source, bool vertex) {
++    static bool sInitialized = false;
++    if (!sInitialized) {
++        glslang_initialize_process();
++        sInitialized = true;
++    }
++
++    glslang_input_t input = {};
++    input.language = GLSLANG_SOURCE_GLSL;
++    input.stage = vertex ? GLSLANG_STAGE_VERTEX : GLSLANG_STAGE_FRAGMENT;
++    input.client = GLSLANG_CLIENT_VULKAN;
++    input.client_version = GLSLANG_TARGET_VULKAN_1_1;
++    input.target_language = GLSLANG_TARGET_SPV;
++    input.target_language_version = GLSLANG_TARGET_SPV_1_3;
++    input.code = source.c_str();
++    input.default_version = 450;
++    input.default_profile = GLSLANG_NO_PROFILE;
++    input.messages = GLSLANG_MSG_DEFAULT_BIT;
++    input.resource = glslang_default_resource();
++
++    std::vector<uint32_t> spirv;
++    glslang_shader_t* shader = glslang_shader_create(&input);
++    glslang_program_t* program = nullptr;
++    const char* stage = vertex ? "vertex" : "fragment";
++    if (!glslang_shader_preprocess(shader, &input) || !glslang_shader_parse(shader, &input)) {
++        SPDLOG_ERROR("Vulkan: {} shader compilation failed: {}", stage, glslang_shader_get_info_log(shader));
++    } else {
++        program = glslang_program_create();
++        glslang_program_add_shader(program, shader);
++        if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT)) {
++            SPDLOG_ERROR("Vulkan: {} shader link failed: {}", stage, glslang_program_get_info_log(program));
++        } else {
++            glslang_program_SPIRV_generate(program, input.stage);
++            spirv.resize(glslang_program_SPIRV_get_size(program));
++            glslang_program_SPIRV_get(program, spirv.data());
++        }
++    }
++    if (spirv.empty()) {
++        int line = 1;
++        std::stringstream ss(source);
++        std::string l;
++        while (std::getline(ss, l)) {
++            fprintf(stderr, "%4d| %s\n", line++, l.c_str());
++        }
++    }
++    if (program != nullptr) {
++        glslang_program_delete(program);
++    }
++    glslang_shader_delete(shader);
++    return spirv;
++}
++
++// MARK: - Helpers
++
++static VkSamplerAddressMode gfx_cm_to_vk(uint32_t val, bool hasMirrorClamp) {
++    switch (val) {
++        case G_TX_NOMIRROR | G_TX_CLAMP:
++            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
++        case G_TX_MIRROR | G_TX_WRAP:
++            return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
++        case G_TX_MIRROR | G_TX_CLAMP:
++            return hasMirrorClamp ? VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE
++                                  : VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
++        case G_TX_NOMIRROR | G_TX_WRAP:
++            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
++    }
++    return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
++}
++
++uint32_t GfxRenderingAPIVK::FindMemoryType(uint32_t typeBits, VkMemoryPropertyFlags props) {
++    VkPhysicalDeviceMemoryProperties memProps;
++    vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProps);
++    for (uint32_t i = 0; i < memProps.memoryTypeCount; i++) {
++        if ((typeBits & (1u << i)) && (memProps.memoryTypes[i].propertyFlags & props) == props) {
++            return i;
++        }
++    }
++    SPDLOG_ERROR("Vulkan: no suitable memory type (bits {:x}, props {:x})", typeBits, (uint32_t)props);
++    return 0;
++}
++
++void GfxRenderingAPIVK::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props,
++                                     VkBuffer& buffer, VkDeviceMemory& memory, uint8_t** mapped) {
++    VkBufferCreateInfo bi = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
++    bi.size = size;
++    bi.usage = usage;
++    bi.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
++    VK_CHECK(vkCreateBuffer(mDevice, &bi, nullptr, &buffer));
++
++    VkMemoryRequirements req;
++    vkGetBufferMemoryRequirements(mDevice, buffer, &req);
++    VkMemoryAllocateInfo ai = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
++    ai.allocationSize = req.size;
++    ai.memoryTypeIndex = FindMemoryType(req.memoryTypeBits, props);
++    VK_CHECK(vkAllocateMemory(mDevice, &ai, nullptr, &memory));
++    VK_CHECK(vkBindBufferMemory(mDevice, buffer, memory, 0));
++
++    if (mapped != nullptr) {
++        VK_CHECK(vkMapMemory(mDevice, memory, 0, VK_WHOLE_SIZE, 0, (void**)mapped));
++    }
++}
++
++void GfxRenderingAPIVK::EnsureReadbackBuffer(ReadbackBuffer& rb, size_t size) {
++    if (rb.capacity >= size) {
++        return;
++    }
++    if (rb.buffer != VK_NULL_HANDLE) {
++        vkDeviceWaitIdle(mDevice);
++        vkDestroyBuffer(mDevice, rb.buffer, nullptr);
++        vkFreeMemory(mDevice, rb.memory, nullptr);
++    }
++    // Host-cached where available: the CPU reads every byte back
++    VkMemoryPropertyFlags props = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
++    CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, props, rb.buffer, rb.memory, &rb.mapped);
++    rb.capacity = size;
++}
++
++void GfxRenderingAPIVK::CreateImage(uint32_t width, uint32_t height, VkSampleCountFlagBits samples, VkFormat format,
++                                    VkImageUsageFlags usage, VkImage& image, VkDeviceMemory& memory) {
++    VkImageCreateInfo ii = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
++    ii.imageType = VK_IMAGE_TYPE_2D;
++    ii.extent = { width, height, 1 };
++    ii.mipLevels = 1;
++    ii.arrayLayers = 1;
++    ii.format = format;
++    ii.tiling = VK_IMAGE_TILING_OPTIMAL;
++    ii.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
++    ii.usage = usage;
++    ii.samples = samples;
++    ii.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
++    VK_CHECK(vkCreateImage(mDevice, &ii, nullptr, &image));
++
++    VkMemoryRequirements req;
++    vkGetImageMemoryRequirements(mDevice, image, &req);
++    VkMemoryAllocateInfo ai = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
++    ai.allocationSize = req.size;
++    ai.memoryTypeIndex = FindMemoryType(req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
++    VK_CHECK(vkAllocateMemory(mDevice, &ai, nullptr, &memory));
++    VK_CHECK(vkBindImageMemory(mDevice, image, memory, 0));
++}
++
++VkImageView GfxRenderingAPIVK::CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect) {
++    VkImageViewCreateInfo vi = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
++    vi.image = image;
++    vi.viewType = VK_IMAGE_VIEW_TYPE_2D;
++    vi.format = format;
++    vi.subresourceRange = { aspect, 0, 1, 0, 1 };
++    VkImageView view = VK_NULL_HANDLE;
++    VK_CHECK(vkCreateImageView(mDevice, &vi, nullptr, &view));
++    return view;
++}
++
++void GfxRenderingAPIVK::TransitionToGeneral(VkCommandBuffer cmd, VkImage image, VkImageAspectFlags aspect) {
++    VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
++    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
++    barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
++    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++    barrier.image = image;
++    barrier.subresourceRange = { aspect, 0, 1, 0, 1 };
++    barrier.srcAccessMask = 0;
++    barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
++    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0,
++                         nullptr, 1, &barrier);
++}
++
++// Conservative everything-to-everything barrier used around blits/copies.
++void GfxRenderingAPIVK::FullBarrier(VkCommandBuffer cmd) {
++    VkMemoryBarrier barrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER };
++    barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
++    barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
++    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1, &barrier, 0,
++                         nullptr, 0, nullptr);
++}
++
++VkCommandBuffer GfxRenderingAPIVK::BeginOneShot() {
++    VkCommandBufferAllocateInfo ai = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
++    ai.commandPool = mFrames[mFrameSlot].commandPool;
++    ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
++    ai.commandBufferCount = 1;
++    VkCommandBuffer cmd;
++    VK_CHECK(vkAllocateCommandBuffers(mDevice, &ai, &cmd));
++    VkCommandBufferBeginInfo bi = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
++    bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
++    VK_CHECK(vkBeginCommandBuffer(cmd, &bi));
++    return cmd;
++}
++
++void GfxRenderingAPIVK::EndOneShot(VkCommandBuffer cmd) {
++    VK_CHECK(vkEndCommandBuffer(cmd));
++    VkSubmitInfo si = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
++    si.commandBufferCount = 1;
++    si.pCommandBuffers = &cmd;
++    VK_CHECK(vkQueueSubmit(mQueue, 1, &si, VK_NULL_HANDLE));
++    VK_CHECK(vkQueueWaitIdle(mQueue));
++    vkFreeCommandBuffers(mDevice, mFrames[mFrameSlot].commandPool, 1, &cmd);
++}
++
++// Canonical render pass per (msaa, hasDepth). All attachments LOAD/STORE in LAYOUT_GENERAL; MSAA passes add a resolve
++// attachment (the sampled texture).
++VkRenderPass GfxRenderingAPIVK::GetRenderPass(uint32_t msaaLevel, bool hasDepth) {
++    uint32_t key = msaaLevel | (hasDepth ? 1u << 8 : 0);
++    auto it = mRenderPassCache.find(key);
++    if (it != mRenderPassCache.end()) {
++        return it->second;
++    }
++
++    bool msaa = msaaLevel > 1;
++    std::vector<VkAttachmentDescription> attachments;
++
++    VkAttachmentDescription color = {};
++    color.format = mSwapchainFormat;
++    color.samples = (VkSampleCountFlagBits)msaaLevel;
++    color.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
++    color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
++    color.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
++    color.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
++    color.initialLayout = VK_IMAGE_LAYOUT_GENERAL;
++    color.finalLayout = VK_IMAGE_LAYOUT_GENERAL;
++    attachments.push_back(color);
++
++    VkAttachmentReference colorRef = { 0, VK_IMAGE_LAYOUT_GENERAL };
++    VkAttachmentReference resolveRef = { VK_ATTACHMENT_UNUSED, VK_IMAGE_LAYOUT_GENERAL };
++    VkAttachmentReference depthRef = { VK_ATTACHMENT_UNUSED, VK_IMAGE_LAYOUT_GENERAL };
++
++    if (msaa) {
++        VkAttachmentDescription resolve = color;
++        resolve.samples = VK_SAMPLE_COUNT_1_BIT;
++        resolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
++        attachments.push_back(resolve);
++        resolveRef.attachment = 1;
++    }
++
++    if (hasDepth) {
++        VkAttachmentDescription depth = {};
++        depth.format = VK_FORMAT_D32_SFLOAT;
++        depth.samples = (VkSampleCountFlagBits)msaaLevel;
++        depth.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
++        depth.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
++        depth.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
++        depth.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
++        depth.initialLayout = VK_IMAGE_LAYOUT_GENERAL;
++        depth.finalLayout = VK_IMAGE_LAYOUT_GENERAL;
++        depthRef.attachment = (uint32_t)attachments.size();
++        attachments.push_back(depth);
++    }
++
++    VkSubpassDescription subpass = {};
++    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
++    subpass.colorAttachmentCount = 1;
++    subpass.pColorAttachments = &colorRef;
++    subpass.pResolveAttachments = msaa ? &resolveRef : nullptr;
++    subpass.pDepthStencilAttachment = hasDepth ? &depthRef : nullptr;
++
++    // Conservative full external dependencies: framebuffer textures get sampled by later framebuffers' draws within
++    // the same submission.
++    VkSubpassDependency deps[2] = {};
++    deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
++    deps[0].dstSubpass = 0;
++    deps[0].srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
++    deps[0].dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
++    deps[0].srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
++    deps[0].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
++    deps[1].srcSubpass = 0;
++    deps[1].dstSubpass = VK_SUBPASS_EXTERNAL;
++    deps[1].srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
++    deps[1].dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
++    deps[1].srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
++    deps[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
++
++    VkRenderPassCreateInfo rp = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
++    rp.attachmentCount = (uint32_t)attachments.size();
++    rp.pAttachments = attachments.data();
++    rp.subpassCount = 1;
++    rp.pSubpasses = &subpass;
++    rp.dependencyCount = 2;
++    rp.pDependencies = deps;
++
++    VkRenderPass pass = VK_NULL_HANDLE;
++    VK_CHECK(vkCreateRenderPass(mDevice, &rp, nullptr, &pass));
++    mRenderPassCache[key] = pass;
++    return pass;
++}
++
++VkSampler GfxRenderingAPIVK::GetSampler(bool linear, uint32_t cms, uint32_t cmt) {
++    uint32_t key = (linear ? 1u : 0) | (cms << 1) | (cmt << 9);
++    auto it = mSamplerCache.find(key);
++    if (it != mSamplerCache.end()) {
++        return it->second;
++    }
++
++    VkSamplerCreateInfo si = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
++    VkFilter filter = linear && mCurrentFilterMode == FILTER_LINEAR ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
++    si.magFilter = filter;
++    si.minFilter = filter;
++    si.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
++    si.addressModeU = gfx_cm_to_vk(cms, mHasMirrorClampToEdge);
++    si.addressModeV = gfx_cm_to_vk(cmt, mHasMirrorClampToEdge);
++    si.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
++    si.minLod = 0.0f;
++    si.maxLod = 0.0f;
++
++    VkSampler sampler = VK_NULL_HANDLE;
++    VK_CHECK(vkCreateSampler(mDevice, &si, nullptr, &sampler));
++    mSamplerCache[key] = sampler;
++    return sampler;
++}
++
++void GfxRenderingAPIVK::EnsureUploadCmd() {
++    if (mUploadCmd != VK_NULL_HANDLE) {
++        return;
++    }
++    VkCommandBufferAllocateInfo ai = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
++    ai.commandPool = mFrames[mFrameSlot].commandPool;
++    ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
++    ai.commandBufferCount = 1;
++    VK_CHECK(vkAllocateCommandBuffers(mDevice, &ai, &mUploadCmd));
++    VkCommandBufferBeginInfo bi = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
++    bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
++    VK_CHECK(vkBeginCommandBuffer(mUploadCmd, &bi));
++}
++
++void GfxRenderingAPIVK::GrowStaging(FrameSlot& slot, size_t needed) {
++    // Defer-destroy the old buffer: copies already recorded this frame still reference it, and it's freed in
++    // CollectGarbage after this slot's fence, so a bigger buffer swaps in without a queue stall. Bytes already
++    // staged in [0, mStagingOffset) stay valid in the (deferred) old one.
++    size_t newCap = needed + (needed >> 2); // +25% headroom
++    slot.garbageBuffers.push_back(slot.stagingBuffer);
++    slot.garbageMemory.push_back(slot.stagingMemory);
++    slot.stagingCapacity = newCap;
++    CreateBuffer(newCap, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
++                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, slot.stagingBuffer,
++                 slot.stagingMemory, &slot.stagingMapped);
++    SPDLOG_INFO("Vulkan: grew staging buffer to {} MB", newCap / (1024 * 1024));
++}
++
++// MARK: - Swapchain
++
++void GfxRenderingAPIVK::DestroySwapchainViews() {
++    for (VkFramebuffer fb : mSwapchainFramebuffers) {
++        vkDestroyFramebuffer(mDevice, fb, nullptr);
++    }
++    mSwapchainFramebuffers.clear();
++    for (VkImageView view : mSwapchainViews) {
++        vkDestroyImageView(mDevice, view, nullptr);
++    }
++    mSwapchainViews.clear();
++}
++
++void GfxRenderingAPIVK::CreateSwapchain(uint32_t width, uint32_t height) {
++    vkDeviceWaitIdle(mDevice);
++    DestroySwapchainViews();
++
++    VkSurfaceCapabilitiesKHR caps;
++    VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, mSurface, &caps));
++
++    uint32_t formatCount = 0;
++    vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &formatCount, nullptr);
++    std::vector<VkSurfaceFormatKHR> formats(formatCount);
++    vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &formatCount, formats.data());
++
++    VkSurfaceFormatKHR chosen = formats[0];
++    for (const auto& f : formats) {
++        if ((f.format == VK_FORMAT_B8G8R8A8_UNORM || f.format == VK_FORMAT_R8G8B8A8_UNORM) &&
++            f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
++            chosen = f;
++            break;
++        }
++    }
++    if (mSwapchain != VK_NULL_HANDLE && chosen.format != mSwapchainFormat) {
++        // The render passes and offscreen targets use the swapchain format; it does not change in practice
++        SPDLOG_WARN("Vulkan: swapchain format changed ({} -> {})", (int)mSwapchainFormat, (int)chosen.format);
++    }
++    mSwapchainFormat = chosen.format;
++
++    VkExtent2D extent = caps.currentExtent;
++    if (extent.width == UINT32_MAX) {
++        extent = { std::clamp(width, caps.minImageExtent.width, caps.maxImageExtent.width),
++                   std::clamp(height, caps.minImageExtent.height, caps.maxImageExtent.height) };
++    }
++    mSwapchainExtent = extent;
++
++    uint32_t imageCount = std::max(caps.minImageCount + 1, 3u);
++    if (caps.maxImageCount > 0) {
++        imageCount = std::min(imageCount, caps.maxImageCount);
++    }
++
++    // PORT: vsync off (the console variable) presents with MAILBOX or IMMEDIATE where the surface offers them
++    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
++    if (!mVsync) {
++        uint32_t modeCount = 0;
++        vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &modeCount, nullptr);
++        std::vector<VkPresentModeKHR> modes(modeCount);
++        vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &modeCount, modes.data());
++        for (VkPresentModeKHR want : { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR }) {
++            if (std::find(modes.begin(), modes.end(), want) != modes.end()) {
++                presentMode = want;
++                break;
++            }
++        }
++    }
++
++    VkSwapchainCreateInfoKHR sci = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
++    sci.surface = mSurface;
++    sci.minImageCount = imageCount;
++    sci.imageFormat = chosen.format;
++    sci.imageColorSpace = chosen.colorSpace;
++    sci.imageExtent = extent;
++    sci.imageArrayLayers = 1;
++    sci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
++                     VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
++    sci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
++    sci.preTransform = caps.currentTransform;
++    sci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
++    if (!(caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)) {
++        sci.compositeAlpha = (caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR)
++                                 ? VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR
++                                 : VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR;
++    }
++    sci.presentMode = presentMode;
++    sci.clipped = VK_TRUE;
++    sci.oldSwapchain = mSwapchain;
++
++    VkSwapchainKHR newSwapchain = VK_NULL_HANDLE;
++    VK_CHECK(vkCreateSwapchainKHR(mDevice, &sci, nullptr, &newSwapchain));
++    if (mSwapchain != VK_NULL_HANDLE) {
++        vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
++    }
++    mSwapchain = newSwapchain;
++
++    uint32_t count = 0;
++    vkGetSwapchainImagesKHR(mDevice, mSwapchain, &count, nullptr);
++    mSwapchainImages.resize(count);
++    vkGetSwapchainImagesKHR(mDevice, mSwapchain, &count, mSwapchainImages.data());
++
++    mSwapchainViews.resize(count);
++    for (uint32_t i = 0; i < count; i++) {
++        mSwapchainViews[i] = CreateImageView(mSwapchainImages[i], mSwapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT);
++    }
++    mSwapchainImageUsed.assign(count, false);
++
++    mSwapchainNeedsRecreate = false;
++    RebuildScreenFramebuffer();
++}
++
++// (Re)creates the screen depth buffer and the per-swapchain-image framebuffers.
++void GfxRenderingAPIVK::RebuildScreenFramebuffer() {
++    if (mFramebuffers.empty()) {
++        return; // Init() hasn't created fb 0 yet; called again afterwards
++    }
++
++    FramebufferVK& fb = mFramebuffers[0];
++    TextureDataVK& tex = mTextures[fb.mTextureId];
++
++    uint32_t width = mSwapchainExtent.width;
++    uint32_t height = mSwapchainExtent.height;
++
++    if (fb.mDepthImage == VK_NULL_HANDLE || fb.mWidth != width || fb.mHeight != height) {
++        if (fb.mDepthView != VK_NULL_HANDLE) {
++            vkDestroyImageView(mDevice, fb.mDepthView, nullptr);
++            vkDestroyImage(mDevice, fb.mDepthImage, nullptr);
++            vkFreeMemory(mDevice, fb.mDepthMemory, nullptr);
++        }
++        CreateImage(width, height, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_D32_SFLOAT,
++                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, fb.mDepthImage,
++                    fb.mDepthMemory);
++        fb.mDepthView = CreateImageView(fb.mDepthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT);
++
++        VkCommandBuffer cmd = BeginOneShot();
++        TransitionToGeneral(cmd, fb.mDepthImage, VK_IMAGE_ASPECT_DEPTH_BIT);
++        EndOneShot(cmd);
++    }
++
++    fb.mWidth = width;
++    fb.mHeight = height;
++    fb.mMsaaLevel = 1;
++    fb.mHasDepthBuffer = true;
++    fb.mRenderTarget = true;
++    fb.mRenderPass = GetRenderPass(1, true);
++    tex.width = width;
++    tex.height = height;
++    tex.isSwapchainAlias = true;
++
++    for (VkFramebuffer f : mSwapchainFramebuffers) {
++        vkDestroyFramebuffer(mDevice, f, nullptr);
++    }
++    mSwapchainFramebuffers.resize(mSwapchainViews.size());
++    for (size_t i = 0; i < mSwapchainViews.size(); i++) {
++        VkImageView attachments[2] = { mSwapchainViews[i], fb.mDepthView };
++        VkFramebufferCreateInfo fci = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
++        fci.renderPass = fb.mRenderPass;
++        fci.attachmentCount = 2;
++        fci.pAttachments = attachments;
++        fci.width = width;
++        fci.height = height;
++        fci.layers = 1;
++        VK_CHECK(vkCreateFramebuffer(mDevice, &fci, nullptr, &mSwapchainFramebuffers[i]));
++    }
++}
++
++// MARK: - ImGui & SDL hooks (called from Fast3dGui)
++
++bool GfxRenderingAPIVK::VulkanInit(SDL_Window* window) {
++    mWindow = window;
++
++    // The library SDL loaded for the window (Vulkan_LoadLibrary) provides the entry points
++    auto getInstanceProcAddr = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
++    if (getInstanceProcAddr == nullptr) {
++        SPDLOG_ERROR("Vulkan: no vkGetInstanceProcAddr: {}", SDL_GetError());
++        return false;
++    }
++    volkInitializeCustom(getInstanceProcAddr);
++
++    // Instance
++    Uint32 sdlExtCount = 0;
++    const char* const* sdlExts = SDL_Vulkan_GetInstanceExtensions(&sdlExtCount);
++    std::vector<const char*> instanceExts(sdlExts, sdlExts + sdlExtCount);
++
++    uint32_t availExtCount = 0;
++    vkEnumerateInstanceExtensionProperties(nullptr, &availExtCount, nullptr);
++    std::vector<VkExtensionProperties> availExts(availExtCount);
++    vkEnumerateInstanceExtensionProperties(nullptr, &availExtCount, availExts.data());
++    bool hasPortabilityEnum = false;
++    for (const auto& e : availExts) {
++        if (strcmp(e.extensionName, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME) == 0) {
++            hasPortabilityEnum = true;
++        }
++    }
++    if (hasPortabilityEnum) {
++        instanceExts.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME); // MoltenVK
++    }
++
++    std::vector<const char*> layers;
++    if (getenv("PORT_VK_VALIDATION") != nullptr) { // debug: the Khronos validation layer (Vulkan SDK)
++        layers.push_back("VK_LAYER_KHRONOS_validation");
++    }
++
++    VkApplicationInfo app = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
++    app.pApplicationName = "libultraship";
++    app.apiVersion = VK_API_VERSION_1_1;
++
++    VkInstanceCreateInfo ici = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
++    ici.pApplicationInfo = &app;
++    ici.enabledExtensionCount = (uint32_t)instanceExts.size();
++    ici.ppEnabledExtensionNames = instanceExts.data();
++    ici.enabledLayerCount = (uint32_t)layers.size();
++    ici.ppEnabledLayerNames = layers.data();
++    if (hasPortabilityEnum) {
++        ici.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
++    }
++    VkResult res = vkCreateInstance(&ici, nullptr, &mInstance);
++    if (res != VK_SUCCESS) {
++        SPDLOG_ERROR("Vulkan: vkCreateInstance failed ({})", (int)res);
++        return false;
++    }
++    volkLoadInstance(mInstance);
++
++    if (!SDL_Vulkan_CreateSurface(window, mInstance, nullptr, &mSurface)) {
++        SPDLOG_ERROR("Vulkan: SDL_Vulkan_CreateSurface failed: {}", SDL_GetError());
++        return false;
++    }
++
++    // Physical device + queue family with graphics & present; discrete GPUs first
++    uint32_t devCount = 0;
++    vkEnumeratePhysicalDevices(mInstance, &devCount, nullptr);
++    if (devCount == 0) {
++        SPDLOG_ERROR("Vulkan: no physical devices");
++        return false;
++    }
++    std::vector<VkPhysicalDevice> devices(devCount);
++    vkEnumeratePhysicalDevices(mInstance, &devCount, devices.data());
++    std::stable_sort(devices.begin(), devices.end(), [](VkPhysicalDevice a, VkPhysicalDevice b) {
++        VkPhysicalDeviceProperties pa, pb;
++        vkGetPhysicalDeviceProperties(a, &pa);
++        vkGetPhysicalDeviceProperties(b, &pb);
++        return pa.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
++               pb.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
++    });
++
++    for (VkPhysicalDevice dev : devices) {
++        uint32_t qCount = 0;
++        vkGetPhysicalDeviceQueueFamilyProperties(dev, &qCount, nullptr);
++        std::vector<VkQueueFamilyProperties> queues(qCount);
++        vkGetPhysicalDeviceQueueFamilyProperties(dev, &qCount, queues.data());
++        for (uint32_t i = 0; i < qCount; i++) {
++            VkBool32 present = VK_FALSE;
++            vkGetPhysicalDeviceSurfaceSupportKHR(dev, i, mSurface, &present);
++            if ((queues[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) && present) {
++                mPhysicalDevice = dev;
++                mQueueFamily = i;
++                break;
++            }
++        }
++        if (mPhysicalDevice != VK_NULL_HANDLE) {
++            break;
++        }
++    }
++    if (mPhysicalDevice == VK_NULL_HANDLE) {
++        SPDLOG_ERROR("Vulkan: no device with graphics+present support");
++        return false;
++    }
++    vkGetPhysicalDeviceProperties(mPhysicalDevice, &mDeviceProps);
++    SPDLOG_INFO("Vulkan device: {} (API {}.{}.{})", mDeviceProps.deviceName, VK_VERSION_MAJOR(mDeviceProps.apiVersion),
++                VK_VERSION_MINOR(mDeviceProps.apiVersion), VK_VERSION_PATCH(mDeviceProps.apiVersion));
++
++    // Device
++    uint32_t devExtCount = 0;
++    vkEnumerateDeviceExtensionProperties(mPhysicalDevice, nullptr, &devExtCount, nullptr);
++    std::vector<VkExtensionProperties> devExts(devExtCount);
++    vkEnumerateDeviceExtensionProperties(mPhysicalDevice, nullptr, &devExtCount, devExts.data());
++    std::vector<const char*> enabledDevExts = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
++    for (const auto& e : devExts) {
++        if (strcmp(e.extensionName, "VK_KHR_portability_subset") == 0) {
++            enabledDevExts.push_back("VK_KHR_portability_subset");
++        }
++        if (strcmp(e.extensionName, VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME) == 0) {
++            enabledDevExts.push_back(VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME);
++            mHasMirrorClampToEdge = true;
++        }
++    }
++
++    float priority = 1.0f;
++    VkDeviceQueueCreateInfo qci = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
++    qci.queueFamilyIndex = mQueueFamily;
++    qci.queueCount = 1;
++    qci.pQueuePriorities = &priority;
++
++    VkPhysicalDeviceFeatures supported = {};
++    vkGetPhysicalDeviceFeatures(mPhysicalDevice, &supported);
++    VkPhysicalDeviceFeatures features = {};
++    features.sampleRateShading = supported.sampleRateShading;
++    features.depthClamp = supported.depthClamp;
++    // PORT: the colour blends by a second shader output's alpha (as Metal/DX11/GL; default.shader.* templates)
++    features.dualSrcBlend = supported.dualSrcBlend;
++    mHasDepthClamp = supported.depthClamp;
++    mHasDualSrcBlend = supported.dualSrcBlend;
++
++    VkDeviceCreateInfo dci = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
++    dci.queueCreateInfoCount = 1;
++    dci.pQueueCreateInfos = &qci;
++    dci.enabledExtensionCount = (uint32_t)enabledDevExts.size();
++    dci.ppEnabledExtensionNames = enabledDevExts.data();
++    dci.pEnabledFeatures = &features;
++    res = vkCreateDevice(mPhysicalDevice, &dci, nullptr, &mDevice);
++    if (res != VK_SUCCESS) {
++        SPDLOG_ERROR("Vulkan: vkCreateDevice failed ({})", (int)res);
++        return false;
++    }
++    volkLoadDevice(mDevice);
++    vkGetDeviceQueue(mDevice, mQueueFamily, 0, &mQueue);
++
++    // Per-frame slots
++    mVertexRingCapacity = 256 * 32 * 3 * sizeof(float) * 50;
++    for (uint32_t i = 0; i < VK_FRAMES_IN_FLIGHT; i++) {
++        FrameSlot& slot = mFrames[i];
++
++        VkCommandPoolCreateInfo cpi = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
++        cpi.queueFamilyIndex = mQueueFamily;
++        cpi.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
++        VK_CHECK(vkCreateCommandPool(mDevice, &cpi, nullptr, &slot.commandPool));
++
++        VkDescriptorPoolSize poolSizes[1] = {
++            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 16384 * SHADER_MAX_TEXTURES },
++        };
++        VkDescriptorPoolCreateInfo dpi = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
++        dpi.maxSets = 16384;
++        dpi.poolSizeCount = 1;
++        dpi.pPoolSizes = poolSizes;
++        VK_CHECK(vkCreateDescriptorPool(mDevice, &dpi, nullptr, &slot.descriptorPool));
++
++        VkFenceCreateInfo fci = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
++        VK_CHECK(vkCreateFence(mDevice, &fci, nullptr, &slot.fence));
++        VkSemaphoreCreateInfo sci = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
++        VK_CHECK(vkCreateSemaphore(mDevice, &sci, nullptr, &slot.imageAvailable));
++        VK_CHECK(vkCreateSemaphore(mDevice, &sci, nullptr, &slot.renderFinished));
++
++        CreateBuffer(mVertexRingCapacity, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
++                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, slot.vertexBuffer,
++                     slot.vertexMemory, &slot.vertexMapped);
++        slot.stagingCapacity = 32 * 1024 * 1024;
++        CreateBuffer(slot.stagingCapacity, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
++                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, slot.stagingBuffer,
++                     slot.stagingMemory, &slot.stagingMapped);
++    }
++
++    // 1x1 white dummy texture for unused sampler slots
++    {
++        CreateImage(1, 1, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_UNORM,
++                    VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, mDummyTexture.image,
++                    mDummyTexture.memory);
++        mDummyTexture.view = CreateImageView(mDummyTexture.image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
++        mDummyTexture.sampler = GetSampler(false, G_TX_WRAP, G_TX_WRAP);
++
++        VkCommandBuffer cmd = BeginOneShot();
++        TransitionToGeneral(cmd, mDummyTexture.image, VK_IMAGE_ASPECT_COLOR_BIT);
++        VkClearColorValue white = { { 1.0f, 1.0f, 1.0f, 1.0f } };
++        VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
++        vkCmdClearColorImage(cmd, mDummyTexture.image, VK_IMAGE_LAYOUT_GENERAL, &white, 1, &range);
++        FullBarrier(cmd);
++        EndOneShot(cmd);
++    }
++
++    // Initial swapchain
++    mVsync = mConsoleVariable == nullptr || mConsoleVariable->GetInteger(CVAR_VSYNC_ENABLED, 1) != 0;
++    int dw = 0, dh = 0;
++    SDL_GetWindowSizeInPixels(window, &dw, &dh);
++    CreateSwapchain((uint32_t)std::max(dw, 1), (uint32_t)std::max(dh, 1));
++
++    // debug: PORT_VK_SELFTEST=1 compiles a trivial shader pair (checks the glslang wiring)
++    if (getenv("PORT_VK_SELFTEST") != nullptr) {
++        auto vs = CompileGlslToSpirv("#version 450\nlayout(location = 0) in vec4 aPos;\n"
++                                     "void main() { gl_Position = aPos; }\n",
++                                     true);
++        auto fs = CompileGlslToSpirv("#version 450\nlayout(location = 0, index = 0) out vec4 o0;\n"
++                                     "layout(location = 0, index = 1) out vec4 o1;\n"
++                                     "void main() { o0 = vec4(1.0); o1 = vec4(0.5); }\n",
++                                     false);
++        VkShaderModuleCreateInfo smci = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
++        VkShaderModule modules[2] = {};
++        bool ok = !vs.empty() && !fs.empty();
++        if (ok) {
++            smci.codeSize = vs.size() * sizeof(uint32_t);
++            smci.pCode = vs.data();
++            ok = vkCreateShaderModule(mDevice, &smci, nullptr, &modules[0]) == VK_SUCCESS;
++            smci.codeSize = fs.size() * sizeof(uint32_t);
++            smci.pCode = fs.data();
++            ok = ok && vkCreateShaderModule(mDevice, &smci, nullptr, &modules[1]) == VK_SUCCESS;
++        }
++        fprintf(stderr, "[vulkan] selftest on %s: SPIR-V %zu + %zu words, shader modules %s\n", mDeviceProps.deviceName,
++                vs.size(), fs.size(), ok ? "ok" : "FAILED");
++        for (VkShaderModule m : modules) {
++            if (m != VK_NULL_HANDLE) {
++                vkDestroyShaderModule(mDevice, m, nullptr);
++            }
++        }
++    }
++
++    // ImGui
++    ImGui_ImplVulkan_InitInfo info = {};
++    info.ApiVersion = VK_API_VERSION_1_1;
++    info.Instance = mInstance;
++    info.PhysicalDevice = mPhysicalDevice;
++    info.Device = mDevice;
++    info.QueueFamily = mQueueFamily;
++    info.Queue = mQueue;
++    info.RenderPass = GetRenderPass(1, true);
++    info.MinImageCount = 2;
++    info.ImageCount = (uint32_t)mSwapchainImages.size();
++    info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
++    info.DescriptorPoolSize = 512;
++    if (!ImGui_ImplVulkan_Init(&info)) {
++        SPDLOG_ERROR("Vulkan: ImGui_ImplVulkan_Init failed");
++        return false;
++    }
++    mImGuiInitialized = true;
++    return true;
++}
++
++void GfxRenderingAPIVK::ShutdownImGui() {
++    if (mImGuiInitialized) {
++        vkDeviceWaitIdle(mDevice);
++        ImGui_ImplVulkan_Shutdown();
++        mImGuiInitialized = false;
++    }
++}
++
++void GfxRenderingAPIVK::CollectGarbage(FrameSlot& slot) {
++    for (auto& [img, mem] : slot.garbageImages) {
++        vkDestroyImage(mDevice, img, nullptr);
++        vkFreeMemory(mDevice, mem, nullptr);
++    }
++    slot.garbageImages.clear();
++    for (VkImageView view : slot.garbageViews) {
++        vkDestroyImageView(mDevice, view, nullptr);
++    }
++    slot.garbageViews.clear();
++    for (VkBuffer buf : slot.garbageBuffers) {
++        vkDestroyBuffer(mDevice, buf, nullptr);
++    }
++    slot.garbageBuffers.clear();
++    for (VkDeviceMemory mem : slot.garbageMemory) {
++        vkFreeMemory(mDevice, mem, nullptr);
++    }
++    slot.garbageMemory.clear();
++}
++
++void GfxRenderingAPIVK::NewFrame() {
++    ImGui_ImplVulkan_NewFrame();
++    if (mDevice == VK_NULL_HANDLE) {
++        return;
++    }
++    FrameSlot& slot = mFrames[mFrameSlot];
++
++    if (slot.fenceInFlight) {
++        VK_CHECK(vkWaitForFences(mDevice, 1, &slot.fence, VK_TRUE, UINT64_MAX));
++        VK_CHECK(vkResetFences(mDevice, 1, &slot.fence));
++        slot.fenceInFlight = false;
++    }
++    CollectGarbage(slot);
++    VK_CHECK(vkResetCommandPool(mDevice, slot.commandPool, 0));
++    VK_CHECK(vkResetDescriptorPool(mDevice, slot.descriptorPool, 0));
++
++    mVertexRingOffset = 0;
++    mStagingOffset = 0;
++    mUploadCmd = VK_NULL_HANDLE;
++
++    // Swapchain housekeeping
++    const bool vsync = mConsoleVariable == nullptr || mConsoleVariable->GetInteger(CVAR_VSYNC_ENABLED, 1) != 0;
++    if (vsync != mVsync) {
++        mVsync = vsync;
++        mSwapchainNeedsRecreate = true;
++    }
++    int dw = 0, dh = 0;
++    SDL_GetWindowSizeInPixels(mWindow, &dw, &dh);
++    if (dw <= 0 || dh <= 0) {
++        return; // minimised: no frame (mFrameActive stays false, nothing is recorded or presented)
++    }
++    if (mSwapchainNeedsRecreate || (uint32_t)dw != mSwapchainExtent.width || (uint32_t)dh != mSwapchainExtent.height) {
++        CreateSwapchain((uint32_t)dw, (uint32_t)dh);
++    }
++
++    VkResult acquire = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, slot.imageAvailable, VK_NULL_HANDLE,
++                                             &mSwapchainImageIndex);
++    if (acquire == VK_ERROR_OUT_OF_DATE_KHR) {
++        CreateSwapchain((uint32_t)dw, (uint32_t)dh);
++        acquire = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, slot.imageAvailable, VK_NULL_HANDLE,
++                                        &mSwapchainImageIndex);
++    }
++    if (acquire == VK_SUBOPTIMAL_KHR) {
++        mSwapchainNeedsRecreate = true; // the image is still presentable; recreated next frame
++    } else if (acquire != VK_SUCCESS) {
++        SPDLOG_ERROR("Vulkan: vkAcquireNextImageKHR failed ({})", (int)acquire);
++        return;
++    }
++
++    // fb 0's texture aliases the acquired swapchain image
++    if (!mFramebuffers.empty()) {
++        TextureDataVK& tex = mTextures[mFramebuffers[0].mTextureId];
++        tex.view = mSwapchainViews[mSwapchainImageIndex];
++        tex.image = mSwapchainImages[mSwapchainImageIndex];
++        tex.width = mSwapchainExtent.width;
++        tex.height = mSwapchainExtent.height;
++        mFramebuffers[0].mFramebuffer = mSwapchainFramebuffers[mSwapchainImageIndex];
++    }
++
++    mFrameActive = true;
++}
++
++void GfxRenderingAPIVK::RenderDrawData(ImDrawData* drawData) {
++    if (!mFrameActive) {
++        return;
++    }
++    EnsurePassActive(0);
++    FramebufferVK& fb = mFramebuffers[0];
++    ImGui_ImplVulkan_RenderDrawData(drawData, fb.mCommandBuffer);
++    // ImGui leaves arbitrary pipeline/descriptor/viewport state behind
++    fb.mLastPipeline = VK_NULL_HANDLE;
++    vkCmdSetViewport(fb.mCommandBuffer, 0, 1, &fb.mViewport);
++    vkCmdSetScissor(fb.mCommandBuffer, 0, 1, &fb.mScissor);
++}
++
++// MARK: - GfxRenderingAPI implementation
++
++const char* GfxRenderingAPIVK::GetName() {
++    return "Vulkan";
++}
++
++int GfxRenderingAPIVK::GetMaxTextureSize() {
++    return (int)mDeviceProps.limits.maxImageDimension2D;
++}
++
++GfxClipParameters GfxRenderingAPIVK::GetClipParameters() {
++    // Same conventions as Metal: z in 0..1, no VS-side y inversion (the negative viewport gives the framebuffer the
++    // same orientation).
++    return { true, false };
++}
++
++void GfxRenderingAPIVK::Init() {
++    if (mDevice == VK_NULL_HANDLE) {
++        SPDLOG_CRITICAL("Vulkan: the device could not be created (see the errors above)");
++        abort();
++    }
++    // fb 0 represents the swapchain
++    CreateFramebuffer();
++    RebuildScreenFramebuffer();
++}
++
++void GfxRenderingAPIVK::UnloadShader(ShaderProgram* oldPrg) {
++}
++
++void GfxRenderingAPIVK::LoadShader(ShaderProgram* newPrg) {
++    mShaderProgram = (ShaderProgramVK*)newPrg;
++}
++
++void GfxRenderingAPIVK::ClearShaderCache() {
++    for (auto& [key, prg] : mShaderProgramPool) {
++        prg.markedForDeletion = true;
++    }
++}
++
++ShaderProgram* GfxRenderingAPIVK::CreateAndLoadNewShader(uint64_t shaderId0, uint64_t shaderId1) {
++    CCFeatures cc_features;
++    gfx_cc_get_features(shaderId0, shaderId1, &cc_features);
++
++    ShaderProgramVK* prg = &mShaderProgramPool[std::make_pair(shaderId0, shaderId1)];
++    prg->shader_id0 = shaderId0;
++    prg->shader_id1 = shaderId1;
++    prg->usedTextures[0] = cc_features.usedTextures[0];
++    prg->usedTextures[1] = cc_features.usedTextures[1];
++    prg->usedTextures[2] = cc_features.used_masks[0];
++    prg->usedTextures[3] = cc_features.used_masks[1];
++    prg->usedTextures[4] = cc_features.used_blend[0];
++    prg->usedTextures[5] = cc_features.used_blend[1];
++    prg->numInputs = cc_features.numInputs;
++    prg->numFloats = 0;
++    prg->useAlphaBlend = cc_features.opt_alpha;
++    prg->markedForDeletion = false;
++    prg->pipelines.clear();
++    // TODO(vulkan phase 2): build the GLSL from shaders/vulkan/default.shader.glsl, compile it (CompileGlslToSpirv)
++    // and create the modules; until then the program draws nothing.
++
++    LoadShader((ShaderProgram*)prg);
++    return (ShaderProgram*)prg;
++}
++
++ShaderProgram* GfxRenderingAPIVK::LookupShader(uint64_t shaderId0, uint64_t shaderId1) {
++    auto it = mShaderProgramPool.find(std::make_pair(shaderId0, shaderId1));
++    if (it == mShaderProgramPool.end()) {
++        return nullptr;
++    }
++    if (it->second.markedForDeletion) {
++        vkDeviceWaitIdle(mDevice);
++        for (auto& [key, pipeline] : it->second.pipelines) {
++            vkDestroyPipeline(mDevice, pipeline, nullptr);
++        }
++        if (it->second.vs != VK_NULL_HANDLE) {
++            vkDestroyShaderModule(mDevice, it->second.vs, nullptr);
++        }
++        if (it->second.fs != VK_NULL_HANDLE) {
++            vkDestroyShaderModule(mDevice, it->second.fs, nullptr);
++        }
++        mShaderProgramPool.erase(it);
++        return nullptr;
++    }
++    return (ShaderProgram*)&it->second;
++}
++
++void GfxRenderingAPIVK::ShaderGetInfo(ShaderProgram* prg, uint8_t* numInputs, bool usedTextures[2]) {
++    ShaderProgramVK* p = (ShaderProgramVK*)prg;
++    *numInputs = p->numInputs;
++    usedTextures[0] = p->usedTextures[0];
++    usedTextures[1] = p->usedTextures[1];
++}
++
++uint32_t GfxRenderingAPIVK::NewTexture() {
++    mTextures.resize(mTextures.size() + 1);
++    return (uint32_t)(mTextures.size() - 1);
++}
++
++void GfxRenderingAPIVK::DestroyTextureData(TextureDataVK& tex, bool deferred) {
++    if (tex.isSwapchainAlias) {
++        return;
++    }
++    if (tex.imguiSet != VK_NULL_HANDLE) {
++        ImGui_ImplVulkan_RemoveTexture(tex.imguiSet);
++        tex.imguiSet = VK_NULL_HANDLE;
++    }
++    if (tex.view != VK_NULL_HANDLE) {
++        if (deferred) {
++            FrameSlot& slot = mFrames[mFrameSlot];
++            slot.garbageViews.push_back(tex.view);
++            slot.garbageImages.push_back({ tex.image, tex.memory });
++        } else {
++            vkDestroyImageView(mDevice, tex.view, nullptr);
++            vkDestroyImage(mDevice, tex.image, nullptr);
++            vkFreeMemory(mDevice, tex.memory, nullptr);
++        }
++    }
++    tex.view = VK_NULL_HANDLE;
++    tex.image = VK_NULL_HANDLE;
++    tex.memory = VK_NULL_HANDLE;
++}
++
++void GfxRenderingAPIVK::DeleteTexture(uint32_t texId) {
++    if (texId < mTextures.size()) {
++        DestroyTextureData(mTextures[texId], true);
++    }
++}
++
++void GfxRenderingAPIVK::SelectTexture(int tile, uint32_t textureId) {
++    mCurrentTile = tile;
++    mCurrentTextureIds[tile] = textureId;
++}
++
++void GfxRenderingAPIVK::UploadTexture(const uint8_t* rgba32Buf, uint32_t width, uint32_t height) {
++    if (width == 0 || height == 0) {
++        return;
++    }
++
++    TextureDataVK& tex = mTextures[mCurrentTextureIds[mCurrentTile]];
++
++    bool oneShot = !mFrameActive;
++    VkCommandBuffer cmd;
++    if (oneShot) {
++        cmd = BeginOneShot();
++    } else {
++        EnsureUploadCmd();
++        cmd = mUploadCmd;
++    }
++
++    // PORT: a texture uploaded again during a frame gets a new image (the old one is freed once the frame is done):
++    // the uploads go to the GPU ahead of the frame's draws, so overwriting the image in place would change what the
++    // draws recorded earlier in the frame sample.
++    if (tex.image == VK_NULL_HANDLE || tex.width != width || tex.height != height || !oneShot) {
++        DestroyTextureData(tex, true);
++        CreateImage(width, height, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_UNORM,
++                    VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, tex.image, tex.memory);
++        tex.view = CreateImageView(tex.image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
++        tex.width = width;
++        tex.height = height;
++        TransitionToGeneral(cmd, tex.image, VK_IMAGE_ASPECT_COLOR_BIT);
++    }
++
++    size_t dataSize = (size_t)width * height * 4;
++    FrameSlot& slot = mFrames[mFrameSlot];
++    if (oneShot) {
++        // Outside a frame: stage through the slot's buffer from offset 0
++        if (dataSize > slot.stagingCapacity) {
++            // The image transition recorded so far is submitted first; EndOneShot waits idle.
++            EndOneShot(cmd);
++            GrowStaging(slot, dataSize);
++            cmd = BeginOneShot();
++        }
++        memcpy(slot.stagingMapped, rgba32Buf, dataSize);
++    } else {
++        if (mStagingOffset + dataSize > slot.stagingCapacity) {
++            // Out of staging space this frame: grow (deferred destroy keeps the recorded copies valid)
++            GrowStaging(slot, mStagingOffset + dataSize);
++            cmd = mUploadCmd;
++        }
++        memcpy(slot.stagingMapped + mStagingOffset, rgba32Buf, dataSize);
++    }
++
++    VkBufferImageCopy copy = {};
++    copy.bufferOffset = oneShot ? 0 : mStagingOffset;
++    copy.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
++    copy.imageExtent = { width, height, 1 };
++    vkCmdCopyBufferToImage(cmd, slot.stagingBuffer, tex.image, VK_IMAGE_LAYOUT_GENERAL, 1, &copy);
++    FullBarrier(cmd);
++
++    if (oneShot) {
++        EndOneShot(cmd);
++    } else {
++        mStagingOffset += (dataSize + 255) & ~255ull;
++    }
++}
++
++void GfxRenderingAPIVK::SetSamplerParameters(int tile, bool linear_filter, uint32_t cms, uint32_t cmt) {
++    TextureDataVK& tex = mTextures[mCurrentTextureIds[tile]];
++    tex.linear_filtering = linear_filter;
++    tex.filtering = !linear_filter ? FILTER_LINEAR : FILTER_THREE_POINT;
++    tex.sampler = GetSampler(linear_filter, cms, cmt);
++}
++
++void GfxRenderingAPIVK::SetCurrentPrimDepth(float depth) {
++    if (depth != mCurrentPrimDepth) {
++        mCurrentPrimDepth = depth;
++        mPrimDepthDirty = true;
++    }
++}
++
++void GfxRenderingAPIVK::SetDepthTestAndMask(bool depth_test, bool z_upd) {
++    mCurrentDepthTest = depth_test;
++    mCurrentDepthMask = z_upd;
++}
++
++void GfxRenderingAPIVK::SetZmodeDecal(bool decal) {
++    mCurrentZmodeDecal = decal;
++}
++
++void GfxRenderingAPIVK::SetViewport(int x, int y, int width, int height) {
++    FramebufferVK& fb = mFramebuffers[mCurrentFramebuffer];
++    // Negative-height viewport (VK_KHR_maintenance1, core 1.1) flips y so the framebuffer ends up with the same
++    // orientation as Metal.
++    float top = (float)(mRenderTargetHeight - y - height);
++    fb.mViewport.x = (float)x;
++    fb.mViewport.y = top + (float)height;
++    fb.mViewport.width = (float)width;
++    fb.mViewport.height = -(float)height;
++    fb.mViewport.minDepth = 0.0f;
++    fb.mViewport.maxDepth = 1.0f;
++    if (fb.mPassActive) {
++        vkCmdSetViewport(fb.mCommandBuffer, 0, 1, &fb.mViewport);
++    }
++}
++
++void GfxRenderingAPIVK::SetScissor(int x, int y, int width, int height) {
++    FramebufferVK& fb = mFramebuffers[mCurrentFramebuffer];
++    TextureDataVK& tex = mTextures[fb.mTextureId];
++    int32_t sx = std::max(0, std::min<int>(x, tex.width));
++    int32_t sy = std::max(0, std::min<int>(mRenderTargetHeight - y - height, tex.height));
++    fb.mScissor.offset = { sx, sy };
++    fb.mScissor.extent = { (uint32_t)std::max(0, std::min<int>(width, (int)tex.width - sx)),
++                           (uint32_t)std::max(0, std::min<int>(height, (int)tex.height - sy)) };
++    if (fb.mPassActive) {
++        vkCmdSetScissor(fb.mCommandBuffer, 0, 1, &fb.mScissor);
++    }
++}
++
++void GfxRenderingAPIVK::SetUseAlpha(bool useAlpha) {
++    // Blend state comes from the shader's opt_alpha (baked into the pipeline)
++}
++
++void GfxRenderingAPIVK::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris) {
++    if (mShaderProgram == nullptr || !mFrameActive) {
++        return;
++    }
++    // TODO(vulkan phase 2): pipeline per state, texture descriptor set, vertex ring, vkCmdDraw
++    EnsurePassActive(mCurrentFramebuffer);
++}
++
++void GfxRenderingAPIVK::OnResize() {
++    mSwapchainNeedsRecreate = true;
++}
++
++void GfxRenderingAPIVK::StartFrame() {
++    mFrameCount++;
++    if (mFrameCount > 150) {
++        mFrameCount = 0;
++    }
++}
++
++void GfxRenderingAPIVK::EnsurePassActive(int fbId) {
++    FramebufferVK& fb = mFramebuffers[fbId];
++    if (fb.mPassActive) {
++        return;
++    }
++
++    if (fb.mCommandBuffer == VK_NULL_HANDLE) {
++        VkCommandBufferAllocateInfo ai = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
++        ai.commandPool = mFrames[mFrameSlot].commandPool;
++        ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
++        ai.commandBufferCount = 1;
++        VK_CHECK(vkAllocateCommandBuffers(mDevice, &ai, &fb.mCommandBuffer));
++        VkCommandBufferBeginInfo bi = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
++        bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
++        VK_CHECK(vkBeginCommandBuffer(fb.mCommandBuffer, &bi));
++
++        if (fbId == 0 && !mSwapchainImageUsed[mSwapchainImageIndex]) {
++            // First use of this swapchain image: bring it into GENERAL
++            TransitionToGeneral(fb.mCommandBuffer, mSwapchainImages[mSwapchainImageIndex], VK_IMAGE_ASPECT_COLOR_BIT);
++            mSwapchainImageUsed[mSwapchainImageIndex] = true;
++        } else if (fbId == 0) {
++            // Coming back from PRESENT_SRC
++            VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
++            barrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
++            barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
++            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++            barrier.image = mSwapchainImages[mSwapchainImageIndex];
++            barrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
++            barrier.srcAccessMask = 0;
++            barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
++            vkCmdPipelineBarrier(fb.mCommandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
++                                 VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
++        }
++    }
++
++    if (fb.mFramebuffer == VK_NULL_HANDLE || fb.mRenderPass == VK_NULL_HANDLE) {
++        return; // not a render target
++    }
++
++    VkRenderPassBeginInfo rpbi = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
++    rpbi.renderPass = fb.mRenderPass;
++    rpbi.framebuffer = fb.mFramebuffer;
++    rpbi.renderArea = { { 0, 0 }, { fb.mWidth, fb.mHeight } };
++    vkCmdBeginRenderPass(fb.mCommandBuffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
++    fb.mPassActive = true;
++
++    // Dynamic state must be set before the first draw of the pass
++    if (fb.mViewport.width == 0.0f && fb.mViewport.height == 0.0f) {
++        fb.mViewport = { 0.0f, (float)fb.mHeight, (float)fb.mWidth, -(float)fb.mHeight, 0.0f, 1.0f };
++    }
++    if (fb.mScissor.extent.width == 0 && fb.mScissor.extent.height == 0) {
++        fb.mScissor = { { 0, 0 }, { fb.mWidth, fb.mHeight } };
++    }
++    vkCmdSetViewport(fb.mCommandBuffer, 0, 1, &fb.mViewport);
++    vkCmdSetScissor(fb.mCommandBuffer, 0, 1, &fb.mScissor);
++
++    // Pipeline state does not survive across render passes
++    fb.mLastPipeline = VK_NULL_HANDLE;
++}
++
++void GfxRenderingAPIVK::EndPass(FramebufferVK& fb) {
++    if (fb.mPassActive) {
++        vkCmdEndRenderPass(fb.mCommandBuffer);
++        fb.mPassActive = false;
++    }
++}
++
++// PORT: framebuffers whose colour texture was just (re)created have undefined contents; the first pass into one clears
++// it to black, as an untouched N64 frame buffer would read (see gfx_metal.cpp)
++static std::unordered_set<int> sFreshColorFbs;
++
++void GfxRenderingAPIVK::StartDrawToFramebuffer(int fbId, float noiseScale) {
++    if (fbId >= (int)mFramebuffers.size()) {
++        return;
++    }
++    FramebufferVK& fb = mFramebuffers[fbId];
++    mRenderTargetHeight = (int32_t)mTextures[fb.mTextureId].height;
++    mCurrentFramebuffer = fbId;
++    if (std::find(mDrawnFramebuffers.begin(), mDrawnFramebuffers.end(), fbId) == mDrawnFramebuffers.end()) {
++        mDrawnFramebuffers.push_back(fbId);
++    }
++
++    if (noiseScale != 0.0f) {
++        mNoiseScale = 1.0f / noiseScale;
++    }
++
++    if (mFrameActive && fb.mRenderTarget) {
++        EnsurePassActive(fbId);
++        static const bool sNoFreshClear = getenv("PORT_NO_FRESH_CLEAR") != nullptr; // debug: old behaviour
++        if (sFreshColorFbs.erase(fbId) != 0 && !sNoFreshClear) {
++            ClearFramebuffer(true, false);
++        }
++    }
++}
++
++void GfxRenderingAPIVK::ClearFramebuffer(bool color, bool depth) {
++    if (!color && !depth) {
++        return;
++    }
++    FramebufferVK& fb = mFramebuffers[mCurrentFramebuffer];
++    if (!fb.mPassActive) {
++        return;
++    }
++
++    VkClearAttachment clears[2];
++    uint32_t count = 0;
++    if (color) {
++        clears[count].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
++        clears[count].colorAttachment = 0;
++        clears[count].clearValue.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
++        count++;
++    }
++    if (depth && fb.mHasDepthBuffer) {
++        clears[count].aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
++        clears[count].colorAttachment = 0;
++        clears[count].clearValue.depthStencil = { 1.0f, 0 };
++        count++;
++    }
++    if (count == 0) {
++        return;
++    }
++    VkClearRect rect = { { { 0, 0 }, { fb.mWidth, fb.mHeight } }, 0, 1 };
++    vkCmdClearAttachments(fb.mCommandBuffer, count, clears, 1, &rect);
++}
++
++bool GfxRenderingAPIVK::ClearFramebufferColor(float r, float g, float b, float a) {
++    FramebufferVK& fb = mFramebuffers[mCurrentFramebuffer];
++    if (mCurrentFramebuffer == 0 || !fb.mPassActive) {
++        return false;
++    }
++    VkClearAttachment clear = {};
++    clear.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
++    clear.colorAttachment = 0;
++    clear.clearValue.color = { { r, g, b, a } };
++    VkClearRect rect = { { { 0, 0 }, { fb.mWidth, fb.mHeight } }, 0, 1 };
++    vkCmdClearAttachments(fb.mCommandBuffer, 1, &clear, 1, &rect);
++    return true;
++}
++
++void GfxRenderingAPIVK::ClearDepthRegion(int x, int y, int w, int h) {
++    FramebufferVK& fb = mFramebuffers[mCurrentFramebuffer];
++    if (!fb.mPassActive || !fb.mHasDepthBuffer) {
++        return;
++    }
++    int32_t sy = std::max(0, (int)mRenderTargetHeight - y - h);
++    VkClearAttachment clear = {};
++    clear.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
++    clear.clearValue.depthStencil = { 1.0f, 0 };
++    VkClearRect rect = { { { std::max(0, x), sy },
++                           { (uint32_t)std::max(0, std::min(w, (int)fb.mWidth - x)),
++                             (uint32_t)std::max(0, std::min(h, (int)fb.mHeight - sy)) } },
++                         0,
++                         1 };
++    if (rect.rect.extent.width == 0 || rect.rect.extent.height == 0) {
++        return;
++    }
++    vkCmdClearAttachments(fb.mCommandBuffer, 1, &clear, 1, &rect);
++}
++
++int GfxRenderingAPIVK::CreateFramebuffer() {
++    uint32_t textureId = NewTexture();
++    mTextures[textureId].sampler = GetSampler(true, G_TX_WRAP, G_TX_WRAP);
++
++    size_t index = mFramebuffers.size();
++    mFramebuffers.resize(mFramebuffers.size() + 1);
++    FramebufferVK& fb = mFramebuffers.back();
++    fb.mTextureId = textureId;
++    fb.mMsaaLevel = 1;
++    return (int)index;
++}
++
++void GfxRenderingAPIVK::UpdateFramebufferParameters(int fbId, uint32_t width, uint32_t height, uint32_t msaaLevel,
++                                                    bool opengl_invertY, bool render_target, bool has_depth_buffer,
++                                                    bool can_extract_depth) {
++    if (fbId == 0) {
++        // The swapchain tracks the drawable size in NewFrame
++        return;
++    }
++    if (fbId >= (int)mFramebuffers.size()) {
++        return;
++    }
++
++    FramebufferVK& fb = mFramebuffers[fbId];
++    TextureDataVK& tex = mTextures[fb.mTextureId];
++
++    width = std::max(width, 1u);
++    height = std::max(height, 1u);
++    msaaLevel = std::max(msaaLevel, 1u);
++    while (msaaLevel > 1 && (mDeviceProps.limits.framebufferColorSampleCounts & msaaLevel) == 0) {
++        msaaLevel--;
++    }
++
++    bool diff = fb.mWidth != width || fb.mHeight != height || fb.mMsaaLevel != msaaLevel ||
++                fb.mHasDepthBuffer != has_depth_buffer || fb.mRenderTarget != render_target;
++    if (!diff) {
++        return;
++    }
++
++    vkDeviceWaitIdle(mDevice);
++
++    // Color texture (sampled + render target + blit source/destination)
++    DestroyTextureData(tex, false);
++    CreateImage(width, height, VK_SAMPLE_COUNT_1_BIT, mSwapchainFormat,
++                VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
++                    VK_IMAGE_USAGE_TRANSFER_DST_BIT,
++                tex.image, tex.memory);
++    tex.view = CreateImageView(tex.image, mSwapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT);
++    tex.width = width;
++    tex.height = height;
++    if (render_target) {
++        sFreshColorFbs.insert(fbId);
++    }
++
++    VkCommandBuffer cmd = BeginOneShot();
++    TransitionToGeneral(cmd, tex.image, VK_IMAGE_ASPECT_COLOR_BIT);
++
++    auto destroyTarget = [&](VkImage& img, VkDeviceMemory& mem, VkImageView& view) {
++        if (view != VK_NULL_HANDLE) {
++            vkDestroyImageView(mDevice, view, nullptr);
++            vkDestroyImage(mDevice, img, nullptr);
++            vkFreeMemory(mDevice, mem, nullptr);
++            view = VK_NULL_HANDLE;
++            img = VK_NULL_HANDLE;
++            mem = VK_NULL_HANDLE;
++        }
++    };
++    destroyTarget(fb.mDepthImage, fb.mDepthMemory, fb.mDepthView);
++    destroyTarget(fb.mMsaaImage, fb.mMsaaMemory, fb.mMsaaView);
++    destroyTarget(fb.mMsaaDepthImage, fb.mMsaaDepthMemory, fb.mMsaaDepthView);
++
++    if (has_depth_buffer) {
++        CreateImage(width, height, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_D32_SFLOAT,
++                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, fb.mDepthImage,
++                    fb.mDepthMemory);
++        fb.mDepthView = CreateImageView(fb.mDepthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT);
++        TransitionToGeneral(cmd, fb.mDepthImage, VK_IMAGE_ASPECT_DEPTH_BIT);
++    }
++
++    if (msaaLevel > 1) {
++        CreateImage(width, height, (VkSampleCountFlagBits)msaaLevel, mSwapchainFormat,
++                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT, fb.mMsaaImage,
++                    fb.mMsaaMemory);
++        fb.mMsaaView = CreateImageView(fb.mMsaaImage, mSwapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT);
++        TransitionToGeneral(cmd, fb.mMsaaImage, VK_IMAGE_ASPECT_COLOR_BIT);
++        if (has_depth_buffer) {
++            CreateImage(width, height, (VkSampleCountFlagBits)msaaLevel, VK_FORMAT_D32_SFLOAT,
++                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, fb.mMsaaDepthImage, fb.mMsaaDepthMemory);
++            fb.mMsaaDepthView = CreateImageView(fb.mMsaaDepthImage, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT);
++            TransitionToGeneral(cmd, fb.mMsaaDepthImage, VK_IMAGE_ASPECT_DEPTH_BIT);
++        }
++    }
++    EndOneShot(cmd);
++
++    fb.mWidth = width;
++    fb.mHeight = height;
++    fb.mMsaaLevel = msaaLevel;
++    fb.mHasDepthBuffer = has_depth_buffer;
++    fb.mRenderTarget = render_target;
++
++    if (fb.mFramebuffer != VK_NULL_HANDLE) {
++        vkDestroyFramebuffer(mDevice, fb.mFramebuffer, nullptr);
++        fb.mFramebuffer = VK_NULL_HANDLE;
++    }
++
++    if (render_target) {
++        fb.mRenderPass = GetRenderPass(msaaLevel, has_depth_buffer);
++        std::vector<VkImageView> attachments;
++        if (msaaLevel > 1) {
++            attachments.push_back(fb.mMsaaView);
++            attachments.push_back(tex.view);
++            if (has_depth_buffer) {
++                attachments.push_back(fb.mMsaaDepthView);
++            }
++        } else {
++            attachments.push_back(tex.view);
++            if (has_depth_buffer) {
++                attachments.push_back(fb.mDepthView);
++            }
++        }
++        VkFramebufferCreateInfo fci = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
++        fci.renderPass = fb.mRenderPass;
++        fci.attachmentCount = (uint32_t)attachments.size();
++        fci.pAttachments = attachments.data();
++        fci.width = width;
++        fci.height = height;
++        fci.layers = 1;
++        VK_CHECK(vkCreateFramebuffer(mDevice, &fci, nullptr, &fb.mFramebuffer));
++    } else {
++        fb.mRenderPass = VK_NULL_HANDLE;
++    }
++}
++
++void GfxRenderingAPIVK::CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0,
++                                        int dstY0, int dstX1, int dstY1) {
++    if (fbSrcId >= (int)mFramebuffers.size() || fbDstId >= (int)mFramebuffers.size() || !mFrameActive) {
++        return;
++    }
++    FramebufferVK& src = mFramebuffers[fbSrcId];
++    TextureDataVK& srcTex = mTextures[src.mTextureId];
++    TextureDataVK& dstTex = mTextures[mFramebuffers[fbDstId].mTextureId];
++    if (srcTex.image == VK_NULL_HANDLE || dstTex.image == VK_NULL_HANDLE || src.mCommandBuffer == VK_NULL_HANDLE) {
++        return;
++    }
++
++    bool wasActive = src.mPassActive;
++    EndPass(src);
++    FullBarrier(src.mCommandBuffer);
++
++    VkImageBlit blit = {};
++    blit.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
++    blit.srcOffsets[0] = { srcX0, srcY0, 0 };
++    blit.srcOffsets[1] = { srcX1, srcY1, 1 };
++    blit.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
++    blit.dstOffsets[0] = { dstX0, dstY0, 0 };
++    blit.dstOffsets[1] = { dstX1, dstY1, 1 };
++    vkCmdBlitImage(src.mCommandBuffer, srcTex.image, VK_IMAGE_LAYOUT_GENERAL, dstTex.image, VK_IMAGE_LAYOUT_GENERAL, 1,
++                   &blit, VK_FILTER_NEAREST);
++    FullBarrier(src.mCommandBuffer);
++
++    if (wasActive) {
++        EnsurePassActive(fbSrcId);
++    }
++}
++
++void GfxRenderingAPIVK::ResolveMSAAColorBuffer(int fbIdTarget, int fbIdSrc) {
++    if (fbIdSrc >= (int)mFramebuffers.size() || fbIdTarget >= (int)mFramebuffers.size() || !mFrameActive) {
++        return;
++    }
++    FramebufferVK& src = mFramebuffers[fbIdSrc];
++    TextureDataVK& srcTex = mTextures[src.mTextureId];
++    TextureDataVK& dstTex = mTextures[mFramebuffers[fbIdTarget].mTextureId];
++
++    if (srcTex.width != dstTex.width || srcTex.height != dstTex.height) {
++        return;
++    }
++
++    // Ending the src render pass executes its MSAA resolve into the sampled texture; then copy that into the target.
++    VkCommandBuffer cmd;
++    if (fbIdTarget != 0) {
++        if (src.mCommandBuffer == VK_NULL_HANDLE) {
++            return;
++        }
++        EndPass(src);
++        cmd = src.mCommandBuffer;
++    } else {
++        EnsurePassActive(0);
++        EndPass(mFramebuffers[0]);
++        cmd = mFramebuffers[0].mCommandBuffer;
++    }
++    FullBarrier(cmd);
++    VkImageCopy copy = {};
++    copy.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
++    copy.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
++    copy.extent = { srcTex.width, srcTex.height, 1 };
++    vkCmdCopyImage(cmd, srcTex.image, VK_IMAGE_LAYOUT_GENERAL, dstTex.image, VK_IMAGE_LAYOUT_GENERAL, 1, &copy);
++    FullBarrier(cmd);
++    if (fbIdTarget == 0) {
++        EnsurePassActive(0);
++    }
++}
++
++// Submits the framebuffer's command buffer (preceded by pending uploads) and waits for completion. Used by the
++// synchronous readback paths.
++void GfxRenderingAPIVK::SubmitFramebufferAndWait(int fbId) {
++    FramebufferVK& fb = mFramebuffers[fbId];
++    EndPass(fb);
++    VK_CHECK(vkEndCommandBuffer(fb.mCommandBuffer));
++
++    std::vector<VkCommandBuffer> cmds;
++    if (mUploadCmd != VK_NULL_HANDLE) {
++        VK_CHECK(vkEndCommandBuffer(mUploadCmd));
++        cmds.push_back(mUploadCmd);
++        mUploadCmd = VK_NULL_HANDLE;
++        mStagingOffset = 0;
++    }
++    cmds.push_back(fb.mCommandBuffer);
++
++    VkSubmitInfo si = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
++    si.commandBufferCount = (uint32_t)cmds.size();
++    si.pCommandBuffers = cmds.data();
++    VK_CHECK(vkQueueSubmit(mQueue, 1, &si, VK_NULL_HANDLE));
++    VK_CHECK(vkQueueWaitIdle(mQueue));
++
++    fb.mCommandBuffer = VK_NULL_HANDLE;
++    fb.mPassActive = false;
++    auto it = std::find(mDrawnFramebuffers.begin(), mDrawnFramebuffers.end(), fbId);
++    if (it != mDrawnFramebuffers.end()) {
++        mDrawnFramebuffers.erase(it);
++    }
++}
++
++// Converts 8-bit pixels (BGRA or RGBA, as the colour targets' format) to the game's RGBA5551.
++static void ConvertToRgba16(const uint8_t* px, uint32_t count, bool bgr, uint16_t* out) {
++    for (uint32_t i = 0; i < count; i++) {
++        uint8_t c0 = px[i * 4 + 0];
++        uint8_t g = px[i * 4 + 1];
++        uint8_t c2 = px[i * 4 + 2];
++        uint8_t a = px[i * 4 + 3];
++        uint8_t r = bgr ? c2 : c0;
++        uint8_t b = bgr ? c0 : c2;
++        out[i] = ((r >> 3) << 11) | ((g >> 3) << 6) | ((b >> 3) << 1) | (a >> 7);
++    }
++}
++
++void GfxRenderingAPIVK::ReadFramebufferToCPU(int fbId, uint32_t width, uint32_t height, uint16_t* rgba16Buf) {
++    if (fbId >= (int)mFramebuffers.size() || !mFrameActive) {
++        return;
++    }
++    FramebufferVK& fb = mFramebuffers[fbId];
++    TextureDataVK& tex = mTextures[fb.mTextureId];
++    const bool bgr = mSwapchainFormat == VK_FORMAT_B8G8R8A8_UNORM;
++
++    if (fbId == 0) {
++        // Deferred path (mirrors Metal): serve the pixels of the last frame that asked, request a copy at the end of
++        // this frame.
++        if (mScreenReadbackDataReady) {
++            FrameSlot& slot = mFrames[mScreenReadbackSlot];
++            if (slot.fenceInFlight) {
++                VK_CHECK(vkWaitForFences(mDevice, 1, &slot.fence, VK_TRUE, UINT64_MAX));
++            }
++            const uint8_t* px = mScreenReadback.mapped;
++            uint32_t count = mScreenReadbackWidth * mScreenReadbackHeight;
++            // PORT: keep the full 8-bit pixels too, for screenshots (BGRA, as gfx_metal.cpp)
++            gPortScreenBgra.resize((size_t)count * 4);
++            for (uint32_t i = 0; i < count; i++) {
++                gPortScreenBgra[i * 4 + 0] = px[i * 4 + (bgr ? 0 : 2)];
++                gPortScreenBgra[i * 4 + 1] = px[i * 4 + 1];
++                gPortScreenBgra[i * 4 + 2] = px[i * 4 + (bgr ? 2 : 0)];
++                gPortScreenBgra[i * 4 + 3] = px[i * 4 + 3];
++            }
++            gPortScreenW = mScreenReadbackWidth;
++            gPortScreenH = mScreenReadbackHeight;
++            ConvertToRgba16(px, std::min(count, width * height), bgr, rgba16Buf);
++            mScreenReadbackDataReady = false;
++        }
++        mScreenReadbackRequested = true;
++        mScreenReadbackWidth = std::min(width, mSwapchainExtent.width);
++        mScreenReadbackHeight = std::min(height, mSwapchainExtent.height);
++        return;
++    }
++
++    // Offscreen framebuffer: synchronous
++    if (fb.mCommandBuffer == VK_NULL_HANDLE || tex.image == VK_NULL_HANDLE) {
++        return; // PORT: nothing drawn into it this frame: leave the buffer as is
++    }
++
++    EnsureReadbackBuffer(mReadback, (size_t)width * height * 4);
++    EndPass(fb);
++    FullBarrier(fb.mCommandBuffer);
++    VkBufferImageCopy copy = {};
++    copy.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
++    copy.imageExtent = { std::min(width, tex.width), std::min(height, tex.height), 1 };
++    copy.bufferRowLength = width;
++    vkCmdCopyImageToBuffer(fb.mCommandBuffer, tex.image, VK_IMAGE_LAYOUT_GENERAL, mReadback.buffer, 1, &copy);
++    FullBarrier(fb.mCommandBuffer);
++    SubmitFramebufferAndWait(fbId);
++
++    ConvertToRgba16(mReadback.mapped, width * height, bgr, rgba16Buf);
++}
++
++std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
++GfxRenderingAPIVK::GetPixelDepth(int fbId, const std::set<std::pair<float, float>>& coordinates) {
++    std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff> res;
++    if (fbId >= (int)mFramebuffers.size() || coordinates.empty() || !mFrameActive) {
++        return res;
++    }
++    FramebufferVK& fb = mFramebuffers[fbId];
++    if (fb.mDepthImage == VK_NULL_HANDLE || fb.mCommandBuffer == VK_NULL_HANDLE) {
++        for (const auto& coord : coordinates) {
++            res.emplace(coord, 0);
++        }
++        return res;
++    }
++
++    EnsureReadbackBuffer(mReadback, coordinates.size() * sizeof(float));
++
++    bool wasActive = fb.mPassActive;
++    EndPass(fb);
++    FullBarrier(fb.mCommandBuffer);
++
++    std::vector<VkBufferImageCopy> regions;
++    regions.reserve(coordinates.size());
++    size_t i = 0;
++    for (const auto& coord : coordinates) {
++        VkBufferImageCopy copy = {};
++        copy.bufferOffset = i * sizeof(float);
++        copy.imageSubresource = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 0, 1 };
++        int32_t cx = std::clamp((int32_t)coord.first, 0, (int32_t)fb.mWidth - 1);
++        int32_t cy = std::clamp((int32_t)(fb.mHeight - 1 - coord.second), 0, (int32_t)fb.mHeight - 1);
++        copy.imageOffset = { cx, cy, 0 };
++        copy.imageExtent = { 1, 1, 1 };
++        regions.push_back(copy);
++        i++;
++    }
++    vkCmdCopyImageToBuffer(fb.mCommandBuffer, fb.mDepthImage, VK_IMAGE_LAYOUT_GENERAL, mReadback.buffer,
++                           (uint32_t)regions.size(), regions.data());
++    FullBarrier(fb.mCommandBuffer);
++    SubmitFramebufferAndWait(fbId);
++
++    const float* depthValues = (const float*)mReadback.mapped;
++    i = 0;
++    for (const auto& coord : coordinates) {
++        res.emplace(coord, (uint16_t)(depthValues[i++] * 65532.0f));
++    }
++
++    if (wasActive) {
++        // Caller may keep drawing to this framebuffer afterwards
++        StartDrawToFramebuffer(fbId, 0.0f);
++    }
++    return res;
++}
++
++void GfxRenderingAPIVK::EndFrame() {
++    if (!mFrameActive) {
++        return;
++    }
++    FrameSlot& slot = mFrames[mFrameSlot];
++
++    std::vector<VkCommandBuffer> cmds;
++    if (mUploadCmd != VK_NULL_HANDLE) {
++        VK_CHECK(vkEndCommandBuffer(mUploadCmd));
++        cmds.push_back(mUploadCmd);
++        mUploadCmd = VK_NULL_HANDLE;
++    }
++
++    std::sort(mDrawnFramebuffers.begin(), mDrawnFramebuffers.end());
++    for (int fbId : mDrawnFramebuffers) {
++        if (fbId == 0) {
++            continue;
++        }
++        FramebufferVK& fb = mFramebuffers[fbId];
++        if (fb.mCommandBuffer == VK_NULL_HANDLE) {
++            continue;
++        }
++        EndPass(fb);
++        VK_CHECK(vkEndCommandBuffer(fb.mCommandBuffer));
++        cmds.push_back(fb.mCommandBuffer);
++    }
++
++    // Screen framebuffer last
++    EnsurePassActive(0);
++    FramebufferVK& screen = mFramebuffers[0];
++    EndPass(screen);
++
++    // PORT: an in-between frame (frame interpolation) leaves the readback request for the next real frame
++    if (mScreenReadbackRequested && !gPortReplayFrame && mScreenReadbackWidth > 0 && mScreenReadbackHeight > 0) {
++        EnsureReadbackBuffer(mScreenReadback, (size_t)mScreenReadbackWidth * mScreenReadbackHeight * 4);
++        FullBarrier(screen.mCommandBuffer);
++        VkBufferImageCopy copy = {};
++        copy.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
++        copy.imageExtent = { mScreenReadbackWidth, mScreenReadbackHeight, 1 };
++        vkCmdCopyImageToBuffer(screen.mCommandBuffer, mSwapchainImages[mSwapchainImageIndex], VK_IMAGE_LAYOUT_GENERAL,
++                               mScreenReadback.buffer, 1, &copy);
++        mScreenReadbackRequested = false;
++        mScreenReadbackDataReady = true;
++        mScreenReadbackSlot = mFrameSlot;
++    }
++
++    // GENERAL -> PRESENT_SRC for the swapchain image
++    {
++        VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
++        barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
++        barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
++        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
++        barrier.image = mSwapchainImages[mSwapchainImageIndex];
++        barrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
++        barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
++        barrier.dstAccessMask = 0;
++        vkCmdPipelineBarrier(screen.mCommandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
++                             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
++    }
++    VK_CHECK(vkEndCommandBuffer(screen.mCommandBuffer));
++    cmds.push_back(screen.mCommandBuffer);
++
++    VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
++    VkSubmitInfo si = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
++    si.waitSemaphoreCount = 1;
++    si.pWaitSemaphores = &slot.imageAvailable;
++    si.pWaitDstStageMask = &waitStage;
++    si.commandBufferCount = (uint32_t)cmds.size();
++    si.pCommandBuffers = cmds.data();
++    si.signalSemaphoreCount = 1;
++    si.pSignalSemaphores = &slot.renderFinished;
++    VK_CHECK(vkQueueSubmit(mQueue, 1, &si, slot.fence));
++    slot.fenceInFlight = true;
++
++    VkPresentInfoKHR pi = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
++    pi.waitSemaphoreCount = 1;
++    pi.pWaitSemaphores = &slot.renderFinished;
++    pi.swapchainCount = 1;
++    pi.pSwapchains = &mSwapchain;
++    pi.pImageIndices = &mSwapchainImageIndex;
++    VkResult present = vkQueuePresentKHR(mQueue, &pi);
++    if (present == VK_ERROR_OUT_OF_DATE_KHR || present == VK_SUBOPTIMAL_KHR) {
++        mSwapchainNeedsRecreate = true;
++    } else if (present != VK_SUCCESS) {
++        SPDLOG_ERROR("Vulkan: vkQueuePresentKHR failed ({})", (int)present);
++    }
++
++    // Reset per-framebuffer recording state
++    for (auto& fb : mFramebuffers) {
++        fb.mCommandBuffer = VK_NULL_HANDLE;
++        fb.mPassActive = false;
++        fb.mLastPipeline = VK_NULL_HANDLE;
++        memset(&fb.mViewport, 0, sizeof(fb.mViewport));
++        memset(&fb.mScissor, 0, sizeof(fb.mScissor));
++    }
++    mDrawnFramebuffers.clear();
++    mFrameActive = false;
++    mFrameSlot = (mFrameSlot + 1) % VK_FRAMES_IN_FLIGHT;
++}
++
++void GfxRenderingAPIVK::FinishRender() {
++}
++
++void* GfxRenderingAPIVK::GetFramebufferTextureId(int fbId) {
++    return GetTextureById(mFramebuffers[fbId].mTextureId);
++}
++
++void GfxRenderingAPIVK::SelectTextureFb(int fbId) {
++    SelectTexture(0, mFramebuffers[fbId].mTextureId);
++}
++
++ImTextureID GfxRenderingAPIVK::GetTextureById(int id) {
++    TextureDataVK& tex = mTextures[id];
++    if (tex.view == VK_NULL_HANDLE) {
++        return (ImTextureID) nullptr;
++    }
++    if (tex.imguiSet == VK_NULL_HANDLE) {
++        VkSampler sampler = tex.sampler != VK_NULL_HANDLE ? tex.sampler : mDummyTexture.sampler;
++        tex.imguiSet = ImGui_ImplVulkan_AddTexture(sampler, tex.view, VK_IMAGE_LAYOUT_GENERAL);
++    }
++    return (ImTextureID)tex.imguiSet;
++}
++
++void GfxRenderingAPIVK::SetTextureFilter(FilteringMode mode) {
++    mCurrentFilterMode = mode;
++    gfx_texture_cache_clear();
++}
++
++FilteringMode GfxRenderingAPIVK::GetTextureFilter() {
++    return mCurrentFilterMode;
++}
++
++void GfxRenderingAPIVK::SetSrgbMode() {
++    mSrgbMode = true;
++}
++
++} // namespace Fast
++
++bool Vulkan_LoadLibrary() {
++    if (SDL_Vulkan_LoadLibrary(nullptr)) {
++        return true;
++    }
++#ifdef __APPLE__
++    // Homebrew's loader (vulkan-loader + molten-vk) is not on the default dlopen path
++    for (const char* path : { "/opt/homebrew/lib/libvulkan.1.dylib", "/usr/local/lib/libvulkan.1.dylib",
++                              "/opt/homebrew/lib/libMoltenVK.dylib", "/usr/local/lib/libMoltenVK.dylib" }) {
++        if (SDL_Vulkan_LoadLibrary(path)) {
++            return true;
++        }
++    }
++#endif
++    return false;
++}
++
++bool Vulkan_IsSupported() {
++    if (getenv("PORT_NO_VULKAN") != nullptr) { // debug: the Vulkan renderer is not offered (and not probed)
++        return false;
++    }
++    if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
++        return false;
++    }
++    bool supported = false;
++    if (Vulkan_LoadLibrary()) {
++        // A loader alone is not enough (it is installed with many drivers that have no Vulkan ICD): an instance must
++        // come up and list a device
++        auto getInstanceProcAddr = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
++        auto createInstance =
++            getInstanceProcAddr ? (PFN_vkCreateInstance)getInstanceProcAddr(nullptr, "vkCreateInstance") : nullptr;
++        auto enumerateExtensions =
++            getInstanceProcAddr ? (PFN_vkEnumerateInstanceExtensionProperties)getInstanceProcAddr(
++                                      nullptr, "vkEnumerateInstanceExtensionProperties")
++                                : nullptr;
++        if (createInstance != nullptr && enumerateExtensions != nullptr) {
++            uint32_t count = 0;
++            enumerateExtensions(nullptr, &count, nullptr);
++            std::vector<VkExtensionProperties> exts(count);
++            enumerateExtensions(nullptr, &count, exts.data());
++            bool portability = false;
++            for (const auto& e : exts) {
++                portability |= strcmp(e.extensionName, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME) == 0;
++            }
++            const char* portabilityExt = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
++            VkApplicationInfo app = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
++            app.apiVersion = VK_API_VERSION_1_1;
++            VkInstanceCreateInfo ici = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
++            ici.pApplicationInfo = &app;
++            if (portability) {
++                ici.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
++                ici.enabledExtensionCount = 1;
++                ici.ppEnabledExtensionNames = &portabilityExt;
++            }
++            VkInstance instance = VK_NULL_HANDLE;
++            if (createInstance(&ici, nullptr, &instance) == VK_SUCCESS) {
++                auto enumerateDevices =
++                    (PFN_vkEnumeratePhysicalDevices)getInstanceProcAddr(instance, "vkEnumeratePhysicalDevices");
++                auto destroyInstance = (PFN_vkDestroyInstance)getInstanceProcAddr(instance, "vkDestroyInstance");
++                uint32_t devices = 0;
++                if (enumerateDevices != nullptr) {
++                    enumerateDevices(instance, &devices, nullptr);
++                }
++                supported = devices > 0;
++                if (destroyInstance != nullptr) {
++                    destroyInstance(instance, nullptr);
++                }
++            }
++        }
++        SDL_Vulkan_UnloadLibrary();
++    }
++    if (!supported) {
++        SPDLOG_INFO("Vulkan: no driver with a device, the Vulkan renderer is not offered");
++    }
++    if (getenv("PORT_VK_SELFTEST") != nullptr) {
++        fprintf(stderr, "[vulkan] driver check: %s\n", supported ? "available" : "not available");
++    }
++    return supported;
++}
++
++#endif
 diff --git a/src/fast/interpreter.cpp b/src/fast/interpreter.cpp
 index a1907a1..68626c5 100644
 --- a/src/fast/interpreter.cpp
