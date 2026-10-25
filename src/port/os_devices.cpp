@@ -1035,6 +1035,20 @@ static void CheckCapture(bool* stopFrame, bool* shotFrame) {
 }
 
 // A CPU-drawn frame buffer (RGBA5551, N64 byte order, 320 wide): drawn to the screen with a copy-mode display list.
+extern "C" bool Port_LastFrameFilledWide(void); // interpreter.cpp
+
+// Whether every pixel of a CPU-drawn 320x240 frame buffer has the same colour (the white or black frames the game
+// shows between screens); with the VI repeating the first line, only that line counts
+static bool CpuFrameIsOneColour(const void* fb, bool repeatLine) {
+    const uint16_t* p = (const uint16_t*)fb;
+    for (int i = 1; i < 320 * (repeatLine ? 1 : 240); i++) {
+        if (p[i] != p[0]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static void PresentCpuFrame(void* fb, bool black, float xscale, bool repeatLine) {
     static Gfx dl[2048];
     static uint16_t zero[320 * 6];
@@ -1051,7 +1065,20 @@ static void PresentCpuFrame(void* fb, bool black, float xscale, bool repeatLine)
     gDPSetTexturePersp(g++, G_TP_NONE);
     gDPSetTextureFilter(g++, G_TF_POINT);
     gDPSetTextureLUT(g++, G_TT_NONE);
-    for (int y = 0; y < rows; y += strip) {
+    // A single-colour frame after a frame that filled a widescreen picture (a widened menu backdrop) is drawn as one
+    // rectangle of that colour, which the renderer widens to the screen edges (a backdrop constant horizontally):
+    // shown 4:3, its black sides flickered between the widescreen frames before and after it
+    const bool wideFill = Port_LastFrameFilledWide() && (black || CpuFrameIsOneColour(fb, repeatLine));
+    static const bool sTraceVi = getenv("PORT_TRACE_VI") != nullptr;
+    if (sTraceVi) fprintf(stderr, "[vi] wide fill %d (last frame wide %d, one colour %d, repeat %d)\n", (int)wideFill,
+                                         (int)Port_LastFrameFilledWide(), (int)CpuFrameIsOneColour(fb, repeatLine), (int)repeatLine);
+    if (wideFill) {
+        gDPLoadTextureTile(g++, black ? zero : (const uint16_t*)fb, G_IM_FMT_RGBA, G_IM_SIZ_16b, width, strip, 0, 0,
+                           width - 1, strip - 1, 0, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP,
+                           G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+        gSPTextureRectangle(g++, 0, 0, width << 2, rows << 2, G_TX_RENDERTILE, 0, 0, 0, 0);
+    }
+    for (int y = 0; y < rows && !wideFill; y += strip) {
         const uint16_t* src = black ? zero : (const uint16_t*)fb + y * width;
         if (!black && repeatLine) { // every line is the buffer's first line
             for (int r = 0; r < strip; r++) memcpy(line + r * width, fb, width * sizeof(uint16_t));

@@ -5,6 +5,7 @@
 // (PORT_FLASH_FILE, PORT_GB_ROM*, PORT_GB_SAVE*). Auto-play skips it next time (hold Shift while starting to see it
 // again); Debug adds a button that opens the save editor (tools/save_editor, needs python3) in the browser. Controls
 // swaps the player cards for the key and controller bindings of each player (libultraship's ControlDeck mappings).
+// Renderer picks libultraship's window backend (Window.Backend.Id); it applies the next time the game starts.
 // Mods lists the mods in the mods folder (mods.cpp): switch them on or off, change their priority, Apply & Restart.
 // Android (or PORT_LAUNCHER_HANDHELD=1) shows a handheld layout instead: the Stadium cartridge and a big PLAY, the
 // Transfer Pak cards and the controls on pages of their own, everything reachable with the gamepad (D-pad or stick
@@ -29,6 +30,7 @@
 #include <ship/controller/controldevice/controller/mapping/keyboard/KeyboardKeyToButtonMapping.h>
 #include <ship/window/gui/IconsFontAwesome4.h>
 #include <ship/core/Context.h>
+#include <ship/config/Config.h>
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/archive/ArchiveManager.h>
 #include <ship/window/gui/GuiWindow.h>
@@ -64,6 +66,7 @@ struct State {
     bool autoPlay = false, debug = false;
     bool smooth = false; // frame interpolation (interp.cpp)
     int aspect = 0;      // the game picture: 0 = 4:3, 1 = 16:9 (Engine.cpp, AspectSetting)
+    int renderer = 0;    // the requested window backend (Fast::WindowBackend), used from the next start
 };
 
 std::string Key(const char* name) {
@@ -85,6 +88,42 @@ std::string GbSave(const GbSlot& g) {
     return fs::path(g.rom).replace_extension(".sav").string();
 }
 
+// ---- the renderer: libultraship's window backends ------------------------------------------------------------------
+
+// short (the launcher's button); config: libultraship's own name, as Fast3dWindow::GetWindowBackendName writes it
+const char* RendererName(int id, bool config = false) {
+    switch (id) {
+        case Fast::FAST3D_DXGI_DX11:
+            return config ? "DirectX 11" : "DX11";
+        case Fast::FAST3D_SDL_OPENGL:
+            return "OpenGL";
+        case Fast::FAST3D_SDL_METAL:
+            return "Metal";
+        case Fast::FAST3D_SDL_VULKAN:
+            return "Vulkan";
+    }
+    return "?";
+}
+
+// the backends this build has; Vulkan is listed when built in (whether a driver is installed is only checked when the
+// game starts with it: without one the game starts with the default renderer)
+std::vector<int> Renderers() {
+    std::vector<int> ids;
+    if (auto list = Port::GetWindow()->GetAvailableWindowBackends()) {
+        ids = *list;
+    }
+#ifdef ENABLE_VULKAN
+    if (std::find(ids.begin(), ids.end(), (int)Fast::FAST3D_SDL_VULKAN) == ids.end()) {
+        ids.push_back(Fast::FAST3D_SDL_VULKAN);
+    }
+#endif
+    return ids;
+}
+
+int ActiveRenderer() {
+    return Port::GetWindow()->GetWindowBackend();
+}
+
 State Load() {
     State s;
     s.rom = CVarGetString(Key("Rom").c_str(), "");
@@ -98,6 +137,11 @@ State Load() {
     s.debug = CVarGetInteger(Key("Debug").c_str(), 0) != 0;
     s.smooth = CVarGetInteger("gPort.Interpolate", 0) != 0;
     s.aspect = Port::AspectSetting();
+    s.renderer = CVarGetInteger(Key("Renderer").c_str(), ActiveRenderer());
+    const std::vector<int> renderers = Renderers();
+    if (std::find(renderers.begin(), renderers.end(), s.renderer) == renderers.end()) {
+        s.renderer = ActiveRenderer();
+    }
     return s;
 }
 
@@ -114,6 +158,14 @@ void Store(const State& s) {
     CVarSetInteger("gPort.Interpolate", s.smooth ? 1 : 0);
     CVarSetInteger("gPort.Aspect", s.aspect);
     Port::ApplyAspect();
+    // the window reads Window.Backend.Id when it starts (and writes the backend it got: the request is kept apart)
+    CVarSetInteger(Key("Renderer").c_str(), s.renderer);
+    auto config = Port::GetWindow()->GetContext()->GetChildren().GetFirst<Ship::Config>();
+    if (config != nullptr && config->GetInt("Window.Backend.Id", -1) != s.renderer) {
+        config->SetInt("Window.Backend.Id", s.renderer);
+        config->SetString("Window.Backend.Name", RendererName(s.renderer, true));
+        config->Save();
+    }
     CVarSave();
 }
 
@@ -681,6 +733,8 @@ class LauncherWindow : public Ship::GuiWindow {
     LauncherWindow(State* state, bool* play, bool* quit, Fast::Fast3dGui* gui, std::shared_ptr<Ship::Window> window)
         : GuiWindow("gLauncherWindowOpen", "Pokémon Stadium Launcher", ImVec2(kW, kH)), mState(state), mPlay(play),
           mQuit(quit), mGui(gui), mWindow(std::move(window)) {
+        // requested before, but the game started with another one: that renderer could not start here
+        mRendererFailed = state->renderer != ActiveRenderer() ? state->renderer : 0;
     }
 
     void Draw() override {
@@ -766,6 +820,7 @@ class LauncherWindow : public Ship::GuiWindow {
     }
 
   private:
+    int mRendererFailed = 0; // the requested renderer, when the game started with another (it could not start)
     // design coordinates -> screen
     ImVec2 P(float x, float y) const {
         return ImVec2(mOrigin.x + x * mScale, mOrigin.y + y * mScale);
@@ -1221,6 +1276,30 @@ class LauncherWindow : public Ship::GuiWindow {
             }
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip(a == 0 ? "The N64's picture shape" : "Widescreen: 3D scenes show more at the sides");
+            }
+        }
+
+        // the renderer (from the next start): cycles through the ones this build has
+        {
+            const int active = ActiveRenderer();
+            const bool pending = s.renderer != active;
+            const std::string label = std::string("Renderer: ") + RendererName(s.renderer);
+            if (ColorButton(label.c_str(), x + 616, y + 16, 128, 24, pending ? 0x23406B : Theme::button,
+                            pending ? 0x23406B : Theme::buttonHover)) {
+                const std::vector<int> ids = Renderers();
+                auto it = std::find(ids.begin(), ids.end(), s.renderer);
+                s.renderer = it == ids.end() || it + 1 == ids.end() ? ids.front() : *(it + 1);
+                mChanged = true;
+            }
+            if (ImGui::IsItemHovered()) {
+                std::string tip = "The graphics API the game draws with. A change applies the next time the game starts.";
+                if (mRendererFailed != 0 && s.renderer == mRendererFailed) {
+                    tip = std::string(RendererName(mRendererFailed)) + " could not start on this computer (no driver for "
+                          "it): the game uses " + RendererName(active) + ".";
+                } else if (pending) {
+                    tip += std::string("\nNow: ") + RendererName(active) + ".";
+                }
+                ImGui::SetTooltip("%s", tip.c_str());
             }
         }
 

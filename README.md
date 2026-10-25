@@ -29,6 +29,13 @@ arguments, each shows the launcher (below):
   Log output: start it from a console (`pokestadium.exe` in cmd/PowerShell writes there), redirect it
   (`pokestadium.exe 2> log.txt`), or set `PORT_CONSOLE=1` for a console window of its own.
 
+Renderer: the launcher's Renderer button, or `Window.Backend` in `pokestadium.cfg.json` (Id 1 DirectX 11, 2 OpenGL,
+3 Metal, 4 Vulkan). Vulkan (Windows
+and Linux builds; macOS only when built with `-DLUS_ENABLE_VULKAN=ON` against Homebrew's `molten-vk`,
+`vulkan-loader` and `glslang`) is used only where a Vulkan driver is installed, otherwise the default renderer. It
+keeps `vulkan_pipelines.txt` and `vulkan_pipeline_cache.bin` beside the settings: the shaders and pipelines of earlier
+runs are built ahead on worker threads (deleting them is safe; they are rebuilt).
+
 ## Build
 
 The game code needs clang (for Windows: llvm-mingw); GCC and MSVC are not supported.
@@ -53,7 +60,7 @@ release download is this app; see Run).
 
 ```bash
 sudo apt install clang lld cmake ninja-build python3 libsdl3-dev libglew-dev libgl-dev libzip-dev libbz2-dev \
-  zlib1g-dev nlohmann-json3-dev libtinyxml2-dev libspdlog-dev
+  zlib1g-dev nlohmann-json3-dev libtinyxml2-dev libspdlog-dev glslang-dev
 cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cmake --build build
 ```
@@ -70,13 +77,15 @@ executables that link anything besides glibc and OpenGL.
 `bin` directory on `PATH`, vcpkg in `$VCPKG_ROOT`):
 
 ```bash
-$VCPKG_ROOT/vcpkg install sdl3 glew libzip nlohmann-json tinyxml2 spdlog zlib bzip2 --triplet x64-mingw-static
+$VCPKG_ROOT/vcpkg install "sdl3[core,vulkan]" glew libzip nlohmann-json tinyxml2 spdlog zlib bzip2 glslang --triplet x64-mingw-static
 cmake -S . -B build-win -G Ninja -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
   -DVCPKG_TARGET_TRIPLET=x64-mingw-static -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$PWD/cmake/toolchain-mingw-clang.cmake
 cmake --build build-win
 ```
 
-For Windows on ARM: `MINGW_TRIPLE=aarch64-w64-mingw32` and the `arm64-mingw-static` triplet. `pokestadium.exe` is a
+For Windows on ARM: `MINGW_TRIPLE=aarch64-w64-mingw32` and the `arm64-mingw-static` triplet (with llvm-mingw's
+`bin` on `PATH` for the vcpkg install too, or vcpkg may build glslang with a GCC mingw that does not link). SDL3 needs
+its `vulkan` feature (vcpkg leaves it out by default) for the Vulkan renderer. `pokestadium.exe` is a
 window-only program (no console window; see Run for its log output) with the icon and version information of
 `src/port/pokestadium.rc.in`.
 
@@ -105,7 +114,8 @@ Stadium ROM and save and, per player, a Game Boy cartridge and save for the Tran
 remembered (`pokestadium.cfg.json`); Auto-play skips the launcher next time (hold Shift while starting to see it again),
 and Debug adds a save-editor button (needs python3). Screen picks the picture's shape, 4:3 (the N64's) or 16:9
 (widescreen: 3D scenes show more at the sides); a window of another shape gets black bars (`PORT_ASPECT=4:3|16:9`
-overrides it). With a ROM path as argument the game starts right away:
+overrides it). Renderer cycles through the graphics APIs the build has (DX11, OpenGL, Metal, Vulkan); the choice
+applies the next time the game starts. With a ROM path as argument the game starts right away:
 `cd build && ./pokestadium "/path/to/Pokemon Stadium (USA).z64"`.
 Useful environment variables (all in PORTING_NOTES.md): `PORT_FLASH_FILE` (Stadium save), `PORT_GB_ROM` /
 `PORT_GB_SAVE` (Transfer Pak cartridge of player 1; `PORT_GB_ROM2..4` for the others), `PORT_SOUND=0` (no sound
