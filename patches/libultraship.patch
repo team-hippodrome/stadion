@@ -415,10 +415,10 @@ index 3eb0996..c665c4c 100644
      GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) = 0;
 diff --git a/include/fast/backends/gfx_vulkan.h b/include/fast/backends/gfx_vulkan.h
 new file mode 100644
-index 0000000..fdb0d52
+index 0000000..ddbbf01
 --- /dev/null
 +++ b/include/fast/backends/gfx_vulkan.h
-@@ -0,0 +1,337 @@
+@@ -0,0 +1,389 @@
 +//
 +//  gfx_vulkan.h
 +//  libultraship
@@ -442,7 +442,14 @@ index 0000000..fdb0d52
 +#include <unordered_map>
 +#include <vector>
 +#include <map>
++#include <set>
 +#include <string>
++#include <tuple>
++#include <atomic>
++#include <chrono>
++#include <condition_variable>
++#include <mutex>
++#include <thread>
 +
 +struct SDL_Window;
 +struct ImDrawData;
@@ -477,26 +484,33 @@ index 0000000..fdb0d52
 +
 +constexpr uint32_t VK_MAX_VERTEX_ATTRIBS = 16;
 +
++
++
++// A program's shader modules and vertex layout, with pipelines built ahead (warm-up workers) for render states
++// earlier runs drew it with. Built on the render thread or on a worker; the render thread adopts it.
++struct BuiltProgramVK {
++    VkShaderModule vs = VK_NULL_HANDLE;
++    VkShaderModule fs = VK_NULL_HANDLE;
++    uint32_t attribCount = 0;
++    VkVertexInputAttributeDescription attribs[VK_MAX_VERTEX_ATTRIBS];
++    uint8_t numFloats = 0;
++    bool useAlphaBlend = false;
++    bool threePoint = false; // the settings the source was generated with
++    bool srgb = false;
++    std::map<uint32_t, VkPipeline> pipelines;
++};
++
 +struct ShaderProgramVK {
 +    uint64_t shader_id0;
 +    uint64_t shader_id1;
 +
 +    uint8_t numInputs;
-+    uint8_t numFloats;
 +    bool usedTextures[SHADER_MAX_TEXTURES];
-+    bool useAlphaBlend = false;
 +    bool markedForDeletion = false;
 +
-+    VkShaderModule vs = VK_NULL_HANDLE;
-+    VkShaderModule fs = VK_NULL_HANDLE;
-+
-+    // Vertex layout (the interpreter's packing order; fixed locations, see the shader template)
-+    uint32_t attribCount = 0;
-+    VkVertexInputAttributeDescription attribs[VK_MAX_VERTEX_ATTRIBS];
-+
-+    // Pipelines keyed by packed render state (msaa level, depth buffer, depth test/write, decal), created lazily on
-+    // first use.
-+    std::map<uint32_t, VkPipeline> pipelines;
++    // Modules, vertex layout (the interpreter's packing order; fixed locations, see the shader template) and the
++    // pipelines keyed by packed render state (msaa level, depth buffer, depth test/write, decal), created lazily
++    BuiltProgramVK built;
 +};
 +
 +struct TextureDataVK {
@@ -552,7 +566,7 @@ index 0000000..fdb0d52
 +  public:
 +    GfxRenderingAPIVK(std::shared_ptr<Ship::ConsoleVariable> consoleVariable = nullptr,
 +                      std::shared_ptr<Ship::ResourceManager> resourceManager = nullptr);
-+    ~GfxRenderingAPIVK() override = default;
++    ~GfxRenderingAPIVK() override;
 +    const char* GetName() override;
 +    int GetMaxTextureSize() override;
 +    GfxClipParameters GetClipParameters() override;
@@ -561,6 +575,7 @@ index 0000000..fdb0d52
 +    ShaderProgram* CreateAndLoadNewShader(uint64_t shaderId0, uint64_t shaderId1) override;
 +    ShaderProgram* LookupShader(uint64_t shaderId0, uint64_t shaderId1) override;
 +    void ShaderGetInfo(ShaderProgram* prg, uint8_t* numInputs, bool usedTextures[2]) override;
++    bool PrebuildShadersAsync(const std::vector<std::pair<uint64_t, uint64_t>>& ids) override;
 +    void ClearShaderCache() override;
 +    uint32_t NewTexture() override;
 +    void SelectTexture(int tile, uint32_t textureId) override;
@@ -641,12 +656,14 @@ index 0000000..fdb0d52
 +        VkDeviceMemory memory = VK_NULL_HANDLE;
 +        uint8_t* mapped = nullptr;
 +        size_t capacity = 0;
++        bool coherent = true;
 +    };
 +
 +    uint32_t FindMemoryType(uint32_t typeBits, VkMemoryPropertyFlags props);
 +    void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props, VkBuffer& buffer,
 +                      VkDeviceMemory& memory, uint8_t** mapped);
 +    void EnsureReadbackBuffer(ReadbackBuffer& rb, size_t size);
++    const uint8_t* ReadbackData(ReadbackBuffer& rb);
 +    void CreateImage(uint32_t width, uint32_t height, VkSampleCountFlagBits samples, VkFormat format,
 +                     VkImageUsageFlags usage, VkImage& image, VkDeviceMemory& memory);
 +    VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect);
@@ -658,8 +675,16 @@ index 0000000..fdb0d52
 +    VkSampler GetSampler(bool linear, uint32_t cms, uint32_t cmt);
 +    VkDescriptorPool CreateDescriptorPool();
 +    VkDescriptorSet AllocateTextureSet();
-+    std::string BuildShaderSource(const CCFeatures& ccFeatures, bool vertex);
++    std::string BuildShaderSource(const CCFeatures& ccFeatures, bool vertex, bool threePoint, bool srgb);
++    // thread-safe (warm-up workers): GLSL -> SPIR-V -> modules, and pipelines for a packed render state
++    BuiltProgramVK BuildProgram(uint64_t shaderId0, uint64_t shaderId1, bool threePoint, bool srgb);
++    VkPipeline CreatePipeline(const BuiltProgramVK& prg, uint32_t key);
++    void DestroyBuiltProgram(BuiltProgramVK& built);
 +    VkPipeline GetPipelineForState(ShaderProgramVK* prg, FramebufferVK& fb);
++    void PrebuildWorker();
++    void LoadPipelineList();
++    void RecordPipeline(uint64_t shaderId0, uint64_t shaderId1, uint32_t key);
++    void SavePipelineCache();
 +    void DestroyShaderProgram(ShaderProgramVK& prg);
 +    void EnsureUploadCmd();
 +    void GrowStaging(FrameSlot& slot, size_t needed);
@@ -706,10 +731,37 @@ index 0000000..fdb0d52
 +    size_t mStagingOffset = 0;
 +
 +    VkCommandBuffer mUploadCmd = VK_NULL_HANDLE;
++    VkFence mReadbackFence = VK_NULL_HANDLE; // SubmitFramebufferAndWait
 +
 +    VkDescriptorSetLayout mTextureSetLayout = VK_NULL_HANDLE; // 6 combined image samplers (fragment)
 +    VkPipelineLayout mPipelineLayout = VK_NULL_HANDLE;         // + the push constants
 +    VkPipelineCache mPipelineCache = VK_NULL_HANDLE;
++
++    // PORT: shader warm-up and the on-disk caches. Workers build the queued programs (and the pipelines listed for
++    // them) into mPrebuilt; CreateAndLoadNewShader takes a finished one, or waits for one being built. Only the
++    // render thread touches mShaderProgramPool. vulkan_pipelines.txt lists the (program, render state) pipelines drawn
++    // so far, vulkan_pipeline_cache.bin is the driver's VkPipelineCache data.
++    std::mutex mRenderPassMutex;
++    std::mutex mPrebuildMutex;
++    std::condition_variable mPrebuildCond;
++    std::vector<std::pair<std::pair<uint64_t, uint64_t>, std::vector<uint32_t>>> mPrebuildQueue;
++    size_t mPrebuildNext = 0;
++    bool mPrebuildThreePoint = false;
++    bool mPrebuildSrgb = false;
++    std::map<std::pair<uint64_t, uint64_t>, BuiltProgramVK> mPrebuilt;  // finished, not yet drawn
++    std::set<std::pair<uint64_t, uint64_t>> mPrebuilding;               // being built by a worker
++    std::set<std::pair<uint64_t, uint64_t>> mPrebuildSkip;              // built by the render thread itself
++    std::vector<std::thread> mPrebuildThreads;
++    std::atomic<bool> mPrebuildStop{ false };
++    int mPrebuildRunning = 0;
++    size_t mPrebuildBuilt = 0;
++    std::chrono::steady_clock::time_point mPrebuildStart;
++    std::map<std::pair<uint64_t, uint64_t>, std::vector<uint32_t>> mPipelineList;
++    std::set<std::tuple<uint64_t, uint64_t, uint32_t>> mKnownPipelines;
++    std::string mPipelineListPath;
++    std::string mPipelineCachePath;
++    std::atomic<bool> mPipelineCacheDirty{ false }; // set by workers too
++    std::chrono::steady_clock::time_point mPipelineCacheSaved;
 +
 +    std::map<uint32_t, VkRenderPass> mRenderPassCache; // key: msaa | (hasDepth << 8)
 +    std::map<uint32_t, VkSampler> mSamplerCache;       // key: linear | cms<<1 | cmt<<9 | filter mode<<17
@@ -2089,10 +2141,10 @@ index c8bc6cd..ff6981d 100644
          if (mRenderer == nullptr) {
 diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
 new file mode 100644
-index 0000000..cd3dc21
+index 0000000..566dfce
 --- /dev/null
 +++ b/src/fast/backends/gfx_vulkan.cpp
-@@ -0,0 +1,2392 @@
+@@ -0,0 +1,2711 @@
 +//
 +//  gfx_vulkan.cpp
 +//  libultraship
@@ -2119,6 +2171,7 @@ index 0000000..cd3dc21
 +#include <cstring>
 +#include <sstream>
 +#include <unordered_set>
++#include <chrono>
 +
 +#include <SDL3/SDL.h>
 +#include <SDL3/SDL_vulkan.h>
@@ -2133,6 +2186,7 @@ index 0000000..cd3dc21
 +#include "ship/config/ConsoleVariable.h"
 +#include "ship/resource/ResourceManager.h"
 +#include "ship/resource/factory/ShaderFactory.h"
++#include "ship/core/Context.h"
 +
 +#define VK_CHECK(expr)                                                          \
 +    do {                                                                        \
@@ -2150,6 +2204,16 @@ index 0000000..cd3dc21
 +
 +static std::shared_ptr<Ship::ResourceManager> sVKResourceManager;
 +
++// debug: PORT_VK_STATS=1 prints where the backend spent its time, every 60 drawn frames
++static const bool sStats = getenv("PORT_VK_STATS") != nullptr;
++static struct {
++    int programs = 0, prebuiltPrograms = 0, pipelines = 0, syncSubmits = 0;
++    double programMs = 0, pipelineMs = 0, syncMs = 0, fenceMs = 0, acquireMs = 0;
++} sStat;
++static double MsSince(std::chrono::steady_clock::time_point t) {
++    return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t).count();
++}
++
 +GfxRenderingAPIVK::GfxRenderingAPIVK(std::shared_ptr<Ship::ConsoleVariable> consoleVariable,
 +                                     std::shared_ptr<Ship::ResourceManager> resourceManager)
 +    : mConsoleVariable(std::move(consoleVariable)) {
@@ -2158,14 +2222,9 @@ index 0000000..cd3dc21
 +
 +// MARK: - Shader compilation (GLSL -> SPIR-V via glslang)
 +
-+// Returns an empty vector (and logs the error with the numbered source) when the source does not compile.
++// Returns an empty vector (and logs the error with the numbered source) when the source does not compile. Thread-safe
++// (glslang_initialize_process ran in VulkanInit).
 +static std::vector<uint32_t> CompileGlslToSpirv(const std::string& source, bool vertex) {
-+    static bool sInitialized = false;
-+    if (!sInitialized) {
-+        glslang_initialize_process();
-+        sInitialized = true;
-+    }
-+
 +    glslang_input_t input = {};
 +    input.language = GLSLANG_SOURCE_GLSL;
 +    input.stage = vertex ? GLSLANG_STAGE_VERTEX : GLSLANG_STAGE_FRAGMENT;
@@ -2218,7 +2277,7 @@ index 0000000..cd3dc21
 +                                    prism::ContextTypes* a_with_alpha, prism::ContextTypes* a_only_alpha,
 +                                    prism::ContextTypes* a_alpha, prism::ContextTypes* a_first_cycle);
 +
-+std::string GfxRenderingAPIVK::BuildShaderSource(const CCFeatures& ccFeatures, bool vertex) {
++std::string GfxRenderingAPIVK::BuildShaderSource(const CCFeatures& ccFeatures, bool vertex, bool threePoint, bool srgb) {
 +    const bool dualOut = mHasDualSrcBlend && ccFeatures.opt_alpha;
 +    // the template's fixed attribute/varying locations of the textures' coordinates and clamp values
 +    static int sLocTex[2] = { 1, 4 };
@@ -2247,11 +2306,11 @@ index 0000000..cd3dc21
 +        { "o_do_single", M_ARRAY(ccFeatures.do_single, bool, 2, 2) },
 +        { "o_do_multiply", M_ARRAY(ccFeatures.do_multiply, bool, 2, 2) },
 +        { "o_color_alpha_same", M_ARRAY(ccFeatures.color_alpha_same, bool, 2) },
-+        { "o_three_point_filtering", mCurrentFilterMode == FILTER_THREE_POINT },
++        { "o_three_point_filtering", threePoint },
 +        { "FILTER_THREE_POINT", FILTER_THREE_POINT },
 +        { "FILTER_LINEAR", FILTER_LINEAR },
 +        { "FILTER_NONE", FILTER_NONE },
-+        { "srgb_mode", mSrgbMode },
++        { "srgb_mode", srgb },
 +        // the fragment outputs as flat flags (prism drops the rest of a shader after a nested or @elseif branch that
 +        // is taken; see gfx_opengl.cpp)
 +        { "dual_out", dualOut },
@@ -2356,10 +2415,52 @@ index 0000000..cd3dc21
 +        vkDestroyBuffer(mDevice, rb.buffer, nullptr);
 +        vkFreeMemory(mDevice, rb.memory, nullptr);
 +    }
-+    // Host-cached where available: the CPU reads every byte back
-+    VkMemoryPropertyFlags props = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-+    CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, props, rb.buffer, rb.memory, &rb.mapped);
++    VkBufferCreateInfo bi = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
++    bi.size = size;
++    bi.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
++    bi.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
++    VK_CHECK(vkCreateBuffer(mDevice, &bi, nullptr, &rb.buffer));
++    VkMemoryRequirements req;
++    vkGetBufferMemoryRequirements(mDevice, rb.buffer, &req);
++
++    // The CPU reads every byte back: host-cached memory where the device has it (uncached reads are slow)
++    VkPhysicalDeviceMemoryProperties memProps;
++    vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProps);
++    const VkMemoryPropertyFlags wanted[3] = {
++        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
++        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
++        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
++    };
++    uint32_t type = UINT32_MAX;
++    for (VkMemoryPropertyFlags flags : wanted) {
++        for (uint32_t i = 0; i < memProps.memoryTypeCount && type == UINT32_MAX; i++) {
++            if ((req.memoryTypeBits & (1u << i)) && (memProps.memoryTypes[i].propertyFlags & flags) == flags) {
++                type = i;
++            }
++        }
++        if (type != UINT32_MAX) {
++            break;
++        }
++    }
++    rb.coherent = (memProps.memoryTypes[type].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
++    VkMemoryAllocateInfo ai = { VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
++    ai.allocationSize = req.size;
++    ai.memoryTypeIndex = type;
++    VK_CHECK(vkAllocateMemory(mDevice, &ai, nullptr, &rb.memory));
++    VK_CHECK(vkBindBufferMemory(mDevice, rb.buffer, rb.memory, 0));
++    VK_CHECK(vkMapMemory(mDevice, rb.memory, 0, VK_WHOLE_SIZE, 0, (void**)&rb.mapped));
 +    rb.capacity = size;
++}
++
++// The buffer's bytes after the GPU wrote them (non-coherent memory is invalidated first)
++const uint8_t* GfxRenderingAPIVK::ReadbackData(ReadbackBuffer& rb) {
++    if (!rb.coherent) {
++        VkMappedMemoryRange range = { VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE };
++        range.memory = rb.memory;
++        range.size = VK_WHOLE_SIZE;
++        VK_CHECK(vkInvalidateMappedMemoryRanges(mDevice, 1, &range));
++    }
++    return rb.mapped;
 +}
 +
 +void GfxRenderingAPIVK::CreateImage(uint32_t width, uint32_t height, VkSampleCountFlagBits samples, VkFormat format,
@@ -2446,6 +2547,7 @@ index 0000000..cd3dc21
 +// Canonical render pass per (msaa, hasDepth). All attachments LOAD/STORE in LAYOUT_GENERAL; MSAA passes add a resolve
 +// attachment (the sampled texture).
 +VkRenderPass GfxRenderingAPIVK::GetRenderPass(uint32_t msaaLevel, bool hasDepth) {
++    std::lock_guard<std::mutex> lock(mRenderPassMutex); // warm-up workers create pipelines too
 +    uint32_t key = msaaLevel | (hasDepth ? 1u << 8 : 0);
 +    auto it = mRenderPassCache.find(key);
 +    if (it != mRenderPassCache.end()) {
@@ -2699,6 +2801,10 @@ index 0000000..cd3dc21
 +                                 : VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR;
 +    }
 +    sci.presentMode = presentMode;
++    if (sStats) {
++        fprintf(stderr, "[vkstats] swapchain %ux%u, present mode %d (vsync %s)\n", extent.width, extent.height,
++                (int)presentMode, mVsync ? "on" : "off");
++    }
 +    sci.clipped = VK_TRUE;
 +    sci.oldSwapchain = mSwapchain;
 +
@@ -2783,6 +2889,7 @@ index 0000000..cd3dc21
 +
 +bool GfxRenderingAPIVK::VulkanInit(SDL_Window* window) {
 +    mWindow = window;
++    glslang_initialize_process();
 +
 +    // The library SDL loaded for the window (Vulkan_LoadLibrary) provides the entry points
 +    auto getInstanceProcAddr = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
@@ -2952,9 +3059,36 @@ index 0000000..cd3dc21
 +        pli.pPushConstantRanges = &range;
 +        VK_CHECK(vkCreatePipelineLayout(mDevice, &pli, nullptr, &mPipelineLayout));
 +
++        // PORT: the driver's pipeline cache from earlier runs (it ignores data from another driver or device)
++        mPipelineCachePath = Ship::Context::GetPathRelativeToAppDirectory("vulkan_pipeline_cache.bin");
++        mPipelineListPath = Ship::Context::GetPathRelativeToAppDirectory("vulkan_pipelines.txt");
++        std::vector<uint8_t> cacheData;
++        if (FILE* f = fopen(mPipelineCachePath.c_str(), "rb")) {
++            fseek(f, 0, SEEK_END);
++            long size = ftell(f);
++            fseek(f, 0, SEEK_SET);
++            if (size > 0) {
++                cacheData.resize((size_t)size);
++                if (fread(cacheData.data(), 1, cacheData.size(), f) != cacheData.size()) {
++                    cacheData.clear();
++                }
++            }
++            fclose(f);
++        }
 +        VkPipelineCacheCreateInfo pci = { VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO };
-+        VK_CHECK(vkCreatePipelineCache(mDevice, &pci, nullptr, &mPipelineCache));
++        pci.initialDataSize = cacheData.size();
++        pci.pInitialData = cacheData.empty() ? nullptr : cacheData.data();
++        if (vkCreatePipelineCache(mDevice, &pci, nullptr, &mPipelineCache) != VK_SUCCESS) {
++            pci.initialDataSize = 0; // unusable data: start empty
++            pci.pInitialData = nullptr;
++            VK_CHECK(vkCreatePipelineCache(mDevice, &pci, nullptr, &mPipelineCache));
++        }
++        mPipelineCacheSaved = std::chrono::steady_clock::now();
++        LoadPipelineList();
 +    }
++
++    VkFenceCreateInfo readbackFence = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
++    VK_CHECK(vkCreateFence(mDevice, &readbackFence, nullptr, &mReadbackFence));
 +
 +    // Per-frame slots
 +    mVertexRingCapacity = 256 * 32 * 3 * sizeof(float) * 50;
@@ -3069,6 +3203,135 @@ index 0000000..cd3dc21
 +    return true;
 +}
 +
++GfxRenderingAPIVK::~GfxRenderingAPIVK() {
++    mPrebuildStop = true;
++    for (auto& t : mPrebuildThreads) {
++        t.join();
++    }
++    SavePipelineCache();
++}
++
++// MARK: - Shader warm-up and the on-disk caches
++
++// vulkan_pipelines.txt: one "<shader id0> <shader id1> <render state key>" line (hex) per pipeline drawn so far
++void GfxRenderingAPIVK::LoadPipelineList() {
++    FILE* f = fopen(mPipelineListPath.c_str(), "r");
++    if (f == nullptr) {
++        return;
++    }
++    unsigned long long id0, id1;
++    unsigned key;
++    while (fscanf(f, "%llx %llx %x", &id0, &id1, &key) == 3) {
++        if (mKnownPipelines.insert({ id0, id1, key }).second) {
++            mPipelineList[{ id0, id1 }].push_back(key);
++        }
++    }
++    fclose(f);
++}
++
++void GfxRenderingAPIVK::RecordPipeline(uint64_t shaderId0, uint64_t shaderId1, uint32_t key) {
++    mPipelineCacheDirty = true;
++    if (!mKnownPipelines.insert({ shaderId0, shaderId1, key }).second) {
++        return;
++    }
++    if (FILE* f = fopen(mPipelineListPath.c_str(), "a")) {
++        fprintf(f, "%016llx %016llx %x\n", (unsigned long long)shaderId0, (unsigned long long)shaderId1, key);
++        fclose(f);
++    }
++}
++
++void GfxRenderingAPIVK::SavePipelineCache() {
++    if (mPipelineCache == VK_NULL_HANDLE || !mPipelineCacheDirty) {
++        return;
++    }
++    size_t size = 0;
++    if (vkGetPipelineCacheData(mDevice, mPipelineCache, &size, nullptr) != VK_SUCCESS || size == 0) {
++        return;
++    }
++    std::vector<uint8_t> data(size);
++    if (vkGetPipelineCacheData(mDevice, mPipelineCache, &size, data.data()) != VK_SUCCESS) {
++        return;
++    }
++    // written beside and renamed, so a crash mid-write leaves the old file
++    const std::string tmp = mPipelineCachePath + ".tmp";
++    if (FILE* f = fopen(tmp.c_str(), "wb")) {
++        const bool ok = fwrite(data.data(), 1, size, f) == size;
++        fclose(f);
++        if (ok) {
++            std::remove(mPipelineCachePath.c_str());
++            std::rename(tmp.c_str(), mPipelineCachePath.c_str());
++        }
++    }
++    mPipelineCacheDirty = false;
++    mPipelineCacheSaved = std::chrono::steady_clock::now();
++}
++
++// PORT: shader warm-up (Interpreter::QueueShaderWarmup): the programs earlier runs drew, built on worker threads with
++// the pipelines vulkan_pipelines.txt lists for them; CreateAndLoadNewShader takes them.
++bool GfxRenderingAPIVK::PrebuildShadersAsync(const std::vector<std::pair<uint64_t, uint64_t>>& ids) {
++    if (mDevice == VK_NULL_HANDLE || getenv("PORT_VK_NO_PREBUILD") != nullptr) { // debug: build on first use only
++        return false;
++    }
++    std::lock_guard<std::mutex> lock(mPrebuildMutex);
++    std::set<std::pair<uint64_t, uint64_t>> queued;
++    for (const auto& [key, job] : mPrebuildQueue) {
++        queued.insert(key);
++    }
++    auto add = [&](const std::pair<uint64_t, uint64_t>& key) {
++        if (queued.insert(key).second) {
++            auto it = mPipelineList.find(key);
++            mPrebuildQueue.push_back({ key, it != mPipelineList.end() ? it->second : std::vector<uint32_t>{} });
++        }
++    };
++    for (const auto& key : ids) {
++        add(key);
++    }
++    for (const auto& [key, states] : mPipelineList) { // drawn before, though not on the warm-up list
++        add(key);
++    }
++    mPrebuildThreePoint = mCurrentFilterMode == FILTER_THREE_POINT;
++    mPrebuildSrgb = mSrgbMode;
++    if (mPrebuildThreads.empty() && !mPrebuildQueue.empty()) {
++        unsigned n = std::clamp(std::thread::hardware_concurrency() / 2, 2u, 6u);
++        if (const char* threads = getenv("PORT_SHADER_THREADS")) { // debug: the number of builder threads
++            n = std::clamp(atoi(threads), 1, 32);
++        }
++        mPrebuildStart = std::chrono::steady_clock::now();
++        mPrebuildRunning = n;
++        for (unsigned i = 0; i < n; i++) {
++            mPrebuildThreads.emplace_back([this] { PrebuildWorker(); });
++        }
++    }
++    return true;
++}
++
++void GfxRenderingAPIVK::PrebuildWorker() {
++    std::unique_lock<std::mutex> lock(mPrebuildMutex);
++    while (!mPrebuildStop && mPrebuildNext < mPrebuildQueue.size()) {
++        auto [key, states] = mPrebuildQueue[mPrebuildNext++];
++        if (mPrebuildSkip.count(key) || mPrebuilt.count(key) || mPrebuilding.count(key)) {
++            continue;
++        }
++        mPrebuilding.insert(key);
++        const bool threePoint = mPrebuildThreePoint, srgb = mPrebuildSrgb;
++        lock.unlock();
++        BuiltProgramVK built = BuildProgram(key.first, key.second, threePoint, srgb);
++        for (uint32_t state : states) {
++            built.pipelines[state] = CreatePipeline(built, state);
++            mPipelineCacheDirty = true;
++        }
++        lock.lock();
++        mPrebuilding.erase(key);
++        mPrebuilt[key] = std::move(built);
++        mPrebuildBuilt++;
++        mPrebuildCond.notify_all();
++    }
++    if (--mPrebuildRunning == 0 && sStats) {
++        fprintf(stderr, "[vkstats] warm-up done: %zu programs queued, %zu built ahead, in %.0f ms\n",
++                mPrebuildQueue.size(), mPrebuildBuilt, MsSince(mPrebuildStart));
++    }
++}
++
 +void GfxRenderingAPIVK::ShutdownImGui() {
 +    if (mImGuiInitialized) {
 +        vkDeviceWaitIdle(mDevice);
@@ -3113,9 +3376,11 @@ index 0000000..cd3dc21
 +    FrameSlot& slot = mFrames[mFrameSlot];
 +
 +    if (slot.fenceInFlight) {
++        const auto statStart = std::chrono::steady_clock::now();
 +        VK_CHECK(vkWaitForFences(mDevice, 1, &slot.fence, VK_TRUE, UINT64_MAX));
 +        VK_CHECK(vkResetFences(mDevice, 1, &slot.fence));
 +        slot.fenceInFlight = false;
++        sStat.fenceMs += MsSince(statStart);
 +    }
 +    CollectGarbage(slot);
 +    VK_CHECK(vkResetCommandPool(mDevice, slot.commandPool, 0));
@@ -3144,8 +3409,10 @@ index 0000000..cd3dc21
 +        CreateSwapchain((uint32_t)dw, (uint32_t)dh);
 +    }
 +
++    const auto acquireStart = std::chrono::steady_clock::now();
 +    VkResult acquire = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, slot.imageAvailable, VK_NULL_HANDLE,
 +                                             &mSwapchainImageIndex);
++    sStat.acquireMs += MsSince(acquireStart);
 +    if (acquire == VK_ERROR_OUT_OF_DATE_KHR) {
 +        CreateSwapchain((uint32_t)dw, (uint32_t)dh);
 +        acquire = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, slot.imageAvailable, VK_NULL_HANDLE,
@@ -3230,25 +3497,14 @@ index 0000000..cd3dc21
 +    }
 +}
 +
-+ShaderProgram* GfxRenderingAPIVK::CreateAndLoadNewShader(uint64_t shaderId0, uint64_t shaderId1) {
++BuiltProgramVK GfxRenderingAPIVK::BuildProgram(uint64_t shaderId0, uint64_t shaderId1, bool threePoint, bool srgb) {
 +    CCFeatures cc_features;
 +    gfx_cc_get_features(shaderId0, shaderId1, &cc_features);
 +
-+    ShaderProgramVK* prg = &mShaderProgramPool[std::make_pair(shaderId0, shaderId1)];
-+    prg->shader_id0 = shaderId0;
-+    prg->shader_id1 = shaderId1;
-+    prg->usedTextures[0] = cc_features.usedTextures[0];
-+    prg->usedTextures[1] = cc_features.usedTextures[1];
-+    prg->usedTextures[2] = cc_features.used_masks[0];
-+    prg->usedTextures[3] = cc_features.used_masks[1];
-+    prg->usedTextures[4] = cc_features.used_blend[0];
-+    prg->usedTextures[5] = cc_features.used_blend[1];
-+    prg->numInputs = cc_features.numInputs;
-+    prg->useAlphaBlend = cc_features.opt_alpha;
-+    prg->markedForDeletion = false;
-+    prg->pipelines.clear();
-+    prg->vs = VK_NULL_HANDLE;
-+    prg->fs = VK_NULL_HANDLE;
++    BuiltProgramVK built;
++    built.threePoint = threePoint;
++    built.srgb = srgb;
++    built.useAlphaBlend = cc_features.opt_alpha;
 +
 +    // Vertex layout: the interpreter's packing order, at the template's fixed locations
 +    uint32_t offset = 0;
@@ -3256,7 +3512,7 @@ index 0000000..cd3dc21
 +    auto attrib = [&](uint32_t location, uint32_t floats) {
 +        static const VkFormat formats[5] = { VK_FORMAT_UNDEFINED, VK_FORMAT_R32_SFLOAT, VK_FORMAT_R32G32_SFLOAT,
 +                                             VK_FORMAT_R32G32B32_SFLOAT, VK_FORMAT_R32G32B32A32_SFLOAT };
-+        prg->attribs[count++] = { location, 0, formats[floats], offset };
++        built.attribs[count++] = { location, 0, formats[floats], offset };
 +        offset += floats * sizeof(float);
 +    };
 +    attrib(0, 4);
@@ -3280,11 +3536,11 @@ index 0000000..cd3dc21
 +    for (int i = 0; i < cc_features.numInputs; i++) {
 +        attrib(9 + i, cc_features.opt_alpha ? 4 : 3);
 +    }
-+    prg->attribCount = count;
-+    prg->numFloats = (uint8_t)(offset / sizeof(float));
++    built.attribCount = count;
++    built.numFloats = (uint8_t)(offset / sizeof(float));
 +
-+    const std::string vsSource = BuildShaderSource(cc_features, true);
-+    const std::string fsSource = BuildShaderSource(cc_features, false);
++    const std::string vsSource = BuildShaderSource(cc_features, true, threePoint, srgb);
++    const std::string fsSource = BuildShaderSource(cc_features, false, threePoint, srgb);
 +    if (const char* dumpDir = getenv("PORT_VK_DUMP_SHADERS")) { // debug: the generated GLSL, one file per shader
 +        char path[1024];
 +        snprintf(path, sizeof path, "%s/%016llx_%016llx.glsl", dumpDir, (unsigned long long)shaderId0,
@@ -3298,17 +3554,82 @@ index 0000000..cd3dc21
 +    const std::vector<uint32_t> fsSpirv = CompileGlslToSpirv(fsSource, false);
 +    if (vsSpirv.empty() || fsSpirv.empty()) {
 +        SPDLOG_ERROR("Vulkan: shader {:016x}/{:016x} does not compile, its draws are skipped", shaderId0, shaderId1);
-+    } else {
-+        VkShaderModuleCreateInfo smci = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-+        smci.codeSize = vsSpirv.size() * sizeof(uint32_t);
-+        smci.pCode = vsSpirv.data();
-+        VK_CHECK(vkCreateShaderModule(mDevice, &smci, nullptr, &prg->vs));
-+        smci.codeSize = fsSpirv.size() * sizeof(uint32_t);
-+        smci.pCode = fsSpirv.data();
-+        VK_CHECK(vkCreateShaderModule(mDevice, &smci, nullptr, &prg->fs));
++        return built;
++    }
++    VkShaderModuleCreateInfo smci = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
++    smci.codeSize = vsSpirv.size() * sizeof(uint32_t);
++    smci.pCode = vsSpirv.data();
++    VK_CHECK(vkCreateShaderModule(mDevice, &smci, nullptr, &built.vs));
++    smci.codeSize = fsSpirv.size() * sizeof(uint32_t);
++    smci.pCode = fsSpirv.data();
++    VK_CHECK(vkCreateShaderModule(mDevice, &smci, nullptr, &built.fs));
++    return built;
++}
++
++// For a program never handed to the render thread's command buffers (a warm-up build for other settings)
++void GfxRenderingAPIVK::DestroyBuiltProgram(BuiltProgramVK& built) {
++    for (auto& [key, pipeline] : built.pipelines) {
++        if (pipeline != VK_NULL_HANDLE) {
++            vkDestroyPipeline(mDevice, pipeline, nullptr);
++        }
++    }
++    built.pipelines.clear();
++    for (VkShaderModule module : { built.vs, built.fs }) {
++        if (module != VK_NULL_HANDLE) {
++            vkDestroyShaderModule(mDevice, module, nullptr);
++        }
++    }
++    built.vs = VK_NULL_HANDLE;
++    built.fs = VK_NULL_HANDLE;
++}
++
++ShaderProgram* GfxRenderingAPIVK::CreateAndLoadNewShader(uint64_t shaderId0, uint64_t shaderId1) {
++    const auto statStart = std::chrono::steady_clock::now();
++    const bool threePoint = mCurrentFilterMode == FILTER_THREE_POINT;
++    const auto key = std::make_pair(shaderId0, shaderId1);
++
++    // a program the warm-up built (or is building: wait for it, it is further along than a new build here)
++    BuiltProgramVK built;
++    bool prebuilt = false;
++    {
++        std::unique_lock<std::mutex> lock(mPrebuildMutex);
++        mPrebuildCond.wait(lock, [&] { return mPrebuilding.count(key) == 0; });
++        auto it = mPrebuilt.find(key);
++        if (it != mPrebuilt.end()) {
++            built = std::move(it->second);
++            mPrebuilt.erase(it);
++            prebuilt = true;
++        } else {
++            mPrebuildSkip.insert(key);
++        }
++    }
++    if (prebuilt && (built.threePoint != threePoint || built.srgb != mSrgbMode)) {
++        DestroyBuiltProgram(built); // built for other settings (the filter changed since)
++        prebuilt = false;
++    }
++    if (!prebuilt) {
++        built = BuildProgram(shaderId0, shaderId1, threePoint, mSrgbMode);
 +    }
 +
++    CCFeatures cc_features;
++    gfx_cc_get_features(shaderId0, shaderId1, &cc_features);
++    ShaderProgramVK* prg = &mShaderProgramPool[key];
++    prg->shader_id0 = shaderId0;
++    prg->shader_id1 = shaderId1;
++    prg->usedTextures[0] = cc_features.usedTextures[0];
++    prg->usedTextures[1] = cc_features.usedTextures[1];
++    prg->usedTextures[2] = cc_features.used_masks[0];
++    prg->usedTextures[3] = cc_features.used_masks[1];
++    prg->usedTextures[4] = cc_features.used_blend[0];
++    prg->usedTextures[5] = cc_features.used_blend[1];
++    prg->numInputs = cc_features.numInputs;
++    prg->markedForDeletion = false;
++    prg->built = std::move(built);
++
 +    LoadShader((ShaderProgram*)prg);
++    sStat.programs++;
++    sStat.prebuiltPrograms += prebuilt ? 1 : 0;
++    sStat.programMs += MsSince(statStart);
 +    return (ShaderProgram*)prg;
 +}
 +
@@ -3331,19 +3652,19 @@ index 0000000..cd3dc21
 +// The pipelines and modules may be in command buffers recorded this frame: freed once the frame is done
 +void GfxRenderingAPIVK::DestroyShaderProgram(ShaderProgramVK& prg) {
 +    FrameSlot& slot = mFrames[mFrameSlot];
-+    for (auto& [key, pipeline] : prg.pipelines) {
++    for (auto& [key, pipeline] : prg.built.pipelines) {
 +        if (pipeline != VK_NULL_HANDLE) {
 +            slot.garbagePipelines.push_back(pipeline);
 +        }
 +    }
-+    prg.pipelines.clear();
-+    for (VkShaderModule module : { prg.vs, prg.fs }) {
++    prg.built.pipelines.clear();
++    for (VkShaderModule module : { prg.built.vs, prg.built.fs }) {
 +        if (module != VK_NULL_HANDLE) {
 +            slot.garbageModules.push_back(module);
 +        }
 +    }
-+    prg.vs = VK_NULL_HANDLE;
-+    prg.fs = VK_NULL_HANDLE;
++    prg.built.vs = VK_NULL_HANDLE;
++    prg.built.fs = VK_NULL_HANDLE;
 +    for (auto& fb : mFramebuffers) {
 +        fb.mLastPipeline = VK_NULL_HANDLE;
 +    }
@@ -3515,35 +3836,35 @@ index 0000000..cd3dc21
 +    // Blend state comes from the shader's opt_alpha (baked into the pipeline)
 +}
 +
-+// Lazily creates the pipeline for the program and the current depth/decal/framebuffer state.
-+VkPipeline GfxRenderingAPIVK::GetPipelineForState(ShaderProgramVK* prg, FramebufferVK& fb) {
-+    const bool depthTest = mCurrentDepthTest != 0;
-+    const bool depthMask = mCurrentDepthMask != 0;
-+    const bool decal = mCurrentZmodeDecal != 0;
-+    const uint32_t key = fb.mMsaaLevel | ((fb.mHasDepthBuffer ? 1u : 0) << 4) | ((depthTest ? 1u : 0) << 5) |
-+                         ((depthMask ? 1u : 0) << 6) | ((decal ? 1u : 0) << 7);
-+    auto it = prg->pipelines.find(key);
-+    if (it != prg->pipelines.end()) {
-+        return it->second;
++// The render state packed into a pipeline key: msaa level (bits 0-3), depth buffer (4), depth test (5), depth
++// write (6), decal (7). Thread-safe (warm-up workers build pipelines for the states listed in vulkan_pipelines.txt).
++VkPipeline GfxRenderingAPIVK::CreatePipeline(const BuiltProgramVK& prg, uint32_t key) {
++    if (prg.vs == VK_NULL_HANDLE || prg.fs == VK_NULL_HANDLE) {
++        return VK_NULL_HANDLE;
 +    }
++    const uint32_t msaaLevel = key & 15;
++    const bool hasDepth = (key >> 4) & 1;
++    const bool depthTest = (key >> 5) & 1;
++    const bool depthMask = (key >> 6) & 1;
++    const bool decal = (key >> 7) & 1;
 +
 +    VkPipelineShaderStageCreateInfo stages[2] = {};
 +    stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 +    stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-+    stages[0].module = prg->vs;
++    stages[0].module = prg.vs;
 +    stages[0].pName = "main";
 +    stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 +    stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-+    stages[1].module = prg->fs;
++    stages[1].module = prg.fs;
 +    stages[1].pName = "main";
 +
-+    VkVertexInputBindingDescription binding = { 0, prg->numFloats * (uint32_t)sizeof(float),
++    VkVertexInputBindingDescription binding = { 0, prg.numFloats * (uint32_t)sizeof(float),
 +                                                VK_VERTEX_INPUT_RATE_VERTEX };
 +    VkPipelineVertexInputStateCreateInfo vertexInput = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 +    vertexInput.vertexBindingDescriptionCount = 1;
 +    vertexInput.pVertexBindingDescriptions = &binding;
-+    vertexInput.vertexAttributeDescriptionCount = prg->attribCount;
-+    vertexInput.pVertexAttributeDescriptions = prg->attribs;
++    vertexInput.vertexAttributeDescriptionCount = prg.attribCount;
++    vertexInput.pVertexAttributeDescriptions = prg.attribs;
 +
 +    VkPipelineInputAssemblyStateCreateInfo inputAssembly = {
 +        VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO
@@ -3564,19 +3885,19 @@ index 0000000..cd3dc21
 +    raster.depthClampEnable = mHasDepthClamp ? VK_TRUE : VK_FALSE;
 +
 +    VkPipelineMultisampleStateCreateInfo msaa = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
-+    msaa.rasterizationSamples = (VkSampleCountFlagBits)fb.mMsaaLevel;
++    msaa.rasterizationSamples = (VkSampleCountFlagBits)msaaLevel;
 +
 +    // As the OpenGL and Metal backends: LESS, LEQUAL for decals, ALWAYS (but still writing) without the depth test
 +    VkPipelineDepthStencilStateCreateInfo depth = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-+    depth.depthTestEnable = fb.mHasDepthBuffer && (depthTest || depthMask) ? VK_TRUE : VK_FALSE;
-+    depth.depthWriteEnable = fb.mHasDepthBuffer && depthMask ? VK_TRUE : VK_FALSE;
++    depth.depthTestEnable = hasDepth && (depthTest || depthMask) ? VK_TRUE : VK_FALSE;
++    depth.depthWriteEnable = hasDepth && depthMask ? VK_TRUE : VK_FALSE;
 +    depth.depthCompareOp =
 +        depthTest ? (decal ? VK_COMPARE_OP_LESS_OR_EQUAL : VK_COMPARE_OP_LESS) : VK_COMPARE_OP_ALWAYS;
 +
 +    VkPipelineColorBlendAttachmentState blendAttachment = {};
 +    blendAttachment.colorWriteMask =
 +        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-+    if (prg->useAlphaBlend) {
++    if (prg.useAlphaBlend) {
 +        blendAttachment.blendEnable = VK_TRUE;
 +        blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
 +        blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
@@ -3616,22 +3937,40 @@ index 0000000..cd3dc21
 +    pci.pColorBlendState = &blend;
 +    pci.pDynamicState = &dynamic;
 +    pci.layout = mPipelineLayout;
-+    pci.renderPass = GetRenderPass(fb.mMsaaLevel, fb.mHasDepthBuffer);
++    pci.renderPass = GetRenderPass(msaaLevel, hasDepth);
 +    pci.subpass = 0;
 +
 +    VkPipeline pipeline = VK_NULL_HANDLE;
 +    VkResult res = vkCreateGraphicsPipelines(mDevice, mPipelineCache, 1, &pci, nullptr, &pipeline);
 +    if (res != VK_SUCCESS) {
-+        SPDLOG_ERROR("Vulkan: pipeline creation failed ({}) for shader {:016x}/{:016x}", (int)res, prg->shader_id0,
-+                     prg->shader_id1);
++        SPDLOG_ERROR("Vulkan: pipeline creation failed ({}) for render state {:x}", (int)res, key);
 +        pipeline = VK_NULL_HANDLE;
 +    }
-+    prg->pipelines[key] = pipeline;
++    return pipeline;
++}
++
++// The program's pipeline for the current depth/decal/framebuffer state, created on first use (and recorded for the
++// warm-up of later runs).
++VkPipeline GfxRenderingAPIVK::GetPipelineForState(ShaderProgramVK* prg, FramebufferVK& fb) {
++    const uint32_t key = fb.mMsaaLevel | ((fb.mHasDepthBuffer ? 1u : 0) << 4) | ((mCurrentDepthTest ? 1u : 0) << 5) |
++                         ((mCurrentDepthMask ? 1u : 0) << 6) | ((mCurrentZmodeDecal ? 1u : 0) << 7);
++    auto it = prg->built.pipelines.find(key);
++    if (it != prg->built.pipelines.end()) {
++        return it->second;
++    }
++    const auto statStart = std::chrono::steady_clock::now();
++    VkPipeline pipeline = CreatePipeline(prg->built, key);
++    sStat.pipelines++;
++    sStat.pipelineMs += MsSince(statStart);
++    prg->built.pipelines[key] = pipeline;
++    if (pipeline != VK_NULL_HANDLE) {
++        RecordPipeline(prg->shader_id0, prg->shader_id1, key);
++    }
 +    return pipeline;
 +}
 +
 +void GfxRenderingAPIVK::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris) {
-+    if (mShaderProgram == nullptr || mShaderProgram->vs == VK_NULL_HANDLE || !mFrameActive) {
++    if (mShaderProgram == nullptr || mShaderProgram->built.vs == VK_NULL_HANDLE || !mFrameActive) {
 +        return;
 +    }
 +    EnsurePassActive(mCurrentFramebuffer);
@@ -4116,7 +4455,9 @@ index 0000000..cd3dc21
 +}
 +
 +// Submits the framebuffer's command buffer (preceded by pending uploads) and waits for completion. Used by the
-+// synchronous readback paths.
++// synchronous readback paths: a render-to-texture target read back after each pass (RttReadback) goes out here pass by
++// pass, in order on the one queue, so Vulkan needs no SetFramebufferReadback (the Metal backend uses it to keep such
++// passes off its main queue, where they ran after later ones).
 +void GfxRenderingAPIVK::SubmitFramebufferAndWait(int fbId) {
 +    FramebufferVK& fb = mFramebuffers[fbId];
 +    EndPass(fb);
@@ -4134,8 +4475,12 @@ index 0000000..cd3dc21
 +    VkSubmitInfo si = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 +    si.commandBufferCount = (uint32_t)cmds.size();
 +    si.pCommandBuffers = cmds.data();
-+    VK_CHECK(vkQueueSubmit(mQueue, 1, &si, VK_NULL_HANDLE));
-+    VK_CHECK(vkQueueWaitIdle(mQueue));
++    const auto statStart = std::chrono::steady_clock::now();
++    VK_CHECK(vkQueueSubmit(mQueue, 1, &si, mReadbackFence));
++    VK_CHECK(vkWaitForFences(mDevice, 1, &mReadbackFence, VK_TRUE, UINT64_MAX));
++    VK_CHECK(vkResetFences(mDevice, 1, &mReadbackFence));
++    sStat.syncSubmits++;
++    sStat.syncMs += MsSince(statStart);
 +
 +    fb.mCommandBuffer = VK_NULL_HANDLE;
 +    fb.mPassActive = false;
@@ -4174,15 +4519,20 @@ index 0000000..cd3dc21
 +            if (slot.fenceInFlight) {
 +                VK_CHECK(vkWaitForFences(mDevice, 1, &slot.fence, VK_TRUE, UINT64_MAX));
 +            }
-+            const uint8_t* px = mScreenReadback.mapped;
++            const uint8_t* px = ReadbackData(mScreenReadback);
 +            uint32_t count = mScreenReadbackWidth * mScreenReadbackHeight;
 +            // PORT: keep the full 8-bit pixels too, for screenshots (BGRA, as gfx_metal.cpp)
-+            gPortScreenBgra.resize((size_t)count * 4);
-+            for (uint32_t i = 0; i < count; i++) {
-+                gPortScreenBgra[i * 4 + 0] = px[i * 4 + (bgr ? 0 : 2)];
-+                gPortScreenBgra[i * 4 + 1] = px[i * 4 + 1];
-+                gPortScreenBgra[i * 4 + 2] = px[i * 4 + (bgr ? 2 : 0)];
-+                gPortScreenBgra[i * 4 + 3] = px[i * 4 + 3];
++            if (bgr) {
++                gPortScreenBgra.assign(px, px + (size_t)count * 4);
++            } else {
++                gPortScreenBgra.resize((size_t)count * 4);
++                uint8_t* out = gPortScreenBgra.data();
++                for (uint32_t i = 0; i < count; i++, out += 4) {
++                    out[0] = px[i * 4 + 2];
++                    out[1] = px[i * 4 + 1];
++                    out[2] = px[i * 4 + 0];
++                    out[3] = px[i * 4 + 3];
++                }
 +            }
 +            gPortScreenW = mScreenReadbackWidth;
 +            gPortScreenH = mScreenReadbackHeight;
@@ -4211,7 +4561,7 @@ index 0000000..cd3dc21
 +    FullBarrier(fb.mCommandBuffer);
 +    SubmitFramebufferAndWait(fbId);
 +
-+    ConvertToRgba16(mReadback.mapped, width * height, bgr, rgba16Buf);
++    ConvertToRgba16(ReadbackData(mReadback), width * height, bgr, rgba16Buf);
 +}
 +
 +std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
@@ -4253,7 +4603,7 @@ index 0000000..cd3dc21
 +    FullBarrier(fb.mCommandBuffer);
 +    SubmitFramebufferAndWait(fbId);
 +
-+    const float* depthValues = (const float*)mReadback.mapped;
++    const float* depthValues = (const float*)ReadbackData(mReadback);
 +    i = 0;
 +    for (const auto& coord : coordinates) {
 +        res.emplace(coord, (uint16_t)(depthValues[i++] * 65532.0f));
@@ -4366,6 +4716,27 @@ index 0000000..cd3dc21
 +    mDrawnFramebuffers.clear();
 +    mFrameActive = false;
 +    mFrameSlot = (mFrameSlot + 1) % VK_FRAMES_IN_FLIGHT;
++
++    // the pipeline cache goes to disk every few seconds while new pipelines are created (not while workers add to it;
++    // the game exits with _exit, so there is no saving at shutdown)
++    if (mPipelineCacheDirty && MsSince(mPipelineCacheSaved) > 5000) {
++        std::unique_lock<std::mutex> lock(mPrebuildMutex);
++        if (mPrebuildRunning == 0) {
++            lock.unlock();
++            SavePipelineCache();
++        }
++    }
++
++    static int sStatFrames = 0;
++    if (sStats && ++sStatFrames == 60) {
++        fprintf(stderr,
++                "[vkstats] 60 frames: %d programs (%d prebuilt) %.0f ms, %d pipelines %.0f ms, %d sync submits %.0f "
++                "ms, fence waits %.0f ms, acquire %.0f ms\n",
++                sStat.programs, sStat.prebuiltPrograms, sStat.programMs, sStat.pipelines, sStat.pipelineMs, sStat.syncSubmits, sStat.syncMs,
++                sStat.fenceMs, sStat.acquireMs);
++        sStat = {};
++        sStatFrames = 0;
++    }
 +}
 +
 +void GfxRenderingAPIVK::FinishRender() {

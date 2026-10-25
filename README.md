@@ -31,8 +31,9 @@ arguments, each shows the launcher (below):
 
 Renderer: `Window.Backend` in `pokestadium.cfg.json` (Id 1 DirectX 11, 2 OpenGL, 3 Metal, 4 Vulkan). Vulkan (Windows
 and Linux builds; macOS only when built with `-DLUS_ENABLE_VULKAN=ON` against Homebrew's `molten-vk`,
-`vulkan-loader` and `glslang`) is used only where a Vulkan driver is installed, otherwise the default renderer. It is
-work in progress: shaders are compiled when first used, so new scenes can stutter the first time.
+`vulkan-loader` and `glslang`) is used only where a Vulkan driver is installed, otherwise the default renderer. It
+keeps `vulkan_pipelines.txt` and `vulkan_pipeline_cache.bin` beside the settings: the shaders and pipelines of earlier
+runs are built ahead on worker threads (deleting them is safe; they are rebuilt).
 
 ## Build
 
