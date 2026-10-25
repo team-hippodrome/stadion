@@ -76,14 +76,15 @@ executables that link anything besides glibc and OpenGL.
 `bin` directory on `PATH`, vcpkg in `$VCPKG_ROOT`):
 
 ```bash
-$VCPKG_ROOT/vcpkg install sdl3 glew libzip nlohmann-json tinyxml2 spdlog zlib bzip2 glslang --triplet x64-mingw-static
+$VCPKG_ROOT/vcpkg install "sdl3[core,vulkan]" glew libzip nlohmann-json tinyxml2 spdlog zlib bzip2 glslang --triplet x64-mingw-static
 cmake -S . -B build-win -G Ninja -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
   -DVCPKG_TARGET_TRIPLET=x64-mingw-static -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$PWD/cmake/toolchain-mingw-clang.cmake
 cmake --build build-win
 ```
 
 For Windows on ARM: `MINGW_TRIPLE=aarch64-w64-mingw32` and the `arm64-mingw-static` triplet (with llvm-mingw's
-`bin` on `PATH` for the vcpkg install too, or vcpkg may build glslang with a GCC mingw that does not link). `pokestadium.exe` is a
+`bin` on `PATH` for the vcpkg install too, or vcpkg may build glslang with a GCC mingw that does not link). SDL3 needs
+its `vulkan` feature (vcpkg leaves it out by default) for the Vulkan renderer. `pokestadium.exe` is a
 window-only program (no console window; see Run for its log output) with the icon and version information of
 `src/port/pokestadium.rc.in`.
 

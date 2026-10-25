@@ -2141,10 +2141,10 @@ index c8bc6cd..ff6981d 100644
          if (mRenderer == nullptr) {
 diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
 new file mode 100644
-index 0000000..566dfce
+index 0000000..8568fab
 --- /dev/null
 +++ b/src/fast/backends/gfx_vulkan.cpp
-@@ -0,0 +1,2711 @@
+@@ -0,0 +1,2718 @@
 +//
 +//  gfx_vulkan.cpp
 +//  libultraship
@@ -4800,7 +4800,11 @@ index 0000000..566dfce
 +        return false;
 +    }
 +    bool supported = false;
-+    if (Vulkan_LoadLibrary()) {
++    std::string why; // PORT_VK_SELFTEST explains a "not available"
++    if (!Vulkan_LoadLibrary()) {
++        why = std::string("no Vulkan library: ") + SDL_GetError();
++    } else {
++        why = "no vkCreateInstance";
 +        // A loader alone is not enough (it is installed with many drivers that have no Vulkan ICD): an instance must
 +        // come up and list a device
 +        auto getInstanceProcAddr = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
@@ -4830,7 +4834,9 @@ index 0000000..566dfce
 +                ici.ppEnabledExtensionNames = &portabilityExt;
 +            }
 +            VkInstance instance = VK_NULL_HANDLE;
-+            if (createInstance(&ici, nullptr, &instance) == VK_SUCCESS) {
++            const VkResult res = createInstance(&ici, nullptr, &instance);
++            why = "vkCreateInstance failed (" + std::to_string((int)res) + ")";
++            if (res == VK_SUCCESS) {
 +                auto enumerateDevices =
 +                    (PFN_vkEnumeratePhysicalDevices)getInstanceProcAddr(instance, "vkEnumeratePhysicalDevices");
 +                auto destroyInstance = (PFN_vkDestroyInstance)getInstanceProcAddr(instance, "vkDestroyInstance");
@@ -4839,6 +4845,7 @@ index 0000000..566dfce
 +                    enumerateDevices(instance, &devices, nullptr);
 +                }
 +                supported = devices > 0;
++                why = std::to_string(devices) + " devices";
 +                if (destroyInstance != nullptr) {
 +                    destroyInstance(instance, nullptr);
 +                }
@@ -4850,7 +4857,7 @@ index 0000000..566dfce
 +        SPDLOG_INFO("Vulkan: no driver with a device, the Vulkan renderer is not offered");
 +    }
 +    if (getenv("PORT_VK_SELFTEST") != nullptr) {
-+        fprintf(stderr, "[vulkan] driver check: %s\n", supported ? "available" : "not available");
++        fprintf(stderr, "[vulkan] driver check: %s (%s)\n", supported ? "available" : "not available", why.c_str());
 +    }
 +    return supported;
 +}

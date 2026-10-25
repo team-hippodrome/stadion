@@ -149,7 +149,7 @@ jobs:
         run: python3 tools/game_patches.py apply
       - name: Dependencies (vcpkg)
         run: |
-          "$VCPKG_INSTALLATION_ROOT/vcpkg" install sdl3 glew libzip nlohmann-json tinyxml2 spdlog zlib bzip2 glslang \
+          "$VCPKG_INSTALLATION_ROOT/vcpkg" install "sdl3[core,vulkan]" glew libzip nlohmann-json tinyxml2 spdlog zlib bzip2 glslang \
             --triplet ${{ matrix.vcpkg }} --host-triplet x64-linux
       - name: Build
         run: |
