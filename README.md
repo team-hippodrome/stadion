@@ -29,7 +29,8 @@ arguments, each shows the launcher (below):
   Log output: start it from a console (`pokestadium.exe` in cmd/PowerShell writes there), redirect it
   (`pokestadium.exe 2> log.txt`), or set `PORT_CONSOLE=1` for a console window of its own.
 
-Renderer: `Window.Backend` in `pokestadium.cfg.json` (Id 1 DirectX 11, 2 OpenGL, 3 Metal, 4 Vulkan). Vulkan (Windows
+Renderer: the launcher's Renderer button, or `Window.Backend` in `pokestadium.cfg.json` (Id 1 DirectX 11, 2 OpenGL,
+3 Metal, 4 Vulkan). Vulkan (Windows
 and Linux builds; macOS only when built with `-DLUS_ENABLE_VULKAN=ON` against Homebrew's `molten-vk`,
 `vulkan-loader` and `glslang`) is used only where a Vulkan driver is installed, otherwise the default renderer. It
 keeps `vulkan_pipelines.txt` and `vulkan_pipeline_cache.bin` beside the settings: the shaders and pipelines of earlier
@@ -113,7 +114,8 @@ Stadium ROM and save and, per player, a Game Boy cartridge and save for the Tran
 remembered (`pokestadium.cfg.json`); Auto-play skips the launcher next time (hold Shift while starting to see it again),
 and Debug adds a save-editor button (needs python3). Screen picks the picture's shape, 4:3 (the N64's) or 16:9
 (widescreen: 3D scenes show more at the sides); a window of another shape gets black bars (`PORT_ASPECT=4:3|16:9`
-overrides it). With a ROM path as argument the game starts right away:
+overrides it). Renderer cycles through the graphics APIs the build has (DX11, OpenGL, Metal, Vulkan); the choice
+applies the next time the game starts. With a ROM path as argument the game starts right away:
 `cd build && ./pokestadium "/path/to/Pokemon Stadium (USA).z64"`.
 Useful environment variables (all in PORTING_NOTES.md): `PORT_FLASH_FILE` (Stadium save), `PORT_GB_ROM` /
 `PORT_GB_SAVE` (Transfer Pak cartridge of player 1; `PORT_GB_ROM2..4` for the others), `PORT_SOUND=0` (no sound
