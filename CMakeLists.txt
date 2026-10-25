@@ -219,8 +219,10 @@ endif()
 
 # Runtime resources (shaders, fonts) packed into an archive next to the executable.
 # (the shader warm-up list goes into it too: a new list rebuilds shader_warmup.cpp, so the archive is packed again)
+# and so do the shader templates: an edited template is packed again without a code change
+file(GLOB_RECURSE PORT_SHADER_TEMPLATES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*)
 set_property(SOURCE src/port/shader_warmup.cpp APPEND PROPERTY OBJECT_DEPENDS
-             ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt)
+             ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt ${PORT_SHADER_TEMPLATES})
 if(NOT ANDROID)  # Android: the Gradle build packs it into the app's assets (android/app/build.gradle)
 add_custom_command(TARGET pokestadium POST_BUILD
   COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py $<TARGET_FILE_DIR:pokestadium>/pokestadium.o2r
