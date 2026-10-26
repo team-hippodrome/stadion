@@ -6,8 +6,10 @@ Windows), with the Transfer Pak and the GB Tower
 (Game Boy emulation) working, including German Pokémon Yellow.
 
 No game data is included. You need your own ROM of *Pokemon Stadium (USA)*
-(SHA-1 `ed7bef5a306f88c0a6e96b15e71fee2ef32058f3`) and, for the Transfer Pak / GB Tower, your own Game Boy ROMs
-and saves.
+(SHA-1 `ed7bef5a306f88c0a6e96b15e71fee2ef32058f3`, 32 MiB, `.z64`) and, for the Transfer Pak / GB Tower, your own
+Game Boy ROMs and saves. The launcher and the game check the SHA-1: other dumps (revisions, patched or translated
+ROMs, damaged files) are refused, since they would crash in the middle of the game (`PORT_ANY_ROM=1` skips the check
+for debugging).
 
 ## Run
 
