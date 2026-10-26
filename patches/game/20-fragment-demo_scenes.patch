@@ -12,7 +12,7 @@ index bec7fa5a84cc8eca6a782471bdd28eb1aa3ff170..7504ae21ac7eea02e3b71585ab68d56c
      /* 0x88 */ s32 unk_88;
      /* 0x8C */ s32 unk_8C;
 diff --git a/src/fragments/demo_scenes/demo_scenes_15FA60.c b/src/fragments/demo_scenes/demo_scenes_15FA60.c
-index 80a157ff3738fd0ea8465aa09f36571e37d968c6..eb0385d466bb9a93402555b9cb81dc6fa69a47df 100644
+index 80a157ff3738fd0ea8465aa09f36571e37d968c6..9483f610bde50eacbef77a7e42e1d6f3fdaac647 100644
 --- a/src/fragments/demo_scenes/demo_scenes_15FA60.c
 +++ b/src/fragments/demo_scenes/demo_scenes_15FA60.c
 @@ -32,8 +32,8 @@ extern u32 D_86B0BD60[];
@@ -46,7 +46,42 @@ index 80a157ff3738fd0ea8465aa09f36571e37d968c6..eb0385d466bb9a93402555b9cb81dc6f
  
  s32 Diorama_LogoRotateColorCallback(s32 arg0, GraphNode* arg1) {
      if (arg0 == 2) {
-@@ -545,7 +547,7 @@ s32 Stage_ShowBootDiorama(void) {
+@@ -363,6 +365,18 @@ void Diorama_InitSceneState(void) {
+     D_86B0E5D4->unk_04.unk_48 = 0;
+ }
+ 
++// PORT: on the N64, loading a model group stalls this loop for several frames while the music plays on, and the
++// diorama's music is timed around that: with instant loads the pictures ran up to ~0.9 s ahead of it. The game thread
++// waits as long as each group's load took on the N64 (measured with ares: when its first picture came, relative to
++// the music), in retraces. (Group 0's load comes before the music starts; its wait is the first frames' drawing.)
++static void Diorama_PortLoadStall(s32 group) {
++    static const u8 sRetraces[5] = { 6, 15, 21, 11, 5 };
++
++    if (group >= 0 && group < 5) {
++        Port_LoadStall(sRetraces[group]);
++    }
++}
++
+ s32 Diorama_UpdateStateMachine(void) {
+     // The Japanese build skips the diorama with A (0x8000) or B (0x4000) only; Start (0x1000) is
+     // not tested (its code has no andi 0x1000 before the A/B tests).
+@@ -404,6 +418,7 @@ s32 Diorama_UpdateStateMachine(void) {
+             D_86B0E5D4->unk_04.unk_44++;
+             Diorama_SetGroupCamera(D_86B0E5D4->unk_04.unk_44);
+             Diorama_SwitchModelGroup(D_86B0E5D4->unk_04.unk_44);
++            Diorama_PortLoadStall(D_86B0E5D4->unk_04.unk_44);
+             D_86B0E5D4->unk_04.unk_4C = 6;
+             D_86B0E5D4->unk_04.unk_50 = 0;
+             break;
+@@ -449,6 +464,7 @@ s32 Diorama_UpdateStateMachine(void) {
+                 D_86B0E5D4->unk_04.unk_50 = 0;
+                 Diorama_LoadModelGroup(D_86B0E5D4->unk_04.unk_44);
+                 Audio_StartMusicTrack(0x29);
++                Diorama_PortLoadStall(0);
+             }
+             break;
+ 
+@@ -545,7 +561,7 @@ s32 Stage_ShowBootDiorama(void) {
  
      ASSET_LOAD(D_1000000, common_menu1_ui, 0);
      FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);

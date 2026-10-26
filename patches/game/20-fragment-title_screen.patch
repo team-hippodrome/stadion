@@ -1,5 +1,5 @@
 diff --git a/src/fragments/title_screen/title_screen.c b/src/fragments/title_screen/title_screen.c
-index f702297d5f983a370bd798eda772d4fcd8de07fd..0e82f535f7ee94c69a3656b33e314c0d38317b0d 100644
+index f702297d5f983a370bd798eda772d4fcd8de07fd..18b18140de8c877a6bd8c0ad984bfc44ad605dc2 100644
 --- a/src/fragments/title_screen/title_screen.c
 +++ b/src/fragments/title_screen/title_screen.c
 @@ -233,12 +233,12 @@ void Title_PickDemoMatchup(u8* arg0) {
@@ -19,3 +19,14 @@ index f702297d5f983a370bd798eda772d4fcd8de07fd..0e82f535f7ee94c69a3656b33e314c0d
      { 3, 3, 4, 13 },
      { 6, 3, 8, 3 },
      { 7, 4, 16, 9 },
+@@ -381,6 +381,10 @@ s32 Title_Main(UNUSED s32 arg0, s16* arg1) {
+     Title_LoadAssets();
+     Text_InitStringTables();
+     gTitleStrings = Text_GetStringTable(0x14);
++    // PORT: on the N64, loading the title screen (its code, pictures, and the music's wave tables) took about 20
++    // retraces more than here, behind the boot diorama's last picture; its music came that much later after the
++    // diorama's (measured against a console capture).
++    Port_LoadStall(20);
+     Audio_LoadWaveTablesAndMusic(gTitleAudioBuffer);
+     Title_FadeIn();
+     sp24 = Title_Loop();

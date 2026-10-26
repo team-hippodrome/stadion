@@ -155,6 +155,11 @@ s32 port_osEPiStartDma(OSPiHandle*, OSIoMesg*, s32);
 // The game's sound engine runs unless switched off (PORT_GAME_AUDIO=0, or replaying an input recording made before
 // the engine was ported: src/port/os_devices.cpp). Off, its entry points return at once as they did then.
 int Port_GameAudio(void);
+// The N64's loading time where the game's timing counts on it (the boot diorama's model loads, which the music is timed
+// around), as waits; off when replaying an input recording made before them (src/port/os_devices.cpp).
+int Port_LoadWaits(void);
+// Blocks the calling game thread for that many retraces when Port_LoadWaits() is on (game/src/port_audio.c).
+void Port_LoadStall(int retraces);
 // A horizontal view half-angle (binary angle, 0x10000 = 360 degrees) widened for the picture's shape: unchanged at 4:3,
 // wider at 16:9 (src/port/Engine.cpp). For game checks of what the camera sees, which assume the N64's 4:3 picture.
 s16 Port_WidenViewAngle(s16 angle);

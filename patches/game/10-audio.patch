@@ -2335,10 +2335,10 @@ index 63abcc3d057740b90ce0a2f1979c51cdca512df5..7ea6b034a4f10d1a9f869da24429b54d
  s32 Audio_FindFreeVoice(song_t*, s32);
 diff --git a/src/port_audio.c b/src/port_audio.c
 new file mode 100644
-index 0000000000000000000000000000000000000000..459165b2d44258dc2f096c25286f40f8b015ced3
+index 0000000000000000000000000000000000000000..eb0fd4b0911fb9cedb6f03e2726d0b751a2c44bd
 --- /dev/null
 +++ b/src/port_audio.c
-@@ -0,0 +1,244 @@
+@@ -0,0 +1,260 @@
 +// PORT: the audio engine's ROM data on a 64-bit little-endian host (see port_audio.h).
 +#include "port_audio.h"
 +#include <stdio.h>
@@ -2581,6 +2581,22 @@ index 0000000000000000000000000000000000000000..459165b2d44258dc2f096c25286f40f8
 +
 +    osCreateMesgQueue(&queue, &msg, 1);
 +    osSetTimer(&timer, OS_USEC_TO_CYCLES(16667), 0, &queue, NULL);
++    osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
++}
++
++// ---- the N64's loading time, where the game's timing counts on it (Port_LoadWaits) --------------------------------
++// Blocks the calling game thread for that many retraces of virtual time, as a synchronous ROM load stalled it on the
++// N64 (other threads, the sound engine among them, run on).
++void Port_LoadStall(s32 retraces) {
++    OSMesgQueue queue;
++    OSMesg msg;
++    OSTimer timer;
++
++    if (!Port_LoadWaits() || retraces <= 0) {
++        return;
++    }
++    osCreateMesgQueue(&queue, &msg, 1);
++    osSetTimer(&timer, (OSTime)retraces * 46875000 * 3094 * 263 / 48681812, 0, &queue, NULL);
 +    osRecvMesg(&queue, NULL, OS_MESG_BLOCK);
 +}
 diff --git a/src/port_audio.h b/src/port_audio.h
