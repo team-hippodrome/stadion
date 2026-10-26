@@ -199,6 +199,7 @@ if(WIN32)
   # a window-only program (no console window next to the game; main.cpp attaches to the console it was started from),
   # with the icon and version information from src/port/pokestadium.rc.in
   set_target_properties(pokestadium PROPERTIES WIN32_EXECUTABLE TRUE)
+  target_link_libraries(pokestadium PRIVATE winmm) # timeBeginPeriod (pacing.cpp)
   string(REGEX MATCHALL "[0-9]+" _v "${PORT_VERSION}.0.0.0.0")
   list(SUBLIST _v 0 4 _v)
   list(JOIN _v "," PORT_VERSION_RC)
