@@ -13,6 +13,7 @@
 #include "launcher.h"
 #include "Engine.h"
 #include "mods.h"
+#include "rom_check.h"
 
 #include <chrono>
 #include <libultraship/libultraship.h>
@@ -217,7 +218,21 @@ std::string CheckRom(const std::string& path) {
     if (memcmp(h.data() + 0x20, "POKEMON STADIUM", 15) != 0 || h[0x3E] != 'E') {
         return "Not Pokémon Stadium (USA)";
     }
-    return "";
+    // the whole file: the original dump's SHA-1 (rom_check.h). Hashed once per file version (this runs every frame).
+    static std::string sPath, sResult;
+    static uintmax_t sSize = 0;
+    static fs::file_time_type sTime;
+    std::error_code ec;
+    const fs::path p = fs::u8path(path);
+    const uintmax_t size = fs::file_size(p, ec);
+    const fs::file_time_type time = ec ? fs::file_time_type() : fs::last_write_time(p, ec);
+    if (path != sPath || size != sSize || time != sTime) {
+        sPath = path;
+        sSize = size;
+        sTime = time;
+        sResult = Port::CheckRomDumpFile(path);
+    }
+    return sResult;
 }
 
 struct CartInfo {

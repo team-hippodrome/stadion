@@ -6,8 +6,10 @@ Windows), with the Transfer Pak and the GB Tower
 (Game Boy emulation) working, including German Pokémon Yellow.
 
 No game data is included. You need your own ROM of *Pokemon Stadium (USA)*
-(SHA-1 `ed7bef5a306f88c0a6e96b15e71fee2ef32058f3`) and, for the Transfer Pak / GB Tower, your own Game Boy ROMs
-and saves.
+(SHA-1 `ed7bef5a306f88c0a6e96b15e71fee2ef32058f3`, 32 MiB, `.z64`) and, for the Transfer Pak / GB Tower, your own
+Game Boy ROMs and saves. The launcher and the game check the SHA-1: other dumps (revisions, patched or translated
+ROMs, damaged files) are refused, since they would crash in the middle of the game (`PORT_ANY_ROM=1` skips the check
+for debugging).
 
 ## Run
 
@@ -48,7 +50,7 @@ tools/setup.sh                      # submodules + the port's patches (patches/l
 
 ```bash
 brew install cmake ninja sdl3 glew libzip nlohmann-json tinyxml2 spdlog
-cmake -S . -B build -G Ninja
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build
 python3 tools/make_macos_bundle.py build "Pokemon Stadium.app" 0.0.2   # optional: self-contained app
 ```
@@ -61,7 +63,7 @@ release download is this app; see Run).
 ```bash
 sudo apt install clang lld cmake ninja-build python3 libsdl3-dev libglew-dev libgl-dev libzip-dev libbz2-dev \
   zlib1g-dev nlohmann-json3-dev libtinyxml2-dev libspdlog-dev glslang-dev
-cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cmake --build build
 ```
 
@@ -79,13 +81,16 @@ executables that link anything besides glibc and OpenGL.
 ```bash
 $VCPKG_ROOT/vcpkg install "sdl3[core,vulkan]" glew libzip nlohmann-json tinyxml2 spdlog zlib bzip2 glslang --triplet x64-mingw-static
 cmake -S . -B build-win -G Ninja -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
-  -DVCPKG_TARGET_TRIPLET=x64-mingw-static -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$PWD/cmake/toolchain-mingw-clang.cmake
+  -DVCPKG_TARGET_TRIPLET=x64-mingw-static -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$PWD/cmake/toolchain-mingw-clang.cmake \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build-win
 ```
 
 For Windows on ARM: `MINGW_TRIPLE=aarch64-w64-mingw32` and the `arm64-mingw-static` triplet (with llvm-mingw's
 `bin` on `PATH` for the vcpkg install too, or vcpkg may build glslang with a GCC mingw that does not link). SDL3 needs
-its `vulkan` feature (vcpkg leaves it out by default) for the Vulkan renderer. `pokestadium.exe` is a
+its `vulkan` feature (vcpkg leaves it out by default) for the Vulkan renderer. Keep the build type: without one,
+vcpkg's debug libraries are linked, and the debug SDL3 stops DirectX 11 at startup with an assertion dialog
+(`SDL_IsMainThread` in `SDL_PumpEventsInternal`). `pokestadium.exe` is a
 window-only program (no console window; see Run for its log output) with the icon and version information of
 `src/port/pokestadium.rc.in`.
 

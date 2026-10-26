@@ -1,8 +1,11 @@
 #include "Engine.h"
+#include "rom_check.h"
 #include "interp.h"
 #include "port_platform.h"
 #include "launcher.h"
 #include "mods.h"
+
+#include <SDL3/SDL_messagebox.h>
 
 #include <string>
 
@@ -205,6 +208,24 @@ static void LoadEnvFile() {
 }
 #endif
 
+// The loaded ROM must be the original dump (rom_check.h): any other starts and then crashes in the middle of the game.
+// The message goes to stderr and, as there is no console on Windows or in the macOS app, to a message box.
+static bool RomIsOriginal(const std::string& path) {
+    const std::string error = Port::CheckRomDump(Port::RomData(), Port::RomSize());
+    if (error.empty()) {
+        return true;
+    }
+    const std::string sha1 = Port::Sha1Hex(Port::RomData(), Port::RomSize());
+    char message[1024];
+    snprintf(message, sizeof message,
+             "%s is not the original Pokemon Stadium (USA) ROM.\n\nSHA-1 %s (%zu bytes)\nexpected %s (%zu bytes, .z64)\n\n"
+             "A different revision, a patched or translated ROM or a damaged dump does not work with the port.",
+             path.c_str(), sha1.c_str(), Port::RomSize(), Port::kRomSha1, Port::kRomSize);
+    fprintf(stderr, "%s\n", message);
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pokémon Stadium: wrong ROM", message, nullptr);
+    return false;
+}
+
 int main(int argc, char** argv) {
 #if defined(_WIN32)
     AttachToConsole();
@@ -226,6 +247,9 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Could not read ROM '%s'\nUsage: pokestadium [path to Pokemon Stadium (USA) .z64]\n", romPath.c_str());
         return 1;
     }
+    if (!romPath.empty() && !RomIsOriginal(romPath)) {
+        return 1;
+    }
     if (!Port::Init()) {
         return 1;
     }
@@ -238,6 +262,9 @@ int main(int argc, char** argv) {
         }
         if (!Port::LoadRom(romPath.c_str())) {
             fprintf(stderr, "Could not read ROM '%s'\n", romPath.c_str());
+            return 1;
+        }
+        if (!RomIsOriginal(romPath)) { // (the launcher already checked; the file may have changed since)
             return 1;
         }
     }

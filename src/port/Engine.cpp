@@ -26,6 +26,8 @@
 #include <libultraship/bridge/gfxbridge.h>
 
 #include <algorithm>
+#include <cstdio>
+#include <filesystem>
 #include <unistd.h>
 #include <chrono>
 #include <SDL3/SDL.h>
@@ -136,6 +138,24 @@ void MigrateControls(const std::shared_ptr<Ship::ConsoleVariable>& cvars) {
 
 namespace Port {
 
+// libultraship's osContInit loads SDL controller mappings from gamecontrollerdb.txt and logs an error when there is
+// none. SDL has mappings for the common controllers built in, so the port creates a placeholder (comments only) in
+// the app's folder the first time; mappings pasted into it are used from then on.
+static void EnsureControllerDb() {
+    std::error_code ec;
+    const std::string found = Ship::Context::LocateFileAcrossAppDirs("gamecontrollerdb.txt");
+    if (std::filesystem::exists(std::filesystem::u8path(found), ec)) {
+        return;
+    }
+    const std::string path = Ship::Context::GetPathRelativeToAppDirectory("gamecontrollerdb.txt");
+    if (FILE* f = fopen(path.c_str(), "w")) {
+        fputs("# SDL game controller mappings, one per line (https://github.com/mdqinc/SDL_GameControllerDB).\n"
+              "# SDL knows the common controllers already: add a line here only for a controller it does not.\n",
+              f);
+        fclose(f);
+    }
+}
+
 bool Init() {
     Fast::gPortAddressResolver = Port_ResolveN64Address;
     sContext = Ship::Context::CreateInstance("Pokemon Stadium", "pokestadium");
@@ -145,6 +165,7 @@ bool Init() {
         "Pokemon Stadium", Ship::Context::GetPathRelativeToAppDirectory("logs/pokestadium.log"));
     sContext->GetChildren().Add(logger);
     logger->Init();
+    EnsureControllerDb();
 
     auto config = std::make_shared<Ship::Config>(
         Ship::Context::GetPathRelativeToAppDirectory("pokestadium.cfg.json"), nullptr);
