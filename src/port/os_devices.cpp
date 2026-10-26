@@ -493,35 +493,42 @@ s32 port_osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* 
 
 } // extern "C"
 
-// ---- The game's sound engine: on, or off as before it was ported -----------------------------------------------
-// Running the sound engine changes the game's timing (it waits for fades and sounds to end, as on the N64), so input
-// recordings made while it was not ported only replay correctly without it. Recordings now carry a "# game audio"
-// line; replaying one without it turns the engine off. PORT_GAME_AUDIO=0/1 decides explicitly.
+// ---- Behaviour switches that recordings made before them must replay without ---------------------------------
+// A change that moves game timing would make older input recordings replay differently, so each such change writes a
+// line into new recordings, and replaying a recording without that line keeps the old behaviour.
+namespace {
+bool ReplayHasLine(const char* tag) {
+    const char* rp = getenv("PORT_REPLAY");
+    if (rp == nullptr) return true;
+    bool found = false;
+    if (FILE* f = fopen(rp, "r")) {
+        char line[256];
+        size_t n = strlen(tag);
+        while (!found && fgets(line, sizeof line, f)) found = strncmp(line, tag, n) == 0;
+        fclose(f);
+    }
+    return found;
+}
+int Switch(const char* env, const char* tag, const char* what) {
+    if (const char* e = getenv(env)) return atoi(e) != 0 ? 1 : 0;
+    if (ReplayHasLine(tag)) return 1;
+    fprintf(stderr, "[replay] %s off (the replayed recording predates it)\n", what);
+    return 0;
+}
+} // namespace
+
+// The game's sound engine: running it changes the game's timing (it waits for fades and sounds to end, as on the
+// N64), so recordings made while it was not ported only replay correctly without it ("# game audio";
+// PORT_GAME_AUDIO=0/1 decides explicitly).
 extern "C" int Port_GameAudio(void) {
-    static const int on = [] {
-        if (const char* e = getenv("PORT_GAME_AUDIO")) {
-            return atoi(e) != 0 ? 1 : 0;
-        }
-        int r = 1;
-        if (const char* rp = getenv("PORT_REPLAY")) {
-            r = 0;
-            if (FILE* f = fopen(rp, "r")) {
-                char line[256];
-                while (fgets(line, sizeof line, f)) {
-                    if (strncmp(line, "# game audio", 12) == 0) {
-                        r = 1;
-                        break;
-                    }
-                }
-                fclose(f);
-            }
-        }
-        if (r == 0) {
-            fprintf(stderr, "[audio] game sound off (%s)\n",
-                    getenv("PORT_GAME_AUDIO") ? "PORT_GAME_AUDIO=0" : "the replayed recording predates it");
-        }
-        return r;
-    }();
+    static const int on = Switch("PORT_GAME_AUDIO", "# game audio", "game sound");
+    return on;
+}
+
+// Waits where the N64 spent frames loading and the game's choreography counts on it (the boot diorama's music:
+// demo_scenes_15FA60.c); "# load waits", PORT_LOAD_WAITS=0/1.
+extern "C" int Port_LoadWaits(void) {
+    static const int on = Switch("PORT_LOAD_WAITS", "# load waits", "N64 load waits");
     return on;
 }
 
@@ -604,6 +611,9 @@ void InputInit() {
         fprintf(gRecord, "# pokestadium input recording v1: frame, then button stick_x stick_y for pads 1-4\n");
         if (Port_GameAudio()) {
             fprintf(gRecord, "# game audio\n"); // made with the sound engine running (see Port_GameAudio)
+        }
+        if (Port_LoadWaits()) {
+            fprintf(gRecord, "# load waits\n"); // (see Port_LoadWaits)
         }
         if (*Port_ModsSignature() != '\0') {
             fprintf(gRecord, "# mods %s\n", Port_ModsSignature()); // the mounted mods (mods.cpp)

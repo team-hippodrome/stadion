@@ -14,6 +14,13 @@
 #include <mutex>
 #include <vector>
 
+#if defined(_WIN32)
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <timeapi.h>
+#endif
+
 extern "C" uint64_t Port_ViTick();
 
 extern "C" int64_t Port_SteadyNs(void) {
@@ -32,8 +39,20 @@ extern "C" void Port_BeforePresent(void) {
 extern "C" bool Port_DisplayVblank(int64_t*, int64_t*) {
     return false;
 }
+#if defined(_WIN32)
+// Windows ends sleeps on its timer tick, 15.6 ms by default (SDL3 no longer raises it, and the C++ runtime's
+// sleep_for/sleep_until is Sleep(ms)): the clock's retrace waits and its 20 µs polls for an idle game then took up to a
+// tick each, so retraces came in bursts (presents 30-50 ms apart) and the sound stream ran short. 1 ms ticks for the
+// process, as long as it runs, and a thread that is scheduled ahead of the game's.
+extern "C" void Port_PreciseTimingThread(void) {
+    static const bool sPeriod = timeBeginPeriod(1) == TIMERR_NOERROR;
+    (void)sPeriod;
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+}
+#else
 extern "C" void Port_PreciseTimingThread(void) {
 }
+#endif
 #endif
 
 extern "C" void Port_DisplayFollowWindow(void* sdlWindow) {
