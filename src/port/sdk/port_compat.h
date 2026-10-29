@@ -194,6 +194,19 @@ extern long long int rspbootTextStart[], rspbootTextEnd[];
 extern long long int aspMainTextStart[], aspMainTextEnd[];
 extern long long int aspMainDataStart[], aspMainDataEnd[];
 
+// Battle cross-check against the original game in ares (src/port/xcheck.cpp, tools/battle_xcheck.py); all off unless
+// PORT_XCHECK* is set
+int Port_XcheckEnabled(void);
+int Port_XcheckForcingRandom(void);
+int Port_XcheckCom(void);
+int Port_XcheckRandom(int fn, int arg, int* out);
+void Port_XcheckWriteEvent(const char* name, const void* state0, const void* state1, const void* scene, unsigned damage,
+                           const void* messageQueues);
+void Port_XcheckBattleEvent(const char* name);
+void Port_XcheckMoveAnim(int side, int move);
+int Port_XcheckAnimActive(void);
+const char* Port_XcheckFramePath(void);
+
 // A debug switch from the environment, read once per call site: getenv scans the whole environment, and the port's
 // debug checks sit in per-frame and per-draw code (Font_DrawChar, the geo renderer, the battle HUD). The switches
 // are set before launch and never change while the game runs. (Statement expression: the game builds with clang.)

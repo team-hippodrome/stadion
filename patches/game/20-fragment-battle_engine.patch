@@ -160,7 +160,7 @@ index 09454ed115097da5b6796f74c5dac6befc148f9d..18a724b04646f640319c00262f47465a
  s32 BattleAI_RandomBelowInclusive(s32 arg0);
  void BattleAI_SeedRandomState(u8 arg0);
 diff --git a/src/fragments/battle_engine/battle_engine_2EC3C0.c b/src/fragments/battle_engine/battle_engine_2EC3C0.c
-index af8b2f357f40d3449cd9cc57d8664a00362fa738..5facee9898b5d307d1b3991feee73cc2e360c313 100644
+index af8b2f357f40d3449cd9cc57d8664a00362fa738..9fbf823f85d25df92ec15c683a516c12d88888f5 100644
 --- a/src/fragments/battle_engine/battle_engine_2EC3C0.c
 +++ b/src/fragments/battle_engine/battle_engine_2EC3C0.c
 @@ -1,3 +1,5 @@
@@ -289,7 +289,27 @@ index af8b2f357f40d3449cd9cc57d8664a00362fa738..5facee9898b5d307d1b3991feee73cc2
      Dma_WriteChunks(sPlayerTagTeam[side_index], var_a1, var_a1 + 0x10, 0);
  
      Battle_DmaLoadAnimRecordPair(object_type_index, &pokemon->unk_94C, &pokemon->unk_9AC);
-@@ -977,6 +1006,7 @@ void BattleScene_TickRow1PlayOwnerCry(ActivePokemon* active_pokemon) {
+@@ -472,6 +501,9 @@ void BattleScene_EnterRow3StartMoveAnim(ActivePokemon* active_pokemon) {
+     s16 object_type_index;
+     u8 tmp;
+ 
++    if (Port_XcheckEnabled()) { // PORT: battle cross-check against ares (src/port/xcheck.cpp)
++        Port_XcheckMoveAnim(active_pokemon == sActivePokemon[0] ? 0 : 1, active_pokemon->state.runtime.usedMove);
++    }
+     object_type_index = active_pokemon->displayObject.objectType - 1;
+     runtime = &active_pokemon->state.runtime;
+     pokemon_state = &active_pokemon->state;
+@@ -674,6 +706,9 @@ void BattleScene_EnterRow19StartMoveAnimMidFrame(ActivePokemon* active_pokemon)
+     ActivePokemonState* sp20;
+     BattleMonRuntime* ptr;
+ 
++    if (Port_XcheckEnabled()) { // PORT: battle cross-check against ares (src/port/xcheck.cpp)
++        Port_XcheckMoveAnim(active_pokemon == sActivePokemon[0] ? 0 : 1, active_pokemon->state.runtime.usedMove);
++    }
+     sp20 = &active_pokemon->state;
+     ptr = &active_pokemon->state.runtime;
+     sCurrentAnimation = &D_84384570[BattleScene_GetParticipantSideIndex(active_pokemon)]->unk_000[ptr->usedMove - 1];
+@@ -977,6 +1012,7 @@ void BattleScene_TickRow1PlayOwnerCry(ActivePokemon* active_pokemon) {
  
  void BattleScene_TickRow16PlayCryAndSpeciesSound(ActivePokemon* active_pokemon) {
      UNUSED s32 pad;
@@ -407,6 +427,49 @@ index 56965571563b21a7557a154dd5ff135465583eb6..f1d73d71d63db8806786e996470fe607
      {
          0,
          0,
+diff --git a/src/fragments/battle_engine/battle_engine_2F6930.c b/src/fragments/battle_engine/battle_engine_2F6930.c
+index dd4b887036d4969755f4a44fbfe395ba1e278f63..b016a215b593a9f9e9b80a56cbcb871591720a76 100644
+--- a/src/fragments/battle_engine/battle_engine_2F6930.c
++++ b/src/fragments/battle_engine/battle_engine_2F6930.c
+@@ -77,6 +77,9 @@ s32 BattleAnim_RandomIntWithWarmup(f32 arg0) {
+     s32 temp_v1;
+     s32 var_v1;
+ 
++    if (Port_XcheckRandom(4, (s32)arg0, &var_v1)) { // PORT: battle cross-check against ares (src/port/xcheck.cpp)
++        return var_v1;
++    }
+     temp_v1 = osGetCount() & 0xFF;
+     while (temp_v1-- > 0) {
+         MathUtil_Random_ZeroOne();
+@@ -90,6 +93,10 @@ s32 BattleAnim_RandomIntWithWarmup(f32 arg0) {
+ }
+ 
+ u16 BattleAnim_RandomRange(s32 arg0) {
++    s32 forced;
++    if (Port_XcheckRandom(3, arg0, &forced)) { // PORT: battle cross-check against ares (src/port/xcheck.cpp)
++        return forced;
++    }
+     f32 tmp = (u32)MathUtil_Random16();
+ 
+     return (tmp / 65535.0) * arg0;
+diff --git a/src/fragments/battle_engine/battle_engine_2F74E0.c b/src/fragments/battle_engine/battle_engine_2F74E0.c
+index 6c09ac72e3d8f5549eaf114faad543625f04a8e5..460a09ccb6feec8c283c5e45c6e83a91d72e421f 100644
+--- a/src/fragments/battle_engine/battle_engine_2F74E0.c
++++ b/src/fragments/battle_engine/battle_engine_2F74E0.c
+@@ -165,6 +165,13 @@ s32 BattleScene_UpdateResultPresentation(void) {
+ }
+ 
+ s32 BattleScene_IsActionSelectionTimerExpired(void) {
++    if (Port_XcheckCom()) { // PORT: battle cross-check (src/port/xcheck.cpp): the player's choices are made at once,
++        // as when the move time limit runs out (first usable move, first healthy replacement); every other query
++        // answers "not yet", so the menu a choice belongs to (e.g. the party after a faint) is opened first
++        static int sAsked;
++        sAsked = !sAsked;
++        return !sAsked;
++    }
+     if (gSessionContext.timeLimitsEnabled == 0) {
+         return 0;
+     }
 diff --git a/src/fragments/battle_engine/battle_engine_2FA4D0.c b/src/fragments/battle_engine/battle_engine_2FA4D0.c
 index f8a3b8862d17edaf214dd05d2e29c313124d9ed4..a91f4ded68e7996484b49d5ff22d95b68aacccc3 100644
 --- a/src/fragments/battle_engine/battle_engine_2FA4D0.c
@@ -705,6 +768,18 @@ index d7449ebb4d87ea4e5a41280fca68f0d4a2e7638a..d58e78988681128c206232030ea152be
              BattleScene_ResetActionSelectionTimers();
          }
      }
+diff --git a/src/fragments/battle_engine/battle_engine_309ED0.c b/src/fragments/battle_engine/battle_engine_309ED0.c
+index af67bfaf6b45e468dd81990396dca0bbe10ad700..fd1d89dbdb9e6ea6661e6ee6fe5966c9a9032cb4 100644
+--- a/src/fragments/battle_engine/battle_engine_309ED0.c
++++ b/src/fragments/battle_engine/battle_engine_309ED0.c
+@@ -386,6 +386,7 @@ void Battle_StartTurn(void) {
+     ActivePokemonState* temp_s1;
+     BattleMonRuntime* ptr;
+ 
++    Port_XcheckBattleEvent("turn"); // PORT: battle cross-check against ares (src/port/xcheck.cpp)
+     temp_s0 = &sActivePokemon[0]->state;
+     temp_s1 = &sActivePokemon[1]->state;
+     BattleScene_SetCameraSubstate(1, 1);
 diff --git a/src/fragments/battle_engine/battle_engine_313250.c b/src/fragments/battle_engine/battle_engine_313250.c
 index 883360294ba05bc180fa8857710d4eb6f2cc5eaf..44e4326acf090b5cbf2cdf70733bc974f2bfaaf1 100644
 --- a/src/fragments/battle_engine/battle_engine_313250.c
@@ -1322,7 +1397,7 @@ index 72f76ae0837fbdc7a220bee2404e3f0ca3e4a2b2..3a2b90dc86869952f8b462402fb9b234
  
      return arg0;
 diff --git a/src/fragments/battle_engine/battle_engine_359F90.c b/src/fragments/battle_engine/battle_engine_359F90.c
-index 0e7bc5cd90773cec5f63484943f1341ed40768eb..a8be6591922daec8a5f00392fde2423397b5bc54 100644
+index 0e7bc5cd90773cec5f63484943f1341ed40768eb..82901c01007cb67988de7acb16e00671eb35f69b 100644
 --- a/src/fragments/battle_engine/battle_engine_359F90.c
 +++ b/src/fragments/battle_engine/battle_engine_359F90.c
 @@ -114,32 +114,12 @@ u8 gTypeEffects[] = {
@@ -1364,6 +1439,58 @@ index 0e7bc5cd90773cec5f63484943f1341ed40768eb..a8be6591922daec8a5f00392fde24233
  static s32 D_8438AE3C = 0x4D2;
  static u32 D_8438AE40 = 0x1A85;
  static u32 D_8438AE44 = 0x3039;
+@@ -153,6 +133,9 @@ u8 Battle_Random(void) {
+     u8 var_v1;
+     s32 ret;
+ 
++    if (Port_XcheckRandom(0, 0, &ret)) { // PORT: battle cross-check against ares (src/port/xcheck.cpp)
++        return ret;
++    }
+     var_v1 = (osGetCount() & 0xFF0) >> 4;
+ 
+     while (var_v1 > 0) {
+@@ -172,6 +155,9 @@ u8 Battle_RandomAccuracy(void) {
+     u8 var_v1;
+     s32 ret;
+ 
++    if (Port_XcheckRandom(1, 0, &ret)) { // PORT: battle cross-check against ares (src/port/xcheck.cpp)
++        return ret;
++    }
+     var_v1 = (osGetCount() & 0xFF0) >> 4;
+ 
+     while (var_v1 > 0) {
+@@ -1810,12 +1796,23 @@ s32 Battle_CheckFaintAfterMove(void) {
+     }
+ }
+ 
++// PORT: battle cross-check against ares (src/port/xcheck.cpp): the state both traces record at an event (the ares
++// driver reads the same bytes from RDRAM at the same functions)
++void Port_XcheckBattleEvent(const char* name) {
++    if (!Port_XcheckEnabled() || sActivePokemon[0] == NULL || sActivePokemon[1] == NULL || sBattleScene.unk_00 == NULL) {
++        return;
++    }
++    Port_XcheckWriteEvent(name, &sActivePokemon[0]->state, &sActivePokemon[1]->state, sBattleScene.unk_00, gBattleDamage,
++                          gBattleMessageQueues != NULL ? gBattleMessageQueues->unk_048 : NULL);
++}
++
+ void Battle_ResolveMonAction(void) {
+     BattleMonRuntime* sp1C = &sActivePokemon[sBattleScene.unk_00->unk_2C]->state.runtime;
+     BattleMonRuntime* sp18 = &sActivePokemon[!sBattleScene.unk_00->unk_2C]->state.runtime;
+     ActivePokemonState* ptr1 = &sActivePokemon[0]->state;
+     ActivePokemonState* ptr2 = &sActivePokemon[1]->state;
+ 
++    Port_XcheckBattleEvent("resolve"); // PORT: battle cross-check against ares (src/port/xcheck.cpp)
+     ptr1->unk_2A = 0;
+     ptr2->unk_2A = 0;
+ 
+@@ -1844,6 +1841,7 @@ void Battle_ResolveMonAction(void) {
+     if (D_84390288 == 0) {
+         Battle_CheckFaintAfterMove();
+     }
++    Port_XcheckBattleEvent("resolved");
+ }
+ 
+ void func_84373570(ActivePokemon* arg0) {
 diff --git a/src/fragments/battle_engine/battle_engine_35DF70.c b/src/fragments/battle_engine/battle_engine_35DF70.c
 index 2d35ee2a19e970aaf95a39c954d0ca2df22379e1..6091345938b61fcb8dda8141bbcf696c1e986127 100644
 --- a/src/fragments/battle_engine/battle_engine_35DF70.c
@@ -1374,7 +1501,7 @@ index 2d35ee2a19e970aaf95a39c954d0ca2df22379e1..6091345938b61fcb8dda8141bbcf696c
  #include "moves.h"
  #include "src/text_system.h"
 diff --git a/src/fragments/battle_engine/battle_engine_361050.c b/src/fragments/battle_engine/battle_engine_361050.c
-index 1463c36f9d91811ef32fd53a4bad18102a7318ed..d0ed865a218bd8064f8e2610c243292c632378fd 100644
+index 1463c36f9d91811ef32fd53a4bad18102a7318ed..bab019858121bbaab0d97cc6233ed65a57bc6efa 100644
 --- a/src/fragments/battle_engine/battle_engine_361050.c
 +++ b/src/fragments/battle_engine/battle_engine_361050.c
 @@ -66,10 +66,19 @@ static u8 D_8438B0D8[] = {
@@ -1399,7 +1526,27 @@ index 1463c36f9d91811ef32fd53a4bad18102a7318ed..d0ed865a218bd8064f8e2610c243292c
  }
  
  void func_843767DC(void) {
-@@ -3443,7 +3452,7 @@ s32 BattleAI_SelectBestScoredMove(BattleAiMonState* arg0, UNUSED BattleAiMonStat
+@@ -83,6 +92,9 @@ s32 BattleAI_RandomBelowInclusive(s32 arg0) {
+     if (arg0 <= 0) {
+         return 0;
+     }
++    if (Port_XcheckRandom(2, arg0, &var_v1)) { // PORT: battle cross-check against ares (src/port/xcheck.cpp)
++        return var_v1;
++    }
+ 
+     var_v1_1 = (osGetCount() & 0xFF0) >> 4;
+     var_v1_2 = var_v1_1;
+@@ -106,6 +118,9 @@ s32 BattleAI_RandomBelowInclusive(s32 arg0) {
+ }
+ 
+ void BattleAI_SeedRandomState(u8 arg0) {
++    if (Port_XcheckForcingRandom()) { // PORT: battle cross-check (src/port/xcheck.cpp): the forced stream replaces it
++        return;
++    }
+     D_843C6150 ^= (osGetCount() * arg0);
+     D_843C6154 = ~D_843C6150;
+ }
+@@ -3443,7 +3458,7 @@ s32 BattleAI_SelectBestScoredMove(BattleAiMonState* arg0, UNUSED BattleAiMonStat
      var_s4 = 0x80000002;
      var_s5 = 0x80000002;
      sp6C = 0;
@@ -1408,7 +1555,7 @@ index 1463c36f9d91811ef32fd53a4bad18102a7318ed..d0ed865a218bd8064f8e2610c243292c
  
      D_843C60C0[D_843C60E8].unk_02 = arg2;
  
-@@ -3525,7 +3534,7 @@ u16 BattleAI_ComputeDifficultyThreshold(u8 arg0, u8 arg1) {
+@@ -3525,7 +3540,7 @@ u16 BattleAI_ComputeDifficultyThreshold(u8 arg0, u8 arg1) {
  }
  
  u8 BattleAI_GetPpWeight(u8 arg0) {
@@ -1417,7 +1564,7 @@ index 1463c36f9d91811ef32fd53a4bad18102a7318ed..d0ed865a218bd8064f8e2610c243292c
  
      var_a1 += ((var_a1 / 5 >= 8) ? 7 : var_a1 / 5) * 3;
      return var_a1;
-@@ -3941,7 +3950,7 @@ s32 BattleAI_ScoreAllTeamCandidates(BattleAiTeamState* arg0, BattleAiTeamState*
+@@ -3941,7 +3956,7 @@ s32 BattleAI_ScoreAllTeamCandidates(BattleAiTeamState* arg0, BattleAiTeamState*
  }
  
  typedef struct unk_func_8437F85C_sp74 {
@@ -1426,7 +1573,7 @@ index 1463c36f9d91811ef32fd53a4bad18102a7318ed..d0ed865a218bd8064f8e2610c243292c
  } unk_func_8437F85C_sp74; // size >= 0x20
  
  s32 BattleAI_InsertRankedCandidateGroup(BattleAiTeamState* arg0, s32* arg1, s32 arg2, unk_func_8437F85C_arg3* arg3, u8* arg4, u8 arg5, u8 arg6) {
-@@ -4091,7 +4100,7 @@ s32 func_8437FD74(BattleAiTeamState* arg0, u8* arg1, s32* arg2, u8 arg3) {
+@@ -4091,7 +4106,7 @@ s32 func_8437FD74(BattleAiTeamState* arg0, u8* arg1, s32* arg2, u8 arg3) {
      unsigned int temp_l;
      // The loop below and BattleAI_InsertRankedCandidateGroup use 8 entries, but only 6 fit in the
      // target's frame. The last two overlap the unused stack homes of var_a1 and temp_l.
@@ -1435,7 +1582,7 @@ index 1463c36f9d91811ef32fd53a4bad18102a7318ed..d0ed865a218bd8064f8e2610c243292c
      u8 sp90[3];
      u8 sp78[0x18];
      u8 spBF;
-@@ -5394,7 +5403,7 @@ s32 func_843831A0(TeamRoster* arg0, TeamRoster* arg1, TeamRoster* ai_roster, s32
+@@ -5394,7 +5409,7 @@ s32 func_843831A0(TeamRoster* arg0, TeamRoster* arg1, TeamRoster* ai_roster, s32
      if (ai_difficulty < 0xFF) {
          BattleAI_LoadConfiguration(ai_difficulty, &D_843C60F0);
      }
