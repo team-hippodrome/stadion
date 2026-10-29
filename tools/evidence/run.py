@@ -7,6 +7,10 @@ Usage:
                         [--watch Name1,Name2] [--seq-max N] [--ares] [--moves m1,m2,m3,m4[:p1,p2,p3,p4]]
                         [--set "Fn[#n]:sym[*][+off]...:size=value;..."]
                         [--call "AtFn[#n]:Target:ret:args;..." [--call-buf HEX]]
+                        [--gb ROM:SAVE] [--rec RECORDING]
+--gb puts a Game Boy cartridge in the Transfer Pak (a copy of SAVE; tools/evidence/gb_party.py writes any party into
+a save); --rec replaces the battle_xcheck route with another input recording (from boot), e.g. a Free Battle with a
+Game Pak party.
 --set forces a condition in memory at entry of Fn (src/port/evidence/evidence_rt.c PORT_EVID_SET), symbols by name.
 coverage.profraw: branch/line counters (llvm-cov; tools/evidence/frontier.py).
 
@@ -163,9 +167,31 @@ def main():
         cmd.append("--port-only")
     json.dump({"seed": opt("--seed", "1"), "queue": open(opt("--queue")).read().split("\n") if opt("--queue") else [],
                "moves": opt("--moves"), "set": opt("--set"), "frames": opt("--frames", "20000"), "ares": "--ares" in args,
-               "setup": "tools/battle_xcheck.py route(): Poke Cup round 1, Charmander/Venusaur/Ivysaur vs the Biker"},
+               "gb": opt("--gb"), "rec": opt("--rec"),
+               "setup": ("own recording " + os.path.basename(opt("--rec"))) if opt("--rec") else
+               "tools/battle_xcheck.py route(): Poke Cup round 1, Charmander/Venusaur/Ivysaur vs the Biker"},
               open(os.path.join(out, "scenario.json"), "w"), indent=1)
-    subprocess.run(cmd, env=env, check=True)
+    if opt("--gb"):  # Transfer Pak cartridge: ROM and a copy of the save (the game writes it back)
+        import shutil
+        rom, sav = opt("--gb").split(":", 1)
+        shutil.copyfile(sav, os.path.join(out, "gb.sav"))
+        env["PORT_GB_ROM"] = os.path.abspath(rom)
+        env["PORT_GB_SAVE"] = os.path.join(out, "gb.sav")
+    if opt("--rec"):
+        # another route (e.g. a Free Battle with a Game Pak party): run the port directly, with the battle_xcheck
+        # switches (forced random stream, the player's automatic choices, the event trace)
+        import shutil
+        sys.path.insert(0, os.path.join(ROOT, "tools"))
+        import battle_xcheck as bx
+        shutil.copyfile(os.path.join(ROOT, "replays", "default.flash"), os.path.join(out, "port.flash"))
+        env.update(PORT_REPLAY=os.path.abspath(opt("--rec")), PORT_STOP_AT=opt("--frames", "20000"), PORT_SPEED="max",
+                   PORT_FLASH_FILE=os.path.join(out, "port.flash"), PORT_XCHECK=os.path.join(out, "port.trace"),
+                   PORT_XCHECK_RNG=seed, PORT_XCHECK_COM="1", PORT_HEADLESS="1")
+        with open(os.path.join(out, "port.log"), "w") as log:
+            subprocess.run([binary, bx.ROM], cwd=os.path.dirname(binary), env=env, stdout=log, stderr=subprocess.STDOUT,
+                           preexec_fn=bx.low_priority)
+    else:
+        subprocess.run(cmd, env=env, check=True)
     cov = parse(out, res)
     json.dump(cov, open(os.path.join(out, "coverage.json"), "w"))
     print("%d functions reached, %d call paths, %d sequence lines, %d watch records" % (

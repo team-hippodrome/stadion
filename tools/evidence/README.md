@@ -17,6 +17,8 @@ call paths, and recognised as the same function when several paths reach it.
 | branch coverage | built in (`PORT_EVID_COVERAGE`, `-fprofile-instr-generate -fcoverage-mapping`) | `coverage.profraw` per run: line, region and branch counts (llvm-cov) |
 | what keeps code unreached | `frontier.py <callgraph.json> <binary> <out> <runs>... [--build build-evidence]` | gates (reached caller, unreached callee), the branch side never taken before the call with its source text, its class (random, rules constant, battle state, session/save, input, AI, table index), how many unreached functions each gate holds back; with `--build`, proposed `--set` values for plain conditions (offsets from a probe compiled with the caller's flags) |
 | trying them | `try_gates.py <proposals.json> <baseline runs>... --out DIR` | one run per proposal: did the callee run, what became reachable |
+| Game Boy data | `gb_party.py <base.sav> <out.sav> "<mon>;..."`, then `run.py ... --gb ROM:SAVE --rec ROUTE` / `watch.py ares ... --gb ROM:SAVE --rec ROUTE` | any party in a Red/Blue/Yellow save (species, moves incl. illegal ones, DVs, status, HP, OT, nickname); a battle from another route (e.g. `evidence/battle_engine/routes/free_battle_gamepak.rec`) with that cartridge. ROMs and saves stay out of the repository; ares needs the Game Boy core (`-DARES_CORES="n64;gb"`) |
+| what a lever adds | `covdiff.py <binary> <out.md> --base <runs>... --new <runs>...` | functions and source lines only the new runs reached |
 | records | `analyze.py <callgraph.json> <out> <runs>... --reviews reviews.json` | `records.json` (all functions), `coverage.md`, `records.md` (the reviewed ones) |
 
 The instrumented build behaves like the plain one: seed 7 gives the same 71 events and the same 6387 forced random

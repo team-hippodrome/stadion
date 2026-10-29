@@ -10,7 +10,7 @@
       tools/battle_xcheck.py's layouts)
   tools/evidence/watch.py randoms <run dir> [--around FRAME]
       the forced random calls (function, call index, argument, value, frame), to pick the call to force
-  tools/evidence/watch.py ares <out dir> <seed> <case file> <frames>
+  tools/evidence/watch.py ares <out dir> <seed> <case file> <frames> [--rec RECORDING] [--gb ROM:SAVE]
       the same battle in ares with a case file of the lockstep sweep's driver ("rule <function>@<caller> <v>,..."
       lines: forced values for the calls from that caller, the other calls keep the seeded stream). Needs an
       ares_ref built from the battle-xcheck work tree that reads ARES_REF_XCHECK_CASE (EVID_ARES_BIN, default
@@ -104,10 +104,26 @@ def cmd_randoms(args):
 def cmd_ares(args):
     import shutil, subprocess
     out, seed, case, frames = os.path.abspath(args[0]), args[1], os.path.abspath(args[2]), int(args[3])
+    opt = lambda k: args[args.index(k) + 1] if k in args else None
     root = os.path.dirname(os.path.dirname(HERE))
     binary = os.environ.get("EVID_ARES_BIN", os.path.join(root, "build-ares-ref", "ares_ref"))
     os.makedirs(out, exist_ok=True)
-    bx.write_inputs(out, frames)
+    if opt("--rec"):  # the port recording as an ares input script (ares frame = port frame + 1)
+        ev = []
+        for line in open(opt("--rec")):
+            if line.startswith("#") or not line.strip():
+                continue
+            f, b = map(int, line.split()[:2])
+            ev.append((f, b))
+        script = []
+        for i, (f, b) in enumerate(ev):
+            if b:
+                nxt = ev[i + 1][0] if i + 1 < len(ev) else f + 6
+                script.append("hold %d %d %s\n" % (f + 1, nxt, "+".join(n for m, n in bx.BUTTON_NAMES.items() if b & m)))
+        script.append("end %d\n" % frames)
+        open(os.path.join(out, "ares.txt"), "w").writelines(script)
+    else:
+        bx.write_inputs(out, frames)
     shutil.copyfile(os.path.join(root, "replays", "default.flash"), os.path.join(out, "ares.flash"))
     link = os.path.join(out, "rom.z64")
     if os.path.lexists(link):
@@ -118,6 +134,11 @@ def cmd_ares(args):
                ARES_REF_FLASH=os.path.join(out, "ares.flash"), ARES_REF_XCHECK=os.path.join(out, "ares.trace"),
                ARES_REF_XCHECK_RNG=seed, ARES_REF_XCHECK_COM="1", ARES_REF_XCHECK_CASE=case,
                ARES_REF_XCHECK_SYMS=os.path.join(os.path.dirname(binary), "battle_engine.syms"))
+    if opt("--gb"):  # Transfer Pak: a US-title cartridge (the ares N64 only knows the US titles), a copy of the save
+        rom, sav = opt("--gb").split(":", 1)
+        shutil.copyfile(sav, os.path.join(out, "gb.sav"))
+        env.update(ARES_REF_GBROM=os.path.abspath(rom), ARES_REF_GBSAV=os.path.join(out, "gb.sav"),
+                   ARES_REF_GBBOARD=os.environ.get("ARES_REF_GBBOARD", "MBC5"))
     with open(os.path.join(out, "ares.log"), "w") as log:
         r = subprocess.run([binary, link, os.path.join(out, "ares.txt")], env=env, stdout=log, stderr=subprocess.STDOUT,
                            preexec_fn=bx.low_priority)
