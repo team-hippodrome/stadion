@@ -21,6 +21,8 @@ bool TrackFrame(void* gfxCommands);
 bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame, bool readBack = false);
 // saves the picture just drawn as a PPM file
 void SaveScreen(const char* path);
+// how many frames RunFrameWith has drawn so far (the web build's window loop, main.cpp)
+uint64_t FramesDrawn();
 void Shutdown();
 
 // Cartridge ROM image the game reads through PI DMA (osEPiStartDma).

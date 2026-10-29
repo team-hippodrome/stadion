@@ -1,4 +1,5 @@
 #include "Engine.h"
+#include <atomic>
 #include "touch_controls.h"
 #include "pacing.h"
 
@@ -501,6 +502,11 @@ bool TrackFrame(void* gfxCommands) {
     return false;
 }
 
+static std::atomic<uint64_t> sFramesDrawn{ 0 };
+uint64_t FramesDrawn() {
+    return sFramesDrawn.load(std::memory_order_relaxed);
+}
+
 bool RunFrame(void* gfxCommands) {
     return RunFrameWith(gfxCommands, nullptr, false);
 }
@@ -520,6 +526,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         interp->mReplayPass = true;
         interp->mReplayReadback = readBack; // (Metal reads the screen back at the end of the next frame)
         sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), replacements);
+        sFramesDrawn.fetch_add(1, std::memory_order_relaxed);
         interp->mReplayPass = false;
         interp->mReplayReadback = false;
         Port_PacingNote(PORT_PACE_DRAWN, Port_SteadyNs());
@@ -579,6 +586,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
     auto drawStart = std::chrono::steady_clock::now();
     Port_BeforePresent();
     sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), replacements);
+    sFramesDrawn.fetch_add(1, std::memory_order_relaxed);
     Port_PacingNote(PORT_PACE_DRAWN, Port_SteadyNs());
     if (tracePacing) { // PORT_TRACE_PACING=1: presented frames more than 40 ms apart, and slow draws (os_devices.cpp)
         static auto lastPresent = drawStart;

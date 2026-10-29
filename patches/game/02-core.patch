@@ -8123,7 +8123,7 @@ index 5a37c84ad6105f37549b73eeb272dca09e8e7a8f..e80c75349b5859019628b0590a42cc32
  }
  
 diff --git a/src/util.c b/src/util.c
-index 5ae41f829793d0da384e189c49190a958254dc7a..27ec7a90e0f25061d92985f891a4f44513277db5 100644
+index 5ae41f829793d0da384e189c49190a958254dc7a..44e32cc1285dc140c6838466545e5cbc6d1ef3f8 100644
 --- a/src/util.c
 +++ b/src/util.c
 @@ -2,6 +2,11 @@
@@ -8138,7 +8138,14 @@ index 5ae41f829793d0da384e189c49190a958254dc7a..27ec7a90e0f25061d92985f891a4f445
  
  /**
   * Based on the context of this variable's usage, it appears to be intended to
-@@ -23,10 +28,15 @@ s32 StageContext_IsHighResolution(void);
+@@ -20,13 +25,27 @@ s32 StageContext_IsHighResolution(void);
+ /**
+  * Convert any valid address to its virtual (KSEG0) counterpart.
+  */
++#ifdef __EMSCRIPTEN__
++int Port_IsHostFunction(uintptr_t addr); // port_platform.c
++#endif
++
  uintptr_t Util_ConvertAddrToVirtAddr(uintptr_t addr) {
      uintptr_t retaddr = NULL; // any invalid cases are treated as NULL return.
  
@@ -8147,6 +8154,11 @@ index 5ae41f829793d0da384e189c49190a958254dc7a..27ec7a90e0f25061d92985f891a4f445
 +    // PORT: a host pointer (>= 4 GB) is already a valid address.
 +    if (addr >= 0x100000000ULL) {
 +        retaddr = addr;
++#ifdef __EMSCRIPTEN__
++    // PORT (web build): a host function pointer is a small number there, an index into the function table
++    } else if (addr != 0 && Port_IsHostFunction(addr)) {
++        retaddr = addr;
++#endif
 +        // convert physical (in installed memory range) to virtual.
 +    } else if (addr < osMemSize) {
          retaddr = addr | 0x80000000;
@@ -8156,7 +8168,7 @@ index 5ae41f829793d0da384e189c49190a958254dc7a..27ec7a90e0f25061d92985f891a4f445
      } else if (addr < 0x10000000U) {
          retaddr = Memmap_GetSegmentVaddr(addr);
          // convert a fragment pre-relocated address to a post-relocated virtual address.
-@@ -62,12 +72,10 @@ void Util_InitMainPools(void) {
+@@ -62,12 +81,10 @@ void Util_InitMainPools(void) {
       * 0x600000. This is not known to occur in practical contexts, but there may be
       * some other unknown reason for this.
       */

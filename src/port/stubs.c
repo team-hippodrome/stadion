@@ -101,7 +101,7 @@ s32 osEPiRawStartDma(void* h, s32 dir, u32 cart, void* dram, u32 size) { (void)h
 u32 osSetIntMask(u32 m) { (void)m; return 1; }
 extern void port_osViRepeatLine(u8 on); // os_devices.cpp
 void osViRepeatLine(u8 on) { port_osViRepeatLine(on); }
-void __LeoBootGame3(void) {}
+void __LeoBootGame3(void* entry) { (void)entry; }
 u8 leoBootID[32];
 u8 leoDiskStack[0x400];
 
@@ -111,9 +111,9 @@ long long int njpgdspMainTextStart[1], njpgdspMainDataStart[1];
 unsigned char _binary_assets_us_F3DEX2_bin_start[1];
 
 // ---- TODO(port): audio synthesizer pieces (the audio microcode is not emulated yet) -------------------
-s32 alSynNew(void* drvr, void* c) { (void)drvr; (void)c; return 0; }
+void alSynNew(void* drvr, void* c) { (void)drvr; (void)c; }
 void alSynDelete(void* drvr) { (void)drvr; }
-void* _doModFunc(void* a, void* b) { (void)a; (void)b; return 0; }
+float _doModFunc(void* d, s32 count) { (void)d; (void)count; return 0.0f; }
 void _init_lpfilter(void* lp) { (void)lp; }
 
 // ---- TODO(port): main-segment data that was never converted to C (lives in the ROM's data section) --------

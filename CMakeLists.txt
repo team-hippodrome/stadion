@@ -44,6 +44,11 @@ if(ANDROID)
   # Android: OpenGL ES 3 renderer (libultraship fetches SDL3 and the other libraries itself, see android/)
   set(USE_OPENGLES ON CACHE BOOL "" FORCE)
 endif()
+if(EMSCRIPTEN)
+  # Web build (tools/build_web.sh): WebGL 2 through the OpenGL ES 3 renderer; libultraship fetches SDL3 and the other
+  # libraries as for Android. All code is built as 64-bit WebAssembly (memory64) with threads (see PORT_WEB_* below).
+  set(USE_OPENGLES ON CACHE BOOL "" FORCE)
+endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # fmt 10.1 (distro spdlog) + clang 20: FMT_STRING's consteval check fails to compile; plain constexpr is enough
   add_compile_definitions(FMT_CONSTEVAL=)
@@ -61,8 +66,10 @@ set(PORT_MAIN_SOURCES
   src/port/touch_controls.cpp
   src/port/stubs.c
   src/port/port_platform.c
-  src/port/generated/abs_syms.S
 )
+if(NOT EMSCRIPTEN)  # web: an object file written by tools/gen_wasm_abs_syms.py instead (below)
+  list(APPEND PORT_MAIN_SOURCES src/port/generated/abs_syms.S)
+endif()
 if(ANDROID)
   # SDL's Java activity (android/) loads the game as libmain.so and calls its main (SDL_main)
   add_library(pokestadium SHARED ${PORT_MAIN_SOURCES})
@@ -188,7 +195,7 @@ target_compile_definitions(port_os PRIVATE LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 ND
 target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/port_compat.h
   ${PORT_NO_WARNINGS})
 # the GB Tower's sound output uses SDL3 directly (same SDL3 the window uses)
-if(ANDROID)  # the SDL3 that libultraship fetched (no system copy to find)
+if(ANDROID OR EMSCRIPTEN)  # the SDL3 that libultraship fetched (no system copy to find)
   target_link_libraries(port_os PRIVATE SDL3::Headers)
 else()
   find_path(PORT_SDL3_INCLUDE SDL3/SDL.h HINTS /opt/homebrew/include /usr/local/include)
@@ -217,6 +224,40 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # lld resolves symbols across the static libraries in any order (GNU ld is single-pass: the game library uses
   # libultra functions from libultraship, which is linked first)
   target_link_options(pokestadium PRIVATE -fuse-ld=lld)
+endif()
+
+if(EMSCRIPTEN)
+  # The port tells N64 addresses from host pointers by their value (port_platform.c): host memory must lie above 4 GB,
+  # so the program's static data, stacks and heap start there (the 4 GB below stay untouched, not backed by real memory).
+  set(PORT_WEB_GLOBAL_BASE 4294967296)
+  # the game's absolute symbols (src/port/generated/abs_syms.S), as a wasm object; it must come first on the link line
+  # (the linker options precede the objects), see tools/gen_wasm_abs_syms.py
+  set(PORT_WEB_ABS_OBJ ${CMAKE_BINARY_DIR}/generated/abs_syms_wasm.o)
+  add_custom_command(OUTPUT ${PORT_WEB_ABS_OBJ}
+    COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_wasm_abs_syms.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/abs_syms.S ${PORT_WEB_ABS_OBJ} ${PORT_WEB_GLOBAL_BASE}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_wasm_abs_syms.py ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/abs_syms.S)
+  add_custom_target(port_web_abs_syms DEPENDS ${PORT_WEB_ABS_OBJ})
+  add_dependencies(pokestadium port_web_abs_syms)
+  set_property(TARGET pokestadium APPEND PROPERTY LINK_DEPENDS ${PORT_WEB_ABS_OBJ})
+  set_target_properties(pokestadium PROPERTIES SUFFIX ".js")
+  target_link_options(pokestadium BEFORE PRIVATE ${PORT_WEB_ABS_OBJ})
+  target_link_options(pokestadium PRIVATE
+    -sGLOBAL_BASE=${PORT_WEB_GLOBAL_BASE}
+    # 4 GB unused below the program, plus room for it (the game, the renderer's caches, the ROM)
+    -sINITIAL_MEMORY=5GB -sALLOW_MEMORY_GROWTH=0
+    -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+    # every libultra thread is a host thread (os_thread.cpp): workers made ahead of time, since a new worker only starts
+    # once the browser's main thread returns to its event loop
+    -sPTHREAD_POOL_SIZE=32 -sSTACK_SIZE=4MB -sDEFAULT_PTHREAD_STACK_SIZE=2MB
+    # the page (web/) loads the ROM and the saves before it starts the game (callMain)
+    -sINVOKE_RUN=0 -sEXIT_RUNTIME=0 -sFORCE_FILESYSTEM=1 -lidbfs.js
+    "-sEXPORTED_RUNTIME_METHODS=callMain,ccall,FS,IDBFS" "-sEXPORTED_FUNCTIONS=_main,_setenv"
+    # the decompiled code calls functions through pointer types that differ from their definitions (fragment entries,
+    # callbacks): harmless on the N64 and on native hosts, a trap in WebAssembly unless the calls are made tolerant
+    -sEMULATE_FUNCTION_POINTER_CASTS=1 "-sBINARYEN_EXTRA_PASSES=--pass-arg=max-func-params@64"
+    -sENVIRONMENT=web,worker -sASSERTIONS=1
+    --profiling-funcs) # function names in the browser's stack traces
 endif()
 
 # Runtime resources (shaders, fonts) packed into an archive next to the executable.
