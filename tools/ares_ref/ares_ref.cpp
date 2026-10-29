@@ -242,6 +242,8 @@ constexpr u32 kBattleDamage = 0x843C4DC4;   // gBattleDamage (u16)
 constexpr u32 kSetFragmentMap = 0x800020B0; // Memmap_SetFragmentMap(id, vaddr, size): main code, not relocated
 constexpr u32 kGuRandom = 0x8005D1B0;       // guRandom (main code): its callers are traced with ARES_REF_XCHECK_GURANDOM
 constexpr u32 kGuRandomSeed = 0x8007A950;   // guRandom's xseed (lui 0x8008 / lw -0x56B0 in the ROM's guRandom)
+constexpr u32 kParticleMathId = 4, kParticleMathLink = 0x81400000; // particle_math fragment
+constexpr u32 kParticleFrameCounter = 0x8140E6B8; // gParticleFrameCounter (link address)
 constexpr u32 kStartBattleMusic = 0x8004153C; // Audio_StartBattleMusicSequence (main code): skipped for "nomusic"
 enum Fn : int { BattleRandom, BattleRandomAccuracy, AiRandomBelow, AnimRandomRange, AnimRandomWarmup, kRandomFns,
                 AiSeed = kRandomFns, FragmentMap, BattleMusic, GuRandom, GameFrame, StartTurn, ResolveEnter, TimerExpired, MoveAnim, MoveAnimMid, ResolveExit };
@@ -488,16 +490,20 @@ bool hook(u32 address) {
         return returnWith(asked ? 0 : 1);
     }
     case MoveAnim: case MoveAnimMid: {
+        u32 pm = rd32(kFragmentTable + kParticleMathId * 8); // gParticleFrameCounter, in the relocated particle_math
+        u32 pfcAddr = pm ? pm + (kParticleFrameCounter - kParticleMathLink) : 0, pfc = pfcAddr ? rd32(pfcAddr) : 0;
         if (gForce) { // guRandom (the effects' particles) from the same state on both sides (Port_GuRandomSeed)
             for (int i = 0; i < 4; i++) wr8(kGuRandomSeed + i, (u8)(174823885u >> (24 - 8 * i)));
+            // and the effects' frame counter (as Port_XcheckMoveAnim)
+            if (pfcAddr) for (int i = 0; i < 4; i++) wr8(pfcAddr + i, 0);
             // and the animation streams from their start (as Port_XcheckMoveAnim)
             for (auto it = gCalls.begin(); it != gCalls.end();) it = (it->first >> 16) >= AnimRandomRange ? gCalls.erase(it) : std::next(it);
         }
         u32 ap = (u32)cpu.ipu.r[4].u64; // ActivePokemon* of the attacker
         u8 move = ap ? rd8(ap + 0x654 + 0x38 + 0x5A) : 0;
         if (gOut) {
-            fprintf(gOut, "A %d move=%u side=%d frame=%llu gf=%llu\n", gAnimCount, move,
-                    ap == rd32(rt(kActivePokemon)) ? 0 : 1, (unsigned long long)gFrame, (unsigned long long)gGameFrame);
+            fprintf(gOut, "A %d move=%u side=%d frame=%llu gf=%llu pfc=%u\n", gAnimCount, move,
+                    ap == rd32(rt(kActivePokemon)) ? 0 : 1, (unsigned long long)gFrame, (unsigned long long)gGameFrame, pfc);
             fflush(gOut);
         }
         if (!gAnimDir.empty()) {

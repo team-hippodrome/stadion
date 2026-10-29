@@ -42,6 +42,7 @@
 extern "C" unsigned long long Port_ViTick(void);
 extern "C" void Port_GuRandomSeed(unsigned int seed); // game/lib/ultralib/src/gu/random.c
 extern "C" int gPortXcheckTraceGuRandom;              // (below)
+extern "C" unsigned int gParticleFrameCounter;        // particle_math: free-running effect frame counter
 
 namespace {
 // the order is the function index in the value stream (tools/ares_ref/ares_ref.cpp kRandomNames)
@@ -276,11 +277,16 @@ void Port_XcheckWriteEvent(const char* name, const void* state0, const void* sta
 void Port_XcheckMoveAnim(int side, int move) {
     Init();
     if (g.out) {
-        fprintf(g.out, "A %d move=%d side=%d frame=%llu gf=%llu\n", g.animCount, move, side, Port_ViTick(), g.gameFrame);
+        fprintf(g.out, "A %d move=%d side=%d frame=%llu gf=%llu pfc=%u\n", g.animCount, move, side, Port_ViTick(), g.gameFrame,
+                gParticleFrameCounter);
         fflush(g.out);
     }
     // guRandom (MathUtil_Random16: the effects' particles) from the same state on both sides, as the ares driver does
     if (g.force) Port_GuRandomSeed(174823885);
+    // and the effects' frame counter (gParticleFrameMod8 etc. pick texture frames, e.g. Thundershock's bolts). It counts
+    // battle game frames, and the N64 can spend a frame more before an animation (its effect assets load by DMA), which
+    // put the bolts one texture frame out of phase after Dragon Rage. The ares driver does the same.
+    if (g.force) gParticleFrameCounter = 0;
     // and the animation streams (idle checks every frame: blinks, idle motions) from their start, so they line up
     // within the animation although the two games reach it after different numbers of frames
     for (auto it = g.calls.begin(); it != g.calls.end();) {

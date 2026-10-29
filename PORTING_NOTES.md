@@ -1416,6 +1416,13 @@ Thrash x3, Body Slam x2, Blizzard):
   That range is the noise floor of this metric. Blizzard is the outlier (0.53, minimum 0.26 in its radial-streak
   phase): candidate for a closer look (the streak texture may come from the unforced main-code MathUtil_Random16).
 - The longer N64 turns (above) are outside these 200 frames: the next step is capturing until the next event.
+- Effect frame counter: gParticleFrameCounter (particle_math, gParticleFrameMod8 and the rest) counts battle game
+  frames and picks effect texture frames, e.g. Thundershock's eight bolt frames (asset 0x13 + Mod8 * 0x600). The N64
+  can spend a game frame more before an animation than the port (the move's effect assets load by DMA: Dragon Rage
+  loads two resources, then starts at gf 480 in ares vs 479 in the port), and every later animation then ran one texture
+  frame out of phase: Thundershock after Dragon Rage showed other bolt shapes (effect_p90 169 vs ~24 alone or after
+  String Shot). Load timing, not a port bug: with PORT_XCHECK_RNG / ARES_REF_XCHECK_RNG both sides set the counter to 0
+  at each animation start, as they reseed guRandom; the A trace lines carry its value before that (pfc=).
 
 ### Milestone 3 (proposal): every move
 - Moves: all 165 (1..0xA5). The player's time-limit fallback always uses the first usable move, so the move under
