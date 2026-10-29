@@ -87,10 +87,33 @@ index 342ff0ab4a7382d6ddd075213f74d0b196e02645..73bc3e5714ccba0ccc02c655c76c4739
  
      sp28 = main_pool_alloc(sizeof(DepthBuffer), 0);
 diff --git a/src/fragments/pokedex/pokedex_2190D0.c b/src/fragments/pokedex/pokedex_2190D0.c
-index 29134ffcf7aaaa7313b1aa3ba26c8f919833f5d6..b58cc2ccaedbd334fc5e45a902013db1caa1018a 100644
+index 29134ffcf7aaaa7313b1aa3ba26c8f919833f5d6..b3740fea4c0879f1c38766987f85b2465bf814a8 100644
 --- a/src/fragments/pokedex/pokedex_2190D0.c
 +++ b/src/fragments/pokedex/pokedex_2190D0.c
-@@ -3347,12 +3347,12 @@ static s16 D_88826564[] = {
+@@ -18,8 +18,7 @@
+ #include "src/pokemon_stats.h"
+ 
+ typedef struct unk_D_88826A88 {
+-    /* 0x00 */ char unk_00[1]; // unk size
+-    /* 0x01 */ char unk01[0x2C];
++    /* 0x00 */ char unk_00[0x2D]; // PORT64: was [1] + unk01[0x2C]; sprintf fills it ("area unknown")
+     /* 0x2D */ char unk_2D[15];
+     /* 0x3C */ char unk_3C[15];
+     /* 0x4B */ char unk_4B[15];
+@@ -36,10 +35,8 @@ typedef struct unk_D_88826CF0_004 {
+ typedef struct unk_D_88826CF0 {
+     /* 0x00 */ s16 unk_00;
+     /* 0x02 */ s16 unk_02;
+-    /* 0x04 */ unk_D_88826CF0_004* unk_04[1];
+-    /* 0x08 */ char unk08[0x10];
+-    /* 0x18 */ s16 unk_18[1];
+-    /* 0x1A */ char unk1A[0xA];
++    /* 0x04 */ unk_D_88826CF0_004* unk_04[5]; // PORT64: was [1] + unk08[0x10]; one per location, indexed by unk_02
++    /* 0x18 */ s16 unk_18[6];
+ } unk_D_88826CF0; // size = 0x24
+ 
+ typedef struct unk_D_88825ECC {
+@@ -3347,12 +3344,12 @@ static s16 D_88826564[] = {
      0x21, 0xC,  0x22, 0x1B, 0x21, -1,   0xE,  0xE,  0xE,  0xE,  0xE,  0xE,  0xE,  0x1D, 0,    1,    4,    6, 9, 0xA,
      0x10, 0xF,  0xB,  0xD,  0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x1A, 0x1C, 0x1E, 0x1F, 0x20, 7, 8, 0,
  };
@@ -106,7 +129,7 @@ index 29134ffcf7aaaa7313b1aa3ba26c8f919833f5d6..b58cc2ccaedbd334fc5e45a902013db1
  };
  
  s32 Pokedex_FindNextMapArea(s32 arg0) {
-@@ -4098,7 +4098,7 @@ s32 Pokedex_CheckAreaMapExit(void) {
+@@ -4098,7 +4095,7 @@ s32 Pokedex_CheckAreaMapExit(void) {
      return 0;
  }
  
@@ -115,7 +138,7 @@ index 29134ffcf7aaaa7313b1aa3ba26c8f919833f5d6..b58cc2ccaedbd334fc5e45a902013db1
      s32 i;
      CameraNode* ptr;
      MemoryBlock* sp4C;
-@@ -4127,7 +4127,7 @@ void func_88807D04(s32 arg0, MainPoolState* arg1, UNUSED s32 arg2, s32 arg3, s32
+@@ -4127,7 +4124,7 @@ void func_88807D04(s32 arg0, MainPoolState* arg1, UNUSED s32 arg2, s32 arg3, s32
      Pokedex_LoadIcon(D_88826CD4, arg0);
  
      ASSET_LOAD(D_3000000, kanto_gb_map, 0);

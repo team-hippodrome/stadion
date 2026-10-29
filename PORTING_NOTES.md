@@ -823,6 +823,26 @@ sample count after every VI frame).
   Fixed on the way (lab_pc_1AE680.c): the info card's Pokémon icon was noise (its buffer address kept in an s32);
   opening the box-type selector crashed (TableView over the three box banks with the N64 stride 0x10, host struct is
   0x18); the box-number cells read their counts through the bank layout instead of the box record's (wrong "nn/20").
+- Lab PC → Items / See List and Pokédex → AREA (the evidence pilot's `lab_pcmenu.rec` / `lab_dex.rec` routes, save
+  from `gb_save.py --got-pokedex --party PIKACHU:25,BULBASAUR:20,CHARMANDER:18`; both crashed): fixed, both routes run
+  to their end, ASan clean. Items and See List match ares, as do the Pokédex list and data page.
+  - Items (segfault in LabItem_DrawItemRow): LabPC_BindGridStridedData took the (s32, unk_func_8820BE14_06C) pair as
+    `s32*` and bound the table at `arg1 + 1`, 4 bytes in; the table sits behind padding on the host. It takes the
+    pair (`unk_func_8821421C_03C`) now, and unk_func_8821421C_038 holds one instead of `s32 unk_60` + `unk_64`.
+  - See List: its box banks (`unk_func_8830867C_02C_0E4`, 0x30 on the host) were walked with the N64 stride 0x20
+    (TableView) and through a 0x20-byte view (`..._144_000`, now laid out like the bank); the box records were built
+    through `unk_func_8820BE14_06C_000_alt`, whose `unk_04` began with a pointer, so the list read box index and
+    flags from the wrong words (empty list); the slots were sized 0x5C (host 0x60); the area cell read the record's
+    bank pointer and box number as `s32[2]`; the column widths are one table read past its first 3 entries into the
+    next three static arrays (adjacent on the N64 only; now one array); its view `..._0DC` had a pointer first.
+    The screen's pool (`mem_pool_try_init(0x18000)`) ran out on the host: doubled.
+  - AREA (signal 5, a fortified sprintf trap): `unk_D_88826A88.unk_00` was `char[1]` and gets "AREA UNKNOWN";
+    `unk_D_88826CF0.unk_04` (one location pointer per entry) was `[1]` + padding, too small on the host.
+  - Both (found by ASan): GbSave_BuildPortSummary wrote the player name at `&arg0[1]`, past its 12-byte struct, into
+    whatever followed on the N64 (the See List compared it as a 4-byte stack array); the struct has a name field now.
+  - Open: the AREA map draws without the sea and without ares's bluish fog tint (geo fog node 0x96C8FF, 985-1005),
+    and its label boxes are pale instead of olive (fill rectangles in 1-cycle mode blending memory with itself).
+    Not a game-struct problem as far as checked (no render target involved, same fog node as the battle stages).
 - GB Tower frames: German Yellow from the game's own new-game save (gb/base/yellow_de_newgame.sav), down the stairs,
   out of the house, north to Route 1, Oak's cutscene and the scripted battle (wild PIKACHU, HP bars, battle menu,
   Oak's Poké Ball). ares's Game Boy starts 1555 VI frames later (cartridge load), so its GB inputs are shifted by
