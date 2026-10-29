@@ -3222,7 +3222,7 @@ index 5ca5681f57f4684791ea64af385a21fc6e9fdaa5..2ab4a57c66df217d05cf7c934faf9255
      return ret;
  }
 diff --git a/src/jpeg_stream.c b/src/jpeg_stream.c
-index 9e42cc44a4842f666893c0d23361241e4f5fc91a..35d4237cae731a7b76595bd0dd262c039e5de3b4 100644
+index 9e42cc44a4842f666893c0d23361241e4f5fc91a..9e331c153922175b7d9cfa9be71e6bbe561ff3e1 100644
 --- a/src/jpeg_stream.c
 +++ b/src/jpeg_stream.c
 @@ -1,10 +1,13 @@
@@ -3421,7 +3421,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..35d4237cae731a7b76595bd0dd262c03
      u32 sp20 = main_pool_get_block_dist(addr);
  
      main_pool_set_func(addr, arg0 + 0x81000000, &Fragment_FreeCallback);
-@@ -516,19 +538,83 @@ void Fragment_Register(s32 arg0, Fragment* addr) {
+@@ -516,19 +538,90 @@ void Fragment_Register(s32 arg0, Fragment* addr) {
      if (sp20 < addr->sizeInRam) {
          main_pool_realloc(addr, addr->sizeInRam);
          Memmap_RelocateFragment(arg0, addr);
@@ -3498,6 +3498,13 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..35d4237cae731a7b76595bd0dd262c03
 +        extern void Port_FragmentResetData(void* entry);
 +        Port_FragmentResetData(Port_FragmentEntry(romStart));
 +    }
++#ifdef __EMSCRIPTEN__
++    {
++        // web build: a thunk of FragmentEntry's type (tools/gen_fragment_thunks.py)
++        extern void* Port_FragmentCallable(void* entry);
++        return (ret_func_80004454)Port_FragmentCallable(Port_FragmentEntry(romStart));
++    }
++#endif
 +    return (ret_func_80004454)Port_FragmentEntry(romStart);
 +#else
      return addr;
@@ -3505,7 +3512,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..35d4237cae731a7b76595bd0dd262c03
  }
  
  void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2) {
-@@ -542,6 +628,276 @@ void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2) {
+@@ -542,6 +635,276 @@ void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2) {
      return sp2C;
  }
  
@@ -3782,7 +3789,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..35d4237cae731a7b76595bd0dd262c03
  BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
      BinArchive* ret = NULL;
      u32 sp28;
-@@ -553,6 +909,8 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
+@@ -553,6 +916,8 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
              newaddr = Asset_LoadCompressed(romStart, romEnd, 0, 0);
              ret = newaddr;
              if (newaddr != NULL) {
@@ -3791,7 +3798,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..35d4237cae731a7b76595bd0dd262c03
                  newaddr[0] |= 1;
              }
              break;
-@@ -561,11 +919,14 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
+@@ -561,11 +926,14 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
              newaddr = Asset_LoadCompressed(romStart, romStart + 0x20, 0, 0);
              ret = newaddr;
              if (newaddr != NULL) {
@@ -3806,7 +3813,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..35d4237cae731a7b76595bd0dd262c03
                      *newaddr |= 2;
                      if (arg3 == 1) {
                          *newaddr |= 4;
-@@ -578,10 +939,15 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
+@@ -578,10 +946,15 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
              newaddr = Asset_LoadCompressed(romStart, romStart + 0x20, 1, 0);
              ret = newaddr;
              if (newaddr != NULL) {
@@ -3822,7 +3829,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..35d4237cae731a7b76595bd0dd262c03
                  if ((newaddr != NULL) && (arg3 == 1)) {
                      *newaddr |= 4;
                  }
-@@ -664,11 +1030,22 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
+@@ -664,11 +1037,22 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
      UNUSED s32 pad;
      BinArchiveFile* sp18 = (u8*)archive + sizeof(BinArchive) + (file_number * sizeof(BinArchiveFile));
  
@@ -3847,7 +3854,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..35d4237cae731a7b76595bd0dd262c03
          } else {
              if (archive->unk_00 & 0x80) {
                  var_a2 = BinArchive_LoadFileBuffered(archive, sp18);
-@@ -677,11 +1054,21 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
+@@ -677,11 +1061,21 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
              }
  
              if (var_a2 != NULL) {
@@ -3871,7 +3878,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..35d4237cae731a7b76595bd0dd262c03
              }
          }
      }
-@@ -689,12 +1076,12 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
+@@ -689,12 +1083,12 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
      return var_a2;
  }
  

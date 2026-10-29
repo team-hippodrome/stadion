@@ -30,10 +30,16 @@ The build runs at low priority with 4 jobs (`PORT_WEB_JOBS`).
   `tools/gen_wasm_abs_syms.py` (wasm-ld has neither absolute symbols from assembly nor `--defsym`); `main.cpp` checks
   them at startup.
 - The decompiled code calls functions through pointer types that differ from the functions (fragment entries,
-  callbacks). WebAssembly traps on such calls, so the build uses `-sEMULATE_FUNCTION_POINTER_CASTS`.
+  callbacks). WebAssembly traps on such calls, so the build uses `-sEMULATE_FUNCTION_POINTER_CASTS` (`PORT_WEB_FPCAST`).
+  The fragment entries have exact-type thunks (`tools/gen_fragment_thunks.py`); the callbacks (geo layouts, particles,
+  widgets) are the rest: without the emulation the first geo callback traps.
+- Sound: an AudioWorklet (`web/audio-worklet.js`) plays a ring buffer that a thread fills from the SDL audio streams
+  (`src/port/web_audio.cpp`); SDL's own browser output runs on the main thread and stutters when it is busy.
+- HiDPI: window sizes in points (as on macOS), the game drawn at `devicePixelRatio` (`gInternalResolution`, at most 2).
+- Files: the game's files get versioned names (`name.<hash>.ext`) and Brotli copies; the server sends `.br` to browsers
+  that take it and lets them keep the files for a year (`tools/deploy_web.sh`).
 - Function pointers are small numbers (table indices), so `Util_ConvertAddrToVirtAddr` and `Port_ResolveCode` (geo
   layout callbacks) let numbers below the function table's size through (`Port_IsHostFunction`).
 - Audio and JPEG tasks run on a thread of their own (`os_devices.cpp`): the submitting game thread waits for every task,
   and the window thread only runs once per animation frame. Display lists stay on the window thread (WebGL).
 - Debugging: `cmake build_web -DPORT_WEB_EXTRA_LINK="-sASSERTIONS=1 -sSAFE_HEAP=1"` checks every memory access.
-- The canvas fills the page at one pixel per CSS pixel (no HiDPI back buffer).

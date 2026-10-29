@@ -127,6 +127,14 @@ foreach(_i RANGE 0 ${_last} 2)
   list(APPEND STADIUM_GAME_SOURCES ${_wrap})
   list(APPEND PORT_WRAPPED_SOURCES ${_orig} ${_wrap})
 endforeach()
+if(EMSCRIPTEN)
+  # web build: FragmentEntry-typed thunks for the fragment entries (WebAssembly traps on calls through another type)
+  execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_fragment_thunks.py
+                          ${CMAKE_CURRENT_SOURCE_DIR}/game/src ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_fragment_entries.c
+                          ${CMAKE_BINARY_DIR}/generated)
+  list(APPEND STADIUM_GAME_SOURCES ${CMAKE_BINARY_DIR}/generated/fragment_thunks.c)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_fragment_thunks.py)
+endif()
 add_library(stadium_game STATIC ${STADIUM_GAME_SOURCES})
 # Per-fragment data sections, restored whenever the game loads the fragment (see tools/gen_frag_sections.py)
 execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_frag_sections.py
@@ -233,6 +241,16 @@ if(EMSCRIPTEN)
   # The port tells N64 addresses from host pointers by their value (port_platform.c): host memory must lie above 4 GB,
   # so the program's static data, stacks and heap start there (the 4 GB below stay untouched, not backed by real memory).
   set(PORT_WEB_GLOBAL_BASE 4294967296)
+  # The decompiled code calls functions through pointer types that differ from their definitions: harmless on the N64
+  # and on native hosts, a trap in WebAssembly. Emscripten's emulation makes every indirect call tolerant (larger and
+  # somewhat slower). The fragment entries have exact-type thunks (tools/gen_fragment_thunks.py), but the callbacks
+  # (geo layouts, particles, widgets: any of the ~15,000 functions the N64 addresses resolve to) are called through
+  # many types, so PORT_WEB_FPCAST=OFF still traps at the first geo callback.
+  option(PORT_WEB_FPCAST "Web build: emulate function pointer casts" ON)
+  if(PORT_WEB_FPCAST)
+    target_link_options(pokestadium PRIVATE -sEMULATE_FUNCTION_POINTER_CASTS=1
+                        "-sBINARYEN_EXTRA_PASSES=--pass-arg=max-func-params@64")
+  endif()
   # the game's absolute symbols (src/port/generated/abs_syms.S), as a wasm object; it must come first on the link line
   # (the linker options precede the objects), see tools/gen_wasm_abs_syms.py
   set(PORT_WEB_ABS_OBJ ${CMAKE_BINARY_DIR}/generated/abs_syms_wasm.o)
@@ -256,9 +274,6 @@ if(EMSCRIPTEN)
     # the page (web/) loads the ROM and the saves before it starts the game (callMain)
     -sINVOKE_RUN=0 -sEXIT_RUNTIME=0 -sFORCE_FILESYSTEM=1 -lidbfs.js
     "-sEXPORTED_RUNTIME_METHODS=callMain,ccall,FS,IDBFS" "-sEXPORTED_FUNCTIONS=_main,_setenv,_Port_ViTick"
-    # the decompiled code calls functions through pointer types that differ from their definitions (fragment entries,
-    # callbacks): harmless on the N64 and on native hosts, a trap in WebAssembly unless the calls are made tolerant
-    -sEMULATE_FUNCTION_POINTER_CASTS=1 "-sBINARYEN_EXTRA_PASSES=--pass-arg=max-func-params@64"
     # PORT_WEB_EXTRA_LINK: link flags for debugging, e.g. "-sASSERTIONS=1 -sSAFE_HEAP=1" (checks every memory access)
     -sENVIRONMENT=web,worker ${PORT_WEB_EXTRA_LINK}
     --profiling-funcs) # function names in the browser's stack traces
