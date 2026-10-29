@@ -14,6 +14,8 @@
 #include <port_compat.h>
 #include <PR/os_gbpak.h>
 
+#include "port_platform.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -139,6 +141,7 @@ void FlushSave(Cart& c) {
         fwrite(c.ram.data(), 1, c.ram.size(), s);
         fclose(s);
         c.ramDirty = false;
+        Port_SaveWritten();
     }
 }
 

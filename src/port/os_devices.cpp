@@ -136,6 +136,7 @@ void FlashSave() {
     if (FILE* f = fopen(FlashPath().c_str(), "wb")) {
         fwrite(gFlash.data(), 1, gFlash.size(), f);
         fclose(f);
+        Port_SaveWritten();
     }
 }
 

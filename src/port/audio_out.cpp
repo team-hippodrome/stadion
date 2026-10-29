@@ -14,6 +14,7 @@
 // PORT_AUDIO_DUMP=<file> writes everything the AI accepts as raw 16-bit stereo PCM at the AI rate (host byte
 // order; the rate is printed as "[audio] rate"), plus <file>.frames with the VI frame of each buffer.
 #include <SDL3/SDL.h>
+#include "web_audio.h" // (web build: an AudioWorklet instead of SDL's audio device)
 
 #include <algorithm>
 #include <cmath>

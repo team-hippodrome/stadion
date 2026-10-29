@@ -154,6 +154,10 @@ static inline int Port_Readable(const void* p, size_t n) {
 #endif
 }
 
+// Called after a save file was written (flash, Game Boy cartridge RAM). The web build copies the files to the browser's
+// storage then (web/port.js); elsewhere they are on disk already.
+void Port_SaveWritten(void);
+
 // Gives the calling thread its own signal stack, so the crash handler (main.cpp) also reports stack overflows.
 static inline void Port_AltSignalStack(void) {
 #if !defined(_WIN32)

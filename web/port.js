@@ -11,6 +11,8 @@ const DATA = "/data";
 const ROM_PATH = DATA + "/rom/stadium.z64";
 const SAVE_PATH = DATA + "/saves/stadium.flash";
 const GB_DIR = DATA + "/gb";
+// the game's files; tools/build_web.sh puts their versioned names (name.<hash>.ext) here, so browsers can cache them
+const FILES = { js: "pokestadium.js", wasm: "pokestadium.wasm", o2r: "pokestadium.o2r" };
 
 const $ = (id) => document.getElementById(id);
 const statusLine = $("status");
@@ -144,16 +146,42 @@ function setEnv(name, value) {
   Module.ccall("setenv", "number", ["string", "string", "number"], [name, value, 1]);
 }
 
+// Sound: an AudioWorklet plays what the game writes into a ring buffer (src/port/web_audio.cpp). Browsers allow an
+// AudioContext to start only from a click or key press: it is made when Play is pressed.
+async function startAudio() {
+  try {
+    const ctx = new AudioContext({ latencyHint: "interactive" });
+    await ctx.audioWorklet.addModule("audio-worklet.js");
+    const node = new AudioWorkletNode(ctx, "port-output", { numberOfInputs: 0, outputChannelCount: [2] });
+    node.connect(ctx.destination);
+    Module.portAudio = { ctx, node, rate: ctx.sampleRate };
+    document.addEventListener("visibilitychange", () => { document.hidden ? ctx.suspend() : ctx.resume(); });
+  } catch (e) {
+    console.warn("no sound:", e);
+  }
+}
+
+// saves: copied to the browser's storage shortly after the game wrote one (src/port/port_platform.c), and when the page
+// is hidden or closed
+let saveTimer = 0;
+const scheduleSaveSync = () => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => sync(), 300);
+};
+
 let started = false;
-function play() {
+async function play() {
   if (started) return;
   started = true;
   $("overlay").hidden = true;
+  await startAudio();
   mkdirs(DATA + "/saves");
   Module.FS.chdir(DATA); // the game's folder (config, saves, logs)
   setEnv("SHIP_HOME", DATA);
   setEnv("PORT_FLASH_FILE", SAVE_PATH);
   setEnv("PORT_RECORD", ""); // no input recording (the desktop build's last_input.rec)
+  // in-between frames: the picture at the display's rate instead of the game's 30 frames a second (src/port/interp.cpp)
+  setEnv("PORT_INTERPOLATE", $("smooth").checked ? "1" : "0");
   const gb = gbFiles();
   if (gb.rom) {
     setEnv("PORT_GB_ROM", GB_DIR + "/" + gb.rom);
@@ -161,22 +189,39 @@ function play() {
   }
   const canvas = $("canvas");
   canvas.focus();
-  // saves are written into /data as the game goes; copy them to the browser's storage now and then, and when the page
-  // is hidden or closed
-  setInterval(() => sync(), 5000);
+  setInterval(() => sync(), 30000);
   document.addEventListener("visibilitychange", () => { if (document.hidden) sync(); });
   window.addEventListener("pagehide", () => sync());
+  showFullscreenButton();
   Module.callMain([ROM_PATH]);
 }
 
-// browsers start sound only after a click or key press: resume SDL's audio context on each
+// a browser may still hold the sound back until the first input on the page
 function resumeAudio() {
-  const ctx = Module.SDL3 && Module.SDL3.audioContext;
-  if (ctx && ctx.state !== "running") ctx.resume();
+  const ctx = Module.portAudio && Module.portAudio.ctx;
+  if (ctx && ctx.state === "suspended" && !document.hidden) ctx.resume();
+}
+
+// Fullscreen: a button in the corner, shown while the mouse moves (and always on touch screens)
+function showFullscreenButton() {
+  const button = $("fullscreen");
+  if (!document.fullscreenEnabled) return;
+  let timer = 0;
+  const show = () => {
+    button.hidden = !!document.fullscreenElement;
+    clearTimeout(timer);
+    if (!matchMedia("(pointer: coarse)").matches) timer = setTimeout(() => { button.hidden = true; }, 2000);
+  };
+  button.addEventListener("click", () => document.documentElement.requestFullscreen().then(() => $("canvas").focus()));
+  document.addEventListener("mousemove", show);
+  document.addEventListener("fullscreenchange", show);
+  show();
 }
 
 var Module = {
   canvas: $("canvas"),
+  onSaveWritten: () => scheduleSaveSync(),
+  locateFile: (path) => (path === "pokestadium.wasm" ? FILES.wasm : path),
   print: (text) => console.log(text),
   printErr: (text) => console.warn(text),
   setStatus: (text) => { if (text && !started) setStatus(text); },
@@ -193,12 +238,21 @@ var Module = {
     setStatus("Reading browser storage…");
     await sync(true);
     // the port's own resources (shaders, fonts): fetched every time, next to the game
-    const o2r = await fetch("pokestadium.o2r").then((r) => r.arrayBuffer());
+    const o2r = await fetch(FILES.o2r).then((r) => r.arrayBuffer());
     Module.FS.writeFile(DATA + "/pokestadium.o2r", new Uint8Array(o2r));
     showMenu();
   },
 };
 
+// the "smoother motion" choice is remembered in this browser
+try {
+  $("smooth").checked = localStorage.getItem("smooth") !== "0";
+} catch (e) {}
+$("smooth").addEventListener("change", () => {
+  try {
+    localStorage.setItem("smooth", $("smooth").checked ? "1" : "0");
+  } catch (e) {}
+});
 $("romFile").addEventListener("change", pickRom);
 $("play").addEventListener("click", play);
 $("forget").addEventListener("click", async () => {
@@ -258,7 +312,7 @@ if (problem) {
 } else {
   setStatus("Loading the game…");
   const s = document.createElement("script");
-  s.src = "pokestadium.js";
-  s.onerror = () => setStatus("Could not load pokestadium.js.", true);
+  s.src = FILES.js;
+  s.onerror = () => setStatus("Could not load the game.", true);
   document.body.appendChild(s);
 }

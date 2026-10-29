@@ -30,8 +30,18 @@ void Port_ReserveLowAddressSpace(void) {
 #endif
 }
 
+#if !defined(__EMSCRIPTEN__)
+void Port_SaveWritten(void) {
+}
+#endif
+
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
+void Port_SaveWritten(void) {
+    MAIN_THREAD_ASYNC_EM_ASM({
+        if (Module.onSaveWritten) Module.onSaveWritten();
+    });
+}
 // Web build: function pointers are indices into WebAssembly's function table, so they lie below 4 GB like the N64
 // addresses the game converts (Util_ConvertAddrToVirtAddr). The table has some 10^4 entries; the N64 addresses that low
 // (the start of physical memory) are never handed to the game.

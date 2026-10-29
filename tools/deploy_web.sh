@@ -68,8 +68,37 @@ EOF
     fi
 }
 
+# the game's versioned files (name.<hash>.ext, tools/build_web.sh): kept by browsers for a year, as the Brotli copy
+# (.br) for browsers that take it (precompressed; no nginx module needed)
+asset_location() { # <extension> <content type>
+    cat <<EOF
+    location ~ "\.[0-9a-f]{12}\.$1\$" {
+        types { }
+        default_type $2;
+        gzip off;
+        add_header Content-Encoding \$${WEB_SITE}_br_encoding always;
+        add_header Vary Accept-Encoding always;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        add_header Cross-Origin-Opener-Policy "same-origin" always;
+        add_header Cross-Origin-Embedder-Policy "require-corp" always;
+        add_header Cross-Origin-Resource-Policy "same-origin" always;
+        add_header X-Robots-Tag "noindex, nofollow" always;
+        try_files \$uri\$${WEB_SITE}_br_suffix =404;
+    }
+EOF
+}
+
 https_block() {
     cat <<EOF
+
+map \$http_accept_encoding \$${WEB_SITE}_br_suffix {
+    default "";
+    "~*\bbr\b" ".br";
+}
+map \$http_accept_encoding \$${WEB_SITE}_br_encoding {
+    default "";
+    "~*\bbr\b" "br";
+}
 
 server {
     listen 443 ssl http2;
@@ -101,6 +130,9 @@ $(auth_lines)
     location / {
         try_files \$uri \$uri/ =404;
     }
+$(asset_location js text/javascript)
+$(asset_location wasm application/wasm)
+$(asset_location o2r application/octet-stream)
 }
 EOF
 }
@@ -118,7 +150,7 @@ cert)
         sudo test -f /etc/letsencrypt/live/$WEB_HOST/fullchain.pem && echo certificate ready"
     ;;
 site)
-    [ -f "$SITE_DIR/pokestadium.wasm" ] || { echo "no build in $SITE_DIR (tools/build_web.sh)"; exit 1; }
+    ls "$SITE_DIR"/pokestadium.*.wasm.br >/dev/null 2>&1 || { echo "no build in $SITE_DIR (tools/build_web.sh, with brotli)"; exit 1; }
     { http_block; https_block; } > /tmp/$WEB_SITE.nginx.conf
     COPYFILE_DISABLE=1 tar --no-xattrs -C "$SITE_DIR" -czf /tmp/$WEB_SITE.site.tgz --exclude serve.py .
     if [ "$WEB_AUTH" = cert ]; then
@@ -153,8 +185,11 @@ verify)
     get() { printf 'user = "%s:%s"\n' "$WEB_USER" "$(cat "${WEB_PASSWORD_FILE:-/dev/null}")" | curl -s "$@"; }
     without=$(curl -s -o /dev/null -w "%{http_code}" "$url" || true)
     with=$(get -o /dev/null -w "%{http_code}" "${cred[@]}" "$url")
-    headers=$(get -I "${cred[@]}" "${url}pokestadium.wasm" \
-        | grep -iE "^(content-type|cross-origin-opener-policy|cross-origin-embedder-policy):" | tr -d '\r')
+    wasm=$(get "${cred[@]}" "${url}port.js" | grep -o 'pokestadium\.[0-9a-f]*\.wasm' | head -1)
+    headers=$(get -I -H "Accept-Encoding: br, gzip" "${cred[@]}" "${url}$wasm" \
+        | grep -iE "^(content-type|content-encoding|cache-control|cross-origin-opener-policy|cross-origin-embedder-policy):" \
+        | tr -d '\r')
+    echo "$wasm:"
     echo "without $WEB_AUTH: HTTP $without (want 401/400 or a refused handshake)"
     if [ ${#wrong[@]} -gt 0 ]; then
         echo "wrong password:   HTTP $(curl -s -o /dev/null -w "%{http_code}" "${wrong[@]}" "$url") (want 401)"

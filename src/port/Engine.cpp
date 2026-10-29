@@ -1,5 +1,4 @@
 #include "Engine.h"
-#include <atomic>
 #include "touch_controls.h"
 #include "pacing.h"
 
@@ -26,6 +25,7 @@
 #include <libultraship/bridge/gfxbridge.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <filesystem>
 #include <unistd.h>
@@ -33,6 +33,9 @@
 #include <SDL3/SDL.h>
 #include <thread>
 #include <vector>
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
 
 namespace Fast {
 extern void* (*gPortAddressResolver)(uintptr_t);
@@ -191,6 +194,14 @@ bool Init() {
         cvars->Save();
     }
 
+#if defined(__EMSCRIPTEN__)
+    // Web build: the canvas has devicePixelRatio pixels per point (HiDPI); the game is drawn at that resolution (at most
+    // twice the window's size in points) unless the player chose another one in the settings
+    if (CVarGetFloat("gInternalResolution", 0.0f) == 0.0f) {
+        cvars->SetFloat("gInternalResolution",
+                        (float)EM_ASM_DOUBLE({ return Math.min(Math.max(window.devicePixelRatio || 1, 1), 2); }));
+    }
+#endif
     // ImGui windows (tooltips, menus) stay inside the game window: with multi-viewports on, one that reached past its
     // edge became an OS window of its own, and the Metal backend crashed creating it (the launcher's wide tooltips)
     cvars->SetInteger("gEnableMultiViewports", 0);

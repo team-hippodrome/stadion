@@ -2081,7 +2081,7 @@ index 6c4dfc8..c739b1c 100644
          uint8_t r = (rgba8[i * 4 + 0] >> 3) & 0x1F;
          uint8_t g = (rgba8[i * 4 + 1] >> 3) & 0x1F;
 diff --git a/src/fast/backends/gfx_sdl.cpp b/src/fast/backends/gfx_sdl.cpp
-index c8bc6cd..0babfd3 100644
+index c8bc6cd..fde9744 100644
 --- a/src/fast/backends/gfx_sdl.cpp
 +++ b/src/fast/backends/gfx_sdl.cpp
 @@ -36,10 +36,11 @@
@@ -2155,9 +2155,9 @@ index c8bc6cd..0babfd3 100644
 -    Uint32 flags = SDL_WINDOW_BORDERLESS;
 +    SDL_WindowFlags flags = SDL_WINDOW_BORDERLESS;
 +#elif defined(__EMSCRIPTEN__)
-+    // PORT: the web build's canvas (#canvas) fills the browser window and follows its size; without high pixel
-+    // density, as the renderer and the GUI take the window's size in pixels for its size in points (all but macOS)
-+    SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_FILL_DOCUMENT;
++    // PORT: the web build's canvas (#canvas) fills the browser window and follows its size, with a back buffer of
++    // devicePixelRatio pixels per point (sizes in points below, as on macOS)
++    SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_FILL_DOCUMENT;
  #else
 -    Uint32 flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
 +    SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
@@ -2175,7 +2175,19 @@ index c8bc6cd..0babfd3 100644
      } else {
          flags = flags | SDL_WINDOW_METAL;
      }
-@@ -437,6 +464,12 @@ void GfxWindowBackendSDL::Init(const char* gameName, const char* gfxApiName, boo
+@@ -425,7 +452,11 @@ void GfxWindowBackendSDL::Init(const char* gameName, const char* gfxApiName, boo
+     }
+ 
+     if (use_opengl) {
++#if defined(__EMSCRIPTEN__)
++        SDL_GetWindowSize(mWnd, &mWindowWidth, &mWindowHeight); // PORT: in points, as on macOS
++#else
+         SDL_GetWindowSizeInPixels(mWnd, &mWindowWidth, &mWindowHeight);
++#endif
+ 
+         if (startFullScreen) {
+             SetFullscreenImpl(true, false);
+@@ -437,6 +468,12 @@ void GfxWindowBackendSDL::Init(const char* gameName, const char* gfxApiName, boo
          SDL_GL_SetSwapInterval(mVsyncEnabled ? 1 : 0);
  
          window_impl.Opengl = { mWnd, mCtx };
@@ -2188,7 +2200,25 @@ index c8bc6cd..0babfd3 100644
      } else {
          mRenderer = SDL_CreateRenderer(mWnd, nullptr);
          if (mRenderer == nullptr) {
-@@ -711,6 +744,10 @@ static uint64_t qpc_to_100ns(uint64_t qpc) {
+@@ -551,7 +588,7 @@ void GfxWindowBackendSDL::SetMouseCallbacks(bool (*onMouseButtonDown)(int btn),
+ }
+ 
+ void GfxWindowBackendSDL::GetDimensions(uint32_t* width, uint32_t* height, int32_t* posX, int32_t* posY) {
+-#ifdef __APPLE__
++#if defined(__APPLE__) || defined(__EMSCRIPTEN__) // PORT: (web build: HiDPI canvas)
+     SDL_GetWindowSize(mWnd, static_cast<int*>((void*)width), static_cast<int*>((void*)height));
+ #else
+     SDL_GetWindowSizeInPixels(mWnd, static_cast<int*>((void*)width), static_cast<int*>((void*)height));
+@@ -657,7 +694,7 @@ void GfxWindowBackendSDL::HandleSingleEvent(SDL_Event& event) {
+             break;
+ #endif
+         case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+-#ifdef __APPLE__
++#if defined(__APPLE__) || defined(__EMSCRIPTEN__) // PORT: (web build: HiDPI canvas)
+             SDL_GetWindowSize(mWnd, &mWindowWidth, &mWindowHeight);
+ #else
+             SDL_GetWindowSizeInPixels(mWnd, &mWindowWidth, &mWindowHeight);
+@@ -711,6 +748,10 @@ static uint64_t qpc_to_100ns(uint64_t qpc) {
  }
  
  void GfxWindowBackendSDL::SyncFramerateWithTime() const {

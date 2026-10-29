@@ -23,6 +23,9 @@
   button:disabled { opacity: 0.5; cursor: default; }
   input[type=file] { display: none; }
   #status { min-height: 1.5em; }
+  label.check { display: flex; gap: 8px; align-items: center; margin-top: 16px; cursor: pointer; }
+  #fullscreen { position: fixed; top: 12px; right: 12px; z-index: 2; padding: 8px 12px; background: rgba(28, 28, 36, 0.8); }
+  #fullscreen[hidden] { display: none; }
   #status.error { color: #ff7a6b; }
   details { margin-top: 16px; }
   summary { cursor: pointer; color: var(--muted); }
@@ -30,6 +33,7 @@
 </head>
 <body>
 <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+<button id="fullscreen" hidden title="Fullscreen">⛶ Fullscreen</button>
 <div id="overlay">
   <div class="panel">
     <h1>Pokémon Stadium</h1>
@@ -44,6 +48,7 @@
         <button id="play" class="primary">Play</button>
         <button id="forget">Forget ROM</button>
       </div>
+      <label class="check"><input id="smooth" type="checkbox" checked> Smoother motion (in-between frames, 60 FPS)</label>
       <details>
         <summary>Saves and Transfer Pak</summary>
         <p class="muted">Stadium save: export it as a file, or replace it with one from the desktop version
@@ -61,7 +66,8 @@
         <p id="gbInfo" class="muted"></p>
       </details>
       <p class="muted">Keys: X = A, Z = B, Enter = Start, arrows = control pad, Q/E = L/R, Shift or Space = Z,
-        I/J/K/L = C buttons, W/A/S/D = stick; gamepads work too. Hold Tab to fast-forward.</p>
+        I/J/K/L = C buttons, W/A/S/D = stick; gamepads work too, and touch screens get on-screen buttons.
+        Hold Tab to fast-forward.</p>
     </div>
   </div>
 </div>

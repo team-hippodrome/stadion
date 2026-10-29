@@ -182,6 +182,9 @@ target_compile_options(stadium_game PRIVATE
 # headers include <ultra64.h> themselves.
 add_library(port_os STATIC src/port/os_thread.cpp src/port/os_devices.cpp src/port/transfer_pak.cpp src/port/gb_audio_out.cpp src/port/audio_out.cpp src/port/audio_hle.cpp src/port/gb_core.c
   src/port/jpeg_task.cpp src/port/gfx_translate.cpp)
+if(EMSCRIPTEN)
+  target_sources(port_os PRIVATE src/port/web_audio.cpp) # sound output through an AudioWorklet (web_audio.h)
+endif()
 target_include_directories(port_os PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/port
   ${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk

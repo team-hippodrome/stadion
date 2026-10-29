@@ -29,9 +29,22 @@ if [ ! -f "$BUILD/build.ninja" ]; then
 fi
 nice -n 15 cmake --build "$BUILD" -j "$JOBS"
 SITE="$BUILD/site"
+rm -rf "$SITE"
 mkdir -p "$SITE"
-cp web/index.html web/port.js web/serve.py "$SITE/"
-cp "$BUILD"/pokestadium.js "$BUILD"/pokestadium.wasm "$BUILD"/pokestadium.o2r "$SITE/"
+cp web/index.html web/port.js web/audio-worklet.js web/serve.py "$SITE/"
+# the game's files under versioned names (name.<hash>.ext): the server lets browsers keep them, and a new build gets new
+# names (web/port.js holds the names); each also as Brotli (.br), which the server sends to browsers that take it
+files=""
+for f in pokestadium.js pokestadium.wasm pokestadium.o2r; do
+    hash=$(shasum -a 256 "$BUILD/$f" | cut -c1-12)
+    name="${f%.*}.$hash.${f##*.}"
+    cp "$BUILD/$f" "$SITE/$name"
+    if command -v brotli >/dev/null; then
+        brotli -q 11 -c "$SITE/$name" > "$SITE/$name.br"
+    fi
+    files="$files ${f##*.}: \"$name\","
+done
+sed -i.bak "s|^const FILES = {.*|const FILES = {${files%,} };|" "$SITE/port.js" && rm "$SITE/port.js.bak"
 echo "site: $SITE"
 if [ "$1" = serve ]; then
     exec python3 -I "$SITE/serve.py" "$SITE" 8642
