@@ -40,6 +40,9 @@
 namespace Fast {
 extern void* (*gPortAddressResolver)(uintptr_t);
 }
+#if defined(__EMSCRIPTEN__)
+extern "C" void Port_FragmentLoadRanges(const char* text);
+#endif
 extern "C" void* Port_ResolveN64Address(uintptr_t addr);
 
 extern "C" double Port_Speed();
@@ -272,6 +275,16 @@ bool Init() {
     } catch (const std::exception& e) {
         SPDLOG_WARN("ResourceManager init deferred: {}", e.what());
     }
+#if defined(__EMSCRIPTEN__)
+    // Web build: where each fragment's static data lies (tools/gen_frag_ranges.py), copied now, before the game runs, so
+    // that loading a fragment starts it fresh as on the N64 (Port_FragmentResetData in the generated frag_sections.c)
+    if (auto file = resourceManager->GetArchiveManager()->LoadFile("port/frag_ranges.txt"); file && file->Buffer) {
+        std::string text(file->Buffer->begin(), file->Buffer->end());
+        Port_FragmentLoadRanges(text.c_str());
+    } else {
+        SPDLOG_WARN("port/frag_ranges.txt missing: fragments keep their data between visits");
+    }
+#endif
 
     auto console = std::make_shared<Ship::Console>();
     sContext->GetChildren().Add(console);

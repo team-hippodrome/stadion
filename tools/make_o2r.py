@@ -4,6 +4,8 @@ the Fast3D shader sources, the shader warm-up list, ImGui fonts, the launcher pi
 import zipfile, pathlib, sys
 root = pathlib.Path(__file__).resolve().parent.parent
 out = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else root / "build/pokestadium.o2r"
+# --add <name in the archive>=<file>: build outputs packed along (the web build's port/frag_ranges.txt)
+extra = [a.split("=", 1) for a, flag in zip(sys.argv[3:], sys.argv[2:]) if flag == "--add"]
 out.parent.mkdir(parents=True, exist_ok=True)
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
     z.writestr("portVersion", b"\x00\x00\x00\x01\x00\x00")
@@ -31,4 +33,6 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for p in sorted(fonts.rglob("*")):
             if p.is_file():
                 z.write(p, "fonts/" + p.relative_to(fonts).as_posix())
+    for name, path in extra:
+        z.write(path, name)
 print("wrote", out)

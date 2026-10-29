@@ -259,6 +259,13 @@ if(EMSCRIPTEN)
             ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/abs_syms.S ${PORT_WEB_ABS_OBJ} ${PORT_WEB_GLOBAL_BASE}
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_wasm_abs_syms.py ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/abs_syms.S)
   add_custom_target(port_web_abs_syms DEPENDS ${PORT_WEB_ABS_OBJ})
+  # each fragment's static data, from the linker map (tools/gen_frag_ranges.py); make_o2r.py packs it (below)
+  add_custom_command(TARGET pokestadium POST_BUILD
+    COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_frag_ranges.py ${CMAKE_BINARY_DIR}/pokestadium.map
+            ${CMAKE_CURRENT_SOURCE_DIR}/game/src ${CMAKE_BINARY_DIR}/generated/frag_sections.txt
+            ${CMAKE_BINARY_DIR}/frag_ranges.txt
+    COMMENT "Finding the fragments' data in the linker map")
+  set(PORT_O2R_EXTRA --add port/frag_ranges.txt=${CMAKE_BINARY_DIR}/frag_ranges.txt)
   add_dependencies(pokestadium port_web_abs_syms)
   set_property(TARGET pokestadium APPEND PROPERTY LINK_DEPENDS ${PORT_WEB_ABS_OBJ})
   set_target_properties(pokestadium PROPERTIES SUFFIX ".js")
@@ -275,6 +282,8 @@ if(EMSCRIPTEN)
     -sINVOKE_RUN=0 -sEXIT_RUNTIME=0 -sFORCE_FILESYSTEM=1 -lidbfs.js
     "-sEXPORTED_RUNTIME_METHODS=callMain,ccall,FS,IDBFS" "-sEXPORTED_FUNCTIONS=_main,_setenv,_Port_ViTick"
     # PORT_WEB_EXTRA_LINK: link flags for debugging, e.g. "-sASSERTIONS=1 -sSAFE_HEAP=1" (checks every memory access)
+    # the linker map: tools/gen_frag_ranges.py finds each fragment's static data in it (see frag_sections.c)
+    "-Wl,--Map=${CMAKE_BINARY_DIR}/pokestadium.map"
     -sENVIRONMENT=web,worker ${PORT_WEB_EXTRA_LINK}
     --profiling-funcs) # function names in the browser's stack traces
 endif()
@@ -288,6 +297,7 @@ set_property(SOURCE src/port/shader_warmup.cpp APPEND PROPERTY OBJECT_DEPENDS
 if(NOT ANDROID)  # Android: the Gradle build packs it into the app's assets (android/app/build.gradle)
 add_custom_command(TARGET pokestadium POST_BUILD
   COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py $<TARGET_FILE_DIR:pokestadium>/pokestadium.o2r
+          ${PORT_O2R_EXTRA}
   COMMENT "Packing pokestadium.o2r")
 endif()
 
