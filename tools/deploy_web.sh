@@ -95,7 +95,7 @@ cert)
 site)
     [ -f "$SITE_DIR/pokestadium.wasm" ] || { echo "no build in $SITE_DIR (tools/build_web.sh)"; exit 1; }
     { http_block; https_block; } > /tmp/$WEB_SITE.nginx.conf
-    tar -C "$SITE_DIR" -czf /tmp/$WEB_SITE.site.tgz --exclude serve.py .
+    COPYFILE_DISABLE=1 tar --no-xattrs -C "$SITE_DIR" -czf /tmp/$WEB_SITE.site.tgz --exclude serve.py .
     gcloud compute scp --project "$GCP_PROJECT" --zone "$GCP_ZONE" /tmp/$WEB_SITE.nginx.conf /tmp/$WEB_SITE.site.tgz \
         "$CLIENT_CERT_DIR/ca.crt" "$GCP_INSTANCE:/tmp/"
     rm /tmp/$WEB_SITE.nginx.conf /tmp/$WEB_SITE.site.tgz
