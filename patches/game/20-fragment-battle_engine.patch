@@ -1638,7 +1638,7 @@ index 1463c36f9d91811ef32fd53a4bad18102a7318ed..0ecbafaeee4802522054d9324fd2ac43
      BattleAI_SeedRandomState(0x35);
  
 diff --git a/src/fragments/battle_engine/battle_engine_main.c b/src/fragments/battle_engine/battle_engine_main.c
-index f52b88d105b39060d8d3f853d6fec3aa56c62e86..a498db5c6205163764c704b904ac35fc7202ceed 100644
+index f52b88d105b39060d8d3f853d6fec3aa56c62e86..338c32749fd3d4c2058016a80c0256f917032b27 100644
 --- a/src/fragments/battle_engine/battle_engine_main.c
 +++ b/src/fragments/battle_engine/battle_engine_main.c
 @@ -1,3 +1,5 @@
@@ -1723,7 +1723,15 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..a498db5c6205163764c704b904ac35fc
  
      x = viewport->x;
      y = viewport->y;
-@@ -611,7 +619,7 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -398,6 +406,7 @@ void func_84300E80(void) {
+ s32 BattleScene_UpdateFrame(s32 fade_mode) {
+     s32 battle_result;
+ 
++    Port_XcheckGameFrame(); // PORT: battle cross-check: one call per battle game frame (src/port/xcheck.cpp)
+     GeoRender_AdvanceFrameCounter();
+     ModelAnim_UpdateFrameChangeState();
+     BattleScene_DispatchLifecycle(2, sBattleSides);
+@@ -611,7 +620,7 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
      sBattleSides[1].unk_10 = PokeIcon_AllocFramebuffers(3);
      PokeIcon_OpenModelArchives();
  
@@ -1732,7 +1740,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..a498db5c6205163764c704b904ac35fc
      GfxImage_Initialize(thumbnail_depth, 0, 2, 0x4C, 0x4C, stage_context->unk_18[0]->depth_p->img_p);
      sSide1PokemonThumbnail = GfxImage_Allocate(0, 2, 0x4C, 0x4C, 0);
      sSide2PokemonThumbnail = GfxImage_Allocate(0, 2, 0x4C, 0x4C, 0);
-@@ -640,8 +648,16 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -640,8 +649,16 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
          }
      }
  
@@ -1751,7 +1759,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..a498db5c6205163764c704b904ac35fc
  
      model = Model_LoadByArchiveIndex(0x9A);
      Battle_SelectComRoster();
-@@ -669,17 +685,17 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -669,17 +686,17 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
      sSide2ThumbnailRoot = process_geo_layout(layout_pool, sSide2ThumbnailLayout);
  
      // Selectors 0, 1, and 3 each attach geometry beneath a stage tint/scale callback.
@@ -1772,7 +1780,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..a498db5c6205163764c704b904ac35fc
      if (stage_layout != NULL) {
          GraphNode_AppendChild(&sStageLayout3, process_geo_layout(layout_pool, stage_layout));
      }
-@@ -687,13 +703,14 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -687,13 +704,14 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
      MainPool_FinalizeAllocation(layout_pool);
  
      // callbackArg records whether this arena supplied fog, for Battle_SetStageTintColor.

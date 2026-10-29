@@ -34,8 +34,10 @@ import battle_xcheck as bx  # noqa: E402
 
 WORK = os.path.abspath(os.environ.get("XCHECK_SWEEP_DIR", os.path.join(ROOT, "build-xcheck-sweep")))
 SEED = "1"
-# frames of each move animation that are captured and scored (its length is compared in full, from the trace)
-ANIM_FRAMES = 300
+# game frames of each move animation that are captured and scored (its length is compared in full, from the trace).
+# Everything is counted in battle game frames (BattleScene_UpdateFrame calls): the N64 slows down in busy effects (2-3
+# VI frames per game frame) and the port does not, so VI frame counts differ although both play the same frames.
+ANIM_FRAMES = 150
 STATE_FRAME = 2240  # ares save state: after the team picks, before the confirming A (port frame 2263)
 
 # pokered effect constants (the decomp's move table uses them; checked against e.g. Fly 0x2B, Bind 0x2A, Guillotine 0x26)
@@ -442,7 +444,7 @@ def run_case(c, species, port_bin, max_frames):
 # ---- evaluation ----
 EFFECT_LIMIT = 40.0  # default effect difference limit; the report sets it from the run's median:
 EFFECT_FACTOR, EFFECT_MARGIN = 2.0, 15.0  # mismatch above max(median x factor, median + margin)
-DURATION_SLACK = 6   # frames of animation length difference tolerated
+DURATION_SLACK = 2   # game frames of animation length difference tolerated
 
 
 def evaluate(c, d):
@@ -486,13 +488,15 @@ def evaluate(c, d):
     for s in tr:
         for line in open(os.path.join(d, s + ".trace")):
             if line.startswith("S "):
-                stops[s] = int(line.split("frame=")[1])
+                kv = dict(x.split("=", 1) for x in line.split() if "=" in x)
+                stops[s] = (int(kv["frame"]), int(kv.get("gf", -1)))
 
-    def next_event_frame(s, frame):
+    def next_event(s, frame):
+        """(VI frame, game frame) of the first event after a VI frame"""
         for e in ev[s]:
             if e["frame"] > frame:
-                return e["frame"]
-        return stops.get(s)
+                return e["frame"], e["gf"]
+        return stops.get(s, (None, None))
     uses_out = []
     audio = load_audio(d)
     taken = {"port": set(), "ares": set()}
@@ -510,19 +514,22 @@ def evaluate(c, d):
             a = next((x for x in anims[s] if x["side"] == 0 and x["move"] == target_move and x["k"] not in taken[s]), None)
             if a:
                 taken[s].add(a["k"])
-                nf = next_event_frame(s, a["frame"])
-                got[s] = {"k": a["k"], "frame": a["frame"], "duration": (nf - a["frame"]) if nf else None}
+                nf, ngf = next_event(s, a["frame"])
+                # duration: battle game frames to the next event; vi_duration: VI frames (N64 slowdown included)
+                got[s] = {"k": a["k"], "frame": a["frame"], "gf": a["gf"],
+                          "duration": (ngf - a["gf"]) if ngf is not None and a["gf"] >= 0 else None,
+                          "vi_duration": (nf - a["frame"]) if nf else None}
         r["anim"] = got
         if "port" in got and "ares" in got:
             r["score"] = score_anim(d, got["port"]["k"], got["ares"]["k"], target_move)
             try:
-                r["audio"] = score_audio(d, audio, got["port"]["frame"], got["port"]["frame"] + got["port"]["duration"],
-                                         got["ares"]["frame"], got["ares"]["frame"] + got["ares"]["duration"], target_move)
+                r["audio"] = score_audio(d, audio, got["port"]["frame"], got["port"]["frame"] + got["port"]["vi_duration"],
+                                         got["ares"]["frame"], got["ares"]["frame"] + got["ares"]["vi_duration"], target_move)
             except Exception as ex:  # (no audio dump, a cut-off run)
                 r["audio"] = {"error": str(ex)}
             if audio_verdict(r["audio"]).startswith("sound mismatch"):  # both sides' sound, for listening
-                for side, (f0, f1) in (("port", (got["port"]["frame"], got["port"]["frame"] + got["port"]["duration"])),
-                                       ("ares", (got["ares"]["frame"], got["ares"]["frame"] + got["ares"]["duration"]))):
+                for side, (f0, f1) in (("port", (got["port"]["frame"], got["port"]["frame"] + got["port"]["vi_duration"])),
+                                       ("ares", (got["ares"]["frame"], got["ares"]["frame"] + got["ares"]["vi_duration"]))):
                     write_wav(os.path.join(d, "sound_%03d_%s.wav" % (target_move, side)), audio, side, f0, f1)
                 r["audio"]["wav"] = "sound_%03d_{port,ares}.wav" % target_move
         if first is not None:
@@ -835,9 +842,9 @@ def classify(u, common_offset, floor=None):
     dp, da = a["port"].get("duration"), a["ares"].get("duration")
     faint = "fainted" in u.get("msgs", "") or "fainted" in u.get("msgs_ares", "")
     if dp is not None and da is not None and abs(dp - da) > DURATION_SLACK:
-        if faint and not notes and 0 < da - dp <= 40:  # the length runs to the next event: faint and switch-in included
-            return "timing (faint/switch-in %+d frames)" % (da - dp)
-        notes.append("length %d vs %d frames" % (dp, da))
+        if faint and not notes and 0 < da - dp <= 20:  # the length runs to the next event: faint and switch-in included
+            return "timing (faint/switch-in %+d game frames)" % (da - dp)
+        notes.append("length %d vs %d game frames" % (dp, da))
     return "animation mismatch (%s)" % ", ".join(notes) if notes else "match"
 
 
@@ -919,7 +926,7 @@ def main():
             futs = {ex.submit(run_case, c, species, port_bin, frames): c for c in todo}
             for n, f in enumerate(as_completed(futs), 1):
                 c, r = futs[f], f.result()
-                verdicts = ["%s, %s" % (classify(u, 4), audio_verdict(u.get("audio"))) for u in r.get("uses", [])]
+                verdicts = ["%s, %s" % (classify(u, None), audio_verdict(u.get("audio"))) for u in r.get("uses", [])]
                 print("[%d/%d %.0fs] %s: %s%s" % (n, len(todo), time.time() - t0, c["id"], "; ".join(
                     "%s %s: %s" % (mvn.get(u["move"], u["move"]), u["path"], v) for u, v in zip(r.get("uses", []), verdicts)),
                     " ERROR " + r["error"] if "error" in r else ""), flush=True)
@@ -1026,16 +1033,18 @@ def report(cases, skipped, moves, mvn, spn):
     out.append("")
     out.append("## Every move and path")
     out.append("")
-    out.append("| move | effect | path | user | verdict | effect diff | length port / ares | sound | messages |")
+    out.append("| move | effect | path | user | verdict | effect diff | game frames port / ares (VI frames) | sound | messages |")
     out.append("|---|---|---|---|---|---|---|---|---|")
     for (u, r, c), v, s_ in sorted(zip(rows, verdicts, sv), key=lambda x: (x[0][0]["move"], x[0][0]["path"])):
         s, a = u.get("score", {}), u.get("anim", {})
         mv = moves.get(u["move"], {"effect": 0})
-        out.append("| %s (%d) | %s | %s | %s | %s | %s | %s / %s | %s | %s |" % (
+        out.append("| %s (%d) | %s | %s | %s | %s | %s | %s | %s | %s |" % (
             mvn.get(u["move"], "?"), u["move"], EFFECTS.get(mv["effect"], hex(mv["effect"])), u["path"],
             spn.get(u.get("user"), u.get("user")), v + (" [sheet](cases/%s/%s)" % (c["id"], s["sheet"]) if s.get("sheet") else ""),
             "%.0f" % s["effect_p90"] if "effect_p90" in s else "-",
-            a.get("port", {}).get("duration", "-"), a.get("ares", {}).get("duration", "-"), s_, u.get("msgs", "")[:60]))
+            "%s / %s (%s / %s)" % (a.get("port", {}).get("duration", "-"), a.get("ares", {}).get("duration", "-"),
+                                   a.get("port", {}).get("vi_duration", "-"), a.get("ares", {}).get("vi_duration", "-")),
+            s_, u.get("msgs", "")[:60]))
     out.append("")
     out.append("## Paths not set up")
     out.append("")

@@ -29,8 +29,10 @@
 //                                   map) to name the caller of each random call, as the port does with dladdr
 //   ARES_REF_XCHECK_COM=1           no input needed in battle: the player's move time limit runs out at the second query
 //                                   of each decision (first usable move, first healthy replacement), as PORT_XCHECK_COM
-//   ARES_REF_XCHECK_ANIM=<dir>      save each move animation's frames, from its start to the next battle event, as
-//                                   <dir>/m<k>_<move>/f_<n>.ppm (at most ARES_REF_XCHECK_ANIM_FRAMES, default 600)
+//   ARES_REF_XCHECK_ANIM=<dir>      save each move animation's frames, from its start to the next battle event, one per
+//                                   game frame, as <dir>/m<k>_<move>/f_<n>.ppm (n: battle game frames since the start;
+//                                   at most ARES_REF_XCHECK_ANIM_FRAMES game frames, default 300)
+// Trace lines carry gf=<n>: battle game frames (BattleScene_UpdateFrame calls), as the port's.
 #include <ares/ares.hpp>
 #include <n64/n64.hpp>
 #include <nall/main.hpp>
@@ -242,7 +244,7 @@ constexpr u32 kGuRandom = 0x8005D1B0;       // guRandom (main code): its callers
 constexpr u32 kGuRandomSeed = 0x8007A950;   // guRandom's xseed (lui 0x8008 / lw -0x56B0 in the ROM's guRandom)
 constexpr u32 kStartBattleMusic = 0x8004153C; // Audio_StartBattleMusicSequence (main code): skipped for "nomusic"
 enum Fn : int { BattleRandom, BattleRandomAccuracy, AiRandomBelow, AnimRandomRange, AnimRandomWarmup, kRandomFns,
-                AiSeed = kRandomFns, FragmentMap, BattleMusic, GuRandom, StartTurn, ResolveEnter, TimerExpired, MoveAnim, MoveAnimMid, ResolveExit };
+                AiSeed = kRandomFns, FragmentMap, BattleMusic, GuRandom, GameFrame, StartTurn, ResolveEnter, TimerExpired, MoveAnim, MoveAnimMid, ResolveExit };
 // names shared with the port's trace (src/port/xcheck.cpp)
 const char* const kRandomNames[kRandomFns] = { "Battle_Random", "Battle_RandomAccuracy", "BattleAI_RandomBelowInclusive",
                                                "BattleAnim_RandomRange", "BattleAnim_RandomIntWithWarmup" };
@@ -253,6 +255,7 @@ const Hooked kHooked[] = {
     { 0x84320108, StartTurn }, { 0x8437345C, ResolveEnter }, { 0x8430D124, TimerExpired },
     { 0x84302A78, MoveAnim },    // BattleScene_EnterRow3StartMoveAnim
     { 0x843033E0, MoveAnimMid }, // BattleScene_EnterRow19StartMoveAnimMidFrame
+    { 0x84300E88, GameFrame },   // BattleScene_UpdateFrame: once per battle game frame
 };
 
 bool gOn = false, gForce = false, gCom = false, gStop = false;
@@ -277,8 +280,9 @@ std::map<u32, u32> gCalls; // per stream: the logic functions one each, the anim
 u32 gBase = 0;                 // gFragments[51].vaddr the hooks were placed for
 std::map<u32, Fn> gAt;         // runtime address -> function
 u64 gFrame = 0;
+u64 gGameFrame = 0, gSavedGameFrame = ~0ull; // battle game frames so far; the last one captured
 std::string gAnimDir;
-int gAnimFrames = 600, gAnimLeft = 0, gAnimCount = 0;
+int gAnimFrames = 300, gAnimLeft = 0, gAnimCount = 0;
 std::string gAnimCur;
 u64 gAnimStart = 0;
 u32 gEvents = 0;
@@ -402,7 +406,8 @@ void event(const char* name) {
     if (gStop) return; // (the rest of the stopping frame)
     endCapture(); // a move animation is captured up to the next event
     if (!strcmp(name, "turn") && gStopTurns > 0 && gTurns++ >= gStopTurns) {
-        if (gOut) fprintf(gOut, "S turns=%d frame=%llu\n", gStopTurns, (unsigned long long)gFrame);
+        if (gOut) fprintf(gOut, "S turns=%d frame=%llu gf=%llu\n", gStopTurns, (unsigned long long)gFrame,
+                          (unsigned long long)gGameFrame);
         if (gOut) fflush(gOut);
         gStop = true;
         return;
@@ -410,7 +415,8 @@ void event(const char* name) {
     if (!gOut || !ap0 || !ap1 || !scene) return;
     // ActivePokemon.state (0x654): ActivePokemonState up to its Controller* (0xC8); BattleScene up to its CameraNode*;
     // the message queues' byte arrays (0x48..0x4C8)
-    fprintf(gOut, "E %u %s frame=%llu st0=%s st1=%s scene=%s dmg=%u mq=%s\n", gEvents++, name, (unsigned long long)gFrame,
+    fprintf(gOut, "E %u %s frame=%llu gf=%llu st0=%s st1=%s scene=%s dmg=%u mq=%s\n", gEvents++, name,
+            (unsigned long long)gFrame, (unsigned long long)gGameFrame,
             hexBytes(ap0 + 0x654, 0xC8).c_str(), hexBytes(ap1 + 0x654, 0xC8).c_str(), hexBytes(scene, 0xDC).c_str(),
             (unsigned)(rd32(rt(kBattleDamage)) >> 16), mq ? hexBytes(mq + 0x48, 0x480).c_str() : "");
     fflush(gOut);
@@ -445,8 +451,8 @@ bool hook(u32 address) {
         default: break;
         }
         if (gOut) {
-            fprintf(gOut, "R %s %u %d %u frame=%llu caller=%s\n", kRandomNames[fn], k, (int)a, out,
-                    (unsigned long long)gFrame, from.c_str());
+            fprintf(gOut, "R %s %u %d %u frame=%llu gf=%llu caller=%s\n", kRandomNames[fn], k, (int)a, out,
+                    (unsigned long long)gFrame, (unsigned long long)gGameFrame, from.c_str());
             fflush(gOut);
         }
         return returnWith((u64)(s64)(s32)out);
@@ -458,7 +464,7 @@ bool hook(u32 address) {
     case AiSeed: return gForce ? returnWith(0) : false;
     case BattleMusic: return returnWith(0); // (void) the battle music is not started
     case GuRandom:
-        if (gAnimLeft > 0 && gOut) fprintf(gOut, "G %llu %s\n", (unsigned long long)(gFrame - gAnimStart),
+        if (gAnimLeft > 0 && gOut) fprintf(gOut, "G %llu %s\n", (unsigned long long)(gGameFrame - gAnimStart),
                                            callerName((u32)cpu.ipu.r[31].u64).c_str());
         return false;
     case StartTurn: event("turn"); return false;
@@ -474,6 +480,7 @@ bool hook(u32 address) {
         return false;
     }
     case ResolveExit: event("resolved"); return false;
+    case GameFrame: gGameFrame++; return false;
     case TimerExpired: { // BattleScene_IsActionSelectionTimerExpired: "not yet", then "expired" (as the port)
         if (!gCom) return false;
         static bool asked = false;
@@ -489,8 +496,8 @@ bool hook(u32 address) {
         u32 ap = (u32)cpu.ipu.r[4].u64; // ActivePokemon* of the attacker
         u8 move = ap ? rd8(ap + 0x654 + 0x38 + 0x5A) : 0;
         if (gOut) {
-            fprintf(gOut, "A %d move=%u side=%d frame=%llu\n", gAnimCount, move, ap == rd32(rt(kActivePokemon)) ? 0 : 1,
-                    (unsigned long long)gFrame);
+            fprintf(gOut, "A %d move=%u side=%d frame=%llu gf=%llu\n", gAnimCount, move,
+                    ap == rd32(rt(kActivePokemon)) ? 0 : 1, (unsigned long long)gFrame, (unsigned long long)gGameFrame);
             fflush(gOut);
         }
         if (!gAnimDir.empty()) {
@@ -499,7 +506,8 @@ bool hook(u32 address) {
             gAnimCur = gAnimDir + name;
             mkdir(gAnimCur.c_str(), 0755);
             gAnimLeft = gAnimFrames;
-            gAnimStart = gFrame;
+            gAnimStart = gGameFrame;
+            gSavedGameFrame = ~0ull;
         }
         gAnimCount++;
         return false;
@@ -614,11 +622,12 @@ void frame(u64 n) {
     if (base != gBase) place(base);
 }
 
-// a frame of the current move animation, if one is being captured
+// the picture of the current move animation, once per game frame (the first VI frame that ends in a new one)
 void afterFrame() {
-    if (gAnimLeft <= 0) return;
+    if (gAnimLeft <= 0 || gGameFrame == gSavedGameFrame) return;
+    gSavedGameFrame = gGameFrame;
     char name[64];
-    snprintf(name, sizeof(name), "/f_%03llu.ppm", (unsigned long long)(gFrame - gAnimStart));
+    snprintf(name, sizeof(name), "/f_%03llu.ppm", (unsigned long long)(gGameFrame - gAnimStart));
     gAnimLeft--;
     // 160x120, box-averaged (as the port writes them)
     std::lock_guard<std::mutex> lock(gVideoMutex);

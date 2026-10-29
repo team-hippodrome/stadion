@@ -136,12 +136,12 @@ def parse_trace(path):
             recs.append({"t": "R", "fn": p[1], "k": int(p[2]), "arg": int(p[3]), "val": int(p[4]),
                          "frame": int(kv.get("frame", 0))})
         elif p[0] == "E":
-            recs.append({"t": "E", "n": int(p[1]), "name": p[2], "frame": int(kv["frame"]),
+            recs.append({"t": "E", "n": int(p[1]), "name": p[2], "frame": int(kv["frame"]), "gf": int(kv.get("gf", -1)),
                          "st": [bytes.fromhex(kv["st0"]), bytes.fromhex(kv["st1"])],
                          "scene": bytes.fromhex(kv["scene"]), "dmg": int(kv["dmg"]), "mq": bytes.fromhex(kv["mq"])})
         elif p[0] == "A":
             recs.append({"t": "A", "k": int(p[1]), "move": int(kv["move"]), "side": int(kv["side"]),
-                         "frame": int(kv["frame"])})
+                         "frame": int(kv["frame"]), "gf": int(kv.get("gf", -1))})
     return recs
 
 

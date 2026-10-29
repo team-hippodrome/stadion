@@ -20,9 +20,12 @@
 //                                 second query of each decision, so the game picks its first usable move and its first
 //                                 healthy replacement (BattleScene_IsActionSelectionTimerExpired); the opponent is the
 //                                 computer as usual
-//   PORT_XCHECK_ANIM=<dir>        the frames of each move animation, from its start to the next battle event, as
-//                                 <dir>/m<k>_<move>/f_<n>.ppm (n: game frames since the start; at most
-//                                 PORT_XCHECK_ANIM_FRAMES, default 600); every frame is drawn while capturing
+//   PORT_XCHECK_ANIM=<dir>        the frames of each move animation, from its start to the next battle event, one per
+//                                 game frame, as <dir>/m<k>_<move>/f_<n>.ppm (n: battle game frames since the start; at
+//                                 most PORT_XCHECK_ANIM_FRAMES game frames, default 300); every frame is drawn meanwhile
+// Every trace line carries gf=<n>: battle game frames (BattleScene_UpdateFrame calls). The N64 slows down when busy
+// (2-3 VI frames per game frame in particle-heavy effects) while the port always takes 2, so durations and frame pairs
+// are compared in game frames.
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -68,7 +71,8 @@ struct State {
     std::map<uint32_t, uint32_t> calls; // per stream (see StreamKey)
     unsigned events = 0;
     std::string animDir, animCur;
-    int animFrames = 600, animCount = 0;
+    int animFrames = 300, animCount = 0;
+    unsigned long long gameFrame = 0;               // battle game frames so far
     unsigned long long animStart = 0, animLast = 0; // game frame of the animation's start, of the last saved frame
     bool animOn = false;
 } g;
@@ -212,7 +216,8 @@ int Port_XcheckRandom(int fn, int arg, int* out, void* caller) {
         case 4: r = arg <= 0 ? 0 : v % (uint32_t)arg; break;                    // 0..arg-1
     }
     if (g.out) {
-        fprintf(g.out, "R %s %u %d %u frame=%llu caller=%s\n", kRandomNames[fn], k, arg, r, Port_ViTick(), from);
+        fprintf(g.out, "R %s %u %d %u frame=%llu gf=%llu caller=%s\n", kRandomNames[fn], k, arg, r, Port_ViTick(),
+                g.gameFrame, from);
         fflush(g.out);
     }
     *out = (int)r;
@@ -254,13 +259,14 @@ void Port_XcheckWriteEvent(const char* name, const void* state0, const void* sta
     Init();
     EndCapture(); // a move animation is captured up to the next event
     if (strcmp(name, "turn") == 0 && g.stopTurns > 0 && g.turns++ >= g.stopTurns) {
-        if (g.out) fprintf(g.out, "S turns=%d frame=%llu\n", g.stopTurns, Port_ViTick());
+        if (g.out) fprintf(g.out, "S turns=%d frame=%llu gf=%llu\n", g.stopTurns, Port_ViTick(), g.gameFrame);
         if (g.out) fflush(g.out);
         fprintf(stderr, "[xcheck] %d turns done, stopping at frame %llu\n", g.stopTurns, Port_ViTick());
         _exit(0);
     }
     if (!g.out) return;
-    fprintf(g.out, "E %u %s frame=%llu st0=%s st1=%s scene=%s dmg=%u mq=%s\n", g.events++, name, Port_ViTick(),
+    fprintf(g.out, "E %u %s frame=%llu gf=%llu st0=%s st1=%s scene=%s dmg=%u mq=%s\n", g.events++, name, Port_ViTick(),
+            g.gameFrame,
             Hex(state0, 0xC8).c_str(), Hex(state1, 0xC8).c_str(), Hex(scene, 0xDC).c_str(), damage,
             messageQueues ? Hex(messageQueues, 0x480).c_str() : "");
     fflush(g.out);
@@ -270,7 +276,7 @@ void Port_XcheckWriteEvent(const char* name, const void* state0, const void* sta
 void Port_XcheckMoveAnim(int side, int move) {
     Init();
     if (g.out) {
-        fprintf(g.out, "A %d move=%d side=%d frame=%llu\n", g.animCount, move, side, Port_ViTick());
+        fprintf(g.out, "A %d move=%d side=%d frame=%llu gf=%llu\n", g.animCount, move, side, Port_ViTick(), g.gameFrame);
         fflush(g.out);
     }
     // guRandom (MathUtil_Random16: the effects' particles) from the same state on both sides, as the ares driver does
@@ -286,7 +292,7 @@ void Port_XcheckMoveAnim(int side, int move) {
         g.animCur = g.animDir + name;
         mkdir(g.animDir.c_str(), 0755);
         mkdir(g.animCur.c_str(), 0755);
-        g.animStart = Port_ViTick();
+        g.animStart = g.gameFrame;
         g.animLast = ~0ull;
         g.animOn = true;
     }
@@ -303,7 +309,7 @@ int Port_XcheckAnimActive(void) {
 int gPortXcheckTraceGuRandom = 0;
 
 void Port_XcheckGuRandomCalled(void* caller) {
-    if (g.animOn && g.out) fprintf(g.out, "G %llu %s\n", Port_ViTick() - g.animStart, CallerName(caller));
+    if (g.animOn && g.out) fprintf(g.out, "G %llu %s\n", g.gameFrame - g.animStart, CallerName(caller));
 }
 
 // os_devices.cpp: draw this frame even when running fast (an animation is being captured)
@@ -311,12 +317,17 @@ int Port_XcheckWantDraw(void) {
     return g.animOn;
 }
 
-// Engine.cpp, once per presented frame: where to write this frame (null: not captured); named by game frame since the
-// animation started (as the ares driver's), once per game frame
+// battle_engine_main.c: BattleScene_UpdateFrame runs (once per battle game frame)
+void Port_XcheckGameFrame(void) {
+    g.gameFrame++;
+}
+
+// Engine.cpp, once per presented frame: where to write this frame (null: not captured); the first presented frame of
+// each game frame, named by game frames since the animation started (as the ares driver's)
 const char* Port_XcheckFramePath(void) {
     static std::string path;
     if (!g.animOn) return nullptr;
-    unsigned long long now = Port_ViTick(), n = now - g.animStart;
+    unsigned long long now = g.gameFrame, n = now - g.animStart;
     if (n >= (unsigned long long)g.animFrames) {
         EndCapture();
         return nullptr;
