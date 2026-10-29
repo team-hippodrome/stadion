@@ -687,8 +687,22 @@ std::condition_variable gTaskQueuedCv; // the window loop waits on it (Port::Wai
 std::deque<OSTask*> gTasks;
 OSTask* gLoaded = nullptr;
 
+#if defined(__EMSCRIPTEN__)
+// Web build: the window loop runs once per animation frame (main.cpp), and the thread that submits a task waits for it,
+// so every task the window thread ran cost up to a frame of waiting (the lockstep clock waits too). Only display lists
+// need the window thread (WebGL); the tasks the host emulates on the CPU (audio, JPEG) run on a thread of their own.
+// The game has at most one task in flight, so their order stays as it was.
+std::deque<OSTask*> gCpuTasks;
+std::condition_variable gCpuTaskCv;
+#endif
+
 bool TasksDrained() {
     std::lock_guard<std::mutex> g(gTaskLock);
+#if defined(__EMSCRIPTEN__)
+    if (!gCpuTasks.empty()) {
+        return false;
+    }
+#endif
     return gTasks.empty() && gTasksProcessed == gTasksSubmitted;
 }
 
@@ -968,6 +982,39 @@ void port_osCreateViManager(OSPri) {
 
 // ---- RSP / RDP tasks --------------------------------------------------------------------------------
 
+extern "C" void Port_RunJpegTask(void* data);
+extern "C" void Port_RunAudioTask(const void* data, uint32_t size);
+
+#if defined(__EMSCRIPTEN__)
+// Runs the CPU-emulated tasks (gCpuTasks), as Port::PumpRspTasks does on the other platforms.
+static void Port_CpuTaskThread() {
+    for (;;) {
+        OSTask* t;
+        {
+            std::unique_lock<std::mutex> g(gTaskLock);
+            gCpuTaskCv.wait(g, [] { return !gCpuTasks.empty() || gStop; });
+            if (gStop) {
+                return;
+            }
+            t = gCpuTasks.front();
+        }
+        if (t->t.type == 4) { // M_NJPEGTASK
+            Port_RunJpegTask(t->t.data_ptr);
+        }
+        if (t->t.type == M_AUDTASK) {
+            Port_RunAudioTask(t->t.data_ptr, (uint32_t)t->t.data_size);
+        }
+        port_PostEvent(OS_EVENT_SP);
+        {
+            std::lock_guard<std::mutex> g(gTaskLock);
+            gCpuTasks.pop_front(); // (only now: TasksDrained must not see the task gone before its completion)
+            gTasksProcessed++;
+        }
+        gTaskDoneCv.notify_all();
+    }
+}
+#endif
+
 extern "C" {
 
 void osSpTaskLoad(OSTask* t) { gLoaded = t; }
@@ -977,6 +1024,14 @@ void osSpTaskStartGo(OSTask* t) {
     static const bool asyncTasks = getenv("PORT_ASYNC_TASKS") != nullptr;
     if (trace) fprintf(stderr, "[sp] task type=%u flags=0x%x data=%p\n", (t ? t : gLoaded)->t.type, (t ? t : gLoaded)->t.flags, (void*)(t ? t : gLoaded)->t.data_ptr);
     std::unique_lock<std::mutex> g(gTaskLock);
+#if defined(__EMSCRIPTEN__)
+    if ((t ? t : gLoaded)->t.type != M_GFXTASK) {
+        static std::once_flag started;
+        std::call_once(started, [] { std::thread(Port_CpuTaskThread).detach(); });
+        gCpuTasks.push_back(t ? t : gLoaded);
+        gCpuTaskCv.notify_one();
+    } else
+#endif
     gTasks.push_back(t ? t : gLoaded);
     uint64_t mine = ++gTasksSubmitted;
     gTaskQueuedCv.notify_one();
@@ -997,8 +1052,6 @@ void osSpTaskYield(void) {}
 
 } // extern "C"
 
-extern "C" void Port_RunJpegTask(void* data);
-extern "C" void Port_RunAudioTask(const void* data, uint32_t size);
 extern "C" void Port_RequestCapture(uint64_t frame);
 
 // PORT_STOP_AT / PORT_SHOT_AT=f1,f2,...: whether the frame drawn now is to be saved (and the run ended at the stop frame)

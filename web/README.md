@@ -31,6 +31,9 @@ The build runs at low priority with 4 jobs (`PORT_WEB_JOBS`).
   them at startup.
 - The decompiled code calls functions through pointer types that differ from the functions (fragment entries,
   callbacks). WebAssembly traps on such calls, so the build uses `-sEMULATE_FUNCTION_POINTER_CASTS`.
-- Function pointers are small numbers (table indices), so `Util_ConvertAddrToVirtAddr` lets numbers below the function
-  table's size through (`Port_IsHostFunction`).
+- Function pointers are small numbers (table indices), so `Util_ConvertAddrToVirtAddr` and `Port_ResolveCode` (geo
+  layout callbacks) let numbers below the function table's size through (`Port_IsHostFunction`).
+- Audio and JPEG tasks run on a thread of their own (`os_devices.cpp`): the submitting game thread waits for every task,
+  and the window thread only runs once per animation frame. Display lists stay on the window thread (WebGL).
+- Debugging: `cmake build_web -DPORT_WEB_EXTRA_LINK="-sASSERTIONS=1 -sSAFE_HEAP=1"` checks every memory access.
 - The canvas fills the page at one pixel per CSS pixel (no HiDPI back buffer).

@@ -252,11 +252,12 @@ if(EMSCRIPTEN)
     -sPTHREAD_POOL_SIZE=32 -sSTACK_SIZE=4MB -sDEFAULT_PTHREAD_STACK_SIZE=2MB
     # the page (web/) loads the ROM and the saves before it starts the game (callMain)
     -sINVOKE_RUN=0 -sEXIT_RUNTIME=0 -sFORCE_FILESYSTEM=1 -lidbfs.js
-    "-sEXPORTED_RUNTIME_METHODS=callMain,ccall,FS,IDBFS" "-sEXPORTED_FUNCTIONS=_main,_setenv"
+    "-sEXPORTED_RUNTIME_METHODS=callMain,ccall,FS,IDBFS" "-sEXPORTED_FUNCTIONS=_main,_setenv,_Port_ViTick"
     # the decompiled code calls functions through pointer types that differ from their definitions (fragment entries,
     # callbacks): harmless on the N64 and on native hosts, a trap in WebAssembly unless the calls are made tolerant
     -sEMULATE_FUNCTION_POINTER_CASTS=1 "-sBINARYEN_EXTRA_PASSES=--pass-arg=max-func-params@64"
-    -sENVIRONMENT=web,worker -sASSERTIONS=1
+    # PORT_WEB_EXTRA_LINK: link flags for debugging, e.g. "-sASSERTIONS=1 -sSAFE_HEAP=1" (checks every memory access)
+    -sENVIRONMENT=web,worker ${PORT_WEB_EXTRA_LINK}
     --profiling-funcs) # function names in the browser's stack traces
 endif()
 

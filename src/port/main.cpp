@@ -230,8 +230,9 @@ static bool RomIsOriginal(const std::string& path) {
 
 #if defined(__EMSCRIPTEN__)
 // Web build: the browser's main thread must return to its event loop for the canvas to show a frame, so the window loop
-// below runs one pass per animation frame (requestAnimationFrame): events, then RSP tasks until a frame was drawn or
-// the time for this pass is up. The game threads (Web Workers) run on meanwhile.
+// below runs one pass per animation frame (requestAnimationFrame): events, then display lists until a frame was drawn
+// or the time for this pass is up. The game threads (Web Workers) run on meanwhile, and so do the audio and JPEG tasks
+// (os_devices.cpp).
 static void WebLoopPass() {
     if (!Port::PumpFrame()) {
         Port::StopDevices();
@@ -248,7 +249,8 @@ static void WebLoopPass() {
             break;
         }
         Port::WaitForRspTasks(std::chrono::milliseconds(1));
-    } while (std::chrono::steady_clock::now() - start < std::chrono::milliseconds(12));
+        // (not much longer: the browser's main thread spins while it waits, and the frame must reach the screen in time)
+    } while (std::chrono::steady_clock::now() - start < std::chrono::milliseconds(6));
 }
 
 // The absolute symbols of the web build (tools/gen_wasm_abs_syms.py) only come out right when their object is placed
