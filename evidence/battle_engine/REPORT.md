@@ -148,6 +148,10 @@ Fourth round (save variants, whole game instrumented): see `evidence/gb_variants
 variants and two cartridges over six routes reach 2990 functions, 1877 of them only with a cartridge; each variant's
 own code is listed to the line; two port crashes found (Lab PC Items, Pokédex AREA).
 
+Fifth round (whole game): see `evidence/whole_game/README.md`: 217 runs reach 4919 of 7483 functions (65.7%);
+what is left is classified (581 referenced by nothing, 712 below unreached code, 1253 behind 666 gates by class),
+with the levers that reach each kind.
+
 ## Records (26)
 
 Verdicts: confirmed 18, unclear 7 (5 unnamed functions whose behaviour is now established, with a proposed name;

@@ -3,7 +3,9 @@
 branch condition that was never true at each frontier call, what controls it, and how much code it unlocks.
 
 Usage:
-  tools/evidence/frontier.py <callgraph.json> <binary> <out dir> <run dir>... [--build DIR]
+  tools/evidence/frontier.py <callgraph.json> <binary> <out dir> <run dir>... [--build DIR] [--files REGEX]
+--files: which functions count (regex on their source path; default "fragments/", the battle-engine call graph's
+files; "src/" for the whole game with a whole-game call graph and build).
 
 With --build (the instrumented build directory, for its compile_commands.json) it also proposes a memory setting
 for each gate whose condition is a plain test of a global or of a field behind a global pointer
@@ -26,6 +28,7 @@ Needs the runs' coverage.profraw (build with PORT_EVID_COVERAGE, cmake/evidence.
 import collections, json, os, re, subprocess, sys
 
 CLASSES = [
+    ("hardware (64DD, Controller Pak, Rumble Pak)", r"Leo[A-Z]|LeoDrive|osPfs|osMotor|Rumble|ControllerPak"),
     ("random", r"Random|D_843C4DA2"),
     ("rules mode (constant: dead code in the shipped game)", r"D_8438AC60\[0\]"),
     ("battle state (moves, status, HP, flags)", r"gBattleUser|gBattleTarget|sActivePokemon|usedMove|moveCache|"
@@ -34,6 +37,8 @@ CLASSES = [
     ("input", r"[Cc]ont|[Bb]utton|[Pp]ad|Input|stick|BTN_"),
     ("AI decision", r"BattleAI|D_843C5564|D_843C60A[0-9A-F]"),
     ("battle scene / presentation state", r"sBattleScene|BattleScene|unk_00->|Camera|[Aa]nim"),
+    ("menu or flow step (a switch on a selection or state)", r"^switch \("),
+    ("result of a call (a confirmation, a load, a check)", r"^\(*!?\w+\(.*\)\s*(==|!=)?\s*\w*\)*$"),
 ]
 
 
@@ -140,6 +145,11 @@ def main():
         i = args.index("--build")
         build = args[i + 1]
         del args[i:i + 2]
+    files_rx = "fragments/"
+    if "--files" in args:
+        i = args.index("--files")
+        files_rx = args[i + 1]
+        del args[i:i + 2]
     cg_path, binary, out, runs = args[0], args[1], args[2], args[3:]
     os.makedirs(out, exist_ok=True)
     raws = [os.path.join(r, "coverage.profraw") for r in runs if os.path.exists(os.path.join(r, "coverage.profraw"))]
@@ -158,7 +168,7 @@ def main():
         name = fn["name"].split(":")[-1]
         cov[name] = {"count": fn["count"], "file": fn["filenames"][0], "regions": fn["regions"],
                      "branches": fn.get("branches", [])}
-    internal = {n for n in F if not F[n]["external"] and "fragments/" in F[n]["file"]
+    internal = {n for n in F if not F[n]["external"] and re.search(files_rx, F[n]["file"])
                 and not n.startswith(("Port_", "PortRegister"))}
     reached = {n for n in internal if cov.get(n, {}).get("count", 0) > 0}
     callees = collections.defaultdict(list)
@@ -184,7 +194,7 @@ def main():
         best = None
         for r in c["regions"]:
             l0, c0, l1, c1, n = r[:5]
-            if r[7] != 0 or not (l0 <= line <= l1):  # kind 0: code region
+            if r[7] != 0 or r[5] != 0 or not (l0 <= line <= l1):  # kind 0: code region, in the function's file
                 continue
             size = (l1 - l0) * 1000 + (c1 - c0)
             if best is None or size < best[0]:
@@ -196,7 +206,7 @@ def main():
         cand = None
         for b in c["branches"]:
             l0, c0, l1, c1, t, f = b[:6]
-            if l0 > line or (t and f):
+            if l0 > line or (t and f) or b[6] != 0:
                 continue
             if cand is None or (l0, c0) > (cand[0], cand[1]):
                 cand = b
@@ -223,8 +233,9 @@ def main():
             g = {"caller": c, "callee": callee, "kind": kind, "via": via, "call_line": None, "condition": None}
             if kind == "call":
                 body = src(cc["file"])
-                start = min(r[0] for r in cc["regions"])
-                end = max(r[2] for r in cc["regions"])
+                own = [r for r in cc["regions"] if r[5] == 0] or cc["regions"]  # (fileID 0: the function's file)
+                start = min(r[0] for r in own)
+                end = min(max(r[2] for r in own), len(body))
                 for ln in range(start, end + 1):
                     if re.search(r"\b%s\s*\(" % re.escape(callee), body[ln - 1]):
                         n = line_count(cc, ln)
@@ -264,7 +275,7 @@ def main():
     # coverage totals (instrumented battle-engine files)
     tot = {"lines": [0, 0], "branches": [0, 0], "regions": [0, 0]}
     for f in data["files"]:
-        if "fragments/" not in f["filename"]:
+        if not re.search(files_rx, f["filename"]):
             continue
         for k in tot:
             tot[k][0] += f["summary"][k]["covered"]
@@ -276,12 +287,26 @@ def main():
     json.dump({"totals": tot, "reached": len(reached), "functions": len(internal), "gates": gates,
                "no_gate": no_gate}, open(os.path.join(out, "frontier.json"), "w"), indent=1)
 
-    md = ["# Battle engine: what keeps code unreached", "",
+    md = ["# What keeps code unreached (%s)" % files_rx, "",
           "Runs: %s." % ", ".join(os.path.basename(r.rstrip("/")) for r in runs), "",
           "| | covered | total | % |", "|---|---|---|---|",
           "| functions | %d | %d | %.1f |" % (len(reached), len(internal), 100.0 * len(reached) / len(internal))]
     for k, (a, b) in tot.items():
         md.append("| %s | %d | %d | %.1f |" % (k, a, b, 100.0 * a / max(1, b)))
+    # per area: the fragment, or the main-code file
+    def area_of(n):
+        f = F[n]["file"]
+        m = re.search(r"fragments/([^/]+)/", f)
+        return m.group(1) if m else os.path.basename(f)
+    areas = collections.defaultdict(lambda: [0, 0, 0])
+    for n in internal:
+        a = areas[area_of(n)]
+        a[0] += 1
+        a[1] += n in reached
+        a[2] += n.startswith("func_")
+    md += ["", "## Per area", "", "| area | functions | reached | % | func_ |", "|---|---|---|---|---|"]
+    for a, (tot_, r, fu) in sorted(areas.items(), key=lambda kv: (kv[1][1] / kv[1][0], -kv[1][0])):
+        md.append("| %s | %d | %d | %.0f | %d |" % (a, tot_, r, 100.0 * r / tot_, fu))
     md += ["", "%d gates (a reached caller, an unreached callee); %d unreached functions are behind them, %d have no "
            "reached caller anywhere above them (entry points or callbacks that nothing in these runs registered)." % (
                len(gates), len(behind), len(no_gate)), "",

@@ -429,12 +429,13 @@ void NOINST __cyg_profile_func_enter(void* this_fn, void* call_site) {
     }
     if (sInjectAt && fn == sInjectAt) Inject();
     if (sSetN) ApplySets(fn);
-    if (sCallN) DoCalls(fn);
     if (frame >= sLastDump + sDumpEvery) { // (runs end with _exit: the last PORT_EVID_DUMP_EVERY frames are lost)
         sLastDump = frame;
         Dump();
     }
     tBusy = 0;
+    // direct calls after the busy flag is down, so the called code is recorded like any other
+    if (sCallN) DoCalls(fn);
 }
 
 void NOINST __cyg_profile_func_exit(void* this_fn, void* call_site) {

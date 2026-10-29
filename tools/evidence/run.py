@@ -7,7 +7,7 @@ Usage:
                         [--watch Name1,Name2] [--seq-max N] [--ares] [--moves m1,m2,m3,m4[:p1,p2,p3,p4]]
                         [--set "Fn[#n]:sym[*][+off]...:size=value;..."]
                         [--call "AtFn[#n]:Target:ret:args;..." [--call-buf HEX]]
-                        [--gb ROM:SAVE] [--gb2 ROM:SAVE] [--rec RECORDING [--flash STADIUM.flash]] [--dump-every N]
+                        [--gb ROM:SAVE] [--gb2 ROM:SAVE] [--rec RECORDING [--flash STADIUM.flash] [--natural]] [--dump-every N]
 --gb puts a Game Boy cartridge in the Transfer Pak (a copy of SAVE; tools/evidence/gb_party.py writes any party into
 a save); --rec replaces the battle_xcheck route with another input recording (from boot), e.g. a Free Battle with a
 Game Pak party.
@@ -169,7 +169,8 @@ def main():
         cmd.append("--port-only")
     json.dump({"seed": opt("--seed", "1"), "queue": open(opt("--queue")).read().split("\n") if opt("--queue") else [],
                "moves": opt("--moves"), "set": opt("--set"), "frames": opt("--frames", "20000"), "ares": "--ares" in args,
-               "gb": opt("--gb"), "gb2": opt("--gb2"), "rec": opt("--rec"),
+               "gb": opt("--gb"), "gb2": opt("--gb2"), "rec": opt("--rec"), "flash": opt("--flash"),
+               "natural": "--natural" in args, "call": opt("--call"), "call_buf": opt("--call-buf"),
                "setup": ("own recording " + os.path.basename(opt("--rec"))) if opt("--rec") else
                "tools/battle_xcheck.py route(): Poke Cup round 1, Charmander/Venusaur/Ivysaur vs the Biker"},
               open(os.path.join(out, "scenario.json"), "w"), indent=1)
@@ -195,6 +196,9 @@ def main():
         env.update(PORT_REPLAY=os.path.abspath(opt("--rec")), PORT_STOP_AT=opt("--frames", "20000"), PORT_SPEED="max",
                    PORT_FLASH_FILE=os.path.join(out, "port.flash"), PORT_XCHECK=os.path.join(out, "port.trace"),
                    PORT_XCHECK_RNG=seed, PORT_XCHECK_COM="1", PORT_HEADLESS="1")
+        if "--natural" in args:  # a recording made with the game's own randomness and input: no forcing
+            for k in ("PORT_XCHECK_RNG", "PORT_XCHECK_COM"):
+                env.pop(k, None)
         with open(os.path.join(out, "port.log"), "w") as log:
             subprocess.run([binary, bx.ROM], cwd=os.path.dirname(binary), env=env, stdout=log, stderr=subprocess.STDOUT,
                            preexec_fn=bx.low_priority)
