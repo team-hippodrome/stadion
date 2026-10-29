@@ -1,7 +1,7 @@
 // Function-evidence instrumentation (tools/evidence/, cmake/evidence.cmake): only in builds configured with
 // -DCMAKE_PROJECT_INCLUDE=cmake/evidence.cmake, which compile the battle engine with -finstrument-functions and add
 // this file. Off unless PORT_EVID=<file> is set:
-//   PORT_EVID=<file>          aggregate call data, rewritten every 300 frames and at exit:
+//   PORT_EVID=<file>          aggregate call data, rewritten every PORT_EVID_DUMP_EVERY frames (300) and at exit:
 //                             "F <fn> <parent> <site> <count> <first frame> <ctx>"   per (function, instrumented
 //                                 caller on the shadow stack or 0, call site: the return address, which may be in
 //                                 code outside the instrumented files; for a function the compiler inlined, the
@@ -50,7 +50,7 @@ static NOINST void Hex(FILE* f, const char* key, const void* p, size_t n);
 
 uint64_t Port_ViTick(void);
 
-enum { kPathDepth = 10, kStackMax = 512, kSiteSlots = 1 << 15, kPathSlots = 1 << 16, kWatchMax = 64 };
+enum { kPathDepth = 10, kStackMax = 512, kSiteSlots = 1 << 18, kPathSlots = 1 << 18, kProbe = 512, kWatchMax = 64 };
 
 typedef struct {
     uintptr_t fn, parent, site;
@@ -71,7 +71,7 @@ static uintptr_t sBase;
 static SiteRec* sSites;
 static PathRec* sPaths;
 static int sSeqMax = 40;
-static uint64_t sLastDump, sCalls;
+static uint64_t sLastDump, sCalls, sDumpEvery = 300;
 static uintptr_t sWatch[kWatchMax];
 static int sWatchN;
 static uintptr_t sInjectAt;
@@ -228,6 +228,7 @@ static NOINST void Init(void) {
     sPaths = calloc(kPathSlots, sizeof(PathRec));
     if (getenv("PORT_EVID_SEQ")) sSeq = fopen(getenv("PORT_EVID_SEQ"), "w");
     if (getenv("PORT_EVID_SEQ_MAX")) sSeqMax = atoi(getenv("PORT_EVID_SEQ_MAX"));
+    if (getenv("PORT_EVID_DUMP_EVERY")) sDumpEvery = strtoull(getenv("PORT_EVID_DUMP_EVERY"), NULL, 0);
     if (getenv("PORT_EVID_WATCH")) {
         const char* p = getenv("PORT_EVID_WATCH");
         while (*p && sWatchN < kWatchMax) {
@@ -380,7 +381,7 @@ void NOINST __cyg_profile_func_enter(void* this_fn, void* call_site) {
 
     // per (function, instrumented caller, call site)
     uint64_t h = Mix(Mix(Mix(0, fn), parent), site);
-    for (uint32_t i = (uint32_t)h & (kSiteSlots - 1), k = 0; k < kSiteSlots; k++, i = (i + 1) & (kSiteSlots - 1)) {
+    for (uint32_t i = (uint32_t)h & (kSiteSlots - 1), k = 0; k < kProbe; k++, i = (i + 1) & (kSiteSlots - 1)) {
         SiteRec* s = &sSites[i];
         if (s->count == 0) {
             s->fn = fn;
@@ -401,7 +402,7 @@ void NOINST __cyg_profile_func_enter(void* this_fn, void* call_site) {
     uint64_t ph = 0;
     for (int k = 0; k < n && top - k >= 0; k++) ph = Mix(ph, tStack[top - k]);
     ph |= 1;
-    for (uint32_t i = (uint32_t)ph & (kPathSlots - 1), k = 0; k < kPathSlots; k++, i = (i + 1) & (kPathSlots - 1)) {
+    for (uint32_t i = (uint32_t)ph & (kPathSlots - 1), k = 0; k < kProbe; k++, i = (i + 1) & (kPathSlots - 1)) {
         PathRec* p = &sPaths[i];
         if (p->count == 0) {
             p->hash = ph;
@@ -429,7 +430,7 @@ void NOINST __cyg_profile_func_enter(void* this_fn, void* call_site) {
     if (sInjectAt && fn == sInjectAt) Inject();
     if (sSetN) ApplySets(fn);
     if (sCallN) DoCalls(fn);
-    if (frame >= sLastDump + 300) { // (runs end with _exit: the last 300 frames at most are lost)
+    if (frame >= sLastDump + sDumpEvery) { // (runs end with _exit: the last PORT_EVID_DUMP_EVERY frames are lost)
         sLastDump = frame;
         Dump();
     }

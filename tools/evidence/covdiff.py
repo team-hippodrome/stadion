@@ -24,7 +24,7 @@ def covered(binary, runs):
     lines, fns, cur = collections.defaultdict(set), set(), None
     for l in lcov.splitlines():
         if l.startswith("SF:"):
-            cur = l[3:] if "fragments/" in l else None
+            cur = l[3:] if "/game/src/" in l else None
         elif cur and l.startswith("DA:"):
             n, c = l[3:].split(",")[:2]
             if int(c) > 0:

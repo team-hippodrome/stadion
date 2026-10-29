@@ -144,6 +144,10 @@ are save contents: the next save mutations to generate are box contents (full / 
 checksums (corrupt-save paths), the game (Red/Blue/Yellow: `GbSave_GetPortGame`), two cartridges (Trade Machine:
 `PORT_GB_ROM2`). Same tools: a mutation in `gb_party.py`'s style, a route, `covdiff.py`.
 
+Fourth round (save variants, whole game instrumented): see `evidence/gb_variants/README.md`: 14 generated
+variants and two cartridges over six routes reach 2990 functions, 1877 of them only with a cartridge; each variant's
+own code is listed to the line; two port crashes found (Lab PC Items, Pokédex AREA).
+
 ## Records (26)
 
 Verdicts: confirmed 18, unclear 7 (5 unnamed functions whose behaviour is now established, with a proposed name;
