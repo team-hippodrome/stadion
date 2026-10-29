@@ -45,7 +45,7 @@ def ir_for(entry, tmpdir):
         if a in ("-o", "-c"):
             skip = a == "-o"
             continue
-        if a.startswith("-O") or a.startswith("-finstrument") or a == "-fno-optimize-sibling-calls":
+        if a.startswith(("-O", "-finstrument", "-fprofile-instr", "-fcoverage")) or a == "-fno-optimize-sibling-calls":
             continue
         args.append(a)
     args = args[:-1] + ["-O0", "-Xclang", "-disable-O0-optnone", "-S", "-emit-llvm", "-o", out, args[-1]]
@@ -177,6 +177,8 @@ def main():
             defined[name] = f
         # resolve tables through nested globals (struct arrays point at other globals rarely; one level is enough)
         for g, refs in globals_.items():
+            if g.startswith(("llvm.", "__llvm", "__prof")):
+                continue
             fns = set(r for r in refs if r in allfuncs)
             for r in refs:
                 if r in globals_ and r not in allfuncs:

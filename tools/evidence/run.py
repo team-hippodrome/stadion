@@ -5,6 +5,10 @@ call data to function names.
 Usage:
   tools/evidence/run.py <out dir> --bin build-evidence/pokestadium [--seed N] [--queue FILE] [--frames N]
                         [--watch Name1,Name2] [--seq-max N] [--ares] [--moves m1,m2,m3,m4[:p1,p2,p3,p4]]
+                        [--set "Fn[#n]:sym[*][+off]...:size=value;..."]
+                        [--call "AtFn[#n]:Target:ret:args;..." [--call-buf HEX]]
+--set forces a condition in memory at entry of Fn (src/port/evidence/evidence_rt.c PORT_EVID_SET), symbols by name.
+coverage.profraw: branch/line counters (llvm-cov; tools/evidence/frontier.py).
 
 The battle is tools/battle_xcheck.py's (Poke Cup round 1, the same rentals, the player's moves picked by the
 game's time-limit fallback; every battle random value forced from the seed, after the values queued in FILE:
@@ -46,6 +50,37 @@ class Resolver:
         """the function containing offset off"""
         i = bisect.bisect_right(self.addrs, off) - 1
         return self.syms[i][1] if i >= 0 else "?"
+
+
+def data_symbols(binary):
+    out = subprocess.run(["nm", binary], capture_output=True, text=True, check=True).stdout
+    syms = {}
+    for line in out.splitlines():
+        p = line.split()
+        if len(p) == 3 and p[1] in "dDbBsS":
+            syms[p[2][1:] if p[2].startswith("_") else p[2]] = int(p[0], 16) - BASE
+    return syms
+
+
+DATA = {}
+
+
+def translate_set(spec, res):
+    """"Fn[#n]:sym*+0x5A:1=68" -> "<fn off>[#n]:<sym off>*+0x5A:1=68" """
+    import re
+    fn, addr, rest = spec.split(":", 2)
+    nth = ""
+    if "#" in fn:
+        fn, nth = fn.split("#")
+        nth = "#" + nth
+    m = re.match(r"([A-Za-z_]\w*)(.*)$", addr)
+    sym, steps = m.group(1), m.group(2)
+    off = DATA.get(sym, res.by_name.get(sym))
+    if off is None:
+        sys.exit("unknown symbol %s" % sym)
+    if fn not in res.by_name:
+        sys.exit("unknown function %s" % fn)
+    return "0x%x%s:0x%x%s:%s" % (res.by_name[fn], nth, off, steps, rest)
 
 
 def parse(out, res):
@@ -91,6 +126,7 @@ def main():
     binary = os.path.abspath(opt("--bin", os.path.join(ROOT, "build-evidence", "pokestadium")))
     os.makedirs(out, exist_ok=True)
     res = Resolver(symbols(binary))
+    DATA.update(data_symbols(binary))
     env = dict(os.environ, PORT_EVID=os.path.join(out, "calls.txt"), PORT_EVID_SEQ=os.path.join(out, "seq.txt"),
                PORT_EVID_SEQ_MAX=opt("--seq-max", "40"))
     if opt("--watch"):
@@ -103,6 +139,21 @@ def main():
     if opt("--moves"):  # port-only: the player's active Pokemon gets these moves (src/port/evidence/evidence_rt.c)
         env["PORT_EVID_MOVES"] = opt("--moves")
         env["PORT_EVID_INJECT_AT"] = "0x%x" % res.by_name[opt("--inject-at", "BattleScene_HandlePlayerActionInput")]
+    if opt("--set"):
+        env["PORT_EVID_SET"] = ";".join(translate_set(x, res) for x in opt("--set").split(";") if x)
+    if opt("--call"):  # direct calls (evidence_rt.c PORT_EVID_CALL): "AtFn#1:Target:i:p0,i20,i2"
+        specs = []
+        for x in opt("--call").split(";"):
+            at, target, rest = x.split(":", 2)
+            nth = ""
+            if "#" in at:
+                at, nth = at.split("#")
+                nth = "#" + nth
+            specs.append("0x%x%s:0x%x:%s" % (res.by_name[at], nth, res.by_name[target], rest))
+        env["PORT_EVID_CALL"] = ";".join(specs)
+        if opt("--call-buf"):
+            env["PORT_EVID_CALL_BUF"] = opt("--call-buf")
+    env["LLVM_PROFILE_FILE"] = os.path.join(out, "coverage.profraw")
     seed = opt("--seed", "1")
     if opt("--queue"):
         seed += ":" + os.path.abspath(opt("--queue"))
@@ -111,7 +162,7 @@ def main():
     if "--ares" not in args:
         cmd.append("--port-only")
     json.dump({"seed": opt("--seed", "1"), "queue": open(opt("--queue")).read().split("\n") if opt("--queue") else [],
-               "moves": opt("--moves"), "frames": opt("--frames", "20000"), "ares": "--ares" in args,
+               "moves": opt("--moves"), "set": opt("--set"), "frames": opt("--frames", "20000"), "ares": "--ares" in args,
                "setup": "tools/battle_xcheck.py route(): Poke Cup round 1, Charmander/Venusaur/Ivysaur vs the Biker"},
               open(os.path.join(out, "scenario.json"), "w"), indent=1)
     subprocess.run(cmd, env=env, check=True)

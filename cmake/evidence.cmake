@@ -3,6 +3,9 @@
 # It compiles the files matching PORT_EVID_FILES (a regex on the source path, default the battle engine) with
 # -finstrument-functions and adds the hook runtime src/port/evidence/evidence_rt.c; no other source changes.
 set(PORT_EVID_FILES "fragments/battle_engine/" CACHE STRING "regex of the game sources to instrument")
+# branch and line coverage of the same files (clang source coverage: LLVM_PROFILE_FILE, llvm-cov), for the conditions
+# that keep code unreached (tools/evidence/frontier.py)
+option(PORT_EVID_COVERAGE "also compile the instrumented files with -fprofile-instr-generate -fcoverage-mapping" ON)
 
 function(port_evidence_apply)
   get_target_property(_srcs stadium_game SOURCES)
@@ -23,10 +26,17 @@ function(port_evidence_apply)
     if(_match)
       set_property(SOURCE "${_s}" TARGET_DIRECTORY stadium_game APPEND PROPERTY COMPILE_OPTIONS
                    -finstrument-functions -fno-omit-frame-pointer -fno-optimize-sibling-calls)
+      if(PORT_EVID_COVERAGE)
+        set_property(SOURCE "${_s}" TARGET_DIRECTORY stadium_game APPEND PROPERTY COMPILE_OPTIONS
+                     -fprofile-instr-generate -fcoverage-mapping)
+      endif()
       math(EXPR _n "${_n} + 1")
     endif()
   endforeach()
   target_sources(stadium_game PRIVATE ${CMAKE_SOURCE_DIR}/src/port/evidence/evidence_rt.c)
+  if(PORT_EVID_COVERAGE)
+    target_link_options(pokestadium PRIVATE -fprofile-instr-generate)
+  endif()
   message(STATUS "evidence: instrumenting ${_n} game sources matching '${PORT_EVID_FILES}'")
 endfunction()
 

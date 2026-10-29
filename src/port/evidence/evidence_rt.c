@@ -1,7 +1,7 @@
 // Function-evidence instrumentation (tools/evidence/, cmake/evidence.cmake): only in builds configured with
 // -DCMAKE_PROJECT_INCLUDE=cmake/evidence.cmake, which compile the battle engine with -finstrument-functions and add
 // this file. Off unless PORT_EVID=<file> is set:
-//   PORT_EVID=<file>          aggregate call data, rewritten every ~20 s of game time and at exit:
+//   PORT_EVID=<file>          aggregate call data, rewritten every 300 frames and at exit:
 //                             "F <fn> <parent> <site> <count> <first frame> <ctx>"   per (function, instrumented
 //                                 caller on the shadow stack or 0, call site: the return address, which may be in
 //                                 code outside the instrumented files; for a function the compiler inlined, the
@@ -19,6 +19,21 @@
 //                             (BattleMonRuntime 0x1F..0x22) and, the first time each species is seen, these PP; the
 //                             game's time-limit fallback then uses the first move with PP left. Port-only: the
 //                             battle is no longer the one ares plays, unless ares gets the same change
+//   PORT_EVID_SET=<fn>[#<n>]:<addr>:<size>[|]=<value>;...  ("|=": OR the value in)   at entry of function <fn> (image offset; only its n-th
+//                             entry, counted from 1, with #n), write <value> (size 1, 2 or 4, host byte order) at
+//                             <addr>: an image offset followed by steps "+<off>" (add) and "*" (load the pointer
+//                             there), e.g. the offset of gBattleUser, "*", "+0x5A" for gBattleUser->usedMove.
+//                             tools/evidence/run.py --set translates symbol names. A forced condition: the game
+//                             state is no longer one the game produced itself, and records say so
+//   PORT_EVID_CALL=<fn>[#<n>]:<target>:<ret>:<args>;...  at entry of <fn> (n-th entry), call <target> (image offset)
+//                             directly: for code nothing in the shipped game calls. <ret> v, i (integer) or f
+//                             (float); <args>: up to 6 of i<int> (integer), f<float>, p<off> (pointer into a 256-byte
+//                             scratch buffer, filled from PORT_EVID_CALL_BUF=<hex> before each call); integer and
+//                             float arguments cannot be mixed (the arm64 registers would be wrong). Logged to the
+//                             sequence file: "K <frame> <target> ret=<value> buf0=<hex> buf1=<hex>"
+//   LLVM_PROFILE_FILE=<file>  with PORT_EVID_COVERAGE (cmake/evidence.cmake): the branch/line counters, written with
+//                             the call data (the port ends runs with _exit, so the profile runtime's own exit
+//                             hook does not run)
 // Addresses are written as offsets from the executable's Mach-O header (nm address - 0x100000000); ctx is
 // "<phase>/<attacker side>/<user species>:<used move>/<target species>/<damage>" from the battle globals.
 #include <stdint.h>
@@ -30,6 +45,8 @@
 #include "fragments/battle_engine/battle_engine.h"
 
 #define NOINST __attribute__((no_instrument_function))
+
+static NOINST void Hex(FILE* f, const char* key, const void* p, size_t n);
 
 uint64_t Port_ViTick(void);
 
@@ -60,6 +77,138 @@ static int sWatchN;
 static uintptr_t sInjectAt;
 static int sInjectMoves[4], sInjectPP[4] = { -1, -1, -1, -1 };
 static uint8_t sInjectSeen[256];
+
+enum { kSetMax = 32, kStepMax = 8 };
+typedef struct {
+    uintptr_t fn, base;
+    int nth, seen, size, nsteps, orIn;
+    long steps[kStepMax]; // >= 0: add; -1: load pointer
+    uint32_t value;
+} SetRec;
+static SetRec sSets[kSetMax];
+static int sSetN;
+
+typedef struct {
+    uintptr_t at, target;
+    int nth, seen, nargs;
+    char ret, kind[6];
+    double val[6];
+} CallRec;
+static CallRec sCallRecs[kSetMax];
+static int sCallN;
+static uint8_t sCallBuf[256], sCallBufInit[256];
+static size_t sCallBufLen;
+
+static NOINST void ParseCalls(const char* p) {
+    while (*p && sCallN < kSetMax) {
+        CallRec* r = &sCallRecs[sCallN];
+        char* end;
+        memset(r, 0, sizeof *r);
+        r->at = (uintptr_t)strtoull(p, &end, 0);
+        p = end;
+        if (*p == '#') {
+            r->nth = (int)strtol(p + 1, &end, 0);
+            p = end;
+        }
+        if (*p++ != ':') return;
+        r->target = (uintptr_t)strtoull(p, &end, 0);
+        p = end;
+        if (*p++ != ':') return;
+        r->ret = *p++;
+        if (*p++ != ':') return;
+        while (*p && *p != ';' && r->nargs < 6) {
+            r->kind[r->nargs] = *p++;
+            r->val[r->nargs++] = strtod(p, &end);
+            p = end;
+            if (*p == ',') p++;
+        }
+        sCallN++;
+        if (*p == ';') p++;
+    }
+}
+
+typedef long (*FnI6)(long, long, long, long, long, long);
+typedef double (*FnI6F)(long, long, long, long, long, long);
+typedef long (*FnF4)(float, float, float, float);
+typedef float (*FnF4F)(float, float, float, float);
+
+static NOINST void DoCalls(uintptr_t fn) {
+    for (int i = 0; i < sCallN; i++) {
+        CallRec* r = &sCallRecs[i];
+        if (r->at != fn) continue;
+        r->seen++;
+        if (r->nth && r->seen != r->nth) continue;
+        memcpy(sCallBuf, sCallBufInit, sizeof sCallBuf);
+        long a[6] = { 0 };
+        float f[4] = { 0 };
+        int floats = 0;
+        for (int k = 0; k < r->nargs; k++) {
+            if (r->kind[k] == 'f') {
+                if (floats < 4) f[floats++] = (float)r->val[k];
+            } else if (r->kind[k] == 'p') {
+                a[k] = (long)(sCallBuf + (long)r->val[k]);
+            } else {
+                a[k] = (long)r->val[k];
+            }
+        }
+        void* t = (void*)(sBase + r->target);
+        char ret[64] = "-";
+        if (floats) {
+            if (r->ret == 'f') snprintf(ret, sizeof ret, "%g", (double)((FnF4F)t)(f[0], f[1], f[2], f[3]));
+            else snprintf(ret, sizeof ret, "%ld", ((FnF4)t)(f[0], f[1], f[2], f[3]));
+        } else if (r->ret == 'f') {
+            snprintf(ret, sizeof ret, "%g", ((FnI6F)t)(a[0], a[1], a[2], a[3], a[4], a[5]));
+        } else {
+            long v = ((FnI6)t)(a[0], a[1], a[2], a[3], a[4], a[5]);
+            if (r->ret == 'i') snprintf(ret, sizeof ret, "%ld", v);
+        }
+        if (sSeq) {
+            fprintf(sSeq, "K %llu %lx ret=%s", (unsigned long long)Port_ViTick(), (unsigned long)r->target, ret);
+            Hex(sSeq, "buf0", sCallBufInit, sCallBufLen);
+            Hex(sSeq, "buf1", sCallBuf, sCallBufLen);
+            fputc('\n', sSeq);
+        }
+    }
+}
+
+static NOINST void ParseSets(const char* p) {
+    while (*p && sSetN < kSetMax) {
+        SetRec* r = &sSets[sSetN];
+        char* end;
+        memset(r, 0, sizeof *r);
+        r->fn = (uintptr_t)strtoull(p, &end, 0);
+        p = end;
+        if (*p == '#') {
+            r->nth = (int)strtol(p + 1, &end, 0);
+            p = end;
+        }
+        if (*p++ != ':') return;
+        r->base = (uintptr_t)strtoull(p, &end, 0);
+        p = end;
+        while (*p == '+' || *p == '*') {
+            if (r->nsteps >= kStepMax) return;
+            if (*p == '*') {
+                r->steps[r->nsteps++] = -1;
+                p++;
+            } else {
+                r->steps[r->nsteps++] = strtol(p + 1, &end, 0);
+                p = end;
+            }
+        }
+        if (*p++ != ':') return;
+        r->size = (int)strtol(p, &end, 0);
+        p = end;
+        if (*p == '|') {
+            r->orIn = 1;
+            p++;
+        }
+        if (*p++ != '=') return;
+        r->value = (uint32_t)strtoul(p, &end, 0);
+        p = end;
+        sSetN++;
+        if (*p == ';') p++;
+    }
+}
 static _Thread_local uintptr_t tStack[kStackMax];
 static _Thread_local int tDepth;
 static _Thread_local int tBusy;
@@ -68,6 +217,7 @@ static _Thread_local int tBusy;
 static uint16_t sSeqCount[1 << 16];
 
 static NOINST void Dump(void);
+int __llvm_profile_write_file(void) __attribute__((weak));
 
 static NOINST void Init(void) {
     sInit = 1;
@@ -92,6 +242,16 @@ static NOINST void Init(void) {
         sInjectAt = (uintptr_t)strtoull(getenv("PORT_EVID_INJECT_AT"), NULL, 0);
         sscanf(getenv("PORT_EVID_MOVES"), "%i,%i,%i,%i:%i,%i,%i,%i", &sInjectMoves[0], &sInjectMoves[1],
                &sInjectMoves[2], &sInjectMoves[3], &sInjectPP[0], &sInjectPP[1], &sInjectPP[2], &sInjectPP[3]);
+    }
+    if (getenv("PORT_EVID_SET")) ParseSets(getenv("PORT_EVID_SET"));
+    if (getenv("PORT_EVID_CALL")) ParseCalls(getenv("PORT_EVID_CALL"));
+    if (getenv("PORT_EVID_CALL_BUF")) {
+        const char* h = getenv("PORT_EVID_CALL_BUF");
+        for (sCallBufLen = 0; h[0] && h[1] && sCallBufLen < sizeof sCallBufInit; h += 2) {
+            unsigned v;
+            sscanf(h, "%2x", &v);
+            sCallBufInit[sCallBufLen++] = (uint8_t)v;
+        }
     }
     atexit(Dump);
     sOn = 1;
@@ -149,6 +309,30 @@ static NOINST void Inject(void) {
     }
 }
 
+static NOINST void ApplySets(uintptr_t fn) {
+    for (int i = 0; i < sSetN; i++) {
+        SetRec* r = &sSets[i];
+        if (r->fn != fn) continue;
+        r->seen++;
+        if (r->nth && r->seen != r->nth) continue;
+        uintptr_t a = sBase + r->base;
+        for (int k = 0; k < r->nsteps; k++) {
+            if (r->steps[k] < 0) {
+                a = *(uintptr_t*)a;
+                if (a == 0) break;
+            } else {
+                a += (uintptr_t)r->steps[k];
+            }
+        }
+        if (a == 0) continue;
+        if (r->size == 1) *(uint8_t*)a = (uint8_t)(r->value | (r->orIn ? *(uint8_t*)a : 0));
+        else if (r->size == 2) *(uint16_t*)a = (uint16_t)(r->value | (r->orIn ? *(uint16_t*)a : 0));
+        else *(uint32_t*)a = r->value | (r->orIn ? *(uint32_t*)a : 0);
+        if (sSeq) fprintf(sSeq, "S %llu %lx set %d=%u\n", (unsigned long long)Port_ViTick(), (unsigned long)fn, i,
+                          r->value);
+    }
+}
+
 static NOINST void Dump(void) {
     if (!sOn) return;
     char tmp[1024];
@@ -175,6 +359,7 @@ static NOINST void Dump(void) {
     fclose(f);
     rename(tmp, sOutPath);
     if (sSeq) fflush(sSeq);
+    if (__llvm_profile_write_file && getenv("LLVM_PROFILE_FILE")) __llvm_profile_write_file();
 }
 
 static NOINST uint64_t Mix(uint64_t h, uint64_t v) {
@@ -242,7 +427,9 @@ void NOINST __cyg_profile_func_enter(void* this_fn, void* call_site) {
         if (sWatchN && IsWatched(fn)) Watch("enter", fn, site);
     }
     if (sInjectAt && fn == sInjectAt) Inject();
-    if (frame >= sLastDump + 1200) {
+    if (sSetN) ApplySets(fn);
+    if (sCallN) DoCalls(fn);
+    if (frame >= sLastDump + 300) { // (runs end with _exit: the last 300 frames at most are lost)
         sLastDump = frame;
         Dump();
     }
