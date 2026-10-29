@@ -1,0 +1,162 @@
+{
+ "Battle_CheckCriticalHit": {
+  "scenario": "seed 7, turn 1 (Charmander Flamethrower vs Machop); port: queue Battle_Random#0 = 20/28/31/34/35/36/81; ares: case 'rule Battle_Random@Battle_CheckCriticalHit 34' and '... 35'",
+  "observed": "Forced roll < 35 gives a critical hit (pre-random damage 190, 'Critical hit!', Machop left at 0 HP shown as 142 damage), >= 35 none (damage 100 -> 90). Threshold 35 = ((base + 76) >> 2) * 2 >> 1 (Stadium rules, D_8438AC60[0] == 1) with base 65 = Charmander's base SPEED; base Defense 43 would give 29 (31 and 34 would not crit). Focus Energy's flag (unk_4D & 4, set by Battle_Effect_FocusEnergy) is read here.",
+  "ares": "same: roll 34 crit (damage 142), 35 no crit (90); ares's caller-tagged trace shows Battle_Random call 0 coming from Battle_CheckCriticalHit; all 3 events identical",
+  "verdict": "confirmed",
+  "notes": "Name confirmed. Separate naming bug found: it reads gBaseStats[id].baseDefense, which (gBaseStats = gSpeciesData - 0x1C, PokemonStats in gb_data.h) is SpeciesData.baseSpeed. The PokemonStats stat field names are in reverse order (baseSpecial/baseSpeed/baseDefense/baseAttack at 0x07..0x0A read Attack/Defense/Speed/Special). The STAT_* ids used with these fields (gb_data.c) may carry the same reversal: worth its own record."
+ },
+ "Battle_ApplyDamageRandomFactor": {
+  "scenario": "seed 7 turn 1, same as the crit runs (watched)",
+  "observed": "Draws Battle_Random until >= 217 (0xD9): rolls 64, 13, 104 rejected, 232 used; gBattleDamage 100 -> 90 and 190 -> 172 (= d * 232 / 255). Runs before the accuracy check.",
+  "ares": "same calls (callers named Battle_ApplyDamageRandomFactor), same values and damage",
+  "verdict": "confirmed"
+ },
+ "Battle_Random": {
+  "scenario": "all runs (forced stream)",
+  "observed": "u8 battle random number; 8 runtime callers: damage factor (457), crit (77), secondary-effect chance (20), Battle_CheckMonCanAct (6), MultiHit, Flinch, Thrash, LowerStat. Forcing a value changes exactly the decision of its caller (crit, burn).",
+  "ares": "same call order and callers over 492 logic entries in seed 1",
+  "verdict": "confirmed",
+  "notes": "PORT: the xcheck hook can replace the value; the N64 one steps a generator by osGetCount."
+ },
+ "Battle_RandomAccuracy": {
+  "scenario": "seed 7 with queue Battle_RandomAccuracy#0 = 254, and #0 = 255, #1 = 0",
+  "observed": "Only caller func_843708CC. A 255 draw is redrawn (two calls in the same frame).",
+  "ares": "same: two calls (255, then 0) from func_843708CC",
+  "verdict": "confirmed"
+ },
+ "func_843708CC": {
+  "scenario": "(a) seed 7, accuracy forced 254, and 255 then 0; (b) port-only: Charmander's moves set to Confuse Ray, Hypnosis, Recover, Hypnosis (PORT_EVID_MOVES)",
+  "observed": "The hit check. A roll >= moveCache.unk_04 (accuracy after stages) makes the move miss via func_843708A0. 255 is redrawn, so 100%-accuracy moves (unk_04 = 255) never miss: forced 254 still hit (damage 90). Real misses: Machop's Fire Blast (gBattleDamage 16 -> 0 inside this call), Charmander's first Hypnosis (no status). Reached from func_84372670 for damaging moves and from the status-move handlers (Battle_Effect_Sleep, _Confuse, _LeechSeed, _Paralyze, _Counter ...) for status moves: one function, two kinds of paths. Also fails moves on a target in Fly/Dig (unk_4D & 0x10) and Dream Eater (effect 8) on a non-sleeping target.",
+  "ares": "forced 254 / 255,0: identical events (no miss), same redraw",
+  "verdict": "unclear",
+  "notes": "Proposed name: Battle_CheckMoveHit (or Battle_RollAccuracy). The removed 1/256 miss is a Stadium rule change worth a comment.",
+  "proposed_name": "Battle_CheckMoveHit"
+ },
+ "func_843708A0": {
+  "scenario": "as func_843708CC (Fire Blast miss, Hypnosis miss)",
+  "observed": "gBattleDamage = 0, sBattleMoveFailed = 1, clears user unk_4C bit 0x20. Only caller func_843708CC (11 runtime calls).",
+  "ares": "not isolated (no miss forced in ares with a < 100% move)",
+  "verdict": "unclear",
+  "notes": "Proposed name: Battle_SetMoveMissed. Port-only evidence for the miss itself.",
+  "proposed_name": "Battle_SetMoveMissed"
+ },
+ "func_84372670": {
+  "scenario": "all runs",
+  "observed": "Executes one Pokemon's move: only caller Battle_ResolveMonAction (126); runtime callees in order: Battle_CheckMonCanAct, Battle_DecrementPP, Battle_QueueMoveCategoryUsedMessage, Battle_Effect_Counter, Battle_CalcDamage, Battle_CheckCriticalHit, Battle_ApplyTypeEffectAndSTAB, Battle_ApplyDamageRandomFactor, func_843708CC, Battle_ExecuteMoveEffect, Battle_ApplyRageContinuation.",
+  "ares": "the per-event battle state after each call of its parent matches (seeds 1 and 7)",
+  "verdict": "unclear",
+  "notes": "Proposed name: Battle_ExecuteMove.",
+  "proposed_name": "Battle_ExecuteMove"
+ },
+ "Battle_Effect_Counter": {
+  "scenario": "all runs",
+  "observed": "Called for every move (83 times from func_84372670, every species/move), not through gMoveEffectHandlers. Returns 1 at once unless the used move is Counter (0x44); for Counter it doubles the last damage when the target's move was Normal/Fighting.",
+  "ares": "same per-event state",
+  "verdict": "name wrong",
+  "notes": "Not an effect handler: the gate that handles Counter before damage. Proposed: Battle_TryCounter / Battle_HandleCounterMove (returns 'continue normally'). No run used Counter itself: its doubling branch is not reached.",
+  "proposed_name": "Battle_TryCounter"
+ },
+ "Battle_RunMoveEffect": {
+  "scenario": "all runs, plus the two move-injection runs",
+  "observed": "Dispatches gMoveEffectHandlers[effect - 1]: 18 different handlers seen at runtime (SecondaryStatusChance, LeechSeed, Poison, Paralyze, MultiHit, Flinch, LowerStat, RaiseOwnStat, Recoil, Thrash, TwoTurnMove, ReflectLightScreen, Confuse, Sleep, Heal, Haze, FocusEnergy, Substitute). The watched state change of each call is the handler's (e.g. Recover HP 60 -> 123).",
+  "ares": "event states identical in seeds 1, 7",
+  "verdict": "confirmed",
+  "notes": "Battle_RunMoveEffect is inlined into Battle_ExecuteMoveEffect: call-site addresses name the wrapper, the shadow stack names the real parent."
+ },
+ "Battle_ExecuteMoveEffect": {
+  "scenario": "all runs",
+  "observed": "Wrapper of Battle_RunMoveEffect. Runtime caller only func_84372670 (78); the static callers Battle_ApplyDamage and func_8436FDBC never called it in these battles.",
+  "verdict": "confirmed"
+ },
+ "Battle_Effect_SecondaryStatusChance": {
+  "scenario": "seed 7; port queue Battle_Random#5 = 0; ares case 'rule Battle_Random@Battle_Effect_SecondaryStatusChance 0'",
+  "observed": "Flamethrower's 10% burn: roll 0 (< 0x1A) burns Machop: status 0 -> 0x10, Attack 98 -> 49 (through func_84370B44), message 'It was burned!'. The natural roll 48 does nothing.",
+  "ares": "identical events 0-9 (burn, halved Attack, burn damage); the first difference is the next Flamethrower, which the ares rule burns as well and the port queue does not",
+  "verdict": "confirmed"
+ },
+ "func_84370B44": {
+  "scenario": "burn run",
+  "observed": "Halves Attack (BattleMonRuntime.unk_2A, min 1) when status & 0x10 (burn): 98 -> 49 when called from Battle_Effect_SecondaryStatusChance. Runtime callers: func_84370B7C (31, stat recompute at switch-in) and Battle_Effect_RaiseOwnStat (6); static also LowerStat, SecondaryStatusChance, Battle_ApplyRageStatBoost.",
+  "ares": "the halved Attack (0x31) is in the matching event 2",
+  "verdict": "unclear",
+  "notes": "Proposed: Battle_ApplyBurnAttackPenalty. Its twin func_84370B0C quarters Speed (unk_2E) on paralysis (status & 0x40); reached from Battle_Effect_Paralyze but not watched.",
+  "proposed_name": "Battle_ApplyBurnAttackPenalty"
+ },
+ "Battle_ApplyResidualEffects": {
+  "scenario": "burn run",
+  "observed": "After the burned Machop's move: 'It's hurt by the burn!' and its HP 52 -> 44 (142 / 16 = 8). The call itself writes the HP to show (unk_0E = unk_10 = 44); hp changes when the HP bar has moved (next event).",
+  "ares": "identical (events 4-5)",
+  "verdict": "confirmed",
+  "notes": "BattleMonRuntime.unk_0E / unk_10: pending HP for the HP-bar transition (naming candidates)."
+ },
+ "Battle_Effect_Confuse": {
+  "scenario": "port-only injection: Confuse Ray in slot 1 (Charmander, later Venusaur)",
+  "observed": "target unk_4C |= 0x80 (confused), unk_50 = confusion turns 3 and 5 ((Battle_Random & 3) + 2); scene unk_48 = 22 (presentation cue). Calls func_843708CC first.",
+  "ares": "not run (the injected moves are port-only)",
+  "verdict": "confirmed",
+  "notes": "port-only evidence"
+ },
+ "Battle_Effect_Sleep": {
+  "scenario": "port-only injection: Hypnosis in slots 2 and 4",
+  "observed": "First Hypnosis missed (func_843708CC from Battle_Effect_Sleep, no change); the second: target status 0 -> 3 (sleep turns in bits 0-2). Venusaur's later Hypnosis: 0 -> 3 again.",
+  "verdict": "confirmed",
+  "notes": "port-only evidence"
+ },
+ "Battle_Effect_Heal": {
+  "scenario": "port-only injection: Recover in slot 3",
+  "observed": "Charmander HP 60 -> 123 (+ max HP 126 / 2); scene unk_48 = 21. The Rest branch (full HP, sleep 2, Battle_ApplyStatStageMultiplier) was not reached.",
+  "verdict": "confirmed",
+  "notes": "port-only evidence"
+ },
+ "Battle_Effect_RaiseOwnStat": {
+  "scenario": "port-only injection: Swords Dance (also natural: Hitmonlee's Meditate in seed 1)",
+  "observed": "stage_atk 7 -> 9 and Attack 83 -> 166 (Charmander), 103 -> 206 (Venusaur); calls func_84370B44 to re-apply the burn penalty.",
+  "verdict": "confirmed",
+  "notes": "stage 7 = neutral; +2 for Swords Dance as on the Game Boy"
+ },
+ "Battle_Effect_Haze": {
+  "scenario": "port-only injection: Haze after Swords Dance",
+  "observed": "stage_atk 9 -> 7 and Attack 166 -> 83 (the user's own boosts reset).",
+  "verdict": "confirmed",
+  "notes": "port-only evidence"
+ },
+ "Battle_Effect_FocusEnergy": {
+  "scenario": "port-only injection: Focus Energy",
+  "observed": "user unk_4D |= 4, no other change; Battle_CheckCriticalHit reads that bit (Stadium rule: threshold * 4 + 160 instead of the Game Boy's halving).",
+  "verdict": "confirmed",
+  "notes": "names the field: unk_4D bit 2 = focus energy"
+ },
+ "Battle_Effect_Substitute": {
+  "scenario": "port-only injection: Substitute",
+  "observed": "HP 44 -> 13 (max 126 / 4 = 31), unk_59 = 31 (the substitute's HP), unk_4D |= 0x10; Venusaur: 60 -> 21, unk_59 = 39.",
+  "verdict": "confirmed",
+  "notes": "names the fields: unk_59 = substitute HP, unk_4D bit 4 = has substitute"
+ },
+ "Battle_ResolveMonAction": {
+  "scenario": "all runs",
+  "observed": "Resolves one side's action per call: called by Battle_StartTurn for the first attacker (70) and Battle_ActSecondAttacker for the second (56); calls func_84372670, Battle_ApplyResidualEffects, Battle_CheckFaintAfterMove.",
+  "ares": "event states at its entry and return identical in seeds 1, 7",
+  "verdict": "confirmed",
+  "notes": "has PORT: lines (the xcheck event hooks only)"
+ },
+ "BattleScene_IsActionSelectionTimerExpired": {
+  "scenario": "all runs (PORT_XCHECK_COM)",
+  "observed": "Queried by BattleScene_HandlePlayerActionInput (140) and BattleScene_HandlePlayerForcedActionState (14); with the xcheck COM answer the game picks the first usable move and first healthy replacement.",
+  "verdict": "unclear",
+  "notes": "PORT-changed: in these runs the port's hook decides the answer, so the run says nothing about the original timer logic. Needs a run with real input timing (or ares with the hook off)."
+ },
+ "Battle_ApplyStatStageMultiplier": {
+  "scenario": "none reached it",
+  "observed": "Only static caller: Battle_Effect_Heal's Rest branch when the user had a status before (Stadium rules). Not reached.",
+  "verdict": "not reached",
+  "notes": "Needs Rest used while statused: a party injection with Rest plus a forced status (lockstep case 'mon' line on both sides)."
+ },
+ "func_84370ADC": {
+  "scenario": "all runs",
+  "observed": "Called from 9 places at runtime (BattleScene_ActionSetupFinalizeStep 8159, Battle_ResolveMonAction 252, BattleScene_RunActionEffectHpTransition 76, phases 7/17 ...). By the code it copies the active Pokemon's status to its party entry (BattleMon.unk_05); that party memory is not in the captured state.",
+  "verdict": "unclear",
+  "notes": "Proposed: Battle_SyncStatusToParty. Needs the TeamRoster party entries in the watch dump to confirm.",
+  "proposed_name": "Battle_SyncStatusToParty"
+ }
+}

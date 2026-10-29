@@ -1,0 +1,2908 @@
+{
+ "Battle_CheckCriticalHit": {
+  "name": "Battle_CheckCriticalHit",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_359F90.c:1183",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "func_84372670",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdatePhase",
+    "BattleScene_PhaseCheckFaintedEndTurn",
+    "BattleScene_CleanupActionAndAdvance",
+    "Battle_ActSecondAttacker",
+    "Battle_ResolveMonAction",
+    "func_84372670",
+    "Battle_CheckCriticalHit"
+   ]
+  ],
+  "runtime": {
+   "count": 125,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit20",
+    "crit28",
+    "crit31",
+    "crit34",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "func_84372670",
+     "via": "",
+     "count": 125,
+     "first": {
+      "run": "s1",
+      "frame": 2951,
+      "ctx": "1/1/106:96/4/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_CheckCriticalHit"
+    ],
+    [
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseMoveFailedMessage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_CheckCriticalHit"
+    ],
+    [
+     "BattleScene_ActionSetupFinalizeStep",
+     "BattleScene_RunActionEffectHpTransition",
+     "BattleScene_CompleteHpUpdateTransition",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_CheckCriticalHit"
+    ],
+    [
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase7",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_CheckCriticalHit"
+    ],
+    [
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase17",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_CheckCriticalHit"
+    ]
+   ]
+  },
+  "scenario": "seed 7, turn 1 (Charmander Flamethrower vs Machop); port: queue Battle_Random#0 = 20/28/31/34/35/36/81; ares: case 'rule Battle_Random@Battle_CheckCriticalHit 34' and '... 35'",
+  "observed": "Forced roll < 35 gives a critical hit (pre-random damage 190, 'Critical hit!', Machop left at 0 HP shown as 142 damage), >= 35 none (damage 100 -> 90). Threshold 35 = ((base + 76) >> 2) * 2 >> 1 (Stadium rules, D_8438AC60[0] == 1) with base 65 = Charmander's base SPEED; base Defense 43 would give 29 (31 and 34 would not crit). Focus Energy's flag (unk_4D & 4, set by Battle_Effect_FocusEnergy) is read here.",
+  "ares": "same: roll 34 crit (damage 142), 35 no crit (90); ares's caller-tagged trace shows Battle_Random call 0 coming from Battle_CheckCriticalHit; all 3 events identical",
+  "verdict": "confirmed",
+  "notes": "Name confirmed. Separate naming bug found: it reads gBaseStats[id].baseDefense, which (gBaseStats = gSpeciesData - 0x1C, PokemonStats in gb_data.h) is SpeciesData.baseSpeed. The PokemonStats stat field names are in reverse order (baseSpecial/baseSpeed/baseDefense/baseAttack at 0x07..0x0A read Attack/Defense/Speed/Special). The STAT_* ids used with these fields (gb_data.c) may carry the same reversal: worth its own record."
+ },
+ "Battle_ApplyDamageRandomFactor": {
+  "name": "Battle_ApplyDamageRandomFactor",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_359F90.c:257",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "func_84372670",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdatePhase",
+    "BattleScene_PhaseCheckFaintedEndTurn",
+    "BattleScene_CleanupActionAndAdvance",
+    "Battle_ActSecondAttacker",
+    "Battle_ResolveMonAction",
+    "func_84372670",
+    "Battle_ApplyDamageRandomFactor"
+   ]
+  ],
+  "runtime": {
+   "count": 115,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit20",
+    "crit28",
+    "crit31",
+    "crit34",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "func_84372670",
+     "via": "",
+     "count": 115,
+     "first": {
+      "run": "s1",
+      "frame": 3491,
+      "ctx": "2/0/4:53/106/100"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ApplyDamageRandomFactor"
+    ],
+    [
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseMoveFailedMessage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ApplyDamageRandomFactor"
+    ],
+    [
+     "BattleScene_ActionSetupFinalizeStep",
+     "BattleScene_RunActionEffectHpTransition",
+     "BattleScene_CompleteHpUpdateTransition",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ApplyDamageRandomFactor"
+    ],
+    [
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase7",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ApplyDamageRandomFactor"
+    ],
+    [
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase17",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ApplyDamageRandomFactor"
+    ]
+   ]
+  },
+  "scenario": "seed 7 turn 1, same as the crit runs (watched)",
+  "observed": "Draws Battle_Random until >= 217 (0xD9): rolls 64, 13, 104 rejected, 232 used; gBattleDamage 100 -> 90 and 190 -> 172 (= d * 232 / 255). Runs before the accuracy check.",
+  "ares": "same calls (callers named Battle_ApplyDamageRandomFactor), same values and damage",
+  "verdict": "confirmed",
+  "notes": ""
+ },
+ "Battle_Random": {
+  "name": "Battle_Random",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_359F90.c:132",
+  "static": false,
+  "port_changed": true,
+  "static_callers": [
+   {
+    "caller": "Battle_QueueMetronomeMoveMessage",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_ApplyDamageRandomFactor",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_DetermineMoveOrder",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "func_8437114C",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Metronome",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_CheckCriticalHit",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_CheckMonCanAct",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Sleep",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Poison",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_SecondaryStatusChance",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_LowerStat",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Bide",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Thrash",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_MultiHit",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Flinch",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Trap",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_ConfuseChance",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Confuse",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Disable",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdateIntroCameraSequence",
+    "BattleScene_UpdateActionSelectPhase",
+    "BattleScene_UpdateActionCollection",
+    "BattleScene_CollectActions",
+    "Battle_StartTurn",
+    "Battle_DetermineMoveOrder",
+    "Battle_Random"
+   ]
+  ],
+  "runtime": {
+   "count": 816,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit20",
+    "crit28",
+    "crit31",
+    "crit34",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "Battle_ApplyDamageRandomFactor",
+     "via": "",
+     "count": 652,
+     "first": {
+      "run": "s1",
+      "frame": 3491,
+      "ctx": "2/0/4:53/106/100"
+     }
+    },
+    {
+     "caller": "Battle_CheckCriticalHit",
+     "via": "",
+     "count": 115,
+     "first": {
+      "run": "s1",
+      "frame": 3491,
+      "ctx": "2/0/4:53/106/0"
+     }
+    },
+    {
+     "caller": "Battle_Effect_SecondaryStatusChance",
+     "via": "",
+     "count": 27,
+     "first": {
+      "run": "s1",
+      "frame": 3491,
+      "ctx": "2/0/4:53/106/91"
+     }
+    },
+    {
+     "caller": "Battle_CheckMonCanAct",
+     "via": "",
+     "count": 10,
+     "first": {
+      "run": "s2",
+      "frame": 4703,
+      "ctx": "2/0/4:53/23/26"
+     }
+    },
+    {
+     "caller": "Battle_Effect_MultiHit",
+     "via": "",
+     "count": 3,
+     "first": {
+      "run": "s1",
+      "frame": 17169,
+      "ctx": "2/1/32:31/3/5"
+     }
+    },
+    {
+     "caller": "Battle_Effect_Flinch",
+     "via": "",
+     "count": 3,
+     "first": {
+      "run": "s2",
+      "frame": 4139,
+      "ctx": "1/1/23:44/4/26"
+     }
+    },
+    {
+     "caller": "Battle_Effect_Thrash",
+     "via": "",
+     "count": 2,
+     "first": {
+      "run": "s7",
+      "frame": 9111,
+      "ctx": "2/1/56:37/3/0"
+     }
+    },
+    {
+     "caller": "Battle_Effect_Confuse",
+     "via": "",
+     "count": 2,
+     "first": {
+      "run": "inj1",
+      "frame": 2927,
+      "ctx": "1/0/4:109/66/0"
+     }
+    },
+    {
+     "caller": "Battle_Effect_LowerStat",
+     "via": "",
+     "count": 1,
+     "first": {
+      "run": "s9",
+      "frame": 7869,
+      "ctx": "2/1/23:51/4/28"
+     }
+    },
+    {
+     "caller": "Battle_Effect_Sleep",
+     "via": "",
+     "count": 1,
+     "first": {
+      "run": "inj1",
+      "frame": 5961,
+      "ctx": "1/0/4:95/66/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ApplyDamageRandomFactor",
+     "Battle_Random"
+    ],
+    [
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseMoveFailedMessage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ApplyDamageRandomFactor",
+     "Battle_Random"
+    ],
+    [
+     "BattleScene_RunActionEffectHpTransition",
+     "BattleScene_CompleteHpUpdateTransition",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ApplyDamageRandomFactor",
+     "Battle_Random"
+    ],
+    [
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_CheckCriticalHit",
+     "Battle_Random"
+    ],
+    [
+     "BattleScene_Phase7",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ApplyDamageRandomFactor",
+     "Battle_Random"
+    ]
+   ]
+  },
+  "scenario": "all runs (forced stream)",
+  "observed": "u8 battle random number; 8 runtime callers: damage factor (457), crit (77), secondary-effect chance (20), Battle_CheckMonCanAct (6), MultiHit, Flinch, Thrash, LowerStat. Forcing a value changes exactly the decision of its caller (crit, burn).",
+  "ares": "same call order and callers over 492 logic entries in seed 1",
+  "verdict": "confirmed",
+  "notes": "PORT: the xcheck hook can replace the value; the N64 one steps a generator by osGetCount."
+ },
+ "Battle_RandomAccuracy": {
+  "name": "Battle_RandomAccuracy",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_359F90.c:154",
+  "static": false,
+  "port_changed": true,
+  "static_callers": [
+   {
+    "caller": "func_843708CC",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdatePhase",
+    "BattleScene_PhaseCheckFaintedEndTurn",
+    "BattleScene_CleanupActionAndAdvance",
+    "Battle_ActSecondAttacker",
+    "Battle_ResolveMonAction",
+    "func_84372670",
+    "func_843708CC",
+    "Battle_RandomAccuracy"
+   ]
+  ],
+  "runtime": {
+   "count": 145,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit20",
+    "crit28",
+    "crit31",
+    "crit34",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "func_843708CC",
+     "via": "",
+     "count": 145,
+     "first": {
+      "run": "s1",
+      "frame": 8845,
+      "ctx": "1/0/3:73/56/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "func_843708CC",
+     "Battle_RandomAccuracy"
+    ],
+    [
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseMoveFailedMessage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "func_843708CC",
+     "Battle_RandomAccuracy"
+    ],
+    [
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_LeechSeed",
+     "func_843708CC",
+     "Battle_RandomAccuracy"
+    ],
+    [
+     "BattleScene_RunActionEffectHpTransition",
+     "BattleScene_CompleteHpUpdateTransition",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "func_843708CC",
+     "Battle_RandomAccuracy"
+    ],
+    [
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_LeechSeed",
+     "func_843708CC",
+     "Battle_RandomAccuracy"
+    ]
+   ]
+  },
+  "scenario": "seed 7 with queue Battle_RandomAccuracy#0 = 254, and #0 = 255, #1 = 0",
+  "observed": "Only caller func_843708CC. A 255 draw is redrawn (two calls in the same frame).",
+  "ares": "same: two calls (255, then 0) from func_843708CC",
+  "verdict": "confirmed",
+  "notes": ""
+ },
+ "func_843708CC": {
+  "name": "func_843708CC",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_359F90.c:620",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "Battle_Effect_Counter",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "func_84372670",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Sleep",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Poison",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_LowerStat",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Confuse",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Paralyze",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Mimic",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_LeechSeed",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_Disable",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdatePhase",
+    "BattleScene_PhaseCheckFaintedEndTurn",
+    "BattleScene_CleanupActionAndAdvance",
+    "Battle_ActSecondAttacker",
+    "Battle_ResolveMonAction",
+    "func_84372670",
+    "func_843708CC"
+   ]
+  ],
+  "runtime": {
+   "count": 148,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit20",
+    "crit28",
+    "crit31",
+    "crit34",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "func_84372670",
+     "via": "",
+     "count": 117,
+     "first": {
+      "run": "s1",
+      "frame": 3491,
+      "ctx": "2/0/4:53/106/91"
+     }
+    },
+    {
+     "caller": "Battle_Effect_LeechSeed",
+     "via": "",
+     "count": 26,
+     "first": {
+      "run": "s1",
+      "frame": 8845,
+      "ctx": "1/0/3:73/56/0"
+     }
+    },
+    {
+     "caller": "Battle_Effect_Sleep",
+     "via": "",
+     "count": 2,
+     "first": {
+      "run": "inj1",
+      "frame": 3997,
+      "ctx": "1/0/4:95/66/0"
+     }
+    },
+    {
+     "caller": "Battle_Effect_Confuse",
+     "via": "",
+     "count": 2,
+     "first": {
+      "run": "inj1",
+      "frame": 2927,
+      "ctx": "1/0/4:109/66/0"
+     }
+    },
+    {
+     "caller": "Battle_Effect_Paralyze",
+     "via": "",
+     "count": 1,
+     "first": {
+      "run": "s2",
+      "frame": 3597,
+      "ctx": "2/1/23:137/4/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "func_843708CC"
+    ],
+    [
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseMoveFailedMessage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "func_843708CC"
+    ],
+    [
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_LeechSeed",
+     "func_843708CC"
+    ],
+    [
+     "BattleScene_ActionSetupFinalizeStep",
+     "BattleScene_RunActionEffectHpTransition",
+     "BattleScene_CompleteHpUpdateTransition",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "func_843708CC"
+    ],
+    [
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase7",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "func_843708CC"
+    ]
+   ]
+  },
+  "scenario": "(a) seed 7, accuracy forced 254, and 255 then 0; (b) port-only: Charmander's moves set to Confuse Ray, Hypnosis, Recover, Hypnosis (PORT_EVID_MOVES)",
+  "observed": "The hit check. A roll >= moveCache.unk_04 (accuracy after stages) makes the move miss via func_843708A0. 255 is redrawn, so 100%-accuracy moves (unk_04 = 255) never miss: forced 254 still hit (damage 90). Real misses: Machop's Fire Blast (gBattleDamage 16 -> 0 inside this call), Charmander's first Hypnosis (no status). Reached from func_84372670 for damaging moves and from the status-move handlers (Battle_Effect_Sleep, _Confuse, _LeechSeed, _Paralyze, _Counter ...) for status moves: one function, two kinds of paths. Also fails moves on a target in Fly/Dig (unk_4D & 0x10) and Dream Eater (effect 8) on a non-sleeping target.",
+  "ares": "forced 254 / 255,0: identical events (no miss), same redraw",
+  "verdict": "unclear",
+  "notes": "Proposed name: Battle_CheckMoveHit (or Battle_RollAccuracy). The removed 1/256 miss is a Stadium rule change worth a comment.",
+  "proposed_name": "Battle_CheckMoveHit"
+ },
+ "func_843708A0": {
+  "name": "func_843708A0",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_359F90.c:614",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "func_843708CC",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdatePhase",
+    "BattleScene_PhaseCheckFaintedEndTurn",
+    "BattleScene_CleanupActionAndAdvance",
+    "Battle_ActSecondAttacker",
+    "Battle_ResolveMonAction",
+    "func_84372670",
+    "func_843708CC",
+    "func_843708A0"
+   ]
+  ],
+  "runtime": {
+   "count": 16,
+   "runs": [
+    "burn",
+    "inj1",
+    "inj2",
+    "s1",
+    "s2",
+    "s5",
+    "s7"
+   ],
+   "callers": [
+    {
+     "caller": "func_843708CC",
+     "via": "",
+     "count": 16,
+     "first": {
+      "run": "s1",
+      "frame": 12369,
+      "ctx": "1/0/3:73/56/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_LeechSeed",
+     "func_843708CC",
+     "func_843708A0"
+    ],
+    [
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "func_843708CC",
+     "func_843708A0"
+    ],
+    [
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_LeechSeed",
+     "func_843708CC",
+     "func_843708A0"
+    ],
+    [
+     "BattleScene_Phase7",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "func_843708CC",
+     "func_843708A0"
+    ],
+    [
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseMoveFailedMessage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "func_843708CC",
+     "func_843708A0"
+    ]
+   ]
+  },
+  "scenario": "as func_843708CC (Fire Blast miss, Hypnosis miss)",
+  "observed": "gBattleDamage = 0, sBattleMoveFailed = 1, clears user unk_4C bit 0x20. Only caller func_843708CC (11 runtime calls).",
+  "ares": "not isolated (no miss forced in ares with a < 100% move)",
+  "verdict": "unclear",
+  "notes": "Proposed name: Battle_SetMoveMissed. Port-only evidence for the miss itself.",
+  "proposed_name": "Battle_SetMoveMissed"
+ },
+ "func_84372670": {
+  "name": "func_84372670",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_359F90.c:1441",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "Battle_ResolveMonAction",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdatePhase",
+    "BattleScene_PhaseCheckFaintedEndTurn",
+    "BattleScene_CleanupActionAndAdvance",
+    "Battle_ActSecondAttacker",
+    "Battle_ResolveMonAction",
+    "func_84372670"
+   ]
+  ],
+  "runtime": {
+   "count": 184,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit20",
+    "crit28",
+    "crit31",
+    "crit34",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "Battle_ResolveMonAction",
+     "via": "",
+     "count": 184,
+     "first": {
+      "run": "s1",
+      "frame": 2951,
+      "ctx": "1/1/106:96/4/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670"
+    ],
+    [
+     "BattleScene_Phase2",
+     "BattleScene_ActionSetupFinalizeStep",
+     "BattleScene_RunActionEffectHpTransition",
+     "BattleScene_CompleteHpUpdateTransition",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670"
+    ],
+    [
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseMoveFailedMessage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670"
+    ],
+    [
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase7",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670"
+    ],
+    [
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseAttackHit",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670"
+    ]
+   ]
+  },
+  "scenario": "all runs",
+  "observed": "Executes one Pokemon's move: only caller Battle_ResolveMonAction (126); runtime callees in order: Battle_CheckMonCanAct, Battle_DecrementPP, Battle_QueueMoveCategoryUsedMessage, Battle_Effect_Counter, Battle_CalcDamage, Battle_CheckCriticalHit, Battle_ApplyTypeEffectAndSTAB, Battle_ApplyDamageRandomFactor, func_843708CC, Battle_ExecuteMoveEffect, Battle_ApplyRageContinuation.",
+  "ares": "the per-event battle state after each call of its parent matches (seeds 1 and 7)",
+  "verdict": "unclear",
+  "notes": "Proposed name: Battle_ExecuteMove.",
+  "proposed_name": "Battle_ExecuteMove"
+ },
+ "Battle_Effect_Counter": {
+  "name": "Battle_Effect_Counter",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_359F90.c:1149",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "func_84372670",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdatePhase",
+    "BattleScene_PhaseCheckFaintedEndTurn",
+    "BattleScene_CleanupActionAndAdvance",
+    "Battle_ActSecondAttacker",
+    "Battle_ResolveMonAction",
+    "func_84372670",
+    "Battle_Effect_Counter"
+   ]
+  ],
+  "runtime": {
+   "count": 125,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit20",
+    "crit28",
+    "crit31",
+    "crit34",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "func_84372670",
+     "via": "",
+     "count": 125,
+     "first": {
+      "run": "s1",
+      "frame": 2951,
+      "ctx": "1/1/106:96/4/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_Effect_Counter"
+    ],
+    [
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseMoveFailedMessage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_Effect_Counter"
+    ],
+    [
+     "BattleScene_ActionSetupFinalizeStep",
+     "BattleScene_RunActionEffectHpTransition",
+     "BattleScene_CompleteHpUpdateTransition",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_Effect_Counter"
+    ],
+    [
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase7",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_Effect_Counter"
+    ],
+    [
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase17",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_Effect_Counter"
+    ]
+   ]
+  },
+  "scenario": "all runs",
+  "observed": "Called for every move (83 times from func_84372670, every species/move), not through gMoveEffectHandlers. Returns 1 at once unless the used move is Counter (0x44); for Counter it doubles the last damage when the target's move was Normal/Fighting.",
+  "ares": "same per-event state",
+  "verdict": "name wrong",
+  "notes": "Not an effect handler: the gate that handles Counter before damage. Proposed: Battle_TryCounter / Battle_HandleCounterMove (returns 'continue normally'). No run used Counter itself: its doubling branch is not reached.",
+  "proposed_name": "Battle_TryCounter"
+ },
+ "Battle_RunMoveEffect": {
+  "name": "Battle_RunMoveEffect",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_35DF70.c:1127",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "Battle_ExecuteMoveEffect",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdatePhase",
+    "BattleScene_PhaseCheckFaintedEndTurn",
+    "BattleScene_CleanupActionAndAdvance",
+    "Battle_ActSecondAttacker",
+    "Battle_ResolveMonAction",
+    "func_84372670",
+    "Battle_ExecuteMoveEffect",
+    "Battle_RunMoveEffect"
+   ]
+  ],
+  "runtime": {
+   "count": 114,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "Battle_ExecuteMoveEffect",
+     "via": "",
+     "count": 114,
+     "first": {
+      "run": "s1",
+      "frame": 2951,
+      "ctx": "1/1/106:96/4/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect"
+    ],
+    [
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseMoveFailedMessage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect"
+    ],
+    [
+     "BattleScene_RunActionEffectHpTransition",
+     "BattleScene_CompleteHpUpdateTransition",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect"
+    ],
+    [
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseAttackHit",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect"
+    ],
+    [
+     "BattleScene_Phase7",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect"
+    ]
+   ]
+  },
+  "scenario": "all runs, plus the two move-injection runs",
+  "observed": "Dispatches gMoveEffectHandlers[effect - 1]: 18 different handlers seen at runtime (SecondaryStatusChance, LeechSeed, Poison, Paralyze, MultiHit, Flinch, LowerStat, RaiseOwnStat, Recoil, Thrash, TwoTurnMove, ReflectLightScreen, Confuse, Sleep, Heal, Haze, FocusEnergy, Substitute). The watched state change of each call is the handler's (e.g. Recover HP 60 -> 123).",
+  "ares": "event states identical in seeds 1, 7",
+  "verdict": "confirmed",
+  "notes": "Battle_RunMoveEffect is inlined into Battle_ExecuteMoveEffect: call-site addresses name the wrapper, the shadow stack names the real parent."
+ },
+ "Battle_ExecuteMoveEffect": {
+  "name": "Battle_ExecuteMoveEffect",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_35DF70.c:1136",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "func_8436FDBC",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_ApplyDamage",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "func_84372670",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdatePhase",
+    "BattleScene_PhaseCheckFaintedEndTurn",
+    "BattleScene_CleanupActionAndAdvance",
+    "Battle_ActSecondAttacker",
+    "Battle_ResolveMonAction",
+    "func_84372670",
+    "Battle_ExecuteMoveEffect"
+   ]
+  ],
+  "runtime": {
+   "count": 114,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "func_84372670",
+     "via": "",
+     "count": 114,
+     "first": {
+      "run": "s1",
+      "frame": 10631,
+      "ctx": "2/1/56:66/3/23"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect"
+    ],
+    [
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseMoveFailedMessage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect"
+    ],
+    [
+     "BattleScene_ActionSetupFinalizeStep",
+     "BattleScene_RunActionEffectHpTransition",
+     "BattleScene_CompleteHpUpdateTransition",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect"
+    ],
+    [
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase7",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect"
+    ],
+    [
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseAttackHit",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect"
+    ]
+   ]
+  },
+  "scenario": "all runs",
+  "observed": "Wrapper of Battle_RunMoveEffect. Runtime caller only func_84372670 (78); the static callers Battle_ApplyDamage and func_8436FDBC never called it in these battles.",
+  "ares": null,
+  "verdict": "confirmed",
+  "notes": ""
+ },
+ "Battle_Effect_SecondaryStatusChance": {
+  "name": "Battle_Effect_SecondaryStatusChance",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_35DF70.c:202",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "Battle_RunMoveEffect",
+    "kind": "table",
+    "via": "gMoveEffectHandlers"
+   }
+  ],
+  "static_paths": [],
+  "runtime": {
+   "count": 33,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "Battle_RunMoveEffect",
+     "via": "",
+     "count": 33,
+     "first": {
+      "run": "s1",
+      "frame": 3491,
+      "ctx": "2/0/4:53/106/91"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_SecondaryStatusChance"
+    ],
+    [
+     "BattleScene_PhaseMoveFailedMessage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_SecondaryStatusChance"
+    ],
+    [
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_SecondaryStatusChance"
+    ],
+    [
+     "BattleScene_CompleteHpUpdateTransition",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_SecondaryStatusChance"
+    ],
+    [
+     "BattleScene_PhaseDrainDamage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_SecondaryStatusChance"
+    ]
+   ]
+  },
+  "scenario": "seed 7; port queue Battle_Random#5 = 0; ares case 'rule Battle_Random@Battle_Effect_SecondaryStatusChance 0'",
+  "observed": "Flamethrower's 10% burn: roll 0 (< 0x1A) burns Machop: status 0 -> 0x10, Attack 98 -> 49 (through func_84370B44), message 'It was burned!'. The natural roll 48 does nothing.",
+  "ares": "identical events 0-9 (burn, halved Attack, burn damage); the first difference is the next Flamethrower, which the ares rule burns as well and the port queue does not",
+  "verdict": "confirmed",
+  "notes": ""
+ },
+ "func_84370B44": {
+  "name": "func_84370B44",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_359F90.c:690",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "func_84370B7C",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_SecondaryStatusChance",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_ApplyRageStatBoost",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_RaiseOwnStat",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_Effect_LowerStat",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_DispatchLifecycle",
+    "BattleScene_InitializeRuntime",
+    "Battle_InitializeActiveRuntimeState",
+    "func_84370B7C",
+    "func_84370B44"
+   ]
+  ],
+  "runtime": {
+   "count": 68,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit20",
+    "crit28",
+    "crit31",
+    "crit34",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "func_84370B7C",
+     "via": "",
+     "count": 59,
+     "first": {
+      "run": "s1",
+      "frame": 2289,
+      "ctx": "4/0/-1:-1/-1/0"
+     }
+    },
+    {
+     "caller": "Battle_Effect_RaiseOwnStat",
+     "via": "",
+     "count": 8,
+     "first": {
+      "run": "s1",
+      "frame": 2951,
+      "ctx": "1/1/106:96/4/0"
+     }
+    },
+    {
+     "caller": "Battle_Effect_SecondaryStatusChance",
+     "via": "",
+     "count": 1,
+     "first": {
+      "run": "burn",
+      "frame": 2927,
+      "ctx": "1/0/4:53/66/90"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "Battle_Main",
+     "BattleScene_Init",
+     "BattleScene_DispatchLifecycle",
+     "BattleScene_InitializeRuntime",
+     "Battle_InitializeActiveRuntimeState",
+     "func_84370B7C",
+     "func_84370B44"
+    ],
+    [
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "BattleScene_InitializeSwitchActions",
+     "func_84373570",
+     "func_84370B7C",
+     "func_84370B44"
+    ],
+    [
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_RaiseOwnStat",
+     "func_84370B44"
+    ],
+    [
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_SecondaryStatusChance",
+     "func_84370B44"
+    ]
+   ]
+  },
+  "scenario": "burn run",
+  "observed": "Halves Attack (BattleMonRuntime.unk_2A, min 1) when status & 0x10 (burn): 98 -> 49 when called from Battle_Effect_SecondaryStatusChance. Runtime callers: func_84370B7C (31, stat recompute at switch-in) and Battle_Effect_RaiseOwnStat (6); static also LowerStat, SecondaryStatusChance, Battle_ApplyRageStatBoost.",
+  "ares": "the halved Attack (0x31) is in the matching event 2",
+  "verdict": "unclear",
+  "notes": "Proposed: Battle_ApplyBurnAttackPenalty. Its twin func_84370B0C quarters Speed (unk_2E) on paralysis (status & 0x40); reached from Battle_Effect_Paralyze but not watched.",
+  "proposed_name": "Battle_ApplyBurnAttackPenalty"
+ },
+ "Battle_ApplyResidualEffects": {
+  "name": "Battle_ApplyResidualEffects",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_359F90.c:1040",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "Battle_ResolveMonAction",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdatePhase",
+    "BattleScene_PhaseCheckFaintedEndTurn",
+    "BattleScene_CleanupActionAndAdvance",
+    "Battle_ActSecondAttacker",
+    "Battle_ResolveMonAction",
+    "Battle_ApplyResidualEffects"
+   ]
+  ],
+  "runtime": {
+   "count": 184,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit20",
+    "crit28",
+    "crit31",
+    "crit34",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "Battle_ResolveMonAction",
+     "via": "",
+     "count": 184,
+     "first": {
+      "run": "s1",
+      "frame": 2951,
+      "ctx": "1/1/106:96/4/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "Battle_ApplyResidualEffects"
+    ],
+    [
+     "BattleScene_Phase2",
+     "BattleScene_ActionSetupFinalizeStep",
+     "BattleScene_RunActionEffectHpTransition",
+     "BattleScene_CompleteHpUpdateTransition",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "Battle_ApplyResidualEffects"
+    ],
+    [
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseMoveFailedMessage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "Battle_ApplyResidualEffects"
+    ],
+    [
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase7",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "Battle_ApplyResidualEffects"
+    ],
+    [
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseAttackHit",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction",
+     "Battle_ApplyResidualEffects"
+    ]
+   ]
+  },
+  "scenario": "burn run",
+  "observed": "After the burned Machop's move: 'It's hurt by the burn!' and its HP 52 -> 44 (142 / 16 = 8). The call itself writes the HP to show (unk_0E = unk_10 = 44); hp changes when the HP bar has moved (next event).",
+  "ares": "identical (events 4-5)",
+  "verdict": "confirmed",
+  "notes": "BattleMonRuntime.unk_0E / unk_10: pending HP for the HP-bar transition (naming candidates)."
+ },
+ "Battle_Effect_Confuse": {
+  "name": "Battle_Effect_Confuse",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_35DF70.c:783",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "Battle_RunMoveEffect",
+    "kind": "table",
+    "via": "gMoveEffectHandlers"
+   }
+  ],
+  "static_paths": [],
+  "runtime": {
+   "count": 2,
+   "runs": [
+    "inj1"
+   ],
+   "callers": [
+    {
+     "caller": "Battle_RunMoveEffect",
+     "via": "",
+     "count": 2,
+     "first": {
+      "run": "inj1",
+      "frame": 2927,
+      "ctx": "1/0/4:109/66/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_Confuse"
+    ]
+   ]
+  },
+  "scenario": "port-only injection: Confuse Ray in slot 1 (Charmander, later Venusaur)",
+  "observed": "target unk_4C |= 0x80 (confused), unk_50 = confusion turns 3 and 5 ((Battle_Random & 3) + 2); scene unk_48 = 22 (presentation cue). Calls func_843708CC first.",
+  "ares": "not run (the injected moves are port-only)",
+  "verdict": "confirmed",
+  "notes": "port-only evidence"
+ },
+ "Battle_Effect_Sleep": {
+  "name": "Battle_Effect_Sleep",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_35DF70.c:60",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "Battle_RunMoveEffect",
+    "kind": "table",
+    "via": "gMoveEffectHandlers"
+   }
+  ],
+  "static_paths": [],
+  "runtime": {
+   "count": 2,
+   "runs": [
+    "inj1"
+   ],
+   "callers": [
+    {
+     "caller": "Battle_RunMoveEffect",
+     "via": "",
+     "count": 2,
+     "first": {
+      "run": "inj1",
+      "frame": 3997,
+      "ctx": "1/0/4:95/66/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_Sleep"
+    ]
+   ]
+  },
+  "scenario": "port-only injection: Hypnosis in slots 2 and 4",
+  "observed": "First Hypnosis missed (func_843708CC from Battle_Effect_Sleep, no change); the second: target status 0 -> 3 (sleep turns in bits 0-2). Venusaur's later Hypnosis: 0 -> 3 again.",
+  "ares": null,
+  "verdict": "confirmed",
+  "notes": "port-only evidence"
+ },
+ "Battle_Effect_Heal": {
+  "name": "Battle_Effect_Heal",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_35DF70.c:996",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "Battle_RunMoveEffect",
+    "kind": "table",
+    "via": "gMoveEffectHandlers"
+   }
+  ],
+  "static_paths": [],
+  "runtime": {
+   "count": 1,
+   "runs": [
+    "inj1"
+   ],
+   "callers": [
+    {
+     "caller": "Battle_RunMoveEffect",
+     "via": "",
+     "count": 1,
+     "first": {
+      "run": "inj1",
+      "frame": 5031,
+      "ctx": "1/0/4:105/66/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_Heal"
+    ]
+   ]
+  },
+  "scenario": "port-only injection: Recover in slot 3",
+  "observed": "Charmander HP 60 -> 123 (+ max HP 126 / 2); scene unk_48 = 21. The Rest branch (full HP, sleep 2, Battle_ApplyStatStageMultiplier) was not reached.",
+  "ares": null,
+  "verdict": "confirmed",
+  "notes": "port-only evidence"
+ },
+ "Battle_Effect_RaiseOwnStat": {
+  "name": "Battle_Effect_RaiseOwnStat",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_35DF70.c:354",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "Battle_RunMoveEffect",
+    "kind": "table",
+    "via": "gMoveEffectHandlers"
+   }
+  ],
+  "static_paths": [],
+  "runtime": {
+   "count": 8,
+   "runs": [
+    "inj2",
+    "s1",
+    "s2",
+    "s5"
+   ],
+   "callers": [
+    {
+     "caller": "Battle_RunMoveEffect",
+     "via": "",
+     "count": 8,
+     "first": {
+      "run": "s1",
+      "frame": 2951,
+      "ctx": "1/1/106:96/4/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_RaiseOwnStat"
+    ]
+   ]
+  },
+  "scenario": "port-only injection: Swords Dance (also natural: Hitmonlee's Meditate in seed 1)",
+  "observed": "stage_atk 7 -> 9 and Attack 83 -> 166 (Charmander), 103 -> 206 (Venusaur); calls func_84370B44 to re-apply the burn penalty.",
+  "ares": null,
+  "verdict": "confirmed",
+  "notes": "stage 7 = neutral; +2 for Swords Dance as on the Game Boy"
+ },
+ "Battle_Effect_Haze": {
+  "name": "Battle_Effect_Haze",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_35DF70.c:952",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "Battle_RunMoveEffect",
+    "kind": "table",
+    "via": "gMoveEffectHandlers"
+   }
+  ],
+  "static_paths": [],
+  "runtime": {
+   "count": 2,
+   "runs": [
+    "inj2"
+   ],
+   "callers": [
+    {
+     "caller": "Battle_RunMoveEffect",
+     "via": "",
+     "count": 2,
+     "first": {
+      "run": "inj2",
+      "frame": 3917,
+      "ctx": "1/0/4:114/66/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_Haze"
+    ]
+   ]
+  },
+  "scenario": "port-only injection: Haze after Swords Dance",
+  "observed": "stage_atk 9 -> 7 and Attack 166 -> 83 (the user's own boosts reset).",
+  "ares": null,
+  "verdict": "confirmed",
+  "notes": "port-only evidence"
+ },
+ "Battle_Effect_FocusEnergy": {
+  "name": "Battle_Effect_FocusEnergy",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_35DF70.c:734",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "Battle_RunMoveEffect",
+    "kind": "table",
+    "via": "gMoveEffectHandlers"
+   }
+  ],
+  "static_paths": [],
+  "runtime": {
+   "count": 2,
+   "runs": [
+    "inj2"
+   ],
+   "callers": [
+    {
+     "caller": "Battle_RunMoveEffect",
+     "via": "",
+     "count": 2,
+     "first": {
+      "run": "inj2",
+      "frame": 4951,
+      "ctx": "1/0/4:116/66/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_FocusEnergy"
+    ]
+   ]
+  },
+  "scenario": "port-only injection: Focus Energy",
+  "observed": "user unk_4D |= 4, no other change; Battle_CheckCriticalHit reads that bit (Stadium rule: threshold * 4 + 160 instead of the Game Boy's halving).",
+  "ares": null,
+  "verdict": "confirmed",
+  "notes": "names the field: unk_4D bit 2 = focus energy"
+ },
+ "Battle_Effect_Substitute": {
+  "name": "Battle_Effect_Substitute",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_35DF70.c:830",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "Battle_RunMoveEffect",
+    "kind": "table",
+    "via": "gMoveEffectHandlers"
+   }
+  ],
+  "static_paths": [],
+  "runtime": {
+   "count": 2,
+   "runs": [
+    "inj2"
+   ],
+   "callers": [
+    {
+     "caller": "Battle_RunMoveEffect",
+     "via": "",
+     "count": 2,
+     "first": {
+      "run": "inj2",
+      "frame": 5891,
+      "ctx": "1/0/4:164/66/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84372670",
+     "Battle_ExecuteMoveEffect",
+     "Battle_RunMoveEffect",
+     "Battle_Effect_Substitute"
+    ]
+   ]
+  },
+  "scenario": "port-only injection: Substitute",
+  "observed": "HP 44 -> 13 (max 126 / 4 = 31), unk_59 = 31 (the substitute's HP), unk_4D |= 0x10; Venusaur: 60 -> 21, unk_59 = 39.",
+  "ares": null,
+  "verdict": "confirmed",
+  "notes": "names the fields: unk_59 = substitute HP, unk_4D bit 4 = has substitute"
+ },
+ "Battle_ResolveMonAction": {
+  "name": "Battle_ResolveMonAction",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_359F90.c:1809",
+  "static": false,
+  "port_changed": true,
+  "static_callers": [
+   {
+    "caller": "Battle_StartTurn",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_ActSecondAttacker",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdatePhase",
+    "BattleScene_PhaseCheckFaintedEndTurn",
+    "BattleScene_CleanupActionAndAdvance",
+    "Battle_ActSecondAttacker",
+    "Battle_ResolveMonAction"
+   ]
+  ],
+  "runtime": {
+   "count": 184,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit20",
+    "crit28",
+    "crit31",
+    "crit34",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "Battle_StartTurn",
+     "via": "",
+     "count": 105,
+     "first": {
+      "run": "s1",
+      "frame": 2951,
+      "ctx": "1/1/-1:-1/-1/0"
+     }
+    },
+    {
+     "caller": "Battle_ActSecondAttacker",
+     "via": "",
+     "count": 79,
+     "first": {
+      "run": "s1",
+      "frame": 3491,
+      "ctx": "2/0/106:96/4/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "Battle_FrameCallback",
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction"
+    ],
+    [
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase2",
+     "BattleScene_ActionSetupFinalizeStep",
+     "BattleScene_RunActionEffectHpTransition",
+     "BattleScene_CompleteHpUpdateTransition",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction"
+    ],
+    [
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseMoveFailedMessage",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction"
+    ],
+    [
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase7",
+     "BattleScene_WaitForDisplayedHpAnimations",
+     "BattleScene_UpdateDisplayedHpAndTransition",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction"
+    ],
+    [
+     "Battle_FrameCallback",
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_PhaseAttackHit",
+     "BattleScene_ResolveDisplayedHpCompletion",
+     "BattleScene_CompleteActionPhase",
+     "Battle_ActSecondAttacker",
+     "Battle_ResolveMonAction"
+    ]
+   ]
+  },
+  "scenario": "all runs",
+  "observed": "Resolves one side's action per call: called by Battle_StartTurn for the first attacker (70) and Battle_ActSecondAttacker for the second (56); calls func_84372670, Battle_ApplyResidualEffects, Battle_CheckFaintAfterMove.",
+  "ares": "event states at its entry and return identical in seeds 1, 7",
+  "verdict": "confirmed",
+  "notes": "has PORT: lines (the xcheck event hooks only)"
+ },
+ "BattleScene_IsActionSelectionTimerExpired": {
+  "name": "BattleScene_IsActionSelectionTimerExpired",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_2F74E0.c:167",
+  "static": false,
+  "port_changed": true,
+  "static_callers": [
+   {
+    "caller": "BattleScene_HandlePlayerActionInput",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_HandlePlayerForcedActionState",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdateIntroCameraSequence",
+    "BattleScene_UpdateActionSelectPhase",
+    "BattleScene_UpdateActionCollection",
+    "BattleScene_CollectActions",
+    "BattleScene_CollectPlayerAction",
+    "BattleScene_HandlePlayerActionInput",
+    "BattleScene_IsActionSelectionTimerExpired"
+   ]
+  ],
+  "runtime": {
+   "count": 230,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit20",
+    "crit28",
+    "crit31",
+    "crit34",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "BattleScene_HandlePlayerActionInput",
+     "via": "",
+     "count": 210,
+     "first": {
+      "run": "s1",
+      "frame": 2931,
+      "ctx": "1/1/-1:-1/-1/0"
+     }
+    },
+    {
+     "caller": "BattleScene_HandlePlayerForcedActionState",
+     "via": "",
+     "count": 20,
+     "first": {
+      "run": "s1",
+      "frame": 8315,
+      "ctx": "1/1/56:91/4/76"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "BattleScene_CollectPlayerAction",
+     "BattleScene_HandlePlayerActionInput",
+     "BattleScene_IsActionSelectionTimerExpired"
+    ],
+    [
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "BattleScene_CollectPlayerAction",
+     "BattleScene_HandlePlayerForcedActionState",
+     "BattleScene_IsActionSelectionTimerExpired"
+    ]
+   ]
+  },
+  "scenario": "all runs (PORT_XCHECK_COM)",
+  "observed": "Queried by BattleScene_HandlePlayerActionInput (140) and BattleScene_HandlePlayerForcedActionState (14); with the xcheck COM answer the game picks the first usable move and first healthy replacement.",
+  "ares": null,
+  "verdict": "unclear",
+  "notes": "PORT-changed: in these runs the port's hook decides the answer, so the run says nothing about the original timer logic. Needs a run with real input timing (or ares with the hook off)."
+ },
+ "Battle_ApplyStatStageMultiplier": {
+  "name": "Battle_ApplyStatStageMultiplier",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_35DF70.c:46",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "Battle_Effect_Heal",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [],
+  "runtime": null,
+  "scenario": "none reached it",
+  "observed": "Only static caller: Battle_Effect_Heal's Rest branch when the user had a status before (Stadium rules). Not reached.",
+  "ares": null,
+  "verdict": "not reached",
+  "notes": "Needs Rest used while statused: a party injection with Rest plus a forced status (lockstep case 'mon' line on both sides)."
+ },
+ "func_84370ADC": {
+  "name": "func_84370ADC",
+  "comment": "",
+  "file": "src/fragments/battle_engine/battle_engine_359F90.c:673",
+  "static": false,
+  "port_changed": false,
+  "static_callers": [
+   {
+    "caller": "BattleScene_RunBasicHpTransition",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_RunConditionalHpTransition",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_RunMoveEffectEndHpTransition",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_RunActionEffectHpTransition",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_RunRepeatedHitHpTransition",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_ActionSetupFinalizeStep",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_Phase7",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_Phase38",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_Phase27",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_Phase30",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_Phase28",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_EndStatusAnimationsAndCommit",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_Phase29",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_Phase14",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_Phase17",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "BattleScene_Phase31",
+    "kind": "call",
+    "via": ""
+   },
+   {
+    "caller": "Battle_ResolveMonAction",
+    "kind": "call",
+    "via": ""
+   }
+  ],
+  "static_paths": [
+   [
+    "Battle_Main",
+    "BattleScene_Init",
+    "BattleScene_Dispatch",
+    "BattleScene_Update",
+    "BattleScene_UpdatePhase",
+    "BattleScene_Phase14",
+    "func_84370ADC"
+   ]
+  ],
+  "runtime": {
+   "count": 12266,
+   "runs": [
+    "a_crit35",
+    "burn",
+    "crit20",
+    "crit28",
+    "crit31",
+    "crit34",
+    "crit36",
+    "crit81",
+    "inj1",
+    "inj2",
+    "miss",
+    "reroll",
+    "s1",
+    "s2",
+    "s3",
+    "s5",
+    "s7",
+    "s9"
+   ],
+   "callers": [
+    {
+     "caller": "BattleScene_ActionSetupFinalizeStep",
+     "via": "",
+     "count": 11756,
+     "first": {
+      "run": "s1",
+      "frame": 3749,
+      "ctx": "2/0/4:53/106/91"
+     }
+    },
+    {
+     "caller": "Battle_ResolveMonAction",
+     "via": "",
+     "count": 368,
+     "first": {
+      "run": "s1",
+      "frame": 3491,
+      "ctx": "2/0/106:96/4/0"
+     }
+    },
+    {
+     "caller": "BattleScene_RunActionEffectHpTransition",
+     "via": "",
+     "count": 110,
+     "first": {
+      "run": "s1",
+      "frame": 3749,
+      "ctx": "2/0/4:53/106/91"
+     }
+    },
+    {
+     "caller": "BattleScene_Phase7",
+     "via": "",
+     "count": 13,
+     "first": {
+      "run": "s1",
+      "frame": 29819,
+      "ctx": "2/1/32:115/3/0"
+     }
+    },
+    {
+     "caller": "BattleScene_Phase17",
+     "via": "",
+     "count": 6,
+     "first": {
+      "run": "s7",
+      "frame": 19299,
+      "ctx": "2/0/2:75/29/58"
+     }
+    },
+    {
+     "caller": "BattleScene_RunRepeatedHitHpTransition",
+     "via": "",
+     "count": 4,
+     "first": {
+      "run": "s1",
+      "frame": 17589,
+      "ctx": "2/1/32:31/3/15"
+     }
+    },
+    {
+     "caller": "BattleScene_RunBasicHpTransition",
+     "via": "",
+     "count": 4,
+     "first": {
+      "run": "s2",
+      "frame": 3859,
+      "ctx": "2/1/23:137/4/0"
+     }
+    },
+    {
+     "caller": "BattleScene_EndStatusAnimationsAndCommit",
+     "via": "",
+     "count": 2,
+     "first": {
+      "run": "inj2",
+      "frame": 4437,
+      "ctx": "2/0/4:114/66/0"
+     }
+    },
+    {
+     "caller": "BattleScene_Phase29",
+     "via": "",
+     "count": 2,
+     "first": {
+      "run": "inj2",
+      "frame": 4267,
+      "ctx": "2/0/4:114/66/0"
+     }
+    },
+    {
+     "caller": "BattleScene_Phase31",
+     "via": "",
+     "count": 1,
+     "first": {
+      "run": "s2",
+      "frame": 6669,
+      "ctx": "2/0/4:53/106/0"
+     }
+    }
+   ],
+   "paths": [
+    [
+     "Battle_Main",
+     "Battle_FrameCallback",
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase3",
+     "BattleScene_ActionSetupFinalizeStep",
+     "func_84370ADC"
+    ],
+    [
+     "Battle_Main",
+     "Battle_FrameCallback",
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase2",
+     "BattleScene_ActionSetupFinalizeStep",
+     "func_84370ADC"
+    ],
+    [
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdateIntroCameraSequence",
+     "BattleScene_UpdateActionSelectPhase",
+     "BattleScene_UpdateActionCollection",
+     "BattleScene_CollectActions",
+     "Battle_StartTurn",
+     "Battle_ResolveMonAction",
+     "func_84370ADC"
+    ],
+    [
+     "Battle_Main",
+     "Battle_FrameCallback",
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase2",
+     "BattleScene_ActionSetupFinalizeStep",
+     "BattleScene_RunActionEffectHpTransition",
+     "func_84370ADC"
+    ],
+    [
+     "Battle_Main",
+     "Battle_FrameCallback",
+     "BattleScene_UpdateFrame",
+     "BattleScene_Dispatch",
+     "BattleScene_Update",
+     "BattleScene_UpdatePhase",
+     "BattleScene_Phase3",
+     "BattleScene_ActionSetupFinalizeStep",
+     "BattleScene_RunActionEffectHpTransition",
+     "func_84370ADC"
+    ]
+   ]
+  },
+  "scenario": "all runs",
+  "observed": "Called from 9 places at runtime (BattleScene_ActionSetupFinalizeStep 8159, Battle_ResolveMonAction 252, BattleScene_RunActionEffectHpTransition 76, phases 7/17 ...). By the code it copies the active Pokemon's status to its party entry (BattleMon.unk_05); that party memory is not in the captured state.",
+  "ares": null,
+  "verdict": "unclear",
+  "notes": "Proposed: Battle_SyncStatusToParty. Needs the TeamRoster party entries in the watch dump to confirm.",
+  "proposed_name": "Battle_SyncStatusToParty"
+ }
+}
