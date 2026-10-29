@@ -4,7 +4,8 @@ random values, compared event by event and frame by frame (the method of tools/b
 
 Usage:
   tools/battle_sweep.py paths [--move N|NAME]            the path catalog derived from the decomp (no runs)
-  tools/battle_sweep.py run [--move N|NAME] [--path P | --all-paths] [--jobs 2] [--force] [--port-bin build-xcheck/pokestadium]
+  tools/battle_sweep.py run [--move N|NAME | --case ID] [--path P | --all-paths] [--user SPECIES] [--jobs 2] [--force]
+                            [--port-bin build-xcheck/pokestadium]
   tools/battle_sweep.py report [--all-paths]             build-xcheck-sweep/report.md from the cached cases
 By default each move runs once, on its base path, with its sound compared (the battle music is switched off on
 both sides, so the move's sound effects are what is heard); --all-paths runs every path of the catalog.
@@ -204,7 +205,7 @@ def pick_target(mv, chart, species, want):
     return None
 
 
-def plan(moves, species, chart, only_move=None, only_path=None):
+def plan(moves, species, chart, only_move=None, only_path=None, user_override=None):
     """the cases: each a battle with up to four (move, path) uses sharing the same setup"""
     groups = {}  # key -> case dict
     open_group = {}  # setup key -> the group still taking uses
@@ -233,7 +234,7 @@ def plan(moves, species, chart, only_move=None, only_path=None):
             if target is None:
                 skipped.append((mid, path, "no target species with that matchup"))
                 continue
-            user, user_why = pick_user(mv, species)
+            user, user_why = (user_override, "--user") if user_override else pick_user(mv, species)
             tgt = {"species": target, "moves": [SPLASH], "spd": 20, "hp": 999, "status": 0}
             usr = {"species": user, "hp": 300, "status": 0}
             rules = {"Battle_RandomAccuracy@func_843708CC": [0], "Battle_Random@Battle_CheckCriticalHit": [255]}
@@ -374,7 +375,8 @@ def start_state():
 
 
 def symbols_file():
-    return os.path.join(HERE, "ares_ref", "battle_engine.syms")  # (from the decomp map, see its header)
+    # (from the decomp map, see its header; XCHECK_SYMS: a fuller list, e.g. every function of the map)
+    return os.environ.get("XCHECK_SYMS") or os.path.join(HERE, "ares_ref", "battle_engine.syms")
 
 
 def run_case(c, species, port_bin, max_frames):
@@ -843,7 +845,7 @@ def classify(u, common_offset, floor=None):
 def parse_args(argv):
     args, i = {}, 0
     while i < len(argv):
-        if argv[i] in ("--move", "--path", "--jobs", "--port-bin", "--frames") and i + 1 < len(argv):
+        if argv[i] in ("--move", "--path", "--jobs", "--port-bin", "--frames", "--case", "--user", "--moves") and i + 1 < len(argv):
             args[argv[i]] = argv[i + 1]
             i += 2
         else:
@@ -871,7 +873,20 @@ def main():
     spn, mvn = bx.names()
     only = move_arg(args.get("--move"), mvn)
     # each move once (its base path) unless --all-paths or --path asks for more
-    cases, skipped = plan(moves, species, chart, only, args.get("--path") or (None if args.get("--all-paths") else "base"))
+    cases, skipped = plan(moves, species, chart, only, args.get("--path") or (None if args.get("--all-paths") else "base"),
+                          int(args["--user"]) if args.get("--user") else None)
+    if args.get("--moves"):  # one battle with these moves in this order (base path), e.g. to find carried-over state
+        seq = [move_arg(x, mvn) for x in args["--moves"].split(",")][:4]
+        one, _ = plan(moves, species, chart, seq[0], "base", int(args["--user"]) if args.get("--user") else None)
+        c = one[0]
+        c["uses"] = [dict(c["uses"][0], move=m, why="--moves sequence") for m in seq]
+        c["turns"] = len(seq)
+        spec = json.dumps({k: c[k] for k in ("path", "target", "user", "rules", "turns")} | {"moves": seq}, sort_keys=True)
+        c["id"] = "seq_%s_%s" % ("-".join("%03d" % m for m in seq), hashlib.sha1(spec.encode()).hexdigest()[:8])
+        c["spec"] = spec
+        cases = [c]
+    if args.get("--case"):  # one battle of the plan, by (the start of) its id
+        cases = [c for c in cases if c["id"].startswith(args["--case"])]
     os.makedirs(os.path.join(WORK, "cases"), exist_ok=True)
     if cmd == "paths":
         for mid in sorted(moves):
