@@ -339,10 +339,67 @@ static void ValidateList(const Gfx* g, int depth, const char* path) {
 
 // Debug aid (PORT_SCREENSHOT_DIR=dir): writes the presented frame as a PPM every 120 frames (the Metal readback
 // returns the previous frame as RGBA5551). Convert with tools/ppm2png.py.
+extern "C" int Port_XcheckAnimActive(void);
+extern "C" const char* Port_XcheckFramePath(void);
+
+// the presented frame as a PPM: the 8-bit screen pixels when the readback has them (same frame as buf), else the
+// RGBA5551 copy
+static void WriteFramePpm(const char* path, int w, int h, const std::vector<uint16_t>& buf) {
+    FILE* f = fopen(path, "wb");
+    if (!f) return;
+    fprintf(f, "P6\n%d %d\n255\n", w, h);
+    bool full = gPortScreenW == (uint32_t)w && gPortScreenH == (uint32_t)h && gPortScreenBgra.size() == buf.size() * 4;
+    for (size_t i = 0; i < buf.size(); i++) {
+        if (full) {
+            uint8_t px[3] = { gPortScreenBgra[i * 4 + 2], gPortScreenBgra[i * 4 + 1], gPortScreenBgra[i * 4 + 0] };
+            fwrite(px, 1, 3, f);
+            continue;
+        }
+        uint16_t v = buf[i];
+        uint8_t px[3] = { (uint8_t)(((v >> 11) & 31) * 255 / 31), (uint8_t)(((v >> 6) & 31) * 255 / 31), (uint8_t)(((v >> 1) & 31) * 255 / 31) };
+        fwrite(px, 1, 3, f);
+    }
+    fclose(f);
+}
+
+// the same, 160x120 (box-averaged, the centre 4:3 of a wider picture): the battle cross-check's animation frames
+static void WriteFramePpmSmall(const char* path, int w, int h, const std::vector<uint16_t>& buf) {
+    FILE* f = fopen(path, "wb");
+    if (!f) return;
+    const int ow = 160, oh = 120;
+    bool full = gPortScreenW == (uint32_t)w && gPortScreenH == (uint32_t)h && gPortScreenBgra.size() == buf.size() * 4;
+    int cw = std::min(w, h * 4 / 3), x0 = (w - cw) / 2;
+    std::vector<uint8_t> out((size_t)ow * oh * 3);
+    for (int y = 0; y < oh; y++) {
+        int ya = y * h / oh, yb = std::max(ya + 1, (y + 1) * h / oh);
+        for (int x = 0; x < ow; x++) {
+            int xa = x0 + x * cw / ow, xb = std::max(xa + 1, x0 + (x + 1) * cw / ow);
+            unsigned sum[3] = { 0, 0, 0 }, n = 0;
+            for (int yy = ya; yy < yb; yy++) {
+                for (int xx = xa; xx < xb; xx++) {
+                    size_t i = (size_t)yy * w + xx;
+                    if (full) {
+                        sum[0] += gPortScreenBgra[i * 4 + 2], sum[1] += gPortScreenBgra[i * 4 + 1], sum[2] += gPortScreenBgra[i * 4];
+                    } else {
+                        uint16_t v = buf[i];
+                        sum[0] += ((v >> 11) & 31) * 255 / 31, sum[1] += ((v >> 6) & 31) * 255 / 31, sum[2] += ((v >> 1) & 31) * 255 / 31;
+                    }
+                    n++;
+                }
+            }
+            for (int c = 0; c < 3; c++) out[((size_t)y * ow + x) * 3 + c] = (uint8_t)(sum[c] / n);
+        }
+    }
+    fprintf(f, "P6\n%d %d\n255\n", ow, oh);
+    fwrite(out.data(), 1, out.size(), f);
+    fclose(f);
+}
+
 static void MaybeScreenshot() {
     static const char* dir = getenv("PORT_SCREENSHOT_DIR");
+    static const bool xcheckAnim = Port_XcheckAnimActive(); // battle cross-check: move animation frames (xcheck.cpp)
     static int frame = 0;
-    if (!dir && !Port_FreezeCheckEnabled()) return;
+    if (!dir && !xcheckAnim && !Port_FreezeCheckEnabled()) return;
     ++frame;
     int w = sWindow->GetWidth(), h = sWindow->GetHeight();
     {   // the drawable can be larger than the window in points (Retina): read the full pixel size
@@ -364,6 +421,7 @@ static void MaybeScreenshot() {
         for (size_t i = 0; i < buf.size(); i += 7) fh = (fh ^ (buf[i] & 0xE738)) * 1099511628211ull;
         Port_NotePictureHash(fh);
     }
+    if (const char* xpath = xcheckAnim ? Port_XcheckFramePath() : nullptr) WriteFramePpmSmall(xpath, w, h, buf);
     if (!dir) return;
     // Only save when the picture changed since the last saved frame (hash of a sparse sample), checked every 15 frames.
     // The readback must still be requested every frame to stay in sync.
@@ -374,22 +432,7 @@ static void MaybeScreenshot() {
     if (sCaptureFrame != 0) {
         char path[1024];
         snprintf(path, sizeof path, "%s/stop_%05d.ppm", dir, name);
-        if (FILE* f = fopen(path, "wb")) {
-            fprintf(f, "P6\n%d %d\n255\n", w, h);
-            // the 8-bit screen pixels when the readback has them (same frame as buf), else the RGBA5551 copy
-            bool full = gPortScreenW == (uint32_t)w && gPortScreenH == (uint32_t)h && gPortScreenBgra.size() == buf.size() * 4;
-            for (size_t i = 0; i < buf.size(); i++) {
-                if (full) {
-                    uint8_t px[3] = { gPortScreenBgra[i * 4 + 2], gPortScreenBgra[i * 4 + 1], gPortScreenBgra[i * 4 + 0] };
-                    fwrite(px, 1, 3, f);
-                    continue;
-                }
-                uint16_t v = buf[i];
-                uint8_t px[3] = { (uint8_t)(((v >> 11) & 31) * 255 / 31), (uint8_t)(((v >> 6) & 31) * 255 / 31), (uint8_t)(((v >> 1) & 31) * 255 / 31) };
-                fwrite(px, 1, 3, f);
-            }
-            fclose(f);
-        }
+        WriteFramePpm(path, w, h, buf);
         sCaptureFrame = 0; // one picture per request (PORT_SHOT_AT asks again for its next frame)
         return;
     }

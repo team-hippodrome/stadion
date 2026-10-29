@@ -19,6 +19,20 @@
 // ARES_REF_GBSAV_OUT / ARES_REF_GBBOARD (Transfer Pak cartridge), ARES_REF_WAV=<file> (the N64 audio output (AI),
 // resampled to 48 kHz, as raw signed 16-bit stereo little-endian PCM; <file>.frames gets the u32 sample-frame count
 // written so far at the end of every VI frame, for lining it up with pictures).
+// Battle cross-check (tools/battle_xcheck.py; needs ares with ares-host-hooks.patch, see build.sh):
+//   ARES_REF_XCHECK=<file>          write the battle trace: forced random values and the battle state at turn starts and
+//                                   around each action (Battle_ResolveMonAction), the same records the port writes with
+//                                   PORT_XCHECK=<file> (src/port/xcheck.cpp)
+//   ARES_REF_XCHECK_RNG=<seed>      replace the battle's random functions (Battle_Random, ...) with a seeded stream
+//   ARES_REF_XCHECK_CASE=<file>     a case (parties, forced values per caller, turns): the port's PORT_XCHECK_CASE format
+//   ARES_REF_XCHECK_SYMS=<file>     battle engine function starts ("<link address hex> <name>" lines, from the decomp
+//                                   map) to name the caller of each random call, as the port does with dladdr
+//   ARES_REF_XCHECK_COM=1           no input needed in battle: the player's move time limit runs out at the second query
+//                                   of each decision (first usable move, first healthy replacement), as PORT_XCHECK_COM
+//   ARES_REF_XCHECK_ANIM=<dir>      save each move animation's frames, from its start to the next battle event, one per
+//                                   game frame, as <dir>/m<k>_<move>/f_<n>.ppm (n: battle game frames since the start;
+//                                   at most ARES_REF_XCHECK_ANIM_FRAMES game frames, default 300)
+// Trace lines carry gf=<n>: battle game frames (BattleScene_UpdateFrame calls), as the port's.
 #include <ares/ares.hpp>
 #include <n64/n64.hpp>
 #include <nall/main.hpp>
@@ -34,6 +48,8 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <algorithm>
+#include <sys/stat.h>
 
 using namespace ares;
 
@@ -211,6 +227,441 @@ uint32_t parseButtons(const std::string& s) {
     return v;
 }
 
+
+// ---- battle cross-check (ARES_REF_XCHECK*) ----
+// The battle engine is fragment 51 (link address 0x84300000); the game relocates it to wherever the pool put it and
+// keeps that address in gFragments[51] (memmap.c), so hooks move with it. Addresses: the decomp's
+// build/pokestadium-us.map and linker_scripts/us/symbol_addrs.txt.
+namespace xcheck {
+constexpr u32 kFragmentTable = 0x800A58F0; // gFragments[240] {vaddr, size}
+constexpr u32 kFragmentId = 51, kLinkBase = 0x84300000;
+constexpr u32 kActivePokemon = 0x84390010;  // sActivePokemon[2]
+constexpr u32 kMessageQueues = 0x843901A0;  // gBattleMessageQueues
+constexpr u32 kBattleScene = 0x84390240;    // sBattleScene (first word: BattleScene*)
+constexpr u32 kBattleDamage = 0x843C4DC4;   // gBattleDamage (u16)
+constexpr u32 kSetFragmentMap = 0x800020B0; // Memmap_SetFragmentMap(id, vaddr, size): main code, not relocated
+constexpr u32 kGuRandom = 0x8005D1B0;       // guRandom (main code): its callers are traced with ARES_REF_XCHECK_GURANDOM
+constexpr u32 kGuRandomSeed = 0x8007A950;   // guRandom's xseed (lui 0x8008 / lw -0x56B0 in the ROM's guRandom)
+constexpr u32 kParticleMathId = 4, kParticleMathLink = 0x81400000; // particle_math fragment
+constexpr u32 kParticleFrameCounter = 0x8140E6B8; // gParticleFrameCounter (link address)
+constexpr u32 kStartBattleMusic = 0x8004153C; // Audio_StartBattleMusicSequence (main code): skipped for "nomusic"
+enum Fn : int { BattleRandom, BattleRandomAccuracy, AiRandomBelow, AnimRandomRange, AnimRandomWarmup, kRandomFns,
+                AiSeed = kRandomFns, FragmentMap, BattleMusic, GuRandom, GameFrame, StartTurn, ResolveEnter, TimerExpired, MoveAnim, MoveAnimMid, ResolveExit };
+// names shared with the port's trace (src/port/xcheck.cpp)
+const char* const kRandomNames[kRandomFns] = { "Battle_Random", "Battle_RandomAccuracy", "BattleAI_RandomBelowInclusive",
+                                               "BattleAnim_RandomRange", "BattleAnim_RandomIntWithWarmup" };
+struct Hooked { u32 link; Fn fn; };
+const Hooked kHooked[] = {
+    { 0x8436F6D8, BattleRandom }, { 0x8436F788, BattleRandomAccuracy }, { 0x843767E4, AiRandomBelow },
+    { 0x8430C414, AnimRandomRange }, { 0x8430C384, AnimRandomWarmup }, { 0x843768D8, AiSeed },
+    { 0x84320108, StartTurn }, { 0x8437345C, ResolveEnter }, { 0x8430D124, TimerExpired },
+    { 0x84302A78, MoveAnim },    // BattleScene_EnterRow3StartMoveAnim
+    { 0x843033E0, MoveAnimMid }, // BattleScene_EnterRow19StartMoveAnimMidFrame
+    { 0x84300E88, GameFrame },   // BattleScene_UpdateFrame: once per battle game frame
+};
+
+bool gOn = false, gForce = false, gCom = false, gStop = false;
+u32 gSeed = 0;
+FILE* gOut = nullptr;
+// a case (src/port/xcheck.cpp has the format): BattleMon fields to write, forced values, turns to play
+struct MonField { const char* name; u32 offset, size; };
+const MonField kMonFields[] = { { "species", 0x00, 1 }, { "hp", 0x02, 2 },   { "status", 0x05, 1 }, { "type1", 0x06, 1 },
+                                { "type2", 0x07, 1 },   { "m1", 0x09, 1 },   { "m2", 0x0A, 1 },     { "m3", 0x0B, 1 },
+                                { "m4", 0x0C, 1 },      { "p1", 0x20, 1 },   { "p2", 0x21, 1 },     { "p3", 0x22, 1 },
+                                { "p4", 0x23, 1 },      { "level", 0x24, 1 }, { "maxhp", 0x26, 2 }, { "atk", 0x28, 2 },
+                                { "def", 0x2A, 2 },     { "spd", 0x2C, 2 },  { "spc", 0x2E, 2 } };
+struct MonLine { int side, slot; std::vector<std::pair<const MonField*, u32>> set; };
+struct Rule { int fn; std::string caller; std::vector<u32> values; size_t next = 0; };
+std::vector<MonLine> gMons;
+std::vector<Rule> gRules;
+int gStopTurns = 0, gTurns = 0;
+bool gNoMusic = false, gTraceGuRandom = false;
+std::vector<std::pair<u32, std::string>> gSyms; // battle engine function starts (link addresses), sorted
+constexpr u32 kSessionContext = 0x800AE540;    // gSessionContext: battleSides at 0x1194 (0x28 each)
+std::map<u32, u32> gCalls; // per stream: the logic functions one each, the animation ones one per argument
+u32 gBase = 0;                 // gFragments[51].vaddr the hooks were placed for
+std::map<u32, Fn> gAt;         // runtime address -> function
+u64 gFrame = 0;
+u64 gGameFrame = 0, gSavedGameFrame = ~0ull; // battle game frames so far; the last one captured
+std::string gAnimDir;
+int gAnimFrames = 300, gAnimLeft = 0, gAnimCount = 0;
+std::string gAnimCur;
+u64 gAnimStart = 0;
+u32 gEvents = 0;
+
+auto& ram() { return Nintendo64::rdram.ram; }
+u32 phys(u32 vaddr) { return vaddr & 0x1FFFFFFF; }
+// a word as the CPU sees it: from its data cache when the line is there (the newest writes sit in dirty lines), else
+// from RDRAM
+u32 rd32(u32 vaddr) {
+    u32 p = phys(vaddr) & ~3u;
+    if (vaddr >= 0x80000000u && vaddr < 0xA0000000u) { // cached segment (KSEG0)
+        auto& line = Nintendo64::cpu.dcache.line(vaddr);
+        if (line.valid() && (line.tagKey & ~1u) == (p & ~0xFFFu)) return line.words[p >> 2 & 3];
+    }
+    if (p + 4 > ram().size) return 0;
+    return ram().Nintendo64::Memory::Writable::read<Nintendo64::Word>(p);
+}
+u8 rd8(u32 vaddr) { return (u8)(rd32(vaddr) >> ((3 - (vaddr & 3)) * 8)); }
+// a byte as the CPU would store it: into its data cache line when the line is there, and into RDRAM
+void wr8(u32 vaddr, u8 v) {
+    u32 p = phys(vaddr) & ~3u, sh = (3 - (vaddr & 3)) * 8;
+    if (p + 4 > ram().size) return;
+    if (vaddr >= 0x80000000u && vaddr < 0xA0000000u) {
+        auto& line = Nintendo64::cpu.dcache.line(vaddr);
+        if (line.valid() && (line.tagKey & ~1u) == (p & ~0xFFFu)) {
+            u32& w = line.words[p >> 2 & 3];
+            w = (w & ~(0xFFu << sh)) | ((u32)v << sh);
+        }
+    }
+    u32 w = ram().Nintendo64::Memory::Writable::read<Nintendo64::Word>(p);
+    w = (w & ~(0xFFu << sh)) | ((u32)v << sh);
+    ram().Nintendo64::Memory::Writable::write<Nintendo64::Word>(p, w);
+}
+std::string hexBytes(u32 vaddr, u32 n) {
+    static const char* d = "0123456789abcdef";
+    std::string s;
+    for (u32 i = 0; i < n; i++) {
+        u8 b = rd8(vaddr + i);
+        s += d[b >> 4];
+        s += d[b & 15];
+    }
+    return s;
+}
+u32 rt(u32 link) { return gBase + (link - kLinkBase); } // link address -> runtime address
+
+// the forced value stream: splitmix64 of (seed, function, call index), identical in src/port/xcheck.cpp
+u32 streamValue(u32 seed, u32 fn, u32 k) {
+    u64 z = ((u64)seed << 32) ^ ((u64)fn << 24) ^ k;
+    z += 0x9E3779B97F4A7C15ull;
+    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+    z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+    return (u32)(z ^ (z >> 31));
+}
+// the stream a call draws from: the animation functions are polled per frame (e.g. a 1-in-50 idle animation check),
+// so their streams are kept per argument and a frame of timing difference cannot shift the effects' draws
+u32 streamKey(int fn, s32 arg) { return fn >= AnimRandomRange ? (u32)fn << 16 | ((u32)arg & 0xFFFF) : (u32)fn << 16; }
+
+// the function a return address lies in (from ARES_REF_XCHECK_SYMS): in a loaded fragment its link address is
+// ra - base + 0x80000000 + (id + 0x10) << 20 (FRAGMENT_ID in the decomp's macros.h), main code is linked as it runs
+std::string callerName(u32 ra) {
+    u32 link = ra;
+    for (u32 id = 0; id < 240; id++) {
+        u32 base = rd32(kFragmentTable + id * 8), size = rd32(kFragmentTable + id * 8 + 4);
+        if (base >= 0x80000000u && ra >= base && ra < base + size) {
+            link = ra - base + (0x80000000u | ((id + 0x10) << 20));
+            break;
+        }
+    }
+    auto it = std::upper_bound(gSyms.begin(), gSyms.end(), std::make_pair(link, std::string{ "\x7f" }));
+    return it == gSyms.begin() ? "?" : std::prev(it)->second;
+}
+
+u32 nextValue(int fn, s32 arg, const std::string& from, u32& k) {
+    u32 key = streamKey(fn, arg);
+    k = gCalls[key]++;
+    u32 v = streamValue(gSeed, key, k);
+    Rule* rule = nullptr; // a rule for this caller wins over one for every caller
+    for (Rule& r : gRules) {
+        if (r.fn == fn && (r.caller == from || (r.caller.empty() && !rule))) rule = &r;
+    }
+    if (rule) {
+        v = rule->values[rule->next];
+        rule->next = (rule->next + 1) % rule->values.size();
+    }
+    return v;
+}
+
+// the case's party fields, written when the battle engine is mapped (as Port_XcheckApplyCaseParties): both sides'
+// picked Pokemon (TeamRoster 0x1C, 0x54 each) and their roster info copies (TeamRoster.rosterInfo 0x214 -> 0x28)
+void applyParties() {
+    for (int side = 0; side < 2; side++) {
+        u32 roster = rd32(kSessionContext + 0x1194 + side * 0x28 + 0x08);
+        if (!roster) continue;
+        u32 info = rd32(roster + 0x214);
+        for (int i = 0; i < 6; i++) {
+            for (u32 mon : { roster + 0x1C + i * 0x54, info ? info + 0x28 + i * 0x54 : 0u }) {
+                if (!mon) continue;
+                for (auto& m : gMons) {
+                    if (m.side != side || (m.slot >= 0 && m.slot != i)) continue;
+                    for (auto& [f, v] : m.set) {
+                        if (f->size == 1) {
+                            wr8(mon + f->offset, (u8)v);
+                        } else { // big-endian u16
+                            wr8(mon + f->offset, (u8)(v >> 8));
+                            wr8(mon + f->offset + 1, (u8)v);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    fprintf(stderr, "[xcheck] case parties written\n");
+}
+
+void endCapture() { gAnimLeft = 0; }
+
+void event(const char* name) {
+    u32 scene = rd32(rt(kBattleScene));
+    u32 ap0 = rd32(rt(kActivePokemon)), ap1 = rd32(rt(kActivePokemon) + 4);
+    u32 mq = rd32(rt(kMessageQueues));
+    if (gStop) return; // (the rest of the stopping frame)
+    endCapture(); // a move animation is captured up to the next event
+    if (!strcmp(name, "turn") && gStopTurns > 0 && gTurns++ >= gStopTurns) {
+        if (gOut) fprintf(gOut, "S turns=%d frame=%llu gf=%llu\n", gStopTurns, (unsigned long long)gFrame,
+                          (unsigned long long)gGameFrame);
+        if (gOut) fflush(gOut);
+        gStop = true;
+        return;
+    }
+    if (!gOut || !ap0 || !ap1 || !scene) return;
+    // ActivePokemon.state (0x654): ActivePokemonState up to its Controller* (0xC8); BattleScene up to its CameraNode*;
+    // the message queues' byte arrays (0x48..0x4C8)
+    fprintf(gOut, "E %u %s frame=%llu gf=%llu st0=%s st1=%s scene=%s dmg=%u mq=%s\n", gEvents++, name,
+            (unsigned long long)gFrame, (unsigned long long)gGameFrame,
+            hexBytes(ap0 + 0x654, 0xC8).c_str(), hexBytes(ap1 + 0x654, 0xC8).c_str(), hexBytes(scene, 0xDC).c_str(),
+            (unsigned)(rd32(rt(kBattleDamage)) >> 16), mq ? hexBytes(mq + 0x48, 0x480).c_str() : "");
+    fflush(gOut);
+}
+
+void place(u32 base);
+
+bool returnWith(u64 value) {
+    auto& cpu = Nintendo64::cpu;
+    cpu.ipu.r[2].u64 = value;
+    cpu.pipeline.setPc(cpu.ipu.r[31].u64);
+    return true;
+}
+
+bool hook(u32 address) {
+    auto it = gAt.find(address);
+    if (it == gAt.end()) return false;
+    auto& cpu = Nintendo64::cpu;
+    Fn fn = it->second;
+    if (fn < kRandomFns) {
+        if (!gForce) return false;
+        s32 a = 0;
+        if (fn == AiRandomBelow || fn == AnimRandomRange) a = (s32)cpu.ipu.r[4].u32;
+        if (fn == AnimRandomWarmup) a = (s32)cpu.fpu.r[12].f32;
+        std::string from = callerName((u32)cpu.ipu.r[31].u64);
+        u32 k, v = nextValue(fn, a, from, k), out = 0;
+        switch (fn) {
+        case BattleRandom: case BattleRandomAccuracy: out = v & 0xFF; break;
+        case AiRandomBelow: out = a <= 0 ? 0 : v % (u32)(a + 1); break;
+        case AnimRandomRange: out = a <= 0 ? 0 : (u16)(v % (u32)a); break;
+        case AnimRandomWarmup: out = a <= 0 ? 0 : v % (u32)a; break;
+        default: break;
+        }
+        if (gOut) {
+            fprintf(gOut, "R %s %u %d %u frame=%llu gf=%llu caller=%s\n", kRandomNames[fn], k, (int)a, out,
+                    (unsigned long long)gFrame, (unsigned long long)gGameFrame, from.c_str());
+            fflush(gOut);
+        }
+        return returnWith((u64)(s64)(s32)out);
+    }
+    switch (fn) {
+    case FragmentMap: // the battle engine was just loaded (and is about to be relocated): hook it before it runs
+        if (cpu.ipu.r[4].u32 == kFragmentId && cpu.ipu.r[5].u32 != gBase) place(cpu.ipu.r[5].u32);
+        return false;
+    case AiSeed: return gForce ? returnWith(0) : false;
+    case BattleMusic: return returnWith(0); // (void) the battle music is not started
+    case GuRandom:
+        if (gAnimLeft > 0 && gOut) fprintf(gOut, "G %llu %s\n", (unsigned long long)(gGameFrame - gAnimStart),
+                                           callerName((u32)cpu.ipu.r[31].u64).c_str());
+        return false;
+    case StartTurn: event("turn"); return false;
+    case ResolveEnter: {
+        event("resolve");
+        u32 ra = (u32)cpu.ipu.r[31].u64;
+        if (!gAt.count(ra)) { // the call site's return address: the action's result, once it is resolved
+            gAt[ra] = ResolveExit;
+            auto& v = cpu.hostHooks.addresses;
+            v.insert(std::upper_bound(v.begin(), v.end(), ra), ra);
+            cpu.recompiler.reset();
+        }
+        return false;
+    }
+    case ResolveExit: event("resolved"); return false;
+    case GameFrame: gGameFrame++; return false;
+    case TimerExpired: { // BattleScene_IsActionSelectionTimerExpired: "not yet", then "expired" (as the port)
+        if (!gCom) return false;
+        static bool asked = false;
+        asked = !asked;
+        return returnWith(asked ? 0 : 1);
+    }
+    case MoveAnim: case MoveAnimMid: {
+        u32 pm = rd32(kFragmentTable + kParticleMathId * 8); // gParticleFrameCounter, in the relocated particle_math
+        u32 pfcAddr = pm ? pm + (kParticleFrameCounter - kParticleMathLink) : 0, pfc = pfcAddr ? rd32(pfcAddr) : 0;
+        if (gForce) { // guRandom (the effects' particles) from the same state on both sides (Port_GuRandomSeed)
+            for (int i = 0; i < 4; i++) wr8(kGuRandomSeed + i, (u8)(174823885u >> (24 - 8 * i)));
+            // and the effects' frame counter (as Port_XcheckMoveAnim)
+            if (pfcAddr) for (int i = 0; i < 4; i++) wr8(pfcAddr + i, 0);
+            // and the animation streams from their start (as Port_XcheckMoveAnim)
+            for (auto it = gCalls.begin(); it != gCalls.end();) it = (it->first >> 16) >= AnimRandomRange ? gCalls.erase(it) : std::next(it);
+        }
+        u32 ap = (u32)cpu.ipu.r[4].u64; // ActivePokemon* of the attacker
+        u8 move = ap ? rd8(ap + 0x654 + 0x38 + 0x5A) : 0;
+        if (gOut) {
+            fprintf(gOut, "A %d move=%u side=%d frame=%llu gf=%llu pfc=%u\n", gAnimCount, move,
+                    ap == rd32(rt(kActivePokemon)) ? 0 : 1, (unsigned long long)gFrame, (unsigned long long)gGameFrame, pfc);
+            fflush(gOut);
+        }
+        if (!gAnimDir.empty()) {
+            char name[64];
+            snprintf(name, sizeof(name), "/m%02d_%03u", gAnimCount, move);
+            gAnimCur = gAnimDir + name;
+            mkdir(gAnimCur.c_str(), 0755);
+            gAnimLeft = gAnimFrames;
+            gAnimStart = gGameFrame;
+            gSavedGameFrame = ~0ull;
+        }
+        gAnimCount++;
+        return false;
+    }
+    default: return false;
+    }
+}
+
+// the battle engine's load address from gFragments[51], if the fragment is really there (its header has the
+// "FRAGMENT" magic at +8; right after a state load the table can read as garbage)
+u32 battleEngineBase() {
+    u32 base = rd32(kFragmentTable + kFragmentId * 8);
+    if (base < 0x80000000u || base >= 0x80800000u || rd32(base + 8) != 0x46524147u) return 0;
+    return base;
+}
+
+void place(u32 base) {
+    auto& cpu = Nintendo64::cpu;
+    bool loaded = base && base != gBase;
+    gBase = base;
+    gAt.clear();
+    cpu.hostHooks.addresses.clear();
+    gAt[kSetFragmentMap] = FragmentMap;
+    if (gNoMusic) gAt[kStartBattleMusic] = BattleMusic;
+    if (gTraceGuRandom) gAt[kGuRandom] = GuRandom;
+    if (base) {
+        for (auto& h : kHooked) gAt[rt(h.link)] = h.fn;
+    }
+    for (auto& [a, f] : gAt) cpu.hostHooks.addresses.push_back(a); // (sorted: std::map order)
+    cpu.recompiler.reset();
+    fprintf(stderr, "[xcheck] battle engine at %08x (%zu hooks)\n", base, gAt.size());
+    if (gOut) fprintf(gOut, "F base=%08x frame=%llu\n", base, (unsigned long long)gFrame);
+    // the case's parties, before the engine copies them into the battle (its init runs frames after the load)
+    if (loaded && !gMons.empty()) applyParties();
+}
+
+void readCase(const char* path) {
+    std::ifstream in(path);
+    std::string line;
+    while (std::getline(in, line)) {
+        std::istringstream ss(line);
+        std::string cmd;
+        if (!(ss >> cmd) || cmd[0] == '#') continue;
+        if (cmd == "mon") {
+            MonLine m;
+            std::string slot, kv;
+            ss >> m.side >> slot;
+            m.slot = slot == "*" ? -1 : atoi(slot.c_str());
+            while (ss >> kv) {
+                auto eq = kv.find('=');
+                for (const MonField& f : kMonFields) {
+                    if (kv.substr(0, eq) == f.name) m.set.push_back({ &f, (u32)strtoul(kv.c_str() + eq + 1, nullptr, 0) });
+                }
+            }
+            gMons.push_back(m);
+        } else if (cmd == "rule") {
+            Rule r;
+            std::string target, values, v;
+            ss >> target >> values;
+            auto at = target.find('@');
+            std::string fn = target.substr(0, at);
+            r.caller = at == std::string::npos ? "" : target.substr(at + 1);
+            r.fn = -1;
+            for (int i = 0; i < kRandomFns; i++) if (fn == kRandomNames[i]) r.fn = i;
+            std::stringstream vs(values);
+            while (std::getline(vs, v, ',')) r.values.push_back((u32)strtoul(v.c_str(), nullptr, 0));
+            if (r.fn >= 0 && !r.values.empty()) gRules.push_back(r);
+        } else if (cmd == "stop") {
+            ss >> gStopTurns;
+        } else if (cmd == "nomusic") {
+            gNoMusic = true;
+        }
+    }
+}
+
+void init() {
+    const char* out = getenv("ARES_REF_XCHECK");
+    const char* rng = getenv("ARES_REF_XCHECK_RNG");
+    gCom = getenv("ARES_REF_XCHECK_COM") != nullptr;
+    gTraceGuRandom = getenv("ARES_REF_XCHECK_GURANDOM") != nullptr;
+    if (const char* a = getenv("ARES_REF_XCHECK_ANIM")) gAnimDir = a;
+    if (const char* n = getenv("ARES_REF_XCHECK_ANIM_FRAMES")) gAnimFrames = atoi(n);
+    const char* cs = getenv("ARES_REF_XCHECK_CASE");
+    gOn = out || rng || gCom || !gAnimDir.empty() || cs;
+    if (!gOn) return;
+    if (out) gOut = fopen(out, "w");
+    if (rng) {
+        gForce = true;
+        gSeed = (u32)strtoul(rng, nullptr, 0);
+    }
+    if (cs) readCase(cs);
+    if (const char* sy = getenv("ARES_REF_XCHECK_SYMS")) {
+        std::ifstream in(sy);
+        std::string line, a, n;
+        while (std::getline(in, line)) {
+            std::istringstream ls(line);
+            if (line.empty() || line[0] == '#' || !(ls >> a >> n)) continue;
+            gSyms.push_back({ (u32)std::stoul(a, nullptr, 16), n });
+        }
+        std::sort(gSyms.begin(), gSyms.end());
+    }
+    Nintendo64::cpu.hostHooks.callback = hook;
+    place(battleEngineBase());
+    fprintf(stderr, "[xcheck] trace %s, rng %s, com %d\n", out ? out : "-", rng ? rng : "natural", gCom);
+}
+
+// once per frame: follow the battle engine fragment (loaded / moved / released)
+void frame(u64 n) {
+    if (!gOn) return;
+    gFrame = n;
+    u32 base = battleEngineBase();
+    if (base != gBase) place(base);
+}
+
+// the picture of the current move animation, once per game frame (the first VI frame that ends in a new one)
+void afterFrame() {
+    if (gAnimLeft <= 0 || gGameFrame == gSavedGameFrame) return;
+    gSavedGameFrame = gGameFrame;
+    char name[64];
+    snprintf(name, sizeof(name), "/f_%03llu.ppm", (unsigned long long)(gGameFrame - gAnimStart));
+    gAnimLeft--;
+    // 160x120, box-averaged (as the port writes them)
+    std::lock_guard<std::mutex> lock(gVideoMutex);
+    if (gPicture.empty()) return;
+    const u32 ow = 160, oh = 120;
+    std::vector<uint8_t> out(ow * oh * 3);
+    for (u32 y = 0; y < oh; y++) {
+        u32 ya = y * gPicH / oh, yb = std::max(ya + 1, (y + 1) * gPicH / oh);
+        for (u32 x = 0; x < ow; x++) {
+            u32 xa = x * gPicW / ow, xb = std::max(xa + 1, (x + 1) * gPicW / ow), sum[3] = { 0, 0, 0 }, n = 0;
+            for (u32 yy = ya; yy < yb; yy++) {
+                for (u32 xx = xa; xx < xb; xx++) {
+                    u32 p = gPicture[(size_t)yy * gPicW + xx];
+                    sum[0] += (p >> 16) & 255, sum[1] += (p >> 8) & 255, sum[2] += p & 255;
+                    n++;
+                }
+            }
+            for (int c = 0; c < 3; c++) out[(y * ow + x) * 3 + c] = (uint8_t)(sum[c] / n);
+        }
+    }
+    if (FILE* f = fopen((gAnimCur + name).c_str(), "wb")) {
+        fprintf(f, "P6\n%u %u\n255\n", ow, oh);
+        fwrite(out.data(), 1, out.size(), f);
+        fclose(f);
+    }
+}
+} // namespace xcheck
+
 struct Hold { uint64_t from, to; uint32_t buttons; };
 struct Fill { uint64_t from, to; uint32_t addr, bytes; uint16_t value; };
 struct Action { std::string kind, arg; uint64_t n; };
@@ -353,6 +804,7 @@ static int realMain(int argc, char** argv) {
         fprintf(stderr, "[ref] loaded state %s\n", loadState.c_str());
     }
 
+    xcheck::init();
     auto t0 = std::chrono::steady_clock::now();
     for (uint64_t frame = 1; !endFrame || frame <= endFrame; frame++) {
         uint32_t b = 0;
@@ -372,15 +824,22 @@ static int realMain(int argc, char** argv) {
             }
         }
         uint64_t before = gPictures.load();
+        xcheck::frame(frame);
         Nintendo64::system.run();
         if (wavFramesFile) {
             uint32_t n = (uint32_t)gPlatform.wavFrames;
             fwrite(&n, 4, 1, wavFramesFile);
         }
-        bool wantShot = actions.count(frame) || (everyN && frame % everyN == 0);
+        bool wantShot = actions.count(frame) || (everyN && frame % everyN == 0) || xcheck::gAnimLeft > 0;
         if (getenv("REF_DEBUG") && frame % 30 == 0) { std::this_thread::sleep_for(std::chrono::milliseconds(50)); fprintf(stderr, "[ref] frame %llu pictures %llu\n", (unsigned long long)frame, (unsigned long long)gPictures.load()); }
         if (wantShot) { // the screen thread delivers the picture shortly after the frame
             for (int i = 0; i < 200 && gPictures.load() == before; i++) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        xcheck::afterFrame();
+        if (xcheck::gStop) {
+            fprintf(stderr, "[xcheck] %d turns done, stopping at frame %llu\n", xcheck::gStopTurns, (unsigned long long)frame);
+            endFrame = frame;
+            break;
         }
         if (everyN && frame % everyN == 0) {
             char name[64];

@@ -1,0 +1,58 @@
+diff --git a/ares/n64/cpu/cpu.cpp b/ares/n64/cpu/cpu.cpp
+index 41964d49c..ee90b2916 100644
+--- a/ares/n64/cpu/cpu.cpp
++++ b/ares/n64/cpu/cpu.cpp
+@@ -154,6 +154,10 @@ auto CPU::instruction() -> bool {
+     return true;
+   }
+ 
++  if(unlikely(!hostHooks.addresses.empty()) && hostHooks.contains(u32(ipu.pc))) {
++    if(hostHooks.callback && hostHooks.callback(u32(ipu.pc))) return true;
++  }
++
+   auto access = devirtualize<Read, Word>(ipu.pc);
+   if(!access) return true;
+ 
+diff --git a/ares/n64/cpu/cpu.hpp b/ares/n64/cpu/cpu.hpp
+index b51000d99..11fb06c96 100644
+--- a/ares/n64/cpu/cpu.hpp
++++ b/ares/n64/cpu/cpu.hpp
+@@ -49,6 +49,18 @@ struct CPU : Thread {
+   auto queueInsert(u32 event, u32 clocks) -> void;
+ 
+   auto instruction() -> bool;
++
++  //host hooks (pokestadium-port tools/ares_ref): when the CPU is about to execute a block or instruction at one of
++  //these virtual addresses (low 32 bits), callback(address) runs first; it returns true when it moved the PC (for
++  //example to return from a replaced function), so the original code there is not executed. Each hooked address
++  //also ends recompiler blocks like a breakpoint. Reset the recompiler after changing the list.
++  struct HostHooks {
++    std::vector<u32> addresses;  //sorted
++    std::function<bool (u32)> callback;
++    auto contains(u32 address) const -> bool {
++      return !addresses.empty() && std::binary_search(addresses.begin(), addresses.end(), address);
++    }
++  } hostHooks;
+   auto instructionPrologue(u64 address, u32 instruction) -> void;
+   template<bool Recompiled> auto instructionEpilogue() -> void;
+   auto raiseCoprocessor1Exception() -> void;
+diff --git a/ares/n64/cpu/recompiler.cpp b/ares/n64/cpu/recompiler.cpp
+index b84272aaf..ff5603f5d 100644
+--- a/ares/n64/cpu/recompiler.cpp
++++ b/ares/n64/cpu/recompiler.cpp
+@@ -471,6 +471,7 @@ auto buildEmitPlan(ares::Nintendo64::CPU::Recompiler& recompiler, u64 vaddr, u32
+     while(true) {
+       if(recompiler.sectionIndex(currentAddress) != plan.startSection) break;
+       if(!plan.instructions.empty() && GDB::server.hasBreakpointAt(u32(currentVaddr))) break;
++      if(!plan.instructions.empty() && recompiler.self.hostHooks.contains(u32(currentVaddr))) break;
+       u32 fetchAddress = currentAddress ^ (recompiler.emitStateKey.reverseEndian() ? 4 : 0);
+       u32 instruction = bus.read<Word>(fetchAddress, thread, RBusDevice::ARES_JIT);
+       auto info = recompiler.self.decoderEXECUTEInfo(instruction);
+@@ -521,6 +522,7 @@ auto buildEmitPlan(ares::Nintendo64::CPU::Recompiler& recompiler, u64 vaddr, u32
+       if((targetVaddr & 3) != 0) return false;
+       if(!isValidEntry(targetVaddr)) return false;
+       if(GDB::server.hasBreakpointAt(u32(targetVaddr))) return false;
++      if(recompiler.self.hostHooks.contains(u32(targetVaddr))) return false;
+       u32 targetAddress = plan.startAddress + u32(targetVaddr - plan.startVaddr);
+       if(recompiler.sectionIndex(targetAddress) != plan.startSection) return false;
+       return true;
