@@ -1423,6 +1423,12 @@ Thrash x3, Body Slam x2, Blizzard):
   frame out of phase: Thundershock after Dragon Rage showed other bolt shapes (effect_p90 169 vs ~24 alone or after
   String Shot). Load timing, not a port bug: with PORT_XCHECK_RNG / ARES_REF_XCHECK_RNG both sides set the counter to 0
   at each animation start, as they reseed guRandom; the A trace lines carry its value before that (pfc=).
+- Dream Eater's sparkles (effect_p90 130 -> 23.7): the nine star models (effect 95, models 0x9A/0x9B) play their
+  animation backwards from the last frame, and BattleAnim_BindModelAnimReversed read that frame as
+  `data->endFrame` straight from the ROM's big-endian animation header: the port started them thousands of frames
+  past the end. Code outside model_animation.c reads it through ModelAnim_GetEndFrame now. Same pattern, not yet
+  fixed: the event track's endFrame in battle_engine_2EC3C0.c and transformAnim/eventTrack `->endFrame` reads in
+  the Drowzee, Dynamo and minigame actor framework fragments.
 
 ### Milestone 3 (proposal): every move
 - Moves: all 165 (1..0xA5). The player's time-limit fallback always uses the first usable move, so the move under

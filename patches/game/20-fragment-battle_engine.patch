@@ -889,6 +889,19 @@ index e2dca54b8eb1b66ff3ea445e8ab7c41227284187..97ee36abade5059bd9c6941905797422
      BattleScene_TickCameraSubstate(arg0);
      BattleScene_ApplyCameraPhaseDefaults();
      BattleScene_UpdateOwnerVisibilitySingle(arg0);
+diff --git a/src/fragments/battle_engine/battle_engine_315D50.c b/src/fragments/battle_engine/battle_engine_315D50.c
+index 42eeca9e1ee6e2cd65118405b3a7a68fdbbc6336..15cc934909b624f32beeca8055174047681d5495 100644
+--- a/src/fragments/battle_engine/battle_engine_315D50.c
++++ b/src/fragments/battle_engine/battle_engine_315D50.c
+@@ -5025,7 +5025,7 @@ void BattleAnim_BindModelAnim(DisplayObject* arg0, s16 arg1) {
+ 
+ void BattleAnim_BindModelAnimReversed(DisplayObject* arg0, s16 arg1) {
+     ModelAnim_BindTransformCurve(arg0, 0, sBattleAnimAssetPointers[arg1], -0x10000);
+-    ModelAnim_SetFrame(arg0, arg0->transformAnim.data->endFrame - 1);
++    ModelAnim_SetFrame(arg0, ModelAnim_GetEndFrame(arg0) - 1);
+ }
+ 
+ s32 BattleAnim_IsModelAnimComplete(DisplayObject* arg0) {
 diff --git a/src/fragments/battle_engine/battle_engine_317E70.c b/src/fragments/battle_engine/battle_engine_317E70.c
 index 269129c66c8049aca4d529b8cc3e3420df21b924..6630516644ed1496be760d34f3516c27e0a88e11 100644
 --- a/src/fragments/battle_engine/battle_engine_317E70.c
