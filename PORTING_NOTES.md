@@ -1423,6 +1423,28 @@ Thrash x3, Body Slam x2, Blizzard):
   frame out of phase: Thundershock after Dragon Rage showed other bolt shapes (effect_p90 169 vs ~24 alone or after
   String Shot). Load timing, not a port bug: with PORT_XCHECK_RNG / ARES_REF_XCHECK_RNG both sides set the counter to 0
   at each animation start, as they reseed guRandom; the A trace lines carry its value before that (pfc=).
+- Effect asset loads: the move presentation (battle_engine_309ED0.c, step 1) retries BattleAnim_TryRegisterAssetTables
+  each game frame until the move's effect assets are in; instant in the port, 0-2 game frames on the N64 (Fire Spin:
+  animation at gf 464 in ares, 462 in the port). Whatever runs on meanwhile then enters the animation that much further
+  along: Moltres' flame mesh (object 0x92: a lagged soft-body vertex simulation, 33FE0.c) and its flame particles
+  (Particle31, spawned 1 in 60 per frame) made Fire Spin's user look different for its whole length (effect_p90 91).
+  battle_sweep.py now compares the A lines' gf after a run and, where ares was later, runs the port again with
+  PORT_XCHECK_LOAD_WAIT=<n0>,<n1>,... (before animation k the port reports "still loading" n_k more frames); result.json
+  records it as load_wait. Fire Spin 91 -> 28. Not a port bug: the N64's DMA time.
+- Strands (BattleAnim_SixSlotTrail_UpdateSlot: Hyper Beam, Ice Beam): a real port bug. The function reads a local
+  (spA8, the wave phase of each strand node) that it never writes; on the N64 it is whatever an earlier call left in
+  that stack slot (addresses like 0x801B31F0, 159, 143, ... from some loop, 0 on seed frames), and clang folded the
+  undefined value so every sinf() term was sinf(0): the strands left the mouth without their wave. The port sets it
+  to 0 (any fixed value looks the same: it only shifts the random r % n phase); with forced randomness the ares driver
+  writes 0 into that slot at the function's entry (sp-8), so both sides draw the same strands. clang's
+  -Wuninitialized finds no other such read in battle_engine or particle_*. Hyper Beam 135 -> 38; Ice Beam 128 -> 68
+  in the same battle (moves 55-58, Blastoise), 45 alone (Articuno).
+  What remains in Ice Beam (frames ~56-64 and ~84-99): start effect 101 (an emitter with model 0xA0 / animation 0xA1
+  that sends descriptor 0x4A burst sprites) draws a large round glow at the mouth in the port, where ares shows a
+  smaller spiky ice crystal. Not explained yet.
+- ares_ref probe for such cases: ARES_REF_XCHECK_PROBE=<link>:<offset>,... logs "P <gf> <link> <value>" at those
+  battle engine function entries: the word at sp+offset, or register offset-1000 (e.g. 1005 for a1). Not on an
+  address that is already hooked.
 
 ### Milestone 3 (proposal): every move
 - Moves: all 165 (1..0xA5). The player's time-limit fallback always uses the first usable move, so the move under

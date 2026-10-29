@@ -776,7 +776,7 @@ index d7449ebb4d87ea4e5a41280fca68f0d4a2e7638a..d58e78988681128c206232030ea152be
          }
      }
 diff --git a/src/fragments/battle_engine/battle_engine_309ED0.c b/src/fragments/battle_engine/battle_engine_309ED0.c
-index af67bfaf6b45e468dd81990396dca0bbe10ad700..fd1d89dbdb9e6ea6661e6ee6fe5966c9a9032cb4 100644
+index af67bfaf6b45e468dd81990396dca0bbe10ad700..6619582768e38378f67fa2fb206410c56d45aeee 100644
 --- a/src/fragments/battle_engine/battle_engine_309ED0.c
 +++ b/src/fragments/battle_engine/battle_engine_309ED0.c
 @@ -386,6 +386,7 @@ void Battle_StartTurn(void) {
@@ -787,6 +787,17 @@ index af67bfaf6b45e468dd81990396dca0bbe10ad700..fd1d89dbdb9e6ea6661e6ee6fe5966c9
      temp_s0 = &sActivePokemon[0]->state;
      temp_s1 = &sActivePokemon[1]->state;
      BattleScene_SetCameraSubstate(1, 1);
+@@ -1385,7 +1386,9 @@ void BattleScene_ActionSetupCameraStep(CameraNode* arg0) {
+             break;
+ 
+         case 1:
+-            if (BattleAnim_TryRegisterAssetTables(D_84390204) != 0) {
++            // PORT: battle cross-check (src/port/xcheck.cpp): the move's effect assets load at once here, the N64 can
++            // take game frames longer (DMA); PORT_XCHECK_LOAD_WAIT makes the port wait as long
++            if ((BattleAnim_TryRegisterAssetTables(D_84390204) != 0) && !Port_XcheckLoadWait()) {
+                 D_84390234 = D_84390230 = D_8439022C;
+                 BattleBox_Open(0);
+                 BattleScene_ResetCameraFrameCounter();
 diff --git a/src/fragments/battle_engine/battle_engine_313250.c b/src/fragments/battle_engine/battle_engine_313250.c
 index 883360294ba05bc180fa8857710d4eb6f2cc5eaf..44e4326acf090b5cbf2cdf70733bc974f2bfaaf1 100644
 --- a/src/fragments/battle_engine/battle_engine_313250.c
@@ -1346,6 +1357,31 @@ index a6c3e39119a26e6fa30ac5bf59ad5cb7848cdcd1..15dd9139fcd364cfd4f269cb0ee3c410
                G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
      gSPDisplayList(gDisplayListHead++, D_8140DD78);
  
+diff --git a/src/fragments/battle_engine/battle_engine_357C30.c b/src/fragments/battle_engine/battle_engine_357C30.c
+index 9c78286fd6511c8769e7a4beef129caa7d7275df..578f06ca9ccd7b69e75a01429d22e0583c256692 100644
+--- a/src/fragments/battle_engine/battle_engine_357C30.c
++++ b/src/fragments/battle_engine/battle_engine_357C30.c
+@@ -163,7 +163,7 @@ void BattleAnim_SixSlotTrail_ComputeRotatedOffset(f32 arg0, Vec3f* arg1, Vec3f*
+ 
+ void BattleAnim_SixSlotTrail_UpdateSlot(unk_D_843C3508* arg0) {
+     unk_D_843C3508_0A4* var_s0;
+-    s32 spA8;
++    s32 spA8 = 0; // PORT: never set in the original; the N64 reads a stale stack word (see below)
+     s32 i;
+     Vec3f sp98;
+     UNUSED s32 pad;
+@@ -175,6 +175,11 @@ void BattleAnim_SixSlotTrail_UpdateSlot(unk_D_843C3508* arg0) {
+     s32 temp_s3;
+     s32 temp_s4;
+ 
++    // PORT: spA8 is never written in the original. The N64 reads whatever an earlier call left in that stack slot
++    // (addresses like 0x801B31F0, loop counters, 0), and clang folded the undefined value away: every sinf() below came
++    // out as sinf(0), and the strands (Hyper Beam, Ice Beam, ...) left the anchor flat instead of wavy. Any fixed value
++    // gives the same look: it only shifts the phase of the random (r % n) wave, and sinf's period makes a negative
++    // remainder the same as its positive one. The cross-check's ares driver writes 0 into that slot as well.
+     var_s0 = &arg0->unk_0A4[0];
+     for (i = 0; i < 20; i++, var_s0++) {
+         if (var_s0->unk_00 > 0.0) {
 diff --git a/src/fragments/battle_engine/battle_engine_3591E0.c b/src/fragments/battle_engine/battle_engine_3591E0.c
 index cc7f3672f5521d94c2468cdc948e116e9d4e56f6..6b579012b868e37eb8c9449dd311a83ab2985d2a 100644
 --- a/src/fragments/battle_engine/battle_engine_3591E0.c

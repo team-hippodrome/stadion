@@ -210,6 +210,7 @@ void Port_XcheckWriteEvent(const char* name, const void* state0, const void* sta
                            const void* messageQueues);
 void Port_XcheckBattleEvent(const char* name);
 void Port_XcheckMoveAnim(int side, int move);
+int Port_XcheckLoadWait(void);
 int Port_XcheckAnimActive(void);
 const char* Port_XcheckFramePath(void);
 
