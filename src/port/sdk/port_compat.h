@@ -199,7 +199,12 @@ extern long long int aspMainDataStart[], aspMainDataEnd[];
 int Port_XcheckEnabled(void);
 int Port_XcheckForcingRandom(void);
 int Port_XcheckCom(void);
-int Port_XcheckRandom(int fn, int arg, int* out);
+int Port_XcheckRandom(int fn, int arg, int* out, void* caller);
+int Port_XcheckHasCase(void);
+void Port_XcheckPatchMon(int side, int slot, void* battleMon);
+void Port_XcheckApplyCaseParties(void);
+int Port_XcheckWantDraw(void);
+int Port_XcheckNoMusic(void);
 void Port_XcheckWriteEvent(const char* name, const void* state0, const void* state1, const void* scene, unsigned damage,
                            const void* messageQueues);
 void Port_XcheckBattleEvent(const char* name);

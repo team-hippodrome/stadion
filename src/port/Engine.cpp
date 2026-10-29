@@ -362,11 +362,11 @@ static void WriteFramePpm(const char* path, int w, int h, const std::vector<uint
     fclose(f);
 }
 
-// the same, 320x240 (box-averaged, the centre 4:3 of a wider picture): the battle cross-check's animation frames
+// the same, 160x120 (box-averaged, the centre 4:3 of a wider picture): the battle cross-check's animation frames
 static void WriteFramePpmSmall(const char* path, int w, int h, const std::vector<uint16_t>& buf) {
     FILE* f = fopen(path, "wb");
     if (!f) return;
-    const int ow = 320, oh = 240;
+    const int ow = 160, oh = 120;
     bool full = gPortScreenW == (uint32_t)w && gPortScreenH == (uint32_t)h && gPortScreenBgra.size() == buf.size() * 4;
     int cw = std::min(w, h * 4 / 3), x0 = (w - cw) / 2;
     std::vector<uint8_t> out((size_t)ow * oh * 3);
