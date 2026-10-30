@@ -39,7 +39,7 @@ index f20ccfc84ff8359a33d2e9267a795d9e240a798d..bd215da044c0540441278888ead1ab87
  
  typedef struct unk_D_8250A308 {
 diff --git a/src/fragments/minigame_select/minigame_select_27BCC0.c b/src/fragments/minigame_select/minigame_select_27BCC0.c
-index 280990fbe26d24e37776881b6a62e627c8637f97..6a7282e187cacc31c7726d6d585ae9c769f6c725 100644
+index 280990fbe26d24e37776881b6a62e627c8637f97..9da333337a3d3d4861adafb04257db6d9c0e545e 100644
 --- a/src/fragments/minigame_select/minigame_select_27BCC0.c
 +++ b/src/fragments/minigame_select/minigame_select_27BCC0.c
 @@ -66,212 +66,178 @@ FontContext* D_8250A304;
@@ -638,8 +638,12 @@ index 280990fbe26d24e37776881b6a62e627c8637f97..6a7282e187cacc31c7726d6d585ae9c7
      s32 sp38;
      s32 tmp;
      u32 var_a2 = 0;
-@@ -1887,7 +1839,7 @@ void func_8250281C(void) {
-         Ui_DrawTextureMarker(sp40 + var_a2, sp38, var_a2);
+@@ -1884,10 +1836,10 @@ void func_8250281C(void) {
+             var_a2 = 6 - var_a2;
+         }
+ 
+-        Ui_DrawTextureMarker(sp40 + var_a2, sp38, var_a2);
++        Ui_DrawTextureMarker(sp40 + var_a2, sp38); // PORT: it takes two arguments (a K&R call passed a third)
  
          if (sp2C != 0) {
 -            ptr = (s32)&D_8780FA48;

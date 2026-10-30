@@ -1443,6 +1443,83 @@ Thrash x3, Body Slam x2, Blizzard):
   frame out of phase: Thundershock after Dragon Rage showed other bolt shapes (effect_p90 169 vs ~24 alone or after
   String Shot). Load timing, not a port bug: with PORT_XCHECK_RNG / ARES_REF_XCHECK_RNG both sides set the counter to 0
   at each animation start, as they reseed guRandom; the A trace lines carry its value before that (pfc=).
+- Model texture counter: D_800AF7AE (battle_hud, 0x800AF7AE) goes up once for every Pokémon model drawn
+  (ModelAnim_FinalizeDisplayObjectAnimation, so +2 per battle frame with both on screen) and is only cleared when a
+  model is set up. Animated model parts take their texture frame (& 7) and texture scroll from it
+  (DisplayList_InitAnimatedFrameSegment / func_81002830): Rapidash's flame mane, Moltres's flaming wings. The same load
+  timing put it out of phase: in the full sweep of 34f5e46, Mega Kick 25 / Sand-Attack 28 / Headbutt 29 (Rapidash, after
+  ares spent one frame more before Mega Kick: mtc 524 vs 526) and Fire Spin 83 (ares starts 2 frames later, mtc 586 vs
+  590). The xcheck path now zeroes it at animation start on both sides, too (trace field mtc=). Mega Kick 60 -> 37,
+  Headbutt 56 -> 37, Fire Spin 91 -> 28 (floor ~36-40); Stomp, first in its battle, was 37 before and after.
+  Sand-Attack stays at 66: that is its sand cloud (smooth in the port, grainy in ares), not the mane.
+  D_8006F084 (geo_render, 0x8006F084, u16: GeoRender_AdvanceFrameCounter, one per game frame since boot) is zeroed
+  as well (gfc=): effects pick frames with D_8006F084 & 7, and the two sides' menus leave it ~200 apart at the first
+  animation. No swept move changed with it, though.
+  Not this: Psybeam 60 (62) and Sing 47 (49) stay as they were. Their battles have no game-frame drift (same gf
+  at every animation, and every counter above equal), so the colour-cycle/scroll difference there has another cause.
+- Effect asset loads: the move presentation (battle_engine_309ED0.c, step 1) retries BattleAnim_TryRegisterAssetTables
+  each game frame until the move's effect assets are in; instant in the port, 0-2 game frames on the N64 (Fire Spin:
+  animation at gf 464 in ares, 462 in the port). Whatever runs on meanwhile then enters the animation that much further
+  along: Moltres' flame mesh (object 0x92: a lagged soft-body vertex simulation, 33FE0.c) and its flame particles
+  (Particle31, spawned 1 in 60 per frame) made Fire Spin's user look different for its whole length (effect_p90 91).
+  battle_sweep.py now compares the A lines' gf after a run and, where ares was later, runs the port again with
+  PORT_XCHECK_LOAD_WAIT=<n0>,<n1>,... (before animation k the port reports "still loading" n_k more frames); result.json
+  records it as load_wait. Not a port bug: the N64's DMA time. (The model texture counter reset below fixes Fire
+  Spin's wing texture on its own; the wait also lines up everything else that runs through the load, like the mesh,
+  and needs no per-state reset.)
+- Strands (BattleAnim_SixSlotTrail_UpdateSlot: Hyper Beam, Ice Beam): a real port bug. The function reads a local
+  (spA8, the wave phase of each strand node) that it never writes; on the N64 it is whatever an earlier call left in
+  that stack slot (addresses like 0x801B31F0, 159, 143, ... from some loop, 0 on seed frames), and clang folded the
+  undefined value so every sinf() term was sinf(0): the strands left the mouth without their wave. The port sets it
+  to 0 (any fixed value looks the same: it only shifts the random r % n phase); with forced randomness the ares driver
+  writes 0 into that slot at the function's entry (sp-8), so both sides draw the same strands. clang's
+  -Wuninitialized finds no other such read in battle_engine or particle_*. Hyper Beam 135 -> 38; Ice Beam 128 -> 68
+  in the same battle (moves 55-58, Blastoise), 45 alone (Articuno).
+- FPU rounding mode (Ice Beam's mouth flare, frames ~56-64 and ~84-99): a real port bug. Every game thread starts with
+  __osSetFpcCsr(0x01000C01): round toward zero (and flush denormal results, trap invalid / divide by zero). The port's
+  __osSetFpcCsr was a stub, so the game's float math rounded to nearest and inexact results came out 1 ULP higher
+  half the time. The flare is start effect 47's descriptor 0x53 sprite (BattleAnim_CallbackSharedDescriptor53Scale-
+  PulseCycle: IA8 starburst, frame 1, scale pulsing between 0.2 and 0.7 x gParticleRenderContext.y in steps of 0.1 x y).
+  With truncation the N64's scale ended 1 ULP short of its (also truncated) target, so ParticleMath_ApproachFloat
+  reported "reached" one frame later at the top of each swing: a 12 game frame period on the N64, 11 in the port,
+  and by frame 84 the pulse was 2 frames out of phase (big starburst in the port where ares showed a small glow).
+  The port now sets the host rounding mode from the CSR's RM bits (fesetround; per host thread, and each OSThread is
+  one, so the renderer keeps round to nearest). Ice Beam 68.2 -> 30.2 in the 4-move battle, 44.6 -> 31.7 alone;
+  controls unchanged (Tackle 36.5, Ember 36.8, Thundershock 39.3, Razor Leaf 30.1, Hyper Beam 36.6, Fire Spin 28.4).
+  (Start effect 101, suspected first, is not part of Ice Beam: its effects are start 102 + 47, end 67, start 125.)
+  How it was found: switching parts of start effect 47 off in the port isolated the sprite; scanning ares' RDRAM for
+  particles with its update callback showed the 1-ULP-lower scale values (3F2E147A vs the port's 3F2E147B for
+  0.4 x 1.7) and the extra frame at each maximum.
+- ares_ref probe for such cases: ARES_REF_XCHECK_PROBE=<link>:<offset>,... logs "P <gf> <link> <value>" at those
+  battle engine function entries: the word at sp+offset, or register offset-1000 (e.g. 1005 for a1). Not on an
+  address that is already hooked. Arguments the caller sets in the jal/jalr delay slot read as stale there (a
+  particle callback's a0 read 0).
+- RDP noise (port bug, fixed): the colour combiner's NOISE input came out in [0.5, 1) instead of [0, 1). Every backend's
+  RAND_NOISE (patches/libultraship.patch: gfx_metal_shader.cpp, gfx_opengl.cpp (Vulkan uses its formulas),
+  gfx_direct3d11.cpp) mapped random() as if it were in [-1, 1] with (r + 1) / 2, but the shaders' random() is
+  fract(...), already in [0, 1). Sand-Attack's sand cloud (ParticleGfx_SetPrimEnvNoiseCombine: cycle 1 NOISE, cycle 2
+  lerps from ENVIRONMENT to PRIMITIVE by it) was therefore smooth and pulled toward the bright primitive colour; ares
+  shows it grainy and darker. Sand-Attack 66 -> 47 (two independent per-pixel noise fields can't match pixel for pixel,
+  so noise effects stay a little above the floor), Poison Powder 77 41 -> 32, Sleep Powder 79 43 -> 30; the other
+  moves of those battles unchanged (~27-37). tools/run_replays.py: all 20 identical (none of their stop frames uses noise).
+- Sound mismatches (8 moves in the full sweep, envelope correlation 0.41-0.57 with level and spectrum within ~4 dB) are
+  not wrong move sounds. Onsets of the move's own sounds land at the same times on both sides (Pound: 1920 and 2320 ms
+  in both). What differs is a periodic background sound, a pulse every ~360-380 ms on both sides (before the move and
+  again after it), whose phase differs by 100-300 ms: it follows each side's own clock since the battle scene started
+  (load timing), like the counters above. Leech Seed 73 and Razor Leaf 75 also run longer on the N64 (lag, above).
+  Not fixed: the sound check would need that background sound's phase reset or excluded.
+- Dream Eater's sparkles (effect_p90 130 -> 23.7): the nine star models (effect 95, models 0x9A/0x9B) play their
+  animation backwards from the last frame, and BattleAnim_BindModelAnimReversed read that frame as
+  `data->endFrame` straight from the ROM's big-endian animation header: the port started them thousands of frames
+  past the end. Code outside model_animation.c reads it through ModelAnim_GetEndFrame now, and event tracks through
+  ModelAnim_GetEventEndFrame (model_animation_events.c). The same raw reads were in Drowzee (Snore), Dynamo, the
+  minigame actor framework (Ekans' Digletts started their animation past its end and stayed in their holes) and two
+  battle spots (Battle_ResetEventTrack's event track, the multi-hit HP transition); all read 256x the real value.
+  The two battle spots were not reached by the sweep or the replays.
+- Replay references for a branch must come from a build of its base commit. `origin/main` moved during this work
+  (dfe6826 fixed the fog colour of Geo_NodeFog / GeoRender_SetRenderMode, which changes the gallery photo's sky), and
+  references built from the newer main made tour_galenl3 (1.77) and tour_galmenu2 (0.02) look like an effect of this
+  change. Against 34f5e46 both are identical.
 
 ### Milestone 3 (proposal): every move
 - Moves: all 165 (1..0xA5). The player's time-limit fallback always uses the first usable move, so the move under
@@ -1485,3 +1562,43 @@ sea, no fog tint and pale label boxes. Three separate causes:
   (`patches/libultraship.patch`, `GfxSpTri1`).
 After these fixes, region averages of the 9500/9800 frames match ares within a few levels (what remains is ares'
 320x240 VI output).
+
+## Victory Palace completion scene and the badge carousel after a Free Battle (crashes)
+Found by the function-evidence runs (branch evidence-pilot: Stadium flash variants and Game Pak Free Battles).
+- Completion scene (Victory Palace with every statue: `stadium_save statue set all`, `replays/tour_vp1.rec`, frame
+  3506): segfault in `Completion_InitCamera` (inlined in `Completion_InitScene`), the geo root `D_86B0EBC0` was
+  garbage. A watchpoint showed the writer: `Completion_LoadModels` DMAs a 0xBC0-byte animation record (as the battle
+  engine's) into `u8 D_86B0EBE8[0xA60]`; on the N64 it continues into the next bss array `D_86B0F648[0x180]` (the part
+  the scene reads through `*D_86B0F648`), on the host the copy ran over the statics after `D_86B0EBE8`. Both are one
+  block now (demo_scenes_161E60.c). The scene then matches ares ("For your 151 Pokémon HALL OF FAME, you won AMNESIA
+  PSYDUCK!", same pose and lights). The other 0xBC0 record DMAs (intro, gallery camera, battle engine) have
+  0xBE0-byte buffers.
+- Badge carousel (`BattlePrep_LoadBadgeTextures`, battle_prep_397B10.c): every rules confirmation builds the badge
+  carousel, but its archive index `sp44` is only set for session modes 1-8; for Free Battle (mode 0) it is an
+  uninitialised stack slot (in the original code too). Its trainer records are read once `roundOrDemoId > 0`, so after
+  a Free Battle the host read a wild record and crashed (frame 29642 of the evidence Game Pak Free Battle, in the
+  instrumented build: the stack contents decide whether it crashes). Modes without a badge set now get the neutral
+  texture (file 0), as unplayed rounds do; Free Battle does not show the carousel (the Record screen after the battle
+  is unchanged).
+
+## Byte-order sweep: unions and casts that read narrow fields as a wider value
+A Game Pak team could hold the same Pokémon twice (Mew picked twice in a Free Battle; ares marks it chosen). The
+rental team header `unk_D_838067F0_0168_0000` (gallery_rental_viewer.h) overlays the bytes unk_000..unk_003 with
+`s32 raw`, and fragment 61 / rental_team_selection set, clear and test a flag as `raw & 0x80000000` and pick an icon
+with `raw & 7`: on the N64 that is unk_000's top bit and unk_003's low bits; read on the host the flag tests hit the
+species byte, so species >= 128 (Mew 151) were never "already chosen". The bytes are declared in reverse on a
+little-endian host, so `raw` has the N64's value and every use stays as it is.
+`tools/endian_union_sweep.py` then listed every union that overlays narrow fields with a wider member (game/src,
+game/include) and every cast that reads a field through a wider type; each use was checked:
+- Fixed: `LabPCList_CompareBySpeciesGroup` (the Lab PC list's sort by the Pokémon column) compared a record's first
+  word (species, byte 0x01, u16 at 0x02) as one s32: on the host it sorted by the u16 first. The key is built from
+  the fields in the N64's order now (not checked at run time: no recorded route sorts that column).
+- Already handled by earlier port changes: AnimFixedFrame, the GB APU register bitfields and phase union, the
+  Color_RGBA8 `.rgba` uses (PORT_BE32), PokeIcon's ptr/raw union, the model renderer's s16/pointer slot.
+- Safe as used: BinArchive.raw (never used), gallery.h's s16 pairs (never used by name), the Color_RGBA16/14 bitfield
+  unions (unused), same-width stores and loads through casts (lab_pc_list widgets), zeroing, word ORs for non-zero
+  tests (libleo).
+- Open: `Gallery_InitializePhotoModel` (gallery.c) sets the photo model's height from a record's first four bytes
+  (u8, u8, u16) read as f32 (the decomp marks it `//?`); whether the host reads the N64's value depends on how the
+  record is loaded. Needs a run with a gallery photo against ares.
+- 64DD only: rsp.h overlays the low byte of `lba` with `mode` (dead in the retail game without a 64DD).

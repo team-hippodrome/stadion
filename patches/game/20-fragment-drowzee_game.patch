@@ -1,5 +1,5 @@
 diff --git a/src/fragments/drowzee_game/drowzee_game.c b/src/fragments/drowzee_game/drowzee_game.c
-index b8c2d701aba333e8351e6cbb3d002594f57d7b05..77dfa0a1722ef041c9998d43b5366a72b931379c 100644
+index b8c2d701aba333e8351e6cbb3d002594f57d7b05..2b99c98b640c6d2e097551f108a8f77d9fe54a55 100644
 --- a/src/fragments/drowzee_game/drowzee_game.c
 +++ b/src/fragments/drowzee_game/drowzee_game.c
 @@ -51,7 +51,7 @@ static unk_func_87801684 D_864028E4[] = {
@@ -20,6 +20,42 @@ index b8c2d701aba333e8351e6cbb3d002594f57d7b05..77dfa0a1722ef041c9998d43b5366a72
          D_864052C8->unk_190->unk_18 = temp_v0;
  
          if ((D_864052C8->unk_010 == 0) || (D_864052C8->unk_00C == 1)) {
+@@ -446,7 +446,7 @@ void DrowzeeGame_JudgePlayerTiming(void) {
+ 
+     if ((D_8780FC92 == 0) && (D_8780FC94 == 0)) {
+         D_864052CC->unk_16D = D_864052CC->unk_16C;
+-        if (D_864052D6 < (D_864052CC->unk_004.transformAnim.data->endFrame / 2)) {
++        if (D_864052D6 < (ModelAnim_GetEndFrame(&D_864052CC->unk_004) / 2)) {
+             D_864052CC->unk_16C = 0;
+         } else {
+             D_864052CC->unk_16C = 1;
+@@ -867,7 +867,7 @@ void DrowzeeGame_LoadAssets(void) {
+         Model_InitDisplayObject(D_864052D0, 0, 0xC4, D_87B000E4->unk_08->unk_00[0]);
+         D_864052C8->unk_004 = 0;
+         ModelAnim_SetAnimation(D_864052D0, D_864052C8->unk_004);
+-        ModelAnim_SetFrame(D_864052D0, MiniGame_RandomRange(D_864052D0->transformAnim.data->endFrame));
++        ModelAnim_SetFrame(D_864052D0, MiniGame_RandomRange(ModelAnim_GetEndFrame(D_864052D0)));
+ 
+         D_864052D0->position.x = D_864027C0[i].unk_00;
+         D_864052D0->position.y = D_864027C0[i].unk_04;
+@@ -907,7 +907,7 @@ void DrowzeeGame_LoadAssets(void) {
+     D_864052CC->unk_001 = D_864052CC->unk_000 = 0;
+ 
+     ModelAnim_SetAnimation(D_864052D0, D_864052CC->unk_000);
+-    ModelAnim_SetFrame(D_864052D0, D_864052D0->transformAnim.data->endFrame);
++    ModelAnim_SetFrame(D_864052D0, ModelAnim_GetEndFrame(D_864052D0));
+ 
+     D_864052D0->position.y = 20.0f;
+     D_864052D0->scale.x = 1.0f;
+@@ -925,7 +925,7 @@ void DrowzeeGame_LoadAssets(void) {
+         ModelRenderer_AttachDisplayObject(D_864052D0);
+         Model_InitDisplayObject(D_864052D0, 0, 0xD2, D_87B000E4->unk_08->unk_00[0]);
+         ModelAnim_SetAnimation(D_864052D0, 0);
+-        ModelAnim_SetFrame(D_864052D0, D_864052D0->transformAnim.data->endFrame);
++        ModelAnim_SetFrame(D_864052D0, ModelAnim_GetEndFrame(D_864052D0));
+ 
+         D_864052D0->position.x = D_864027C0[i].unk_00;
+         D_864052D0->position.y = 25.0f;
 @@ -943,7 +943,7 @@ void DrowzeeGame_LoadAssets(void) {
      Widget_PauseMenuInit();
  }

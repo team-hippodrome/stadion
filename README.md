@@ -151,7 +151,9 @@ per player with the launcher's Controls button:
 - `ghostship-ref/` — submodule (fonts used by `tools/make_o2r.py`)
 - `tools/` — launcher, save editor, ares comparison tooling (`tools/tour.py`), replay helpers
   (`tools/run_replays.py` plays all stored recordings without showing the window and reports which still pass;
-  `tools/frame_sweep.py` captures a stretch of the game at 5 pictures per second, skipping repeats, as contact sheets)
+  `tools/frame_sweep.py` captures a stretch of the game at 5 pictures per second, skipping repeats, as contact sheets;
+  `tools/audio_compare.py` compares the game's sound with ares; `tools/av_sync.py` checks the timing of pictures
+  against the sound, for ares or the port, against a video such as a console capture)
 - `replays/` — input recordings used as regression tests
 - `PORTING_NOTES.md` — what was done, how it was checked against ares, debug switches
 

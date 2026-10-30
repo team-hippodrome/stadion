@@ -43,6 +43,8 @@ extern "C" unsigned long long Port_ViTick(void);
 extern "C" void Port_GuRandomSeed(unsigned int seed); // game/lib/ultralib/src/gu/random.c
 extern "C" int gPortXcheckTraceGuRandom;              // (below)
 extern "C" unsigned int gParticleFrameCounter;        // particle_math: free-running effect frame counter
+extern "C" unsigned short D_8006F084;                 // geo_render: the scene frame counter (GeoRender_AdvanceFrameCounter)
+extern "C" short D_800AF7AE;                          // battle_hud: the model texture counter (one per Pokemon model drawn)
 
 namespace {
 // the order is the function index in the value stream (tools/ares_ref/ares_ref.cpp kRandomNames)
@@ -73,6 +75,7 @@ struct State {
     unsigned events = 0;
     std::string animDir, animCur;
     int animFrames = 300, animCount = 0;
+    std::vector<int> loadWait; // PORT_XCHECK_LOAD_WAIT: per animation, game frames left to report "still loading"
     unsigned long long gameFrame = 0;               // battle game frames so far
     unsigned long long animStart = 0, animLast = 0; // game frame of the animation's start, of the last saved frame
     bool animOn = false;
@@ -135,6 +138,11 @@ void Init() {
     gPortXcheckTraceGuRandom = getenv("PORT_XCHECK_GURANDOM") != nullptr;
     if (const char* a = getenv("PORT_XCHECK_ANIM")) g.animDir = a;
     if (const char* n = getenv("PORT_XCHECK_ANIM_FRAMES")) g.animFrames = atoi(n);
+    if (const char* w = getenv("PORT_XCHECK_LOAD_WAIT")) {
+        std::stringstream ws(w);
+        std::string v;
+        while (std::getline(ws, v, ',')) g.loadWait.push_back(atoi(v.c_str()));
+    }
 }
 
 // splitmix64 of (seed, stream, call index): the same stream as the ares driver's streamValue
@@ -180,6 +188,18 @@ extern "C" {
 int Port_XcheckEnabled(void) {
     Init();
     return g.out != nullptr || g.force || g.com || !g.animDir.empty() || !g.mons.empty();
+}
+
+// the move presentation waits for the move's effect assets (battle_engine_309ED0.c): instant in the port, while the N64
+// can spend game frames more on the DMA, and every state that runs on through that wait (Moltres' simulated flame
+// mesh, its flame particles, model idle motions) reaches the animation that many frames further along.
+// PORT_XCHECK_LOAD_WAIT=<n0>,<n1>,...: before animation k the port reports "still loading" n_k more game frames
+// (tools/battle_sweep.py sets them from the ares trace: its A lines' gf minus the port's)
+int Port_XcheckLoadWait(void) {
+    Init();
+    if ((size_t)g.animCount >= g.loadWait.size() || g.loadWait[g.animCount] <= 0) return 0;
+    g.loadWait[g.animCount]--;
+    return 1;
 }
 
 int Port_XcheckForcingRandom(void) {
@@ -277,8 +297,8 @@ void Port_XcheckWriteEvent(const char* name, const void* state0, const void* sta
 void Port_XcheckMoveAnim(int side, int move) {
     Init();
     if (g.out) {
-        fprintf(g.out, "A %d move=%d side=%d frame=%llu gf=%llu pfc=%u\n", g.animCount, move, side, Port_ViTick(), g.gameFrame,
-                gParticleFrameCounter);
+        fprintf(g.out, "A %d move=%d side=%d frame=%llu gf=%llu pfc=%u gfc=%u mtc=%d\n", g.animCount, move, side,
+                Port_ViTick(), g.gameFrame, gParticleFrameCounter, (unsigned)D_8006F084, (int)D_800AF7AE);
         fflush(g.out);
     }
     // guRandom (MathUtil_Random16: the effects' particles) from the same state on both sides, as the ares driver does
@@ -287,6 +307,12 @@ void Port_XcheckMoveAnim(int side, int move) {
     // battle game frames, and the N64 can spend a frame more before an animation (its effect assets load by DMA), which
     // put the bolts one texture frame out of phase after Dragon Rage. The ares driver does the same.
     if (g.force) gParticleFrameCounter = 0;
+    // and the two other texture-frame counters, for the same reason. D_800AF7AE goes up for every Pokemon model drawn
+    // and is only cleared when a model is set up; animated model parts take their texture frame and scroll from it
+    // (DisplayList_InitAnimatedFrameSegment: Rapidash's mane, Moltres's wings). D_8006F084 counts game frames since boot,
+    // so each side's menus leave it at another value; effects pick frames with it (D_8006F084 & 7 and the
+    // BattleAnim_Build*DisplayList colour cycles). The ares driver does the same.
+    if (g.force) D_800AF7AE = 0, D_8006F084 = 0;
     // and the animation streams (idle checks every frame: blinks, idle motions) from their start, so they line up
     // within the animation although the two games reach it after different numbers of frames
     for (auto it = g.calls.begin(); it != g.calls.end();) {
