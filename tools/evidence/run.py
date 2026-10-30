@@ -8,6 +8,7 @@ Usage:
                         [--set "Fn[#n]:sym[*][+off]...:size=value;..."]
                         [--call "AtFn[#n][@exit]:Target:ret:args;..." [--call-file F] [--call-fork] [--call-buf HEX]]
                         [--gb ROM:SAVE] [--gb2 ROM:SAVE] [--rec RECORDING [--flash STADIUM.flash] [--natural]] [--dump-every N]
+                        [--shots F1,F2,...]
 --gb puts a Game Boy cartridge in the Transfer Pak (a copy of SAVE; tools/evidence/gb_party.py writes any party into
 a save); --rec replaces the battle_xcheck route with another input recording (from boot), e.g. a Free Battle with a
 Game Pak party.
@@ -153,6 +154,9 @@ def main():
         env["PORT_EVID_INJECT_AT"] = "0x%x" % res.by_name[opt("--inject-at", "BattleScene_HandlePlayerActionInput")]
     if opt("--dump-every"):
         env["PORT_EVID_DUMP_EVERY"] = opt("--dump-every")
+    if opt("--shots"):  # screenshots of these frames (<out>/shots/stop_<frame>.ppm), to see what a route reaches
+        os.makedirs(os.path.join(out, "shots"), exist_ok=True)
+        env.update(PORT_SHOT_AT=opt("--shots"), PORT_SCREENSHOT_DIR=os.path.join(out, "shots"))
     if opt("--set"):
         env["PORT_EVID_SET"] = ";".join(translate_set(x, res) for x in opt("--set").split(";") if x)
     call_specs = opt("--call").split(";") if opt("--call") else []
