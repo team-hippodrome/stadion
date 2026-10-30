@@ -7979,7 +7979,7 @@ index 7622efc76e5f0033bad4944b91499dbdd2985273..b6e6fb20aca3cf0918dbeba6a6398d84
  };
  
 diff --git a/src/table_view.c b/src/table_view.c
-index 172d6ea00fd26f122d7c65dd7c3fb023469670f4..efd471c80883003e1b92672c7a7e189667b81fd0 100644
+index 172d6ea00fd26f122d7c65dd7c3fb023469670f4..b79ef7327a34d02ea5d5921d9416df05563205f9 100644
 --- a/src/table_view.c
 +++ b/src/table_view.c
 @@ -1,6 +1,6 @@
@@ -8052,7 +8052,7 @@ index 172d6ea00fd26f122d7c65dd7c3fb023469670f4..efd471c80883003e1b92672c7a7e1896
      }
  
 -    arg1->unk_08 = ((s32)var_s1 - (s32)arg1->unk_00) >> 2;
-+    arg1->unk_08 = ((intptr_t)var_s1 - (intptr_t)arg1->unk_00) >> 2;
++    arg1->unk_08 = var_s1 - arg1->unk_00; // PORT64: count of pointer entries (was the byte difference >> 2)
  }
  
  s32 Text_CompareU16Terminated(u16* a0, u16* a1) {

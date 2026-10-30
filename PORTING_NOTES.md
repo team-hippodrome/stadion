@@ -843,6 +843,11 @@ sample count after every VI frame).
   - Open: the AREA map draws without the sea and without ares's bluish fog tint (geo fog node 0x96C8FF, 985-1005),
     and its label boxes are pale instead of olive (fill rectangles in 1-cycle mode blending memory with itself).
     Not a game-struct problem as far as checked (no render target involved, same fog node as the battle stages).
+- Lab PC → See List → a row's menu → "Group <species>" (or any other filter; the evidence pilot's
+  `lab_seelist_mash.rec`, segfault in func_88304850 at frame 7804 on a garbage Pokémon pointer): PointerList_Filter
+  counted the filtered list as the byte difference `>> 2` (4-byte N64 pointers), so the count was doubled and the grid
+  drew entries past the filled ones. It counts entries now. The route runs to its end, ASan clean, and its See List
+  screens (grouped list, move page) match ares.
 - GB Tower frames: German Yellow from the game's own new-game save (gb/base/yellow_de_newgame.sav), down the stairs,
   out of the house, north to Route 1, Oak's cutscene and the scripted battle (wild PIKACHU, HP bars, battle menu,
   Oak's Poké Ball). ares's Game Boy starts 1555 VI frames later (cartridge load), so its GB inputs are shifted by
@@ -1457,6 +1462,16 @@ Thrash x3, Body Slam x2, Blizzard):
   animation. No swept move changed with it, though.
   Not this: Psybeam 60 (62) and Sing 47 (49) stay as they were. Their battles have no game-frame drift (same gf
   at every animation, and every counter above equal), so the colour-cycle/scroll difference there has another cause.
+  Sing (fixed): its overlay is Trail40Variant (battle_engine_34F1A0.c), a rippling plane in front of the effect camera
+  drawn with G_TEXTURE_GEN and the 32x32 texture asset 0x48, which wraps ~16 times over the normal range, so a texel of
+  texgen error recolours the screen; in the port it flickered between two looks on alternate frames. The game sends the
+  same commands on both kinds of frame, so it was the texgen result: the RSP keeps the transformed lookat directions as
+  signed bytes, libultraship kept floats, and lookat X's transformed y component (the difference of two nearly equal
+  terms) ran a sawtooth (-0.0059, -0.0002, -0.0032, ...). patches/libultraship.patch (Interpreter::GfxSpVertex) now
+  floors current_lookat_coeffs to 1/128 steps (clamped at 127/128) after CalculateNormalDir. Floor (an arithmetic
+  shift) gives Sing 49 -> 33-37; round to nearest 56.5, truncation toward zero 60.6. The other texgen effects (Barrier,
+  Light Screen, Reflect) stay at ~34; the light directions (diffuse shading) stay float. Psybeam's remaining
+  difference was the glow at the user's mouth, fixed with the FPU rounding mode (below).
 - Effect asset loads: the move presentation (battle_engine_309ED0.c, step 1) retries BattleAnim_TryRegisterAssetTables
   each game frame until the move's effect assets are in; instant in the port, 0-2 game frames on the N64 (Fire Spin:
   animation at gf 464 in ares, 462 in the port). Whatever runs on meanwhile then enters the animation that much further
@@ -1516,6 +1531,11 @@ Thrash x3, Body Slam x2, Blizzard):
   minigame actor framework (Ekans' Digletts started their animation past its end and stayed in their holes) and two
   battle spots (Battle_ResetEventTrack's event track, the multi-hit HP transition); all read 256x the real value.
   The two battle spots were not reached by the sweep or the replays.
+- Full sweep of f4f43b7 (after the fixes above): all 164 uses match (median effect_p90 35.4, highest Sand-Attack 46),
+  9 sound mismatches (the background-pulse phase above, plus Focus Energy 116 at envelope 0.22); 1411 s wall time with
+  `--jobs 4` on a 10-core M-series Mac (8 busy processes; more jobs only add contention). While working on a fix,
+  `battle_sweep.py run --open` reruns just the cases whose cached result is not a match (the report's verdicts and
+  sound): 6 cases in 123 s here. A full run before merging is still the check that nothing that matched regressed.
 - Replay references for a branch must come from a build of its base commit. `origin/main` moved during this work
   (dfe6826 fixed the fog colour of Geo_NodeFog / GeoRender_SetRenderMode, which changes the gallery photo's sky), and
   references built from the newer main made tour_galenl3 (1.77) and tour_galmenu2 (0.02) look like an effect of this
