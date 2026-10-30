@@ -1,6 +1,16 @@
 # Whole game: how far the levers reach, what is left and why
 
-**Current: 6529 of 7490 functions (87.2%), lines 77.7%, branches 68.8%.** Battle engine 1868 of 2055: battles with
+**Current: 6537 of 7490 functions (87.3%), lines 77.8%, branches 68.9%.** Battle prep 165 of 205: a real cup
+win from the stored Poke Cup recording (`routes/cup_win_tail.rec`, replayed as recorded; it wins the first battle)
+with the round set to the last (`--set "BattlePrep_RunRulesScreen#2:gSessionContext+0x3:1=8"`, `roundOrDemoId`):
+the cup-clear bookkeeping (Victory Palace records, cup cleared, first-clear bonus, new round record, the Pikachu
+check) and the post-cup showcase with the real six-Pokemon roster (all six models, with `ruleCategory` 1: the
+free-battle crash before was the forced roster). A loss (the winner flags swapped, `+0x1220`/`+0x1270`) with three
+continues (`+0x1297`) and each option of the continue prompt (`routes/cup_loss_from_start.rec`: "From the start"
+uses a continue token). Left in battle prep: the PAL and two-on-two ("Double") variants (dead in the US NTSC game),
+the Gym Leader Castle and Mewtwo rule screens (their states stop at team selection without a registered team).
+
+**Previous round: 6529 of 7490 functions (87.2%), lines 77.7%, branches 68.8%.** Battle engine 1868 of 2055: battles with
 time limits (`--set "BattlePrep_RunRulesScreen#1@exit:gSessionContext+0x1291:1=1;...+0x1292:1=<minutes>;...+0x1293:1=10"`
 on the Game Pak free battle: `timeLimitsEnabled`, `battleLimitMinutes`, `moveLimitSeconds` as the event battle's
 settings panel sets them) reach the battle and turn timers, the time-out caption and the judge's decision
