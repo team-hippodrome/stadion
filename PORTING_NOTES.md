@@ -1377,3 +1377,25 @@ Debug switches: `PORT_INTERP_LOG=1` (per game frame: matrices recorded / matched
 frames as `interp_<frame>_<i>of<k>.ppm` in `PORT_SCREENSHOT_DIR`; `PORT_SHOT_SCALE=4` saves them at 1/4 size),
 `PORT_INTERP_JUMP=<units>` (the move threshold), `PORT_LAUNCHER_SHOT=<file.ppm>` (saves the launcher's picture and
 closes it).
+
+## Pokédex AREA map vs ares (sea, fog, label boxes)
+The AREA map (Pokédex with a Game Boy cartridge; `lab_dex.rec` frames 9500/9800 in the evidence routes) drew a black
+sea, no fog tint and pale label boxes. Three separate causes:
+- Sea: the relocated `pokedex_area_model` blob gives its two sea display-list nodes geo callbacks that are MIPS code in
+  the blob (0x8C000118, 0x8C000214). `Port_ResolveCode` found no host function, so the nodes stayed empty. They now
+  have host versions (`Pokedex_AreaSeaCallback0/1` in `pokedex_2190D0.c`): each frame they step the blob's wave
+  counters (0x8C000250..0x25C) and build a list that calls the sea material, sets the scrolled tile sizes and branches
+  to the geometry. `Port_ResolveCode` maps a blob's pseudo address back to its link address (`Port_VLinkOf`) and
+  looks such blob code up in a small table by fragment ROM. For that, `Fragment_LoadAndRelocateFromRomRange` now
+  records the slot's ROM too (before, only code fragments did).
+- Fog colour: `GeoNode_CreateFog` keeps the colour as bytes r,g,b,a in memory order, but `Geo_NodeFog` and
+  `GeoRender_SetRenderMode` passed that word straight to `G_SETFOGCOLOR`, so 0x96C8FF arrived as (FF,FF,C8) with
+  alpha 0x96. Both now swap it (as the other fog colour site already did). Battle stages were not visibly affected:
+  the field's fog (0x50D7FF, 996–1000) lies past its geometry, and the Free Battle menu backdrop's fog is near black;
+  checked against ares and with the swap on and off.
+- Label boxes: they are texture rectangles drawn while the map's 2-cycle render mode (`G_RM_FOG_SHADE_A`) is still
+  set. A rectangle has no shade on the RDP (0), so the blender's fog by shade alpha leaves it as it is. The renderer
+  used the rectangle's stale vertex alpha (0xFF) and painted the boxes in the fog colour. Rectangles now fog by 0
+  (`patches/libultraship.patch`, `GfxSpTri1`).
+After these fixes, region averages of the 9500/9800 frames match ares within a few levels (what remains is ares'
+320x240 VI output).

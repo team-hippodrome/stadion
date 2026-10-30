@@ -857,7 +857,7 @@ index 4e2aaf4b1d0cf24cefec0d283f9b8117d02050c0..3f5d4c2a4cef6639a2bd5566cb643ceb
      return ret;
  }
 diff --git a/src/display_object_textures.c b/src/display_object_textures.c
-index 1145c3c6d05e90d22695ffceedbe2b63951933fc..905bb61f69f8318e50aa1cb04a6020f97f2c4df0 100644
+index 1145c3c6d05e90d22695ffceedbe2b63951933fc..cd0a6de1755b1395059b2a26c3fdf07a01bd9bfb 100644
 --- a/src/display_object_textures.c
 +++ b/src/display_object_textures.c
 @@ -1,4 +1,6 @@
@@ -1207,7 +1207,7 @@ index 1145c3c6d05e90d22695ffceedbe2b63951933fc..905bb61f69f8318e50aa1cb04a6020f9
      MemoryBlock* sp20;
  
      sp2C = BinArchive_GetFile(D_800ABE10.unk_A04.unk_00, arg0 - 1);
-@@ -532,14 +674,14 @@ arg1_func_80019420* BattleAnim_LoadResourceTable(s32 arg0) {
+@@ -532,18 +674,19 @@ arg1_func_80019420* BattleAnim_LoadResourceTable(s32 arg0) {
      sp24 = BinArchive_GetFile(D_800ABE10.unk_A04.unk_04, arg0);
      if (sp24 != NULL) {
          sp1C = MainPool_AllocState(main_pool_get_available(), 0);
@@ -1225,6 +1225,11 @@ index 1145c3c6d05e90d22695ffceedbe2b63951933fc..905bb61f69f8318e50aa1cb04a6020f9
      Fragment* sp24 = Fragment_LoadFromRomRange(arg0, arg2, arg3, arg4, arg5);
  
      if (sp24 != NULL) {
+         Fragment_RelocateAndCommit(arg0, arg1, sp24);
++        Port_NoteLoadedFragment(arg1, (u8*)arg2); // PORT: code addresses in this slot now belong to this blob
+     }
+     return sp24;
+ }
 diff --git a/src/display_object_textures.h b/src/display_object_textures.h
 index 0dd73ab14b38198f7f4588e8417d454a645328cf..0a647784fc8a35d64703b3eecf41b3ca9539def4 100644
 --- a/src/display_object_textures.h
@@ -2516,7 +2521,7 @@ index ee505993c3650eb136381f268e912cd644f22de9..d347e65d462bc58766e9d2dcf92d3232
  unk_D_86002F34_alt19* GeoNode_CreateAmbientLight(MainPoolState* arg0, unk_D_86002F34_alt19* arg1, u8 r, u8 g, u8 b);
  unk_D_86002F34* GeoNode_CreateShadowContext(MainPoolState* arg0, unk_D_86002F34* arg1, s32 arg2,
 diff --git a/src/geo_render.c b/src/geo_render.c
-index d36f920884a0777288cece9433614bf4aef5d261..f7aeb3ddde0ebee3e4f41c0b896834fa106087ee 100644
+index d36f920884a0777288cece9433614bf4aef5d261..c1b0ac7b90c5b6e975263d6104425696f702293c 100644
 --- a/src/geo_render.c
 +++ b/src/geo_render.c
 @@ -1,3 +1,5 @@
@@ -2634,6 +2639,15 @@ index d36f920884a0777288cece9433614bf4aef5d261..f7aeb3ddde0ebee3e4f41c0b896834fa
                    G_MTX_NOPUSH | G_MTX_MUL | G_MTX_PROJECTION);
  
          Geo_NodeModelPartRoot(arg0);
+@@ -559,7 +563,7 @@ void Geo_NodeFog(GraphNode* arg0) {
+ 
+     gSPFogPosition(gDisplayListHead++, arg->unk_18, arg->unk_1A);
+     gSPSetGeometryMode(gDisplayListHead++, G_FOG);
+-    gDPSetColor(gDisplayListHead++, G_SETFOGCOLOR, arg->unk_1C);
++    gDPSetColor(gDisplayListHead++, G_SETFOGCOLOR, PORT_BE32(arg->unk_1C)); /* PORT: unk_1C holds the bytes r,g,b,a in memory order (GeoNode_CreateFog); the command takes 0xRRGGBBAA */
+ }
+ 
+ void func_80013D34(GraphNode* arg0) {
 @@ -679,6 +683,7 @@ void Geo_NodeSwitchCase(GraphNode* arg0) {
      }
  
@@ -2701,6 +2715,15 @@ index d36f920884a0777288cece9433614bf4aef5d261..f7aeb3ddde0ebee3e4f41c0b896834fa
          Geo_ProcessNodeChildren(arg0);
  
          D_800AA8C8.unk_10A0--;
+@@ -1128,7 +1136,7 @@ void GeoRender_SetRenderMode(void) {
+ 
+     D_800ABCB8->unk_14.rgba = 0x00000000;
+ 
+-    gDPSetColor(gDisplayListHead++, G_SETFOGCOLOR, D_8006F090->unk_20);
++    gDPSetColor(gDisplayListHead++, G_SETFOGCOLOR, PORT_BE32(D_8006F090->unk_20)); /* PORT: as in Geo_NodeFog */
+ 
+     if ((D_800ABB04 & 1) && (D_800ABB00 == 1) && (D_800ABCB8->unk_24 == 5)) {
+         var_v0 = 0x107A58;
 @@ -1162,7 +1170,7 @@ void GeoRender_ApplyMaterialState(void) {
      gSPSetGeometryMode(gDisplayListHead++, G_SHADE | G_CULL_BACK | G_SHADING_SMOOTH);
      gSPClearGeometryMode(gDisplayListHead++, G_FOG | G_TEXTURE_GEN);
@@ -3222,7 +3245,7 @@ index 5ca5681f57f4684791ea64af385a21fc6e9fdaa5..2ab4a57c66df217d05cf7c934faf9255
      return ret;
  }
 diff --git a/src/jpeg_stream.c b/src/jpeg_stream.c
-index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a8be10438 100644
+index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e69bd28ac2 100644
 --- a/src/jpeg_stream.c
 +++ b/src/jpeg_stream.c
 @@ -1,10 +1,13 @@
@@ -3505,7 +3528,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
  }
  
  void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2) {
-@@ -542,6 +628,271 @@ void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2) {
+@@ -542,6 +628,295 @@ void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2) {
      return sp2C;
  }
  
@@ -3682,6 +3705,9 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
 +    if (addr >= 0x100000000ULL || addr == 0) {
 +        return (void*)addr; // already a host pointer
 +    }
++    if (Port_VLinkOf(addr) != 0) {
++        addr = Port_VLinkOf(addr); // a data blob's pointer (Port_RelocateDataBlob): look up its link address
++    }
 +    if (addr >= 0x81000000 && addr < 0x90000000) {
 +        rom = sPortSlotRom[((addr & 0x0FF00000) >> 20) - 0x10];
 +    }
@@ -3696,6 +3722,27 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
 +    }
 +    if (lo < gPortFuncTableCount && gPortFuncTable[lo].rom == rom && gPortFuncTable[lo].addr == addr) {
 +        return gPortFuncTable[lo].fn;
++    }
++    // MIPS code inside ROM data blobs (no decompiled C), replaced by host versions written for the port
++    {
++        extern u8 pokedex_area_model_ROM_START[];
++        extern s32 Pokedex_AreaSeaCallback0(s32 event, GraphNode* node);
++        extern s32 Pokedex_AreaSeaCallback1(s32 event, GraphNode* node);
++        static const struct {
++            const u8* rom;
++            unsigned addr;
++            void* fn;
++        } sBlobCode[] = {
++            { pokedex_area_model_ROM_START, 0x8C000118, (void*)Pokedex_AreaSeaCallback0 },
++            { pokedex_area_model_ROM_START, 0x8C000214, (void*)Pokedex_AreaSeaCallback1 },
++        };
++        unsigned i;
++
++        for (i = 0; i < (unsigned)ARRAY_COUNT(sBlobCode); i++) {
++            if (rom != 0 && rom == (unsigned)(uintptr_t)sBlobCode[i].rom && addr == sBlobCode[i].addr) {
++                return sBlobCode[i].fn;
++            }
++        }
 +    }
 +    // Fragment 31 (particle_data_library) starts with a table of trampolines ("j target; nop") that ROM data uses as
 +    // stable entry points into other fragments (e.g. 0x810001D0 -> ParticleGfx_GraphNodeBuildDescriptorMaterialList,
@@ -3777,7 +3824,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
  BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
      BinArchive* ret = NULL;
      u32 sp28;
-@@ -553,6 +904,8 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
+@@ -553,6 +928,8 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
              newaddr = Asset_LoadCompressed(romStart, romEnd, 0, 0);
              ret = newaddr;
              if (newaddr != NULL) {
@@ -3786,7 +3833,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
                  newaddr[0] |= 1;
              }
              break;
-@@ -561,11 +914,14 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
+@@ -561,11 +938,14 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
              newaddr = Asset_LoadCompressed(romStart, romStart + 0x20, 0, 0);
              ret = newaddr;
              if (newaddr != NULL) {
@@ -3801,7 +3848,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
                      *newaddr |= 2;
                      if (arg3 == 1) {
                          *newaddr |= 4;
-@@ -578,10 +934,15 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
+@@ -578,10 +958,15 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
              newaddr = Asset_LoadCompressed(romStart, romStart + 0x20, 1, 0);
              ret = newaddr;
              if (newaddr != NULL) {
@@ -3817,7 +3864,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
                  if ((newaddr != NULL) && (arg3 == 1)) {
                      *newaddr |= 4;
                  }
-@@ -664,11 +1025,22 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
+@@ -664,11 +1049,22 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
      UNUSED s32 pad;
      BinArchiveFile* sp18 = (u8*)archive + sizeof(BinArchive) + (file_number * sizeof(BinArchiveFile));
  
@@ -3842,7 +3889,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
          } else {
              if (archive->unk_00 & 0x80) {
                  var_a2 = BinArchive_LoadFileBuffered(archive, sp18);
-@@ -677,11 +1049,21 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
+@@ -677,11 +1073,21 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
              }
  
              if (var_a2 != NULL) {
@@ -3866,7 +3913,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
              }
          }
      }
-@@ -689,12 +1071,12 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
+@@ -689,12 +1095,12 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
      return var_a2;
  }
  
@@ -4092,7 +4139,7 @@ index d22c8ab0236357bfb3e93183f957a49b266ca22d..3318f035f8c8d657a146f41f5ee8d1b7
 +    return PORT_BE32(arg.rgba);
  }
 diff --git a/src/memmap.c b/src/memmap.c
-index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c334dadecf 100644
+index a46c369996a35fd75fa474484e0a233d6df75183..76443a95dfb0c4f9241096d881cc246d642adb01 100644
 --- a/src/memmap.c
 +++ b/src/memmap.c
 @@ -1,3 +1,5 @@
@@ -4101,7 +4148,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
  #include "global.h"
  #include "memmap.h"
  
-@@ -6,6 +8,128 @@ struct MemoryMap {
+@@ -6,6 +8,140 @@ struct MemoryMap {
      size_t size;
  };
  
@@ -4178,6 +4225,18 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
 +    return 0;
 +}
 +
++// Link address of a pseudo address (0 if it is not one of a registered blob).
++u32 Port_VLinkOf(uintptr_t addr) {
++    if (addr >= PORT_VBASE && addr < PORT_VBASE + PORT_VBLOBS * 0x100000u) {
++        struct PortVBlob* b = &sVBlobs[(addr - PORT_VBASE) >> 20];
++        u32 off = addr & 0xFFFFF;
++        if (b->host != NULL && off < b->size) {
++            return b->link + off;
++        }
++    }
++    return 0;
++}
++
 +// Pseudo address of a link address inside the blob that starts at 'host' (0 if the blob is not registered).
 +u32 Port_VAddrOfLink(void* host, u32 linkAddr) {
 +    int i;
@@ -4230,7 +4289,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
  struct MemoryMap gSegments[16];
  struct MemoryMap gFragments[240];
  
-@@ -13,6 +137,7 @@ struct MemoryMap gFragments[240];
+@@ -13,6 +149,7 @@ struct MemoryMap gFragments[240];
   * Set the base virtual address and size of the specified segment memmap.
   */
  void Memmap_SetSegmentMap(u32 id, uintptr_t vaddr, size_t size) {
@@ -4238,7 +4297,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
      gSegments[id].vaddr = vaddr;
      gSegments[id].size = size;
  }
-@@ -33,7 +158,7 @@ uintptr_t Memmap_GetSegmentBaseVaddr(u32 id) {
+@@ -33,7 +170,7 @@ uintptr_t Memmap_GetSegmentBaseVaddr(u32 id) {
   * Y: Segment number.
   * Z: Segment offset.
   */
@@ -4247,7 +4306,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
      if ((mask >> 0x1C) == 0) {
          u32 id = (mask & 0x0F000000) >> 0x18;
          u32 value = (mask & 0x00FFFFFF) >> 0x00;
-@@ -62,6 +187,7 @@ u32 Memmap_GetSegmentVaddrMask(u32 i, uintptr_t addr) {
+@@ -62,6 +199,7 @@ u32 Memmap_GetSegmentVaddrMask(u32 i, uintptr_t addr) {
   * Clear the memmap for the segment ID specified.
   */
  void Memmap_ClearSegmentMemmap(u32 id) {
@@ -4255,7 +4314,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
      gSegments[id].vaddr = NULL;
      gSegments[id].size = 0;
  }
-@@ -75,15 +201,31 @@ void Memmap_SetSegments(Gfx** gfxDl) {
+@@ -75,15 +213,31 @@ void Memmap_SetSegments(Gfx** gfxDl) {
      Gfx* gfx = *gfxDl;
  
      for (i = 0; i < 16; i++) {
@@ -4288,7 +4347,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
      u32 isLoNeg;
      u32* luiRefs[32];
      u32 luiVals[32];
-@@ -105,6 +247,11 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
+@@ -105,6 +259,11 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
      osInvalICache(fragment, fragment->sizeInRam);
      osInvalDCache(fragment, fragment->sizeInRam);
      Memmap_SetFragmentMap(id, (uintptr_t)fragment, fragment->sizeInRam);
@@ -4300,7 +4359,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
  
      for (i = 0; i < relocInfo->nRelocations; i++) {
          reloc = relocInfo->relocations[i];
-@@ -157,6 +304,7 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
+@@ -157,6 +316,7 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
   * Set the base virtual address and size of the specified fragment memmap.
   */
  void Memmap_SetFragmentMap(u32 id, uintptr_t vaddr, size_t size) {
@@ -4308,7 +4367,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
      gFragments[id].vaddr = vaddr;
      gFragments[id].size = size;
  }
-@@ -179,9 +327,13 @@ uintptr_t Memmap_GetFragmentBaseVaddr(u32 id) {
+@@ -179,9 +339,13 @@ uintptr_t Memmap_GetFragmentBaseVaddr(u32 id) {
   * Z: Fragment offset.
   */
  uintptr_t Memmap_GetFragmentVaddr(void* addr) {
@@ -4325,7 +4384,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
  
          if (gFragments[id].vaddr != NULL) {
              addr = gFragments[id].vaddr + value;
-@@ -208,6 +360,7 @@ u32 Memmap_GetFragmentVaddrMask(u32 i, uintptr_t addr) {
+@@ -208,6 +372,7 @@ u32 Memmap_GetFragmentVaddrMask(u32 i, uintptr_t addr) {
   * Clear the memmap for the fragment ID specified.
   */
  void Memmap_ClearFragmentMemmap(u32 id) {
@@ -4333,7 +4392,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
      gFragments[id].vaddr = NULL;
      gFragments[id].size = 0;
  }
-@@ -230,3 +383,148 @@ uintptr_t Memmap_GetLoadedFragmentVaddr(uintptr_t addr) {
+@@ -230,3 +395,148 @@ uintptr_t Memmap_GetLoadedFragmentVaddr(uintptr_t addr) {
      }
      return 0;
  }
@@ -4483,10 +4542,10 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
 +    return 0;
 +}
 diff --git a/src/memmap.h b/src/memmap.h
-index 4d056b93f17927b7491ef29a1b1a31520ef6bc0b..93b7b5eed2bb10c000e8a2d3627c20311c8889cf 100644
+index 4d056b93f17927b7491ef29a1b1a31520ef6bc0b..9bc3ee8f633769d21d52948789a8ab6086495b2e 100644
 --- a/src/memmap.h
 +++ b/src/memmap.h
-@@ -28,15 +28,23 @@ typedef struct Fragment {
+@@ -28,15 +28,24 @@ typedef struct Fragment {
      /* 0x20 */ char data[RELOCATIONS_SIZE]; // variable size
  } Fragment; // size = 0x20
  
@@ -4505,6 +4564,7 @@ index 4d056b93f17927b7491ef29a1b1a31520ef6bc0b..93b7b5eed2bb10c000e8a2d3627c2031
 +void Port_VFree(void* host);
 +void* Port_VResolve(uintptr_t addr);
 +int Port_VIsRaw(const void* p);
++u32 Port_VLinkOf(uintptr_t addr);
 +u32 Port_VAddrOfLink(void* host, u32 linkAddr);
 +u32 Port_RelocateDataBlob(struct Fragment* f);
 +uintptr_t Port_CallBlobEntry(void* frag, s32 a0, s32 a1);
