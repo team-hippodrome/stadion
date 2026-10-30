@@ -1508,6 +1508,18 @@ Thrash x3, Body Slam x2, Blizzard):
   again after it), whose phase differs by 100-300 ms: it follows each side's own clock since the battle scene started
   (load timing), like the counters above. Leech Seed 73 and Razor Leaf 75 also run longer on the N64 (lag, above).
   Not fixed: the sound check would need that background sound's phase reset or excluded.
+- Dream Eater's sparkles (effect_p90 130 -> 23.7): the nine star models (effect 95, models 0x9A/0x9B) play their
+  animation backwards from the last frame, and BattleAnim_BindModelAnimReversed read that frame as
+  `data->endFrame` straight from the ROM's big-endian animation header: the port started them thousands of frames
+  past the end. Code outside model_animation.c reads it through ModelAnim_GetEndFrame now, and event tracks through
+  ModelAnim_GetEventEndFrame (model_animation_events.c). The same raw reads were in Drowzee (Snore), Dynamo, the
+  minigame actor framework (Ekans' Digletts started their animation past its end and stayed in their holes) and two
+  battle spots (Battle_ResetEventTrack's event track, the multi-hit HP transition); all read 256x the real value.
+  The two battle spots were not reached by the sweep or the replays.
+- Replay references for a branch must come from a build of its base commit. `origin/main` moved during this work
+  (dfe6826 fixed the fog colour of Geo_NodeFog / GeoRender_SetRenderMode, which changes the gallery photo's sky), and
+  references built from the newer main made tour_galenl3 (1.77) and tour_galmenu2 (0.02) look like an effect of this
+  change. Against 34f5e46 both are identical.
 
 ### Milestone 3 (proposal): every move
 - Moves: all 165 (1..0xA5). The player's time-limit fallback always uses the first usable move, so the move under

@@ -160,7 +160,7 @@ index 09454ed115097da5b6796f74c5dac6befc148f9d..18a724b04646f640319c00262f47465a
  s32 BattleAI_RandomBelowInclusive(s32 arg0);
  void BattleAI_SeedRandomState(u8 arg0);
 diff --git a/src/fragments/battle_engine/battle_engine_2EC3C0.c b/src/fragments/battle_engine/battle_engine_2EC3C0.c
-index af8b2f357f40d3449cd9cc57d8664a00362fa738..9fbf823f85d25df92ec15c683a516c12d88888f5 100644
+index af8b2f357f40d3449cd9cc57d8664a00362fa738..2f21ab2804a778ae2573a83868c5b06a7f7330ee 100644
 --- a/src/fragments/battle_engine/battle_engine_2EC3C0.c
 +++ b/src/fragments/battle_engine/battle_engine_2EC3C0.c
 @@ -1,3 +1,5 @@
@@ -317,6 +317,15 @@ index af8b2f357f40d3449cd9cc57d8664a00362fa738..9fbf823f85d25df92ec15c683a516c12
      BattleMon* ptr = &active_pokemon->unk_724->pokemonPicked[active_pokemon->state.unk_08];
      ActivePokemonState* sp24 = &active_pokemon->state;
  
+@@ -1488,7 +1524,7 @@ s32 BattleAnim_TrySetModelEventTrackFromRow(ActivePokemon* arg0, s32 arg1, s32 a
+ 
+     ModelAnim_SetEventFrame(&arg0->displayObject, 0);
+     ModelAnim_SetEventTrack(&arg0->displayObject, sp20);
+-    ModelAnim_SetEventFrame(&arg0->displayObject, arg0->displayObject.eventTrack.data->endFrame);
++    ModelAnim_SetEventFrame(&arg0->displayObject, ModelAnim_GetEventEndFrame(&arg0->displayObject));
+ 
+     arg0->state.unk_36 = arg2;
+     return 0;
 diff --git a/src/fragments/battle_engine/battle_engine_2F1D60.c b/src/fragments/battle_engine/battle_engine_2F1D60.c
 index c115fc0557a6714ec8403ad28c11655029f52722..0f0bf53fb70299053fff648de8926625b4b4a430 100644
 --- a/src/fragments/battle_engine/battle_engine_2F1D60.c
@@ -776,7 +785,7 @@ index d7449ebb4d87ea4e5a41280fca68f0d4a2e7638a..d58e78988681128c206232030ea152be
          }
      }
 diff --git a/src/fragments/battle_engine/battle_engine_309ED0.c b/src/fragments/battle_engine/battle_engine_309ED0.c
-index af67bfaf6b45e468dd81990396dca0bbe10ad700..6619582768e38378f67fa2fb206410c56d45aeee 100644
+index af67bfaf6b45e468dd81990396dca0bbe10ad700..8bf5e1f82031a4fe3dea1bf978b24a9c09467752 100644
 --- a/src/fragments/battle_engine/battle_engine_309ED0.c
 +++ b/src/fragments/battle_engine/battle_engine_309ED0.c
 @@ -386,6 +386,7 @@ void Battle_StartTurn(void) {
@@ -798,6 +807,15 @@ index af67bfaf6b45e468dd81990396dca0bbe10ad700..6619582768e38378f67fa2fb206410c5
                  D_84390234 = D_84390230 = D_8439022C;
                  BattleBox_Open(0);
                  BattleScene_ResetCameraFrameCounter();
+@@ -1982,7 +1985,7 @@ void BattleScene_RunRepeatedHitHpTransition(CameraNode* arg0) {
+     if (D_84390200->displayObject.objectType == 0x98) {
+         sp1C = 0xF;
+     } else if (temp_v1->unk_0A == 0xFF) {
+-        sp1C = D_84390204->displayObject.transformAnim.data->endFrame - temp_v1->unk_06;
++        sp1C = ModelAnim_GetEndFrame(&D_84390204->displayObject) - temp_v1->unk_06;
+     } else {
+         sp1C = temp_v1->unk_0A - temp_v1->unk_06;
+     }
 diff --git a/src/fragments/battle_engine/battle_engine_313250.c b/src/fragments/battle_engine/battle_engine_313250.c
 index 883360294ba05bc180fa8857710d4eb6f2cc5eaf..44e4326acf090b5cbf2cdf70733bc974f2bfaaf1 100644
 --- a/src/fragments/battle_engine/battle_engine_313250.c
@@ -900,6 +918,19 @@ index e2dca54b8eb1b66ff3ea445e8ab7c41227284187..97ee36abade5059bd9c6941905797422
      BattleScene_TickCameraSubstate(arg0);
      BattleScene_ApplyCameraPhaseDefaults();
      BattleScene_UpdateOwnerVisibilitySingle(arg0);
+diff --git a/src/fragments/battle_engine/battle_engine_315D50.c b/src/fragments/battle_engine/battle_engine_315D50.c
+index 42eeca9e1ee6e2cd65118405b3a7a68fdbbc6336..15cc934909b624f32beeca8055174047681d5495 100644
+--- a/src/fragments/battle_engine/battle_engine_315D50.c
++++ b/src/fragments/battle_engine/battle_engine_315D50.c
+@@ -5025,7 +5025,7 @@ void BattleAnim_BindModelAnim(DisplayObject* arg0, s16 arg1) {
+ 
+ void BattleAnim_BindModelAnimReversed(DisplayObject* arg0, s16 arg1) {
+     ModelAnim_BindTransformCurve(arg0, 0, sBattleAnimAssetPointers[arg1], -0x10000);
+-    ModelAnim_SetFrame(arg0, arg0->transformAnim.data->endFrame - 1);
++    ModelAnim_SetFrame(arg0, ModelAnim_GetEndFrame(arg0) - 1);
+ }
+ 
+ s32 BattleAnim_IsModelAnimComplete(DisplayObject* arg0) {
 diff --git a/src/fragments/battle_engine/battle_engine_317E70.c b/src/fragments/battle_engine/battle_engine_317E70.c
 index 269129c66c8049aca4d529b8cc3e3420df21b924..6630516644ed1496be760d34f3516c27e0a88e11 100644
 --- a/src/fragments/battle_engine/battle_engine_317E70.c

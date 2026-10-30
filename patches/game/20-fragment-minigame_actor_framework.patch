@@ -11,6 +11,28 @@ index d0fa57b331ed925f6a571eab08e9be13b7e0b357..55168cab1ed3f6ed11df58bc8d1c8cbd
  void MiniFx_FreeEmitter(ParticleEmitter* arg0);
  void MiniFx_ConfigureOneShotEmitter(s32 arg0, f32 arg1, Vec3f arg2, ParticleUpdateCallback arg3, ParticleDescriptor* arg4, s16 arg5, u8 arg6, u8 arg7);
  void MiniFx_ConfigureEmitterWithPeriodAndRepeat(s32 arg0, s32 arg1, s8 arg2, f32 arg3, Vec3f arg4, ParticleUpdateCallback arg7, ParticleDescriptor* arg8, s16 arg9, u8 argA, u8 argB);
+diff --git a/src/fragments/minigame_actor_framework/minigame_actor_framework_1189B0.c b/src/fragments/minigame_actor_framework/minigame_actor_framework_1189B0.c
+index 782da3af33c1785edfc8f925be798d77a1170b09..94ceb6b4922724f37b9d7b780d32ed3c549e0ebf 100644
+--- a/src/fragments/minigame_actor_framework/minigame_actor_framework_1189B0.c
++++ b/src/fragments/minigame_actor_framework/minigame_actor_framework_1189B0.c
+@@ -141,7 +141,7 @@ void MiniActor_UpdateAnimation(MiniActor* poke) {
+             ModelAnim_SetAnimation(&poke->unk_000, poke->unk_24A);
+             if (poke->unk_26C != 0) {
+                 ModelAnim_BindTransformCurve(&poke->unk_000, 0, poke->unk_000.transformAnim.data, -0x10000);
+-                ModelAnim_SetFrame(&poke->unk_000, poke->unk_000.transformAnim.data->endFrame - 1);
++                ModelAnim_SetFrame(&poke->unk_000, ModelAnim_GetEndFrame(&poke->unk_000) - 1);
+             } else {
+                 ModelAnim_BindTransformCurve(&poke->unk_000, 0, poke->unk_000.transformAnim.data, 0x10000);
+                 ModelAnim_SetFrame(&poke->unk_000, poke->unk_26E);
+@@ -176,7 +176,7 @@ void MiniActor_UpdateAnimation(MiniActor* poke) {
+ }
+ 
+ void MiniActor_SnapAnimToLastFrame(DisplayObject* arg0) {
+-    ModelAnim_SetFrame(arg0, arg0->transformAnim.data->endFrame - 1);
++    ModelAnim_SetFrame(arg0, ModelAnim_GetEndFrame(arg0) - 1);
+ }
+ 
+ void MiniActor_ReadControllerInputs(void) {
 diff --git a/src/fragments/minigame_actor_framework/minigame_actor_framework_1193E0.c b/src/fragments/minigame_actor_framework/minigame_actor_framework_1193E0.c
 index 522b2f7511af7600591e480762b95411d0cae12a..f39555df1c93825c99c5527887e72f305b05e17f 100644
 --- a/src/fragments/minigame_actor_framework/minigame_actor_framework_1193E0.c
