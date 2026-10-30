@@ -668,7 +668,7 @@ index b926f73a1d7e266718513ede408058c4e1890aef..7b114dd631eb1010ba2764b1cad9ce40
  
  }
 diff --git a/src/gb_data.c b/src/gb_data.c
-index 2a7be588569a27f567d037bdf0cccb54014c4531..b77087225c1c9a1d3b4bf153ea92f4bc1cbc23bc 100644
+index 2a7be588569a27f567d037bdf0cccb54014c4531..1661f4edd15e8cc4ff2d55aa15c16022b080a638 100644
 --- a/src/gb_data.c
 +++ b/src/gb_data.c
 @@ -6,9 +6,7 @@
@@ -705,11 +705,19 @@ index 2a7be588569a27f567d037bdf0cccb54014c4531..b77087225c1c9a1d3b4bf153ea92f4bc
          if (*arg1 == ']') {
              memcpy(arg0, temp_s1, strlen(temp_s1) + 1);
              arg0 += strlen(temp_s1);
-@@ -814,7 +817,7 @@ char* Text_CopyString(char* arg0, char* arg1) {
+@@ -814,7 +817,15 @@ char* Text_CopyString(char* arg0, char* arg1) {
  #endif
  
  char* Text_CopySpeciesName(char* arg0, s32 arg1) {
 -    Text_CopyString(arg0, (char*)*(u32*)D_8006FEE8[arg1]);
++    // PORT: species 0 (an empty party slot: the Event Battle trainer cards always read 6) made the N64 read the word
++    // at 0x8006FEE8, the first bytes of species 151's name slot ("MEW\0"), and copy from 0x4D455700, an unmapped
++    // address (TLB miss, the game stops there); on the host it is a wild pointer. An empty name instead: it equals
++    // the slot's empty nickname, so Model_ComputeSizeVariant gives the empty slot no size variant.
++    if ((arg1 <= 0) || (arg1 > ARRAY_COUNT(D_8006FF00))) {
++        arg0[0] = '\0';
++        return arg0;
++    }
 +    Text_CopyString(arg0, D_8006FF00[arg1 - 1].name); // PORT: was a raw read at 0x8006FEE8 + 0x1C * id (the name pointer, +4 of record id-1)
      return arg0;
  }

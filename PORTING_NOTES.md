@@ -511,7 +511,8 @@ harmless ones (`Geo_NodeReference`, `main_pool_set_func`, 64DD code in rsp.c).
   `ModelAssetNode.getAnimationBank` sat at a different host offset than the root node's real field, so the root is
   read through its real type.
 - Animation data (model_animation.c, model_animation_events.c) is read through accessors that byte-swap when the data
-  lies in a raw ROM blob (`Port_VIsRaw`): TransformAnimData / EventTrackData headers (32-bit addresses), channel
+  lies in raw ROM data (model_animation.c: `Port_IsRawData`, blobs and segment/fragment-mapped data; events:
+  `Port_VIsRaw`): TransformAnimData / EventTrackData headers (32-bit addresses), channel
   entries, s16 sample arrays, bit-packed streams (big-endian 16-bit words) and keyframe records.
 - `ModelAnim_BindEventTrack` takes the track address as intptr_t (was s32).
 - The battle intro's "wait for the send-out animation" steps now take the real animation time (step 5: 14 frames).
@@ -848,6 +849,14 @@ sample count after every VI frame).
   counted the filtered list as the byte difference `>> 2` (4-byte N64 pointers), so the count was doubled and the grid
   drew entries past the filled ones. It counts entries now. The route runs to its end, ASan clean, and its See List
   screens (grouped list, move page) match ares.
+- Pikachu Surf reward (Stadium_BonusPikachuReward; the evidence pilot's free battle + reward entry, segfault in
+  ModelAnim_EvaluateScaleChannel at fault address 0x8811208e when the three surfing followers appear after "Pikachu
+  learned Surf"): the followers' animation `D_8C2011C4` lies in the data fragment `_798CD0` (Fragment_Load, linked at
+  0x8C200000, mapped through gFragments), not in an archive blob, so the animation accessors read its big-endian
+  header as native (0x8C201188 came out as 0x8811208C) and followed it. Animation data is now raw when
+  `Port_IsRawData` says so (blobs, segment- and fragment-mapped ROM data), like geo layouts. With a 4-move Pikachu
+  (forget path) and a 3-move one the reward runs to PikachuReward_ShowSuccessEnding and saves Surf to the cart; in a
+  battle and the Lab no other animation changes classification.
 - GB Tower frames: German Yellow from the game's own new-game save (gb/base/yellow_de_newgame.sav), down the stairs,
   out of the house, north to Route 1, Oak's cutscene and the scripted battle (wild PIKACHU, HP bars, battle menu,
   Oak's Poké Ball). ares's Game Boy starts 1555 VI frames later (cartridge load), so its GB inputs are shifted by
