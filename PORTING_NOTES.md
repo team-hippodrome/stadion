@@ -1475,12 +1475,25 @@ Thrash x3, Body Slam x2, Blizzard):
   writes 0 into that slot at the function's entry (sp-8), so both sides draw the same strands. clang's
   -Wuninitialized finds no other such read in battle_engine or particle_*. Hyper Beam 135 -> 38; Ice Beam 128 -> 68
   in the same battle (moves 55-58, Blastoise), 45 alone (Articuno).
-  What remains in Ice Beam (frames ~56-64 and ~84-99): start effect 101 (an emitter with model 0xA0 / animation 0xA1
-  that sends descriptor 0x4A burst sprites) draws a large round glow at the mouth in the port, where ares shows a
-  smaller spiky ice crystal. Not explained yet.
+- FPU rounding mode (Ice Beam's mouth flare, frames ~56-64 and ~84-99): a real port bug. Every game thread starts with
+  __osSetFpcCsr(0x01000C01): round toward zero (and flush denormal results, trap invalid / divide by zero). The port's
+  __osSetFpcCsr was a stub, so the game's float math rounded to nearest and inexact results came out 1 ULP higher
+  half the time. The flare is start effect 47's descriptor 0x53 sprite (BattleAnim_CallbackSharedDescriptor53Scale-
+  PulseCycle: IA8 starburst, frame 1, scale pulsing between 0.2 and 0.7 x gParticleRenderContext.y in steps of 0.1 x y).
+  With truncation the N64's scale ended 1 ULP short of its (also truncated) target, so ParticleMath_ApproachFloat
+  reported "reached" one frame later at the top of each swing: a 12 game frame period on the N64, 11 in the port,
+  and by frame 84 the pulse was 2 frames out of phase (big starburst in the port where ares showed a small glow).
+  The port now sets the host rounding mode from the CSR's RM bits (fesetround; per host thread, and each OSThread is
+  one, so the renderer keeps round to nearest). Ice Beam 68.2 -> 30.2 in the 4-move battle, 44.6 -> 31.7 alone;
+  controls unchanged (Tackle 36.5, Ember 36.8, Thundershock 39.3, Razor Leaf 30.1, Hyper Beam 36.6, Fire Spin 28.4).
+  (Start effect 101, suspected first, is not part of Ice Beam: its effects are start 102 + 47, end 67, start 125.)
+  How it was found: switching parts of start effect 47 off in the port isolated the sprite; scanning ares' RDRAM for
+  particles with its update callback showed the 1-ULP-lower scale values (3F2E147A vs the port's 3F2E147B for
+  0.4 x 1.7) and the extra frame at each maximum.
 - ares_ref probe for such cases: ARES_REF_XCHECK_PROBE=<link>:<offset>,... logs "P <gf> <link> <value>" at those
   battle engine function entries: the word at sp+offset, or register offset-1000 (e.g. 1005 for a1). Not on an
-  address that is already hooked.
+  address that is already hooked. Arguments the caller sets in the jal/jalr delay slot read as stale there (a
+  particle callback's a0 read 0).
 - RDP noise (port bug, fixed): the colour combiner's NOISE input came out in [0.5, 1) instead of [0, 1). Every backend's
   RAND_NOISE (patches/libultraship.patch: gfx_metal_shader.cpp, gfx_opengl.cpp (Vulkan uses its formulas),
   gfx_direct3d11.cpp) mapped random() as if it were in [-1, 1] with (r + 1) / 2, but the shaders' random() is

@@ -12,6 +12,7 @@
 #include <atomic>
 #include <csignal>
 #include <chrono>
+#include <cfenv>
 #include <cmath>
 #include <condition_variable>
 #include <cstdio>
@@ -261,7 +262,21 @@ void __osSetSR(u32) {}
 void __osSetCause(u32) {}
 void __osSetCompare(u32) {}
 void __osSetCount(u32) {}
-u32 __osSetFpcCsr(u32) { return 0; }
+// The game's threads set the FPU control/status register when they start (0x01000C01: round toward zero, flush
+// denormal results, trap invalid and divide-by-zero), so on the N64 every inexact float result of the game is
+// truncated. The host's default, round to nearest, lands 1 ULP higher half the time, and that flips threshold tests:
+// ParticleMath_ApproachFloat stopped one frame early on the N64 (the scale ended 1 ULP short of its target, which
+// was itself rounded down), so Ice Beam's pulsing mouth flare had a 12 game frame period there and 11 here and
+// drifted out of phase. The FP environment is per host thread and each OSThread is one (os_thread.cpp), so this only
+// changes game code. Only the rounding mode is mirrored (no traps; denormal results are rare enough to leave).
+u32 __osSetFpcCsr(u32 csr) {
+    static thread_local u32 sCsr = 0x01000800; // libultra's boot value: round to nearest, flush, trap invalid
+    static const int kModes[4] = { FE_TONEAREST, FE_TOWARDZERO, FE_UPWARD, FE_DOWNWARD };
+    u32 old = sCsr;
+    sCsr = csr;
+    std::fesetround(kModes[csr & 3]);
+    return old;
+}
 s32 __osAiDeviceBusy(void) { return 0; }
 void osDpSetStatus(u32) {}
 u32 osDpGetCounters(u32* buf) {
