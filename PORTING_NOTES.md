@@ -1580,3 +1580,25 @@ Found by the function-evidence runs (branch evidence-pilot: Stadium flash varian
   instrumented build: the stack contents decide whether it crashes). Modes without a badge set now get the neutral
   texture (file 0), as unplayed rounds do; Free Battle does not show the carousel (the Record screen after the battle
   is unchanged).
+
+## Byte-order sweep: unions and casts that read narrow fields as a wider value
+A Game Pak team could hold the same Pokémon twice (Mew picked twice in a Free Battle; ares marks it chosen). The
+rental team header `unk_D_838067F0_0168_0000` (gallery_rental_viewer.h) overlays the bytes unk_000..unk_003 with
+`s32 raw`, and fragment 61 / rental_team_selection set, clear and test a flag as `raw & 0x80000000` and pick an icon
+with `raw & 7`: on the N64 that is unk_000's top bit and unk_003's low bits; read on the host the flag tests hit the
+species byte, so species >= 128 (Mew 151) were never "already chosen". The bytes are declared in reverse on a
+little-endian host, so `raw` has the N64's value and every use stays as it is.
+`tools/endian_union_sweep.py` then listed every union that overlays narrow fields with a wider member (game/src,
+game/include) and every cast that reads a field through a wider type; each use was checked:
+- Fixed: `LabPCList_CompareBySpeciesGroup` (the Lab PC list's sort by the Pokémon column) compared a record's first
+  word (species, byte 0x01, u16 at 0x02) as one s32: on the host it sorted by the u16 first. The key is built from
+  the fields in the N64's order now (not checked at run time: no recorded route sorts that column).
+- Already handled by earlier port changes: AnimFixedFrame, the GB APU register bitfields and phase union, the
+  Color_RGBA8 `.rgba` uses (PORT_BE32), PokeIcon's ptr/raw union, the model renderer's s16/pointer slot.
+- Safe as used: BinArchive.raw (never used), gallery.h's s16 pairs (never used by name), the Color_RGBA16/14 bitfield
+  unions (unused), same-width stores and loads through casts (lab_pc_list widgets), zeroing, word ORs for non-zero
+  tests (libleo).
+- Open: `Gallery_InitializePhotoModel` (gallery.c) sets the photo model's height from a record's first four bytes
+  (u8, u8, u16) read as f32 (the decomp marks it `//?`); whether the host reads the N64's value depends on how the
+  record is loaded. Needs a run with a gallery photo against ares.
+- 64DD only: rsp.h overlays the low byte of `lba` with `mode` (dead in the retail game without a 64DD).
