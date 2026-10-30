@@ -1443,6 +1443,20 @@ Thrash x3, Body Slam x2, Blizzard):
   frame out of phase: Thundershock after Dragon Rage showed other bolt shapes (effect_p90 169 vs ~24 alone or after
   String Shot). Load timing, not a port bug: with PORT_XCHECK_RNG / ARES_REF_XCHECK_RNG both sides set the counter to 0
   at each animation start, as they reseed guRandom; the A trace lines carry its value before that (pfc=).
+- Model texture counter: D_800AF7AE (battle_hud, 0x800AF7AE) goes up once for every Pokémon model drawn
+  (ModelAnim_FinalizeDisplayObjectAnimation, so +2 per battle frame with both on screen) and is only cleared when a
+  model is set up. Animated model parts take their texture frame (& 7) and texture scroll from it
+  (DisplayList_InitAnimatedFrameSegment / func_81002830): Rapidash's flame mane, Moltres's flaming wings. The same load
+  timing put it out of phase: in the full sweep of 34f5e46, Mega Kick 25 / Sand-Attack 28 / Headbutt 29 (Rapidash, after
+  ares spent one frame more before Mega Kick: mtc 524 vs 526) and Fire Spin 83 (ares starts 2 frames later, mtc 586 vs
+  590). The xcheck path now zeroes it at animation start on both sides, too (trace field mtc=). Mega Kick 60 -> 37,
+  Headbutt 56 -> 37, Fire Spin 91 -> 28 (floor ~36-40); Stomp, first in its battle, was 37 before and after.
+  Sand-Attack stays at 66: that is its sand cloud (smooth in the port, grainy in ares), not the mane.
+  D_8006F084 (geo_render, 0x8006F084, u16: GeoRender_AdvanceFrameCounter, one per game frame since boot) is zeroed
+  as well (gfc=): effects pick frames with D_8006F084 & 7, and the two sides' menus leave it ~200 apart at the first
+  animation. No swept move changed with it, though.
+  Not this: Psybeam 60 (62) and Sing 47 (49) stay as they were. Their battles have no game-frame drift (same gf
+  at every animation, and every counter above equal), so the colour-cycle/scroll difference there has another cause.
 
 ### Milestone 3 (proposal): every move
 - Moves: all 165 (1..0xA5). The player's time-limit fallback always uses the first usable move, so the move under
