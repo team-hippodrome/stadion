@@ -872,6 +872,12 @@ sample count after every VI frame).
     owner pointer as char[0x8], so the selected flag and the 0x1C stride were wrong on the host) and
     unk_func_88313894 / _020 (the move-destination picker's "box full" check, through a char-padded view of the
     banks); both now use the real structs.
+- Lab PC → Organize → BOXes → "Check BOX" (evidence pilot, `boxes_i2.rec`; segfault in LabPC_CheckBox_ShowBox on A
+  over any box): func_882052F4 took the chosen box from the picker grid's list of box pointers (unk_A030) through an
+  `s32*`, so the box pointer came out as its low 4 bytes. It indexes the pointer list now. Behind it, the box grid's
+  cell draw (func_88201488) loaded the Pokémon icon from `arg2 + 2` on the entry's pointer type, 8 bytes in on the N64
+  (after the Pokémon pointer and its padding) but 16 on the host: every icon 4 pixels off. Checked on GB BOX 1 (20
+  Pokémon, then the summary of one) and 64 BOX 1 / 2 (6 / 3 Pokémon).
 - Pikachu Surf reward (Stadium_BonusPikachuReward; the evidence pilot's free battle + reward entry, segfault in
   ModelAnim_EvaluateScaleChannel at fault address 0x8811208e when the three surfing followers appear after "Pikachu
   learned Surf"): the followers' animation `D_8C2011C4` lies in the data fragment `_798CD0` (Fragment_Load, linked at
