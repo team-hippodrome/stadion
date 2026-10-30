@@ -39,7 +39,7 @@ index f20ccfc84ff8359a33d2e9267a795d9e240a798d..bd215da044c0540441278888ead1ab87
  
  typedef struct unk_D_8250A308 {
 diff --git a/src/fragments/minigame_select/minigame_select_27BCC0.c b/src/fragments/minigame_select/minigame_select_27BCC0.c
-index 280990fbe26d24e37776881b6a62e627c8637f97..712ecdf97c213cd3ce25a66b16bb5f39867cf0ee 100644
+index 280990fbe26d24e37776881b6a62e627c8637f97..9da333337a3d3d4861adafb04257db6d9c0e545e 100644
 --- a/src/fragments/minigame_select/minigame_select_27BCC0.c
 +++ b/src/fragments/minigame_select/minigame_select_27BCC0.c
 @@ -66,212 +66,178 @@ FontContext* D_8250A304;
@@ -643,7 +643,7 @@ index 280990fbe26d24e37776881b6a62e627c8637f97..712ecdf97c213cd3ce25a66b16bb5f39
          }
  
 -        Ui_DrawTextureMarker(sp40 + var_a2, sp38, var_a2);
-+        Ui_DrawTextureMarker(sp40 + var_a2, sp38); // PORT: it takes two arguments (a third one traps in WebAssembly)
++        Ui_DrawTextureMarker(sp40 + var_a2, sp38); // PORT: it takes two arguments (a K&R call passed a third)
  
          if (sp2C != 0) {
 -            ptr = (s32)&D_8780FA48;
