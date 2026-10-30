@@ -1,6 +1,20 @@
 # Whole game: how far the levers reach, what is left and why
 
-**Two numbers (`dead_classes.md`, `tools/evidence/dead_classes.py`):** all functions 6763 of 7490 (90.3%); **the
+**Current: all functions 6973 of 7490 (93.1%), lines 85.3%, branches 76.8%; the code the shipped game can run
+6973 of 7282 (95.8%), 96.8% without the 64DD library** (`dead_classes.md`). Unreached 517: 208 proven dead, 79 the
+64DD library, 230 live. Second wave of five side sessions, each with routes and a README under `routes/`:
+- `routes/menus_trade/`: Trade Machine (trade evolution, cancel, cartridge error), Options, Pokedex area map, menus.
+- `routes/error_paths/`: pulled cartridges, failed saves, refused cartridges, flash repair (15 of 46 save, call-result
+  and hardware gates opened).
+- `routes/gate_trials2/` and `gate_trials2.md`: the automatic memory-condition trials on the new batches plus
+  hand-written conditions (Round 2, Victory Palace, the completion gift, species offsets).
+- `routes/minigames_gallery/`: gallery (camera, rental viewer, album, snap, print seals), Victory Palace, Kids Club,
+  battle particle offsets; the minigame leftovers are dead by code. Port fix: the gallery's empty "Save file not
+  found." prompt (PR #72). A port difference left: the Bonus stickers screen (a renderer issue).
+- `routes/debug_crash/`: crash screen, profiler, debug menus, gallery debugger, storage leftovers (64DD calls park
+  the game thread with no drive: those runs are ended by time, not by `--frames`).
+
+**Previous round, two numbers (`dead_classes.md`, `tools/evidence/dead_classes.py`):** all functions 6763 of 7490 (90.3%); **the
 code the shipped game can run 6763 of 7261 (93.1%), 94.2% without the 64DD library.** Of the 727 unreached: 229
 proven dead (113 referenced by nothing in the C code or the ROM, 59 reachable only from such code, 52 never selected
 by the shipped data: animation effect slots no list names, `battle_anim_slots.md`, and Game Boy music commands no cry
