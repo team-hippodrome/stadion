@@ -843,6 +843,11 @@ sample count after every VI frame).
   - Open: the AREA map draws without the sea and without ares's bluish fog tint (geo fog node 0x96C8FF, 985-1005),
     and its label boxes are pale instead of olive (fill rectangles in 1-cycle mode blending memory with itself).
     Not a game-struct problem as far as checked (no render target involved, same fog node as the battle stages).
+- Lab PC → See List → a row's menu → "Group <species>" (or any other filter; the evidence pilot's
+  `lab_seelist_mash.rec`, segfault in func_88304850 at frame 7804 on a garbage Pokémon pointer): PointerList_Filter
+  counted the filtered list as the byte difference `>> 2` (4-byte N64 pointers), so the count was doubled and the grid
+  drew entries past the filled ones. It counts entries now. The route runs to its end, ASan clean, and its See List
+  screens (grouped list, move page) match ares.
 - GB Tower frames: German Yellow from the game's own new-game save (gb/base/yellow_de_newgame.sav), down the stairs,
   out of the house, north to Route 1, Oak's cutscene and the scripted battle (wild PIKACHU, HP bars, battle menu,
   Oak's Poké Ball). ares's Game Boy starts 1555 VI frames later (cartridge load), so its GB inputs are shifted by
