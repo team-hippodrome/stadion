@@ -1517,12 +1517,33 @@ Thrash x3, Body Slam x2, Blizzard):
   shows it grainy and darker. Sand-Attack 66 -> 47 (two independent per-pixel noise fields can't match pixel for pixel,
   so noise effects stay a little above the floor), Poison Powder 77 41 -> 32, Sleep Powder 79 43 -> 30; the other
   moves of those battles unchanged (~27-37). tools/run_replays.py: all 20 identical (none of their stop frames uses noise).
-- Sound mismatches (8 moves in the full sweep, envelope correlation 0.41-0.57 with level and spectrum within ~4 dB) are
-  not wrong move sounds. Onsets of the move's own sounds land at the same times on both sides (Pound: 1920 and 2320 ms
-  in both). What differs is a periodic background sound, a pulse every ~360-380 ms on both sides (before the move and
-  again after it), whose phase differs by 100-300 ms: it follows each side's own clock since the battle scene started
-  (load timing), like the counters above. Leech Seed 73 and Razor Leaf 75 also run longer on the N64 (lag, above).
-  Not fixed: the sound check would need that background sound's phase reset or excluded.
+- Sound mismatches (8 moves in the full sweep of 34f5e46, 9 in f4f43b7, envelope correlation 0.22-0.57 with level and
+  spectrum within ~4 dB) were not wrong move sounds: the periodic "background" sound was the announcer. Its lines
+  (Audio_QueueSequenceId, queued by func_8003F660 & co. from the battle events) are chosen with osGetTime() % n
+  (3D140_2.c: func_8003DB84, func_8003EB40, func_8003F1AC, func_8003F4C0, Audio_SelectSoundAvoidingRecent's
+  shuffle), so the two games said different lines on the same game frames (0x5b vs 0x5d, 0x258 vs 0x28e, ...). And
+  a line starts when the previous one has played out, in sound time, so the N64's slowdown moves it in game frames
+  (Leech Seed's turn: the line at gf 1761 in the port, 1756 in ares). Now, in the cross-check only:
+  - with "nomusic" the announcer is silent too (Audio_QueueSequenceId returns; ares: a hook that returns), as the
+    battle music: the sweep compares the move's sounds alone;
+  - with the forced randomness, osGetTime() in those functions and in Audio_PlayCategory12SoundCommand (a pitch
+    variation) returns the stream value of the call's index (from the battle's first game frame and each animation
+    start), on both sides (Port_XcheckOsGetTime; ares: an osGetTime hook for those callers' address ranges), so the
+    chosen lines still match and can be compared in the trace.
+  Full sweep after that: sound match 155, mismatch 1, no sound 8 (before: 147 / 9 / 8); the animations unchanged (all
+  164 match, median 35.3, no move's effect_p90 moved by more than 3).
+  Left: Razor Leaf 75 (envelope 0.45). Its sound is effect 0 of the move's bank, started on the animation's first
+  game frame on both sides and timed by the sound player; the first 2.4 s agree (0.80 at a 40 ms offset). From game
+  frame ~68 on the N64 takes 3 VI frames per game frame (581 vs 450 VI frames in all) and the rest no longer lines up
+  in time; mapping ares' sound onto game frames raised that part to ~0.55 but not the whole, so it is not used. A
+  limit of the comparison while the port does not reproduce the N64's slowdown, not a sound bug.
+  Trace aids (both sides): `PORT_XCHECK_SFX=1` / `ARES_REF_XCHECK_SFX=1` write "U <game frame> <kind> <args>" for
+  Audio_PlayCommand (0), Audio_PlaySoundEffectById (1), Audio_QueueSequenceId (2, the announcer) and
+  Audio_PlaySoundEffect (3, every sound effect started: id, priority, volume); "V <game frame> <VI frame>" lines
+  (always) show where each battle game frame starts, e.g. where the N64 lags; `XCHECK_KEEP_FRAMES=1` keeps the sound
+  dumps (port.pcm, ares.pcm) as well as the frames. Checked on the way and not the cause: libnumus'
+  mus_random_seed (Audio_RandomScale, the effects' random detune/volume/pan) is never seeded in the ROM either (0
+  on both sides, 0x800FC7E4), and silencing the crowd (Audio_PlayCommand 0x15) changed nothing.
 - Dream Eater's sparkles (effect_p90 130 -> 23.7): the nine star models (effect 95, models 0x9A/0x9B) play their
   animation backwards from the last frame, and BattleAnim_BindModelAnimReversed read that frame as
   `data->endFrame` straight from the ROM's big-endian animation header: the port started them thousands of frames
@@ -1532,7 +1553,7 @@ Thrash x3, Body Slam x2, Blizzard):
   battle spots (Battle_ResetEventTrack's event track, the multi-hit HP transition); all read 256x the real value.
   The two battle spots were not reached by the sweep or the replays.
 - Full sweep of f4f43b7 (after the fixes above): all 164 uses match (median effect_p90 35.4, highest Sand-Attack 46),
-  9 sound mismatches (the background-pulse phase above, plus Focus Energy 116 at envelope 0.22); 1411 s wall time with
+  9 sound mismatches (the announcer, above; Focus Energy 116 at envelope 0.22); 1411 s wall time with
   `--jobs 4` on a 10-core M-series Mac (8 busy processes; more jobs only add contention). While working on a fix,
   `battle_sweep.py run --open` reruns just the cases whose cached result is not a match (the report's verdicts and
   sound): 6 cases in 123 s here. A full run before merging is still the check that nothing that matched regressed.

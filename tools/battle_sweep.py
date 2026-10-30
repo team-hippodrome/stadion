@@ -15,7 +15,7 @@ mismatching animations). Finished cases are cached: a rerun only runs cases that
 (--force reruns them). --open reruns only the cases that are not finished yet or whose last result has a use
 that is not a match (the report's verdict: animation, logic or sound mismatch, not reached, error), e.g. after a
 fix, without the cases that already match; a full run is still the check that nothing that matched regressed.
-Frames are deleted after each case (XCHECK_KEEP_FRAMES=1 keeps them).
+Frames and sound dumps are deleted after each case (XCHECK_KEEP_FRAMES=1 keeps them).
 
 Paths per move come from the decomp: the move table gMoveDataWithZeroth (effect, power, type, accuracy) and the
 type chart gTypeEffects decide which variants exist (crit, miss, super / not very effective, immune, secondary
@@ -473,7 +473,10 @@ def run_case(c, species, port_bin, max_frames):
     json.dump(res, open(os.path.join(d, "result.json"), "w"), indent=1)
     for sub in ("port_anim", "ares_anim") if not os.environ.get("XCHECK_KEEP_FRAMES") else ():  # frames are large
         shutil.rmtree(os.path.join(d, sub), ignore_errors=True)
+    keep = ("port.pcm", "port.pcm.frames", "ares.pcm", "ares.pcm.frames") if os.environ.get("XCHECK_KEEP_FRAMES") else ()
     for f in ("port.flash", "ares.flash", "port_last.rec", "port.pcm", "port.pcm.frames", "ares.pcm", "ares.pcm.frames"):
+        if f in keep:
+            continue
         if os.path.exists(os.path.join(d, f)):
             os.remove(os.path.join(d, f))
     return res
