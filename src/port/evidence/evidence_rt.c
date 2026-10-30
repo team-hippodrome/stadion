@@ -19,13 +19,14 @@
 //                             (BattleMonRuntime 0x1F..0x22) and, the first time each species is seen, these PP; the
 //                             game's time-limit fallback then uses the first move with PP left. Port-only: the
 //                             battle is no longer the one ares plays, unless ares gets the same change
-//   PORT_EVID_SET=<fn>[#<n>]:<addr>:<size>[|]=<value>;...  ("|=": OR the value in)   at entry of function <fn> (image offset; only its n-th
-//                             entry, counted from 1, with #n), write <value> (size 1, 2 or 4, host byte order) at
+//   PORT_EVID_SET=<fn>[#<n>][@exit]:<addr>:<size>[|]=<value>;...  ("|=": OR the value in)   at entry of function <fn> (image
+//                             offset; only its n-th entry, counted from 1, with #n; with @exit when that call returns), write <value> (size 1, 2 or 4, host byte order) at
 //                             <addr>: an image offset followed by steps "+<off>" (add) and "*" (load the pointer
 //                             there), e.g. the offset of gBattleUser, "*", "+0x5A" for gBattleUser->usedMove.
 //                             tools/evidence/run.py --set translates symbol names. A forced condition: the game
 //                             state is no longer one the game produced itself, and records say so
-//   PORT_EVID_CALL=<fn>[#<n>]:<target>:<ret>:<args>;...  at entry of <fn> (n-th entry), call <target> (image offset)
+//   PORT_EVID_CALL=<fn>[#<n>][@exit]:<target>:<ret>:<args>;...  at entry of <fn> (n-th entry; with @exit when that call
+//                             returns), call <target> (image offset)
 //                             directly: for code nothing in the shipped game calls. <ret> v, i (integer) or f
 //                             (float); <args>: up to 6 of i<int> (integer), f<float>, p<off> (pointer into a 256-byte
 //                             scratch buffer, filled from PORT_EVID_CALL_BUF=<hex> before each call); up to 6 integer
@@ -46,6 +47,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <mach-o/ldsyms.h>
+#include <dispatch/dispatch.h>
+#include <objc/message.h>
+#include <objc/runtime.h>
 #include "fragments/battle_engine/battle_engine.h"
 
 #define NOINST __attribute__((no_instrument_function))
@@ -87,7 +91,7 @@ static uint8_t sInjectSeen[256];
 enum { kSetMax = 32, kCallMax = 2048, kStepMax = 8 };
 typedef struct {
     uintptr_t fn, base;
-    int nth, seen, size, nsteps, orIn;
+    int nth, seen, size, nsteps, orIn, atExit, armedDepth;
     long steps[kStepMax]; // >= 0: add; -1: load pointer
     uint32_t value;
 } SetRec;
@@ -96,11 +100,12 @@ static int sSetN;
 
 typedef struct {
     uintptr_t at, target;
-    int nth, seen, nargs;
+    int nth, seen, nargs, atExit, armedDepth;
     char ret, kind[6];
     double val[6];
 } CallRec;
 static CallRec sCallRecs[kCallMax];
+static _Thread_local int tDepth; // instrumented call depth of this thread
 static int sCallFork;
 static int sCallN;
 static uint8_t sCallBuf[256], sCallBufInit[256];
@@ -116,6 +121,10 @@ static NOINST void ParseCalls(const char* p) {
         if (*p == '#') {
             r->nth = (int)strtol(p + 1, &end, 0);
             p = end;
+        }
+        if (strncmp(p, "@exit", 5) == 0) {
+            r->atExit = 1;
+            p += 5;
         }
         if (*p++ != ':') return;
         r->target = (uintptr_t)strtoull(p, &end, 0);
@@ -139,12 +148,23 @@ static NOINST void ParseCalls(const char* p) {
 typedef long (*FnMix)(long, long, long, long, long, long, float, float, float, float);
 typedef float (*FnMixF)(long, long, long, long, long, long, float, float, float, float);
 
-static NOINST void DoCalls(uintptr_t fn) {
+// exit: as ApplySets (an @exit record is armed at the entry it counts and runs when that call returns)
+static NOINST void DoCalls(uintptr_t fn, int exit) {
     for (int i = 0; i < sCallN; i++) {
         CallRec* r = &sCallRecs[i];
         if (r->at != fn) continue;
-        r->seen++;
-        if (r->nth && r->seen != r->nth) continue;
+        if (!exit) {
+            r->seen++;
+            if (r->nth && r->seen != r->nth) continue;
+            if (r->atExit) {
+                r->armedDepth = tDepth;
+                continue;
+            }
+        } else if (!r->atExit || r->armedDepth != tDepth + 1) {
+            continue;
+        } else {
+            r->armedDepth = 0;
+        }
         memcpy(sCallBuf, sCallBufInit, sizeof sCallBuf);
         long a[6] = { 0 };
         float f[4] = { 0 };
@@ -213,6 +233,10 @@ static NOINST void ParseSets(const char* p) {
             r->nth = (int)strtol(p + 1, &end, 0);
             p = end;
         }
+        if (strncmp(p, "@exit", 5) == 0) {
+            r->atExit = 1;
+            p += 5;
+        }
         if (*p++ != ':') return;
         r->base = (uintptr_t)strtoull(p, &end, 0);
         p = end;
@@ -241,7 +265,6 @@ static NOINST void ParseSets(const char* p) {
     }
 }
 static _Thread_local uintptr_t tStack[kStackMax];
-static _Thread_local int tDepth;
 static _Thread_local int tBusy;
 
 // per function, the number of sequence lines written (hash of the function offset)
@@ -249,10 +272,20 @@ static uint16_t sSeqCount[1 << 16];
 
 static NOINST void Dump(void);
 
+// PORT_EVID_BACKGROUND=1: the game runs as a macOS accessory app (no Dock icon, does not take the focus from the app
+// in use), set on the main thread; with PORT_HIDDEN_WINDOW=1 (Engine.cpp) a run has nothing on screen. SDL's own
+// SDL_MAC_BACKGROUND_APP hint only applies when SDL creates the application object, which the port does earlier
+static NOINST void Background(void* unused) {
+    (void)unused;
+    id app = ((id(*)(Class, SEL))objc_msgSend)(objc_getClass("NSApplication"), sel_registerName("sharedApplication"));
+    if (app) ((void (*)(id, SEL, long))objc_msgSend)(app, sel_registerName("setActivationPolicy:"), 1);
+}
+
 static NOINST void Init(void) {
     sInit = 1;
     sOutPath = getenv("PORT_EVID");
     if (sOutPath == NULL) return;
+    if (getenv("PORT_EVID_BACKGROUND")) dispatch_async_f(dispatch_get_main_queue(), NULL, Background);
     sBase = (uintptr_t)&_mh_execute_header;
     sSites = calloc(kSiteSlots, sizeof(SiteRec));
     sPaths = calloc(kPathSlots, sizeof(PathRec));
@@ -341,12 +374,24 @@ static NOINST void Inject(void) {
     }
 }
 
-static NOINST void ApplySets(uintptr_t fn) {
+// exit: 0 at entry (counts the call; an @exit record is armed with the call's depth), 1 at a return (applies an armed
+// @exit record when the call at that depth returns)
+static NOINST void ApplySets(uintptr_t fn, int exit) {
     for (int i = 0; i < sSetN; i++) {
         SetRec* r = &sSets[i];
         if (r->fn != fn) continue;
-        r->seen++;
-        if (r->nth && r->seen != r->nth) continue;
+        if (!exit) {
+            r->seen++;
+            if (r->nth && r->seen != r->nth) continue;
+            if (r->atExit) {
+                r->armedDepth = tDepth;
+                continue;
+            }
+        } else if (!r->atExit || r->armedDepth != tDepth + 1) {
+            continue;
+        } else {
+            r->armedDepth = 0;
+        }
         uintptr_t a = sBase + r->base;
         for (int k = 0; k < r->nsteps; k++) {
             if (r->steps[k] < 0) {
@@ -459,20 +504,27 @@ void NOINST __cyg_profile_func_enter(void* this_fn, void* call_site) {
         if (sWatchN && IsWatched(fn)) Watch("enter", fn, site);
     }
     if (sInjectAt && fn == sInjectAt) Inject();
-    if (sSetN) ApplySets(fn);
+    if (sSetN) ApplySets(fn, 0);
     if (frame >= sLastDump + sDumpEvery) { // (runs end with _exit: the last PORT_EVID_DUMP_EVERY frames are lost)
         sLastDump = frame;
         Dump();
     }
     tBusy = 0;
     // direct calls after the busy flag is down, so the called code is recorded like any other
-    if (sCallN) DoCalls(fn);
+    if (sCallN) DoCalls(fn, 0);
 }
 
 void NOINST __cyg_profile_func_exit(void* this_fn, void* call_site) {
     if (tDepth > 0) tDepth--;
-    if (!sOn || tBusy || sWatchN == 0) return;
+    if (!sOn || tBusy) return;
     uintptr_t fn = (uintptr_t)this_fn - sBase;
+    if (sSetN) {
+        tBusy = 1;
+        ApplySets(fn, 1);
+        tBusy = 0;
+    }
+    if (sCallN) DoCalls(fn, 1);
+    if (sWatchN == 0) return;
     if (IsWatched(fn)) {
         tBusy = 1;
         Watch("exit", fn, (uintptr_t)call_site - sBase);

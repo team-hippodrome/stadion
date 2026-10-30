@@ -6,12 +6,12 @@ Usage:
   tools/evidence/run.py <out dir> --bin build-evidence/pokestadium [--seed N] [--queue FILE] [--frames N]
                         [--watch Name1,Name2] [--seq-max N] [--ares] [--moves m1,m2,m3,m4[:p1,p2,p3,p4]]
                         [--set "Fn[#n]:sym[*][+off]...:size=value;..."]
-                        [--call "AtFn[#n]:Target:ret:args;..." [--call-file F] [--call-fork] [--call-buf HEX]]
+                        [--call "AtFn[#n][@exit]:Target:ret:args;..." [--call-file F] [--call-fork] [--call-buf HEX]]
                         [--gb ROM:SAVE] [--gb2 ROM:SAVE] [--rec RECORDING [--flash STADIUM.flash] [--natural]] [--dump-every N]
 --gb puts a Game Boy cartridge in the Transfer Pak (a copy of SAVE; tools/evidence/gb_party.py writes any party into
 a save); --rec replaces the battle_xcheck route with another input recording (from boot), e.g. a Free Battle with a
 Game Pak party.
---set forces a condition in memory at entry of Fn (src/port/evidence/evidence_rt.c PORT_EVID_SET), symbols by name.
+--set forces a condition in memory at entry of Fn ("Fn[#n]@exit": when that call returns) (src/port/evidence/evidence_rt.c PORT_EVID_SET), symbols by name.
 coverage.profraw: branch/line counters (llvm-cov; tools/evidence/frontier.py).
 
 The battle is tools/battle_xcheck.py's (Poke Cup round 1, the same rentals, the player's moves picked by the
@@ -69,10 +69,18 @@ def data_symbols(binary):
 DATA = {}
 
 
+def low_priority():
+    """niceness 15, or the current one when the run already has a lower priority (raising it is not allowed)"""
+    os.setpriority(os.PRIO_PROCESS, 0, max(15, os.getpriority(os.PRIO_PROCESS, 0)))
+
+
 def translate_set(spec, res):
     """"Fn[#n]:sym*+0x5A:1=68" -> "<fn off>[#n]:<sym off>*+0x5A:1=68" """
     import re
     fn, addr, rest = spec.split(":", 2)
+    at = ""
+    if fn.endswith("@exit"):
+        fn, at = fn[:-5], "@exit"
     nth = ""
     if "#" in fn:
         fn, nth = fn.split("#")
@@ -84,7 +92,7 @@ def translate_set(spec, res):
         sys.exit("unknown symbol %s" % sym)
     if fn not in res.by_name:
         sys.exit("unknown function %s" % fn)
-    return "0x%x%s:0x%x%s:%s" % (res.by_name[fn], nth, off, steps, rest)
+    return "0x%x%s%s:0x%x%s:%s" % (res.by_name[fn], nth, at, off, steps, rest)
 
 
 def parse(out, res):
@@ -156,13 +164,16 @@ def main():
         specs = []
         for x in call_specs:
             at, target, rest = x.split(":", 2)
+            when = ""
+            if at.endswith("@exit"):  # when that call of AtFn returns
+                at, when = at[:-5], "@exit"
             nth = ""
             if "#" in at:
                 at, nth = at.split("#")
                 nth = "#" + nth
             if target not in res.by_name:
                 continue  # (inlined everywhere or stripped: nothing to call)
-            specs.append("0x%x%s:0x%x:%s" % (res.by_name[at], nth, res.by_name[target], rest))
+            specs.append("0x%x%s%s:0x%x:%s" % (res.by_name[at], nth, when, res.by_name[target], rest))
         env["PORT_EVID_CALL"] = ";".join(specs)
         if opt("--call-buf"):
             env["PORT_EVID_CALL_BUF"] = opt("--call-buf")
@@ -202,13 +213,16 @@ def main():
         shutil.copyfile(opt("--flash", os.path.join(ROOT, "replays", "default.flash")), os.path.join(out, "port.flash"))
         env.update(PORT_REPLAY=os.path.abspath(opt("--rec")), PORT_STOP_AT=opt("--frames", "20000"), PORT_SPEED="max",
                    PORT_FLASH_FILE=os.path.join(out, "port.flash"), PORT_XCHECK=os.path.join(out, "port.trace"),
-                   PORT_XCHECK_RNG=seed, PORT_XCHECK_COM="1", PORT_HEADLESS="1")
+                   PORT_XCHECK_RNG=seed, PORT_XCHECK_COM="1",
+                   # in the background: the window is drawn but never shown (Engine.cpp), and the game is a macOS
+                   # accessory app, without a Dock icon and not taking the focus (evidence_rt.c)
+                   PORT_HIDDEN_WINDOW="1", PORT_EVID_BACKGROUND="1")
         if "--natural" in args:  # a recording made with the game's own randomness and input: no forcing
             for k in ("PORT_XCHECK_RNG", "PORT_XCHECK_COM"):
                 env.pop(k, None)
         with open(os.path.join(out, "port.log"), "w") as log:
             subprocess.run([binary, bx.ROM], cwd=os.path.dirname(binary), env=env, stdout=log, stderr=subprocess.STDOUT,
-                           preexec_fn=bx.low_priority)
+                           preexec_fn=low_priority)
     else:
         subprocess.run(cmd, env=env, check=True)
     cov = parse(out, res)
