@@ -1,5 +1,5 @@
 diff --git a/src/fragments/lab_pc_list/lab_pc_list.h b/src/fragments/lab_pc_list/lab_pc_list.h
-index 4ccc1e43fef939d34239a320e3ee250a1cc8dc29..a7b247df42bfae4f519cd58c500f1a22d69f2939 100644
+index 4ccc1e43fef939d34239a320e3ee250a1cc8dc29..17688dade96cd3e8351484538746144c416e00dd 100644
 --- a/src/fragments/lab_pc_list/lab_pc_list.h
 +++ b/src/fragments/lab_pc_list/lab_pc_list.h
 @@ -18,8 +18,7 @@ typedef struct unk_func_8830867C_02C_04C_018 {
@@ -32,7 +32,27 @@ index 4ccc1e43fef939d34239a320e3ee250a1cc8dc29..a7b247df42bfae4f519cd58c500f1a22
  } unk_func_8830867C_02C_0B4_030; // size = 0x54
  
  typedef struct unk_func_8830867C_02C_0B4 {
-@@ -243,7 +248,10 @@ typedef struct unk_func_8830867C_044 {
+@@ -76,10 +81,15 @@ typedef struct unk_func_8830867C_02C_144_000 {
+     /* 0x00 */ s32 unk_00;
+     /* 0x04 */ s32 unk_04;
+     /* 0x08 */ char unk08[0x4];
+-    /* 0x0C */ unk_func_8830867C_02C_0CC_000_000* unk_0C;
+-    /* 0x10 */ char unk10[0x4];
+-    /* 0x14 */ s32 unk_14;
+-    /* 0x18 */ char unk18[0x8];
++    // PORT64: a view of unk_func_8830867C_02C_0E4; the bank's unk_func_8820BE14_06C kept as one struct (same host
++    // padding: the pointer is 8-aligned and the whole entry is 0x30 on the host)
++    struct {
++        /* 0x0C */ unk_func_8830867C_02C_0CC_000_000* unk_0C;
++        /* 0x10 */ char unk10[0x4];
++        /* 0x14 */ s32 unk_14;
++        /* 0x18 */ char unk18[0x4];
++    };
++    /* 0x1C */ char unk1C[0x4];
+ } unk_func_8830867C_02C_144_000; // size = 0x20
+ 
+ typedef struct unk_func_8830867C_02C_144_000_alt {
+@@ -243,7 +253,10 @@ typedef struct unk_func_8830867C_044 {
  } unk_func_8830867C_044; // size = 0x48
  
  typedef struct unk_func_8830867C_048_04C {
@@ -44,7 +64,7 @@ index 4ccc1e43fef939d34239a320e3ee250a1cc8dc29..a7b247df42bfae4f519cd58c500f1a22
      /* 0x1C */ s32 unk_1C;
      /* 0x20 */ char unk20[0x4];
  } unk_func_8830867C_048_04C; // size = 0x24
-@@ -279,15 +287,22 @@ typedef struct unk_func_8830867C_04C_030_02C {
+@@ -279,15 +292,22 @@ typedef struct unk_func_8830867C_04C_030_02C {
      /* 0x08 */ s32 unk_08;
  } unk_func_8830867C_04C_030_02C; // size >= 0xC
  
@@ -75,7 +95,7 @@ index 4ccc1e43fef939d34239a320e3ee250a1cc8dc29..a7b247df42bfae4f519cd58c500f1a22
      /* 0x58 */ s32 unk_58;
      /* 0x5C */ char unk5C[0x14];
  } unk_func_8830867C_04C_030; // size = 0x70
-@@ -381,7 +396,7 @@ typedef struct unk_func_8830867C_054 {
+@@ -381,7 +401,7 @@ typedef struct unk_func_8830867C_054 {
      /* 0x02 */ s16 unk_02;
      /* 0x04 */ MemoryPool* unk_04;
      /* 0x08 */ WidgetNode* unk_08;
@@ -84,7 +104,16 @@ index 4ccc1e43fef939d34239a320e3ee250a1cc8dc29..a7b247df42bfae4f519cd58c500f1a22
      /* 0x10 */ s32 unk_10;
      /* 0x14 */ WidgetNode* unk_14;
  } unk_func_8830867C_054; // size = 0x18
-@@ -574,8 +589,10 @@ typedef struct unk_func_88313894_020 {
+@@ -395,7 +415,7 @@ typedef struct unk_func_8830867C_02C_0E4 {
+ } unk_func_8830867C_02C_0E4; // size = 0x20
+ 
+ typedef struct unk_func_8830867C_02C_0DC {
+-    /* 0x00 */ s32* unk_00;
++    /* 0x00 */ s32 unk_00; // PORT64: a column width like the others (was s32*); this is a view of D_8831721C
+     /* 0x04 */ s32 unk_04;
+     /* 0x08 */ s32 unk_08;
+     /* 0x0C */ char unk0C[0xC];
+@@ -574,8 +594,10 @@ typedef struct unk_func_88313894_020 {
      /* 0x1C */ s32 unk_1C;
  } unk_func_88313894_020; // size = 0x20
  
@@ -96,7 +125,7 @@ index 4ccc1e43fef939d34239a320e3ee250a1cc8dc29..a7b247df42bfae4f519cd58c500f1a22
      /* 0x08 */ u8 unk_08;
      /* 0x09 */ char unk09[0xD];
      /* 0x16 */ u16 unk_16;
-@@ -841,7 +858,7 @@ void LabPCList_DrawLocationCaption(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 a
+@@ -841,7 +863,7 @@ void LabPCList_DrawLocationCaption(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 a
  s32 LabPCList_DrawLocationCrossfadeWidget(unk_func_882173EC* arg0, s32 arg1, s32 arg2);
  void LabPCList_LocationCrossfadeWidget_Start(unk_func_882173EC* arg0, s32 arg1, s32 arg2, WidgetPoint arg3);
  
@@ -106,10 +135,10 @@ index 4ccc1e43fef939d34239a320e3ee250a1cc8dc29..a7b247df42bfae4f519cd58c500f1a22
  s32 LabPCList_CompareByLevelDesc(unk_func_88316128*, unk_func_88316128*);
  s32 LabPCList_CompareByHpAsc(unk_func_88316128*, unk_func_88316128*);
 diff --git a/src/fragments/lab_pc_list/lab_pc_list_1CEA00.c b/src/fragments/lab_pc_list/lab_pc_list_1CEA00.c
-index 34f0b4f96537bf818c2fab119e72c780f1858bb2..397d8dcc4019bfd14b955690fc110ef6d7b11eb0 100644
+index 34f0b4f96537bf818c2fab119e72c780f1858bb2..b689894e41259cdbceb4fefe19895b408156caad 100644
 --- a/src/fragments/lab_pc_list/lab_pc_list_1CEA00.c
 +++ b/src/fragments/lab_pc_list/lab_pc_list_1CEA00.c
-@@ -723,21 +723,22 @@ void LabPCList_InitDeckSlots(unk_func_8830867C_02C* arg0, MemoryPool* arg1) {
+@@ -723,24 +723,25 @@ void LabPCList_InitDeckSlots(unk_func_8830867C_02C* arg0, MemoryPool* arg1) {
      arg0->unk_0E4[0].unk_04 = GbSave_GetActivePort();
      arg0->unk_0E4[0].unk_08 = 0;
      arg0->unk_0E4[0].unk_1C = 6;
@@ -134,17 +163,64 @@ index 34f0b4f96537bf818c2fab119e72c780f1858bb2..397d8dcc4019bfd14b955690fc110ef6
 +    ByteMatrix_Allocate(&arg0->unk_0E4[2].unk_0C, sizeof(unk_func_8820BE14_06C_000_alt), 0xC, arg1);
      LabPCList_AllocateBoxSlots(&arg0->unk_0E4[2], 0x14, 0, arg1);
  
-     TableView_Initialize(&arg0->unk_144, arg0->unk_0E4, 0x20, 3, 3);
-@@ -1589,7 +1590,7 @@ void LabPCList_PerformMoveMon(unk_func_8830867C_02C* arg0, unk_func_8830867C_02C
+-    TableView_Initialize(&arg0->unk_144, arg0->unk_0E4, 0x20, 3, 3);
++    TableView_Initialize(&arg0->unk_144, arg0->unk_0E4, sizeof(unk_func_8830867C_02C_0E4), 3, 3); // PORT64: was 0x20
+ }
+ 
+ void LabPCList_InitPageHeader(unk_func_88302D98* arg0, s32 arg1, s32 arg2, unk_func_8830867C_02C* arg3) {
+@@ -894,14 +895,19 @@ void LabPCList_BuildListScreen(unk_func_8830867C_02C* arg0, s32 arg1, s32 arg2,
+                    unk_func_8830867C_03C* arg7, unk_func_8830867C_040* arg8, unk_func_8830867C_044* arg9,
+                    unk_func_8830867C_048* argA, unk_func_8830867C_04C* argB, unk_func_889000C4* argC,
+                    FragmentEntry argD, unk_func_8830867C_054* argE, MemoryPool* argF, FontContext* arg10) {
++    // PORT64: one table; the list's column widths are read past the first three into the next arrays, which the N64
++    // lays out back to back (separate statics are not adjacent on the host)
+     static s32 D_8831721C[] = {
+         0x0000005C,
+         0x00000034,
+         0x0000004C,
++        0x38, 0x48, 0x48,
++        0x69, 0x69, 0x69, 0x69,
++        0x46, 0x46, 0x46, 0x46, 0x46, 0x46,
+     };
+-    static s32 D_88317228[] = { 0x38, 0x48, 0x48 };
+-    static s32 D_88317234[] = { 0x69, 0x69, 0x69, 0x69 };
+-    static s32 D_88317244[] = { 0x46, 0x46, 0x46, 0x46, 0x46, 0x46 };
++    s32* D_88317228 = &D_8831721C[3];
++    s32* D_88317234 = &D_8831721C[6];
++    s32* D_88317244 = &D_8831721C[10];
+     static s32 D_8831725C[] = {
+         0x00000000,
+         0x00000006,
+@@ -1215,7 +1221,11 @@ Color_RGBA8 D_88317280 = { 0xF0, 0xD2, 0x8C, 0xFF };
+ Color_RGBA8 D_88317284 = { 0x96, 0xDC, 0xB4, 0xFF };
+ 
+ void LabPCList_DrawAreaCell(s32 arg0, s32 arg1, s32 arg2, unk_func_88304850_arg2* arg3) {
+-    LabPCList_DrawLocationCaption(arg0, arg1, arg2, 0x14, *(s32*)arg3->unk_00[0], arg3->unk_00[1], 0xFF);
++    // PORT64: arg3->unk_00 is the slot's box record: its bank pointer (whose first word is the deck type) and box
++    // number were read as unk_00[0] / unk_00[1], i.e. as two s32s (the pointer is 8 bytes on the host)
++    unk_func_8830867C_02C_0CC_000_000* box = (unk_func_8830867C_02C_0CC_000_000*)arg3->unk_00;
++
++    LabPCList_DrawLocationCaption(arg0, arg1, arg2, 0x14, *(s32*)box->unk_00, box->unk_04, 0xFF);
+ }
+ 
+ void LabPCList_DrawPlainText(s32 arg0, s32 arg1, s8* arg2, s32 arg3) {
+@@ -1589,7 +1599,7 @@ void LabPCList_PerformMoveMon(unk_func_8830867C_02C* arg0, unk_func_8830867C_02C
  
      LabPCList_SwitchColumnPage(arg0);
  
 -    sp78.unk_00 = arg0->unk_0DC->unk_08 + (s32)arg0->unk_0DC->unk_00 + arg0->unk_0DC->unk_04 + 0x84;
-+    sp78.unk_00 = arg0->unk_0DC->unk_08 + (intptr_t)arg0->unk_0DC->unk_00 + arg0->unk_0DC->unk_04 + 0x84;
++    sp78.unk_00 = arg0->unk_0DC->unk_08 + arg0->unk_0DC->unk_00 + arg0->unk_0DC->unk_04 + 0x84;
      sp78.unk_02 = arg0->unk_034->unk_5C - arg0->unk_034->unk_58;
  
      LabPCList_LocationCrossfadeWidget_Start(arg0->unk_0C8, sp80, sp7C, sp78);
-@@ -3142,7 +3143,7 @@ s32 LabPCList_ShowListScreen(UNUSED s32 arg0, UNUSED s32 arg1) {
+@@ -3137,12 +3147,13 @@ s32 LabPCList_ShowListScreen(UNUSED s32 arg0, UNUSED s32 arg1) {
+ 
+     sp48 = main_pool_alloc(0x1000, 0);
+ 
+-    sp50 = mem_pool_try_init(0x18000, 0);
++    // PORT64: twice the N64 size; the 720 box slots, pointer arrays and widgets are larger on the host and ran out
++    sp50 = mem_pool_try_init(0x18000 * 2, 0);
+ 
      sp4C = mem_pool_alloc(sp50, sizeof(unk_func_8830867C));
      LabPCList_BuildWidget(sp4C, 0, 0, sp50, sp54, sp40, sp3C, sp38, sp34, sp30);
  
@@ -257,7 +333,7 @@ index ce06956a8dc339cc341507e16eaf7ad607365675..50f06e63c007164f70728a9dda06a767
      ((func88506BFC)Memmap_GetFragmentVaddr(WidgetTree_SetPagedGridSelection))(arg0->unk_30, 0);
  
 diff --git a/src/fragments/lab_pc_list/lab_pc_list_1E46B0.c b/src/fragments/lab_pc_list/lab_pc_list_1E46B0.c
-index 3c7a5d069662d88980637d355d672f41f1dffaa0..6889e4440a68bafa2f13d868b5020b763444d384 100644
+index 3c7a5d069662d88980637d355d672f41f1dffaa0..aba8015188905c854c961937bef0c7735387dd9f 100644
 --- a/src/fragments/lab_pc_list/lab_pc_list_1E46B0.c
 +++ b/src/fragments/lab_pc_list/lab_pc_list_1E46B0.c
 @@ -6,6 +6,7 @@
@@ -285,6 +361,37 @@ index 3c7a5d069662d88980637d355d672f41f1dffaa0..6889e4440a68bafa2f13d868b5020b76
 +        var_v1 = (intptr_t)arg0->unk_00[1] - (intptr_t)arg1->unk_00[1];
          if (var_v1 == 0) {
              var_v1 = arg0->unk_04 - arg1->unk_04;
+         }
+@@ -708,9 +709,9 @@ s32 LabPCList_FilterByCategoryBit(unk_func_88316128* arg0, u8* arg1) {
+     return ((1 << D_8831A244[*arg1]) & ((D_8006FF00 + arg0->unk_08 - 1)->unk_0C)) != 0;
+ }
+ 
+-typedef struct unk_func_883164C0 {
+-    /* 0x00 */ char unk00[0x5C];
+-} unk_func_883164C0; // size = 0x5C
++// PORT64: the slot LabPCList_LoadAllBoxes fills (pointer + s32 + BattleMon: 0x5C on the N64, 0x60 on the host);
++// was a char[0x5C] stand-in, so each slot's BattleMon ran 4 bytes into the next slot
++typedef unk_func_8830867C_02C_0CC_000_000_010_000_000 unk_func_883164C0;
+ 
+ void LabPCList_AllocateBoxSlots(unk_func_8830867C_02C_0E4* arg0, s32 arg1, s32 arg2, MemoryPool* arg3) {
+     s32 i;
+@@ -935,7 +936,7 @@ void LabPCList_SaveDirtyBoxes(unk_func_8830867C_02C_144* arg0, s32 arg1) {
+ void LabPCList_InitDeckCategories(unk_func_8830867C_02C_154* arg0, MemoryPool* arg1) {
+     UNUSED s32 pad;
+     s32 temp_s1;
+-    char sp54[4];
++    UNUSED char sp54[4]; // PORT64: the name is read from sp48.unk_0C
+     unk_func_8002D860 sp48;
+     char sp38[16];
+     s32 i;
+@@ -962,7 +963,7 @@ void LabPCList_InitDeckCategories(unk_func_8830867C_02C_154* arg0, MemoryPool* a
+         if ((Deck_IsSaveEntryPresent(0x12, i) != 0) && (Deck_GetSaveEntryCount(0x12, i) > 0)) {
+             temp_s1 = Deck_GetSaveEntryTrainerId(0x12, i);
+             Deck_GetSaveEntryName(0x12, i, &sp38);
+-            if ((sp48.unk_08 == temp_s1) && (HAL_Strcmp(sp54, sp38) == 0)) {
++            if ((sp48.unk_08 == temp_s1) && (HAL_Strcmp(sp48.unk_0C, sp38) == 0)) {
+                 break;
+             }
          }
 @@ -1036,7 +1037,7 @@ s32 LabPCList_IsSpecialTmItemId(s32* arg0) {
  }
