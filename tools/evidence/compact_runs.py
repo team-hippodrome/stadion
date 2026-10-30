@@ -9,7 +9,7 @@ import json, os, shutil, subprocess, sys
 
 
 def main():
-    out, runs = sys.argv[1], sys.argv[2:]
+    out, runs = sys.argv[1], list(dict.fromkeys(os.path.normpath(r) for r in sys.argv[2:]))  # (each run once)
     os.makedirs(out, exist_ok=True)
     raws = [os.path.join(r, f) for r in runs for f in sorted(os.listdir(r))
             if f == "coverage.profraw" or f.startswith("coverage.profraw.k") or f.endswith(".profdata")]
@@ -32,7 +32,7 @@ def main():
     json.dump({"functions": {n: {"count": c, "first_frame": 0, "sites": []} for n, c in fns.items()}, "paths": [],
                "seq": [], "watch": []}, open(p, "w"))
     for r in raws:
-        if not r.endswith(".profdata"):
+        if not r.endswith(".profdata") and os.path.exists(r):
             os.remove(r)
     print("%s: %d raw files merged, %d functions" % (out, len(raws), len(fns)))
 

@@ -4,10 +4,10 @@ Runs: batch4, batch5, batch6, batch7, batch8.
 
 | | covered | total | % |
 |---|---|---|---|
-| functions | 6394 | 7490 | 85.4 |
-| lines | 113614 | 149363 | 76.1 |
-| branches | 42724 | 63400 | 67.4 |
-| regions | 79935 | 107076 | 74.7 |
+| functions | 6415 | 7490 | 85.6 |
+| lines | 114109 | 149362 | 76.4 |
+| branches | 42865 | 63400 | 67.6 |
+| regions | 80249 | 107076 | 74.9 |
 
 ## Per area
 
@@ -21,40 +21,40 @@ Runs: batch4, batch5, batch6, batch7, batch8.
 | leoint.c | 5 | 0 | 0 | 0 |
 | leotimer.c | 4 | 0 | 0 | 0 |
 | leointerrupt.c | 3 | 0 | 0 | 0 |
-| leoreset.c | 2 | 0 | 0 | 0 |
+| bootdisk.c | 2 | 0 | 0 | 0 |
+| setrtc.c | 2 | 0 | 0 | 0 |
+| port_audio.h | 2 | 0 | 0 | 0 |
 | leoread.c | 2 | 0 | 0 | 0 |
 | leoutil.c | 2 | 0 | 0 | 0 |
-| port_audio.h | 2 | 0 | 0 | 0 |
 | leocmdex.c | 2 | 0 | 0 | 0 |
-| setrtc.c | 2 | 0 | 0 | 0 |
-| bootdisk.c | 2 | 0 | 0 | 0 |
-| leorezero.c | 1 | 0 | 0 | 0 |
-| lbatobyte.c | 1 | 0 | 0 | 0 |
-| leomode_sel.c | 1 | 0 | 0 | 0 |
-| spdlmotor.c | 1 | 0 | 0 | 0 |
+| leoreset.c | 2 | 0 | 0 | 0 |
+| bytetolba.c | 1 | 0 | 0 | 0 |
+| leodiskinit.c | 1 | 0 | 0 | 0 |
 | driverominit.c | 1 | 0 | 0 | 0 |
 | leowrite.c | 1 | 0 | 0 | 0 |
-| leotranslat.c | 1 | 0 | 0 | 0 |
-| readdiskid.c | 1 | 0 | 0 | 0 |
-| readwrite.c | 1 | 0 | 0 | 0 |
-| n_synsetfxmix.c | 1 | 0 | 0 | 0 |
+| readrtc.c | 1 | 0 | 0 | 0 |
 | leomotor.c | 1 | 0 | 0 | 0 |
-| leotestunit.c | 1 | 0 | 0 | 0 |
-| debug_menu_slot68 | 1 | 0 | 0 | 0 |
-| seek.c | 1 | 0 | 0 | 0 |
+| lbatobyte.c | 1 | 0 | 0 | 0 |
 | debug_menu_slot71 | 1 | 0 | 0 | 0 |
+| debug_menu_slot68 | 1 | 0 | 0 | 0 |
 | gb_tower_unused | 1 | 0 | 0 | 0 |
-| testunitready.c | 1 | 0 | 0 | 0 |
-| bytetolba.c | 1 | 0 | 0 | 0 |
-| n_syndelete.c | 1 | 0 | 0 | 0 |
+| leoseek.c | 1 | 0 | 0 | 0 |
 | leomseq_tbl.c | 1 | 0 | 0 | 0 |
+| readdiskid.c | 1 | 0 | 0 | 0 |
+| leord_diskid.c | 1 | 0 | 0 | 0 |
+| n_syndelete.c | 1 | 0 | 0 | 0 |
+| n_synsetfxmix.c | 1 | 0 | 0 | 0 |
+| seek.c | 1 | 0 | 0 | 0 |
+| testunitready.c | 1 | 0 | 0 | 0 |
+| spdlmotor.c | 1 | 0 | 0 | 0 |
 | leoinquiry.c | 1 | 0 | 0 | 0 |
 | debug_menu_slot76 | 1 | 0 | 0 | 1 |
+| leotranslat.c | 1 | 0 | 0 | 0 |
 | leord_capa.c | 1 | 0 | 0 | 0 |
-| leoseek.c | 1 | 0 | 0 | 0 |
-| leord_diskid.c | 1 | 0 | 0 | 0 |
-| readrtc.c | 1 | 0 | 0 | 0 |
-| leodiskinit.c | 1 | 0 | 0 | 0 |
+| readwrite.c | 1 | 0 | 0 | 0 |
+| leomode_sel.c | 1 | 0 | 0 | 0 |
+| leotestunit.c | 1 | 0 | 0 | 0 |
+| leorezero.c | 1 | 0 | 0 | 0 |
 | crash_screen.c | 14 | 3 | 21 | 0 |
 | dma.c | 12 | 3 | 25 | 0 |
 | leo.c | 16 | 5 | 31 | 1 |
@@ -62,11 +62,11 @@ Runs: batch4, batch5, batch6, batch7, batch8.
 | profiler.c | 14 | 5 | 36 | 0 |
 | reset.c | 5 | 2 | 40 | 1 |
 | demo_scenes | 177 | 74 | 42 | 5 |
-| controller_ram.c | 4 | 2 | 50 | 0 |
 | snap_print_club_print_seals | 4 | 2 | 50 | 0 |
+| controller_ram.c | 4 | 2 | 50 | 0 |
 | audio_sfx_wrapper.c | 2 | 1 | 50 | 1 |
-| 33FE0.c | 44 | 24 | 55 | 21 |
 | gb_audio.c | 44 | 24 | 55 | 1 |
+| 33FE0.c | 44 | 24 | 55 | 21 |
 | options | 14 | 8 | 57 | 0 |
 | rental_team_selection | 105 | 65 | 62 | 2 |
 | gb_tower.c | 19 | 12 | 63 | 0 |
@@ -97,18 +97,17 @@ Runs: batch4, batch5, batch6, batch7, batch8.
 | memmap.c | 14 | 12 | 86 | 0 |
 | save_data.c | 71 | 61 | 86 | 1 |
 | gallery_album | 30 | 26 | 87 | 2 |
-| gym_leader_castle | 24 | 21 | 88 | 2 |
 | scheduler.c | 24 | 21 | 88 | 1 |
+| gym_leader_castle | 24 | 21 | 88 | 2 |
 | model_animation_events.c | 16 | 14 | 88 | 0 |
-| jpegutils.c | 8 | 7 | 88 | 0 |
 | ranking_debug_test | 8 | 7 | 88 | 0 |
+| jpegutils.c | 8 | 7 | 88 | 0 |
 | particle_math | 524 | 462 | 88 | 16 |
 | rental_hub | 17 | 15 | 88 | 0 |
 | battle_order_select | 36 | 32 | 89 | 0 |
 | gallery_snap | 27 | 24 | 89 | 2 |
 | model_renderer.c | 18 | 16 | 89 | 0 |
 | minigame_shared_graphics | 9 | 8 | 89 | 2 |
-| lab_pc_list | 282 | 251 | 89 | 8 |
 | geo_node.c | 38 | 34 | 89 | 0 |
 | session.c | 19 | 17 | 89 | 0 |
 | matrix.c | 50 | 45 | 90 | 0 |
@@ -131,7 +130,7 @@ Runs: batch4, batch5, batch6, batch7, batch8.
 | pokedex | 68 | 64 | 94 | 3 |
 | pokemon_stats.c | 91 | 87 | 96 | 4 |
 | minigame_select | 72 | 69 | 96 | 3 |
-| table_view.c | 24 | 23 | 96 | 0 |
+| lab_pc_list | 282 | 271 | 96 | 8 |
 | credits | 26 | 25 | 96 | 3 |
 | model_animation.c | 26 | 25 | 96 | 0 |
 | rattata_game | 30 | 29 | 97 | 2 |
@@ -145,10 +144,11 @@ Runs: batch4, batch5, batch6, batch7, batch8.
 | widget_toolkit | 43 | 43 | 100 | 3 |
 | sandshrew_game | 41 | 41 | 100 | 0 |
 | magikarp_game | 30 | 30 | 100 | 1 |
-| pikachu_reward | 29 | 29 | 100 | 0 |
 | gallery.c | 29 | 29 | 100 | 2 |
+| pikachu_reward | 29 | 29 | 100 | 0 |
 | gallery_film_select | 26 | 26 | 100 | 0 |
 | transfer_pak_select | 24 | 24 | 100 | 2 |
+| table_view.c | 24 | 24 | 100 | 0 |
 | gb_data.c | 23 | 23 | 100 | 1 |
 | dynamo_game | 22 | 22 | 100 | 0 |
 | drowzee_game | 21 | 21 | 100 | 0 |
@@ -157,93 +157,93 @@ Runs: batch4, batch5, batch6, batch7, batch8.
 | stadium_select | 17 | 17 | 100 | 1 |
 | ui_graphics.c | 17 | 17 | 100 | 0 |
 | gfx_rect.c | 13 | 13 | 100 | 0 |
-| 3D140.c | 12 | 12 | 100 | 1 |
-| gb_audio_render.c | 12 | 12 | 100 | 6 |
 | controller.c | 12 | 12 | 100 | 0 |
-| model_renderer_callbacks.c | 11 | 11 | 100 | 0 |
+| gb_audio_render.c | 12 | 12 | 100 | 6 |
+| 3D140.c | 12 | 12 | 100 | 1 |
 | cup_select | 11 | 11 | 100 | 1 |
-| memory.c | 10 | 10 | 100 | 0 |
-| minigame_sample8_viewer | 10 | 10 | 100 | 0 |
-| port_audio.c | 10 | 10 | 100 | 0 |
+| model_renderer_callbacks.c | 11 | 11 | 100 | 0 |
 | battle_hud.c | 10 | 10 | 100 | 1 |
 | snap_print_club_background_select | 10 | 10 | 100 | 1 |
-| minigame_sample7_viewer | 10 | 10 | 100 | 0 |
+| minigame_sample8_viewer | 10 | 10 | 100 | 0 |
 | flash.c | 10 | 10 | 100 | 0 |
-| n_synthesizer.c | 8 | 8 | 100 | 0 |
+| memory.c | 10 | 10 | 100 | 0 |
+| minigame_sample7_viewer | 10 | 10 | 100 | 0 |
+| port_audio.c | 10 | 10 | 100 | 0 |
 | gallery_enlarge | 8 | 8 | 100 | 1 |
-| text_system.c | 7 | 7 | 100 | 0 |
+| n_synthesizer.c | 8 | 8 | 100 | 0 |
 | audio_stream.c | 7 | 7 | 100 | 1 |
+| text_system.c | 7 | 7 | 100 | 0 |
 | audio_commands.c | 6 | 6 | 100 | 1 |
-| audio_loop_point.c | 6 | 6 | 100 | 0 |
-| libgsm.c | 6 | 6 | 100 | 0 |
-| gfx_buffer.c | 6 | 6 | 100 | 0 |
 | fatal_error_screen | 6 | 6 | 100 | 0 |
+| gfx_buffer.c | 6 | 6 | 100 | 0 |
+| libgsm.c | 6 | 6 | 100 | 0 |
+| audio_loop_point.c | 6 | 6 | 100 | 0 |
+| gb_tower_audio.c | 5 | 5 | 100 | 0 |
 | n64_logo | 5 | 5 | 100 | 0 |
+| audio_channel.c | 5 | 5 | 100 | 0 |
 | audio_stream_channel.c | 5 | 5 | 100 | 0 |
 | n_env.c | 5 | 5 | 100 | 0 |
-| gb_tower_audio.c | 5 | 5 | 100 | 0 |
-| audio_channel.c | 5 | 5 | 100 | 0 |
-| jpeg_decoder.c | 4 | 4 | 100 | 0 |
 | gsm_decoder.c | 4 | 4 | 100 | 0 |
 | gb_tower_team_prep | 4 | 4 | 100 | 0 |
+| jpeg_decoder.c | 4 | 4 | 100 | 0 |
 | math_util.c | 4 | 4 | 100 | 0 |
 | hal_libc.c | 4 | 4 | 100 | 0 |
-| n_load.c | 3 | 3 | 100 | 0 |
-| pokemon_lab_support | 3 | 3 | 100 | 0 |
 | gb_mbc.c | 3 | 3 | 100 | 0 |
+| pokemon_lab_support | 3 | 3 | 100 | 0 |
 | input.c | 3 | 3 | 100 | 0 |
-| main.c | 2 | 2 | 100 | 0 |
-| n_drvrNew.c | 2 | 2 | 100 | 0 |
-| status_icons.c | 2 | 2 | 100 | 0 |
-| n_resample.c | 2 | 2 | 100 | 0 |
-| minigame_shared_library | 2 | 2 | 100 | 0 |
-| cry.c | 2 | 2 | 100 | 0 |
-| rom_device.c | 2 | 2 | 100 | 0 |
-| audio_data.c | 2 | 2 | 100 | 0 |
+| n_load.c | 3 | 3 | 100 | 0 |
 | n_synallocvoice.c | 2 | 2 | 100 | 0 |
-| audio_stored_fade.c | 2 | 2 | 100 | 1 |
-| lab_item.c | 2 | 2 | 100 | 0 |
-| audio_fade.c | 2 | 2 | 100 | 1 |
 | n_sl.c | 2 | 2 | 100 | 0 |
-| debug_menu_slot70 | 1 | 1 | 100 | 0 |
-| n_synfreevoice.c | 1 | 1 | 100 | 0 |
-| cjcreateleomanager.c | 1 | 1 | 100 | 0 |
-| 1 | 1 | 1 | 100 | 1 |
-| driveexist.c | 1 | 1 | 100 | 0 |
-| debug_menu_slot69 | 1 | 1 | 100 | 0 |
-| debug_menu_slot73 | 1 | 1 | 100 | 0 |
-| debug_menu_exit | 1 | 1 | 100 | 0 |
+| lab_item.c | 2 | 2 | 100 | 0 |
+| n_resample.c | 2 | 2 | 100 | 0 |
+| rom_device.c | 2 | 2 | 100 | 0 |
+| audio_fade.c | 2 | 2 | 100 | 1 |
+| status_icons.c | 2 | 2 | 100 | 0 |
+| main.c | 2 | 2 | 100 | 0 |
+| cry.c | 2 | 2 | 100 | 0 |
+| audio_stored_fade.c | 2 | 2 | 100 | 1 |
+| n_drvrNew.c | 2 | 2 | 100 | 0 |
+| minigame_shared_library | 2 | 2 | 100 | 0 |
+| audio_data.c | 2 | 2 | 100 | 0 |
 | n_synaddplayer.c | 1 | 1 | 100 | 0 |
-| n_synstopvoice.c | 1 | 1 | 100 | 0 |
-| minigame_dispatch.c | 1 | 1 | 100 | 0 |
-| n_synstartvoiceparam.c | 1 | 1 | 100 | 0 |
-| n_auxbus.c | 1 | 1 | 100 | 0 |
-| audio_sfx.c | 1 | 1 | 100 | 0 |
-| debug_menu_slot74 | 1 | 1 | 100 | 0 |
-| n_synsetpan.c | 1 | 1 | 100 | 0 |
-| n_synsetpitch.c | 1 | 1 | 100 | 0 |
-| audio_cache.c | 1 | 1 | 100 | 0 |
-| debug_menu_slot72 | 1 | 1 | 100 | 0 |
-| debug_menu_slot77 | 1 | 1 | 100 | 1 |
-| pokemon_lab_unused | 1 | 1 | 100 | 1 |
-| n_synallocfx.c | 1 | 1 | 100 | 0 |
 | n_synsetpriority.c | 1 | 1 | 100 | 0 |
-| n_save.c | 1 | 1 | 100 | 0 |
-| n_synsetvol.c | 1 | 1 | 100 | 0 |
+| n_auxbus.c | 1 | 1 | 100 | 0 |
+| n_synstartvoiceparam.c | 1 | 1 | 100 | 0 |
+| debug_menu_slot77 | 1 | 1 | 100 | 1 |
+| audio_cache.c | 1 | 1 | 100 | 0 |
+| 1 | 1 | 1 | 100 | 1 |
+| pokemon_lab_unused | 1 | 1 | 100 | 1 |
+| n_synsetpan.c | 1 | 1 | 100 | 0 |
+| n_synstopvoice.c | 1 | 1 | 100 | 0 |
+| cjcreateleomanager.c | 1 | 1 | 100 | 0 |
+| n_synallocfx.c | 1 | 1 | 100 | 0 |
 | n_mainbus.c | 1 | 1 | 100 | 0 |
+| debug_menu_slot72 | 1 | 1 | 100 | 0 |
+| n_synsetvol.c | 1 | 1 | 100 | 0 |
+| driveexist.c | 1 | 1 | 100 | 0 |
+| n_synfreevoice.c | 1 | 1 | 100 | 0 |
+| debug_menu_slot74 | 1 | 1 | 100 | 0 |
+| n_save.c | 1 | 1 | 100 | 0 |
+| debug_menu_slot73 | 1 | 1 | 100 | 0 |
+| n_synsetpitch.c | 1 | 1 | 100 | 0 |
+| minigame_dispatch.c | 1 | 1 | 100 | 0 |
+| audio_sfx.c | 1 | 1 | 100 | 0 |
+| debug_menu_slot69 | 1 | 1 | 100 | 0 |
+| debug_menu_exit | 1 | 1 | 100 | 0 |
+| debug_menu_slot70 | 1 | 1 | 100 | 0 |
 
-637 gates (a reached caller, an unreached callee); 878 unreached functions are behind them, 218 have no reached caller anywhere above them (entry points or callbacks that nothing in these runs registered).
+623 gates (a reached caller, an unreached callee); 857 unreached functions are behind them, 218 have no reached caller anywhere above them (entry points or callbacks that nothing in these runs registered).
 
 ## Gates by what decides them
 
 | class | gates | unreached functions behind them |
 |---|---|---|
-| other state | 199 | 268 |
-| menu or flow step (a switch on a selection or state) | 174 | 233 |
+| other state | 195 | 266 |
+| menu or flow step (a switch on a selection or state) | 173 | 232 |
 | table index (which move / effect / animation) | 81 | 88 |
-| callback registration | 51 | 65 |
+| callback registration | 45 | 59 |
 | session / save / mode | 43 | 132 |
-| result of a call (a confirmation, a load, a check) | 35 | 68 |
+| result of a call (a confirmation, a load, a check) | 32 | 56 |
 | battle scene / presentation state | 30 | 21 |
 | input | 10 | 13 |
 | AI decision | 8 | 11 |
@@ -280,7 +280,7 @@ Runs: batch4, batch5, batch6, batch7, batch8.
 | 3 | TextRenderer_FlushQueuedStrings -> TextRenderer_DrawString | `var_s0 != NULL` (true side) | 651 |
 | 3 | VictoryPalace_DrawOverlay -> VictoryPalace_DrawFrameBorder | `D_82608542 == 1` (true side) | 1935 |
 | 3 | func_80018C40 -> Color_AdjustRGBA8 | `j < n` (true side) | 50 |
-| ... | 174 more | | |
+| ... | 170 more | | |
 
 ### menu or flow step (a switch on a selection or state)
 
@@ -311,7 +311,7 @@ Runs: batch4, batch5, batch6, batch7, batch8.
 | 2 | BattleAnim_CallbackUnusedAimedSparkVariant -> BattleAnim_SetupUnusedAimedSparkVariant | `switch (arg0->unk_B2) case 1` (true side) | 334 |
 | 2 | BattleAnim_CallbackUnusedIndexedFadeVariantA -> BattleAnim_SetupUnusedIndexedFadeVariantA | `switch (arg0->unk_B2) case 1` (true side) | 1151 |
 | 2 | BattlePrep_ConfirmCupRules -> BattlePrep_FadeInBallBurstTransition | `switch (var_v0) case 4` (true side) | 914 |
-| ... | 149 more | | |
+| ... | 148 more | | |
 
 ### table index (which move / effect / animation)
 
@@ -373,7 +373,7 @@ Runs: batch4, batch5, batch6, batch7, batch8.
 | 1 | LabItem_InitDropdownMenu -> LabItem_DrawMenuCell | `address stored for later (callback)` (- side) |  |
 | 1 | LabItem_InitDropdownMenu -> LabItem_DropdownMenu_HandleInput | `address stored for later (callback)` (- side) |  |
 | 1 | LabItem_InitDropdownMenu -> LabItem_DropdownMenu_SetSelectedIndex | `address stored for later (callback)` (- side) |  |
-| ... | 26 more | | |
+| ... | 20 more | | |
 
 ### session / save / mode
 
@@ -411,13 +411,11 @@ Runs: batch4, batch5, batch6, batch7, batch8.
 | unlocks | caller -> callee | condition never taken | line |
 |---|---|---|---|
 | 13 | PikachuReward_SaveToCartridge -> GbSave_PollCartRemoval | `GbSave_RebuildAndWriteSave(D_832027C8.unk_00) == 0` (true side) | 667 |
-| 10 | LabPCList_HandleGridInput -> func_88305F28 | `BattleInfoWidget_RunItemMenuModal(arg0->unk_24->unk_0AC, arg1) == 1` (true side) | 2551 |
 | 8 | GbSave_RequirePakPresent -> Game_ShutdownAndLoadFragment | `GbTower_CheckPakRemoved(arg0, 0) == 0` (true side) | 1259 |
 | 8 | GbSave_ScanAllPorts -> Game_ShutdownAndLoadFragment | `GbPak_DetectRam(i, var_s0->unk_19) == 0` (true side) | 1150 |
 | 8 | LabPC_SwapControllerInput -> LabPC_RunConfirmSaveFlow | `LabPC_RunConfirmSaveFlow(arg0->unk_00.unk_24, arg1) == 0` (true side) | 2146 |
 | 2 | BattleAnim_CallbackUnusedDescriptor4FColorCycleScaleFadeVariant -> BattleAnim_MotionUnusedDescriptor4FColorCycleScaleFadeVariant | `Particle_IsRenderingEnabled(arg0) != 0` (true side) | 184 |
 | 2 | BattleBox_Update -> BattleHud_UpdateCaptionBoxPopupBlack | `BattleHud_UpdateCaptionBoxPopupBlack(temp_s0, 0xA0, 0x78) != 0` (true side) | 648 |
-| 2 | BattleInfoWidget_ItemMenuHandleInput -> BattleInfoWidget_ItemMenuBackFromMoveSelect | `BattleInfoWidget_ItemMenuBackFromMoveSelect(arg0) == 0` (true side) | 3108 |
 | 2 | Fragment_LoadFromRomRange -> Asset_AllocAndCopyFragment | `(PORT_BE32(((u32*)arg3->magic)[1]) == 'JPEG')` (true side) | 143 |
 | 2 | HallOfFame_HandleGalleryInput -> VictoryPalace_LoadCurrentCarouselIcon | `VictoryPalace_SpeciesObtained((D_82607B54 % D_8267E4F0) + 1) != 0` (true side) | 2340 |
 | 2 | LabItem_BoxPairMenu_HandleInput -> LabItem_RunBoxScreenModal | `LabItem_RunBoxScreenModal(arg0->unk_00.unk_24->unk_84, arg1) == 1` (true side) | 2770 |
@@ -425,7 +423,6 @@ Runs: batch4, batch5, batch6, batch7, batch8.
 | 2 | Widget_PauseMenuUpdate -> Audio_CountCategorySounds | `(Audio_CountCategorySounds(2) == 0)` (true side) | 2020 |
 | 1 | AudioStream_RefillAndDecode -> PortA_BE32 | `(osRecvMesg(&arg0->unk_25A0, NULL, 0) >= 0)` (false side) | 47 |
 | 1 | BattleAnim_CallbackUnusedRotatingSparkVariant -> BattleAnim_MotionUnusedRotatingSparkVariant | `Particle_IsRenderingEnabled(arg0) != 0` (true side) | 297 |
-| 1 | BattleInfoWidget_ItemMenuHandleInput -> BattleInfoWidget_ItemMenuBackToBrowse | `BattleInfoWidget_ItemMenuBackToBrowse(arg0) == 0` (true side) | 3102 |
 | 1 | Completion_UpdateGiftDialogFirstTime -> Completion_WrapDialogText | `Completion_WrapDialogText() != 0` (true side) | 1036 |
 | 1 | Completion_UpdateSceneSteps -> Completion_SlideLogoBannerOut | `Completion_SlideLogoBannerOut() != 0` (true side) | 1480 |
 | 1 | Fragment_LoadFromRomRange -> Jpeg_AllocAndDecodeFragment | `(PORT_BE32(((u32*)arg3->magic)[1]) == 'JPEG')` (true side) | 143 |
@@ -435,7 +432,10 @@ Runs: batch4, batch5, batch6, batch7, batch8.
 | 1 | LabItem_BoxPairMenu_HandleInput -> LabItem_DropdownMenu_Close | `LabItem_RunBoxScreenModal(arg0->unk_00.unk_24->unk_84, arg1) == 1` (true side) | 2770 |
 | 1 | LabItem_BoxPairMenu_HandleInput -> LabItem_DropdownMenu_GetSelectedIndex | `LabItem_RunDropdownMenuModal(arg0->unk_00.unk_24->unk_70[sp4C], arg1) == 1` (true side) | 2759 |
 | 1 | LabItem_BoxPairMenu_HandleInput -> LabItem_RunDropdownMenuModal | `LabItem_RunDropdownMenuModal(arg0->unk_00.unk_24->unk_70[sp4C], arg1) == 1` (true side) | 2759 |
-| ... | 10 more | | |
+| 1 | LabPC_SwapControllerInput -> LabPC_BoxTypeSelector_GetSlotSelection | `LabPC_RunBoxTypeSelectorModal(arg0->unk_00.unk_24->unk_78[sp64], arg1) == 1` (true side) | 2178 |
+| 1 | LabPC_SwapControllerInput -> LabPC_RunBoxTypeSelectorModal | `LabPC_RunBoxTypeSelectorModal(arg0->unk_00.unk_24->unk_78[sp64], arg1) == 1` (true side) | 2178 |
+| 1 | LabPC_SwapControllerInput -> LabPC_SwapMenu_IsIdle | `LabPC_SwapMenu_IsIdle(arg0->unk_2C) != 0` (true side) | 2241 |
+| ... | 7 more | | |
 
 ### battle scene / presentation state
 
