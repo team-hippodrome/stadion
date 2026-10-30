@@ -5,14 +5,17 @@ random values, compared event by event and frame by frame (the method of tools/b
 Usage:
   tools/battle_sweep.py paths [--move N|NAME]            the path catalog derived from the decomp (no runs)
   tools/battle_sweep.py run [--move N|NAME | --case ID] [--path P | --all-paths] [--user SPECIES] [--jobs 2] [--force]
-                            [--port-bin build-xcheck/pokestadium]
+                            [--open] [--port-bin build-xcheck/pokestadium]
   tools/battle_sweep.py report [--all-paths]             build-xcheck-sweep/report.md from the cached cases
 By default each move runs once, on its base path, with its sound compared (the battle music is switched off on
 both sides, so the move's sound effects are what is heard); --all-paths runs every path of the catalog.
 
 Work and results go to build-xcheck-sweep/ (XCHECK_SWEEP_DIR overrides): cases/<id>/result.json (+ sheets of
 mismatching animations). Finished cases are cached: a rerun only runs cases that are missing or whose spec changed
-(--force reruns them). Frames are deleted after each case (XCHECK_KEEP_FRAMES=1 keeps them).
+(--force reruns them). --open reruns only the cases that are not finished yet or whose last result has a use
+that is not a match (the report's verdict: animation, logic or sound mismatch, not reached, error), e.g. after a
+fix, without the cases that already match; a full run is still the check that nothing that matched regressed.
+Frames are deleted after each case (XCHECK_KEEP_FRAMES=1 keeps them).
 
 Paths per move come from the decomp: the move table gMoveDataWithZeroth (effect, power, type, accuracy) and the
 type chart gTypeEffects decide which variants exist (crit, miss, super / not very effective, immune, secondary
@@ -943,8 +946,8 @@ def main():
     if cmd == "run":
         port_bin = os.path.abspath(args.get("--port-bin", os.path.join(ROOT, "build", "pokestadium")))
         frames = int(args.get("--frames", "12000"))
-        todo = []
-        for c in cases:
+        todo = open_cases(cases) if args.get("--open") else []
+        for c in ([] if args.get("--open") else cases):
             rp = os.path.join(WORK, "cases", c["id"], "result.json")
             if os.path.exists(rp) and not args.get("--force"):
                 try:
@@ -953,7 +956,8 @@ def main():
                 except ValueError:
                     pass
             todo.append(c)
-        print("%d cases (%d cached), %d to run" % (len(cases), len(cases) - len(todo), len(todo)), flush=True)
+        print("%d cases (%d %s), %d to run" % (len(cases), len(cases) - len(todo), "matching, skipped" if args.get("--open")
+                                                else "cached", len(todo)), flush=True)
         start_state()
         t0 = time.time()
         # worker processes (the scoring is pure Python); each case runs the port and ares side by side
@@ -972,8 +976,40 @@ def main():
         print("(report of %s)" % ("every path" if args.get("--all-paths") else "the base path: each move once"))
 
 
+def run_limits(rows):
+    """(common animation offset, median effect_p90, effect limit) of the results in rows [(use, result, case)]"""
+    offsets = [u["score"]["offset"] for u, r, c in rows if r and "offset" in u.get("score", {})]
+    common = max(set(offsets), key=offsets.count) if offsets else None
+    scores = sorted(u["score"]["effect_p90"] for u, r, c in rows if r and "effect_p90" in u.get("score", {}))
+    median = scores[len(scores) // 2] if scores else None
+    floor = round(max(median * EFFECT_FACTOR, median + EFFECT_MARGIN), 1) if median is not None else EFFECT_LIMIT
+    return common, median, floor
+
+
+def open_cases(cases):
+    """the cases --open reruns: not run yet, spec changed, an error, or a use whose verdict (as in the report) or sound
+    is not a match"""
+    results = {}
+    for c in cases:
+        rp = os.path.join(WORK, "cases", c["id"], "result.json")
+        try:
+            results[c["id"]] = json.load(open(rp)) if os.path.exists(rp) else None
+        except ValueError:
+            results[c["id"]] = None
+    rows = [(u, r, c) for c in cases for r in [results[c["id"]]] if r for u in r.get("uses", [])]
+    common, _, floor = run_limits(rows)
+    todo = []
+    for c in cases:
+        r = results[c["id"]]
+        if r is None or r.get("spec") != c["spec"] or "error" in r or not r.get("uses") or any(
+                not classify(u, common, floor).startswith("match") or audio_verdict(u.get("audio")).startswith(
+                    ("sound mismatch", "no audio")) for u in r["uses"]):
+            todo.append(c)
+    return todo
+
+
 def report(cases, skipped, moves, mvn, spn):
-    rows, offsets, missing = [], [], 0
+    rows, missing = [], 0
     secs = 0.0
     for c in cases:
         rp = os.path.join(WORK, "cases", c["id"], "result.json")
@@ -985,13 +1021,8 @@ def report(cases, skipped, moves, mvn, spn):
         r = json.load(open(rp))
         secs += r.get("seconds", 0)
         for u in r.get("uses", []):
-            if "offset" in u.get("score", {}):
-                offsets.append(u["score"]["offset"])
             rows.append((u, r, c))
-    common = max(set(offsets), key=offsets.count) if offsets else None
-    scores = sorted(u["score"]["effect_p90"] for u, r, c in rows if r and "effect_p90" in u.get("score", {}))
-    median = scores[len(scores) // 2] if scores else None
-    floor = round(max(median * EFFECT_FACTOR, median + EFFECT_MARGIN), 1) if median is not None else EFFECT_LIMIT
+    common, median, floor = run_limits(rows)
     out = ["# Move sweep: port vs ares", ""]
     verdicts = []
     for u, r, c in rows:
