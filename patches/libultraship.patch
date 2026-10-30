@@ -1193,7 +1193,7 @@ index b80c990..719941e 100644
          default:
              return "";
 diff --git a/src/fast/backends/gfx_direct3d11.cpp b/src/fast/backends/gfx_direct3d11.cpp
-index f747b81..f54b1f1 100644
+index f747b81..3f78441 100644
 --- a/src/fast/backends/gfx_direct3d11.cpp
 +++ b/src/fast/backends/gfx_direct3d11.cpp
 @@ -6,6 +6,7 @@
@@ -1299,6 +1299,16 @@ index f747b81..f54b1f1 100644
      // Convert RGBA32 → RGBA16 with nearest-neighbor scaling from actual texture
      // dimensions to requested output dimensions, respecting RowPitch for row stride
      for (uint32_t j = 0; j < height; j++) {
+@@ -1243,7 +1286,8 @@ void GfxRenderingAPIDX11::SetSrgbMode() {
+     mSrgbMode = true;
+ }
+ 
+-#define RAND_NOISE "((random(float3(floor(screenSpace.xy * noise_scale), noise_frame)) + 1.0) / 2.0)"
++// random() is already in [0, 1), like the RDP's noise (PORT: was mapped again as if it were in [-1, 1])
++#define RAND_NOISE "random(float3(floor(screenSpace.xy * noise_scale), noise_frame))"
+ 
+ static const char* prism_shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
+                                             bool first_cycle, bool hint_single_element) {
 diff --git a/src/fast/backends/gfx_dxgi.cpp b/src/fast/backends/gfx_dxgi.cpp
 index dd8cce5..c510610 100644
 --- a/src/fast/backends/gfx_dxgi.cpp
@@ -1734,8 +1744,24 @@ index afc07db..e0f6fd8 100644
  void GfxRenderingAPIMetal::SetTextureFilter(FilteringMode mode) {
      mCurrentFilterMode = mode;
      gfx_texture_cache_clear();
+diff --git a/src/fast/backends/gfx_metal_shader.cpp b/src/fast/backends/gfx_metal_shader.cpp
+index 39b5d34..d3d7810 100644
+--- a/src/fast/backends/gfx_metal_shader.cpp
++++ b/src/fast/backends/gfx_metal_shader.cpp
+@@ -29,9 +29,8 @@ void gfx_metal_shader_set_resource_manager(std::shared_ptr<Ship::ResourceManager
+ }
+ // MARK: - String Helpers
+ 
+-#define RAND_NOISE                                                                                                  \
+-    "((random(float3(floor(in.position.xy * frameUniforms.noiseScale), float(frameUniforms.frameCount))) + 1.0) / " \
+-    "2.0)"
++// random() is already in [0, 1), like the RDP's noise (PORT: was mapped again as if it were in [-1, 1])
++#define RAND_NOISE "random(float3(floor(in.position.xy * frameUniforms.noiseScale), float(frameUniforms.frameCount)))"
+ 
+ static const char* p_shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
+                                         bool first_cycle, bool hint_single_element) {
 diff --git a/src/fast/backends/gfx_opengl.cpp b/src/fast/backends/gfx_opengl.cpp
-index 6c4dfc8..c739b1c 100644
+index 6c4dfc8..caee3cd 100644
 --- a/src/fast/backends/gfx_opengl.cpp
 +++ b/src/fast/backends/gfx_opengl.cpp
 @@ -1,9 +1,11 @@
@@ -1750,7 +1776,17 @@ index 6c4dfc8..c739b1c 100644
  
  #include <map>
  #include <unordered_map>
-@@ -244,6 +246,33 @@ std::optional<std::string> opengl_include_fs(const std::string& path) {
+@@ -107,7 +109,8 @@ void GfxRenderingAPIOGL::LoadShader(ShaderProgram* new_prg) {
+     SetUniforms(new_prg);
+ }
+ 
+-#define RAND_NOISE "((random(vec3(floor(gl_FragCoord.xy * noise_scale), float(frame_count))) + 1.0) / 2.0)"
++// random() is already in [0, 1), like the RDP's noise (PORT: was mapped again as if it were in [-1, 1])
++#define RAND_NOISE "random(vec3(floor(gl_FragCoord.xy * noise_scale), float(frame_count)))"
+ 
+ static const char* shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
+                                       bool first_cycle, bool hint_single_element) {
+@@ -244,6 +247,33 @@ std::optional<std::string> opengl_include_fs(const std::string& path) {
      return *inc;
  }
  
@@ -1784,7 +1820,7 @@ index 6c4dfc8..c739b1c 100644
  std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
      prism::Processor processor;
      prism::ContextItems mContext = {
-@@ -289,6 +318,7 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
+@@ -289,6 +319,7 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
          { "o_three_point_filtering", mCurrentFilterMode == FILTER_THREE_POINT },
          { "append_formula", (InvokeFunc)append_formula },
  #ifdef __APPLE__
@@ -1792,7 +1828,7 @@ index 6c4dfc8..c739b1c 100644
          { "GLSL_VERSION", "#version 410 core" },
          { "attr", "in" },
          { "opengles", false },
-@@ -296,21 +326,42 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
+@@ -296,21 +327,42 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
          { "texture", "texture" },
          { "vOutColor", "vOutColor" },
  #elif defined(USE_OPENGLES)
@@ -1837,7 +1873,7 @@ index 6c4dfc8..c739b1c 100644
      processor.populate(mContext);
      auto init = std::make_shared<Ship::ResourceInitData>();
      init->Type = (uint32_t)Ship::ResourceType::Shader;
-@@ -414,6 +465,15 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
+@@ -414,6 +466,15 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
      gfx_cc_get_features(shader_id0, shader_id1, &cc_features);
      const auto fs_buf = BuildFsShader(cc_features);
      const auto vs_buf = BuildVsShader(cc_features);
@@ -1853,7 +1889,7 @@ index 6c4dfc8..c739b1c 100644
      const GLchar* sources[2] = { vs_buf.data(), fs_buf.data() };
      const GLint lengths[2] = { (GLint)vs_buf.size(), (GLint)fs_buf.size() };
      GLint success;
-@@ -449,7 +509,21 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
+@@ -449,7 +510,21 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
      GLuint shader_program = glCreateProgram();
      glAttachShader(shader_program, vertex_shader);
      glAttachShader(shader_program, fragment_shader);
@@ -1875,7 +1911,7 @@ index 6c4dfc8..c739b1c 100644
  
      size_t cnt = 0;
  
-@@ -560,6 +634,7 @@ GLuint GfxRenderingAPIOGL::NewTexture() {
+@@ -560,6 +635,7 @@ GLuint GfxRenderingAPIOGL::NewTexture() {
      GLuint ret;
      glGenTextures(1, &ret);
      textures.resize(std::max(textures.size(), (size_t)ret + 1));
@@ -1883,7 +1919,7 @@ index 6c4dfc8..c739b1c 100644
      return ret;
  }
  
-@@ -584,9 +659,17 @@ void GfxRenderingAPIOGL::UploadTexture(const uint8_t* rgba32_buf, uint32_t width
+@@ -584,9 +660,17 @@ void GfxRenderingAPIOGL::UploadTexture(const uint8_t* rgba32_buf, uint32_t width
      if (width == 0 || height == 0) {
          return;
      }
@@ -1903,7 +1939,7 @@ index 6c4dfc8..c739b1c 100644
  }
  
  #ifdef USE_OPENGLES
-@@ -730,7 +813,17 @@ void GfxRenderingAPIOGL::Init() {
+@@ -730,7 +814,17 @@ void GfxRenderingAPIOGL::Init() {
      glEnable(GL_DEPTH_CLAMP);
  #endif
      glDepthFunc(GL_LEQUAL);
@@ -1922,7 +1958,7 @@ index 6c4dfc8..c739b1c 100644
  
      mFrameBuffers.resize(1); // for the default screen buffer
  
-@@ -759,6 +852,15 @@ void GfxRenderingAPIOGL::StartFrame() {
+@@ -759,6 +853,15 @@ void GfxRenderingAPIOGL::StartFrame() {
  }
  
  void GfxRenderingAPIOGL::EndFrame() {
@@ -1938,7 +1974,7 @@ index 6c4dfc8..c739b1c 100644
      glFlush();
  }
  
-@@ -797,10 +899,19 @@ int GfxRenderingAPIOGL::CreateFramebuffer() {
+@@ -797,10 +900,19 @@ int GfxRenderingAPIOGL::CreateFramebuffer() {
      return i;
  }
  
@@ -1958,7 +1994,7 @@ index 6c4dfc8..c739b1c 100644
  
      width = std::max(width, 1U);
      height = std::max(height, 1U);
-@@ -812,12 +923,16 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
+@@ -812,12 +924,16 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
          if (fb.width != width || fb.height != height || fb.msaa_level != msaa_level) {
              if (msaa_level <= 1) {
                  glBindTexture(GL_TEXTURE_2D, fb.clrbuf);
@@ -1977,7 +2013,7 @@ index 6c4dfc8..c739b1c 100644
                  glBindRenderbuffer(GL_RENDERBUFFER, 0);
                  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, fb.clrbufMsaa);
              }
-@@ -856,6 +971,27 @@ void GfxRenderingAPIOGL::StartDrawToFramebuffer(int fb_id, float noise_scale) {
+@@ -856,6 +972,27 @@ void GfxRenderingAPIOGL::StartDrawToFramebuffer(int fb_id, float noise_scale) {
      }
      glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo);
      mCurrentFrameBuffer = fb_id;
@@ -2005,7 +2041,7 @@ index 6c4dfc8..c739b1c 100644
  }
  
  void GfxRenderingAPIOGL::ClearFramebuffer(bool color, bool depth) {
-@@ -928,6 +1064,10 @@ void GfxRenderingAPIOGL::SelectTextureFb(int fb_id) {
+@@ -928,6 +1065,10 @@ void GfxRenderingAPIOGL::SelectTextureFb(int fb_id) {
      if (texId >= textures.size()) {
          textures.resize((size_t)texId + 1);
      }
@@ -2016,7 +2052,7 @@ index 6c4dfc8..c739b1c 100644
      SelectTexture(tile, texId);
  }
  
-@@ -1003,6 +1143,9 @@ void GfxRenderingAPIOGL::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0
+@@ -1003,6 +1144,9 @@ void GfxRenderingAPIOGL::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0
      }
  }
  
@@ -2026,7 +2062,7 @@ index 6c4dfc8..c739b1c 100644
  void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFrameBuffers.size()) {
          return;
-@@ -1016,7 +1159,30 @@ void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_
+@@ -1016,7 +1160,30 @@ void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_
  
      std::vector<uint8_t> rgba8(width * height * 4);
      glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba8.data());
@@ -4864,7 +4900,7 @@ index 0000000..8568fab
 +
 +#endif
 diff --git a/src/fast/interpreter.cpp b/src/fast/interpreter.cpp
-index a1907a1..ebdc3fc 100644
+index a1907a1..b4572ad 100644
 --- a/src/fast/interpreter.cpp
 +++ b/src/fast/interpreter.cpp
 @@ -11,6 +11,7 @@
@@ -5898,7 +5934,7 @@ index a1907a1..ebdc3fc 100644
              }
          }
  
-@@ -2188,7 +2918,13 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2188,7 +2918,17 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
                  mBufVbo[mBufVboLen++] = mRdp->fog_color.r / 255.0f;
                  mBufVbo[mBufVboLen++] = mRdp->fog_color.g / 255.0f;
                  mBufVbo[mBufVboLen++] = mRdp->fog_color.b / 255.0f;
@@ -5907,13 +5943,17 @@ index a1907a1..ebdc3fc 100644
 +                    // PORT: G_RM_FOG_PRIM_A (CLR_FOG * A_FOG): a constant tint by the fog register's alpha, e.g. the
 +                    // battle status flashes (burn, freeze, ...). Shade alpha would paint the model solid fog colour.
 +                    mBufVbo[mBufVboLen++] = mRdp->fog_color.a / 255.0f;
++                } else if (is_rect) {
++                    // PORT: rectangles have no shade on the RDP (0), so a blender that fogs by shade alpha leaves
++                    // them as they are (the Pokédex area map's label boxes, drawn with the map's fog render mode)
++                    mBufVbo[mBufVboLen++] = 0.0f;
 +                } else {
 +                    mBufVbo[mBufVboLen++] = v_arr[i]->color.a / 255.0f; // fog factor (not alpha)
 +                }
              }
          }
  
-@@ -2371,11 +3107,16 @@ void Interpreter::CalcAndSetViewport(const F3DVp_t* viewport) {
+@@ -2371,11 +3111,16 @@ void Interpreter::CalcAndSetViewport(const F3DVp_t* viewport) {
      mRdp->viewport.height = height;
  
      AdjustVIewportOrScissor(&mRdp->viewport);
@@ -5930,7 +5970,7 @@ index a1907a1..ebdc3fc 100644
      switch (index) {
          case F3DEX2_G_MV_VIEWPORT:
              CalcAndSetViewport((const F3DVp_t*)data);
-@@ -2428,6 +3169,7 @@ void Interpreter::GfxSpMovewordF3dex2(uint8_t index, uint16_t offset, uintptr_t
+@@ -2428,6 +3173,7 @@ void Interpreter::GfxSpMovewordF3dex2(uint8_t index, uint16_t offset, uintptr_t
              break;
          case G_MW_SEGMENT: {
              int segNumber = offset / 4;
@@ -5938,7 +5978,7 @@ index a1907a1..ebdc3fc 100644
              mSegmentPointers[segNumber] = data;
          } break;
          case G_MW_SEGMENT_INTERP: {
-@@ -2467,6 +3209,7 @@ void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t dat
+@@ -2467,6 +3213,7 @@ void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t dat
  }
  
  void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t tile, uint8_t on) {
@@ -5946,7 +5986,7 @@ index a1907a1..ebdc3fc 100644
      mRsp->texture_scaling_factor.s = sc;
      mRsp->texture_scaling_factor.t = tc;
      if (mRdp->first_tile_index != tile) {
-@@ -2478,6 +3221,27 @@ void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t
+@@ -2478,6 +3225,27 @@ void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t
  }
  
  void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uint32_t lrx, uint32_t lry) {
@@ -5974,7 +6014,7 @@ index a1907a1..ebdc3fc 100644
      float x = ulx / 4.0f;
      float y = lry / 4.0f;
      float width = (lrx - ulx) / 4.0f;
-@@ -2495,6 +3259,7 @@ void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uin
+@@ -2495,6 +3263,7 @@ void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uin
  
  void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t width, const char* texPath,
                                         uint32_t texFlags, RawTexMetadata rawTexMetdata, const void* addr) {
@@ -5982,7 +6022,7 @@ index a1907a1..ebdc3fc 100644
      // fprintf(stderr, "GfxDpSetTextureImage: %s (width=%d; size=0x%X)\n",
      //         rawTexMetdata.resource ? rawTexMetdata.resource->GetInitData()->Identifier.GetPath().c_str() : nullptr,
      //         width, size);
-@@ -2508,6 +3273,9 @@ void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t
+@@ -2508,6 +3277,9 @@ void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t
  void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_t tmem, uint8_t tile, uint32_t palette,
                                 uint32_t cmt, uint32_t maskt, uint32_t shiftt, uint32_t cms, uint32_t masks,
                                 uint32_t shifts) {
@@ -5992,7 +6032,7 @@ index a1907a1..ebdc3fc 100644
      // OTRTODO:
      // SUPPORT_CHECK(tmem == 0 || tmem == 256);
  
-@@ -2530,6 +3298,12 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
+@@ -2530,6 +3302,12 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
      mRdp->texture_tile[tile].line_size_bytes = line * 8;
  
      mRdp->texture_tile[tile].tmem = tmem;
@@ -6005,7 +6045,7 @@ index a1907a1..ebdc3fc 100644
      // mRdp->texture_tile[tile].tmem_index = tmem / 256; // tmem is the 64-bit word offset, so 256 words means 2 kB
  
      mRdp->texture_tile[tile].tmem_index =
-@@ -2540,6 +3314,7 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
+@@ -2540,6 +3318,7 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
  }
  
  void Interpreter::GfxDpSetTileSize(uint8_t tile, uint16_t uls, uint16_t ult, uint16_t lrs, uint16_t lrt) {
@@ -6013,7 +6053,7 @@ index a1907a1..ebdc3fc 100644
      mRdp->texture_tile[tile].uls = uls;
      mRdp->texture_tile[tile].ult = ult;
      mRdp->texture_tile[tile].lrs = lrs;
-@@ -2555,6 +3330,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
+@@ -2555,6 +3334,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
      const uint8_t* src = mRdp->texture_to_load.addr;
      uint32_t entryCount = high_index + 1;
      uint32_t byteCount = entryCount * 2;
@@ -6032,7 +6072,7 @@ index a1907a1..ebdc3fc 100644
  
      if (tmem >= 256) {
          // N64 TMEM palette area starts at tmem word 256. Each CI4 palette = 16 entries = 16 tmem words.
-@@ -2589,7 +3376,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
+@@ -2589,7 +3380,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
      }
  }
  
@@ -6051,7 +6091,7 @@ index a1907a1..ebdc3fc 100644
      SUPPORT_CHECK(uls == 0);
      SUPPORT_CHECK(ult == 0);
  
-@@ -2658,6 +3456,11 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
+@@ -2658,6 +3460,11 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata = mRdp->texture_to_load.raw_tex_metadata;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].addr = mRdp->texture_to_load.addr;
@@ -6063,7 +6103,7 @@ index a1907a1..ebdc3fc 100644
      // fprintf(stderr, "GfxDpLoadBlock: line_size = 0x%x; orig = 0x%x; bpp=%d; lrs=%d\n", size_bytes,
      // orig_size_bytes,
      //         mRdp->texture_to_load.siz, lrs);
-@@ -2680,6 +3483,7 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
+@@ -2680,6 +3487,7 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
  }
  
  void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t lrs, uint32_t lrt) {
@@ -6071,7 +6111,7 @@ index a1907a1..ebdc3fc 100644
      SUPPORT_CHECK(tile == G_TX_LOADTILE);
  
      uint32_t word_size_shift = 0;
-@@ -2731,6 +3535,15 @@ void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32
+@@ -2731,6 +3539,15 @@ void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata = mRdp->texture_to_load.raw_tex_metadata;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].addr = mRdp->texture_to_load.addr + start_offset_bytes;
@@ -6087,7 +6127,7 @@ index a1907a1..ebdc3fc 100644
  
      const std::string_view texPath =
          mRdp->texture_to_load.raw_tex_metadata.resource != nullptr
-@@ -2870,8 +3683,10 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
+@@ -2870,8 +3687,10 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
      lrxf = lrxf / (4.0f * HALF_SCREEN_WIDTH(mActiveFrameBuffer)) - 1.0f;
      lryf = -(lryf / (4.0f * HALF_SCREEN_HEIGHT(mActiveFrameBuffer))) + 1.0f;
  
@@ -6100,7 +6140,7 @@ index a1907a1..ebdc3fc 100644
  
      struct LoadedVertex* ul = &mRsp->loaded_vertices[MAX_VERTICES + 0];
      struct LoadedVertex* ll = &mRsp->loaded_vertices[MAX_VERTICES + 1];
-@@ -2930,7 +3745,19 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
+@@ -2930,7 +3749,19 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
  
  void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry, uint8_t tile, int16_t uls,
                                          int16_t ult, int16_t dsdx, int16_t dtdy, bool flip) {
@@ -6121,7 +6161,7 @@ index a1907a1..ebdc3fc 100644
      uint64_t saved_combine_mode = mRdp->combine_mode;
      if ((mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE)) == G_CYC_COPY) {
          // Per RDP Command Summary Set Tile's shift s and this dsdx should be set to 4 texels
-@@ -2953,6 +3780,85 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
+@@ -2953,6 +3784,85 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
          dsdx = -dsdx;
          dtdy = -dtdy;
      }
@@ -6207,7 +6247,7 @@ index a1907a1..ebdc3fc 100644
      int16_t width = !flip ? lrx - ulx : lry - uly;
      int16_t height = !flip ? lry - uly : lrx - ulx;
      float lrs = ((uls << 7) + dsdx * width) >> 7;
-@@ -2985,7 +3891,34 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
+@@ -2985,7 +3895,34 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
      }
      mRdp->first_tile_index = tile;
  
@@ -6242,7 +6282,7 @@ index a1907a1..ebdc3fc 100644
      if (saved_tile != tile) {
          mRdp->textures_changed[0] = true;
          mRdp->textures_changed[1] = true;
-@@ -3043,6 +3976,11 @@ void Interpreter::GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_
+@@ -3043,6 +3980,11 @@ void Interpreter::GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_
  }
  
  void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry) {
@@ -6254,7 +6294,7 @@ index a1907a1..ebdc3fc 100644
      if (mRdp->color_image_address == mRdp->z_buf_address) {
          // Fullscreen Z clears are redundant — already done by glClear at frame start.
          bool isFullScreen = (ulx <= 0 && uly <= 0 && lrx >= (int32_t)(mNativeDimensions.width - 1) * 4 &&
-@@ -3078,6 +4016,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
+@@ -3078,6 +4020,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
      }
      uint32_t mode = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE));
  
@@ -6278,7 +6318,7 @@ index a1907a1..ebdc3fc 100644
      // Expand fullscreen fill rects to cover widescreen viewports.
      // Without this, screen clears and fades only cover the native 4:3 area.
      if (ulx == 0 && uly == 0) {
-@@ -3116,8 +4071,179 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
+@@ -3116,8 +4075,179 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
      mRdp->z_buf_address = zBufAddr;
  }
  
@@ -6458,7 +6498,7 @@ index a1907a1..ebdc3fc 100644
  }
  
  void Interpreter::GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode) {
-@@ -3252,7 +4378,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
+@@ -3252,7 +4382,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
                            (float)(1 << 10) * realSW, (float)(1 << 10) * realSH, false);
  }
  
@@ -6482,7 +6522,7 @@ index a1907a1..ebdc3fc 100644
      // Segmented?
      if (w1 & 1) {
          uint32_t segNum = (uint32_t)(w1 >> 24);
-@@ -3377,6 +4519,10 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3377,6 +4523,10 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      const char* filename = (const char*)(cmd)->words.w1;
      uint32_t p = C0(16, 8);
      uint32_t l = C0(0, 16);
@@ -6493,7 +6533,7 @@ index a1907a1..ebdc3fc 100644
      if (p == 7) {
          g_exec_stack.openDisp(filename, l);
      } else if (p == 8) {
-@@ -3389,10 +4535,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3389,10 +4539,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      return false;
  }
  
@@ -6518,7 +6558,7 @@ index a1907a1..ebdc3fc 100644
  
      gfx->GfxSpMatrix(C0(0, 8) ^ F3DEX2_G_MTX_PUSH, (const int32_t*)gfx->SegAddr(mtxAddr));
      return false;
-@@ -3632,7 +4792,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3632,7 +4796,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
  
@@ -6540,7 +6580,7 @@ index a1907a1..ebdc3fc 100644
  
      return false;
  }
-@@ -3736,16 +4909,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3736,16 +4913,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
  }
  
  // F3D, F3DEX, and F3DEX2 do the same thing but F3DEX2 has its own opcode number
@@ -6567,7 +6607,7 @@ index a1907a1..ebdc3fc 100644
          (*cmd0) = subGFX;
          g_exec_stack.branch(cmd);
          return true; // shortcut cmd increment
-@@ -4018,7 +5201,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
+@@ -4018,7 +5205,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
      uintptr_t i = (uintptr_t)gfx->SegAddr(cmd->words.w1);
@@ -6639,7 +6679,7 @@ index a1907a1..ebdc3fc 100644
      char* imgData = (char*)i;
      uint32_t texFlags = 0;
      RawTexMetadata rawTexMetdata = {};
-@@ -4947,6 +6194,19 @@ static void gfx_step() {
+@@ -4947,6 +6198,19 @@ static void gfx_step() {
          } else {
              SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, for loaded ucode: {}", (uint8_t)opcode,
                              (uint32_t)ucode_handler_index);
@@ -6659,7 +6699,7 @@ index a1907a1..ebdc3fc 100644
          }
      } else {
          SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, invalid ucode: {}", (uint8_t)opcode, (uint32_t)ucode_handler_index);
-@@ -5005,8 +6265,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
+@@ -5005,8 +6269,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
      mGameFb = mRapi->CreateFramebuffer();
      mGameFbMsaaResolved = mRapi->CreateFramebuffer();
  
@@ -6670,7 +6710,7 @@ index a1907a1..ebdc3fc 100644
  
      for (int i = 0; i < MAX_SEGMENT_POINTERS; i++) {
          mSegmentPointers[i] = 0;
-@@ -5109,16 +6369,28 @@ void Interpreter::StartFrame() {
+@@ -5109,16 +6373,28 @@ void Interpreter::StartFrame() {
  
      mPrvDimensions = mCurDimensions;
      mPrevNativeDimensions = mNativeDimensions;
@@ -6708,7 +6748,7 @@ index a1907a1..ebdc3fc 100644
          }
          if (mMsaaLevel > 1 && !ViewportMatchesRendererResolution()) {
              mRapi->UpdateFramebufferParameters(mGameFbMsaaResolved, mCurDimensions.width, mCurDimensions.height, 1,
-@@ -5173,7 +6445,273 @@ void Interpreter::RunGuiOnly() {
+@@ -5173,7 +6449,273 @@ void Interpreter::RunGuiOnly() {
      }
  }
  
@@ -6982,7 +7022,7 @@ index a1907a1..ebdc3fc 100644
      SpReset();
  
      mGetPixelDepthPending.clear();
-@@ -5184,8 +6722,12 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5184,8 +6726,12 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
      mRapi->UpdateFramebufferParameters(0, mGfxCurrentWindowDimensions.width, mGfxCurrentWindowDimensions.height, 1,
                                         false, true, true, !mRendersToFb);
      mRapi->StartFrame();
@@ -6996,7 +7036,7 @@ index a1907a1..ebdc3fc 100644
      mRdp->viewport_or_scissor_changed = true;
      mRenderingState.viewport = {};
      mRenderingState.scissor = {};
-@@ -5194,7 +6736,23 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5194,7 +6740,23 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
      g_exec_stack.start((F3DGfx*)commands);
      while (!g_exec_stack.cmd_stack.empty()) {
          auto cmd = g_exec_stack.cmd_stack.top();
@@ -7020,7 +7060,7 @@ index a1907a1..ebdc3fc 100644
          if (dbg->IsDebugging()) {
              g_exec_stack.gfx_path.push_back(cmd);
              if (dbg->HasBreakPoint(g_exec_stack.gfx_path)) {
-@@ -5209,8 +6767,15 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5209,8 +6771,15 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
              }
              g_exec_stack.gfx_path.pop_back();
          }
@@ -7036,7 +7076,7 @@ index a1907a1..ebdc3fc 100644
  
      Flush();
      mGfxFrameBuffer = 0;
-@@ -5239,6 +6804,7 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5239,6 +6808,7 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
  }
  
  void Interpreter::EndFrame() {
