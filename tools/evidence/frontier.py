@@ -288,7 +288,8 @@ def main():
     for g in gates:
         by_class[g["class"]].append(g)
     json.dump({"totals": tot, "reached": len(reached), "functions": len(internal), "gates": gates,
-               "no_gate": no_gate}, open(os.path.join(out, "frontier.json"), "w"), indent=1)
+               "no_gate": no_gate, "unreached": sorted(unreached)},  # (dead_classes.py classes them)
+              open(os.path.join(out, "frontier.json"), "w"), indent=1)
 
     md = ["# What keeps code unreached (%s)" % files_rx, "",
           "Runs: %s." % ", ".join(os.path.basename(r.rstrip("/")) for r in runs), "",

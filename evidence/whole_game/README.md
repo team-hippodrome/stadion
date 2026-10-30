@@ -1,5 +1,13 @@
 # Whole game: how far the levers reach, what is left and why
 
+**Two numbers (`dead_classes.md`, `tools/evidence/dead_classes.py`):** all functions 6763 of 7490 (90.3%); **the
+code the shipped game can run 6763 of 7261 (93.1%), 94.2% without the 64DD library.** Of the 727 unreached: 229
+proven dead (113 referenced by nothing in the C code or the ROM, 59 reachable only from such code, 52 never selected
+by the shipped data: animation effect slots no list names, `battle_anim_slots.md`, and Game Boy music commands no cry
+uses; 5 PAL TV mode only), 83 the 64DD library (no drive in the port), 415 live (still to reach; per area and gate
+class in `dead_classes.md`). The dead classes are proofs, not misses: each test is in the tool's docstring, the
+forced direct calls of the unreferenced ones are in `dead_calls.md`, and `data_dead.json` points to the data proofs.
+
 **Current: 6763 of 7490 functions (90.3%), lines 81.9%, branches 73.1%.** Four parallel side sessions, each with
 its own routes and README (what each route reaches, save recipes, input patterns):
 - `routes/lab_pc2/`: the Lab PC's Game Pak item box (new box, merging stacks), saving changed boxes, swapping sides,
