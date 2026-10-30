@@ -861,6 +861,17 @@ sample count after every VI frame).
     cells past it with a NULL entry (on the N64 the count is always the 12 boxes). The grids take the banks' lists now.
     The cell draws of these grids and of the move-destination picker (box "count/capacity", the party's "03/06") read
     the box and bank through views with N64 offsets as well and now use the real structs.
+  - Column header selection one cell off (R from the list lands on Nickname, the TYPE column and its "Group by TYPE"
+    can't be selected; the same input in ares opens "Group by TYPE"): unk_func_8830867C_02C_04C_018 started with
+    char[0x8] for the grid's first two cells, one pointer on the host, so LabPCList_SwitchColumnPage wrote every
+    page's columns one cell too low. The two cells are pointers now. Behind it, two more 4-byte-pointer layouts:
+    the type list's table had a hard-coded 8-byte stride ({type, color pointer} is 16 bytes on the host: segfault in
+    BattleInfoWidget_DrawStatusListEntry), and the move list entry declared its move id as a pointer (16-byte
+    entries read at 8, four of them written past the end of the widget).
+  - Same kind of views, found while checking the headers: unk_func_8830867C_034_03C_038_02C_000 (a box with its
+    owner pointer as char[0x8], so the selected flag and the 0x1C stride were wrong on the host) and
+    unk_func_88313894 / _020 (the move-destination picker's "box full" check, through a char-padded view of the
+    banks); both now use the real structs.
 - Pikachu Surf reward (Stadium_BonusPikachuReward; the evidence pilot's free battle + reward entry, segfault in
   ModelAnim_EvaluateScaleChannel at fault address 0x8811208e when the three surfing followers appear after "Pikachu
   learned Surf"): the followers' animation `D_8C2011C4` lies in the data fragment `_798CD0` (Fragment_Load, linked at
