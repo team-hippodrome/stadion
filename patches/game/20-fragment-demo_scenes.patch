@@ -138,7 +138,7 @@ index 7f6d1b423905dea2d06a918fe100462f56bbdd6a..52c1826ceb5dc681777e2a92c347bc6d
  
      gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 diff --git a/src/fragments/demo_scenes/demo_scenes_161E60.c b/src/fragments/demo_scenes/demo_scenes_161E60.c
-index 9443e6bba021f7eb19c8d76d3f624548e62305fa..f18a999ede43c02c7f1800eeff940877a4106540 100644
+index 9443e6bba021f7eb19c8d76d3f624548e62305fa..31ef790ee892ce46df6e6683bb9218cbcc443515 100644
 --- a/src/fragments/demo_scenes/demo_scenes_161E60.c
 +++ b/src/fragments/demo_scenes/demo_scenes_161E60.c
 @@ -464,13 +464,13 @@ static unk_D_86002F34_000_014 D_86B0CF38 = {
@@ -183,7 +183,25 @@ index 9443e6bba021f7eb19c8d76d3f624548e62305fa..f18a999ede43c02c7f1800eeff940877
      0x0C00FFFF,  0x05000000, 0x0B00001E, 0x00000000,    0x014000F0, 0x0000000F, 0x00000000,    0x00000000, 0x05000000,
      0x0D000000,  0x05000000, 0x14000000, 0x002D0019,    0xFFFFFF28, 0x08000000, Completion_LightAngleCallbackA, 0x00000000, 0x14000000,
      0x002D0019,  0x80808028, 0x08000000, Completion_LightAngleCallbackB, 0x00000000, 0x16646464, 0x0F000003,    0x05000000, 0x0A000000,
-@@ -1616,13 +1616,13 @@ void Completion_InitScene(void) {
+@@ -747,8 +747,15 @@ static char** D_86B0EBD4;
+ static unk_D_86B0EBD8* D_86B0EBD8;
+ static unk_D_86B0EBDC* D_86B0EBDC;
+ static unk_D_86B0EBE0* D_86B0EBE0;
+-static u8 D_86B0EBE8[0xA60];
+-static u8 D_86B0F648[0x180];
++// PORT: one block, as in the N64's bss: Completion_LoadModels DMAs a 0xBC0-byte animation record into D_86B0EBE8 that
++// continues into D_86B0F648 (read through *D_86B0F648). As separate host arrays the DMA ran over the statics after
++// D_86B0EBE8 (the geo root D_86B0EBC0: crash in Completion_InitCamera) and D_86B0F648 never got its part.
++static struct {
++    u8 head[0xA60];
++    u8 tail[0x180];
++} sCompletionAnimRecord;
++#define D_86B0EBE8 (sCompletionAnimRecord.head)
++#define D_86B0F648 (sCompletionAnimRecord.tail)
+ static s8 D_86B0F7C8[0x100];
+ static s8 D_86B0F8C8[0x100];
+ static s32 D_86B0F9C8;
+@@ -1616,13 +1623,13 @@ void Completion_InitScene(void) {
      MainPool_FinalizeAllocation(sp1C);
      ModelRenderer_InitDisplayRoots();
  
@@ -200,7 +218,7 @@ index 9443e6bba021f7eb19c8d76d3f624548e62305fa..f18a999ede43c02c7f1800eeff940877
      bzero(D_86B0EBD8, 0x4C);
  
      Completion_SelectBonusPokemon();
-@@ -1647,7 +1647,7 @@ s32 Stage_ShowCompletionScene(void) {
+@@ -1647,7 +1654,7 @@ s32 Stage_ShowCompletionScene(void) {
      ASSET_LOAD(D_3000000, cup_clear_ui, 0);
  
      FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);

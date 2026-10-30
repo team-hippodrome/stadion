@@ -1537,3 +1537,21 @@ sea, no fog tint and pale label boxes. Three separate causes:
   (`patches/libultraship.patch`, `GfxSpTri1`).
 After these fixes, region averages of the 9500/9800 frames match ares within a few levels (what remains is ares'
 320x240 VI output).
+
+## Victory Palace completion scene and the badge carousel after a Free Battle (crashes)
+Found by the function-evidence runs (branch evidence-pilot: Stadium flash variants and Game Pak Free Battles).
+- Completion scene (Victory Palace with every statue: `stadium_save statue set all`, `replays/tour_vp1.rec`, frame
+  3506): segfault in `Completion_InitCamera` (inlined in `Completion_InitScene`), the geo root `D_86B0EBC0` was
+  garbage. A watchpoint showed the writer: `Completion_LoadModels` DMAs a 0xBC0-byte animation record (as the battle
+  engine's) into `u8 D_86B0EBE8[0xA60]`; on the N64 it continues into the next bss array `D_86B0F648[0x180]` (the part
+  the scene reads through `*D_86B0F648`), on the host the copy ran over the statics after `D_86B0EBE8`. Both are one
+  block now (demo_scenes_161E60.c). The scene then matches ares ("For your 151 Pokémon HALL OF FAME, you won AMNESIA
+  PSYDUCK!", same pose and lights). The other 0xBC0 record DMAs (intro, gallery camera, battle engine) have
+  0xBE0-byte buffers.
+- Badge carousel (`BattlePrep_LoadBadgeTextures`, battle_prep_397B10.c): every rules confirmation builds the badge
+  carousel, but its archive index `sp44` is only set for session modes 1-8; for Free Battle (mode 0) it is an
+  uninitialised stack slot (in the original code too). Its trainer records are read once `roundOrDemoId > 0`, so after
+  a Free Battle the host read a wild record and crashed (frame 29642 of the evidence Game Pak Free Battle, in the
+  instrumented build: the stack contents decide whether it crashes). Modes without a badge set now get the neutral
+  texture (file 0), as unplayed rounds do; Free Battle does not show the carousel (the Record screen after the battle
+  is unchanged).
