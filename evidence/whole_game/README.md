@@ -1,6 +1,25 @@
 # Whole game: how far the levers reach, what is left and why
 
-**Current (origin/main 9f9343c merged: the See List fix, PR #64, and the Pikachu reward and event battle fixes,
+**Current (origin/main 45a9c41 merged: the Lab PC list fixes, PR #68): 6394 of 7490 functions (85.4%), lines
+76.1%, branches 67.4%** (previous: 83.5%, 74.1%, 65.8%). New: the **Lab PC list** 247 of 282 (was 129), driven screen
+by screen from its input code with screenshots (`run.py --shots`) and checked against the N64 in ares:
+- Routes `routes/lab_list/*.rec`, each from the list screen with both box lists (Lab with a Game Pak, the
+  `boxes_full` Game Boy save, a Stadium save with Lab boxes 1-3 filled and item box 1 for the cartridge's trainer:
+  `stadium_save box ... add 1 PIKACHU:30 ...`, `stadium_save items ... add 1 TM01:2 TM24 TM13 198 "PP UP:5" "HP UP:3"
+  PROTEIN:3 IRON:3 CARBOS:3 CALCIUM:3 --name MICHI --trainer-id 12345`): the type filter (one type, a pair, cancel),
+  the move filter, the level sorts and level-range dialog, the stat sorts, the Pokemon header's menu (sort, Group by
+  CUP, item list, Select Pokemon to be listed, cancel selections), the row menu (group by species / type, Move to a
+  64 box, Check) and leaving with and without saving.
+- Four port bugs found on the way: the TM/HM item list counted 16-byte N64 entries (crash when the list opens with
+  any TM, HM, vitamin or PP Up in the item box), empty box-grid cells drawn from a NULL entry (crash on "64 BOXes"),
+  the column header's cells declared as 8 bytes of padding (one pointer on the host: every column one cell off, the
+  type filter unreachable; ares opens "Group by TYPE" on the same input), all fixed in PR #68; and using an item
+  (`routes/lab_list/use_item_crash.rec`: a vitamin goes down the TM path because `func_88305F28` reads the item
+  entry through an N64-offset view, `unk_func_8830867C_04C_030_02C_000_000`), fix proposed. Left in the list: item
+  use (TM teaching, vitamins, PP Up and their animations, about 20 functions) behind that crash, the level-range
+  filter's apply step, a few state setters and empty `func_` stubs.
+
+**Previous round (origin/main 9f9343c merged: the See List fix, PR #64, and the Pikachu reward and event battle fixes,
 PR #67): 6255 of 7490 functions (83.5%), lines 74.1%, branches 65.8%** (previous round 79.1%, 68.1%, 59.4%).
 Four batches, each compacted into one profile (`tools/evidence/compact_runs.py`; `frontier.py` and `covdiff.py` read the compacted `merged.profdata`): the
 baseline levers below again (142 runs and the forked direct calls), the 28 stored recordings extended with menu
