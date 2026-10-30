@@ -1,6 +1,13 @@
 # Whole game: how far the levers reach, what is left and why
 
-**Current: 6573 of 7490 functions (87.8%), lines 78.4%, branches 69.4%.** The Lab PC's Organize screens
+**Current: 6611 of 7490 functions (88.3%), lines 78.9%, branches 69.8%.** Registered teams
+(`routes/registration/*.rec`): the Gym Leader Castle menu entered through the state loop
+(`--set "State_TitleScreen#1@exit:gCurrentGameState:4=39"`, the `teams` flash with one registered team, the
+`party6` Game Boy save), Registration: register a team of six from the cartridge (each pick: A for the details,
+A on "Use this Pokemon? Yes"), check, edit and delete registered teams. Team selection 200 of 232; left: the rental
+team grid used when a battle's team is picked from rentals, a registered team's save prompt, rule prompts.
+
+**Previous round: 6573 of 7490 functions (87.8%), lines 78.4%, branches 69.4%.** The Lab PC's Organize screens
 (`routes/lab_pc/*.rec`: each icon of the Pokemon, Items and BOXes screens with a change, then leaving through the
 save prompt; the `items` Game Boy save for the Items screen): the Items screen's source drop-down, item swap and
 re-order, box re-order and exchange, the Pokemon screen's moves. Lab PC 234 of 271. Check BOX crashes
