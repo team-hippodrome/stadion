@@ -5109,7 +5109,7 @@ index dfdc294c40f335c2122ba0c4770f8cad1cb27ae3..81ee80f06dc4e5102538f750b513a815
  
  #endif // _17300_H_
 diff --git a/src/model_animation_events.c b/src/model_animation_events.c
-index bbb80b403ce568608d99666e43d22ddc0651214c..bd6d17fc7a1e46e3dcf4c4c5f2cb72b8b99893e5 100644
+index bbb80b403ce568608d99666e43d22ddc0651214c..6bce94d27844110f8baf8c4a2e53b056e142a0b7 100644
 --- a/src/model_animation_events.c
 +++ b/src/model_animation_events.c
 @@ -1,17 +1,45 @@
@@ -5203,7 +5203,7 @@ index bbb80b403ce568608d99666e43d22ddc0651214c..bd6d17fc7a1e46e3dcf4c4c5f2cb72b8
          }
      }
  }
-@@ -89,14 +121,14 @@ void ModelAnim_ClearEventTrack(DisplayObject* arg0) {
+@@ -89,19 +121,24 @@ void ModelAnim_ClearEventTrack(DisplayObject* arg0) {
      arg0->eventTrack.data = 0;
  }
  
@@ -5220,7 +5220,17 @@ index bbb80b403ce568608d99666e43d22ddc0651214c..bd6d17fc7a1e46e3dcf4c4c5f2cb72b8
      }
  
      return ptr->frame;
-@@ -111,9 +143,9 @@ s32 ModelAnim_IsEventFrame(DisplayObject* display_object, s16 frame_number) {
+ }
+ 
++// port: the header may be raw big-endian asset data, so code outside this file reads endFrame through here
++u16 ModelAnim_GetEventEndFrame(DisplayObject* display_object) {
++    return ETD_END(display_object->eventTrack.data);
++}
++
+ void ModelAnim_SetEventFrame(DisplayObject* display_object, s16 frame_number) {
+     display_object->eventTrack.frame = frame_number - 1;
+ }
+@@ -111,9 +148,9 @@ s32 ModelAnim_IsEventFrame(DisplayObject* display_object, s16 frame_number) {
  }
  
  s32 ModelAnim_IsEventTrackNearEnd(DisplayObject* display_object) {
@@ -5233,18 +5243,20 @@ index bbb80b403ce568608d99666e43d22ddc0651214c..bd6d17fc7a1e46e3dcf4c4c5f2cb72b8
 +    return (display_object->eventTrack.frame + 1) == ETD_END(display_object->eventTrack.data);
  }
 diff --git a/src/model_animation_events.h b/src/model_animation_events.h
-index c939ccc39edff50f0c891b9f13b33536709c3b18..49ccaa55a6f92961093e5853c3979f8318a6576b 100644
+index c939ccc39edff50f0c891b9f13b33536709c3b18..bbe95a1c8e5c0286a41e5b7e933b7df8ac4e2492 100644
 --- a/src/model_animation_events.h
 +++ b/src/model_animation_events.h
-@@ -23,7 +23,7 @@ void ModelAnim_BeginEventContext(EventTrackState* arg0, u16 arg1, s32 arg2);
+@@ -23,8 +23,9 @@ void ModelAnim_BeginEventContext(EventTrackState* arg0, u16 arg1, s32 arg2);
  void ModelAnim_EndEventContext(void);
  void ModelAnim_GetEventAtFrame(unk_D_86002F34_alt11_018** arg0, unk_D_86002F34_alt11_018* arg1, s32 arg2);
  void ModelAnim_ClearEventTrack(DisplayObject* arg0);
 -s16 ModelAnim_BindEventTrack(DisplayObject* arg0, s16 arg1, s32 arg2);
 +s16 ModelAnim_BindEventTrack(DisplayObject* display_object, s16 frame_number, intptr_t arg2);
  void ModelAnim_SetEventFrame(DisplayObject* display_object, s16 frame_number);
++u16 ModelAnim_GetEventEndFrame(DisplayObject* display_object);
  s32 ModelAnim_IsEventFrame(DisplayObject* display_object, s16 frame_number);
  s32 ModelAnim_IsEventTrackNearEnd(DisplayObject* display_object);
+ s32 ModelAnim_IsEventTrackDone(DisplayObject* display_object);
 diff --git a/src/model_renderer.c b/src/model_renderer.c
 index f4ed7d6f364280acbcf96f8dae223f51512c655a..6a80fac007bc1acb63a90f468f00df1b8777495b 100644
 --- a/src/model_renderer.c
