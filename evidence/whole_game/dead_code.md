@@ -1,6 +1,6 @@
 # Functions nothing references
 
-Checked: 1311. With a C reference (caller, address taken or pointer table): 712. Referenced only by a raw address word in the ROM: 18. **No reference at all: 581.** Not in the port's function table: 0.
+Checked: 1017. With a C reference (caller, address taken or pointer table): 421. Referenced only by a raw address word in the ROM: 18. **No reference at all: 578.** Not in the port's function table: 0.
 
 ## No reference at all, per area
 
@@ -19,14 +19,14 @@ Checked: 1311. With a C reference (caller, address taken or pointer table): 712.
 | table_view.c | 6 | ByteMatrix_AppendRow, ByteMatrix_CopyRow, ByteMatrix_CopyRowAt, ByteMatrix_Free, PointerList_Free, Text_CompareU16Terminated |
 | gb_save.c | 6 | Color_InterpolateFromGray, Ui_AdjustSteppedRangeSelection, Ui_AdjustSteppedScrollSelection, Ui_GetSelectionDirection, Ui_HandleHorizontalSelectionInput, Ui_HandleVerticalSelectionInput |
 | graphics_textures.c | 6 | Font_DisableLineBreak, Font_EnableLineBreak, Font_GetSetInfo, Font_UnloadSizes, Gfx_DrawTextureI16, Gfx_DrawTextureI8 |
-| lab_pc_list | 6 | LabPCList_ShowListScreen, func_88306FE4, func_883097E4, func_88309808, func_8830FA10, func_8830FA18 |
 | victory_palace | 6 | func_82600C08, func_82600CFC, func_82600D34, func_82600D3C, func_82602570, func_826028CC |
 | ekans_game | 6 | func_86C01748, func_86C0250C, func_86C027A4, func_86C027AC, func_86C027B4, func_86C034F8 |
 | DDC0.c | 5 | Audio_ResetCurrentMusic, func_8000D1C0, func_8000D1C8, func_8000D1D0, func_8000D1D8 |
 | save_data.c | 5 | Deck_GetSaveEntryNameWrapper, Save_CommitAllBankRecords, Save_EnsureBank3Loaded, Save_RestoreTypedRecord, func_8002667C |
-| particle_data_library | 5 | DisplayList_InitAnimatedFrameSegment, DisplayList_InitConditionalSegment, DisplayList_InitIndexedTextureSegment, DisplayList_InitSelectedTextureSegment, DisplayList_InitTwoSegmentChain |
 | gallery_camera | 5 | GalleryCamera_DebugAdjustZoomOffset, GalleryCamera_ResetFreeView, func_8690232C, func_869043F4, func_86904BFC |
 | leo.c | 5 | Leo_AbortPendingBootRequest, Leo_InitializeBootState, Leo_ResetBootStateIfReady, Leo_RunBootStateMachine, func_8000E5B4 |
+| lab_pc_list | 5 | func_88306FE4, func_883097E4, func_88309808, func_8830FA10, func_8830FA18 |
+| particle_data_library | 4 | DisplayList_InitConditionalSegment, DisplayList_InitIndexedTextureSegment, DisplayList_InitSelectedTextureSegment, DisplayList_InitTwoSegmentChain |
 | minigame_shared_graphics | 4 | MiniGfx_DrawBackgroundStrips, MiniGfx_DrawScaledSprite, MiniGfx_DrawVertexColoredQuad, func_87A010C8 |
 | audio_sound_state.c | 3 | Audio_GetActiveVoiceCount, Audio_GetFreeVoiceCount, Audio_IsSoundPlayingWrapper |
 | 3D140.c | 3 | Audio_GetDiskReadyStatus, Audio_SetDiskReadyPolling, Cry_SetEnabled |
@@ -55,7 +55,6 @@ Checked: 1311. With a C reference (caller, address taken or pointer table): 712.
 | rattata_game | 2 | func_862002EC, func_86200938 |
 | credits | 1 | Credits_Main |
 | cry.c | 1 | Cry_PlayVariant4 |
-| debug_menu_exit | 1 | DebugMenu_Exit |
 | debug_menu_slot69 | 1 | DebugMenu_ForwardSlot69 |
 | debug_menu_slot70 | 1 | DebugMenu_ForwardSlot70 |
 | debug_menu_slot72 | 1 | DebugMenu_ForwardSlot72 |

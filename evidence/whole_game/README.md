@@ -1,5 +1,19 @@
 # Whole game: how far the levers reach, what is left and why
 
+**Current (origin/main 8309990 merged: the Lab PC Items / See List and Pokédex AREA fixes, PR #51):** 155 runs
+(the same levers; the Lab PC menu and Pokédex routes now run to their end) reach **5146 of 7487 functions
+(68.7%)**, lines 62.2%, branches 54.5% (before the fixes: 65.7%, 58.8%, 53.2%). Gained: Lab PC list 0 -> 101 of 281,
+Lab PC 66 -> 153 of 269, Pokédex 40 -> 62 of 68, widget tree +20. Left: 1324 functions behind 837 gates, 1017 with no
+reached caller above them, 578 of those referenced by nothing (`dead_code.md`). `frontier.md`, `gate_trials.md` and
+`dead_code.md` are this run's; the tables below are the first whole-game round.
+
+Two more port crashes on paths these runs reach (not fixed here):
+1. Victory Palace with every statue (flash: `stadium_save statue set all`, `replays/tour_vp1.rec`, frame 3506):
+   segfault in `Completion_InitScene` (from `Stage_ShowCompletionScene`, `Stage_DispatchDemoScene`).
+2. Free Battle after a Game Pak battle ends (`../battle_engine/routes/free_battle_gamepak.rec`, the Metronome
+   party, seed 7, frame 29642): segfault in `BattlePrep_LoadBadgeTextures` (from `BattlePrep_InitBadgeCarouselScene`,
+   the rules screen after the battle).
+
 Build: every game source instrumented (`cmake ... -DCMAKE_PROJECT_INCLUDE=cmake/evidence.cmake
 -DPORT_EVID_FILES=game/src/`, 351 sources), function entry hooks plus clang source coverage. Call graph:
 `tools/evidence/callgraph.py <build> cg.json --files "game/src/|/generated/wrap/"` (7608 functions, 102 pointer
