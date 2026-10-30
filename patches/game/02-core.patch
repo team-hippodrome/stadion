@@ -8074,7 +8074,7 @@ index 172d6ea00fd26f122d7c65dd7c3fb023469670f4..b79ef7327a34d02ea5d5921d9416df05
  
  s32 Text_CompareU16Terminated(u16* a0, u16* a1) {
 diff --git a/src/table_view.h b/src/table_view.h
-index 5d9706571c6d1b2255a8bcd4451304c02ce3810e..cfa239dd34d9961f025de7a44332c6dd6130768f 100644
+index 5d9706571c6d1b2255a8bcd4451304c02ce3810e..ea06219db15321546ff19057e0371ba687023f78 100644
 --- a/src/table_view.h
 +++ b/src/table_view.h
 @@ -20,8 +20,7 @@ typedef struct unk_func_88200FA0_030_038 {
@@ -8104,7 +8104,14 @@ index 5d9706571c6d1b2255a8bcd4451304c02ce3810e..cfa239dd34d9961f025de7a44332c6dd
      /* 0x10 */ unk_func_88205880_A030 unk_10;
  } unk_func_8820BE14_06C_000_alt; // size = 0x1C
  
-@@ -131,9 +136,9 @@ typedef struct unk_func_8830867C_04C_030_02C_000_000_00C {
+@@ -125,15 +130,15 @@ typedef struct unk_func_8830867C_02C_0CC {
+ } unk_func_8830867C_02C_0CC; // size = 0xC
+ 
+ typedef struct unk_func_8830867C_04C_030_02C_000_000_00C {
+-    /* 0x00 */ s32 unk_00;
++    /* 0x00 */ u8* unk_00; // PORT64: the list's data (was s32)
+     /* 0x04 */ char unk04[0x4];
+     /* 0x08 */ s32 unk_08;
  } unk_func_8830867C_04C_030_02C_000_000_00C; // size >= 0xC
  
  typedef s32 (*func_func_8002D1AC)(unk_func_8830867C_02C_0CC_000*, s32*);
