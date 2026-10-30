@@ -12,7 +12,7 @@ both sides, so the move's sound effects are what is heard); --all-paths runs eve
 
 Work and results go to build-xcheck-sweep/ (XCHECK_SWEEP_DIR overrides): cases/<id>/result.json (+ sheets of
 mismatching animations). Finished cases are cached: a rerun only runs cases that are missing or whose spec changed
-(--force reruns them). Frames are deleted after each case.
+(--force reruns them). Frames are deleted after each case (XCHECK_KEEP_FRAMES=1 keeps them).
 
 Paths per move come from the decomp: the move table gMoveDataWithZeroth (effect, power, type, accuracy) and the
 type chart gTypeEffects decide which variants exist (crit, miss, super / not very effective, immune, secondary
@@ -468,7 +468,7 @@ def run_case(c, species, port_bin, max_frames):
     res["spec"] = c["spec"]
     res["id"] = c["id"]
     json.dump(res, open(os.path.join(d, "result.json"), "w"), indent=1)
-    for sub in ("port_anim", "ares_anim"):  # frames are large: only the sheets of mismatches stay
+    for sub in ("port_anim", "ares_anim") if not os.environ.get("XCHECK_KEEP_FRAMES") else ():  # frames are large
         shutil.rmtree(os.path.join(d, sub), ignore_errors=True)
     for f in ("port.flash", "ares.flash", "port_last.rec", "port.pcm", "port.pcm.frames", "ares.pcm", "ares.pcm.frames"):
         if os.path.exists(os.path.join(d, f)):
