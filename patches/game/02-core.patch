@@ -311,7 +311,7 @@ index e943cefa45fcb73ba82b57d73c44ebc49b90a3cd..f28a9ed3368bdcd164239bead75a15c8
          D_80077DAC = 1;
          return;
 diff --git a/src/3D140_2.c b/src/3D140_2.c
-index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d14ba9e0e6 100644
+index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2f1466028 100644
 --- a/src/3D140_2.c
 +++ b/src/3D140_2.c
 @@ -1,5 +1,5 @@
@@ -599,17 +599,20 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u8 temp_v0;
  
      if (arg0 == 0 || arg0 >= 5U) {
-@@ -2246,6 +2301,9 @@ void func_800414B8(s32 arg0) {
+@@ -2246,6 +2301,12 @@ void func_800414B8(s32 arg0) {
  }
  
  void Audio_StartBattleMusicSequence(void) {
 +    if (PORT_AUDIO_OFF()) {
 +        return;
 +    }
++    if (Port_XcheckNoMusic()) { // PORT: battle cross-check (src/port/xcheck.cpp): sound effects without the music
++        return;
++    }
      if (D_80078E80 == 0) {
          Audio_StartMusicTrack(0x3D);
          Audio_PlayCommand(0x16, D_80078400, 0);
-@@ -2278,11 +2336,17 @@ void Audio_StartBattleMusicSequence(void) {
+@@ -2278,11 +2339,17 @@ void Audio_StartBattleMusicSequence(void) {
  }
  
  void Audio_StartResultMusicSequence(void) {
@@ -627,7 +630,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u8* seq;
  
      if ((D_800783B4 < D_800783B8) && (D_80078388 != 0) && (AudioStream_IsPlaying(1) == 0)) {
-@@ -2376,6 +2440,9 @@ void Audio_UpdateBattleAudioFrame(void) {
+@@ -2376,6 +2443,9 @@ void Audio_UpdateBattleAudioFrame(void) {
   * register-materialised store.
   */
  void func_80041A98(void) {
@@ -637,7 +640,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      s32 i;
      s32 j;
  
-@@ -2426,6 +2493,9 @@ void func_80041A98(void) {
+@@ -2426,6 +2496,9 @@ void func_80041A98(void) {
  }
  
  void Audio_QueueSequenceId(u32 arg0) {
@@ -647,7 +650,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      OSIntMask mask;
  
      if ((D_80078388 != 0) && (D_800783FC != 0) && (arg0 != 0)) {
-@@ -2437,6 +2507,9 @@ void Audio_QueueSequenceId(u32 arg0) {
+@@ -2437,6 +2510,9 @@ void Audio_QueueSequenceId(u32 arg0) {
  }
  
  void Audio_RemoveLastQueuedSequenceId(void) {
@@ -657,7 +660,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      OSIntMask mask;
  
      if ((D_80078388 != 0) && (D_800783FC != 0)) {
-@@ -2447,6 +2520,9 @@ void Audio_RemoveLastQueuedSequenceId(void) {
+@@ -2447,6 +2523,9 @@ void Audio_RemoveLastQueuedSequenceId(void) {
  }
  
  void Audio_SwapSoundCandidates(u8* arg0, u8* arg1) {
@@ -667,7 +670,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u8 temp_v0 = *arg0;
      u8 temp_v1 = *arg1;
  
-@@ -2457,6 +2533,9 @@ void Audio_SwapSoundCandidates(u8* arg0, u8* arg1) {
+@@ -2457,6 +2536,9 @@ void Audio_SwapSoundCandidates(u8* arg0, u8* arg1) {
  }
  
  u16 Audio_FilterRecentSoundId(u16 arg0) {
@@ -677,7 +680,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      s32 i;
  
      for (i = 0; i < 20; i++) {
-@@ -2469,6 +2548,9 @@ u16 Audio_FilterRecentSoundId(u16 arg0) {
+@@ -2469,6 +2551,9 @@ u16 Audio_FilterRecentSoundId(u16 arg0) {
  }
  
  void Audio_RecordRecentSoundId(u16 arg0) {
@@ -687,7 +690,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u16 i;
  
      for (i = 0; i < 19; i++) {
-@@ -2479,6 +2561,9 @@ void Audio_RecordRecentSoundId(u16 arg0) {
+@@ -2479,6 +2564,9 @@ void Audio_RecordRecentSoundId(u16 arg0) {
  }
  
  void Audio_RemoveRecentSoundAt(u16 arg0) {
@@ -697,7 +700,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u32 i;
  
      for (i = arg0; i > 0; i--) {
-@@ -2489,6 +2574,9 @@ void Audio_RemoveRecentSoundAt(u16 arg0) {
+@@ -2489,6 +2577,9 @@ void Audio_RemoveRecentSoundAt(u16 arg0) {
  }
  
  u32 Audio_SelectSoundAvoidingRecent(u16* arg0) {
@@ -707,7 +710,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u16 temp_v0 = *arg0;
      u32 i;
      u32 j;
-@@ -2524,6 +2612,9 @@ u32 Audio_SelectSoundAvoidingRecent(u16* arg0) {
+@@ -2524,6 +2615,9 @@ u32 Audio_SelectSoundAvoidingRecent(u16* arg0) {
  }
  
  void Audio_QueueSoundAvoidingRecent(u16* arg0) {
@@ -717,7 +720,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u32 temp_v0 = Audio_SelectSoundAvoidingRecent(arg0);
  
      if (temp_v0 != 0) {
-@@ -2532,6 +2623,9 @@ void Audio_QueueSoundAvoidingRecent(u16* arg0) {
+@@ -2532,6 +2626,9 @@ void Audio_QueueSoundAvoidingRecent(u16* arg0) {
  }
  
  void Audio_QueueSoundWithFallbackList(u16 arg0, u16* arg1, u8* arg2) {
@@ -727,7 +730,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u8 temp_v0;
  
      if (*arg2 == 0) {
-@@ -2546,6 +2640,9 @@ void Audio_QueueSoundWithFallbackList(u16 arg0, u16* arg1, u8* arg2) {
+@@ -2546,6 +2643,9 @@ void Audio_QueueSoundWithFallbackList(u16 arg0, u16* arg1, u8* arg2) {
  }
  
  void func_800420F0_empty() {
@@ -737,7 +740,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      
  }
  
-@@ -2553,6 +2650,9 @@ void func_800420F0_empty() {
+@@ -2553,6 +2653,9 @@ void func_800420F0_empty() {
  // commentary lines. Returns a small negative code for moves that are classified rather
  // than scored (see the effect switch below), otherwise a damage estimate capped at 0x7FFF.
  u32 Battle_EstimateMoveDamage(u32 moveId, BattleMonRuntime* attacker, BattleMonRuntime* defender) {
@@ -747,7 +750,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      f32 var_f0;  // defense stat, then the STAB multiplier, then the defender's status multiplier
      f32 var_f2;  // attack stat, then the attacker's hp reference
      f32 var_f12; // multiplier for the defender's first type, then the attacker's boost
-@@ -2760,6 +2860,9 @@ u32 Battle_EstimateMoveDamage(u32 moveId, BattleMonRuntime* attacker, BattleMonR
+@@ -2760,6 +2863,9 @@ u32 Battle_EstimateMoveDamage(u32 moveId, BattleMonRuntime* attacker, BattleMonR
  }
  
  s32 Battle_MapCategoryIdToCompactIndex(u8 arg0) {
@@ -757,7 +760,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      switch (arg0) {
      case 0:
          return 0;
-@@ -2797,5 +2900,8 @@ s32 Battle_MapCategoryIdToCompactIndex(u8 arg0) {
+@@ -2797,5 +2903,8 @@ s32 Battle_MapCategoryIdToCompactIndex(u8 arg0) {
  }
  
  void Audio_QueueSequenceIdWrapper(u32 arg0) {
@@ -4139,7 +4142,7 @@ index d22c8ab0236357bfb3e93183f957a49b266ca22d..3318f035f8c8d657a146f41f5ee8d1b7
 +    return PORT_BE32(arg.rgba);
  }
 diff --git a/src/memmap.c b/src/memmap.c
-index a46c369996a35fd75fa474484e0a233d6df75183..76443a95dfb0c4f9241096d881cc246d642adb01 100644
+index a46c369996a35fd75fa474484e0a233d6df75183..d8b679f688b3e0d12e64e69a13afe4eb773307b0 100644
 --- a/src/memmap.c
 +++ b/src/memmap.c
 @@ -1,3 +1,5 @@
@@ -4359,15 +4362,20 @@ index a46c369996a35fd75fa474484e0a233d6df75183..76443a95dfb0c4f9241096d881cc246d
  
      for (i = 0; i < relocInfo->nRelocations; i++) {
          reloc = relocInfo->relocations[i];
-@@ -157,6 +316,7 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
+@@ -157,8 +316,12 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
   * Set the base virtual address and size of the specified fragment memmap.
   */
  void Memmap_SetFragmentMap(u32 id, uintptr_t vaddr, size_t size) {
 +    Port_GfxFlushCache(); // PORT: translated display lists depend on these maps
      gFragments[id].vaddr = vaddr;
      gFragments[id].size = size;
++    if (id == 51 && Port_XcheckHasCase()) { // PORT: battle cross-check: the battle engine is mapped (src/port/xcheck.cpp)
++        Port_XcheckApplyCaseParties();
++    }
  }
-@@ -179,9 +339,13 @@ uintptr_t Memmap_GetFragmentBaseVaddr(u32 id) {
+ 
+ /*
+@@ -179,9 +342,13 @@ uintptr_t Memmap_GetFragmentBaseVaddr(u32 id) {
   * Z: Fragment offset.
   */
  uintptr_t Memmap_GetFragmentVaddr(void* addr) {
@@ -4384,7 +4392,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..76443a95dfb0c4f9241096d881cc246d
  
          if (gFragments[id].vaddr != NULL) {
              addr = gFragments[id].vaddr + value;
-@@ -208,6 +372,7 @@ u32 Memmap_GetFragmentVaddrMask(u32 i, uintptr_t addr) {
+@@ -208,6 +375,7 @@ u32 Memmap_GetFragmentVaddrMask(u32 i, uintptr_t addr) {
   * Clear the memmap for the fragment ID specified.
   */
  void Memmap_ClearFragmentMemmap(u32 id) {
@@ -4392,7 +4400,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..76443a95dfb0c4f9241096d881cc246d
      gFragments[id].vaddr = NULL;
      gFragments[id].size = 0;
  }
-@@ -230,3 +395,148 @@ uintptr_t Memmap_GetLoadedFragmentVaddr(uintptr_t addr) {
+@@ -230,3 +398,148 @@ uintptr_t Memmap_GetLoadedFragmentVaddr(uintptr_t addr) {
      }
      return 0;
  }

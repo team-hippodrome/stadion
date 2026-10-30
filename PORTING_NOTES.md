@@ -1378,6 +1378,92 @@ frames as `interp_<frame>_<i>of<k>.ppm` in `PORT_SCREENSHOT_DIR`; `PORT_SHOT_SCA
 `PORT_INTERP_JUMP=<units>` (the move threshold), `PORT_LAUNCHER_SHOT=<file.ppm>` (saves the launcher's picture and
 closes it).
 
+## Battle cross-check against ares (tools/battle_xcheck.py)
+The same battle runs in the port and in the original game in ares, with the same random numbers, and is compared
+event by event; then the move animations are compared frame by frame.
+    tools/ares_ref/build.sh build-ares               # ares + ares_ref with tools/ares_ref/ares-host-hooks.patch
+    tools/battle_xcheck.py run <dir> --seed 7 --port-bin build-xcheck/pokestadium [--anim]
+    tools/battle_xcheck.py compare <dir>             # <dir>/report.md
+    tools/battle_xcheck.py anim <dir>                # <dir>/anim.md + <dir>/anim/*.png (deletes the raw frames)
+How the two sides play the same battle:
+- Setup: one input script for both (replays/to_battle.rec up to the Poké Cup screen, then the team picks at frame 2200+,
+  late enough for ares, whose loads take a few hundred frames longer) and the same save (replays/default.flash).
+- Randomness: Battle_Random, Battle_RandomAccuracy and BattleAI_RandomBelowInclusive step their generators by
+  osGetCount, so CPU timing decides the battle; BattleAnim_RandomRange/IntWithWarmup steer cameras and effects.
+  With PORT_XCHECK_RNG=<seed> / ARES_REF_XCHECK_RNG=<seed> both sides return the same seeded stream instead
+  (splitmix64 of seed, stream, call index; optional queue file of forced values first). The animation streams are kept
+  per argument: the 1-in-50 idle animation check is polled every frame, and one frame of timing difference must not
+  shift the effects' draws. BattleAI_SeedRandomState is skipped.
+- ares hooks: ares-host-hooks.patch adds a sorted list of guest addresses to the CPU, checked when a block is dispatched
+  (recompiled blocks end at hooked addresses like at breakpoints; the JIT does not chain blocks), with a callback
+  that may return from the function. The battle engine is fragment 51 (link address 0x84300000, relocated): the
+  driver hooks Memmap_SetFragmentMap (main code) and places the battle hooks at gFragments[51] + (link - 0x84300000)
+  as soon as the fragment is mapped, before its init runs (the computer picks its team order there). Addresses come
+  from the decomp's build/pokestadium-us.map and symbol_addrs.txt.
+- Reading RDRAM: the VR4300 data cache is emulated, and the newest game writes sit in dirty lines; the driver reads
+  through the cache (without that every event showed stale fields, e.g. the chosen move still 0 at turn start).
+- Input in battle: none. PORT_XCHECK_COM / ARES_REF_XCHECK_COM make BattleScene_IsActionSelectionTimerExpired answer
+  "not yet" then "expired" for each decision, so the game's own time-limit fallback picks the player's first usable move
+  and first healthy replacement (answering "expired" at once skipped the party menu that sets the action to "switch":
+  both games stalled after the first faint). Making side 0 a computer player instead does not work: the AI only keeps
+  state for its own side; its switch picked garbage slots (port crash in func_84370B7C, N64 stuck).
+- Events: Battle_StartTurn ("turn"), Battle_ResolveMonAction entry ("resolve") and return ("resolved"; ares hooks the
+  caller's return address). Each records both ActivePokemonState (0..0xC8: header, the BattleMonRuntime with HP,
+  status, moves, PP, stat stages, used move), the BattleScene up to its camera pointer, gBattleDamage and the message
+  queues as raw bytes; the script decodes them with each side's byte order (the layouts are pointer-free and the
+  same) and compares per event, reporting the first difference with the previous event and the random calls before it.
+  Fields that follow frame timing (ActivePokemonState.unk_36: the model's idle-animation state) and the camera floats are
+  reported apart from the battle logic, with a table of both sides' frame for every event.
+Results (seeds 1, 7, 3; Poké Cup round 1, Charmander/Venusaur/Ivysaur vs the Biker's team; 30000 frames each):
+- Battle logic identical on all three: every event's state (105, 71 and 24 events: long battles with faints,
+  switch-ins, Leech Seed drain, poison, misses and critical hits), every forced random call (160/29/198 battle-logic
+  calls in seed 1: same functions, arguments, values and order) and the same move animations in the same order.
+  A negative control (port seed 1 vs ares seed 2) is caught at event 0 (other lead, stats, moves, message text) and
+  in the random-call order at entry 3. Reruns of a seed give the same traces.
+- Timing (presentation, not logic): the port runs its own clock and reaches each event earlier. Within a turn the gap
+  grows ~2 frames; each faint/switch-in adds ~20-30 frames (the N64 loads the new Pokémon); a Leech Seed turn adds
+  76-97 frames and a Razor Leaf turn ~97 (seed 1 events 23 and 48, seed 7 events 21 and 54): those presentations are
+  much shorter in the port, past the first 200 frames of the animation (below). The idle-animation state and the
+  camera-shake angle differ at a few events because of that drift.
+Animations (milestone 2, seed 7 with --anim, 18 move animations: Flamethrower x4, Karate Chop, Dig, Leech Seed x6,
+Thrash x3, Body Slam x2, Blizzard):
+- Each animation is captured for 200 game frames from BattleScene_EnterRow3StartMoveAnim / Row19 on both sides, at
+  320x240 (the port: PORT_RENDER_EVERY=1 in a hidden window, frames named by game frame; the game draws every second
+  VI frame, gaps repeat the previous picture). All 18 align at the same offset, +4 frames (the port's capture latency),
+  so no animation starts or runs at a different speed within those 200 frames.
+- SSIM (luma, 128x96) is 0.73-0.83 for 17 of them: the sheets show the same poses, effects and camera frame for frame;
+  the remainder is fine detail (crowd texture, model edges at the port's higher render resolution, hit-spark colours).
+  That range is the noise floor of this metric. Blizzard is the outlier (0.53, minimum 0.26 in its radial-streak
+  phase): candidate for a closer look (the streak texture may come from the unforced main-code MathUtil_Random16).
+- The longer N64 turns (above) are outside these 200 frames: the next step is capturing until the next event.
+- Effect frame counter: gParticleFrameCounter (particle_math, gParticleFrameMod8 and the rest) counts battle game
+  frames and picks effect texture frames, e.g. Thundershock's eight bolt frames (asset 0x13 + Mod8 * 0x600). The N64
+  can spend a game frame more before an animation than the port (the move's effect assets load by DMA: Dragon Rage
+  loads two resources, then starts at gf 480 in ares vs 479 in the port), and every later animation then ran one texture
+  frame out of phase: Thundershock after Dragon Rage showed other bolt shapes (effect_p90 169 vs ~24 alone or after
+  String Shot). Load timing, not a port bug: with PORT_XCHECK_RNG / ARES_REF_XCHECK_RNG both sides set the counter to 0
+  at each animation start, as they reseed guRandom; the A trace lines carry its value before that (pfc=).
+
+### Milestone 3 (proposal): every move
+- Moves: all 165 (1..0xA5). The player's time-limit fallback always uses the first usable move, so the move under
+  test goes into slot 1 of the player's lead (BattleMon in the TeamRoster before the battle engine copies it, and
+  BattleMonRuntime.moves[0]); slots 2-4 hold three more test moves with PP 1 each, so one battle uses four moves on
+  consecutive turns (slot 1 runs out of PP, the fallback moves on). The opponent gets a sturdy lead (level 100,
+  high HP) knowing only Splash, so its own animation stays out of the way; a second opponent covers OHKO/faint cases.
+  Written on both sides at the same point: in ares at the Memmap_SetFragmentMap hook (RDRAM through the data cache;
+  the driver needs a write that also updates a cached line), in the port in the same hook as a PORT_XCHECK_PARTY file.
+- User species matter for the animation (models, anchor points): one learner per move from the rental list first,
+  then a sample of other species for the moves whose animation follows the user's model.
+- Runtime: ares runs a battle at ~375 VI frames/s, the port headless faster; from boot to the first turn ~3000 frames
+  (8 s; an ares save state at the order screen cuts that to ~2 s, the port gets there in ~3 s), then ~600 frames per
+  move with capture (1.5-2 s ares, the port about the same in a hidden window). 42 battles of 4 moves: ~10 min with
+  frame capture on one core pair, ~3 min with 4 in parallel; scoring (pure Python) ~5 s per move: ~15 min, or
+  parallel per move. Frames ~0.3 GB per battle, deleted after scoring.
+- Report: one row per move: logic match (first differing field, if any), event timing (frames from "resolve" to
+  the next event on both sides: the Razor Leaf / switch-in kind of gap), animation offset, SSIM 128x96 and 64x48 with
+  the worst frame, and the side-by-side sheet. Flag: any logic difference; offset other than the common +4; a timing
+  gap above a few frames; SSIM below the noise floor of the run (median minus a margin, ~0.65 here).
+
 ## Pokédex AREA map vs ares (sea, fog, label boxes)
 The AREA map (Pokédex with a Game Boy cartridge; `lab_dex.rec` frames 9500/9800 in the evidence routes) drew a black
 sea, no fog tint and pale label boxes. Three separate causes:
