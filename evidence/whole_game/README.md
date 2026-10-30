@@ -1,6 +1,19 @@
 # Whole game: how far the levers reach, what is left and why
 
-**Current (origin/main ec92ad5): 6521 of 7490 functions (87.1%), lines 77.5%, branches 68.7%.** New: the **demo
+**Current: 6529 of 7490 functions (87.2%), lines 77.7%, branches 68.8%.** Battle engine 1868 of 2055: battles with
+time limits (`--set "BattlePrep_RunRulesScreen#1@exit:gSessionContext+0x1291:1=1;...+0x1292:1=<minutes>;...+0x1293:1=10"`
+on the Game Pak free battle: `timeLimitsEnabled`, `battleLimitMinutes`, `moveLimitSeconds` as the event battle's
+settings panel sets them) reach the battle and turn timers, the time-out caption and the judge's decision
+(`BattleScene_DetermineWinner`, `Battle_ClassifyHpTier`). The event battle's two-player fight needs controller 2
+connected (`--set "Cont_InitControllers:gControllerBits:1|=3"`: libultraship's control deck reports only controller
+1) and both pads in the recording (order select: three picks each, then A on "All ready"). Most of the battle
+engine that is left are animation setups and callbacks reached only through effect-table slots: every one of the
+165 moves' animations ran (the move sweep), so these are slots no move script uses (code the shipped data cannot
+run), plus empty scene states and stubs; `BattleHud_DrawForfeitConfirmDialog` is referenced by nothing. Still open
+with a reachable gate: the AI's 0x400000 trainer-flag path (`BattleAI_DecideAction`), the six-Pokemon team status
+list (a side with four or more chosen), the send-out-after-faint scene phase (case 34).
+
+**Previous round: 6521 of 7490 functions (87.1%), lines 77.5%, branches 68.7%.** New: the **demo
 scenes** 170 of 177 (was 74). The scenes the Stadium menu state plays after a cup (`game_state.c`: scene 17 on
 `transitionFlags` 0x2, 22/23 on 0x8/0x10 for the first clear that raises the GB Tower tier, 21/26 the completion
 scene) entered at the point the game enters them: `Stage_RunDemoScene(id)` when battle prep's post-battle screen
