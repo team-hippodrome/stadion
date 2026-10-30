@@ -284,8 +284,9 @@ bool Init() {
         }
         SDL_free(wins);
     }
-    // PORT_HIDDEN_WINDOW=1: render without showing the window (tools/run_replays.sh; screenshots still work)
-    if (getenv("PORT_HIDDEN_WINDOW")) {
+    // PORT_HIDDEN_WINDOW=1: render without showing the window (tools/run_replays.sh; screenshots still work).
+    // PORT_HEADLESS=1 (tools/battle_xcheck.py without --anim, tools/evidence/run.py --rec: nothing to look at) hides it too
+    if (getenv("PORT_HIDDEN_WINDOW") || getenv("PORT_HEADLESS")) {
         int n = 0;
         SDL_Window** wins = SDL_GetWindows(&n);
         for (int i = 0; wins && i < n; i++) SDL_HideWindow(wins[i]);
