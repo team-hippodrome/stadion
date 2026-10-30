@@ -849,6 +849,29 @@ sample count after every VI frame).
   counted the filtered list as the byte difference `>> 2` (4-byte N64 pointers), so the count was doubled and the grid
   drew entries past the filled ones. It counts entries now. The route runs to its end, ASan clean, and its See List
   screens (grouped list, move page) match ares.
+- Lab PC list screen, two crashes on its main paths (evidence pilot, `l1.rec`):
+  - TM/HM list (segfault in LabPCList_CompareTmHmEntries under PointerList_Sort as soon as the list opens with TMs,
+    HMs, vitamins or PP Up in the trainer's item box): LabPCList_BuildTmHmList counted its entries as the byte
+    difference `>> 4` (16-byte N64 entries, 24 on the host), so the sort ran over empty entries, and the comparator read
+    the entries through unk_func_88200FA0_030_038, whose fields are the TM number / source only with 4-byte pointers.
+    It counts entries and compares through the entry type now (the N64 order: by number, then by source).
+  - "Check which Pokémon list" → cursor on GB BOXes / 64 BOXes (segfault in BattleInfoWidget_DrawEntry on a NULL cell):
+    the box grids were bound through unk_func_8830867C_02C_144_000_alt, a char-padded view whose lists line up with
+    banks 1 and 2 only with 0x20-byte banks; on the host the box count came from padding, so the 12-row grid drew
+    cells past it with a NULL entry (on the N64 the count is always the 12 boxes). The grids take the banks' lists now.
+    The cell draws of these grids and of the move-destination picker (box "count/capacity", the party's "03/06") read
+    the box and bank through views with N64 offsets as well and now use the real structs.
+  - Column header selection one cell off (R from the list lands on Nickname, the TYPE column and its "Group by TYPE"
+    can't be selected; the same input in ares opens "Group by TYPE"): unk_func_8830867C_02C_04C_018 started with
+    char[0x8] for the grid's first two cells, one pointer on the host, so LabPCList_SwitchColumnPage wrote every
+    page's columns one cell too low. The two cells are pointers now. Behind it, two more 4-byte-pointer layouts:
+    the type list's table had a hard-coded 8-byte stride ({type, color pointer} is 16 bytes on the host: segfault in
+    BattleInfoWidget_DrawStatusListEntry), and the move list entry declared its move id as a pointer (16-byte
+    entries read at 8, four of them written past the end of the widget).
+  - Same kind of views, found while checking the headers: unk_func_8830867C_034_03C_038_02C_000 (a box with its
+    owner pointer as char[0x8], so the selected flag and the 0x1C stride were wrong on the host) and
+    unk_func_88313894 / _020 (the move-destination picker's "box full" check, through a char-padded view of the
+    banks); both now use the real structs.
 - Pikachu Surf reward (Stadium_BonusPikachuReward; the evidence pilot's free battle + reward entry, segfault in
   ModelAnim_EvaluateScaleChannel at fault address 0x8811208e when the three surfing followers appear after "Pikachu
   learned Surf"): the followers' animation `D_8C2011C4` lies in the data fragment `_798CD0` (Fragment_Load, linked at
