@@ -1193,7 +1193,7 @@ index b80c990..719941e 100644
          default:
              return "";
 diff --git a/src/fast/backends/gfx_direct3d11.cpp b/src/fast/backends/gfx_direct3d11.cpp
-index f747b81..f54b1f1 100644
+index f747b81..3f78441 100644
 --- a/src/fast/backends/gfx_direct3d11.cpp
 +++ b/src/fast/backends/gfx_direct3d11.cpp
 @@ -6,6 +6,7 @@
@@ -1299,6 +1299,16 @@ index f747b81..f54b1f1 100644
      // Convert RGBA32 → RGBA16 with nearest-neighbor scaling from actual texture
      // dimensions to requested output dimensions, respecting RowPitch for row stride
      for (uint32_t j = 0; j < height; j++) {
+@@ -1243,7 +1286,8 @@ void GfxRenderingAPIDX11::SetSrgbMode() {
+     mSrgbMode = true;
+ }
+ 
+-#define RAND_NOISE "((random(float3(floor(screenSpace.xy * noise_scale), noise_frame)) + 1.0) / 2.0)"
++// random() is already in [0, 1), like the RDP's noise (PORT: was mapped again as if it were in [-1, 1])
++#define RAND_NOISE "random(float3(floor(screenSpace.xy * noise_scale), noise_frame))"
+ 
+ static const char* prism_shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
+                                             bool first_cycle, bool hint_single_element) {
 diff --git a/src/fast/backends/gfx_dxgi.cpp b/src/fast/backends/gfx_dxgi.cpp
 index dd8cce5..c510610 100644
 --- a/src/fast/backends/gfx_dxgi.cpp
@@ -1734,8 +1744,24 @@ index afc07db..e0f6fd8 100644
  void GfxRenderingAPIMetal::SetTextureFilter(FilteringMode mode) {
      mCurrentFilterMode = mode;
      gfx_texture_cache_clear();
+diff --git a/src/fast/backends/gfx_metal_shader.cpp b/src/fast/backends/gfx_metal_shader.cpp
+index 39b5d34..d3d7810 100644
+--- a/src/fast/backends/gfx_metal_shader.cpp
++++ b/src/fast/backends/gfx_metal_shader.cpp
+@@ -29,9 +29,8 @@ void gfx_metal_shader_set_resource_manager(std::shared_ptr<Ship::ResourceManager
+ }
+ // MARK: - String Helpers
+ 
+-#define RAND_NOISE                                                                                                  \
+-    "((random(float3(floor(in.position.xy * frameUniforms.noiseScale), float(frameUniforms.frameCount))) + 1.0) / " \
+-    "2.0)"
++// random() is already in [0, 1), like the RDP's noise (PORT: was mapped again as if it were in [-1, 1])
++#define RAND_NOISE "random(float3(floor(in.position.xy * frameUniforms.noiseScale), float(frameUniforms.frameCount)))"
+ 
+ static const char* p_shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
+                                         bool first_cycle, bool hint_single_element) {
 diff --git a/src/fast/backends/gfx_opengl.cpp b/src/fast/backends/gfx_opengl.cpp
-index 6c4dfc8..c739b1c 100644
+index 6c4dfc8..caee3cd 100644
 --- a/src/fast/backends/gfx_opengl.cpp
 +++ b/src/fast/backends/gfx_opengl.cpp
 @@ -1,9 +1,11 @@
@@ -1750,7 +1776,17 @@ index 6c4dfc8..c739b1c 100644
  
  #include <map>
  #include <unordered_map>
-@@ -244,6 +246,33 @@ std::optional<std::string> opengl_include_fs(const std::string& path) {
+@@ -107,7 +109,8 @@ void GfxRenderingAPIOGL::LoadShader(ShaderProgram* new_prg) {
+     SetUniforms(new_prg);
+ }
+ 
+-#define RAND_NOISE "((random(vec3(floor(gl_FragCoord.xy * noise_scale), float(frame_count))) + 1.0) / 2.0)"
++// random() is already in [0, 1), like the RDP's noise (PORT: was mapped again as if it were in [-1, 1])
++#define RAND_NOISE "random(vec3(floor(gl_FragCoord.xy * noise_scale), float(frame_count)))"
+ 
+ static const char* shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
+                                       bool first_cycle, bool hint_single_element) {
+@@ -244,6 +247,33 @@ std::optional<std::string> opengl_include_fs(const std::string& path) {
      return *inc;
  }
  
@@ -1784,7 +1820,7 @@ index 6c4dfc8..c739b1c 100644
  std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
      prism::Processor processor;
      prism::ContextItems mContext = {
-@@ -289,6 +318,7 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
+@@ -289,6 +319,7 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
          { "o_three_point_filtering", mCurrentFilterMode == FILTER_THREE_POINT },
          { "append_formula", (InvokeFunc)append_formula },
  #ifdef __APPLE__
@@ -1792,7 +1828,7 @@ index 6c4dfc8..c739b1c 100644
          { "GLSL_VERSION", "#version 410 core" },
          { "attr", "in" },
          { "opengles", false },
-@@ -296,21 +326,42 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
+@@ -296,21 +327,42 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
          { "texture", "texture" },
          { "vOutColor", "vOutColor" },
  #elif defined(USE_OPENGLES)
@@ -1837,7 +1873,7 @@ index 6c4dfc8..c739b1c 100644
      processor.populate(mContext);
      auto init = std::make_shared<Ship::ResourceInitData>();
      init->Type = (uint32_t)Ship::ResourceType::Shader;
-@@ -414,6 +465,15 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
+@@ -414,6 +466,15 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
      gfx_cc_get_features(shader_id0, shader_id1, &cc_features);
      const auto fs_buf = BuildFsShader(cc_features);
      const auto vs_buf = BuildVsShader(cc_features);
@@ -1853,7 +1889,7 @@ index 6c4dfc8..c739b1c 100644
      const GLchar* sources[2] = { vs_buf.data(), fs_buf.data() };
      const GLint lengths[2] = { (GLint)vs_buf.size(), (GLint)fs_buf.size() };
      GLint success;
-@@ -449,7 +509,21 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
+@@ -449,7 +510,21 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
      GLuint shader_program = glCreateProgram();
      glAttachShader(shader_program, vertex_shader);
      glAttachShader(shader_program, fragment_shader);
@@ -1875,7 +1911,7 @@ index 6c4dfc8..c739b1c 100644
  
      size_t cnt = 0;
  
-@@ -560,6 +634,7 @@ GLuint GfxRenderingAPIOGL::NewTexture() {
+@@ -560,6 +635,7 @@ GLuint GfxRenderingAPIOGL::NewTexture() {
      GLuint ret;
      glGenTextures(1, &ret);
      textures.resize(std::max(textures.size(), (size_t)ret + 1));
@@ -1883,7 +1919,7 @@ index 6c4dfc8..c739b1c 100644
      return ret;
  }
  
-@@ -584,9 +659,17 @@ void GfxRenderingAPIOGL::UploadTexture(const uint8_t* rgba32_buf, uint32_t width
+@@ -584,9 +660,17 @@ void GfxRenderingAPIOGL::UploadTexture(const uint8_t* rgba32_buf, uint32_t width
      if (width == 0 || height == 0) {
          return;
      }
@@ -1903,7 +1939,7 @@ index 6c4dfc8..c739b1c 100644
  }
  
  #ifdef USE_OPENGLES
-@@ -730,7 +813,17 @@ void GfxRenderingAPIOGL::Init() {
+@@ -730,7 +814,17 @@ void GfxRenderingAPIOGL::Init() {
      glEnable(GL_DEPTH_CLAMP);
  #endif
      glDepthFunc(GL_LEQUAL);
@@ -1922,7 +1958,7 @@ index 6c4dfc8..c739b1c 100644
  
      mFrameBuffers.resize(1); // for the default screen buffer
  
-@@ -759,6 +852,15 @@ void GfxRenderingAPIOGL::StartFrame() {
+@@ -759,6 +853,15 @@ void GfxRenderingAPIOGL::StartFrame() {
  }
  
  void GfxRenderingAPIOGL::EndFrame() {
@@ -1938,7 +1974,7 @@ index 6c4dfc8..c739b1c 100644
      glFlush();
  }
  
-@@ -797,10 +899,19 @@ int GfxRenderingAPIOGL::CreateFramebuffer() {
+@@ -797,10 +900,19 @@ int GfxRenderingAPIOGL::CreateFramebuffer() {
      return i;
  }
  
@@ -1958,7 +1994,7 @@ index 6c4dfc8..c739b1c 100644
  
      width = std::max(width, 1U);
      height = std::max(height, 1U);
-@@ -812,12 +923,16 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
+@@ -812,12 +924,16 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
          if (fb.width != width || fb.height != height || fb.msaa_level != msaa_level) {
              if (msaa_level <= 1) {
                  glBindTexture(GL_TEXTURE_2D, fb.clrbuf);
@@ -1977,7 +2013,7 @@ index 6c4dfc8..c739b1c 100644
                  glBindRenderbuffer(GL_RENDERBUFFER, 0);
                  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, fb.clrbufMsaa);
              }
-@@ -856,6 +971,27 @@ void GfxRenderingAPIOGL::StartDrawToFramebuffer(int fb_id, float noise_scale) {
+@@ -856,6 +972,27 @@ void GfxRenderingAPIOGL::StartDrawToFramebuffer(int fb_id, float noise_scale) {
      }
      glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo);
      mCurrentFrameBuffer = fb_id;
@@ -2005,7 +2041,7 @@ index 6c4dfc8..c739b1c 100644
  }
  
  void GfxRenderingAPIOGL::ClearFramebuffer(bool color, bool depth) {
-@@ -928,6 +1064,10 @@ void GfxRenderingAPIOGL::SelectTextureFb(int fb_id) {
+@@ -928,6 +1065,10 @@ void GfxRenderingAPIOGL::SelectTextureFb(int fb_id) {
      if (texId >= textures.size()) {
          textures.resize((size_t)texId + 1);
      }
@@ -2016,7 +2052,7 @@ index 6c4dfc8..c739b1c 100644
      SelectTexture(tile, texId);
  }
  
-@@ -1003,6 +1143,9 @@ void GfxRenderingAPIOGL::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0
+@@ -1003,6 +1144,9 @@ void GfxRenderingAPIOGL::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0
      }
  }
  
@@ -2026,7 +2062,7 @@ index 6c4dfc8..c739b1c 100644
  void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFrameBuffers.size()) {
          return;
-@@ -1016,7 +1159,30 @@ void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_
+@@ -1016,7 +1160,30 @@ void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_
  
      std::vector<uint8_t> rgba8(width * height * 4);
      glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba8.data());

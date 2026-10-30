@@ -1481,6 +1481,20 @@ Thrash x3, Body Slam x2, Blizzard):
 - ares_ref probe for such cases: ARES_REF_XCHECK_PROBE=<link>:<offset>,... logs "P <gf> <link> <value>" at those
   battle engine function entries: the word at sp+offset, or register offset-1000 (e.g. 1005 for a1). Not on an
   address that is already hooked.
+- RDP noise (port bug, fixed): the colour combiner's NOISE input came out in [0.5, 1) instead of [0, 1). Every backend's
+  RAND_NOISE (patches/libultraship.patch: gfx_metal_shader.cpp, gfx_opengl.cpp (Vulkan uses its formulas),
+  gfx_direct3d11.cpp) mapped random() as if it were in [-1, 1] with (r + 1) / 2, but the shaders' random() is
+  fract(...), already in [0, 1). Sand-Attack's sand cloud (ParticleGfx_SetPrimEnvNoiseCombine: cycle 1 NOISE, cycle 2
+  lerps from ENVIRONMENT to PRIMITIVE by it) was therefore smooth and pulled toward the bright primitive colour; ares
+  shows it grainy and darker. Sand-Attack 66 -> 47 (two independent per-pixel noise fields can't match pixel for pixel,
+  so noise effects stay a little above the floor), Poison Powder 77 41 -> 32, Sleep Powder 79 43 -> 30; the other
+  moves of those battles unchanged (~27-37). tools/run_replays.py: all 20 identical (none of their stop frames uses noise).
+- Sound mismatches (8 moves in the full sweep, envelope correlation 0.41-0.57 with level and spectrum within ~4 dB) are
+  not wrong move sounds. Onsets of the move's own sounds land at the same times on both sides (Pound: 1920 and 2320 ms
+  in both). What differs is a periodic background sound, a pulse every ~360-380 ms on both sides (before the move and
+  again after it), whose phase differs by 100-300 ms: it follows each side's own clock since the battle scene started
+  (load timing), like the counters above. Leech Seed 73 and Razor Leaf 75 also run longer on the N64 (lag, above).
+  Not fixed: the sound check would need that background sound's phase reset or excluded.
 
 ### Milestone 3 (proposal): every move
 - Moves: all 165 (1..0xA5). The player's time-limit fallback always uses the first usable move, so the move under
