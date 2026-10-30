@@ -15,7 +15,8 @@
 //                                                                             from that function), used in turn
 //                                   stop <turns>                              end the run when that many turns are done
 //                                   nomusic                                   no battle music (Audio_StartBattleMusicSequence
-//                                                                             returns at once): the sound effects alone
+//                                                                             returns at once) and no announcer
+//                                                                             (Audio_QueueSequenceId): the sound effects alone
 //   PORT_XCHECK_COM=1             the player's side needs no input in battle: its move time limit runs out at the
 //                                 second query of each decision, so the game picks its first usable move and its first
 //                                 healthy replacement (BattleScene_IsActionSelectionTimerExpired); the opponent is the
@@ -40,6 +41,7 @@
 #include <sys/stat.h>
 
 extern "C" unsigned long long Port_ViTick(void);
+extern "C" unsigned long long osGetTime(void);         // libultra (port_os)
 extern "C" void Port_GuRandomSeed(unsigned int seed); // game/lib/ultralib/src/gu/random.c
 extern "C" int gPortXcheckTraceGuRandom;              // (below)
 extern "C" unsigned int gParticleFrameCounter;        // particle_math: free-running effect frame counter
@@ -70,7 +72,8 @@ struct State {
     std::vector<MonLine> mons;
     std::vector<Rule> rules;
     int stopTurns = 0, turns = 0;
-    bool noMusic = false;
+    bool noMusic = false, traceSfx = false;
+    uint32_t osTimeCalls = 0; // Port_XcheckOsGetTime's index
     std::map<uint32_t, uint32_t> calls; // per stream (see StreamKey)
     unsigned events = 0;
     std::string animDir, animCur;
@@ -136,6 +139,7 @@ void Init() {
     if (const char* c = getenv("PORT_XCHECK_CASE")) ReadCase(c);
     g.com = getenv("PORT_XCHECK_COM") != nullptr;
     gPortXcheckTraceGuRandom = getenv("PORT_XCHECK_GURANDOM") != nullptr;
+    g.traceSfx = getenv("PORT_XCHECK_SFX") != nullptr;
     if (const char* a = getenv("PORT_XCHECK_ANIM")) g.animDir = a;
     if (const char* n = getenv("PORT_XCHECK_ANIM_FRAMES")) g.animFrames = atoi(n);
     if (const char* w = getenv("PORT_XCHECK_LOAD_WAIT")) {
@@ -145,6 +149,7 @@ void Init() {
     }
 }
 
+constexpr uint32_t kOsTimeStream = 0x40; // the announcer's osGetTime() (Port_XcheckOsGetTime), as the ares driver's
 // splitmix64 of (seed, stream, call index): the same stream as the ares driver's streamValue
 uint32_t StreamValue(uint32_t seed, uint32_t key, uint32_t k) {
     uint64_t z = ((uint64_t)seed << 32) ^ ((uint64_t)key << 24) ^ k;
@@ -313,6 +318,7 @@ void Port_XcheckMoveAnim(int side, int move) {
     // so each side's menus leave it at another value; effects pick frames with it (D_8006F084 & 7 and the
     // BattleAnim_Build*DisplayList colour cycles). The ares driver does the same.
     if (g.force) D_800AF7AE = 0, D_8006F084 = 0;
+    g.osTimeCalls = 0; // (Port_XcheckOsGetTime)
     // and the animation streams (idle checks every frame: blinks, idle motions) from their start, so they line up
     // within the animation although the two games reach it after different numbers of frames
     for (auto it = g.calls.begin(); it != g.calls.end();) {
@@ -349,9 +355,33 @@ int Port_XcheckWantDraw(void) {
     return g.animOn;
 }
 
+// a sound command (PORT_XCHECK_SFX=1): "U <battle game frame> <kind> <args>", kind 0 Audio_PlayCommand(a, b, c),
+// 1 Audio_PlaySoundEffectById(a), 2 Audio_QueueSequenceId(a) (the announcer's lines), 3 Audio_PlaySoundEffect(.., id a, priority b, volume c) (every
+// sound effect started); the ares driver writes the same lines (ARES_REF_XCHECK_SFX), so the order and game
+// frame of a move's sounds can be compared where the recorded sound differs
+void Port_XcheckSfx(int kind, unsigned a, int b, int c) {
+    Init();
+    if (g.out && g.traceSfx) fprintf(g.out, "U %llu %d %x %d %d\n", g.gameFrame, kind, a, b, c);
+}
+
+// osGetTime() in the announcer's code (3D140_2.c: which line to say, Audio_SelectSoundAvoidingRecent's shuffle;
+// audio_commands_category2.c: a sound's pitch variation). It is CPU timing, so the two games chose different lines.
+// With PORT_XCHECK_RNG both sides return the stream value of the call's index instead, counted from the battle's first
+// game frame and from each animation start (as the random streams); the ares driver does the same for these callers.
+// (The index, not the game frame: the announcer's next line waits for the last one to play out, in sound time.)
+unsigned long long Port_XcheckOsGetTime(void) {
+    Init();
+    if (!g.force) return osGetTime();
+    return StreamValue(g.seed, kOsTimeStream, g.osTimeCalls++);
+}
+
 // battle_engine_main.c: BattleScene_UpdateFrame runs (once per battle game frame)
 void Port_XcheckGameFrame(void) {
     g.gameFrame++;
+    if (g.gameFrame == 1) g.osTimeCalls = 0;
+    // "V <battle game frame> <VI frame>", as the ares driver: where each game frame starts in time (the sound check maps
+    // both sides' sound onto game frames, so the N64's slowdown in busy effects does not count as a sound difference)
+    if (g.out) fprintf(g.out, "V %llu %llu\n", g.gameFrame, Port_ViTick());
 }
 
 // Engine.cpp, once per presented frame: where to write this frame (null: not captured); the first presented frame of

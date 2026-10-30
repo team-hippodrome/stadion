@@ -311,7 +311,7 @@ index e943cefa45fcb73ba82b57d73c44ebc49b90a3cd..f28a9ed3368bdcd164239bead75a15c8
          D_80077DAC = 1;
          return;
 diff --git a/src/3D140_2.c b/src/3D140_2.c
-index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2f1466028 100644
+index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..5d227c4ef8b377265d71d228afe733fdc8048306 100644
 --- a/src/3D140_2.c
 +++ b/src/3D140_2.c
 @@ -1,5 +1,5 @@
@@ -321,7 +321,18 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
  #include "src/audio_commands.h"
  #include "src/libnumus/player.h"
  #include "src/3D140.h"
-@@ -80,10 +80,17 @@ typedef struct unk_D_80078548 {
+@@ -10,6 +10,10 @@
+ #include "src/gb_audio_render.h"
+ #include "src/audio_loop_point.h"
+ 
++// PORT: battle cross-check: the announcer picks its lines with osGetTime() (CPU timing); with the cross-check's forced
++// randomness both sides get the same values instead (src/port/xcheck.cpp, tools/ares_ref/ares_ref.cpp)
++#define osGetTime() Port_XcheckOsGetTime()
++
+ typedef union {
+     struct {
+         s16 type;
+@@ -80,10 +84,17 @@ typedef struct unk_D_80078548 {
  // .data
  // global
  
@@ -343,7 +354,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
  
  // .rodata
  
-@@ -346,17 +353,17 @@ u16 D_8007800C[4] = {
+@@ -346,17 +357,17 @@ u16 D_8007800C[4] = {
  u16 D_80078014[4] = {
      0x0002, 0x000E, 0x000F, 0x0000,
  };
@@ -369,7 +380,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
  };
  u16 D_80078040[4] = {
      0x0002, 0x0180, 0x017C, 0x0000,
-@@ -376,8 +383,10 @@ u16 D_80078060[4] = {
+@@ -376,8 +387,10 @@ u16 D_80078060[4] = {
  u16 D_80078068[4] = {
      0x0003, 0x0172, 0x0173, 0x0174,
  };
@@ -382,7 +393,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
  };
  u16 D_80078078[4] = {
      0x0002, 0x0073, 0x0074, 0x0000,
-@@ -400,7 +409,10 @@ u16 D_800780A0[4] = {
+@@ -400,7 +413,10 @@ u16 D_800780A0[4] = {
  u16 D_800780A8[6] = {
      0x0005, 0x005B, 0x005C, 0x005D, 0x005E, 0x005F,
  };
@@ -394,7 +405,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      0x00, 0x28, 0x00, 0x00, 0x32, 0x00, 0x1D, 0x0F, 0x00, 0x1D, 0x12, 0x00, 0x00, 0x50, 0x00, 0x10,
      0x28, 0x00, 0x04, 0x4B, 0x14, 0x05, 0x4B, 0x19, 0x06, 0x4B, 0x17, 0x00, 0x28, 0x00, 0x00, 0x37,
      0x00, 0x26, 0x01, 0x00, 0x27, 0x50, 0x00, 0x32, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00, 0x28, 0x00,
-@@ -414,16 +426,14 @@ u8 D_800780B4[204] = {
+@@ -414,16 +430,14 @@ u8 D_800780B4[204] = {
      0x00, 0x19, 0x00, 0x28, 0x15, 0x00, 0x78, 0x15, 0x00, 0x5F, 0x15, 0x05, 0x5F, 0x19, 0x23, 0x78,
      0x19, 0x4C, 0x41, 0x18, 0x46, 0x41, 0x15, 0x44, 0x41, 0x19, 0x50, 0x96, 0x00, 0x00, 0x23, 0x02,
      0x00, 0x50, 0x02, 0x30, 0x50, 0x01, 0x25, 0x32, 0x01, 0x00, 0x01, 0x01,
@@ -413,7 +424,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      0x29, 0x00, 0x08, 0x52, 0x00, 0x00, 0x3B, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x38, 0x00, 0x00, 0x0B,
      0x00, 0x00, 0x0F, 0x00, 0x00, 0x16, 0x00, 0x00, 0x31, 0x00, 0x08, 0x0B, 0x00, 0x15, 0x0B, 0x00,
      0x00, 0x33, 0x00, 0x18, 0x40, 0x00, 0x18, 0x19, 0x00, 0x19, 0x41, 0x00, 0x18, 0x2F, 0x00, 0x00,
-@@ -536,6 +546,9 @@ u8 D_80078568[24] = {
+@@ -536,6 +550,9 @@ u8 D_80078568[24] = {
  
  
  void BitArray_SetBit(u8* array, u8 index, u8 flag) {
@@ -423,7 +434,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u8 offset = index / 8;
      u8 bitPosition = index % 8;
      u8 mask = (1 << bitPosition);
-@@ -550,6 +563,9 @@ void BitArray_SetBit(u8* array, u8 index, u8 flag) {
+@@ -550,6 +567,9 @@ void BitArray_SetBit(u8* array, u8 index, u8 flag) {
   * Checks if a bit is set in an array.
   */
  s32 BitArray_IsBitSet(u8* array, u8 index) {
@@ -433,7 +444,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u8 offset = index / 8;
      u8 bitPosition = index % 8;
      u8 flag = (array[offset] & (u8)(1 << bitPosition));
-@@ -560,6 +576,9 @@ s32 BitArray_IsBitSet(u8* array, u8 index) {
+@@ -560,6 +580,9 @@ s32 BitArray_IsBitSet(u8* array, u8 index) {
  }
  
  void Audio_SetVoiceEnabled(s32 arg0) {
@@ -443,7 +454,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      if (arg0 != 0) {
          D_80078388 = 1;
      } else {
-@@ -568,6 +587,9 @@ void Audio_SetVoiceEnabled(s32 arg0) {
+@@ -568,6 +591,9 @@ void Audio_SetVoiceEnabled(s32 arg0) {
  }
  
  void Audio_SetChannelGroupCounts(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
@@ -453,7 +464,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      D_8007838C[0] = arg0;
      D_8007838C[1] = arg1;
      D_8007838C[2] = arg2;
-@@ -575,6 +597,9 @@ void Audio_SetChannelGroupCounts(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
+@@ -575,6 +601,9 @@ void Audio_SetChannelGroupCounts(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
  }
  
  void Audio_ResetChannelGroupState(u8 arg0) {
@@ -463,7 +474,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      s32 i;
  
      if (arg0 < 3) {
-@@ -609,6 +634,9 @@ void Audio_ResetChannelGroupState(u8 arg0) {
+@@ -609,6 +638,9 @@ void Audio_ResetChannelGroupState(u8 arg0) {
  }
  
  void Audio_ConfigureChannelGroups(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
@@ -473,7 +484,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      s32 i;
      s32 j;
  
-@@ -636,6 +664,9 @@ void Audio_ConfigureChannelGroups(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
+@@ -636,6 +668,9 @@ void Audio_ConfigureChannelGroups(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
  }
  
  void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
@@ -483,7 +494,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      s32 pad[1];
      u8 sp1B = 0;
      u16 var_a0;
-@@ -658,7 +689,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
+@@ -658,7 +693,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
  
          if (arg1 < 0xC) {
              if (arg0 < 9) {
@@ -492,7 +503,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
                  D_800783FC = 1;
                  D_80078400 = 1;
              } else {
-@@ -666,7 +697,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
+@@ -666,7 +701,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
              }
          } else if (arg1 == 0xC) {
              if ((arg0 < 0x21) && (arg0 != 0)) {
@@ -501,7 +512,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
                  D_800783FC = 1;
                  D_80078400 = 0;
              } else {
-@@ -674,7 +705,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
+@@ -674,7 +709,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
              }
          } else if (arg1 == 0xD) {
              if (arg0 < 6) {
@@ -510,7 +521,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
                  D_800783FC = 1;
                  D_80078400 = 0;
              } else {
-@@ -714,6 +745,9 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
+@@ -714,6 +749,9 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
  }
  
  void func_8003DB84(s32 arg0) {
@@ -520,7 +531,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      s8 var_t0;
      s8 var_t2;
      s8 var_t4;
-@@ -1113,6 +1147,9 @@ block_53:
+@@ -1113,6 +1151,9 @@ block_53:
  }
  
  void func_8003EB40(s32 arg0, BattleMonRuntime* arg1) {
@@ -530,7 +541,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u8 pad;
      u8 value;
      u8 side;
-@@ -1290,6 +1327,9 @@ found_value:
+@@ -1290,6 +1331,9 @@ found_value:
  }
  
  void func_8003F1AC(u32 arg0) {
@@ -540,7 +551,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u8 sp1F;
  
      if (arg0 == 0 || arg0 >= 5) {
-@@ -1348,6 +1388,9 @@ void func_8003F1AC(u32 arg0) {
+@@ -1348,6 +1392,9 @@ void func_8003F1AC(u32 arg0) {
  }
  
  void func_8003F4C0(u32 arg0) {
@@ -550,7 +561,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u8 temp_v0;
      
      if (arg0 == 0 || arg0 >= 5) {
-@@ -1396,6 +1439,9 @@ void func_8003F4C0(u32 arg0) {
+@@ -1396,6 +1443,9 @@ void func_8003F4C0(u32 arg0) {
  }
  
  void Audio_QueuePendingSoundId(u32 arg0) {
@@ -560,7 +571,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      D_800FCCF0[D_80078544] = arg0;
      D_80078544++;
      if (D_80078544 >= 0xA) {
-@@ -1404,6 +1450,9 @@ void Audio_QueuePendingSoundId(u32 arg0) {
+@@ -1404,6 +1454,9 @@ void Audio_QueuePendingSoundId(u32 arg0) {
  }
  
  void func_8003F660(s32 arg0) {
@@ -570,7 +581,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u32 mask;
      u32 sp40;
      s32 sp3C;
-@@ -1705,7 +1754,7 @@ void func_8003F660(s32 arg0) {
+@@ -1705,7 +1758,7 @@ void func_8003F660(s32 arg0) {
              return;
          case 0x19:
          case 0x1B:
@@ -579,7 +590,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
                  Audio_QueueSoundAvoidingRecent(&D_80077F24);
              } else {
                  Audio_QueueSoundAvoidingRecent(&D_80077F14);
-@@ -1965,6 +2014,9 @@ void func_8003F660(s32 arg0) {
+@@ -1965,6 +2018,9 @@ void func_8003F660(s32 arg0) {
  }
  
  void func_80040A70(BattleMonRuntime* arg0, s32 arg1, s32 arg2, s32 arg3) {
@@ -589,7 +600,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      s32 i;
      s32 sp40;
      u32 temp_lo;
-@@ -2226,6 +2278,9 @@ void func_80040A70(BattleMonRuntime* arg0, s32 arg1, s32 arg2, s32 arg3) {
+@@ -2226,6 +2282,9 @@ void func_80040A70(BattleMonRuntime* arg0, s32 arg1, s32 arg2, s32 arg3) {
  }
  
  void func_800414B8(s32 arg0) {
@@ -599,7 +610,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u8 temp_v0;
  
      if (arg0 == 0 || arg0 >= 5U) {
-@@ -2246,6 +2301,12 @@ void func_800414B8(s32 arg0) {
+@@ -2246,6 +2305,12 @@ void func_800414B8(s32 arg0) {
  }
  
  void Audio_StartBattleMusicSequence(void) {
@@ -612,7 +623,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      if (D_80078E80 == 0) {
          Audio_StartMusicTrack(0x3D);
          Audio_PlayCommand(0x16, D_80078400, 0);
-@@ -2278,11 +2339,17 @@ void Audio_StartBattleMusicSequence(void) {
+@@ -2278,11 +2343,17 @@ void Audio_StartBattleMusicSequence(void) {
  }
  
  void Audio_StartResultMusicSequence(void) {
@@ -630,7 +641,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u8* seq;
  
      if ((D_800783B4 < D_800783B8) && (D_80078388 != 0) && (AudioStream_IsPlaying(1) == 0)) {
-@@ -2376,6 +2443,9 @@ void Audio_UpdateBattleAudioFrame(void) {
+@@ -2376,6 +2447,9 @@ void Audio_UpdateBattleAudioFrame(void) {
   * register-materialised store.
   */
  void func_80041A98(void) {
@@ -640,17 +651,21 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      s32 i;
      s32 j;
  
-@@ -2426,6 +2496,9 @@ void func_80041A98(void) {
+@@ -2426,6 +2500,13 @@ void func_80041A98(void) {
  }
  
  void Audio_QueueSequenceId(u32 arg0) {
++    Port_XcheckSfx(2, arg0, 0, 0); // PORT: battle cross-check sound trace (src/port/xcheck.cpp)
++    if (Port_XcheckNoMusic()) { // PORT: battle cross-check: the announcer is silent with the music. A line starts when the
++        return;                 // previous one has played out, in sound time, so the N64's slowdown moves it
++    }
 +    if (PORT_AUDIO_OFF()) {
 +        return;
 +    }
      OSIntMask mask;
  
      if ((D_80078388 != 0) && (D_800783FC != 0) && (arg0 != 0)) {
-@@ -2437,6 +2510,9 @@ void Audio_QueueSequenceId(u32 arg0) {
+@@ -2437,6 +2518,9 @@ void Audio_QueueSequenceId(u32 arg0) {
  }
  
  void Audio_RemoveLastQueuedSequenceId(void) {
@@ -660,7 +675,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      OSIntMask mask;
  
      if ((D_80078388 != 0) && (D_800783FC != 0)) {
-@@ -2447,6 +2523,9 @@ void Audio_RemoveLastQueuedSequenceId(void) {
+@@ -2447,6 +2531,9 @@ void Audio_RemoveLastQueuedSequenceId(void) {
  }
  
  void Audio_SwapSoundCandidates(u8* arg0, u8* arg1) {
@@ -670,7 +685,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u8 temp_v0 = *arg0;
      u8 temp_v1 = *arg1;
  
-@@ -2457,6 +2536,9 @@ void Audio_SwapSoundCandidates(u8* arg0, u8* arg1) {
+@@ -2457,6 +2544,9 @@ void Audio_SwapSoundCandidates(u8* arg0, u8* arg1) {
  }
  
  u16 Audio_FilterRecentSoundId(u16 arg0) {
@@ -680,7 +695,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      s32 i;
  
      for (i = 0; i < 20; i++) {
-@@ -2469,6 +2551,9 @@ u16 Audio_FilterRecentSoundId(u16 arg0) {
+@@ -2469,6 +2559,9 @@ u16 Audio_FilterRecentSoundId(u16 arg0) {
  }
  
  void Audio_RecordRecentSoundId(u16 arg0) {
@@ -690,7 +705,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u16 i;
  
      for (i = 0; i < 19; i++) {
-@@ -2479,6 +2564,9 @@ void Audio_RecordRecentSoundId(u16 arg0) {
+@@ -2479,6 +2572,9 @@ void Audio_RecordRecentSoundId(u16 arg0) {
  }
  
  void Audio_RemoveRecentSoundAt(u16 arg0) {
@@ -700,7 +715,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u32 i;
  
      for (i = arg0; i > 0; i--) {
-@@ -2489,6 +2577,9 @@ void Audio_RemoveRecentSoundAt(u16 arg0) {
+@@ -2489,6 +2585,9 @@ void Audio_RemoveRecentSoundAt(u16 arg0) {
  }
  
  u32 Audio_SelectSoundAvoidingRecent(u16* arg0) {
@@ -710,7 +725,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u16 temp_v0 = *arg0;
      u32 i;
      u32 j;
-@@ -2524,6 +2615,9 @@ u32 Audio_SelectSoundAvoidingRecent(u16* arg0) {
+@@ -2524,6 +2623,9 @@ u32 Audio_SelectSoundAvoidingRecent(u16* arg0) {
  }
  
  void Audio_QueueSoundAvoidingRecent(u16* arg0) {
@@ -720,7 +735,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u32 temp_v0 = Audio_SelectSoundAvoidingRecent(arg0);
  
      if (temp_v0 != 0) {
-@@ -2532,6 +2626,9 @@ void Audio_QueueSoundAvoidingRecent(u16* arg0) {
+@@ -2532,6 +2634,9 @@ void Audio_QueueSoundAvoidingRecent(u16* arg0) {
  }
  
  void Audio_QueueSoundWithFallbackList(u16 arg0, u16* arg1, u8* arg2) {
@@ -730,7 +745,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      u8 temp_v0;
  
      if (*arg2 == 0) {
-@@ -2546,6 +2643,9 @@ void Audio_QueueSoundWithFallbackList(u16 arg0, u16* arg1, u8* arg2) {
+@@ -2546,6 +2651,9 @@ void Audio_QueueSoundWithFallbackList(u16 arg0, u16* arg1, u8* arg2) {
  }
  
  void func_800420F0_empty() {
@@ -740,7 +755,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      
  }
  
-@@ -2553,6 +2653,9 @@ void func_800420F0_empty() {
+@@ -2553,6 +2661,9 @@ void func_800420F0_empty() {
  // commentary lines. Returns a small negative code for moves that are classified rather
  // than scored (see the effect switch below), otherwise a damage estimate capped at 0x7FFF.
  u32 Battle_EstimateMoveDamage(u32 moveId, BattleMonRuntime* attacker, BattleMonRuntime* defender) {
@@ -750,7 +765,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      f32 var_f0;  // defense stat, then the STAB multiplier, then the defender's status multiplier
      f32 var_f2;  // attack stat, then the attacker's hp reference
      f32 var_f12; // multiplier for the defender's first type, then the attacker's boost
-@@ -2760,6 +2863,9 @@ u32 Battle_EstimateMoveDamage(u32 moveId, BattleMonRuntime* attacker, BattleMonR
+@@ -2760,6 +2871,9 @@ u32 Battle_EstimateMoveDamage(u32 moveId, BattleMonRuntime* attacker, BattleMonR
  }
  
  s32 Battle_MapCategoryIdToCompactIndex(u8 arg0) {
@@ -760,7 +775,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..03ad935fca3ca818eef9c7f1923bf2b2
      switch (arg0) {
      case 0:
          return 0;
-@@ -2797,5 +2903,8 @@ s32 Battle_MapCategoryIdToCompactIndex(u8 arg0) {
+@@ -2797,5 +2911,8 @@ s32 Battle_MapCategoryIdToCompactIndex(u8 arg0) {
  }
  
  void Audio_QueueSequenceIdWrapper(u32 arg0) {
@@ -4791,7 +4806,7 @@ index c49b381dca990fcb784c54e1bf838d42c5b22968..e154d58025a1631e670cb4e5a7a6116d
 +    return 0; // newest block: size unknown
 +}
 diff --git a/src/model_animation.c b/src/model_animation.c
-index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee7102807a9a 100644
+index 7b12156364466b02063611b163bfb1906c48c6fa..e8063c3c02c3d74744c97419a36de829e8bd6d2e 100644
 --- a/src/model_animation.c
 +++ b/src/model_animation.c
 @@ -1,5 +1,6 @@
@@ -4801,15 +4816,17 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
  #include "src/matrix.h"
  #include "src/model_animation_events.h"
  
-@@ -9,23 +10,71 @@ typedef struct unk_func_80016B30_arg0 {
+@@ -9,23 +10,73 @@ typedef struct unk_func_80016B30_arg0 {
  } unk_func_80016B30_arg0; // size = 0x8
  
  static unk_D_800ABCC0 D_800ABCC0[2];
 +// PORT: animation data of models loaded from ROM is big-endian (32-bit addresses, 16-bit samples, bit-packed
 +// streams of 16-bit words); data defined in C is native. sRaw is set for the animation being evaluated and the
-+// accessors below swap when it is set.
++// accessors below swap when it is set. ROM data is a model blob from an archive or data mapped as a segment or a
++// fragment (e.g. the Pikachu reward's _798CD0 follower animation, a fragment-linked address).
 +static s32 sRaw;
-+#define ANIM_RAW(p) Port_VIsRaw((const void*)(p))
++extern int Port_IsRawData(const void* p);
++#define ANIM_RAW(p) Port_IsRawData((const void*)(p))
 +static inline u16 Anim_U16(const void* p) {
 +    const u8* b = (const u8*)p;
 +    return sRaw ? (u16)((b[0] << 8) | b[1]) : *(const u16*)p;
@@ -4877,7 +4894,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
      }
  
      return ret;
-@@ -35,16 +84,17 @@ s16 ModelAnim_EvaluateRotationChannel(unk_D_800ABCC0* arg0, s32 arg1) {
+@@ -35,16 +86,17 @@ s16 ModelAnim_EvaluateRotationChannel(unk_D_800ABCC0* arg0, s32 arg1) {
      s32 var_a1;
      s16 var_v1;
      unk_D_800ABCC0_008* temp_v0 = &arg0->unk_08[arg1];
@@ -4899,7 +4916,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
      }
      return var_v1;
  }
-@@ -54,25 +104,26 @@ f32 ModelAnim_EvaluateScaleChannel(unk_D_800ABCC0* arg0, s32 arg1) {
+@@ -54,25 +106,26 @@ f32 ModelAnim_EvaluateScaleChannel(unk_D_800ABCC0* arg0, s32 arg1) {
      s16 var_a2;
      s32 var_a1;
      unk_D_800ABCC0_008* temp_v0 = &arg0->unk_08[arg1];
@@ -4932,7 +4949,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
          }
      }
  
-@@ -85,25 +136,25 @@ f32 ModelAnim_InterpolateKeyframe(Vec3s* arg0, s16 arg1, s16 arg2) {
+@@ -85,25 +138,25 @@ f32 ModelAnim_InterpolateKeyframe(Vec3s* arg0, s16 arg1, s16 arg2) {
      f32 x;
      f32 var_fv1;
  
@@ -4969,7 +4986,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
          }
      }
      return var_fv1;
-@@ -115,25 +166,25 @@ f32 ModelAnim_InterpolateKeyframeTangent(unk_func_80016B30_arg0* arg0, s16 arg1,
+@@ -115,25 +168,25 @@ f32 ModelAnim_InterpolateKeyframeTangent(unk_func_80016B30_arg0* arg0, s16 arg1,
      f32 x;
      f32 var_fv1;
  
@@ -5006,7 +5023,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
          }
      }
      return var_fv1;
-@@ -142,12 +193,13 @@ f32 ModelAnim_InterpolateKeyframeTangent(unk_func_80016B30_arg0* arg0, s16 arg1,
+@@ -142,12 +195,13 @@ f32 ModelAnim_InterpolateKeyframeTangent(unk_func_80016B30_arg0* arg0, s16 arg1,
  f32 ModelAnim_EvaluateTranslationCurve(unk_D_800ABCC0* arg0, s32 arg1) {
      f32 var_fv1;
      unk_D_800ABCC0_008* temp_v0 = &arg0->unk_08[arg1];
@@ -5022,7 +5039,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
          if (temp_v0->unk_03 & 4) {
              var_fv1 = ModelAnim_InterpolateKeyframeTangent(tmp, temp_v0->unk_00, arg0->unk_02) / 100.0f;
          } else {
-@@ -161,11 +213,12 @@ s16 ModelAnim_EvaluateRotationCurve(unk_D_800ABCC0* arg0, s32 arg1) {
+@@ -161,11 +215,12 @@ s16 ModelAnim_EvaluateRotationCurve(unk_D_800ABCC0* arg0, s32 arg1) {
      f32 var_fv1;
      s16* temp_a0;
      unk_D_800ABCC0_008* temp_v0 = &arg0->unk_08[arg1];
@@ -5037,7 +5054,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
          if (temp_v0->unk_03 & 2) {
              var_fv1 = ModelAnim_InterpolateKeyframeTangent(temp_a0, temp_v0->unk_01, arg0->unk_02) / 10.0f;
          } else {
-@@ -189,11 +242,12 @@ f32 ModelAnim_EvaluateScaleCurve(unk_D_800ABCC0* arg0, s32 arg1) {
+@@ -189,11 +244,12 @@ f32 ModelAnim_EvaluateScaleCurve(unk_D_800ABCC0* arg0, s32 arg1) {
      f32 var_fv0;
      f32 var_fv1;
      unk_D_800ABCC0_008* temp_v0 = &arg0->unk_08[arg1];
@@ -5052,7 +5069,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
          if (temp_v0->unk_03 & 1) {
              var_fv0 = ModelAnim_InterpolateKeyframeTangent(temp_a0, temp_v0->unk_02, arg0->unk_02);
          } else {
-@@ -206,8 +260,11 @@ f32 ModelAnim_EvaluateScaleCurve(unk_D_800ABCC0* arg0, s32 arg1) {
+@@ -206,8 +262,11 @@ f32 ModelAnim_EvaluateScaleCurve(unk_D_800ABCC0* arg0, s32 arg1) {
  
  typedef union AnimFixedFrame {
      struct {
@@ -5065,7 +5082,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
      };
      s32 raw;
  } AnimFixedFrame; // size = 0x4
-@@ -232,19 +289,19 @@ s32 ModelAnim_AdvanceCurveFrame(TransformAnimRaw* arg0, u16 arg1) {
+@@ -232,19 +291,19 @@ s32 ModelAnim_AdvanceCurveFrame(TransformAnimRaw* arg0, u16 arg1) {
      if (arg0->lastRenderFrame != arg1) {
          spC.raw += arg0->speedFixed;
          if (arg0->speedFixed >= 0) {
@@ -5093,7 +5110,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
                  }
              }
          }
-@@ -274,13 +331,14 @@ void ModelAnim_BeginCurveContext(TransformAnimState* arg0, u16 arg1, s32 arg2) {
+@@ -274,13 +333,14 @@ void ModelAnim_BeginCurveContext(TransformAnimState* arg0, u16 arg1, s32 arg2) {
              arg0->lastRenderFrame = arg1;
  
              temp_s0->unk_00 = 1;
@@ -5113,7 +5130,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
  
              if (temp_s0->unk_02 < 0) {
                  temp_s0->unk_02 = 0;
-@@ -301,7 +359,7 @@ void ModelAnim_EvaluateJointTransform(Vec3f* arg0, Vec3s* arg1, Vec3f* arg2, s32
+@@ -301,7 +361,7 @@ void ModelAnim_EvaluateJointTransform(Vec3f* arg0, Vec3s* arg1, Vec3f* arg2, s32
      if ((D_800ABCF0 >= 0) && (D_800ABCF0 < 2)) {
          unk_D_800ABCC0* temp_s0 = &D_800ABCC0[D_800ABCF0];
  
@@ -5122,7 +5139,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
              if (temp_s0->unk_01 & 8) {
                  arg0->x = ModelAnim_EvaluateScaleCurve(temp_s0, arg3 + 0);
                  arg0->y = ModelAnim_EvaluateScaleCurve(temp_s0, arg3 + 1);
-@@ -343,7 +401,7 @@ s32 ModelAnim_BindTransformCurve(DisplayObject* display_object, s16 animation_id
+@@ -343,7 +403,7 @@ s32 ModelAnim_BindTransformCurve(DisplayObject* display_object, s16 animation_id
      if ((temp_v0 != ptr->data) || (animation_id != ptr->animationId)) {
          ptr->animationId = animation_id;
          ptr->data = temp_v0;
@@ -5131,7 +5148,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..6fcfb30a64943a3d1aa64618c534ee71
      }
  
      ptr->speedFixed = arg3;
-@@ -382,9 +440,14 @@ s32 ModelAnim_HasCrossedFrame(DisplayObject* arg0, s16 arg1) {
+@@ -382,9 +442,14 @@ s32 ModelAnim_HasCrossedFrame(DisplayObject* arg0, s16 arg1) {
  }
  
  s32 ModelAnim_IsAnimationDone(DisplayObject* arg0) {

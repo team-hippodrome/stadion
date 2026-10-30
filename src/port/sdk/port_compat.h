@@ -206,6 +206,8 @@ void Port_XcheckApplyCaseParties(void);
 int Port_XcheckWantDraw(void);
 int Port_XcheckNoMusic(void);
 void Port_XcheckGameFrame(void);
+void Port_XcheckSfx(int kind, unsigned a, int b, int c);
+unsigned long long Port_XcheckOsGetTime(void);
 void Port_XcheckWriteEvent(const char* name, const void* state0, const void* state1, const void* scene, unsigned damage,
                            const void* messageQueues);
 void Port_XcheckBattleEvent(const char* name);
