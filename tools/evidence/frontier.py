@@ -274,10 +274,11 @@ def main():
         behind |= below(g["callee"])
     no_gate = sorted(unreached - behind)
 
-    # coverage totals (instrumented battle-engine files)
+    # coverage totals (the instrumented files --files selects; llvm-cov paths are absolute, the call graph's relative
+    # to game/, so the pattern is matched against the path from game/ on)
     tot = {"lines": [0, 0], "branches": [0, 0], "regions": [0, 0]}
     for f in data["files"]:
-        if not re.search(files_rx, f["filename"]):
+        if not re.search(files_rx, f["filename"].split("/game/", 1)[-1]):
             continue
         for k in tot:
             tot[k][0] += f["summary"][k]["covered"]

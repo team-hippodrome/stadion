@@ -1,0 +1,5 @@
+# pokestadium input recording v1: frame, then button stick_x stick_y for pads 1-4
+0 0 0 0 0 0 0 0 0 0 0 0 0
+60000 16384 0 0 0 0 0 0 0 0 0 0 0
+60006 0 0 0 0 0 0 0 0 0 0 0 0
+# end 60037
