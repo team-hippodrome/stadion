@@ -64,7 +64,6 @@ def main():
         try:
             return one_(k)
         except subprocess.TimeoutExpired:  # a forced condition the game cannot handle (it stalls): the run is lost
-            subprocess.run(["pkill", "-f", os.path.join(out, "g%03d" % k)])
             return dict(props[k], reached=False, new=[], error="stalled (timeout)")
 
     def one_(k):
@@ -74,9 +73,16 @@ def main():
         host = next((b for b in baselines if caller in covs[b]), None)
         args = scenario_args(host) if host else ["--seed", opt("--seed", "7"), "--frames", opt("--frames", "14000")]
         p["route"] = os.path.basename(host.rstrip("/")) if host else "battle_xcheck"
-        subprocess.run([sys.executable, "-I", os.path.join(HERE, "run.py"), d, "--bin", opt("--bin")] + args +
-                       ["--seq-max", "3", "--dump-every", "600", "--set", p["set"]],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=int(opt("--timeout", "900")))
+        # its own process group: on a timeout the game run.py started is killed with it
+        proc = subprocess.Popen([sys.executable, "-I", os.path.join(HERE, "run.py"), d, "--bin", opt("--bin")] + args +
+                                ["--seq-max", "3", "--dump-every", "600", "--set", p["set"]],
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        try:
+            proc.wait(timeout=int(opt("--timeout", "900")))
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, 9)
+            proc.wait()
+            raise
         try:
             fns = set(json.load(open(os.path.join(d, "coverage.json")))["functions"])
         except (OSError, ValueError):
