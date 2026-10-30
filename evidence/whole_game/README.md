@@ -1,6 +1,14 @@
 # Whole game: how far the levers reach, what is left and why
 
-**Current: 6537 of 7490 functions (87.3%), lines 77.8%, branches 68.9%.** Battle prep 165 of 205: a real cup
+**Current: 6573 of 7490 functions (87.8%), lines 78.4%, branches 69.4%.** The Lab PC's Organize screens
+(`routes/lab_pc/*.rec`: each icon of the Pokemon, Items and BOXes screens with a change, then leaving through the
+save prompt; the `items` Game Boy save for the Items screen): the Items screen's source drop-down, item swap and
+re-order, box re-order and exchange, the Pokemon screen's moves. Lab PC 234 of 271. Check BOX crashes
+(`routes/lab_pc/check_box_crash.rec`: `LabPC_CheckBox_ShowBox`, a fix session is on it). The Items screen's drop-down
+does not move with the D-pad on the same input in ares either (not a port difference): the Stadium item-box screen
+behind its third entry is still open.
+
+**Previous round: 6537 of 7490 functions (87.3%), lines 77.8%, branches 68.9%.** Battle prep 165 of 205: a real cup
 win from the stored Poke Cup recording (`routes/cup_win_tail.rec`, replayed as recorded; it wins the first battle)
 with the round set to the last (`--set "BattlePrep_RunRulesScreen#2:gSessionContext+0x3:1=8"`, `roundOrDemoId`):
 the cup-clear bookkeeping (Victory Palace records, cup cleared, first-clear bonus, new round record, the Pikachu
