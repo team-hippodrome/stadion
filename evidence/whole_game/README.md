@@ -1,33 +1,33 @@
 # Whole game: how far the levers reach, what is left and why
 
-**Current (origin/main a16322e merged: the See List fix, PR #64): 6250 of 7490 functions (83.4%), lines 74.0%,
-branches 65.6%** (previous round 79.1%, 68.1%, 59.4%). Three batches, each compacted into one profile
-(`tools/evidence/compact_runs.py`; `frontier.py` and `covdiff.py` read the compacted `merged.profdata`): the
+**Current (origin/main 9f9343c merged: the See List fix, PR #64, and the Pikachu reward and event battle fixes,
+PR #67): 6255 of 7490 functions (83.5%), lines 74.1%, branches 65.8%** (previous round 79.1%, 68.1%, 59.4%).
+Four batches, each compacted into one profile (`tools/evidence/compact_runs.py`; `frontier.py` and `covdiff.py` read the compacted `merged.profdata`): the
 baseline levers below again (142 runs and the forked direct calls), the 28 stored recordings extended with menu
 mashing plus an idle attract run, each also with the game's sound engine on (61 runs), and the routes and forced
-conditions of this round (21 runs). Binary: the instrumented build of the merged sources (the baseline batch ran
+conditions of this round (21 runs) and their reruns after the two crash fixes (4 runs). Binary: the instrumented build of the merged sources (the baseline batch ran
 on the build before the merge; the profiles of the few functions the merge changed count only from the later
 batches). Gate trials (`gate_trials.md`) were not repeated this round.
 
 New in this round. The gated areas were worked out from their code (input handling, state machines, what each
 prompt waits for) and driven with routes written for them (`tools/evidence/mkrec.py`: an input recording from
 timed presses), instead of mashing:
-- **Event battle** 54/57 (was 1), its rental-rules screen 41/56 (was 1): `STATE_EVENT_BATTLE` is entered through
+- **Event battle** 56/57 (was 1), its rental-rules screen 52/56 (was 1): `STATE_EVENT_BATTLE` is entered through
   the game's own state loop (`run.py --set "State_TitleScreen#1@exit:gCurrentGameState:4=18"`: the next state is
   changed when the title screen returns, a new `@exit` form of `--set` and `--call`), with two cartridges of six
   Pokémon. `routes/event_battle.rec`: mode 2, the team check and the action menu, back, the settings panel, the
   rules screen (every entry), the return to the mode select (`EventBattle_ValidateInitialSelection`) and the battle
-  start (`State_BattleFromEvent`). Left: the spinner arrows (the time limit on with the cursor on its minutes or
-  seconds row), the notice for a team the rule rejects (`EventBattle_DrawSlicedFrame`; the illegal team passed
-  mode 2's rule) and leaving through the mode select; the rental-rules species window (a rule entry without a
-  popup).
-- **Pikachu reward** 24/29 (was 0): a Game Pak Free Battle (`../battle_engine/routes/free_battle_gamepak.rec`, the
+  start (`State_BattleFromEvent`). After the short-party fix (PR #67) a cartridge with three Pokémon
+  is rejected by the rule: the notice (`EventBattle_DrawSlicedFrame`) and leaving through the mode select. Left:
+  the spinner arrows (the time limit on with the cursor on its minutes or seconds row); the rental-rules species
+  window's scrolling.
+- **Pikachu reward** 29/29 (was 0): a Game Pak Free Battle (`../battle_engine/routes/free_battle_gamepak.rec`, the
   base save's Pikachu L25 without Surf), then `Fragment_LoadAndCall` of the reward when the post-battle screen
   returns (`--call "BattlePrep_RunRulesScreen#2@exit:Fragment_LoadAndCall:..."`), as `State_StadiumMenu` enters it
   after a cup win; every prompt of the reward takes A (Yes is the default, the move list starts on the first
   move): `routes/pikachu_reward_3moves.rec`, `routes/pikachu_reward_4moves.rec` (a Pikachu with four moves:
-  `gb_party.py ... "PIKACHU:25,moves=84/45/86/98;..."`). The declined ending was reached by an earlier mashing run.
-  Left: teaching Surf, saving to the cartridge, the success ending, behind a port crash (below).
+  `gb_party.py ... "PIKACHU:25,moves=84/45/86/98;..."`). The declined ending was reached by an earlier mashing run;
+  teaching Surf, saving to the cartridge and the success ending after the crash fix (PR #67).
 - **Game Boy cries and music** (`gb_audio.c`, `gb_audio_render.c`) 36/57 (was 1): with the sound engine on
   (`PORT_GAME_AUDIO=1`), every Pokédex cry played once (`routes/all_cries.calls`: `Cry_PlayFromPokedex` for 1-151,
   150 frames apart, over `routes/idle.rec`). Left (21): the Game Boy music sequence commands (notes, octave, tempo,
@@ -38,7 +38,7 @@ timed presses), instead of mashing:
 - Recordings made before the sound engine was ported desynchronise with it on (its fades and waits change the
   timing): the audio-on copies of the stored recordings only reach what they reach before the first desync.
 
-Two new port crashes (fix tasks proposed, not fixed here):
+Two new port crashes, fixed in PR #67:
 1. **Pikachu reward, learning Surf**: segfault in `ModelAnim_EvaluateScaleChannel` (from `Geo_RenderRootNode`,
    `PikachuReward_ShowTextWaitForA`, `PikachuReward_ResolveMoveSlot`) right after the follower model switches to
    animation 9, fault address `0x8811208e`; the same with three or four moves, and with the reward entered at the
