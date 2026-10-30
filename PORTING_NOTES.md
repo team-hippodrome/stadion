@@ -1526,6 +1526,11 @@ Thrash x3, Body Slam x2, Blizzard):
   minigame actor framework (Ekans' Digletts started their animation past its end and stayed in their holes) and two
   battle spots (Battle_ResetEventTrack's event track, the multi-hit HP transition); all read 256x the real value.
   The two battle spots were not reached by the sweep or the replays.
+- Full sweep of f4f43b7 (after the fixes above): all 164 uses match (median effect_p90 35.4, highest Sand-Attack 46),
+  9 sound mismatches (the background-pulse phase above, plus Focus Energy 116 at envelope 0.22); 1411 s wall time with
+  `--jobs 4` on a 10-core M-series Mac (8 busy processes; more jobs only add contention). While working on a fix,
+  `battle_sweep.py run --open` reruns just the cases whose cached result is not a match (the report's verdicts and
+  sound): 6 cases in 123 s here. A full run before merging is still the check that nothing that matched regressed.
 - Replay references for a branch must come from a build of its base commit. `origin/main` moved during this work
   (dfe6826 fixed the fog colour of Geo_NodeFog / GeoRender_SetRenderMode, which changes the gallery photo's sky), and
   references built from the newer main made tour_galenl3 (1.77) and tour_galmenu2 (0.02) look like an effect of this
