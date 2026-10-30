@@ -381,6 +381,23 @@ def symbols_file():
     return os.environ.get("XCHECK_SYMS") or os.path.join(HERE, "ares_ref", "battle_engine.syms")
 
 
+def load_waits(d):
+    """per animation, the game frames the port should wait for its assets as long as ares did: the growth of ares'
+    lead in battle game frames at each animation start (A lines' gf), 0 where the port is not ahead"""
+    try:
+        an = {s: [r for r in bx.parse_trace(os.path.join(d, s + ".trace")) if r["t"] == "A"] for s in ("port", "ares")}
+    except (OSError, ValueError, KeyError):
+        return []
+    wait, added = [], 0
+    for p, a in zip(an["port"], an["ares"]):
+        if p["move"] != a["move"] or p["gf"] < 0 or a["gf"] < 0:
+            break
+        w = max(0, a["gf"] - (p["gf"] + added))
+        wait.append(w)
+        added += w
+    return wait
+
+
 def run_case(c, species, port_bin, max_frames):
     d = os.path.join(WORK, "cases", c["id"])
     os.makedirs(d, exist_ok=True)
@@ -424,12 +441,30 @@ def run_case(c, species, port_bin, max_frames):
         except subprocess.TimeoutExpired:
             pp.kill()
             ap.kill()
+    # the N64 can take game frames longer to load a move's effect assets (DMA) and starts the animation later; what
+    # runs on meanwhile (Moltres' simulated flames, idle motions) then enters the animation in another state. The
+    # port runs again and waits as long before each such animation (PORT_XCHECK_LOAD_WAIT, src/port/xcheck.cpp).
+    wait = load_waits(d)
+    if any(wait):
+        shutil.rmtree(os.path.join(d, "port_anim"), ignore_errors=True)
+        os.makedirs(os.path.join(d, "port_anim"))
+        shutil.copyfile(os.path.join(ROOT, "replays", "default.flash"), os.path.join(d, "port.flash"))
+        penv["PORT_XCHECK_LOAD_WAIT"] = ",".join(map(str, wait))
+        with open(os.path.join(d, "port.log"), "w") as pl:
+            pp = subprocess.Popen([port_bin, bx.ROM], cwd=os.path.dirname(port_bin), env=penv, stdout=pl,
+                                  stderr=subprocess.STDOUT, preexec_fn=bx.low_priority)
+            try:
+                pp.wait(timeout=900)
+            except subprocess.TimeoutExpired:
+                pp.kill()
     secs = time.time() - t0
     try:
         res = evaluate(c, d)
     except Exception as ex:  # a broken run is a result too
         res = {"error": "%s: %s" % (type(ex).__name__, ex), "uses": []}
     res["seconds"] = round(secs, 1)
+    if any(wait):
+        res["load_wait"] = wait
     res["spec"] = c["spec"]
     res["id"] = c["id"]
     json.dump(res, open(os.path.join(d, "result.json"), "w"), indent=1)

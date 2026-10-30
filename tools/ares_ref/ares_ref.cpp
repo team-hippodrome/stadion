@@ -248,7 +248,7 @@ constexpr u32 kGeoFrameCounter = 0x8006F084; // D_8006F084 (u16, main code): Geo
 constexpr u32 kModelTexCounter = 0x800AF7AE; // D_800AF7AE (s16, main code): one per Pokemon model drawn (model texture frames)
 constexpr u32 kStartBattleMusic = 0x8004153C; // Audio_StartBattleMusicSequence (main code): skipped for "nomusic"
 enum Fn : int { BattleRandom, BattleRandomAccuracy, AiRandomBelow, AnimRandomRange, AnimRandomWarmup, kRandomFns,
-                AiSeed = kRandomFns, FragmentMap, BattleMusic, GuRandom, GameFrame, StartTurn, ResolveEnter, TimerExpired, MoveAnim, MoveAnimMid, ResolveExit };
+                AiSeed = kRandomFns, FragmentMap, BattleMusic, GuRandom, GameFrame, StartTurn, ResolveEnter, TimerExpired, MoveAnim, MoveAnimMid, SixSlotTrailUpdateSlot, ResolveExit, Probe };
 // names shared with the port's trace (src/port/xcheck.cpp)
 const char* const kRandomNames[kRandomFns] = { "Battle_Random", "Battle_RandomAccuracy", "BattleAI_RandomBelowInclusive",
                                                "BattleAnim_RandomRange", "BattleAnim_RandomIntWithWarmup" };
@@ -260,6 +260,7 @@ const Hooked kHooked[] = {
     { 0x84302A78, MoveAnim },    // BattleScene_EnterRow3StartMoveAnim
     { 0x843033E0, MoveAnimMid }, // BattleScene_EnterRow19StartMoveAnimMidFrame
     { 0x84300E88, GameFrame },   // BattleScene_UpdateFrame: once per battle game frame
+    { 0x8436DAC4, SixSlotTrailUpdateSlot }, // BattleAnim_SixSlotTrail_UpdateSlot: reads a stack word it never writes
 };
 
 bool gOn = false, gForce = false, gCom = false, gStop = false;
@@ -278,6 +279,10 @@ std::vector<MonLine> gMons;
 std::vector<Rule> gRules;
 int gStopTurns = 0, gTurns = 0;
 bool gNoMusic = false, gTraceGuRandom = false;
+// ARES_REF_XCHECK_PROBE=<link>:<sp offset>,...: at those battle engine function entries, log the stack word at
+// sp+offset, or register offset-1000 ("P <battle game frame> <link> <value>"; e.g. a variable the function reads
+// before it writes it)
+std::vector<std::pair<u32, s32>> gProbes;
 std::vector<std::pair<u32, std::string>> gSyms; // battle engine function starts (link addresses), sorted
 constexpr u32 kSessionContext = 0x800AE540;    // gSessionContext: battleSides at 0x1194 (0x28 each)
 std::map<u32, u32> gCalls; // per stream: the logic functions one each, the animation ones one per argument
@@ -471,6 +476,17 @@ bool hook(u32 address) {
         if (gAnimLeft > 0 && gOut) fprintf(gOut, "G %llu %s\n", (unsigned long long)(gGameFrame - gAnimStart),
                                            callerName((u32)cpu.ipu.r[31].u64).c_str());
         return false;
+    case SixSlotTrailUpdateSlot: // its spA8 (lw s7,168(sp) after addiu sp,-176) is never set: the N64 reads what an
+        // earlier call left there; with forced randomness 0 on both sides, as the port initializes it
+        if (gForce)
+            for (int i = 0; i < 4; i++) wr8((u32)cpu.ipu.r[29].u64 - 8 + i, 0);
+        return false;
+    case Probe:
+        for (auto& [link, off] : gProbes)
+            if (rt(link) == address && gOut)
+                fprintf(gOut, "P %llu %08X %d\n", (unsigned long long)gGameFrame, link,
+                        off >= 1000 ? (s32)cpu.ipu.r[off - 1000].u32 : (s32)rd32((u32)cpu.ipu.r[29].u64 + off));
+        return false;
     case StartTurn: event("turn"); return false;
     case ResolveEnter: {
         event("resolve");
@@ -548,6 +564,7 @@ void place(u32 base) {
     if (gTraceGuRandom) gAt[kGuRandom] = GuRandom;
     if (base) {
         for (auto& h : kHooked) gAt[rt(h.link)] = h.fn;
+        for (auto& pr : gProbes) gAt.emplace(rt(pr.first), Probe); // (not over the hooks above)
     }
     for (auto& [a, f] : gAt) cpu.hostHooks.addresses.push_back(a); // (sorted: std::map order)
     cpu.recompiler.reset();
@@ -601,6 +618,16 @@ void init() {
     const char* rng = getenv("ARES_REF_XCHECK_RNG");
     gCom = getenv("ARES_REF_XCHECK_COM") != nullptr;
     gTraceGuRandom = getenv("ARES_REF_XCHECK_GURANDOM") != nullptr;
+    if (const char* pr = getenv("ARES_REF_XCHECK_PROBE")) {
+        for (const char* q = pr; *q;) {
+            char* e;
+            u32 link = (u32)strtoul(q, &e, 16);
+            s32 off = *e == ':' ? (s32)strtol(e + 1, &e, 0) : 0;
+            gProbes.push_back({ link, off });
+            if (*e != ',') break;
+            q = e + 1;
+        }
+    }
     if (const char* a = getenv("ARES_REF_XCHECK_ANIM")) gAnimDir = a;
     if (const char* n = getenv("ARES_REF_XCHECK_ANIM_FRAMES")) gAnimFrames = atoi(n);
     const char* cs = getenv("ARES_REF_XCHECK_CASE");

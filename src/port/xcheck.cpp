@@ -75,6 +75,7 @@ struct State {
     unsigned events = 0;
     std::string animDir, animCur;
     int animFrames = 300, animCount = 0;
+    std::vector<int> loadWait; // PORT_XCHECK_LOAD_WAIT: per animation, game frames left to report "still loading"
     unsigned long long gameFrame = 0;               // battle game frames so far
     unsigned long long animStart = 0, animLast = 0; // game frame of the animation's start, of the last saved frame
     bool animOn = false;
@@ -137,6 +138,11 @@ void Init() {
     gPortXcheckTraceGuRandom = getenv("PORT_XCHECK_GURANDOM") != nullptr;
     if (const char* a = getenv("PORT_XCHECK_ANIM")) g.animDir = a;
     if (const char* n = getenv("PORT_XCHECK_ANIM_FRAMES")) g.animFrames = atoi(n);
+    if (const char* w = getenv("PORT_XCHECK_LOAD_WAIT")) {
+        std::stringstream ws(w);
+        std::string v;
+        while (std::getline(ws, v, ',')) g.loadWait.push_back(atoi(v.c_str()));
+    }
 }
 
 // splitmix64 of (seed, stream, call index): the same stream as the ares driver's streamValue
@@ -182,6 +188,18 @@ extern "C" {
 int Port_XcheckEnabled(void) {
     Init();
     return g.out != nullptr || g.force || g.com || !g.animDir.empty() || !g.mons.empty();
+}
+
+// the move presentation waits for the move's effect assets (battle_engine_309ED0.c): instant in the port, while the N64
+// can spend game frames more on the DMA, and every state that runs on through that wait (Moltres' simulated flame
+// mesh, its flame particles, model idle motions) reaches the animation that many frames further along.
+// PORT_XCHECK_LOAD_WAIT=<n0>,<n1>,...: before animation k the port reports "still loading" n_k more game frames
+// (tools/battle_sweep.py sets them from the ares trace: its A lines' gf minus the port's)
+int Port_XcheckLoadWait(void) {
+    Init();
+    if ((size_t)g.animCount >= g.loadWait.size() || g.loadWait[g.animCount] <= 0) return 0;
+    g.loadWait[g.animCount]--;
+    return 1;
 }
 
 int Port_XcheckForcingRandom(void) {
