@@ -21,6 +21,8 @@ call paths, and recognised as the same function when several paths reach it.
 | save variants | `gb_variants.py <base.sav> <dir>`, then runs named `<route>__<variant>`, `variant_matrix.py <runs> <callgraph.json> <out.md>` | 14 variants (party, boxes, Pokédex, flags, map, checksums, Hall of Fame, illegal, fainted); per route what each adds over the base save and over no cartridge (`evidence/gb_variants/`) |
 | whole game | `cmake ... -DPORT_EVID_FILES=game/src/` (own build dir), `run.py --dump-every 600 --gb2 ROM:SAVE --flash F` | every game source instrumented; second cartridge; Stadium flash per route |
 | dead code | `deadcode.py <whole-game callgraph.json> <rom.z64> <out.md> <names or ->` | functions with no C reference in the whole decomp and no ROM word with their N64 address (`port_func_table.c`) |
+| forced fragment entries | `fragment_calls.py <binary> <callgraph.json> <out.json> <runs>...`, then `run.py --call "<spec>"` | a direct call of `Fragment_LoadAndCall` for each fragment no run entered |
+| calls for unreferenced code | `dead_calls.py <callgraph.json> <names> <out.txt>`, then `run.py --call-file out.txt --call-fork` | one placeholder call per function, each in a forked child (crashes and hangs cost one call); results in the sequence file (`K` lines) |
 | what a lever adds | `covdiff.py <binary> <out.md> --base <runs>... --new <runs>...` | functions and source lines only the new runs reached |
 | records | `analyze.py <callgraph.json> <out> <runs>... --reviews reviews.json` | `records.json` (all functions), `coverage.md`, `records.md` (the reviewed ones) |
 

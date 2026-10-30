@@ -28,8 +28,9 @@
 //   PORT_EVID_CALL=<fn>[#<n>]:<target>:<ret>:<args>;...  at entry of <fn> (n-th entry), call <target> (image offset)
 //                             directly: for code nothing in the shipped game calls. <ret> v, i (integer) or f
 //                             (float); <args>: up to 6 of i<int> (integer), f<float>, p<off> (pointer into a 256-byte
-//                             scratch buffer, filled from PORT_EVID_CALL_BUF=<hex> before each call); integer and
-//                             float arguments cannot be mixed (the arm64 registers would be wrong). Logged to the
+//                             scratch buffer, filled from PORT_EVID_CALL_BUF=<hex> before each call); up to 6 integer
+//                             and 4 float arguments in any order (arm64 registers per kind). With
+//                             PORT_EVID_CALL_FORK=1 each call runs in a forked child (crash- and hang-proof). Logged to the
 //                             sequence file: "K <frame> <target> ret=<value> buf0=<hex> buf1=<hex>"
 //   LLVM_PROFILE_FILE=<file>  with PORT_EVID_COVERAGE (cmake/evidence.cmake): the branch/line counters, written with
 //                             the call data (the port ends runs with _exit, so the profile runtime's own exit
@@ -41,12 +42,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mach-o/dyld.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <mach-o/ldsyms.h>
 #include "fragments/battle_engine/battle_engine.h"
 
 #define NOINST __attribute__((no_instrument_function))
 
 static NOINST void Hex(FILE* f, const char* key, const void* p, size_t n);
+int __llvm_profile_write_file(void) __attribute__((weak));
+void __llvm_profile_set_filename(const char*) __attribute__((weak));
 
 uint64_t Port_ViTick(void);
 
@@ -78,7 +84,7 @@ static uintptr_t sInjectAt;
 static int sInjectMoves[4], sInjectPP[4] = { -1, -1, -1, -1 };
 static uint8_t sInjectSeen[256];
 
-enum { kSetMax = 32, kStepMax = 8 };
+enum { kSetMax = 32, kCallMax = 2048, kStepMax = 8 };
 typedef struct {
     uintptr_t fn, base;
     int nth, seen, size, nsteps, orIn;
@@ -94,13 +100,14 @@ typedef struct {
     char ret, kind[6];
     double val[6];
 } CallRec;
-static CallRec sCallRecs[kSetMax];
+static CallRec sCallRecs[kCallMax];
+static int sCallFork;
 static int sCallN;
 static uint8_t sCallBuf[256], sCallBufInit[256];
 static size_t sCallBufLen;
 
 static NOINST void ParseCalls(const char* p) {
-    while (*p && sCallN < kSetMax) {
+    while (*p && sCallN < kCallMax) {
         CallRec* r = &sCallRecs[sCallN];
         char* end;
         memset(r, 0, sizeof *r);
@@ -127,10 +134,10 @@ static NOINST void ParseCalls(const char* p) {
     }
 }
 
-typedef long (*FnI6)(long, long, long, long, long, long);
-typedef double (*FnI6F)(long, long, long, long, long, long);
-typedef long (*FnF4)(float, float, float, float);
-typedef float (*FnF4F)(float, float, float, float);
+// arm64 passes integer and float arguments in separate registers (x0..x7, s0..s7) in order within each kind, so one
+// call shape with six integers and four floats fits any prototype with at most that many of each
+typedef long (*FnMix)(long, long, long, long, long, long, float, float, float, float);
+typedef float (*FnMixF)(long, long, long, long, long, long, float, float, float, float);
 
 static NOINST void DoCalls(uintptr_t fn) {
     for (int i = 0; i < sCallN; i++) {
@@ -142,24 +149,38 @@ static NOINST void DoCalls(uintptr_t fn) {
         long a[6] = { 0 };
         float f[4] = { 0 };
         int floats = 0;
+        int ints = 0;
         for (int k = 0; k < r->nargs; k++) {
             if (r->kind[k] == 'f') {
                 if (floats < 4) f[floats++] = (float)r->val[k];
-            } else if (r->kind[k] == 'p') {
-                a[k] = (long)(sCallBuf + (long)r->val[k]);
-            } else {
-                a[k] = (long)r->val[k];
+            } else if (ints < 6) {
+                a[ints++] = r->kind[k] == 'p' ? (long)(sCallBuf + (long)r->val[k]) : (long)r->val[k];
             }
         }
         void* t = (void*)(sBase + r->target);
         char ret[64] = "-";
-        if (floats) {
-            if (r->ret == 'f') snprintf(ret, sizeof ret, "%g", (double)((FnF4F)t)(f[0], f[1], f[2], f[3]));
-            else snprintf(ret, sizeof ret, "%ld", ((FnF4)t)(f[0], f[1], f[2], f[3]));
-        } else if (r->ret == 'f') {
-            snprintf(ret, sizeof ret, "%g", ((FnI6F)t)(a[0], a[1], a[2], a[3], a[4], a[5]));
+        pid_t child = 0;
+        if (sCallFork) {
+            // PORT_EVID_CALL_FORK: the call runs in a forked child (2 s alarm), so a crash or a hang costs only that
+            // call; the child writes its coverage counters to <LLVM_PROFILE_FILE>.k<i> and its result line
+            if (sSeq) fflush(sSeq);
+            child = fork();
+            if (child > 0) {
+                int st = 0;
+                waitpid(child, &st, 0);
+                if (sSeq && !(WIFEXITED(st) && WEXITSTATUS(st) == 0)) {
+                    fprintf(sSeq, "K %llu %lx failed=%s%d\n", (unsigned long long)Port_ViTick(), (unsigned long)r->target,
+                            WIFSIGNALED(st) ? "signal" : "exit", WIFSIGNALED(st) ? WTERMSIG(st) : WEXITSTATUS(st));
+                    fflush(sSeq);
+                }
+                continue;
+            }
+            alarm(2);
+        }
+        if (r->ret == 'f') {
+            snprintf(ret, sizeof ret, "%g", (double)((FnMixF)t)(a[0], a[1], a[2], a[3], a[4], a[5], f[0], f[1], f[2], f[3]));
         } else {
-            long v = ((FnI6)t)(a[0], a[1], a[2], a[3], a[4], a[5]);
+            long v = ((FnMix)t)(a[0], a[1], a[2], a[3], a[4], a[5], f[0], f[1], f[2], f[3]);
             if (r->ret == 'i') snprintf(ret, sizeof ret, "%ld", v);
         }
         if (sSeq) {
@@ -167,6 +188,16 @@ static NOINST void DoCalls(uintptr_t fn) {
             Hex(sSeq, "buf0", sCallBufInit, sCallBufLen);
             Hex(sSeq, "buf1", sCallBuf, sCallBufLen);
             fputc('\n', sSeq);
+        }
+        if (sCallFork && child == 0) {
+            char path[1100];
+            if (sSeq) fflush(sSeq);
+            if (__llvm_profile_set_filename && getenv("LLVM_PROFILE_FILE")) {
+                snprintf(path, sizeof path, "%s.k%d", getenv("LLVM_PROFILE_FILE"), i);
+                __llvm_profile_set_filename(path);
+                __llvm_profile_write_file();
+            }
+            _exit(0);
         }
     }
 }
@@ -217,7 +248,6 @@ static _Thread_local int tBusy;
 static uint16_t sSeqCount[1 << 16];
 
 static NOINST void Dump(void);
-int __llvm_profile_write_file(void) __attribute__((weak));
 
 static NOINST void Init(void) {
     sInit = 1;
@@ -246,6 +276,7 @@ static NOINST void Init(void) {
     }
     if (getenv("PORT_EVID_SET")) ParseSets(getenv("PORT_EVID_SET"));
     if (getenv("PORT_EVID_CALL")) ParseCalls(getenv("PORT_EVID_CALL"));
+    sCallFork = getenv("PORT_EVID_CALL_FORK") != NULL;
     if (getenv("PORT_EVID_CALL_BUF")) {
         const char* h = getenv("PORT_EVID_CALL_BUF");
         for (sCallBufLen = 0; h[0] && h[1] && sCallBufLen < sizeof sCallBufInit; h += 2) {

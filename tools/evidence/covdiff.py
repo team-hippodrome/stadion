@@ -14,7 +14,8 @@ def tool(name):
 
 def covered(binary, runs):
     """{file: set(lines with count > 0)}, set(functions with count > 0) for the instrumented files"""
-    raws = [os.path.join(r, "coverage.profraw") for r in runs if os.path.exists(os.path.join(r, "coverage.profraw"))]
+    raws = [os.path.join(r, f) for r in runs if os.path.isdir(r) for f in sorted(os.listdir(r))
+            if f == "coverage.profraw" or f.startswith("coverage.profraw.k")]  # (.k<i>: forked direct calls)
     fd, prof = tempfile.mkstemp(suffix=".profdata")
     os.close(fd)
     subprocess.run([tool("llvm-profdata"), "merge", "-sparse", "-o", prof] + raws, check=True)

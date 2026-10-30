@@ -6,7 +6,7 @@ Usage:
   tools/evidence/run.py <out dir> --bin build-evidence/pokestadium [--seed N] [--queue FILE] [--frames N]
                         [--watch Name1,Name2] [--seq-max N] [--ares] [--moves m1,m2,m3,m4[:p1,p2,p3,p4]]
                         [--set "Fn[#n]:sym[*][+off]...:size=value;..."]
-                        [--call "AtFn[#n]:Target:ret:args;..." [--call-buf HEX]]
+                        [--call "AtFn[#n]:Target:ret:args;..." [--call-file F] [--call-fork] [--call-buf HEX]]
                         [--gb ROM:SAVE] [--gb2 ROM:SAVE] [--rec RECORDING [--flash STADIUM.flash] [--natural]] [--dump-every N]
 --gb puts a Game Boy cartridge in the Transfer Pak (a copy of SAVE; tools/evidence/gb_party.py writes any party into
 a save); --rec replaces the battle_xcheck route with another input recording (from boot), e.g. a Free Battle with a
@@ -147,14 +147,21 @@ def main():
         env["PORT_EVID_DUMP_EVERY"] = opt("--dump-every")
     if opt("--set"):
         env["PORT_EVID_SET"] = ";".join(translate_set(x, res) for x in opt("--set").split(";") if x)
-    if opt("--call"):  # direct calls (evidence_rt.c PORT_EVID_CALL): "AtFn#1:Target:i:p0,i20,i2"
+    call_specs = opt("--call").split(";") if opt("--call") else []
+    if opt("--call-file"):  # one spec per line (tools/evidence/dead_calls.py), "#" lines ignored
+        call_specs += [l.strip() for l in open(opt("--call-file")) if l.strip() and not l.startswith("#")]
+    if "--call-fork" in args:
+        env["PORT_EVID_CALL_FORK"] = "1"
+    if call_specs:  # direct calls (evidence_rt.c PORT_EVID_CALL): "AtFn#1:Target:i:p0,i20,i2"
         specs = []
-        for x in opt("--call").split(";"):
+        for x in call_specs:
             at, target, rest = x.split(":", 2)
             nth = ""
             if "#" in at:
                 at, nth = at.split("#")
                 nth = "#" + nth
+            if target not in res.by_name:
+                continue  # (inlined everywhere or stripped: nothing to call)
             specs.append("0x%x%s:0x%x:%s" % (res.by_name[at], nth, res.by_name[target], rest))
         env["PORT_EVID_CALL"] = ";".join(specs)
         if opt("--call-buf"):

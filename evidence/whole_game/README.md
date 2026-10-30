@@ -1,5 +1,35 @@
 # Whole game: how far the levers reach, what is left and why
 
+**Current (origin/main 7936e2e + #61 merged): 5926 of 7490 functions (79.1%), lines 68.1%, branches 59.4%** over 159
+runs plus 627 forked direct calls. New in this round, on top of the levers below:
+- **Menu mash routes** (`routes/lab_*_mash.rec`): each Lab screen (Pokémon, Items, BOXes, See List, Pokédex, Trade
+  Machine) entered with a Game Pak, then a fixed cycle of A, directions, L/R, Z and C-buttons; an `items` Game Boy
+  save variant (full bag and PC item storage) for the Items screen.
+- **Forced fragment entries** (`tools/evidence/fragment_calls.py`): a direct call of `Fragment_LoadAndCall(id, ROM
+  start, ROM end, 0, 0)` for each fragment no run entered (the absolute `fragmentNN_*` symbols give the arguments).
+  Ran to the end: credits 26/27, Gym Leader Castle clear 21/23, Jigglypuff Doodle 16/18, mini-game sample viewers 7
+  and 8 10/10 each, snap print-club background select 9/10, ranking debug test 7/8, fatal error screen 6/6. Crashed
+  without their parent state's setup: event battle, gallery enlarge, rental rules, Pikachu reward (next: call them
+  from inside the state that normally enters them).
+- **Forked direct calls** (`tools/evidence/dead_calls.py`, `run.py --call-file F --call-fork`): every function that
+  nothing references (668) called once with placeholder arguments, each in a forked child (2 s alarm, own coverage
+  file), so crashes and hangs cost one call: 627 called (41 skipped: struct arguments by value), 504 returned
+  (`dead_calls.md`: return value per function), 59 crashed, 63 hung, 1 bus error. Integer and float arguments in any
+  order (arm64 passes them in separate registers).
+- 10 of 29 new memory proposals opened their gate (+41 functions).
+
+Left (1564): 1196 behind 821 gates (`frontier.md`: menu steps 376, other state 398, session/save/mode 187, callbacks
+137, results of calls 117, table indices 115, hardware 59), 368 with no reached caller (`dead_code.md`: 118
+referenced by nothing: the direct calls that crashed, hung or were skipped; 18 referenced only from data; 232 below
+other unreached code). Largest areas: event battle 56, rental rules 55, Game Boy music (gb_audio.c) 44, Pikachu
+reward 29, the 64DD library, the Lab PC list 168 (much of it behind a new crash, below), demo scenes 103.
+
+New port crash (not fixed here): Lab PC → See List, `routes/lab_seelist_mash.rec` with the `boxes_full` save, frame
+7804: segfault in `func_88304850` (lab_pc_list, drawn from `LabPCList_RunWidgetLoop` through the widget tree), a
+garbage pointer (`0x136b5573d15ad36e`).
+
+The sections below are the earlier rounds.
+
 **Current (origin/main 8309990 merged: the Lab PC Items / See List and Pokédex AREA fixes, PR #51):** 155 runs
 (the same levers; the Lab PC menu and Pokédex routes now run to their end) reach **5146 of 7487 functions
 (68.7%)**, lines 62.2%, branches 54.5% (before the fixes: 65.7%, 58.8%, 53.2%). Gained: Lab PC list 0 -> 101 of 281,

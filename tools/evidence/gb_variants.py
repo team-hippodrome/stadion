@@ -19,10 +19,12 @@ Variants (the base keeps its party, map and flags):
   hof            a Hall of Fame entry
   illegal        party with moves the species cannot learn, level 100 Mewtwo, an egg-like id 0 slot
   fainted        party where every Pokémon but one has 0 HP, one poisoned, one asleep
+  items          a full bag (20 kinds) and full PC item storage (50 kinds): balls, potions, key items, TMs and HMs
 Gen 1 save layout (pokered): main data 0x2598-0x3522 with its checksum at 0x3523; party 0x2F2C; current box
 0x30C0 (0x462 bytes); current box number 0x284C; boxes 1-6 at 0x4000, 7-12 at 0x6000 (0x462 each), bank checksum at
 bank + 0x1A4C, per-box checksums from bank + 0x1A4D; Pokédex owned 0x25A3 / seen 0x25B6 (19 bytes each); event
-flags from 0x29F3 (0x29F7 bit 5: got the Pokédex); current map 0x260A; Hall of Fame at 0x0598 (0x60 per team).
+flags from 0x29F3 (0x29F7 bit 5: got the Pokédex); current map 0x260A; Hall of Fame at 0x0598 (0x60 per team);
+bag 0x25C9 (count, id/quantity pairs, 0xFF) for 20 kinds, PC items 0x27E6 for 50 kinds.
 """
 import os, sys
 
@@ -138,6 +140,17 @@ def variant(name, base, player, otid):
     elif name == "illegal":
         put_party(sav, ["CHARMANDER:5,moves=63/94/57/153", "MEWTWO:100,moves=94/105/97/0", "MAGIKARP:100,moves=150/63/0/0",
                         "PIKACHU:100,moves=57/19/0/0,stats=999/999/999/999/999"], player, otid)
+    elif name == "items":
+        def item_list(off, ids):
+            sav[off] = len(ids)
+            for i, it in enumerate(ids):
+                sav[off + 1 + 2 * i] = it
+                sav[off + 2 + 2 * i] = 1 if it >= 0xC4 else 5 + i % 90  # TMs/HMs one each
+            sav[off + 1 + 2 * len(ids)] = 0xFF
+        bag = [1, 2, 3, 4, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x1D, 0x23, 0x28, 0xC4, 0xC9]
+        pc = [i for i in range(1, 0x54) if i not in (0x07, 0x08, 0x09, 0x1F, 0x2C, 0x32)][:42] + list(range(0xC9, 0xD1))
+        item_list(0x25C9, bag)
+        item_list(0x27E6, pc[:50])
     elif name == "fainted":
         put_party(sav, ["PIKACHU:25,hp=0", "MEW:100,hp=0", "GENGAR:60,status=0x08", "SNORLAX:60,status=0x02",
                         "CHARIZARD:60,hp=1"], player, otid)
@@ -148,7 +161,7 @@ def variant(name, base, player, otid):
 
 
 ALL = ["base", "party6", "party1", "dex_full", "dex_empty", "boxes_full", "boxes_mixed", "no_pokedex", "not_at_pc",
-       "bad_checksum", "bad_box_sum", "hof", "illegal", "fainted"]
+       "bad_checksum", "bad_box_sum", "hof", "illegal", "fainted", "items"]
 
 
 def main():

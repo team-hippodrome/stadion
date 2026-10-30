@@ -152,7 +152,8 @@ def main():
         del args[i:i + 2]
     cg_path, binary, out, runs = args[0], args[1], args[2], args[3:]
     os.makedirs(out, exist_ok=True)
-    raws = [os.path.join(r, "coverage.profraw") for r in runs if os.path.exists(os.path.join(r, "coverage.profraw"))]
+    raws = [os.path.join(r, f) for r in runs if os.path.isdir(r) for f in sorted(os.listdir(r))
+            if f == "coverage.profraw" or f.startswith("coverage.profraw.k")]  # (.k<i>: forked direct calls)
     prof = os.path.join(out, "merged.profdata")
     subprocess.run([tool("llvm-profdata"), "merge", "-sparse", "-o", prof] + raws, check=True)
     exp = subprocess.run([tool("llvm-cov"), "export", "-format=text", "-skip-expansions", "-instr-profile", prof,
