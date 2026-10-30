@@ -878,6 +878,14 @@ sample count after every VI frame).
   cell draw (func_88201488) loaded the Pokémon icon from `arg2 + 2` on the entry's pointer type, 8 bytes in on the N64
   (after the Pokémon pointer and its padding) but 16 on the host: every icon 4 pixels off. Checked on GB BOX 1 (20
   Pokémon, then the summary of one) and 64 BOX 1 / 2 (6 / 3 Pokémon).
+- Registered teams, registering a team (evidence pilot, Gym Leader Castle → Registration → Register Pokémon; froze on
+  the screen after the team was saved): the registration manager (unk_D_84229EB0) keeps a ring of four team entries
+  (unk_4D24/unk_4D28 link [i] to [(i ± 1) & 3]) but declared them as `unk_00028[3]` plus `char unk0E7B8[0x4D30]`, the
+  N64 size of the fourth. The host entry is larger (two pointers), so TeamSelection_RegisteredTeam_Initialize's ring
+  setup wrote the fourth entry's back link over unk_134E8, the team tray pointer, and RegisteredTeam_SaveFromTray /
+  ..._HandleDiscardPrompt passed a team entry to Rental_TeamTrayResume / Rental_ResetTeamSlots: the tray never slid
+  out, nothing ended the input loop. It is `unk_00028[4]` now. Checked: registering the 10th team returns to the
+  Castle's registration menu; "register another" empties the tray and picking goes on.
 - Pikachu Surf reward (Stadium_BonusPikachuReward; the evidence pilot's free battle + reward entry, segfault in
   ModelAnim_EvaluateScaleChannel at fault address 0x8811208e when the three surfing followers appear after "Pikachu
   learned Surf"): the followers' animation `D_8C2011C4` lies in the data fragment `_798CD0` (Fragment_Load, linked at
