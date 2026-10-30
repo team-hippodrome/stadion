@@ -1,6 +1,23 @@
 # Whole game: how far the levers reach, what is left and why
 
-**Current (origin/main ec92ad5 merged: the Lab PC list fixes, PRs #68 and #69): 6415 of 7490 functions (85.6%),
+**Current (origin/main ec92ad5): 6521 of 7490 functions (87.1%), lines 77.5%, branches 68.7%.** New: the **demo
+scenes** 170 of 177 (was 74). The scenes the Stadium menu state plays after a cup (`game_state.c`: scene 17 on
+`transitionFlags` 0x2, 22/23 on 0x8/0x10 for the first clear that raises the GB Tower tier, 21/26 the completion
+scene) entered at the point the game enters them: `Stage_RunDemoScene(id)` when battle prep's post-battle screen
+returns, after the Game Pak free battle (`run.py --rec routes/pikachu_reward_3moves.rec --gb ... --call
+"BattlePrep_RunRulesScreen#2@exit:Stage_RunDemoScene:i:i<id>"`); the stored cup-win recording no longer replays (the
+battles have changed since it was recorded). The Mewtwo intro (24) through `STATE_VS_MEWTWO` from the title screen
+(`--set "State_TitleScreen#1@exit:gCurrentGameState:4=34"`, unlocked flash). Scene 17's model showcase walks a cup
+roster of six (`ruleCategory` 1, 2, 4, 5 or 7, set with `--set "...@exit:gSessionContext+0x1:1=1"`); with the free
+battle's three it shows three and then reads past them (a forced-condition artefact, not a port bug: in the game
+the showcase only follows a cup). Left: the completion gift dialog's decline and "already have one" branches,
+unused math helpers and stubs.
+
+The evidence runtime now also dumps when the game crashes (it hooks the crash signals at its first periodic dump
+and hands them on to the port's crash report afterwards): before, a crash lost everything since the last dump,
+often the code that crashed.
+
+**Previous round (origin/main ec92ad5 merged: the Lab PC list fixes, PRs #68 and #69): 6415 of 7490 functions (85.6%),
 lines 76.4%, branches 67.6%** (previous: 83.5%, 74.1%, 65.8%). New: the **Lab PC list** 271 of 282 (was 129), driven
 screen by screen from its input code with screenshots (`run.py --shots`) and checked against the N64 in ares:
 - Routes `routes/lab_list/*.rec`, each from the list screen with both box lists (Lab with a Game Pak, the

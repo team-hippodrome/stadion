@@ -410,8 +410,52 @@ static NOINST void ApplySets(uintptr_t fn, int exit) {
     }
 }
 
+// A crash would lose what ran since the last periodic dump (often the very code that crashed), so the first dump
+// also hooks SIGSEGV/SIGBUS/SIGILL/SIGFPE/SIGABRT: dump once more, then hand the signal to the handler installed
+// before (the port's crash report). Hooked at the first dump rather than at start-up, when the port's handler is
+// in place. Not async-signal-safe (stdio, the profile writer); acceptable for a run that is ending anyway.
+static const int kCrashSigs[] = { SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT };
+static struct sigaction sPrevAct[5];
+static volatile sig_atomic_t sCrashing;
+static int sCrashHooked;
+
+static NOINST void CrashDump(int sig, siginfo_t* info, void* uc) {
+    int k = 0;
+    while (k < 5 && kCrashSigs[k] != sig) k++;
+    if (!sCrashing) {
+        sCrashing = 1;
+        tBusy = 1;
+        Dump();
+    }
+    if (k < 5) {
+        sigaction(sig, &sPrevAct[k], NULL);
+        if (sPrevAct[k].sa_flags & SA_SIGINFO) {
+            if (sPrevAct[k].sa_sigaction) sPrevAct[k].sa_sigaction(sig, info, uc);
+            return;
+        }
+        if (sPrevAct[k].sa_handler != SIG_DFL && sPrevAct[k].sa_handler != SIG_IGN) {
+            sPrevAct[k].sa_handler(sig);
+            return;
+        }
+    }
+    raise(sig); // the default action, with the previous disposition restored
+}
+
+static NOINST void HookCrashes(void) {
+    sCrashHooked = 1;
+    for (int k = 0; k < 5; k++) {
+        struct sigaction a;
+        memset(&a, 0, sizeof a);
+        a.sa_sigaction = CrashDump;
+        a.sa_flags = SA_SIGINFO | SA_ONSTACK;
+        sigemptyset(&a.sa_mask);
+        sigaction(kCrashSigs[k], &a, &sPrevAct[k]);
+    }
+}
+
 static NOINST void Dump(void) {
     if (!sOn) return;
+    if (!sCrashHooked && !sCrashing) HookCrashes();
     char tmp[1024];
     snprintf(tmp, sizeof tmp, "%s.tmp", sOutPath);
     FILE* f = fopen(tmp, "w");
