@@ -364,6 +364,8 @@ double Port_Speed() {
 } // extern "C"
 
 // Only every n-th frame is drawn when running fast (PORT_RENDER_EVERY overrides); the game cannot tell.
+extern "C" int Port_XcheckWantDraw(void);
+
 static uint64_t Port_RenderEvery() {
     static uint64_t n = getenv("PORT_RENDER_EVERY") ? (uint64_t)std::max(1, atoi(getenv("PORT_RENDER_EVERY")))
                                                    : (uint64_t)std::min(10.0, Port_Speed());
@@ -1163,7 +1165,8 @@ void Port::PumpRspTasks() {
             static uint64_t gfxCount = 0;
             bool stopFrame, shotFrame;
             CheckCapture(&stopFrame, &shotFrame);
-            if ((gfxCount++ % Port_RenderEvery()) == 0 || stopFrame || shotFrame) {
+            // (Port_XcheckWantDraw: the battle cross-check is capturing a move animation, src/port/xcheck.cpp)
+            if ((gfxCount++ % Port_RenderEvery()) == 0 || stopFrame || shotFrame || Port_XcheckWantDraw()) {
                 Port::RunGameFrame(t->t.data_ptr, stopFrame || shotFrame); // (interp.cpp: in-between frames)
             } else if (Port::TrackFrame(t->t.data_ptr)) { // not drawn, but its state changes must still happen
                 Port::CancelInterpolation();

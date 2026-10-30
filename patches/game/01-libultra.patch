@@ -124,6 +124,38 @@ index be571d40b90b8ffd1f8bba527918a16ea0659fa8..ec82aab370bf1a7f95b2f29a3996df77
  
  /**************************************************************************
   *									  *
+diff --git a/lib/ultralib/src/gu/random.c b/lib/ultralib/src/gu/random.c
+index 32cfde3a26d5a1d4218c670bd4de50870a9b7c07..68133e3824e73f7cb31f0e813b38bb1f705d4ff6 100644
+--- a/lib/ultralib/src/gu/random.c
++++ b/lib/ultralib/src/gu/random.c
+@@ -17,11 +17,26 @@
+  *  try the RAND macro too
+  *   
+  */
++static unsigned int xseed = 174823885; // PORT: file scope, for Port_GuRandomSeed
++
++// PORT: battle cross-check (src/port/xcheck.cpp): both games restart the generator at each move animation, so the
++// particles that draw from it match
++void Port_GuRandomSeed(unsigned int seed)
++{
++    xseed = seed;
++}
++
++extern int gPortXcheckTraceGuRandom;              // PORT: battle cross-check (src/port/xcheck.cpp)
++extern void Port_XcheckGuRandomCalled(void* caller);
++
+ int guRandom(void)
+ {
+-    static unsigned int xseed = 174823885;
+     unsigned int x;
+ 
++    if (gPortXcheckTraceGuRandom) {
++        Port_XcheckGuRandomCalled(__builtin_return_address(0));
++    }
++
+     x = (xseed<<2) + 2;
+ 
+     x *= (x+1);
 diff --git a/lib/ultralib/src/gu/rotate.c b/lib/ultralib/src/gu/rotate.c
 index c843d9ffa2ba72d1a8893ec91eafcf11a70efc7a..0fd3e33d7468eecb6b07102bca519c2225df3388 100644
 --- a/lib/ultralib/src/gu/rotate.c
