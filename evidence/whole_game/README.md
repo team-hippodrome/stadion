@@ -1,6 +1,23 @@
 # Whole game: how far the levers reach, what is left and why
 
-**Current: 6611 of 7490 functions (88.3%), lines 78.9%, branches 69.8%.** Registered teams
+**Current: 6763 of 7490 functions (90.3%), lines 81.9%, branches 73.1%.** Four parallel side sessions, each with
+its own routes and README (what each route reaches, save recipes, input patterns):
+- `routes/lab_pc2/`: the Lab PC's Game Pak item box (new box, merging stacks), saving changed boxes, swapping sides,
+  re-ordering and releasing in the Pokemon screen, and the prize Pokemon (`options.bonus_pokemon`). Lab PC 266 of
+  269. ares matches the Game Pak box route and leaves a byte-identical flash.
+- `routes/rental_grid/`: the rental team grid (the tray's "Reselect some" opens it): cursor, slot assignment,
+  exchange yes/no, the level-cap warning, a full registration file, registered-team screens. Fragment 61 123 of 123,
+  rental team selection 102 of 105. Port bug found and fixed: a freeze in the registered-team ring (PR #71).
+- `routes/castle_mewtwo/`: Gym Leader Castle gym and Elite Four clears and the rival, the Castle clear through the
+  game's own 0x200 path (and scenes 0x11/0x15 after it), losses with the give-up and quit prompts, VS Mewtwo won (the
+  credits' outro) and lost, Battle Now. No forced conditions besides the state entry: every battle is won or lost by
+  the recording's moves with a strong cartridge party. Battle prep 187 of 205.
+- `routes/battle_gates/` and `battle_anim_slots.md`: COM Hard in Free Battle carries AI trainer flag 0x400000 (the AI
+  config records at ROM 0x7820E0: Free Battle Hard, the rival, Mewtwo and others), six-Pokemon battles, the faint and
+  recoil scene phases; and the data proof for the animation effect-table slots no move script uses. Battle engine
+  1905 of 2055.
+
+**Previous round: 6611 of 7490 functions (88.3%), lines 78.9%, branches 69.8%.** Registered teams
 (`routes/registration/*.rec`): the Gym Leader Castle menu entered through the state loop
 (`--set "State_TitleScreen#1@exit:gCurrentGameState:4=39"`, the `teams` flash with one registered team, the
 `party6` Game Boy save), Registration: register a team of six from the cartridge (each pick: A for the details,
