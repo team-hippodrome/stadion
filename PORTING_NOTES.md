@@ -1457,6 +1457,16 @@ Thrash x3, Body Slam x2, Blizzard):
   animation. No swept move changed with it, though.
   Not this: Psybeam 60 (62) and Sing 47 (49) stay as they were. Their battles have no game-frame drift (same gf
   at every animation, and every counter above equal), so the colour-cycle/scroll difference there has another cause.
+  Sing (fixed): its overlay is Trail40Variant (battle_engine_34F1A0.c), a rippling plane in front of the effect camera
+  drawn with G_TEXTURE_GEN and the 32x32 texture asset 0x48, which wraps ~16 times over the normal range, so a texel of
+  texgen error recolours the screen; in the port it flickered between two looks on alternate frames. The game sends the
+  same commands on both kinds of frame, so it was the texgen result: the RSP keeps the transformed lookat directions as
+  signed bytes, libultraship kept floats, and lookat X's transformed y component (the difference of two nearly equal
+  terms) ran a sawtooth (-0.0059, -0.0002, -0.0032, ...). patches/libultraship.patch (Interpreter::GfxSpVertex) now
+  floors current_lookat_coeffs to 1/128 steps (clamped at 127/128) after CalculateNormalDir. Floor (an arithmetic
+  shift) gives Sing 49 -> 33-37; round to nearest 56.5, truncation toward zero 60.6. The other texgen effects (Barrier,
+  Light Screen, Reflect) stay at ~34; the light directions (diffuse shading) stay float. Psybeam's remaining
+  difference was the glow at the user's mouth, fixed with the FPU rounding mode (below).
 - Effect asset loads: the move presentation (battle_engine_309ED0.c, step 1) retries BattleAnim_TryRegisterAssetTables
   each game frame until the move's effect assets are in; instant in the port, 0-2 game frames on the N64 (Fire Spin:
   animation at gf 464 in ares, 462 in the port). Whatever runs on meanwhile then enters the animation that much further
