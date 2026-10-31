@@ -1338,6 +1338,13 @@ per program, a visible hitch the first time each effect appears. The stored reco
   and keyed by the source, so a copied binary is not reliably cold).
 - `PORT_TRACE_SHADERS=1` (or `PORT_TRACE_PACING=1`): `[shader] <id0>/<id1> built|prebuilt in X ms` per program at its
   first draw (the time that draw waited), the size of the list, and when the warm-up is done.
+- First Poke Ball throw stutter (user report, first start of a freshly built app): that session's `shaders.txt` got 8
+  programs the list lacked, translucent and fogged variants (option bits ALPHA+FOG, some with texture clamp or edge)
+  of shipped programs, such as a Pokemon fading in on a send-out in a fogged arena; with the new binary's empty
+  Metal cache each was built at its first draw (500-700 ms cold, measured with `PORT_SHADER_SALT`). They are in the
+  list now (121 programs; cold warm-up 13.4 s, done during boot). With a warm cache the first throw shows no hitch: a
+  real-time visible-window run of `PORT_BOOT=battle` through the send-outs, and max-speed runs of `to_battle` and the
+  battle with every frame drawn, have no retrace, draw or game-thread spike at the throw (`PORT_TRACE_PACING`).
 
 Measured on an M-series Mac (10 cores), cold (salted) Metal cache, `to_battle` at 1x, no launcher (Auto-play):
 
