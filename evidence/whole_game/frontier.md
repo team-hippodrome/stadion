@@ -1,13 +1,13 @@
 # What keeps code unreached (^src/)
 
-Runs: batch4, batch5, batch6, batch7, batch8, batch9, batch10, batch11, batch12, batch13, batch14, audio, crash_combo, crash_draw, crash_draw2, crash_thread, dd_boot, gldb, jpeg, lba_arch, lba_file, lba_frag, lba_seg, leo_id, leo_mo, leo_rr, leo_sk, leo_wd, leo_wr, prof_m0, prof_m1, rank2, slots, sram, cart_japanese, cart_no_ram, cart_port2_removed, cart_port4, cart_region_refused, cart_swapped_before_save, continue_delete, debug_profiler_lab, debug_profiler_title, flash_options_backup_bad, gbtower_bad_rom_sum, gbtower_cart_pulled, lab_cart_removed_after_read, lab_probe_removed, lab_save_retry, mode2_round2_opponent, pikachu_save_retry, poll_removed, ramfail_loadport, ramfail_openbox, ramfail_openmain_boot, ramfail_readmain_lab, ramfail_save_commitmain, ramfail_save_rebuild, ramfail_save_validate, ramfail_save_writebox, g000, g001, g002, g003, g004, g005, g006, g007, g008, g009, g010, completion_gift_keep, completion_gift_swap, onix_dig, r2_castle, r2_cup, r2_cupwin, r2_mewtwo, vile_reflect, vp_overlays, area_mewtwo, ck_movepage, dex_area, evo_a, options, trade_cancel, trade_err, trade_pages, gal_album, gal_album_boot, gal_bonus_boot, gal_busy, gal_busy_boot, gal_camera, gal_print, gal_reselect, gal_rv, gal_ss_bonus, gal_ss_print, gal_tutorial, kc_grid_cancel, dewgong133, dragonair121, dragonair9, onix133, onix141, onix145, onix21, vaporeon37, vaporeon45, vileplume109, vileplume113, seals, vp_overlays, vp_overlays2.
+Runs: batch4, batch5, batch6, batch7, batch8, batch9, batch10, batch11, batch12, batch13, batch14, batch15, al_close, pause_end, moves1, moves2, music1, music2, music3, music4, species, system, cup_draw0, cup_draw1, cup_loss_opt0, glc_round2, hm_squirtle, lab_level_group, moltres, order_detail_cap, prenmi, roster_double, rules_species_scroll, tm24_save, fb2p, fb_spike, fb_spike_w, fb_team, mv131, mv8.
 
 | | covered | total | % |
 |---|---|---|---|
-| functions | 6973 | 7490 | 93.1 |
-| lines | 127488 | 149378 | 85.3 |
-| branches | 48694 | 63410 | 76.8 |
-| regions | 90448 | 107090 | 84.5 |
+| functions | 7005 | 7490 | 93.5 |
+| lines | 128701 | 149378 | 86.2 |
+| branches | 49364 | 63410 | 77.8 |
+| regions | 91286 | 107090 | 85.2 |
 
 ## Per area
 
@@ -20,79 +20,73 @@ Runs: batch4, batch5, batch6, batch7, batch8, batch9, batch10, batch11, batch12,
 | leofunc.c | 5 | 0 | 0 | 0 |
 | leotimer.c | 4 | 0 | 0 | 0 |
 | leointerrupt.c | 3 | 0 | 0 | 0 |
-| port_audio.h | 2 | 0 | 0 | 0 |
-| leoreset.c | 2 | 0 | 0 | 0 |
 | leocmdex.c | 2 | 0 | 0 | 0 |
-| leoutil.c | 2 | 0 | 0 | 0 |
 | leoread.c | 2 | 0 | 0 | 0 |
-| testunitready.c | 1 | 0 | 0 | 0 |
+| leoutil.c | 2 | 0 | 0 | 0 |
+| leoreset.c | 2 | 0 | 0 | 0 |
+| leowrite.c | 1 | 0 | 0 | 0 |
 | leord_diskid.c | 1 | 0 | 0 | 0 |
-| leoinquiry.c | 1 | 0 | 0 | 0 |
 | leoseek.c | 1 | 0 | 0 | 0 |
-| leord_capa.c | 1 | 0 | 0 | 0 |
-| gb_tower_unused | 1 | 0 | 0 | 0 |
 | driverominit.c | 1 | 0 | 0 | 0 |
 | leotestunit.c | 1 | 0 | 0 | 0 |
-| leorezero.c | 1 | 0 | 0 | 0 |
-| leomotor.c | 1 | 0 | 0 | 0 |
-| leomode_sel.c | 1 | 0 | 0 | 0 |
-| leomseq_tbl.c | 1 | 0 | 0 | 0 |
+| leord_capa.c | 1 | 0 | 0 | 0 |
 | leotranslat.c | 1 | 0 | 0 | 0 |
-| n_synsetfxmix.c | 1 | 0 | 0 | 0 |
+| leorezero.c | 1 | 0 | 0 | 0 |
+| leoinquiry.c | 1 | 0 | 0 | 0 |
+| leomseq_tbl.c | 1 | 0 | 0 | 0 |
+| leomode_sel.c | 1 | 0 | 0 | 0 |
 | leodiskinit.c | 1 | 0 | 0 | 0 |
-| leowrite.c | 1 | 0 | 0 | 0 |
-| n_syndelete.c | 1 | 0 | 0 | 0 |
+| testunitready.c | 1 | 0 | 0 | 0 |
+| leomotor.c | 1 | 0 | 0 | 0 |
+| n_synsetfxmix.c | 1 | 0 | 0 | 0 |
+| gb_tower_unused | 1 | 0 | 0 | 0 |
 | leo.c | 16 | 5 | 31 | 1 |
-| reset.c | 5 | 2 | 40 | 1 |
 | dma.c | 12 | 6 | 50 | 0 |
 | setrtc.c | 2 | 1 | 50 | 0 |
 | bootdisk.c | 2 | 1 | 50 | 0 |
 | gb_audio.c | 44 | 24 | 55 | 1 |
-| 33FE0.c | 44 | 24 | 55 | 21 |
+| 33FE0.c | 44 | 25 | 57 | 21 |
+| reset.c | 5 | 3 | 60 | 1 |
 | 33E30.c | 3 | 2 | 67 | 2 |
 | gb_save.c | 27 | 20 | 74 | 0 |
 | controller_ram.c | 4 | 3 | 75 | 0 |
 | vector_math.c | 10 | 8 | 80 | 0 |
-| audio_sound_state.c | 5 | 4 | 80 | 0 |
-| player.c | 107 | 88 | 82 | 0 |
 | n_reverb.c | 6 | 5 | 83 | 0 |
 | display_object_textures.c | 31 | 26 | 84 | 1 |
-| dp_intro.c | 20 | 17 | 85 | 0 |
+| player.c | 107 | 90 | 84 | 0 |
 | geo_layout.c | 42 | 36 | 86 | 0 |
 | minigame_actor_framework | 78 | 67 | 86 | 1 |
-| scheduler.c | 24 | 21 | 88 | 1 |
 | jpegutils.c | 8 | 7 | 88 | 0 |
-| battle_order_select | 36 | 32 | 89 | 0 |
 | minigame_shared_graphics | 9 | 8 | 89 | 2 |
 | particle_math | 524 | 467 | 89 | 16 |
 | geo_node.c | 38 | 34 | 89 | 0 |
 | gb_tower.c | 19 | 17 | 89 | 0 |
 | geo_render.c | 72 | 65 | 90 | 2 |
 | graphics_textures.c | 46 | 42 | 91 | 1 |
-| gym_leader_castle_clear | 23 | 21 | 91 | 0 |
-| battle_prep | 205 | 188 | 92 | 1 |
+| scheduler.c | 24 | 22 | 92 | 1 |
 | widget_tree | 148 | 137 | 93 | 4 |
-| rental_rules | 55 | 51 | 93 | 0 |
-| battle_engine | 2055 | 1906 | 93 | 318 |
+| battle_engine | 2055 | 1907 | 93 | 318 |
 | memmap.c | 14 | 13 | 93 | 0 |
 | gb_tower_emulator | 77 | 72 | 94 | 32 |
 | poke_icon.c | 31 | 29 | 94 | 3 |
 | model_animation_events.c | 16 | 15 | 94 | 0 |
 | model_renderer.c | 18 | 17 | 94 | 0 |
+| gallery_backgrounds | 56 | 53 | 95 | 1 |
 | stage_loader.c | 39 | 37 | 95 | 0 |
+| dp_intro.c | 20 | 19 | 95 | 0 |
 | save_data.c | 71 | 68 | 96 | 1 |
 | particle_data_library | 51 | 49 | 96 | 5 |
-| lab_pc_list | 282 | 271 | 96 | 8 |
+| battle_prep | 205 | 197 | 96 | 1 |
 | model_animation.c | 26 | 25 | 96 | 0 |
 | rattata_game | 30 | 29 | 97 | 2 |
 | free_battle_rules | 34 | 33 | 97 | 1 |
 | rental_team_selection | 105 | 102 | 97 | 2 |
+| lab_pc_list | 282 | 274 | 97 | 8 |
 | minigame_select | 72 | 70 | 97 | 3 |
 | game_state.c | 38 | 37 | 97 | 1 |
 | victory_palace | 44 | 43 | 98 | 7 |
 | matrix.c | 50 | 49 | 98 | 0 |
 | event_battle | 56 | 55 | 98 | 0 |
-| gallery_backgrounds | 56 | 55 | 98 | 1 |
 | metapod_game | 58 | 57 | 98 | 2 |
 | demo_scenes | 177 | 174 | 98 | 5 |
 | lab_pc_icons | 61 | 60 | 98 | 1 |
@@ -106,155 +100,159 @@ Runs: batch4, batch5, batch6, batch7, batch8, batch9, batch10, batch11, batch12,
 | pokedex | 68 | 68 | 100 | 3 |
 | gallery_rental_viewer | 67 | 67 | 100 | 1 |
 | clefairy_game | 58 | 58 | 100 | 1 |
+| rental_rules | 55 | 55 | 100 | 0 |
 | transfer_pak_check | 50 | 50 | 100 | 0 |
 | widget_toolkit | 43 | 43 | 100 | 3 |
 | sandshrew_game | 41 | 41 | 100 | 0 |
 | jpeg_stream.c | 37 | 37 | 100 | 0 |
+| battle_order_select | 36 | 36 | 100 | 0 |
 | 3D140_2.c | 32 | 32 | 100 | 9 |
 | area_select | 31 | 31 | 100 | 1 |
-| magikarp_game | 30 | 30 | 100 | 1 |
 | gallery_album | 30 | 30 | 100 | 2 |
-| pikachu_reward | 29 | 29 | 100 | 0 |
+| magikarp_game | 30 | 30 | 100 | 1 |
 | gallery.c | 29 | 29 | 100 | 2 |
+| pikachu_reward | 29 | 29 | 100 | 0 |
 | audio_commands_category2.c | 28 | 28 | 100 | 0 |
 | gallery_snap | 27 | 27 | 100 | 2 |
-| credits | 26 | 26 | 100 | 3 |
 | gallery_film_select | 26 | 26 | 100 | 0 |
+| credits | 26 | 26 | 100 | 3 |
 | gym_leader_castle | 24 | 24 | 100 | 2 |
-| pokemon_lab | 24 | 24 | 100 | 0 |
 | table_view.c | 24 | 24 | 100 | 0 |
 | transfer_pak_select | 24 | 24 | 100 | 2 |
+| pokemon_lab | 24 | 24 | 100 | 0 |
 | gb_data.c | 23 | 23 | 100 | 1 |
+| gym_leader_castle_clear | 23 | 23 | 100 | 0 |
 | dynamo_game | 22 | 22 | 100 | 0 |
 | drowzee_game | 21 | 21 | 100 | 0 |
 | rsp.c | 20 | 20 | 100 | 0 |
-| session.c | 19 | 19 | 100 | 0 |
 | title_screen | 19 | 19 | 100 | 3 |
+| session.c | 19 | 19 | 100 | 0 |
 | jigglypuff_doodle | 18 | 18 | 100 | 2 |
-| stadium_select | 17 | 17 | 100 | 1 |
 | ui_graphics.c | 17 | 17 | 100 | 0 |
 | rental_hub | 17 | 17 | 100 | 0 |
-| DDC0.c | 14 | 14 | 100 | 4 |
+| stadium_select | 17 | 17 | 100 | 1 |
 | profiler.c | 14 | 14 | 100 | 0 |
-| memory_main.c | 14 | 14 | 100 | 0 |
 | crash_screen.c | 14 | 14 | 100 | 0 |
 | options | 14 | 14 | 100 | 0 |
+| DDC0.c | 14 | 14 | 100 | 4 |
+| memory_main.c | 14 | 14 | 100 | 0 |
 | gfx_rect.c | 13 | 13 | 100 | 0 |
-| 3D140.c | 12 | 12 | 100 | 1 |
 | gallery_debugger | 12 | 12 | 100 | 1 |
+| 3D140.c | 12 | 12 | 100 | 1 |
 | controller.c | 12 | 12 | 100 | 0 |
 | gb_audio_render.c | 12 | 12 | 100 | 6 |
-| lab_ui_support | 11 | 11 | 100 | 0 |
 | cup_select | 11 | 11 | 100 | 1 |
 | model_renderer_callbacks.c | 11 | 11 | 100 | 0 |
-| minigame_sample7_viewer | 10 | 10 | 100 | 0 |
-| flash.c | 10 | 10 | 100 | 0 |
+| lab_ui_support | 11 | 11 | 100 | 0 |
+| memory.c | 10 | 10 | 100 | 0 |
 | minigame_sample8_viewer | 10 | 10 | 100 | 0 |
 | battle_hud.c | 10 | 10 | 100 | 1 |
 | snap_print_club_background_select | 10 | 10 | 100 | 1 |
+| minigame_sample7_viewer | 10 | 10 | 100 | 0 |
 | port_audio.c | 10 | 10 | 100 | 0 |
-| memory.c | 10 | 10 | 100 | 0 |
+| flash.c | 10 | 10 | 100 | 0 |
 | util.c | 9 | 9 | 100 | 0 |
-| n_synthesizer.c | 8 | 8 | 100 | 0 |
-| gallery_enlarge | 8 | 8 | 100 | 1 |
 | ranking_debug_test | 8 | 8 | 100 | 0 |
-| audio_stream.c | 7 | 7 | 100 | 1 |
+| gallery_enlarge | 8 | 8 | 100 | 1 |
+| n_synthesizer.c | 8 | 8 | 100 | 0 |
 | text_system.c | 7 | 7 | 100 | 0 |
+| audio_stream.c | 7 | 7 | 100 | 1 |
 | audio_loop_point.c | 6 | 6 | 100 | 0 |
-| gfx_buffer.c | 6 | 6 | 100 | 0 |
 | libgsm.c | 6 | 6 | 100 | 0 |
-| fatal_error_screen | 6 | 6 | 100 | 0 |
+| gfx_buffer.c | 6 | 6 | 100 | 0 |
 | audio_commands.c | 6 | 6 | 100 | 1 |
-| gb_tower_audio.c | 5 | 5 | 100 | 0 |
-| audio_channel.c | 5 | 5 | 100 | 0 |
+| fatal_error_screen | 6 | 6 | 100 | 0 |
 | n64_logo | 5 | 5 | 100 | 0 |
+| audio_sound_state.c | 5 | 5 | 100 | 0 |
 | audio_stream_channel.c | 5 | 5 | 100 | 0 |
 | n_env.c | 5 | 5 | 100 | 0 |
+| gb_tower_audio.c | 5 | 5 | 100 | 0 |
+| audio_channel.c | 5 | 5 | 100 | 0 |
+| hal_libc.c | 4 | 4 | 100 | 0 |
+| jpeg_decoder.c | 4 | 4 | 100 | 0 |
+| math_util.c | 4 | 4 | 100 | 0 |
 | audio_category_fade.c | 4 | 4 | 100 | 0 |
 | snap_print_club_print_seals | 4 | 4 | 100 | 0 |
 | gb_tower_team_prep | 4 | 4 | 100 | 0 |
-| math_util.c | 4 | 4 | 100 | 0 |
 | gsm_decoder.c | 4 | 4 | 100 | 0 |
-| jpeg_decoder.c | 4 | 4 | 100 | 0 |
-| hal_libc.c | 4 | 4 | 100 | 0 |
-| n_load.c | 3 | 3 | 100 | 0 |
-| input.c | 3 | 3 | 100 | 0 |
 | gb_mbc.c | 3 | 3 | 100 | 0 |
+| n_load.c | 3 | 3 | 100 | 0 |
 | pokemon_lab_support | 3 | 3 | 100 | 0 |
-| n_resample.c | 2 | 2 | 100 | 0 |
-| lab_item.c | 2 | 2 | 100 | 0 |
-| n_synallocvoice.c | 2 | 2 | 100 | 0 |
-| cry.c | 2 | 2 | 100 | 0 |
-| audio_sfx_wrapper.c | 2 | 2 | 100 | 1 |
-| rom_device.c | 2 | 2 | 100 | 0 |
-| main.c | 2 | 2 | 100 | 0 |
-| audio_data.c | 2 | 2 | 100 | 0 |
-| status_icons.c | 2 | 2 | 100 | 0 |
+| input.c | 3 | 3 | 100 | 0 |
 | minigame_shared_library | 2 | 2 | 100 | 0 |
 | n_sl.c | 2 | 2 | 100 | 0 |
-| audio_fade.c | 2 | 2 | 100 | 1 |
 | audio_stored_fade.c | 2 | 2 | 100 | 1 |
+| rom_device.c | 2 | 2 | 100 | 0 |
+| n_resample.c | 2 | 2 | 100 | 0 |
+| audio_sfx_wrapper.c | 2 | 2 | 100 | 1 |
+| port_audio.h | 2 | 2 | 100 | 0 |
+| n_synallocvoice.c | 2 | 2 | 100 | 0 |
+| lab_item.c | 2 | 2 | 100 | 0 |
+| audio_data.c | 2 | 2 | 100 | 0 |
+| audio_fade.c | 2 | 2 | 100 | 1 |
+| status_icons.c | 2 | 2 | 100 | 0 |
 | n_drvrNew.c | 2 | 2 | 100 | 0 |
-| n_auxbus.c | 1 | 1 | 100 | 0 |
+| cry.c | 2 | 2 | 100 | 0 |
+| main.c | 2 | 2 | 100 | 0 |
 | debug_menu_slot70 | 1 | 1 | 100 | 0 |
-| pokemon_lab_unused | 1 | 1 | 100 | 1 |
-| debug_menu_slot76 | 1 | 1 | 100 | 1 |
-| spdlmotor.c | 1 | 1 | 100 | 0 |
-| seek.c | 1 | 1 | 100 | 0 |
-| n_synaddplayer.c | 1 | 1 | 100 | 0 |
-| n_synallocfx.c | 1 | 1 | 100 | 0 |
-| driveexist.c | 1 | 1 | 100 | 0 |
-| debug_menu_slot77 | 1 | 1 | 100 | 1 |
-| debug_menu_slot73 | 1 | 1 | 100 | 0 |
-| readwrite.c | 1 | 1 | 100 | 0 |
-| n_synsetpitch.c | 1 | 1 | 100 | 0 |
-| debug_menu_slot72 | 1 | 1 | 100 | 0 |
-| debug_menu_exit | 1 | 1 | 100 | 0 |
-| n_synsetvol.c | 1 | 1 | 100 | 0 |
-| debug_menu_slot69 | 1 | 1 | 100 | 0 |
-| n_synstartvoiceparam.c | 1 | 1 | 100 | 0 |
-| n_mainbus.c | 1 | 1 | 100 | 0 |
-| lbatobyte.c | 1 | 1 | 100 | 0 |
-| n_synstopvoice.c | 1 | 1 | 100 | 0 |
-| n_synfreevoice.c | 1 | 1 | 100 | 0 |
-| debug_menu_slot74 | 1 | 1 | 100 | 0 |
-| readdiskid.c | 1 | 1 | 100 | 0 |
-| cjcreateleomanager.c | 1 | 1 | 100 | 0 |
-| audio_sfx.c | 1 | 1 | 100 | 0 |
-| debug_menu_slot71 | 1 | 1 | 100 | 0 |
-| minigame_dispatch.c | 1 | 1 | 100 | 0 |
-| n_save.c | 1 | 1 | 100 | 0 |
 | debug_menu_slot68 | 1 | 1 | 100 | 0 |
-| bytetolba.c | 1 | 1 | 100 | 0 |
+| n_synallocfx.c | 1 | 1 | 100 | 0 |
+| lbatobyte.c | 1 | 1 | 100 | 0 |
+| n_syndelete.c | 1 | 1 | 100 | 0 |
+| minigame_dispatch.c | 1 | 1 | 100 | 0 |
+| readdiskid.c | 1 | 1 | 100 | 0 |
+| spdlmotor.c | 1 | 1 | 100 | 0 |
+| readwrite.c | 1 | 1 | 100 | 0 |
 | audio_cache.c | 1 | 1 | 100 | 0 |
-| n_synsetpan.c | 1 | 1 | 100 | 0 |
-| 1 | 1 | 1 | 100 | 1 |
 | n_synsetpriority.c | 1 | 1 | 100 | 0 |
 | readrtc.c | 1 | 1 | 100 | 0 |
+| bytetolba.c | 1 | 1 | 100 | 0 |
+| debug_menu_slot69 | 1 | 1 | 100 | 0 |
+| debug_menu_exit | 1 | 1 | 100 | 0 |
+| n_synsetvol.c | 1 | 1 | 100 | 0 |
+| n_synfreevoice.c | 1 | 1 | 100 | 0 |
+| n_synaddplayer.c | 1 | 1 | 100 | 0 |
+| n_synstartvoiceparam.c | 1 | 1 | 100 | 0 |
+| cjcreateleomanager.c | 1 | 1 | 100 | 0 |
+| 1 | 1 | 1 | 100 | 1 |
+| driveexist.c | 1 | 1 | 100 | 0 |
+| debug_menu_slot73 | 1 | 1 | 100 | 0 |
+| audio_sfx.c | 1 | 1 | 100 | 0 |
+| pokemon_lab_unused | 1 | 1 | 100 | 1 |
+| debug_menu_slot76 | 1 | 1 | 100 | 1 |
+| n_synsetpitch.c | 1 | 1 | 100 | 0 |
+| n_mainbus.c | 1 | 1 | 100 | 0 |
+| debug_menu_slot77 | 1 | 1 | 100 | 1 |
+| debug_menu_slot74 | 1 | 1 | 100 | 0 |
+| debug_menu_slot72 | 1 | 1 | 100 | 0 |
+| debug_menu_slot71 | 1 | 1 | 100 | 0 |
+| n_synstopvoice.c | 1 | 1 | 100 | 0 |
+| n_synsetpan.c | 1 | 1 | 100 | 0 |
+| n_auxbus.c | 1 | 1 | 100 | 0 |
+| seek.c | 1 | 1 | 100 | 0 |
+| n_save.c | 1 | 1 | 100 | 0 |
 
-275 gates (a reached caller, an unreached callee); 334 unreached functions are behind them, 183 have no reached caller anywhere above them (entry points or callbacks that nothing in these runs registered).
+237 gates (a reached caller, an unreached callee); 303 unreached functions are behind them, 182 have no reached caller anywhere above them (entry points or callbacks that nothing in these runs registered).
 
 ## Gates by what decides them
 
 | class | gates | unreached functions behind them |
 |---|---|---|
-| table index (which move / effect / animation) | 72 | 70 |
-| other state | 65 | 64 |
-| menu or flow step (a switch on a selection or state) | 63 | 74 |
-| callback registration | 23 | 31 |
-| session / save / mode | 18 | 29 |
-| battle scene / presentation state | 17 | 13 |
-| result of a call (a confirmation, a load, a check) | 10 | 12 |
+| table index (which move / effect / animation) | 72 | 69 |
+| menu or flow step (a switch on a selection or state) | 54 | 62 |
+| other state | 50 | 51 |
+| callback registration | 22 | 30 |
+| session / save / mode | 17 | 28 |
+| battle scene / presentation state | 10 | 12 |
+| result of a call (a confirmation, a load, a check) | 7 | 8 |
 | hardware (64DD, Controller Pak, Rumble Pak) | 3 | 59 |
 | AI decision | 2 | 2 |
-| input | 2 | 3 |
 
 ### table index (which move / effect / animation)
 
 | unlocks | caller -> callee | condition never taken | line |
 |---|---|---|---|
 | 5 | BattleAnim_RunEffectInitEnd -> func_8433E33C | `index into gMoveAnimEffectEndInitFuncs` (- side) |  |
-| 2 | Audio_DecodeVoiceCommandStream -> Audio_SetVoiceSubEnvelopePointer | `index into command_func_jumptable` (- side) |  |
 | 2 | BattleAnim_RunEffectInitEnd -> func_84345B28 | `index into gMoveAnimEffectEndInitFuncs` (- side) |  |
 | 2 | BattleAnim_RunEffectList -> BattleAnim_StartEffect77DoubleTextureTrail_Init | `index into gMoveAnimEffectStartFuncs` (- side) |  |
 | 2 | process_geo_layout -> geo_layout_cmd_create_clear_depth | `index into GeoLayoutJumpTable` (- side) |  |
@@ -272,6 +270,7 @@ Runs: batch4, batch5, batch6, batch7, batch8, batch9, batch10, batch11, batch12,
 | 1 | Audio_DecodeVoiceCommandStream -> Audio_SetVoiceEnvelopePointers | `index into command_func_jumptable` (- side) |  |
 | 1 | Audio_DecodeVoiceCommandStream -> Audio_SetVoiceFlagED | `index into command_func_jumptable` (- side) |  |
 | 1 | Audio_DecodeVoiceCommandStream -> Audio_SetVoiceFlagEE | `index into command_func_jumptable` (- side) |  |
+| 1 | Audio_DecodeVoiceCommandStream -> Audio_SetVoiceSubEnvelopePointer | `index into command_func_jumptable` (- side) |  |
 | 1 | Audio_DecodeVoiceCommandStream -> Audio_SkipVoiceCommandByte | `index into command_func_jumptable` (- side) |  |
 | 1 | Audio_DecodeVoiceCommandStream -> Audio_SkipVoiceCommandWord | `index into command_func_jumptable` (- side) |  |
 | 1 | Audio_ProcessCommandQueue -> Audio_ApplyVoiceFxMixCommand | `index into api_func_jumptable` (- side) |  |
@@ -280,44 +279,12 @@ Runs: batch4, batch5, batch6, batch7, batch8, batch9, batch10, batch11, batch12,
 | 1 | BattleAnim_RunEffectInitEnd -> func_8434C5F0 | `index into gMoveAnimEffectEndInitFuncs` (- side) |  |
 | ... | 47 more | | |
 
-### other state
-
-| unlocks | caller -> callee | condition never taken | line |
-|---|---|---|---|
-| 4 | MiniFx_TickEmitters -> MiniFx_TryEmit | `var_s0->unk_28 < 0` (true side) | 197 |
-| 3 | BinArchive_LoadFileToPool -> BinArchive_LoadFileFromLbaRange | `arg1->unk_00 & 0x80` (true side) | 215 |
-| 3 | GbMusic_ScheduleNote -> GbMusic_TriggerChannelNote | `(arg1 & 0xF0) != 0xC0` (true side) | 599 |
-| 2 | GbPak_ReadRom -> GbPak_SelectRomBank | `temp_v0_5 >= temp_s4` (true side) | 343 |
-| 2 | Glc_ClearDraw -> Glc_DrawTrackingIcon | `tracking_icon_on != 0` (true side) | 525 |
-| 2 | LeoCJCreateLeoManager -> __leoSetReset | `osResetType == 1` (true side) | 35 |
-| 2 | LeoCJCreateLeoManager -> leoCommand | `osResetType == 1` (true side) | 35 |
-| 2 | LeoReadDiskID -> leoCommand | `mq != NULL` (true side) | 13 |
-| 2 | LeoReadRTC -> leoCommand | `mq != NULL` (true side) | 12 |
-| 2 | LeoReadWrite -> leoCommand | `mq != NULL` (true side) | 14 |
-| 2 | LeoSeek -> leoCommand | `mq != NULL` (true side) | 13 |
-| 2 | LeoSetRTC -> leoCommand | `mq != NULL` (true side) | 17 |
-| 2 | LeoSpdlMotor -> leoCommand | `mq != NULL` (true side) | 27 |
-| 2 | RentalRules_QualifyingSpeciesWindowUpdateShown -> RentalRules_ScrollPageDown | `?` (? side) |  |
-| 2 | func_800361C4 -> Model_ApplyTransformCommands | `var_s0 < model->unk_02` (true side) | 1575 |
-| 2 | func_800361C4 -> func_80034BD4 | `var_s0 < model->unk_02` (true side) | 1575 |
-| 1 | Audio_GetActivityScore -> Audio_PortDumpChannels | `Port_ViTick() >= last + 60` (true side) | 49 |
-| 1 | Audio_InitBanks -> PortA_BE16 | `?` (? side) |  |
-| 1 | Audio_InitBanks -> PortA_BE32 | `?` (? side) |  |
-| 1 | Audio_PlayerFrameHandler -> n_alSynSetFXMix | `ptr->reverb != ptr->reverb_mix` (true side) | 1728 |
-| 1 | BattleAnim_SixSlotTrail_DrawAll -> BattleAnim_SixSlotTrail_ComputeCameraRelativeOffset | `var_s0->unk_00 <= 0.0` (true side) | 336 |
-| 1 | BattleAnim_SpawnEffectParticles -> Particle_AllocChain | `(temp_a3->unk_00 == 1)` (true side) | 405 |
-| 1 | BattleInfoWidget_HandleSelectionProxyInput -> BattleInfoWidget_SyncParentSelection | `var_v1 & 4` (true side) | 827 |
-| 1 | BattlePrepRoster_InitDisplayObjects -> BattlePrepRoster_PositionIconsDouble | `arg0->unk_02 == 1` (true side) | 942 |
-| 1 | BattlePrepRoster_Load -> BattlePrepRoster_LoadDexIdsDouble | `arg0->unk_02 == 1` (true side) | 865 |
-| ... | 40 more | | |
-
 ### menu or flow step (a switch on a selection or state)
 
 | unlocks | caller -> callee | condition never taken | line |
 |---|---|---|---|
 | 4 | BattleAnim_CallbackDescriptor26BurstEmitter -> BattleAnim_CallbackDescriptor26BurstEmitter_InitParticle | `switch (arg0->unk_B2) case 1` (true side) | 2627 |
 | 4 | GbMusic_DecodeChannelCommands -> GbMusic_CmdPlayNote | `switch (temp_v0 & 0xF0) default` (true side) | 240 |
-| 4 | RentalRules_QualifyingSpeciesWindowUpdate -> RentalRules_QualifyingSpeciesWindowUpdateScrolling | `switch (ptr->qualifying_list_state) case SCROLLING` (true side) | 341 |
 | 4 | func_800361C4 -> Model_ApplyVertexTransforms | `switch (segment->type) case 9` (true side) | 1620 |
 | 3 | GbMusic_DecodeChannelCommands -> GbMusic_CmdPlaySequence | `switch (temp_v0) case 0xEF` (true side) | 217 |
 | 2 | BattleAnim_CallbackUnusedAimedSparkVariant -> BattleAnim_SetupUnusedAimedSparkVariant | `switch (arg0->unk_B2) case 1` (true side) | 334 |
@@ -338,9 +305,41 @@ Runs: batch4, batch5, batch6, batch7, batch8, batch9, batch10, batch11, batch12,
 | 1 | BattleAnim_CallbackUnusedRotatingSparkVariant -> BattleAnim_SetupUnusedRotatingSparkVariant | `switch (arg0->unk_B2) case 1` (true side) | 276 |
 | 1 | BattleAnim_CallbackUnusedVariant2 -> BattleAnim_SetupUnusedVariant2 | `switch (arg0->unk_B2) case 1` (true side) | 575 |
 | 1 | BattleAnim_DispatchParticleEmission -> BattleAnim_SpawnBatchedParticles | `switch (arg0->unk_16) case 18` (true side) | 432 |
-| 1 | BattleMenu_DrawOrderSelectPanel -> BattleMenu_DrawOrderSelectPanel_LevelCapNotice | `switch (arg0->unk_0005) case 2` (true side) | 723 |
-| 1 | BattleMenu_DrawOrderSelectPanel -> BattleMenu_DrawOrderSelectPanel_MonDetail | `switch (arg0->unk_0005) case 4` (true side) | 731 |
-| ... | 38 more | | |
+| 1 | BattlePrepBadgeAward_Update -> BattlePrepBadgeAward_ScatterStep | `switch (arg0->unk_00) case 4` (true side) | 414 |
+| 1 | BattlePrep_UpdateTrophyModel -> BattlePrep_TrophyModelIdle | `switch ((s8)arg0->unk_00) case 1` (true side) | 138 |
+| 1 | Battle_FrameCallback -> BattleScene_UpdatePausedFrame | `switch (sIsPaused) case 1` (true side) | 496 |
+| ... | 29 more | | |
+
+### other state
+
+| unlocks | caller -> callee | condition never taken | line |
+|---|---|---|---|
+| 4 | MiniFx_TickEmitters -> MiniFx_TryEmit | `var_s0->unk_28 < 0` (true side) | 197 |
+| 3 | BinArchive_LoadFileToPool -> BinArchive_LoadFileFromLbaRange | `arg1->unk_00 & 0x80` (true side) | 215 |
+| 3 | GbMusic_ScheduleNote -> GbMusic_TriggerChannelNote | `(arg1 & 0xF0) != 0xC0` (true side) | 599 |
+| 2 | GbPak_ReadRom -> GbPak_SelectRomBank | `temp_v0_5 >= temp_s4` (true side) | 343 |
+| 2 | LeoCJCreateLeoManager -> __leoSetReset | `osResetType == 1` (true side) | 35 |
+| 2 | LeoCJCreateLeoManager -> leoCommand | `osResetType == 1` (true side) | 35 |
+| 2 | LeoReadDiskID -> leoCommand | `mq != NULL` (true side) | 13 |
+| 2 | LeoReadRTC -> leoCommand | `mq != NULL` (true side) | 12 |
+| 2 | LeoReadWrite -> leoCommand | `mq != NULL` (true side) | 14 |
+| 2 | LeoSeek -> leoCommand | `mq != NULL` (true side) | 13 |
+| 2 | LeoSetRTC -> leoCommand | `mq != NULL` (true side) | 17 |
+| 2 | LeoSpdlMotor -> leoCommand | `mq != NULL` (true side) | 27 |
+| 2 | func_800361C4 -> Model_ApplyTransformCommands | `var_s0 < model->unk_02` (true side) | 1575 |
+| 2 | func_800361C4 -> func_80034BD4 | `var_s0 < model->unk_02` (true side) | 1575 |
+| 1 | Audio_PlayerFrameHandler -> n_alSynSetFXMix | `ptr->reverb != ptr->reverb_mix` (true side) | 1728 |
+| 1 | BattleAnim_SixSlotTrail_DrawAll -> BattleAnim_SixSlotTrail_ComputeCameraRelativeOffset | `var_s0->unk_00 <= 0.0` (true side) | 336 |
+| 1 | BattleAnim_SpawnEffectParticles -> Particle_AllocChain | `(temp_a3->unk_00 == 1)` (true side) | 405 |
+| 1 | BattleInfoWidget_HandleSelectionProxyInput -> BattleInfoWidget_SyncParentSelection | `var_v1 & 4` (true side) | 827 |
+| 1 | BattlePrepRoster_UpdateAssembleStep -> BattlePrepRoster_ZoomStepPAL | `arg0->unk_01 >= 0xD` (true side) | 772 |
+| 1 | BattlePrepTeamIcons_UpdateStep -> BattlePrepTeamIcons_HpDrainStepDoublePAL | `arg0->unk_01 >= 0xC` (true side) | 950 |
+| 1 | BattlePrepTeamIcons_UpdateStep -> BattlePrepTeamIcons_HpDrainStepSinglePAL | `arg0->unk_01 >= 0xC` (true side) | 962 |
+| 1 | BattlePrep_UpdateCarousel -> BattlePrep_CarouselStepFinalPAL | `arg0->unk_01 >= 0x1B` (true side) | 858 |
+| 1 | BattlePrep_UpdateCarousel -> BattlePrep_CarouselStepPAL | `arg0->unk_01 >= 2` (true side) | 854 |
+| 1 | DisplayList_InitIndexedTextureSegment -> DisplayList_BuildIndexedTextureSegment | `arg0 == 2` (true side) | 89 |
+| 1 | DisplayList_InitTwoSegmentChain -> DisplayList_BuildTwoSegmentChain | `arg0 == 2` (true side) | 15 |
+| ... | 25 more | | |
 
 ### callback registration
 
@@ -362,7 +361,6 @@ Runs: batch4, batch5, batch6, batch7, batch8, batch9, batch10, batch11, batch12,
 | 1 | GbEmu_BlitWithPixelOp -> GbEmu_PixelOpDitherB | `address stored for later (callback)` (- side) |  |
 | 1 | LabItem_InitBoxScreen -> LabItem_BoxScreen_SetMenuState | `address stored for later (callback)` (- side) |  |
 | 1 | LabItem_InitConfirmDialog -> LabItem_ConfirmDialog_SetSelectedIndex | `address stored for later (callback)` (- side) |  |
-| 1 | LabPCList_ApplyFiltersAndSort -> LabPCList_FilterByLevelRange | `address stored for later (callback)` (- side) |  |
 | 1 | LabPCList_BuildListScreen -> LabPCList_SetRowMenuState | `address stored for later (callback)` (- side) |  |
 | 1 | LabPC_BuildBoxScreenWidget -> LabPC_BoxScreen_HandleInput | `address stored for later (callback)` (- side) |  |
 | 1 | LeoBootGame -> __LeoBootGame2 | `address stored for later (callback)` (- side) |  |
@@ -390,7 +388,6 @@ Runs: batch4, batch5, batch6, batch7, batch8, batch9, batch10, batch11, batch12,
 | 1 | Leo_RunBootStateMachine -> Leo_HandleResetCompletion | `switch (D_800AA690.unk_00) case 5` (true side) | 376 |
 | 1 | Leo_RunBootStateMachine -> Leo_QueueBootBlockRead | `switch (D_800AA690.unk_00) case 6` (true side) | 380 |
 | 1 | Leo_RunBootStateMachine -> Leo_QueueDiskPayloadRead | `switch (D_800AA690.unk_00) case 8` (true side) | 388 |
-| 1 | SoftReset_Thread -> Display_GetWorkerStatus | `D_800A6D20.gSoftResetLineNum < 0x10U` (true side) | 112 |
 | 1 | TextRenderer_FlushQueuedStrings -> TextRenderer_ClearQueuedStrings | `D_80068CA4 != NULL` (true side) | 673 |
 
 ### battle scene / presentation state
@@ -407,27 +404,17 @@ Runs: batch4, batch5, batch6, batch7, batch8, batch9, batch10, batch11, batch12,
 | 1 | BattleScene_UpdateIntroCameraSequence -> BattleScene_IntroCameraWideHoldStep | `switch (sBattleScene.unk_00->unk_20) case 13` (true side) | 594 |
 | 1 | BattleScene_UpdateIntroSequence -> BattleScene_IntroStepNop | `switch (sBattleScene.unk_00->unk_20) case 10` (true side) | 228 |
 | 1 | BattleScene_UpdatePhase -> BattleScene_PhaseCheckFaintedEndTurn | `switch (sBattleScene.unk_00->unk_38) case 33` (true side) | 3533 |
-| 1 | Battle_CheckSideDefeatAfterResidualStatus -> BattleScene_GetOpposingSelectedSideTeamSize | `i < BattleScene_GetOpposingSelectedSideTeamSize(arg0)` (true side) | 1759 |
-| 1 | Battle_HasUsableMajorStatusTarget -> BattleScene_GetOpposingSelectedSideTeamSize | `i < BattleScene_GetOpposingSelectedSideTeamSize(active_pokemon)` (true side) | 433 |
-| 1 | Battle_HasUsableSleepStatusTarget -> BattleScene_GetOpposingSelectedSideTeamSize | `i < BattleScene_GetOpposingSelectedSideTeamSize(active_pokemon)` (true side) | 406 |
-| 1 | func_84372C40 -> BattleScene_GetOpposingSelectedSideTeamSize | `i < BattleScene_GetOpposingSelectedSideTeamSize(arg0)` (true side) | 1640 |
-| 1 | func_84372D88 -> BattleScene_GetOpposingSelectedSideTeamSize | `i < BattleScene_GetOpposingSelectedSideTeamSize(arg0)` (true side) | 1670 |
-| 1 | func_84372ED0 -> BattleScene_GetOpposingSelectedSideTeamSize | `i < BattleScene_GetOpposingSelectedSideTeamSize(arg0)` (true side) | 1700 |
-| 1 | func_84373018 -> BattleScene_GetOpposingSelectedSideTeamSize | `i < BattleScene_GetOpposingSelectedSideTeamSize(arg0)` (true side) | 1730 |
 
 ### result of a call (a confirmation, a load, a check)
 
 | unlocks | caller -> callee | condition never taken | line |
 |---|---|---|---|
 | 2 | BattleAnim_CallbackUnusedDescriptor4FColorCycleScaleFadeVariant -> BattleAnim_MotionUnusedDescriptor4FColorCycleScaleFadeVariant | `Particle_IsRenderingEnabled(arg0) != 0` (true side) | 184 |
-| 2 | Widget_PauseMenuUpdate -> Audio_CountCategorySounds | `(Audio_CountCategorySounds(2) == 0)` (true side) | 2020 |
-| 1 | AudioStream_RefillAndDecode -> PortA_BE32 | `(osRecvMesg(&arg0->unk_25A0, NULL, 0) >= 0)` (false side) | 47 |
 | 1 | BattleAnim_CallbackUnusedRotatingSparkVariant -> BattleAnim_MotionUnusedRotatingSparkVariant | `Particle_IsRenderingEnabled(arg0) != 0` (true side) | 297 |
 | 1 | Fragment_LoadFromRomRange -> Jpeg_AllocAndDecodeFragment | `(PORT_BE32(((u32*)arg3->magic)[1]) == 'JPEG')` (true side) | 143 |
 | 1 | JpegUtils_ProcessHuffmanTableImplOld -> JpegUtils_SetHuffmanTableOld | `JpegUtils_GetHuffmanCodes(codesLengths, codes) != count2` (true side) | 152 |
 | 1 | LeoSetRTC -> leoVerifyRTC | `leoVerifyRTC(RTCdata->yearhi, RTCdata->yearlo) != 0` (true side) | 8 |
 | 1 | PokeIcon_ProcessAllSlots -> PokeIcon_AdjustImageColorBuffer | `Display_IsFrameReady() == 0` (true side) | 319 |
-| 1 | SoftReset_Thread -> Display_IsCurrentFramebuffer | `Display_IsCurrentFramebuffer() != 0` (true side) | 120 |
 | 1 | SoftReset_Thread -> func_8000559C | `Display_IsCurrentFramebuffer() != 0` (true side) | 120 |
 
 ### hardware (64DD, Controller Pak, Rumble Pak)
@@ -445,13 +432,6 @@ Runs: batch4, batch5, batch6, batch7, batch8, batch9, batch10, batch11, batch12,
 | 1 | BattleAI_BuildMoveCandidateScores -> BattleAI_AllCandidatesResistType | `BattleAI_AllCandidatesResistType(gMoveData[var_s2->unk_00 - 1].unk_03, D_843C60A8) == 0` (true side) | 1702 |
 | 1 | func_8437B0CC -> BattleAI_ScoreCategorySetReady | `BattleAI_ScoreCategorySetReady(temp_fp, temp_s4) != 0` (true side) | 3260 |
 
-### input
+## Unreached with no reached caller above (182, first 60)
 
-| unlocks | caller -> callee | condition never taken | line |
-|---|---|---|---|
-| 2 | BattlePrep_ConfirmCupRules -> BattlePrep_FadeInBallBurstTransition | `BattlePrep_ConsumeContinueToken() != 0` (false side) | 898 |
-| 1 | BattlePrep_ConfirmCupRules -> BattlePrep_ResetAllDisplayObjects | `BattlePrep_ConsumeContinueToken() != 0` (false side) | 898 |
-
-## Unreached with no reached caller above (183, first 60)
-
-BattleAI_InitTrainerRecords, BattleAnim_CallbackDescriptor25AlphaHoldDetach, BattleAnim_CallbackDescriptor25PaletteFadeIn, BattleAnim_CallbackDescriptor25PaletteFadeOut, BattleAnim_CallbackOrphanDescriptor2BSpinFade, BattleAnim_CallbackOrphanDescriptor2EScatterFade, BattleAnim_CallbackOrphanDescriptor34ColorFadeDetach, BattleAnim_CallbackOrphanDescriptor34ColorFadeDetach_InitParticle, BattleAnim_CallbackOwnerModelTintHoldFadeDetach, BattleAnim_CallbackOwnerModelTintRandomPaletteCycle, BattleAnim_ClearOwnerSecondaryStatusFlags, BattleAnim_DrawAsset13FrameDiv2I4Quad, BattleAnim_DrawAsset13FrameI4YScaledQuadB, BattleAnim_DrawAsset18FrameI4ModelQuad, BattleAnim_DrawAsset1BI4TriangleB, BattleAnim_DrawAsset1DRotatedI4Quad, BattleAnim_DrawAsset87AnimatedI4Quad, BattleAnim_DrawAsset95Ia8Billboard, BattleAnim_DrawAssetA9I4XYScaledQuad, BattleAnim_DrawParticleNoop, BattleAnim_EndEffectUnusedVerticalFadeAndDelayedFrameSequence, BattleAnim_GetCameraLookYaw, BattleAnim_GetCameraStoredAngles70, BattleAnim_GetCameraStoredAngles76, BattleAnim_GetCameraStoredYaw72, BattleAnim_GetCameraStoredYaw78, BattleAnim_GetSpeciesBySideIndex, BattleAnim_GetTertiaryOwnerSpecies, BattleAnim_InitSecondarySwayOffset, BattleAnim_InitializeParticleChain, BattleAnim_OrphanDescriptor2BAnd2EEmitterSequence, BattleAnim_OrphanDescriptor34Emitter, BattleAnim_SecondaryStatusCaseB, BattleAnim_SecondaryStatusCaseBSub0, BattleAnim_SecondaryStatusCaseBSub1, BattleAnim_SecondaryStatusDefault, BattleAnim_SetupDescriptor25AlphaHoldDetach, BattleAnim_SetupDescriptor25PaletteFadeIn, BattleAnim_SetupDescriptor25PaletteFadeOut, BattleAnim_SetupOrphanDescriptor2BSpinFade, BattleAnim_SetupOrphanDescriptor2EScatterFade, BattleAnim_SetupOwnerModelTintRandomPaletteCycle, BattleAnim_SpawnDescriptor25AlphaFadeInHoldRepeating, BattleAnim_SpawnDescriptor25AlphaHoldDetach, BattleAnim_SpawnDescriptor25AlphaHoldDetachFullAlpha, BattleAnim_SpawnDescriptor25AlphaHoldDetachRepeating, BattleAnim_SpawnDescriptor25AlphaHoldFadeOutRepeating, BattleAnim_SpawnDescriptor25PaletteFadeIn, BattleAnim_SpawnDescriptor25PaletteFadeOut, BattleAnim_SpawnOwnerModelAlphaFadeFullPreset, BattleAnim_SpawnOwnerModelTintHoldFadeDetach, BattleAnim_SpawnOwnerModelTintPaletteCycleVariant, BattleAnim_SpawnOwnerModelTintRandomPaletteCycle, BattleAnim_TriggerStatusAfflictionCry, BattleAnim_UpdateOwnerSecondaryStatusAnimation, BattleAnim_UpdateSecondarySwayPhysics, BattleHud_DrawForfeitConfirmDialog, BattleHud_DrawMessageBox, BattlePrepBadgeAward_StartScatter, BattlePrepRoster_DrawIconVariantB
+BattleAI_InitTrainerRecords, BattleAnim_CallbackDescriptor25AlphaHoldDetach, BattleAnim_CallbackDescriptor25PaletteFadeIn, BattleAnim_CallbackDescriptor25PaletteFadeOut, BattleAnim_CallbackOrphanDescriptor2BSpinFade, BattleAnim_CallbackOrphanDescriptor2EScatterFade, BattleAnim_CallbackOrphanDescriptor34ColorFadeDetach, BattleAnim_CallbackOrphanDescriptor34ColorFadeDetach_InitParticle, BattleAnim_CallbackOwnerModelTintHoldFadeDetach, BattleAnim_CallbackOwnerModelTintRandomPaletteCycle, BattleAnim_ClearOwnerSecondaryStatusFlags, BattleAnim_DrawAsset13FrameDiv2I4Quad, BattleAnim_DrawAsset13FrameI4YScaledQuadB, BattleAnim_DrawAsset18FrameI4ModelQuad, BattleAnim_DrawAsset1BI4TriangleB, BattleAnim_DrawAsset1DRotatedI4Quad, BattleAnim_DrawAsset87AnimatedI4Quad, BattleAnim_DrawAsset95Ia8Billboard, BattleAnim_DrawAssetA9I4XYScaledQuad, BattleAnim_DrawParticleNoop, BattleAnim_EndEffectUnusedVerticalFadeAndDelayedFrameSequence, BattleAnim_GetCameraLookYaw, BattleAnim_GetCameraStoredAngles70, BattleAnim_GetCameraStoredAngles76, BattleAnim_GetCameraStoredYaw72, BattleAnim_GetCameraStoredYaw78, BattleAnim_GetSpeciesBySideIndex, BattleAnim_GetTertiaryOwnerSpecies, BattleAnim_InitSecondarySwayOffset, BattleAnim_InitializeParticleChain, BattleAnim_OrphanDescriptor2BAnd2EEmitterSequence, BattleAnim_OrphanDescriptor34Emitter, BattleAnim_SecondaryStatusCaseB, BattleAnim_SecondaryStatusCaseBSub0, BattleAnim_SecondaryStatusCaseBSub1, BattleAnim_SecondaryStatusDefault, BattleAnim_SetupDescriptor25AlphaHoldDetach, BattleAnim_SetupDescriptor25PaletteFadeIn, BattleAnim_SetupDescriptor25PaletteFadeOut, BattleAnim_SetupOrphanDescriptor2BSpinFade, BattleAnim_SetupOrphanDescriptor2EScatterFade, BattleAnim_SetupOwnerModelTintRandomPaletteCycle, BattleAnim_SpawnDescriptor25AlphaFadeInHoldRepeating, BattleAnim_SpawnDescriptor25AlphaHoldDetach, BattleAnim_SpawnDescriptor25AlphaHoldDetachFullAlpha, BattleAnim_SpawnDescriptor25AlphaHoldDetachRepeating, BattleAnim_SpawnDescriptor25AlphaHoldFadeOutRepeating, BattleAnim_SpawnDescriptor25PaletteFadeIn, BattleAnim_SpawnDescriptor25PaletteFadeOut, BattleAnim_SpawnOwnerModelAlphaFadeFullPreset, BattleAnim_SpawnOwnerModelTintHoldFadeDetach, BattleAnim_SpawnOwnerModelTintPaletteCycleVariant, BattleAnim_SpawnOwnerModelTintRandomPaletteCycle, BattleAnim_TriggerStatusAfflictionCry, BattleAnim_UpdateOwnerSecondaryStatusAnimation, BattleAnim_UpdateSecondarySwayPhysics, BattleHud_DrawForfeitConfirmDialog, BattleHud_DrawMessageBox, BattlePrepBadgeAward_StartScatter, BattleScene_AdvanceCameraSubstepCounter

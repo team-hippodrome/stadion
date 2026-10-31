@@ -1,6 +1,22 @@
 # Whole game: how far the levers reach, what is left and why
 
-**Current: all functions 6973 of 7490 (93.1%), lines 85.3%, branches 76.8%; the code the shipped game can run
+**Current: all functions 7005 of 7490 (93.5%), lines 86.2%, branches 77.8%; the code the shipped game can run
+7005 of 7125 (98.3%), 99.4% without the 64DD library** (`dead_classes.md`). Unreached 485: 365 proven dead, 79 the
+64DD library, 41 live (gates in `dead_classes.md`). Third wave of side sessions:
+- `audio_commands.md`, `data_dead_audio.json`, `routes/audio_seq/`: every song (76) and sound-effect bank (331) the
+  loaders reach decoded along every path; the 15 libmus voice commands no stream uses and 4 more audio functions
+  proven dead, 4 reached.
+- `particle_descriptors.md`, `data_dead_particles.json`, `routes/particles/`: the particle descriptor tables and the
+  effect scripts that spawn them; 75 of 80 particle and battle-animation functions proven never selected, 1 reached.
+- `geo_commands.md`, `data_dead_geo.json`, `routes/engine_left/` (its README's "Proven dead" table is
+  `data_dead_engine.json`): geo layout commands no shipped layout uses, slot-model types; 27 more functions reached
+  (draws in the cup prompts, the two-trainer roster, order-select details, the rules species window, TM into a free
+  slot, the level-range filter, the reset button's PRE-NMI forced), 58 proven dead, 25 left with their gates.
+- `frontier.py`: same-named static copies (inline helpers in a header) now count the copy that ran.
+- Port fixes from this round's sessions: the Bonus stickers screen (PR #73), six functions that fell off their end
+  without a return (PR #74, one of them skipped the VS Mewtwo intro).
+
+**Previous round: all functions 6973 of 7490 (93.1%), lines 85.3%, branches 76.8%; the code the shipped game can run
 6973 of 7282 (95.8%), 96.8% without the 64DD library** (`dead_classes.md`). Unreached 517: 208 proven dead, 79 the
 64DD library, 230 live. Second wave of five side sessions, each with routes and a README under `routes/`:
 - `routes/menus_trade/`: Trade Machine (trade evolution, cancel, cartridge error), Options, Pokedex area map, menus.

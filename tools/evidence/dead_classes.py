@@ -10,7 +10,8 @@ Classes, the first that applies:
   1. referenced by nothing: no caller, address-taking or pointer table in the C code of the whole decomp and no word in
      the ROM equal to the function's N64 address (tools/evidence/deadcode.py's test); dead_calls.md has what a
      forced direct call of each returned
-  2. data never selects it: data_dead.json
+  2. never selected (data or code proof): the data_dead*.json files (a proof per reason: the shipped data never
+     selects it, or the code never sets the condition)
   3. PAL TV mode only: the name says PAL (the US build runs NTSC; the PAL branch is chosen by the TV type)
   4. 64DD hardware: the 64DD library (leo*.c and the disk boot); the port has no drive. Counted apart: not dead code,
      hardware the port does not present
@@ -55,7 +56,7 @@ def main():
     for reason, names in data_dead.items():
         for n in names:
             if n in unreached and n not in cls:
-                cls[n] = "data never selects it: " + reason
+                cls[n] = "never selected (data or code proof): " + reason
     for n in unreached:
         if n not in cls and "PAL" in n:
             cls[n] = "PAL TV mode only"
@@ -82,7 +83,7 @@ def main():
             cls[n] = "live: " + gate_class.get(n, "below other unreached code")
 
     total, reached = fr["functions"], fr["reached"]
-    by = collections.Counter(c.split(":")[0] if c.startswith(("live", "data never")) else c for c in cls.values())
+    by = collections.Counter(c.split(":")[0] if c.startswith(("live", "never selected")) else c for c in cls.values())
     n_dead = sum(1 for n in cls if dead(n))
     n_leo = sum(1 for c in cls.values() if c.startswith("64DD"))
     reach = total - n_dead
@@ -97,7 +98,7 @@ def main():
           "| class | functions |", "|---|---|"]
     for k, v in by.most_common():
         md.append("| %s | %d |" % (k, v))
-    sub = collections.Counter(c for c in cls.values() if c.startswith(("live", "data never")))
+    sub = collections.Counter(c for c in cls.values() if c.startswith(("live", "never selected")))
     md += ["", "| subclass | functions |", "|---|---|"] + ["| %s | %d |" % (k, v) for k, v in sorted(sub.items())]
     area = lambda n: (re.search(r"fragments/([^/]+)/", F.get(n, {}).get("file", "")) or
                       re.search(r"([^/]+)$", F.get(n, {}).get("file", "?"))).group(1)

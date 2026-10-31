@@ -168,6 +168,8 @@ def main():
     cov = {}
     for fn in data["functions"]:
         name = fn["name"].split(":")[-1]
+        if name in cov and cov[name]["count"] >= fn["count"]:
+            continue  # same-named static copies (inline helpers in a header): the one that ran most counts
         cov[name] = {"count": fn["count"], "file": fn["filenames"][0], "regions": fn["regions"],
                      "branches": fn.get("branches", [])}
     internal = {n for n in F if not F[n]["external"] and re.search(files_rx, F[n]["file"])
