@@ -10,7 +10,7 @@
   hand-written conditions (Round 2, Victory Palace, the completion gift, species offsets).
 - `routes/minigames_gallery/`: gallery (camera, rental viewer, album, snap, print seals), Victory Palace, Kids Club,
   battle particle offsets; the minigame leftovers are dead by code. Port fix: the gallery's empty "Save file not
-  found." prompt (PR #72). A port difference left: the Bonus stickers screen (a renderer issue).
+  found." prompt (PR #72, merged; the same functions run before and after, only the text differs). A port difference left: the Bonus stickers screen (a renderer issue).
 - `routes/debug_crash/`: crash screen, profiler, debug menus, gallery debugger, storage leftovers (64DD calls park
   the game thread with no drive: those runs are ended by time, not by `--frames`).
 
