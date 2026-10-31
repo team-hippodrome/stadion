@@ -51,7 +51,7 @@ index 20b0fe8eec8b41a972488b4148f9efab96101cf3..4b4a2b0d950ecdb8a7aa788f205a924f
      0x0D000000, 0x05000000,    0x0F000000, 0x05000000, 0x20050000, 0x00000000,  0x00000000,  0x00000000,  0x00000000,
      0x08000000, BattlePrep_StarfieldGeoCallback, D_84B19910, 0x06000000, 0x0F000002, 0x05000000,  0x0A000000,  &D_800AC840, 0x06000000,
 diff --git a/src/fragments/battle_prep/battle_prep_397B10.c b/src/fragments/battle_prep/battle_prep_397B10.c
-index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..382d74c4ff7d504d5c8d2b6f765870d8e0b50c93 100644
+index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2c2583cb6 100644
 --- a/src/fragments/battle_prep/battle_prep_397B10.c
 +++ b/src/fragments/battle_prep/battle_prep_397B10.c
 @@ -53,6 +53,7 @@ static Color_RGBA8 D_84B0FCFC[] = {
@@ -374,7 +374,30 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..382d74c4ff7d504d5c8d2b6f765870d8
          main_pool_realloc(arg0, (temp_v0 + sp1C));
          for (; arg0 < sp24;) {
              *--sp20 = *--sp24;
-@@ -1635,7 +1635,7 @@ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArc
+@@ -1587,7 +1587,10 @@ s32 BattlePrep_Align64PoolBlock(s32* arg0) {
+ 
+ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArchive* arg2) {
+     s16 i;
+-    s16 sp44;
++    // PORT: -1 for the modes without a badge set (0: Free Battle, and any other): the N64 left sp44 uninitialised
++    // for them and loaded "badges" from whatever file that stack slot named (never shown); on the host that read a
++    // wild trainer record once roundOrDemoId > 0 (crash after a Free Battle). They get the neutral texture instead.
++    s16 sp44 = -1;
+     unk_func_84B067B4* temp_s5;
+     unk_func_84B067B4* ptr;
+     s16 tmp;
+@@ -1626,16 +1629,16 @@ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArc
+             break;
+     }
+ 
+-    if (gSessionContext.inRound2 != 0) {
++    if (sp44 >= 0 && gSessionContext.inRound2 != 0) {
+         sp44 += 0x1F;
+     }
+ 
+-    temp_s5 = BinArchive_GetFile(arg1, sp44);
++    temp_s5 = sp44 >= 0 ? BinArchive_GetFile(arg1, sp44) : NULL;
+     if (gSessionContext.mode == 7) {
          for (i = 0; i < 4; i++) {
              ptr = i + ((void)0, temp_s5);
  
@@ -383,11 +406,13 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..382d74c4ff7d504d5c8d2b6f765870d8
              arg0->unk_10[i] = BattlePrep_Align64PoolBlock(BinArchive_GetFile(arg2, tmp));
              if (i < (gSessionContext.roundOrDemoId - 1)) {
                  BattlePrep_RenderBadgeGlowTexture(arg0->unk_10[i]);
-@@ -1646,7 +1646,8 @@ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArc
+@@ -1645,8 +1648,9 @@ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArc
+         }
      } else {
          for (i = 0; i < 8; i++) {
-             if (i < gSessionContext.roundOrDemoId) {
+-            if (i < gSessionContext.roundOrDemoId) {
 -                tmp = (temp_s5[gSessionContext.opponentHistory[0][i]].unk_038 >> 8) & 0xFF;
++            if (temp_s5 != NULL && i < gSessionContext.roundOrDemoId) {
 +                // PORT: the trainer record is big-endian ROM data (was the low byte: another trainer's portrait)
 +                tmp = (Port_Swap16(temp_s5[gSessionContext.opponentHistory[0][i]].unk_038) >> 8) & 0xFF;
  

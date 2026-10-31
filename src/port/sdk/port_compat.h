@@ -158,6 +158,9 @@ int Port_GameAudio(void);
 // The N64's loading time where the game's timing counts on it (the boot diorama's model loads, which the music is timed
 // around), as waits; off when replaying an input recording made before them (src/port/os_devices.cpp).
 int Port_LoadWaits(void);
+// The controllers plugged in, as osContInit's controller bits: 1 always, 2-4 as the launcher's Controls panel,
+// PORT_CONTROLLERS or a replayed recording say (src/port/os_devices.cpp).
+int Port_ControllerBits(void);
 // Blocks the calling game thread for that many retraces when Port_LoadWaits() is on (game/src/port_audio.c).
 void Port_LoadStall(int retraces);
 // A horizontal view half-angle (binary angle, 0x10000 = 360 degrees) widened for the picture's shape: unchanged at 4:3,
@@ -193,6 +196,28 @@ void port_osContGetReadData(OSContPad* pad);
 extern long long int rspbootTextStart[], rspbootTextEnd[];
 extern long long int aspMainTextStart[], aspMainTextEnd[];
 extern long long int aspMainDataStart[], aspMainDataEnd[];
+
+// Battle cross-check against the original game in ares (src/port/xcheck.cpp, tools/battle_xcheck.py); all off unless
+// PORT_XCHECK* is set
+int Port_XcheckEnabled(void);
+int Port_XcheckForcingRandom(void);
+int Port_XcheckCom(void);
+int Port_XcheckRandom(int fn, int arg, int* out, void* caller);
+int Port_XcheckHasCase(void);
+void Port_XcheckPatchMon(int side, int slot, void* battleMon);
+void Port_XcheckApplyCaseParties(void);
+int Port_XcheckWantDraw(void);
+int Port_XcheckNoMusic(void);
+void Port_XcheckGameFrame(void);
+void Port_XcheckSfx(int kind, unsigned a, int b, int c);
+unsigned long long Port_XcheckOsGetTime(void);
+void Port_XcheckWriteEvent(const char* name, const void* state0, const void* state1, const void* scene, unsigned damage,
+                           const void* messageQueues);
+void Port_XcheckBattleEvent(const char* name);
+void Port_XcheckMoveAnim(int side, int move);
+int Port_XcheckLoadWait(void);
+int Port_XcheckAnimActive(void);
+const char* Port_XcheckFramePath(void);
 
 // A debug switch from the environment, read once per call site: getenv scans the whole environment, and the port's
 // debug checks sit in per-frame and per-draw code (Font_DrawChar, the geo renderer, the battle HUD). The switches

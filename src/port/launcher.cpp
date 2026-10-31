@@ -987,6 +987,21 @@ class LauncherWindow : public Ship::GuiWindow {
             }
             ImGui::PopID();
         }
+        // whether the game sees this controller (Port_ControllerBits): player 1's always, 2-4 only when switched on,
+        // so the multiplayer choices (2-4 players, team battles) are offered only with players to make them
+        if (mPort == 0) {
+            Text(x + 462, y + 15, "Always plugged in", gFonts.small, Theme::dim);
+        } else {
+            std::string key = "gPort.Controller" + std::to_string(mPort + 1) + ".PluggedIn";
+            bool plugged = CVarGetInteger(key.c_str(), 0) != 0;
+            if (Check("Plugged in", &plugged, x + 458, y + 11)) {
+                CVarSetInteger(key.c_str(), plugged ? 1 : 0);
+                CVarSave();
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("The game sees controller %d (it offers 2-4 player battles and team battles)", mPort + 1);
+            }
+        }
         if (Button("Reset to defaults", x + w - 246, y + 9, 130, 26)) {
             ResetBindings(mPort);
         }

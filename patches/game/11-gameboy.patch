@@ -668,7 +668,7 @@ index b926f73a1d7e266718513ede408058c4e1890aef..7b114dd631eb1010ba2764b1cad9ce40
  
  }
 diff --git a/src/gb_data.c b/src/gb_data.c
-index 2a7be588569a27f567d037bdf0cccb54014c4531..b77087225c1c9a1d3b4bf153ea92f4bc1cbc23bc 100644
+index 2a7be588569a27f567d037bdf0cccb54014c4531..1661f4edd15e8cc4ff2d55aa15c16022b080a638 100644
 --- a/src/gb_data.c
 +++ b/src/gb_data.c
 @@ -6,9 +6,7 @@
@@ -705,11 +705,19 @@ index 2a7be588569a27f567d037bdf0cccb54014c4531..b77087225c1c9a1d3b4bf153ea92f4bc
          if (*arg1 == ']') {
              memcpy(arg0, temp_s1, strlen(temp_s1) + 1);
              arg0 += strlen(temp_s1);
-@@ -814,7 +817,7 @@ char* Text_CopyString(char* arg0, char* arg1) {
+@@ -814,7 +817,15 @@ char* Text_CopyString(char* arg0, char* arg1) {
  #endif
  
  char* Text_CopySpeciesName(char* arg0, s32 arg1) {
 -    Text_CopyString(arg0, (char*)*(u32*)D_8006FEE8[arg1]);
++    // PORT: species 0 (an empty party slot: the Event Battle trainer cards always read 6) made the N64 read the word
++    // at 0x8006FEE8, the first bytes of species 151's name slot ("MEW\0"), and copy from 0x4D455700, an unmapped
++    // address (TLB miss, the game stops there); on the host it is a wild pointer. An empty name instead: it equals
++    // the slot's empty nickname, so Model_ComputeSizeVariant gives the empty slot no size variant.
++    if ((arg1 <= 0) || (arg1 > ARRAY_COUNT(D_8006FF00))) {
++        arg0[0] = '\0';
++        return arg0;
++    }
 +    Text_CopyString(arg0, D_8006FF00[arg1 - 1].name); // PORT: was a raw read at 0x8006FEE8 + 0x1C * id (the name pointer, +4 of record id-1)
      return arg0;
  }
@@ -732,7 +740,7 @@ index 2aa2ecd7fc456e597f01785e0da1b24601b4e2db..8bbf76fcf57049ff51257092f5b60402
  typedef struct unk_D_80071D88 {
      /* 0x00 */ char* type_name;
 diff --git a/src/gb_save.c b/src/gb_save.c
-index 5b632b297c71f1e35a6b5b48c66ea3e8ebcb3479..9a54aab7096f59c45204589263eba24cdb1e09f9 100644
+index 5b632b297c71f1e35a6b5b48c66ea3e8ebcb3479..cadeaf3d9dfc363f395bf9e6a640ecf4d90fe923 100644
 --- a/src/gb_save.c
 +++ b/src/gb_save.c
 @@ -11,14 +11,14 @@
@@ -752,6 +760,15 @@ index 5b632b297c71f1e35a6b5b48c66ea3e8ebcb3479..9a54aab7096f59c45204589263eba24c
      D_04001878, D_040018E0, D_04001948, D_040019B0, D_04001A18, D_04001A80, D_04001AF0,
      D_04001B58, D_04001BC0, D_04001C28, 0x10,       0x10,       0x10,       D_4001010,
  };
+@@ -51,7 +51,7 @@ void GbSave_BuildPortSummary(unk_func_8002D860* arg0, s32 arg1) {
+     } else {
+         arg0->unk_00 = 0;
+         arg0->unk_08 = GbSave_GetTrainerId(arg1);
+-        GbSave_GetPlayerName(arg1, &arg0[1]);
++        GbSave_GetPlayerName(arg1, arg0->unk_0C);
+     }
+     arg0->unk_04 = GbSave_GetPortGame(arg1);
+ }
 @@ -123,7 +123,7 @@ s32 Ui_AdjustVerticalSelection(unk_func_8002DCB8_arg0* arg0, s32 arg1) {
      return ret;
  }
@@ -780,10 +797,18 @@ index 5b632b297c71f1e35a6b5b48c66ea3e8ebcb3479..9a54aab7096f59c45204589263eba24c
  }
  
 diff --git a/src/gb_save.h b/src/gb_save.h
-index 978a4a692a8fe8f8a97bc7b6315b5129bc8fdea6..71c12b5b1dc3af94796bb606910e4fee2754589d 100644
+index 978a4a692a8fe8f8a97bc7b6315b5129bc8fdea6..d98d5a43ed6d9298113de358980e0538e5733d93 100644
 --- a/src/gb_save.h
 +++ b/src/gb_save.h
-@@ -74,7 +74,7 @@ extern s32 D_80075BD0[];
+@@ -39,6 +39,7 @@ typedef struct unk_func_8002D860 {
+     /* 0x00 */ s32 unk_00;
+     /* 0x04 */ s32 unk_04;
+     /* 0x08 */ s32 unk_08;
++    /* 0x0C */ char unk_0C[0x20]; // PORT64: the player name; written at &arg0[1], past the struct, on the N64
+ } unk_func_8002D860; // size = 0xC
+ 
+ typedef struct ret_func_8002ED08 {
+@@ -74,7 +75,7 @@ extern s32 D_80075BD0[];
  void GbSave_BuildPortSummary(unk_func_8002D860* arg0, s32 arg1);
  void Gfx_DrawTiledTextureStrip(unk_func_88500020* arg0, s32 arg1, s32 a2);
  s32 Ui_AdjustVerticalSelection(unk_func_8002DCB8_arg0* arg0, s32 arg1);
@@ -792,7 +817,7 @@ index 978a4a692a8fe8f8a97bc7b6315b5129bc8fdea6..71c12b5b1dc3af94796bb606910e4fee
  s32 Ui_AdjustHorizontalSelection(unk_func_8002DD98_arg0* arg0, s32 arg1);
  s32 Ui_HandleHorizontalSelectionInput(unk_func_8002DD98_arg0* arg0);
  void Ui_AdjustSteppedScrollSelection(unk_func_8002DE78_arg0* arg0);
-@@ -88,7 +88,7 @@ s32 Ui_GetSelectionDirection(unk_func_8002EBD8_arg0* arg0);
+@@ -88,7 +89,7 @@ s32 Ui_GetSelectionDirection(unk_func_8002EBD8_arg0* arg0);
  s32 GbSave_GameToCategoryIndex(s32 arg0);
  Color_RGBA8 Color_InterpolateFromGray(Color_RGBA8 arg0, f32 arg1);
  s32 BattleMon_CountMoves(BattleMon* arg0);
@@ -801,7 +826,7 @@ index 978a4a692a8fe8f8a97bc7b6315b5129bc8fdea6..71c12b5b1dc3af94796bb606910e4fee
  MoveData* Move_GetData(s32 arg0);
  s32 Species_GetMoveSlot(BattleMon* arg0, s32 arg1);
  s32 Move_NormalizeDisplayIndex(s32 arg0);
-@@ -96,7 +96,7 @@ s32 Deck_GetEntryCountForType(s32 arg0, s32 arg1, s32 arg2);
+@@ -96,7 +97,7 @@ s32 Deck_GetEntryCountForType(s32 arg0, s32 arg1, s32 arg2);
  void Ui_InitInputMessageQueue(void);
  void Ui_SendMessageAndPollInput(OSMesg arg0);
  void Ui_SendNullMessage(void);

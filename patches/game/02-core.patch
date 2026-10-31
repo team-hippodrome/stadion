@@ -311,7 +311,7 @@ index e943cefa45fcb73ba82b57d73c44ebc49b90a3cd..f28a9ed3368bdcd164239bead75a15c8
          D_80077DAC = 1;
          return;
 diff --git a/src/3D140_2.c b/src/3D140_2.c
-index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d14ba9e0e6 100644
+index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..5d227c4ef8b377265d71d228afe733fdc8048306 100644
 --- a/src/3D140_2.c
 +++ b/src/3D140_2.c
 @@ -1,5 +1,5 @@
@@ -321,7 +321,18 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
  #include "src/audio_commands.h"
  #include "src/libnumus/player.h"
  #include "src/3D140.h"
-@@ -80,10 +80,17 @@ typedef struct unk_D_80078548 {
+@@ -10,6 +10,10 @@
+ #include "src/gb_audio_render.h"
+ #include "src/audio_loop_point.h"
+ 
++// PORT: battle cross-check: the announcer picks its lines with osGetTime() (CPU timing); with the cross-check's forced
++// randomness both sides get the same values instead (src/port/xcheck.cpp, tools/ares_ref/ares_ref.cpp)
++#define osGetTime() Port_XcheckOsGetTime()
++
+ typedef union {
+     struct {
+         s16 type;
+@@ -80,10 +84,17 @@ typedef struct unk_D_80078548 {
  // .data
  // global
  
@@ -343,7 +354,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
  
  // .rodata
  
-@@ -346,17 +353,17 @@ u16 D_8007800C[4] = {
+@@ -346,17 +357,17 @@ u16 D_8007800C[4] = {
  u16 D_80078014[4] = {
      0x0002, 0x000E, 0x000F, 0x0000,
  };
@@ -369,7 +380,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
  };
  u16 D_80078040[4] = {
      0x0002, 0x0180, 0x017C, 0x0000,
-@@ -376,8 +383,10 @@ u16 D_80078060[4] = {
+@@ -376,8 +387,10 @@ u16 D_80078060[4] = {
  u16 D_80078068[4] = {
      0x0003, 0x0172, 0x0173, 0x0174,
  };
@@ -382,7 +393,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
  };
  u16 D_80078078[4] = {
      0x0002, 0x0073, 0x0074, 0x0000,
-@@ -400,7 +409,10 @@ u16 D_800780A0[4] = {
+@@ -400,7 +413,10 @@ u16 D_800780A0[4] = {
  u16 D_800780A8[6] = {
      0x0005, 0x005B, 0x005C, 0x005D, 0x005E, 0x005F,
  };
@@ -394,7 +405,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      0x00, 0x28, 0x00, 0x00, 0x32, 0x00, 0x1D, 0x0F, 0x00, 0x1D, 0x12, 0x00, 0x00, 0x50, 0x00, 0x10,
      0x28, 0x00, 0x04, 0x4B, 0x14, 0x05, 0x4B, 0x19, 0x06, 0x4B, 0x17, 0x00, 0x28, 0x00, 0x00, 0x37,
      0x00, 0x26, 0x01, 0x00, 0x27, 0x50, 0x00, 0x32, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00, 0x28, 0x00,
-@@ -414,16 +426,14 @@ u8 D_800780B4[204] = {
+@@ -414,16 +430,14 @@ u8 D_800780B4[204] = {
      0x00, 0x19, 0x00, 0x28, 0x15, 0x00, 0x78, 0x15, 0x00, 0x5F, 0x15, 0x05, 0x5F, 0x19, 0x23, 0x78,
      0x19, 0x4C, 0x41, 0x18, 0x46, 0x41, 0x15, 0x44, 0x41, 0x19, 0x50, 0x96, 0x00, 0x00, 0x23, 0x02,
      0x00, 0x50, 0x02, 0x30, 0x50, 0x01, 0x25, 0x32, 0x01, 0x00, 0x01, 0x01,
@@ -413,7 +424,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      0x29, 0x00, 0x08, 0x52, 0x00, 0x00, 0x3B, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x38, 0x00, 0x00, 0x0B,
      0x00, 0x00, 0x0F, 0x00, 0x00, 0x16, 0x00, 0x00, 0x31, 0x00, 0x08, 0x0B, 0x00, 0x15, 0x0B, 0x00,
      0x00, 0x33, 0x00, 0x18, 0x40, 0x00, 0x18, 0x19, 0x00, 0x19, 0x41, 0x00, 0x18, 0x2F, 0x00, 0x00,
-@@ -536,6 +546,9 @@ u8 D_80078568[24] = {
+@@ -536,6 +550,9 @@ u8 D_80078568[24] = {
  
  
  void BitArray_SetBit(u8* array, u8 index, u8 flag) {
@@ -423,7 +434,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u8 offset = index / 8;
      u8 bitPosition = index % 8;
      u8 mask = (1 << bitPosition);
-@@ -550,6 +563,9 @@ void BitArray_SetBit(u8* array, u8 index, u8 flag) {
+@@ -550,6 +567,9 @@ void BitArray_SetBit(u8* array, u8 index, u8 flag) {
   * Checks if a bit is set in an array.
   */
  s32 BitArray_IsBitSet(u8* array, u8 index) {
@@ -433,7 +444,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u8 offset = index / 8;
      u8 bitPosition = index % 8;
      u8 flag = (array[offset] & (u8)(1 << bitPosition));
-@@ -560,6 +576,9 @@ s32 BitArray_IsBitSet(u8* array, u8 index) {
+@@ -560,6 +580,9 @@ s32 BitArray_IsBitSet(u8* array, u8 index) {
  }
  
  void Audio_SetVoiceEnabled(s32 arg0) {
@@ -443,7 +454,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      if (arg0 != 0) {
          D_80078388 = 1;
      } else {
-@@ -568,6 +587,9 @@ void Audio_SetVoiceEnabled(s32 arg0) {
+@@ -568,6 +591,9 @@ void Audio_SetVoiceEnabled(s32 arg0) {
  }
  
  void Audio_SetChannelGroupCounts(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
@@ -453,7 +464,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      D_8007838C[0] = arg0;
      D_8007838C[1] = arg1;
      D_8007838C[2] = arg2;
-@@ -575,6 +597,9 @@ void Audio_SetChannelGroupCounts(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
+@@ -575,6 +601,9 @@ void Audio_SetChannelGroupCounts(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
  }
  
  void Audio_ResetChannelGroupState(u8 arg0) {
@@ -463,7 +474,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      s32 i;
  
      if (arg0 < 3) {
-@@ -609,6 +634,9 @@ void Audio_ResetChannelGroupState(u8 arg0) {
+@@ -609,6 +638,9 @@ void Audio_ResetChannelGroupState(u8 arg0) {
  }
  
  void Audio_ConfigureChannelGroups(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
@@ -473,7 +484,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      s32 i;
      s32 j;
  
-@@ -636,6 +664,9 @@ void Audio_ConfigureChannelGroups(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
+@@ -636,6 +668,9 @@ void Audio_ConfigureChannelGroups(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
  }
  
  void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
@@ -483,7 +494,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      s32 pad[1];
      u8 sp1B = 0;
      u16 var_a0;
-@@ -658,7 +689,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
+@@ -658,7 +693,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
  
          if (arg1 < 0xC) {
              if (arg0 < 9) {
@@ -492,7 +503,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
                  D_800783FC = 1;
                  D_80078400 = 1;
              } else {
-@@ -666,7 +697,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
+@@ -666,7 +701,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
              }
          } else if (arg1 == 0xC) {
              if ((arg0 < 0x21) && (arg0 != 0)) {
@@ -501,7 +512,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
                  D_800783FC = 1;
                  D_80078400 = 0;
              } else {
-@@ -674,7 +705,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
+@@ -674,7 +709,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
              }
          } else if (arg1 == 0xD) {
              if (arg0 < 6) {
@@ -510,7 +521,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
                  D_800783FC = 1;
                  D_80078400 = 0;
              } else {
-@@ -714,6 +745,9 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
+@@ -714,6 +749,9 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
  }
  
  void func_8003DB84(s32 arg0) {
@@ -520,7 +531,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      s8 var_t0;
      s8 var_t2;
      s8 var_t4;
-@@ -1113,6 +1147,9 @@ block_53:
+@@ -1113,6 +1151,9 @@ block_53:
  }
  
  void func_8003EB40(s32 arg0, BattleMonRuntime* arg1) {
@@ -530,7 +541,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u8 pad;
      u8 value;
      u8 side;
-@@ -1290,6 +1327,9 @@ found_value:
+@@ -1290,6 +1331,9 @@ found_value:
  }
  
  void func_8003F1AC(u32 arg0) {
@@ -540,7 +551,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u8 sp1F;
  
      if (arg0 == 0 || arg0 >= 5) {
-@@ -1348,6 +1388,9 @@ void func_8003F1AC(u32 arg0) {
+@@ -1348,6 +1392,9 @@ void func_8003F1AC(u32 arg0) {
  }
  
  void func_8003F4C0(u32 arg0) {
@@ -550,7 +561,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u8 temp_v0;
      
      if (arg0 == 0 || arg0 >= 5) {
-@@ -1396,6 +1439,9 @@ void func_8003F4C0(u32 arg0) {
+@@ -1396,6 +1443,9 @@ void func_8003F4C0(u32 arg0) {
  }
  
  void Audio_QueuePendingSoundId(u32 arg0) {
@@ -560,7 +571,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      D_800FCCF0[D_80078544] = arg0;
      D_80078544++;
      if (D_80078544 >= 0xA) {
-@@ -1404,6 +1450,9 @@ void Audio_QueuePendingSoundId(u32 arg0) {
+@@ -1404,6 +1454,9 @@ void Audio_QueuePendingSoundId(u32 arg0) {
  }
  
  void func_8003F660(s32 arg0) {
@@ -570,7 +581,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u32 mask;
      u32 sp40;
      s32 sp3C;
-@@ -1705,7 +1754,7 @@ void func_8003F660(s32 arg0) {
+@@ -1705,7 +1758,7 @@ void func_8003F660(s32 arg0) {
              return;
          case 0x19:
          case 0x1B:
@@ -579,7 +590,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
                  Audio_QueueSoundAvoidingRecent(&D_80077F24);
              } else {
                  Audio_QueueSoundAvoidingRecent(&D_80077F14);
-@@ -1965,6 +2014,9 @@ void func_8003F660(s32 arg0) {
+@@ -1965,6 +2018,9 @@ void func_8003F660(s32 arg0) {
  }
  
  void func_80040A70(BattleMonRuntime* arg0, s32 arg1, s32 arg2, s32 arg3) {
@@ -589,7 +600,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      s32 i;
      s32 sp40;
      u32 temp_lo;
-@@ -2226,6 +2278,9 @@ void func_80040A70(BattleMonRuntime* arg0, s32 arg1, s32 arg2, s32 arg3) {
+@@ -2226,6 +2282,9 @@ void func_80040A70(BattleMonRuntime* arg0, s32 arg1, s32 arg2, s32 arg3) {
  }
  
  void func_800414B8(s32 arg0) {
@@ -599,17 +610,20 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u8 temp_v0;
  
      if (arg0 == 0 || arg0 >= 5U) {
-@@ -2246,6 +2301,9 @@ void func_800414B8(s32 arg0) {
+@@ -2246,6 +2305,12 @@ void func_800414B8(s32 arg0) {
  }
  
  void Audio_StartBattleMusicSequence(void) {
 +    if (PORT_AUDIO_OFF()) {
 +        return;
 +    }
++    if (Port_XcheckNoMusic()) { // PORT: battle cross-check (src/port/xcheck.cpp): sound effects without the music
++        return;
++    }
      if (D_80078E80 == 0) {
          Audio_StartMusicTrack(0x3D);
          Audio_PlayCommand(0x16, D_80078400, 0);
-@@ -2278,11 +2336,17 @@ void Audio_StartBattleMusicSequence(void) {
+@@ -2278,11 +2343,17 @@ void Audio_StartBattleMusicSequence(void) {
  }
  
  void Audio_StartResultMusicSequence(void) {
@@ -627,7 +641,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u8* seq;
  
      if ((D_800783B4 < D_800783B8) && (D_80078388 != 0) && (AudioStream_IsPlaying(1) == 0)) {
-@@ -2376,6 +2440,9 @@ void Audio_UpdateBattleAudioFrame(void) {
+@@ -2376,6 +2447,9 @@ void Audio_UpdateBattleAudioFrame(void) {
   * register-materialised store.
   */
  void func_80041A98(void) {
@@ -637,17 +651,21 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      s32 i;
      s32 j;
  
-@@ -2426,6 +2493,9 @@ void func_80041A98(void) {
+@@ -2426,6 +2500,13 @@ void func_80041A98(void) {
  }
  
  void Audio_QueueSequenceId(u32 arg0) {
++    Port_XcheckSfx(2, arg0, 0, 0); // PORT: battle cross-check sound trace (src/port/xcheck.cpp)
++    if (Port_XcheckNoMusic()) { // PORT: battle cross-check: the announcer is silent with the music. A line starts when the
++        return;                 // previous one has played out, in sound time, so the N64's slowdown moves it
++    }
 +    if (PORT_AUDIO_OFF()) {
 +        return;
 +    }
      OSIntMask mask;
  
      if ((D_80078388 != 0) && (D_800783FC != 0) && (arg0 != 0)) {
-@@ -2437,6 +2507,9 @@ void Audio_QueueSequenceId(u32 arg0) {
+@@ -2437,6 +2518,9 @@ void Audio_QueueSequenceId(u32 arg0) {
  }
  
  void Audio_RemoveLastQueuedSequenceId(void) {
@@ -657,7 +675,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      OSIntMask mask;
  
      if ((D_80078388 != 0) && (D_800783FC != 0)) {
-@@ -2447,6 +2520,9 @@ void Audio_RemoveLastQueuedSequenceId(void) {
+@@ -2447,6 +2531,9 @@ void Audio_RemoveLastQueuedSequenceId(void) {
  }
  
  void Audio_SwapSoundCandidates(u8* arg0, u8* arg1) {
@@ -667,7 +685,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u8 temp_v0 = *arg0;
      u8 temp_v1 = *arg1;
  
-@@ -2457,6 +2533,9 @@ void Audio_SwapSoundCandidates(u8* arg0, u8* arg1) {
+@@ -2457,6 +2544,9 @@ void Audio_SwapSoundCandidates(u8* arg0, u8* arg1) {
  }
  
  u16 Audio_FilterRecentSoundId(u16 arg0) {
@@ -677,7 +695,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      s32 i;
  
      for (i = 0; i < 20; i++) {
-@@ -2469,6 +2548,9 @@ u16 Audio_FilterRecentSoundId(u16 arg0) {
+@@ -2469,6 +2559,9 @@ u16 Audio_FilterRecentSoundId(u16 arg0) {
  }
  
  void Audio_RecordRecentSoundId(u16 arg0) {
@@ -687,7 +705,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u16 i;
  
      for (i = 0; i < 19; i++) {
-@@ -2479,6 +2561,9 @@ void Audio_RecordRecentSoundId(u16 arg0) {
+@@ -2479,6 +2572,9 @@ void Audio_RecordRecentSoundId(u16 arg0) {
  }
  
  void Audio_RemoveRecentSoundAt(u16 arg0) {
@@ -697,7 +715,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u32 i;
  
      for (i = arg0; i > 0; i--) {
-@@ -2489,6 +2574,9 @@ void Audio_RemoveRecentSoundAt(u16 arg0) {
+@@ -2489,6 +2585,9 @@ void Audio_RemoveRecentSoundAt(u16 arg0) {
  }
  
  u32 Audio_SelectSoundAvoidingRecent(u16* arg0) {
@@ -707,7 +725,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u16 temp_v0 = *arg0;
      u32 i;
      u32 j;
-@@ -2524,6 +2612,9 @@ u32 Audio_SelectSoundAvoidingRecent(u16* arg0) {
+@@ -2524,6 +2623,9 @@ u32 Audio_SelectSoundAvoidingRecent(u16* arg0) {
  }
  
  void Audio_QueueSoundAvoidingRecent(u16* arg0) {
@@ -717,7 +735,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u32 temp_v0 = Audio_SelectSoundAvoidingRecent(arg0);
  
      if (temp_v0 != 0) {
-@@ -2532,6 +2623,9 @@ void Audio_QueueSoundAvoidingRecent(u16* arg0) {
+@@ -2532,6 +2634,9 @@ void Audio_QueueSoundAvoidingRecent(u16* arg0) {
  }
  
  void Audio_QueueSoundWithFallbackList(u16 arg0, u16* arg1, u8* arg2) {
@@ -727,7 +745,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      u8 temp_v0;
  
      if (*arg2 == 0) {
-@@ -2546,6 +2640,9 @@ void Audio_QueueSoundWithFallbackList(u16 arg0, u16* arg1, u8* arg2) {
+@@ -2546,6 +2651,9 @@ void Audio_QueueSoundWithFallbackList(u16 arg0, u16* arg1, u8* arg2) {
  }
  
  void func_800420F0_empty() {
@@ -737,7 +755,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      
  }
  
-@@ -2553,6 +2650,9 @@ void func_800420F0_empty() {
+@@ -2553,6 +2661,9 @@ void func_800420F0_empty() {
  // commentary lines. Returns a small negative code for moves that are classified rather
  // than scored (see the effect switch below), otherwise a damage estimate capped at 0x7FFF.
  u32 Battle_EstimateMoveDamage(u32 moveId, BattleMonRuntime* attacker, BattleMonRuntime* defender) {
@@ -747,7 +765,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      f32 var_f0;  // defense stat, then the STAB multiplier, then the defender's status multiplier
      f32 var_f2;  // attack stat, then the attacker's hp reference
      f32 var_f12; // multiplier for the defender's first type, then the attacker's boost
-@@ -2760,6 +2860,9 @@ u32 Battle_EstimateMoveDamage(u32 moveId, BattleMonRuntime* attacker, BattleMonR
+@@ -2760,6 +2871,9 @@ u32 Battle_EstimateMoveDamage(u32 moveId, BattleMonRuntime* attacker, BattleMonR
  }
  
  s32 Battle_MapCategoryIdToCompactIndex(u8 arg0) {
@@ -757,7 +775,7 @@ index c82ab09a4b092f59dc997a512cb7617bcd0b1c91..efd7e4077d3e3c44cd209105561ee2d1
      switch (arg0) {
      case 0:
          return 0;
-@@ -2797,5 +2900,8 @@ s32 Battle_MapCategoryIdToCompactIndex(u8 arg0) {
+@@ -2797,5 +2911,8 @@ s32 Battle_MapCategoryIdToCompactIndex(u8 arg0) {
  }
  
  void Audio_QueueSequenceIdWrapper(u32 arg0) {
@@ -856,8 +874,20 @@ index 4e2aaf4b1d0cf24cefec0d283f9b8117d02050c0..3f5d4c2a4cef6639a2bd5566cb643ceb
      s16 ret = *(s16*)Util_ConvertAddrToVirtAddr(&D_8006F09C->objectType);
      return ret;
  }
+diff --git a/src/controller.c b/src/controller.c
+index 64e69cb57c72f8ebb784864a2d20dd9a1628a5ed..3c7bea43f0acac3b56f987ac9de62f44eb0dc476 100644
+--- a/src/controller.c
++++ b/src/controller.c
+@@ -225,6 +225,7 @@ u8 Cont_SetupControllers(void) {
+     osCreateMesgQueue(&gSIEventMesgQueue, gSIEventMesgBuf, 1);
+     osSetEventMesg(OS_EVENT_SI, &gSIEventMesgQueue, NULL);
+     osContInit(&gSIEventMesgQueue, &gControllerBits, &gControllerStatuses[0]);
++    gControllerBits = Port_ControllerBits(); // PORT: libultraship reports only controller 1
+     gEepromProbe = osEepromProbe(&gSIEventMesgQueue);
+     Cont_InitControllers();
+     return gControllerBits;
 diff --git a/src/display_object_textures.c b/src/display_object_textures.c
-index 1145c3c6d05e90d22695ffceedbe2b63951933fc..905bb61f69f8318e50aa1cb04a6020f97f2c4df0 100644
+index 1145c3c6d05e90d22695ffceedbe2b63951933fc..cd0a6de1755b1395059b2a26c3fdf07a01bd9bfb 100644
 --- a/src/display_object_textures.c
 +++ b/src/display_object_textures.c
 @@ -1,4 +1,6 @@
@@ -1207,7 +1237,7 @@ index 1145c3c6d05e90d22695ffceedbe2b63951933fc..905bb61f69f8318e50aa1cb04a6020f9
      MemoryBlock* sp20;
  
      sp2C = BinArchive_GetFile(D_800ABE10.unk_A04.unk_00, arg0 - 1);
-@@ -532,14 +674,14 @@ arg1_func_80019420* BattleAnim_LoadResourceTable(s32 arg0) {
+@@ -532,18 +674,19 @@ arg1_func_80019420* BattleAnim_LoadResourceTable(s32 arg0) {
      sp24 = BinArchive_GetFile(D_800ABE10.unk_A04.unk_04, arg0);
      if (sp24 != NULL) {
          sp1C = MainPool_AllocState(main_pool_get_available(), 0);
@@ -1225,6 +1255,11 @@ index 1145c3c6d05e90d22695ffceedbe2b63951933fc..905bb61f69f8318e50aa1cb04a6020f9
      Fragment* sp24 = Fragment_LoadFromRomRange(arg0, arg2, arg3, arg4, arg5);
  
      if (sp24 != NULL) {
+         Fragment_RelocateAndCommit(arg0, arg1, sp24);
++        Port_NoteLoadedFragment(arg1, (u8*)arg2); // PORT: code addresses in this slot now belong to this blob
+     }
+     return sp24;
+ }
 diff --git a/src/display_object_textures.h b/src/display_object_textures.h
 index 0dd73ab14b38198f7f4588e8417d454a645328cf..0a647784fc8a35d64703b3eecf41b3ca9539def4 100644
 --- a/src/display_object_textures.h
@@ -2516,7 +2551,7 @@ index ee505993c3650eb136381f268e912cd644f22de9..d347e65d462bc58766e9d2dcf92d3232
  unk_D_86002F34_alt19* GeoNode_CreateAmbientLight(MainPoolState* arg0, unk_D_86002F34_alt19* arg1, u8 r, u8 g, u8 b);
  unk_D_86002F34* GeoNode_CreateShadowContext(MainPoolState* arg0, unk_D_86002F34* arg1, s32 arg2,
 diff --git a/src/geo_render.c b/src/geo_render.c
-index d36f920884a0777288cece9433614bf4aef5d261..f7aeb3ddde0ebee3e4f41c0b896834fa106087ee 100644
+index d36f920884a0777288cece9433614bf4aef5d261..c1b0ac7b90c5b6e975263d6104425696f702293c 100644
 --- a/src/geo_render.c
 +++ b/src/geo_render.c
 @@ -1,3 +1,5 @@
@@ -2634,6 +2669,15 @@ index d36f920884a0777288cece9433614bf4aef5d261..f7aeb3ddde0ebee3e4f41c0b896834fa
                    G_MTX_NOPUSH | G_MTX_MUL | G_MTX_PROJECTION);
  
          Geo_NodeModelPartRoot(arg0);
+@@ -559,7 +563,7 @@ void Geo_NodeFog(GraphNode* arg0) {
+ 
+     gSPFogPosition(gDisplayListHead++, arg->unk_18, arg->unk_1A);
+     gSPSetGeometryMode(gDisplayListHead++, G_FOG);
+-    gDPSetColor(gDisplayListHead++, G_SETFOGCOLOR, arg->unk_1C);
++    gDPSetColor(gDisplayListHead++, G_SETFOGCOLOR, PORT_BE32(arg->unk_1C)); /* PORT: unk_1C holds the bytes r,g,b,a in memory order (GeoNode_CreateFog); the command takes 0xRRGGBBAA */
+ }
+ 
+ void func_80013D34(GraphNode* arg0) {
 @@ -679,6 +683,7 @@ void Geo_NodeSwitchCase(GraphNode* arg0) {
      }
  
@@ -2701,6 +2745,15 @@ index d36f920884a0777288cece9433614bf4aef5d261..f7aeb3ddde0ebee3e4f41c0b896834fa
          Geo_ProcessNodeChildren(arg0);
  
          D_800AA8C8.unk_10A0--;
+@@ -1128,7 +1136,7 @@ void GeoRender_SetRenderMode(void) {
+ 
+     D_800ABCB8->unk_14.rgba = 0x00000000;
+ 
+-    gDPSetColor(gDisplayListHead++, G_SETFOGCOLOR, D_8006F090->unk_20);
++    gDPSetColor(gDisplayListHead++, G_SETFOGCOLOR, PORT_BE32(D_8006F090->unk_20)); /* PORT: as in Geo_NodeFog */
+ 
+     if ((D_800ABB04 & 1) && (D_800ABB00 == 1) && (D_800ABCB8->unk_24 == 5)) {
+         var_v0 = 0x107A58;
 @@ -1162,7 +1170,7 @@ void GeoRender_ApplyMaterialState(void) {
      gSPSetGeometryMode(gDisplayListHead++, G_SHADE | G_CULL_BACK | G_SHADING_SMOOTH);
      gSPClearGeometryMode(gDisplayListHead++, G_FOG | G_TEXTURE_GEN);
@@ -3222,7 +3275,7 @@ index 5ca5681f57f4684791ea64af385a21fc6e9fdaa5..2ab4a57c66df217d05cf7c934faf9255
      return ret;
  }
 diff --git a/src/jpeg_stream.c b/src/jpeg_stream.c
-index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a8be10438 100644
+index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e69bd28ac2 100644
 --- a/src/jpeg_stream.c
 +++ b/src/jpeg_stream.c
 @@ -1,10 +1,13 @@
@@ -3505,7 +3558,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
  }
  
  void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2) {
-@@ -542,6 +628,271 @@ void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2) {
+@@ -542,6 +628,295 @@ void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2) {
      return sp2C;
  }
  
@@ -3682,6 +3735,9 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
 +    if (addr >= 0x100000000ULL || addr == 0) {
 +        return (void*)addr; // already a host pointer
 +    }
++    if (Port_VLinkOf(addr) != 0) {
++        addr = Port_VLinkOf(addr); // a data blob's pointer (Port_RelocateDataBlob): look up its link address
++    }
 +    if (addr >= 0x81000000 && addr < 0x90000000) {
 +        rom = sPortSlotRom[((addr & 0x0FF00000) >> 20) - 0x10];
 +    }
@@ -3696,6 +3752,27 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
 +    }
 +    if (lo < gPortFuncTableCount && gPortFuncTable[lo].rom == rom && gPortFuncTable[lo].addr == addr) {
 +        return gPortFuncTable[lo].fn;
++    }
++    // MIPS code inside ROM data blobs (no decompiled C), replaced by host versions written for the port
++    {
++        extern u8 pokedex_area_model_ROM_START[];
++        extern s32 Pokedex_AreaSeaCallback0(s32 event, GraphNode* node);
++        extern s32 Pokedex_AreaSeaCallback1(s32 event, GraphNode* node);
++        static const struct {
++            const u8* rom;
++            unsigned addr;
++            void* fn;
++        } sBlobCode[] = {
++            { pokedex_area_model_ROM_START, 0x8C000118, (void*)Pokedex_AreaSeaCallback0 },
++            { pokedex_area_model_ROM_START, 0x8C000214, (void*)Pokedex_AreaSeaCallback1 },
++        };
++        unsigned i;
++
++        for (i = 0; i < (unsigned)ARRAY_COUNT(sBlobCode); i++) {
++            if (rom != 0 && rom == (unsigned)(uintptr_t)sBlobCode[i].rom && addr == sBlobCode[i].addr) {
++                return sBlobCode[i].fn;
++            }
++        }
 +    }
 +    // Fragment 31 (particle_data_library) starts with a table of trampolines ("j target; nop") that ROM data uses as
 +    // stable entry points into other fragments (e.g. 0x810001D0 -> ParticleGfx_GraphNodeBuildDescriptorMaterialList,
@@ -3777,7 +3854,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
  BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
      BinArchive* ret = NULL;
      u32 sp28;
-@@ -553,6 +904,8 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
+@@ -553,6 +928,8 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
              newaddr = Asset_LoadCompressed(romStart, romEnd, 0, 0);
              ret = newaddr;
              if (newaddr != NULL) {
@@ -3786,7 +3863,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
                  newaddr[0] |= 1;
              }
              break;
-@@ -561,11 +914,14 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
+@@ -561,11 +938,14 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
              newaddr = Asset_LoadCompressed(romStart, romStart + 0x20, 0, 0);
              ret = newaddr;
              if (newaddr != NULL) {
@@ -3801,7 +3878,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
                      *newaddr |= 2;
                      if (arg3 == 1) {
                          *newaddr |= 4;
-@@ -578,10 +934,15 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
+@@ -578,10 +958,15 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
              newaddr = Asset_LoadCompressed(romStart, romStart + 0x20, 1, 0);
              ret = newaddr;
              if (newaddr != NULL) {
@@ -3817,7 +3894,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
                  if ((newaddr != NULL) && (arg3 == 1)) {
                      *newaddr |= 4;
                  }
-@@ -664,11 +1025,22 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
+@@ -664,11 +1049,22 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
      UNUSED s32 pad;
      BinArchiveFile* sp18 = (u8*)archive + sizeof(BinArchive) + (file_number * sizeof(BinArchiveFile));
  
@@ -3842,7 +3919,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
          } else {
              if (archive->unk_00 & 0x80) {
                  var_a2 = BinArchive_LoadFileBuffered(archive, sp18);
-@@ -677,11 +1049,21 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
+@@ -677,11 +1073,21 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
              }
  
              if (var_a2 != NULL) {
@@ -3866,7 +3943,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..583b8e3b7f83701927d45b02873d604a
              }
          }
      }
-@@ -689,12 +1071,12 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
+@@ -689,12 +1095,12 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
      return var_a2;
  }
  
@@ -4092,7 +4169,7 @@ index d22c8ab0236357bfb3e93183f957a49b266ca22d..3318f035f8c8d657a146f41f5ee8d1b7
 +    return PORT_BE32(arg.rgba);
  }
 diff --git a/src/memmap.c b/src/memmap.c
-index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c334dadecf 100644
+index a46c369996a35fd75fa474484e0a233d6df75183..d8b679f688b3e0d12e64e69a13afe4eb773307b0 100644
 --- a/src/memmap.c
 +++ b/src/memmap.c
 @@ -1,3 +1,5 @@
@@ -4101,7 +4178,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
  #include "global.h"
  #include "memmap.h"
  
-@@ -6,6 +8,128 @@ struct MemoryMap {
+@@ -6,6 +8,140 @@ struct MemoryMap {
      size_t size;
  };
  
@@ -4178,6 +4255,18 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
 +    return 0;
 +}
 +
++// Link address of a pseudo address (0 if it is not one of a registered blob).
++u32 Port_VLinkOf(uintptr_t addr) {
++    if (addr >= PORT_VBASE && addr < PORT_VBASE + PORT_VBLOBS * 0x100000u) {
++        struct PortVBlob* b = &sVBlobs[(addr - PORT_VBASE) >> 20];
++        u32 off = addr & 0xFFFFF;
++        if (b->host != NULL && off < b->size) {
++            return b->link + off;
++        }
++    }
++    return 0;
++}
++
 +// Pseudo address of a link address inside the blob that starts at 'host' (0 if the blob is not registered).
 +u32 Port_VAddrOfLink(void* host, u32 linkAddr) {
 +    int i;
@@ -4230,7 +4319,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
  struct MemoryMap gSegments[16];
  struct MemoryMap gFragments[240];
  
-@@ -13,6 +137,7 @@ struct MemoryMap gFragments[240];
+@@ -13,6 +149,7 @@ struct MemoryMap gFragments[240];
   * Set the base virtual address and size of the specified segment memmap.
   */
  void Memmap_SetSegmentMap(u32 id, uintptr_t vaddr, size_t size) {
@@ -4238,7 +4327,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
      gSegments[id].vaddr = vaddr;
      gSegments[id].size = size;
  }
-@@ -33,7 +158,7 @@ uintptr_t Memmap_GetSegmentBaseVaddr(u32 id) {
+@@ -33,7 +170,7 @@ uintptr_t Memmap_GetSegmentBaseVaddr(u32 id) {
   * Y: Segment number.
   * Z: Segment offset.
   */
@@ -4247,7 +4336,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
      if ((mask >> 0x1C) == 0) {
          u32 id = (mask & 0x0F000000) >> 0x18;
          u32 value = (mask & 0x00FFFFFF) >> 0x00;
-@@ -62,6 +187,7 @@ u32 Memmap_GetSegmentVaddrMask(u32 i, uintptr_t addr) {
+@@ -62,6 +199,7 @@ u32 Memmap_GetSegmentVaddrMask(u32 i, uintptr_t addr) {
   * Clear the memmap for the segment ID specified.
   */
  void Memmap_ClearSegmentMemmap(u32 id) {
@@ -4255,7 +4344,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
      gSegments[id].vaddr = NULL;
      gSegments[id].size = 0;
  }
-@@ -75,15 +201,31 @@ void Memmap_SetSegments(Gfx** gfxDl) {
+@@ -75,15 +213,31 @@ void Memmap_SetSegments(Gfx** gfxDl) {
      Gfx* gfx = *gfxDl;
  
      for (i = 0; i < 16; i++) {
@@ -4288,7 +4377,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
      u32 isLoNeg;
      u32* luiRefs[32];
      u32 luiVals[32];
-@@ -105,6 +247,11 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
+@@ -105,6 +259,11 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
      osInvalICache(fragment, fragment->sizeInRam);
      osInvalDCache(fragment, fragment->sizeInRam);
      Memmap_SetFragmentMap(id, (uintptr_t)fragment, fragment->sizeInRam);
@@ -4300,15 +4389,20 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
  
      for (i = 0; i < relocInfo->nRelocations; i++) {
          reloc = relocInfo->relocations[i];
-@@ -157,6 +304,7 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
+@@ -157,8 +316,12 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
   * Set the base virtual address and size of the specified fragment memmap.
   */
  void Memmap_SetFragmentMap(u32 id, uintptr_t vaddr, size_t size) {
 +    Port_GfxFlushCache(); // PORT: translated display lists depend on these maps
      gFragments[id].vaddr = vaddr;
      gFragments[id].size = size;
++    if (id == 51 && Port_XcheckHasCase()) { // PORT: battle cross-check: the battle engine is mapped (src/port/xcheck.cpp)
++        Port_XcheckApplyCaseParties();
++    }
  }
-@@ -179,9 +327,13 @@ uintptr_t Memmap_GetFragmentBaseVaddr(u32 id) {
+ 
+ /*
+@@ -179,9 +342,13 @@ uintptr_t Memmap_GetFragmentBaseVaddr(u32 id) {
   * Z: Fragment offset.
   */
  uintptr_t Memmap_GetFragmentVaddr(void* addr) {
@@ -4325,7 +4419,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
  
          if (gFragments[id].vaddr != NULL) {
              addr = gFragments[id].vaddr + value;
-@@ -208,6 +360,7 @@ u32 Memmap_GetFragmentVaddrMask(u32 i, uintptr_t addr) {
+@@ -208,6 +375,7 @@ u32 Memmap_GetFragmentVaddrMask(u32 i, uintptr_t addr) {
   * Clear the memmap for the fragment ID specified.
   */
  void Memmap_ClearFragmentMemmap(u32 id) {
@@ -4333,7 +4427,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
      gFragments[id].vaddr = NULL;
      gFragments[id].size = 0;
  }
-@@ -230,3 +383,148 @@ uintptr_t Memmap_GetLoadedFragmentVaddr(uintptr_t addr) {
+@@ -230,3 +398,148 @@ uintptr_t Memmap_GetLoadedFragmentVaddr(uintptr_t addr) {
      }
      return 0;
  }
@@ -4483,10 +4577,10 @@ index a46c369996a35fd75fa474484e0a233d6df75183..18ab511cbac6d663d0d4ce1e9fbb13c3
 +    return 0;
 +}
 diff --git a/src/memmap.h b/src/memmap.h
-index 4d056b93f17927b7491ef29a1b1a31520ef6bc0b..93b7b5eed2bb10c000e8a2d3627c20311c8889cf 100644
+index 4d056b93f17927b7491ef29a1b1a31520ef6bc0b..9bc3ee8f633769d21d52948789a8ab6086495b2e 100644
 --- a/src/memmap.h
 +++ b/src/memmap.h
-@@ -28,15 +28,23 @@ typedef struct Fragment {
+@@ -28,15 +28,24 @@ typedef struct Fragment {
      /* 0x20 */ char data[RELOCATIONS_SIZE]; // variable size
  } Fragment; // size = 0x20
  
@@ -4505,6 +4599,7 @@ index 4d056b93f17927b7491ef29a1b1a31520ef6bc0b..93b7b5eed2bb10c000e8a2d3627c2031
 +void Port_VFree(void* host);
 +void* Port_VResolve(uintptr_t addr);
 +int Port_VIsRaw(const void* p);
++u32 Port_VLinkOf(uintptr_t addr);
 +u32 Port_VAddrOfLink(void* host, u32 linkAddr);
 +u32 Port_RelocateDataBlob(struct Fragment* f);
 +uintptr_t Port_CallBlobEntry(void* frag, s32 a0, s32 a1);
@@ -4723,7 +4818,7 @@ index c49b381dca990fcb784c54e1bf838d42c5b22968..e154d58025a1631e670cb4e5a7a6116d
 +    return 0; // newest block: size unknown
 +}
 diff --git a/src/model_animation.c b/src/model_animation.c
-index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c7df2e28f 100644
+index 7b12156364466b02063611b163bfb1906c48c6fa..e8063c3c02c3d74744c97419a36de829e8bd6d2e 100644
 --- a/src/model_animation.c
 +++ b/src/model_animation.c
 @@ -1,5 +1,6 @@
@@ -4733,15 +4828,17 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
  #include "src/matrix.h"
  #include "src/model_animation_events.h"
  
-@@ -9,23 +10,71 @@ typedef struct unk_func_80016B30_arg0 {
+@@ -9,23 +10,73 @@ typedef struct unk_func_80016B30_arg0 {
  } unk_func_80016B30_arg0; // size = 0x8
  
  static unk_D_800ABCC0 D_800ABCC0[2];
 +// PORT: animation data of models loaded from ROM is big-endian (32-bit addresses, 16-bit samples, bit-packed
 +// streams of 16-bit words); data defined in C is native. sRaw is set for the animation being evaluated and the
-+// accessors below swap when it is set.
++// accessors below swap when it is set. ROM data is a model blob from an archive or data mapped as a segment or a
++// fragment (e.g. the Pikachu reward's _798CD0 follower animation, a fragment-linked address).
 +static s32 sRaw;
-+#define ANIM_RAW(p) Port_VIsRaw((const void*)(p))
++extern int Port_IsRawData(const void* p);
++#define ANIM_RAW(p) Port_IsRawData((const void*)(p))
 +static inline u16 Anim_U16(const void* p) {
 +    const u8* b = (const u8*)p;
 +    return sRaw ? (u16)((b[0] << 8) | b[1]) : *(const u16*)p;
@@ -4809,7 +4906,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
      }
  
      return ret;
-@@ -35,16 +84,17 @@ s16 ModelAnim_EvaluateRotationChannel(unk_D_800ABCC0* arg0, s32 arg1) {
+@@ -35,16 +86,17 @@ s16 ModelAnim_EvaluateRotationChannel(unk_D_800ABCC0* arg0, s32 arg1) {
      s32 var_a1;
      s16 var_v1;
      unk_D_800ABCC0_008* temp_v0 = &arg0->unk_08[arg1];
@@ -4831,7 +4928,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
      }
      return var_v1;
  }
-@@ -54,25 +104,26 @@ f32 ModelAnim_EvaluateScaleChannel(unk_D_800ABCC0* arg0, s32 arg1) {
+@@ -54,25 +106,26 @@ f32 ModelAnim_EvaluateScaleChannel(unk_D_800ABCC0* arg0, s32 arg1) {
      s16 var_a2;
      s32 var_a1;
      unk_D_800ABCC0_008* temp_v0 = &arg0->unk_08[arg1];
@@ -4864,7 +4961,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
          }
      }
  
-@@ -85,25 +136,25 @@ f32 ModelAnim_InterpolateKeyframe(Vec3s* arg0, s16 arg1, s16 arg2) {
+@@ -85,25 +138,25 @@ f32 ModelAnim_InterpolateKeyframe(Vec3s* arg0, s16 arg1, s16 arg2) {
      f32 x;
      f32 var_fv1;
  
@@ -4901,7 +4998,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
          }
      }
      return var_fv1;
-@@ -115,25 +166,25 @@ f32 ModelAnim_InterpolateKeyframeTangent(unk_func_80016B30_arg0* arg0, s16 arg1,
+@@ -115,25 +168,25 @@ f32 ModelAnim_InterpolateKeyframeTangent(unk_func_80016B30_arg0* arg0, s16 arg1,
      f32 x;
      f32 var_fv1;
  
@@ -4938,7 +5035,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
          }
      }
      return var_fv1;
-@@ -142,12 +193,13 @@ f32 ModelAnim_InterpolateKeyframeTangent(unk_func_80016B30_arg0* arg0, s16 arg1,
+@@ -142,12 +195,13 @@ f32 ModelAnim_InterpolateKeyframeTangent(unk_func_80016B30_arg0* arg0, s16 arg1,
  f32 ModelAnim_EvaluateTranslationCurve(unk_D_800ABCC0* arg0, s32 arg1) {
      f32 var_fv1;
      unk_D_800ABCC0_008* temp_v0 = &arg0->unk_08[arg1];
@@ -4954,7 +5051,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
          if (temp_v0->unk_03 & 4) {
              var_fv1 = ModelAnim_InterpolateKeyframeTangent(tmp, temp_v0->unk_00, arg0->unk_02) / 100.0f;
          } else {
-@@ -161,11 +213,12 @@ s16 ModelAnim_EvaluateRotationCurve(unk_D_800ABCC0* arg0, s32 arg1) {
+@@ -161,11 +215,12 @@ s16 ModelAnim_EvaluateRotationCurve(unk_D_800ABCC0* arg0, s32 arg1) {
      f32 var_fv1;
      s16* temp_a0;
      unk_D_800ABCC0_008* temp_v0 = &arg0->unk_08[arg1];
@@ -4969,7 +5066,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
          if (temp_v0->unk_03 & 2) {
              var_fv1 = ModelAnim_InterpolateKeyframeTangent(temp_a0, temp_v0->unk_01, arg0->unk_02) / 10.0f;
          } else {
-@@ -189,11 +242,12 @@ f32 ModelAnim_EvaluateScaleCurve(unk_D_800ABCC0* arg0, s32 arg1) {
+@@ -189,11 +244,12 @@ f32 ModelAnim_EvaluateScaleCurve(unk_D_800ABCC0* arg0, s32 arg1) {
      f32 var_fv0;
      f32 var_fv1;
      unk_D_800ABCC0_008* temp_v0 = &arg0->unk_08[arg1];
@@ -4984,7 +5081,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
          if (temp_v0->unk_03 & 1) {
              var_fv0 = ModelAnim_InterpolateKeyframeTangent(temp_a0, temp_v0->unk_02, arg0->unk_02);
          } else {
-@@ -206,8 +260,11 @@ f32 ModelAnim_EvaluateScaleCurve(unk_D_800ABCC0* arg0, s32 arg1) {
+@@ -206,8 +262,11 @@ f32 ModelAnim_EvaluateScaleCurve(unk_D_800ABCC0* arg0, s32 arg1) {
  
  typedef union AnimFixedFrame {
      struct {
@@ -4997,7 +5094,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
      };
      s32 raw;
  } AnimFixedFrame; // size = 0x4
-@@ -232,19 +289,19 @@ s32 ModelAnim_AdvanceCurveFrame(TransformAnimRaw* arg0, u16 arg1) {
+@@ -232,19 +291,19 @@ s32 ModelAnim_AdvanceCurveFrame(TransformAnimRaw* arg0, u16 arg1) {
      if (arg0->lastRenderFrame != arg1) {
          spC.raw += arg0->speedFixed;
          if (arg0->speedFixed >= 0) {
@@ -5025,7 +5122,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
                  }
              }
          }
-@@ -274,13 +331,14 @@ void ModelAnim_BeginCurveContext(TransformAnimState* arg0, u16 arg1, s32 arg2) {
+@@ -274,13 +333,14 @@ void ModelAnim_BeginCurveContext(TransformAnimState* arg0, u16 arg1, s32 arg2) {
              arg0->lastRenderFrame = arg1;
  
              temp_s0->unk_00 = 1;
@@ -5045,7 +5142,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
  
              if (temp_s0->unk_02 < 0) {
                  temp_s0->unk_02 = 0;
-@@ -301,7 +359,7 @@ void ModelAnim_EvaluateJointTransform(Vec3f* arg0, Vec3s* arg1, Vec3f* arg2, s32
+@@ -301,7 +361,7 @@ void ModelAnim_EvaluateJointTransform(Vec3f* arg0, Vec3s* arg1, Vec3f* arg2, s32
      if ((D_800ABCF0 >= 0) && (D_800ABCF0 < 2)) {
          unk_D_800ABCC0* temp_s0 = &D_800ABCC0[D_800ABCF0];
  
@@ -5054,7 +5151,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
              if (temp_s0->unk_01 & 8) {
                  arg0->x = ModelAnim_EvaluateScaleCurve(temp_s0, arg3 + 0);
                  arg0->y = ModelAnim_EvaluateScaleCurve(temp_s0, arg3 + 1);
-@@ -343,7 +401,7 @@ s32 ModelAnim_BindTransformCurve(DisplayObject* display_object, s16 animation_id
+@@ -343,7 +403,7 @@ s32 ModelAnim_BindTransformCurve(DisplayObject* display_object, s16 animation_id
      if ((temp_v0 != ptr->data) || (animation_id != ptr->animationId)) {
          ptr->animationId = animation_id;
          ptr->data = temp_v0;
@@ -5063,12 +5160,17 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
      }
  
      ptr->speedFixed = arg3;
-@@ -382,9 +440,9 @@ s32 ModelAnim_HasCrossedFrame(DisplayObject* arg0, s16 arg1) {
+@@ -382,9 +442,14 @@ s32 ModelAnim_HasCrossedFrame(DisplayObject* arg0, s16 arg1) {
  }
  
  s32 ModelAnim_IsAnimationDone(DisplayObject* arg0) {
 -    return ModelAnim_HasCrossedFrame(arg0, arg0->transformAnim.data->endFrame - 1);
 +    return ModelAnim_HasCrossedFrame(arg0, TAD_END(arg0->transformAnim.data) - 1);
++}
++
++// port: the header may be raw big-endian asset data, so code outside this file reads endFrame through here
++u16 ModelAnim_GetEndFrame(DisplayObject* display_object) {
++    return TAD_END(display_object->transformAnim.data);
  }
  
  s32 ModelAnim_IsFinished(DisplayObject* arg0) {
@@ -5076,7 +5178,7 @@ index 7b12156364466b02063611b163bfb1906c48c6fa..d13b48b8b1aa4554b7d8929aecab5d4c
 +    return arg0->transformAnim.frameFixed >= ((TAD_END(arg0->transformAnim.data) - 1) << 0x10);
  }
 diff --git a/src/model_animation.h b/src/model_animation.h
-index dfdc294c40f335c2122ba0c4770f8cad1cb27ae3..bb449e451a2ea62aa3bb436ce6d5cdff7cf277de 100644
+index dfdc294c40f335c2122ba0c4770f8cad1cb27ae3..81ee80f06dc4e5102538f750b513a8156bfb8562 100644
 --- a/src/model_animation.h
 +++ b/src/model_animation.h
 @@ -22,6 +22,7 @@ typedef struct unk_D_800ABCC0 {
@@ -5087,8 +5189,16 @@ index dfdc294c40f335c2122ba0c4770f8cad1cb27ae3..bb449e451a2ea62aa3bb436ce6d5cdff
  } unk_D_800ABCC0; // size = 0x18
  
  f32 ModelAnim_EvaluateTranslationChannel(unk_D_800ABCC0* arg0, s32 arg1);
+@@ -42,6 +43,7 @@ void ModelAnim_SetFrame(DisplayObject* display_object, s16 animation_timer);
+ s32 ModelAnim_HasCrossedFrame(DisplayObject* arg0, s16 arg1);
+ s32 ModelAnim_IsAnimationDone(DisplayObject* arg0);
+ s32 ModelAnim_IsFinished(DisplayObject* arg0);
++u16 ModelAnim_GetEndFrame(DisplayObject* display_object);
+ 
+ 
+ #endif // _17300_H_
 diff --git a/src/model_animation_events.c b/src/model_animation_events.c
-index bbb80b403ce568608d99666e43d22ddc0651214c..bd6d17fc7a1e46e3dcf4c4c5f2cb72b8b99893e5 100644
+index bbb80b403ce568608d99666e43d22ddc0651214c..6bce94d27844110f8baf8c4a2e53b056e142a0b7 100644
 --- a/src/model_animation_events.c
 +++ b/src/model_animation_events.c
 @@ -1,17 +1,45 @@
@@ -5182,7 +5292,7 @@ index bbb80b403ce568608d99666e43d22ddc0651214c..bd6d17fc7a1e46e3dcf4c4c5f2cb72b8
          }
      }
  }
-@@ -89,14 +121,14 @@ void ModelAnim_ClearEventTrack(DisplayObject* arg0) {
+@@ -89,19 +121,24 @@ void ModelAnim_ClearEventTrack(DisplayObject* arg0) {
      arg0->eventTrack.data = 0;
  }
  
@@ -5199,7 +5309,17 @@ index bbb80b403ce568608d99666e43d22ddc0651214c..bd6d17fc7a1e46e3dcf4c4c5f2cb72b8
      }
  
      return ptr->frame;
-@@ -111,9 +143,9 @@ s32 ModelAnim_IsEventFrame(DisplayObject* display_object, s16 frame_number) {
+ }
+ 
++// port: the header may be raw big-endian asset data, so code outside this file reads endFrame through here
++u16 ModelAnim_GetEventEndFrame(DisplayObject* display_object) {
++    return ETD_END(display_object->eventTrack.data);
++}
++
+ void ModelAnim_SetEventFrame(DisplayObject* display_object, s16 frame_number) {
+     display_object->eventTrack.frame = frame_number - 1;
+ }
+@@ -111,9 +148,9 @@ s32 ModelAnim_IsEventFrame(DisplayObject* display_object, s16 frame_number) {
  }
  
  s32 ModelAnim_IsEventTrackNearEnd(DisplayObject* display_object) {
@@ -5212,18 +5332,20 @@ index bbb80b403ce568608d99666e43d22ddc0651214c..bd6d17fc7a1e46e3dcf4c4c5f2cb72b8
 +    return (display_object->eventTrack.frame + 1) == ETD_END(display_object->eventTrack.data);
  }
 diff --git a/src/model_animation_events.h b/src/model_animation_events.h
-index c939ccc39edff50f0c891b9f13b33536709c3b18..49ccaa55a6f92961093e5853c3979f8318a6576b 100644
+index c939ccc39edff50f0c891b9f13b33536709c3b18..bbe95a1c8e5c0286a41e5b7e933b7df8ac4e2492 100644
 --- a/src/model_animation_events.h
 +++ b/src/model_animation_events.h
-@@ -23,7 +23,7 @@ void ModelAnim_BeginEventContext(EventTrackState* arg0, u16 arg1, s32 arg2);
+@@ -23,8 +23,9 @@ void ModelAnim_BeginEventContext(EventTrackState* arg0, u16 arg1, s32 arg2);
  void ModelAnim_EndEventContext(void);
  void ModelAnim_GetEventAtFrame(unk_D_86002F34_alt11_018** arg0, unk_D_86002F34_alt11_018* arg1, s32 arg2);
  void ModelAnim_ClearEventTrack(DisplayObject* arg0);
 -s16 ModelAnim_BindEventTrack(DisplayObject* arg0, s16 arg1, s32 arg2);
 +s16 ModelAnim_BindEventTrack(DisplayObject* display_object, s16 frame_number, intptr_t arg2);
  void ModelAnim_SetEventFrame(DisplayObject* display_object, s16 frame_number);
++u16 ModelAnim_GetEventEndFrame(DisplayObject* display_object);
  s32 ModelAnim_IsEventFrame(DisplayObject* display_object, s16 frame_number);
  s32 ModelAnim_IsEventTrackNearEnd(DisplayObject* display_object);
+ s32 ModelAnim_IsEventTrackDone(DisplayObject* display_object);
 diff --git a/src/model_renderer.c b/src/model_renderer.c
 index f4ed7d6f364280acbcf96f8dae223f51512c655a..6a80fac007bc1acb63a90f468f00df1b8777495b 100644
 --- a/src/model_renderer.c
@@ -7886,7 +8008,7 @@ index 7622efc76e5f0033bad4944b91499dbdd2985273..b6e6fb20aca3cf0918dbeba6a6398d84
  };
  
 diff --git a/src/table_view.c b/src/table_view.c
-index 172d6ea00fd26f122d7c65dd7c3fb023469670f4..efd471c80883003e1b92672c7a7e189667b81fd0 100644
+index 172d6ea00fd26f122d7c65dd7c3fb023469670f4..b79ef7327a34d02ea5d5921d9416df05563205f9 100644
 --- a/src/table_view.c
 +++ b/src/table_view.c
 @@ -1,6 +1,6 @@
@@ -7959,12 +8081,12 @@ index 172d6ea00fd26f122d7c65dd7c3fb023469670f4..efd471c80883003e1b92672c7a7e1896
      }
  
 -    arg1->unk_08 = ((s32)var_s1 - (s32)arg1->unk_00) >> 2;
-+    arg1->unk_08 = ((intptr_t)var_s1 - (intptr_t)arg1->unk_00) >> 2;
++    arg1->unk_08 = var_s1 - arg1->unk_00; // PORT64: count of pointer entries (was the byte difference >> 2)
  }
  
  s32 Text_CompareU16Terminated(u16* a0, u16* a1) {
 diff --git a/src/table_view.h b/src/table_view.h
-index 5d9706571c6d1b2255a8bcd4451304c02ce3810e..be53572fb90d5acdb17ae85c4a2894ced8a4ef3f 100644
+index 5d9706571c6d1b2255a8bcd4451304c02ce3810e..ea06219db15321546ff19057e0371ba687023f78 100644
 --- a/src/table_view.h
 +++ b/src/table_view.h
 @@ -20,8 +20,7 @@ typedef struct unk_func_88200FA0_030_038 {
@@ -7977,16 +8099,31 @@ index 5d9706571c6d1b2255a8bcd4451304c02ce3810e..be53572fb90d5acdb17ae85c4a2894ce
      /* 0x0008 */ u16 unk_008[0x640];
  } unk_func_88201DA0_034; // size = 0xC88
  
-@@ -44,7 +43,7 @@ typedef struct unk_func_8820BE14_06C_000 {
+@@ -44,8 +43,14 @@ typedef struct unk_func_8820BE14_06C_000 {
  } unk_func_8820BE14_06C_000; // size = 0x10
  
  typedef struct unk_func_8820BE14_06C_000_alt {
 -    /* 0x00 */ s32 unk_00;
+-    /* 0x04 */ unk_func_88200FA0_030_038 unk_04;
 +    /* 0x00 */ void* unk_00; // PORT64: the owning list (was s32)
-     /* 0x04 */ unk_func_88200FA0_030_038 unk_04;
++    // PORT64: three ints (box index, ...), read back as unk_func_8830867C_02C_0CC_000_000's unk_04/08/0C; was
++    // unk_func_88200FA0_030_038, whose leading pointer moved the last two 4 bytes up on the host
++    struct {
++        /* 0x04 */ s32 unk_00;
++        /* 0x08 */ s32 unk_04;
++        /* 0x0C */ s32 unk_08;
++    } unk_04;
      /* 0x10 */ unk_func_88205880_A030 unk_10;
  } unk_func_8820BE14_06C_000_alt; // size = 0x1C
-@@ -131,9 +130,9 @@ typedef struct unk_func_8830867C_04C_030_02C_000_000_00C {
+ 
+@@ -125,15 +130,15 @@ typedef struct unk_func_8830867C_02C_0CC {
+ } unk_func_8830867C_02C_0CC; // size = 0xC
+ 
+ typedef struct unk_func_8830867C_04C_030_02C_000_000_00C {
+-    /* 0x00 */ s32 unk_00;
++    /* 0x00 */ u8* unk_00; // PORT64: the list's data (was s32)
+     /* 0x04 */ char unk04[0x4];
+     /* 0x08 */ s32 unk_08;
  } unk_func_8830867C_04C_030_02C_000_000_00C; // size >= 0xC
  
  typedef s32 (*func_func_8002D1AC)(unk_func_8830867C_02C_0CC_000*, s32*);
