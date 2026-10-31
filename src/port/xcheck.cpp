@@ -37,8 +37,13 @@
 #include <string>
 #include <unistd.h>
 #include <vector>
-#include <dlfcn.h>
 #include <sys/stat.h>
+#if defined(_WIN32)
+#include <direct.h>
+#define mkdir(path, mode) _mkdir(path)
+#else
+#include <dlfcn.h>
+#endif
 
 extern "C" unsigned long long Port_ViTick(void);
 extern "C" unsigned long long osGetTime(void);         // libultra (port_os)
@@ -178,8 +183,10 @@ std::string Hex(const void* p, size_t n) {
 
 // the game function a return address lies in (the game's functions are exported: dladdr names them)
 const char* CallerName(void* ra) {
+#if !defined(_WIN32) // no dladdr on Windows: the cross-check runs on macOS and Linux
     Dl_info info;
     if (ra && dladdr(ra, &info) && info.dli_sname) return info.dli_sname[0] == '_' ? info.dli_sname + 1 : info.dli_sname;
+#endif
     return "?";
 }
 
