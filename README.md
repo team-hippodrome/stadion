@@ -142,6 +142,10 @@ per player with the launcher's Controls button:
 | C-buttons | I / K / J / L | right stick |
 | Stick | W / A / S / D | left stick |
 
+The game sees controller 1 only, unless Controls switches "Plugged in" on for players 2-4 (or `PORT_CONTROLLERS=1,2`
+lists them): then it offers the 2-4 player and team battles. Input recordings note the controllers they were made
+with (`# controllers 1 2`) and replay with exactly those.
+
 ## Layout
 
 - `game/` — submodule: the decompiled game (C), unmodified; the port's changes are in `patches/game/` (see below)
@@ -151,7 +155,9 @@ per player with the launcher's Controls button:
 - `ghostship-ref/` — submodule (fonts used by `tools/make_o2r.py`)
 - `tools/` — launcher, save editor, ares comparison tooling (`tools/tour.py`), replay helpers
   (`tools/run_replays.py` plays all stored recordings without showing the window and reports which still pass;
-  `tools/frame_sweep.py` captures a stretch of the game at 5 pictures per second, skipping repeats, as contact sheets)
+  `tools/frame_sweep.py` captures a stretch of the game at 5 pictures per second, skipping repeats, as contact sheets;
+  `tools/audio_compare.py` compares the game's sound with ares; `tools/av_sync.py` checks the timing of pictures
+  against the sound, for ares or the port, against a video such as a console capture)
 - `replays/` — input recordings used as regression tests
 - `PORTING_NOTES.md` — what was done, how it was checked against ares, debug switches
 

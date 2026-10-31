@@ -11,6 +11,8 @@ ROM="${ROM:-/Users/michael/Downloads/romis/Pokemon Stadium (USA).z64}"
 : "${ARES_REF_SRC:?set ARES_REF_SRC to the ares source tree}"
 export ARES_REF_FIRMWARE="$ARES_REF_SRC/mia/Firmware/Nintendo 64"
 export DYLD_LIBRARY_PATH=/Applications/ares.app/Contents/Frameworks  # MoltenVK for paraLLEl-RDP
+# (macOS drops DYLD_* variables when a system binary starts the program: through /usr/bin/nice or perl, ares_ref
+# finds no MoltenVK and stops with "Vulkan init failed: No RDP rendering support". Lower its priority with renice.)
 # nall rewrites path arguments containing spaces: pass the ROM through a symlink
 ln -sfn "$ROM" /tmp/ares_ref_rom.z64
 ARGS=(/tmp/ares_ref_rom.z64 "$SCRIPT")

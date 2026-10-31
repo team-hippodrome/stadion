@@ -117,10 +117,20 @@ index 82729acf601532f27316f07da04bcae5949d30fa..2c30405acc77e36b5da20f0527ca7f80
  
      Ui_InitInputMessageQueue();
 diff --git a/src/fragments/lab_pc/lab_pc_1A9780.c b/src/fragments/lab_pc/lab_pc_1A9780.c
-index 23fa58d4e77ae41faa157544b09776ca07144089..09be12e6fb60aaceb9573e7a08e03489cc260530 100644
+index 23fa58d4e77ae41faa157544b09776ca07144089..ddd7e549b061473d428379377ec64f3bb88ac85d 100644
 --- a/src/fragments/lab_pc/lab_pc_1A9780.c
 +++ b/src/fragments/lab_pc/lab_pc_1A9780.c
-@@ -315,7 +315,7 @@ s32 LabPC_CheckBox_HandleInput(unk_func_88201DA0* arg0, Controller* arg1) {
+@@ -162,7 +162,8 @@ void func_88201488(s32 arg0, s32 arg1, unk_func_88201488_arg2** arg2, s32 arg3,
+         gDPSetRenderMode(gDisplayListHead++, G_RM_NOOP, G_RM_NOOP2);
+         gDPSetAlphaCompare(gDisplayListHead++, G_AC_THRESHOLD);
+         gDPSetTexturePersp(gDisplayListHead++, G_TP_NONE);
+-        gDPLoadTextureBlock(gDisplayListHead++, arg2 + 2, G_IM_FMT_RGBA, G_IM_SIZ_16b, 40, 40, 0,
++        // PORT64: the entry's icon texture after the Pokémon pointer (was arg2 + 2, two 4-byte pointers on N64)
++        gDPLoadTextureBlock(gDisplayListHead++, ((unk_func_88201DA0_034*)arg2)->unk_008, G_IM_FMT_RGBA, G_IM_SIZ_16b, 40, 40, 0,
+                             G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
+                             G_TX_NOLOD);
+         gSPTextureRectangle(gDisplayListHead++, (arg0 + 0x30) << 2, (arg1 + 6) << 2, (arg0 + 0x57) << 2,
+@@ -315,7 +316,7 @@ s32 LabPC_CheckBox_HandleInput(unk_func_88201DA0* arg0, Controller* arg1) {
  
  void LabPC_CheckBox_ModalLoop(unk_func_88201DA0* arg0, Controller* arg1) {
      s32 var_s0;
@@ -129,7 +139,28 @@ index 23fa58d4e77ae41faa157544b09776ca07144089..09be12e6fb60aaceb9573e7a08e03489
  
      ((func88502C98)Memmap_GetFragmentVaddr(WidgetTree_OpenAnimatedPanel))(arg0->unk_2C);
  
-@@ -1655,7 +1655,7 @@ void LabPC_ShowBoxes(FontContext* arg0) {
+@@ -367,8 +368,10 @@ s32 LabPC_BoxCountLabel_Draw(unk_func_8820253C* arg0, s32 arg1, s32 arg2) {
+     if (arg0->unk_2C != NULL) {
+         LabPC_DrawBoxCount(arg0->unk_2C, arg1, arg2);
+     }
++    return 1; // PORT: the N64 returned the last call's nonzero v0, so WidgetTree_Draw skipped the children
+ }
+ 
++
+ void LabPC_BuildBoxPairSelector(unk_func_882025E0_1A9780* arg0, unk_func_88200FA0_030_030* arg1, unk_func_88200FA0_030_030* arg2,
+                    unk_func_88203ED8* arg3, MemoryPool* arg4) {
+     static Color_RGBA8 D_88217C44 = { 0xF0, 0xF0, 0xF0, 0xFF };
+@@ -1419,7 +1422,8 @@ s32 func_882052F4(unk_func_88203ED8_064* arg0, Controller* arg1) {
+                         Audio_PlaySoundEffectById(SFX_MENU_CONFIRM);
+                         tmp = (arg0->unk_24->unk_6C->unk_38 != 0 ? 1 : 2) << 0x10;
+                         LabPC_CheckBox_ShowBox(arg0->unk_24->unk_5C,
+-                        (unk_func_88205880_00D0*)((s32*)arg0->unk_24->unk_6C->unk_24[0]->unk_2C->unk_00)[arg0->unk_24->unk_6C->unk_24[0]->unk_38],
++                        // PORT64: the grid's list of box pointers (unk_A030; was read through an s32*, which truncated the pointers)
++                        ((unk_func_88205880_A030*)arg0->unk_24->unk_6C->unk_24[0]->unk_2C)->unk_00[arg0->unk_24->unk_6C->unk_24[0]->unk_38],
+                         tmp | arg0->unk_24->unk_6C->unk_24[0]->unk_38);
+ 
+                         arg0->unk_24->unk_6C->unk_24[0]->unk_00.unk_24(arg0->unk_24->unk_6C->unk_24[0], 0x100);
+@@ -1655,7 +1659,7 @@ void LabPC_ShowBoxes(FontContext* arg0) {
      sp68 = mem_pool_alloc(sp6C, sizeof(unk_func_88205880));
      LabPC_BuildBoxScreenWidget(sp68, 0, 0, arg0, sp6C, sp5C, sp58, sp54, sp50, sp4C, sp48, sp44, sp40);
  
@@ -139,7 +170,7 @@ index 23fa58d4e77ae41faa157544b09776ca07144089..09be12e6fb60aaceb9573e7a08e03489
      osCreateThread(&sp60->thread, 0x32, LabPC_BoxScreen_InputThread, sp68, sp64 + 0x1000, osGetThreadPri(NULL) - 1);
  
 diff --git a/src/fragments/lab_pc/lab_pc_1AE680.c b/src/fragments/lab_pc/lab_pc_1AE680.c
-index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df85d0607c5 100644
+index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..c6520954b8cbe30171816e916295326ac2aad6f9 100644
 --- a/src/fragments/lab_pc/lab_pc_1AE680.c
 +++ b/src/fragments/lab_pc/lab_pc_1AE680.c
 @@ -49,8 +49,9 @@ typedef struct unk_D_88217EA4 {
@@ -191,7 +222,18 @@ index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df8
  
      arg0->unk_00.unk_24(&arg0->unk_00, 1);
  
-@@ -1286,7 +1288,8 @@ s32 LabPC_DrawPokemonInfoCard(unk_func_8820BE14_02C_070* arg0, s32 arg1, s32 arg
+@@ -655,8 +657,10 @@ s32 LabPC_MonNameLevelWidget_Draw(unk_func_882079D8* arg0, s32 arg1, s32 arg2) {
+     if (arg0->unk_2C != NULL) {
+         LabPC_DrawMonNameLevel(arg0->unk_2C, arg1, arg2, arg0->unk_00.unk_14.unk_00);
+     }
++    return 1; // PORT: the N64 returned the last call's nonzero v0, so WidgetTree_Draw skipped the children
+ }
+ 
++
+ void LabPC_InitSwapMenu(unk_func_8820B12C_02C* arg0, unk_func_8820B12C_02C_020* arg1, unk_func_8820B12C_02C_020* arg2,
+                    unk_func_88217740* arg3, unk_func_88509F48* arg4, s32 arg5, MemoryPool* arg6) {
+     static Color_RGBA8 D_88217E2C = { 0xF0, 0xF0, 0xF0, 0xFF };
+@@ -1286,7 +1290,8 @@ s32 LabPC_DrawPokemonInfoCard(unk_func_8820BE14_02C_070* arg0, s32 arg1, s32 arg
  
      spB0 = BattleMon_CountMoves(ptr);
  
@@ -201,7 +243,7 @@ index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df8
  
      gDPPipeSync(gDisplayListHead++);
  
-@@ -1295,7 +1298,7 @@ s32 LabPC_DrawPokemonInfoCard(unk_func_8820BE14_02C_070* arg0, s32 arg1, s32 arg
+@@ -1295,7 +1300,7 @@ s32 LabPC_DrawPokemonInfoCard(unk_func_8820BE14_02C_070* arg0, s32 arg1, s32 arg
      gDPSetAlphaCompare(gDisplayListHead++, G_AC_THRESHOLD);
      gDPSetTexturePersp(gDisplayListHead++, G_TP_NONE);
  
@@ -210,7 +252,7 @@ index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df8
                          G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
      gSPTextureRectangle(gDisplayListHead++, (arg1 + 0x84) << 2, (arg2 + 0xA) << 2, (arg1 + 0xAB) << 2,
                          (arg2 + 0x31) << 2, G_TX_RENDERTILE, 0, 0, 0x1000, 0x0400);
-@@ -1358,7 +1361,7 @@ void LabPC_InfoCard_SetMon(unk_func_8820BE14_02C_070* arg0, unk_func_88205880_00
+@@ -1358,7 +1363,7 @@ void LabPC_InfoCard_SetMon(unk_func_8820BE14_02C_070* arg0, unk_func_88205880_00
      arg0->unk_002C = arg1;
      if (arg1 != NULL) {
          arg0->unk_0030 = (arg0->unk_0030 + 1) & 1;
@@ -219,7 +261,7 @@ index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df8
      }
  }
  
-@@ -1517,7 +1520,7 @@ void func_88209B54(unk_func_8820BE14_02C* arg0, s32 arg1, s32 arg2, unk_func_882
+@@ -1517,7 +1522,7 @@ void func_88209B54(unk_func_8820BE14_02C* arg0, s32 arg1, s32 arg2, unk_func_882
      s32 temp_s0_5;
      char* temp_s1_2;
      char* temp_v0_10;
@@ -228,7 +270,7 @@ index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df8
      u32 temp_v0_17;
      unk_func_8850878C* temp_v0_8;
  
-@@ -1635,7 +1638,7 @@ void func_88209B54(unk_func_8820BE14_02C* arg0, s32 arg1, s32 arg2, unk_func_882
+@@ -1635,7 +1640,7 @@ void func_88209B54(unk_func_8820BE14_02C* arg0, s32 arg1, s32 arg2, unk_func_882
      ((func88503340)Memmap_GetFragmentVaddr(WidgetTree_InitAnimatedFrameVariantA))(temp_s0, 0, 0, 0x10, 0x10,
                                                                                    D_88217F84);
      ((func8850068C)Memmap_GetFragmentVaddr(WidgetTree_AppendChild))(arg0->unk_2C, temp_s0);
@@ -237,7 +279,7 @@ index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df8
  
      temp_s0 = mem_pool_alloc(argA, sizeof(unk_func_8850143C));
      ((func8850143C)Memmap_GetFragmentVaddr(WidgetTree_InitPatternTexture))(temp_s0, 0, 0xF4, 0x228, 0x6C, D_88217F88,
-@@ -1879,12 +1882,14 @@ void LabPC_SwapScreen_SetMenuState(unk_func_8820BE14_02C* arg0, s32 arg1) {
+@@ -1879,12 +1884,14 @@ void LabPC_SwapScreen_SetMenuState(unk_func_8820BE14_02C* arg0, s32 arg1) {
      ((func8850BF60)Memmap_GetFragmentVaddr(WidgetTree_SetVerticalMenuState))(arg0->unk_74, arg1);
  }
  
@@ -258,7 +300,7 @@ index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df8
  }
  
  void LabPC_InitSwapController(unk_func_8820B12C* arg0, unk_func_8820BE14_02C* arg1) {
-@@ -2277,7 +2282,7 @@ s32 LabPC_SwapControllerInput(unk_func_8820B12C* arg0, Controller* arg1) {
+@@ -2277,7 +2284,7 @@ s32 LabPC_SwapControllerInput(unk_func_8820B12C* arg0, Controller* arg1) {
      return var_s1;
  }
  
@@ -267,7 +309,7 @@ index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df8
                     char** arg7, char** arg8, char** arg9, char** argA, char** argB) {
      static Color_RGBA8 D_88217FC0 = { 0x1E, 0x50, 0x50, 0xFF };
      static Color_RGBA8 D_88217FC4 = { 0x00, 0x0A, 0x0A, 0xFF };
-@@ -2318,9 +2323,10 @@ void func_8820BE14(unk_func_8820BE14* arg0, s32 arg1, s32 arg2, s32 arg3, Memory
+@@ -2318,9 +2325,10 @@ void func_8820BE14(unk_func_8820BE14* arg0, s32 arg1, s32 arg2, s32 arg3, Memory
      var_s1 = mem_pool_alloc(arg4, sizeof(unk_func_882062E4) * (6 + (12 * 20) * 2));
      bzero(var_s1, sizeof(unk_func_882062E4) * (6 + (12 * 20) * 2));
  
@@ -281,7 +323,7 @@ index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df8
  
      arg0->unk_6C.unk_08 = 1;
      ptr = arg0->unk_6C.unk_00;
-@@ -2423,7 +2429,7 @@ void func_8820BE14(unk_func_8820BE14* arg0, s32 arg1, s32 arg2, s32 arg3, Memory
+@@ -2423,7 +2431,7 @@ void func_8820BE14(unk_func_8820BE14* arg0, s32 arg1, s32 arg2, s32 arg3, Memory
      ((func885031E8)Memmap_GetFragmentVaddr(WidgetTree_InitVisibilityGate))(temp_s0_4, 0, 0, 0x280, 0x1E0);
      ((func8850068C)Memmap_GetFragmentVaddr(WidgetTree_AppendChild))(arg0, temp_s0_4);
  
@@ -290,7 +332,7 @@ index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df8
                                fragment28_ROM_START);
  
      arg0->unk_30.unk_04 = arg4;
-@@ -2472,7 +2478,7 @@ void LabPC_RunSwapScreenLoop(unk_func_8820BE14* arg0) {
+@@ -2472,7 +2480,7 @@ void LabPC_RunSwapScreenLoop(unk_func_8820BE14* arg0) {
  }
  
  void LabPC_PokemonSessionThread(unk_func_8820BE14* arg0) {
@@ -299,7 +341,7 @@ index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df8
  
      while (arg0->unk_2C->unk_2C->unk_00.unk_28 & 1) {
          Ui_SendMessageAndPollInput(0);
-@@ -2483,7 +2489,7 @@ void LabPC_PokemonSessionThread(unk_func_8820BE14* arg0) {
+@@ -2483,7 +2491,7 @@ void LabPC_PokemonSessionThread(unk_func_8820BE14* arg0) {
  }
  
  void LabPC_PrizePokemonThread(unk_func_8820BE14* arg0) {
@@ -308,7 +350,7 @@ index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df8
      s32 var_s0;
  
      StageFade_StartFromOpaque(8);
-@@ -2554,7 +2560,7 @@ void LabPC_ShowPokemon(FontContext* arg0, s32 arg1) {
+@@ -2554,7 +2562,7 @@ void LabPC_ShowPokemon(FontContext* arg0, s32 arg1) {
      sp58 = mem_pool_alloc(sp5C, sizeof(unk_func_8820BE14));
      func_8820BE14(sp58, 0, 0, arg1, sp5C, arg0, sp4C, sp48, sp44, sp40, sp3C, sp38);
  
@@ -318,7 +360,7 @@ index fbf87a6e0ea65cd39f0982cd29b06df692eed8d3..23132e46d4f652b2ce53040ca3d69df8
      osCreateThread(&sp50->thread, 0x32, D_88217FC8[arg1], sp58, sp54 + 0x10000, osGetThreadPri(NULL) - 1);
  
 diff --git a/src/fragments/lab_pc/lab_pc_1B4EA0.c b/src/fragments/lab_pc/lab_pc_1B4EA0.c
-index 011a4f7c0f6041fa4e07587948a280ae034ef481..04ea886147b19ae1ae75a09d8fcccf4365ac55bc 100644
+index 011a4f7c0f6041fa4e07587948a280ae034ef481..570b181501c0a4a82a3fdba096ff0a730ee6d34f 100644
 --- a/src/fragments/lab_pc/lab_pc_1B4EA0.c
 +++ b/src/fragments/lab_pc/lab_pc_1B4EA0.c
 @@ -265,7 +265,7 @@ void LabItem_SetConfirmDialogText(unk_func_8821421C_034* arg0, char* arg1) {
@@ -330,7 +372,18 @@ index 011a4f7c0f6041fa4e07587948a280ae034ef481..04ea886147b19ae1ae75a09d8fcccf43
  
      arg0->unk_30->unk_14(arg0->unk_30, 1);
  
-@@ -962,9 +962,9 @@ void LabItem_InitBoxScreen(unk_func_8821421C_038* arg0, s32 arg1, s32 arg2, Widg
+@@ -489,8 +489,10 @@ s32 LabItem_DrawItemRow(u8* arg0, s32 arg1, s32 arg2, s32 arg3) {
+         Font_Printf(((arg1 + arg3) - Font_MeasureTextExtent(0, 0, &sp2C)) - 0x19, arg2 + 8, "%s%02d", sp24, arg0[1]);
+     }
+     Font_EndTexturedTextRendering();
++    return 1; // PORT: the N64 returned the last call's nonzero v0, so WidgetTree_Draw skipped the children
+ }
+ 
++
+ void LabItem_DrawItemGridCell(s32 arg0, s32 arg1, u8* arg2, s32 arg3, s32 arg4, unk_func_8820BE14_02C_038* arg5) {
+     static Color_RGBA8 D_88218010[] = { 0x40, 0x40, 0x74, 0xFF };
+     static Color_RGBA8 D_88218014[] = {
+@@ -962,9 +964,9 @@ void LabItem_InitBoxScreen(unk_func_8821421C_038* arg0, s32 arg1, s32 arg2, Widg
      // clang-format off
      arg0->unk_00.unk_10.unk_00 = arg1;arg0->unk_00.unk_10.unk_02 = arg2;
      // clang-format on
@@ -342,7 +395,7 @@ index 011a4f7c0f6041fa4e07587948a280ae034ef481..04ea886147b19ae1ae75a09d8fcccf43
      arg0->unk_48 = arg4;
  
      arg0->unk_4C = mem_pool_alloc(arg5, sizeof(unk_func_8821421C_038_04C));
-@@ -1182,13 +1182,13 @@ s32 LabItem_BoxScreen_HandleInput(unk_func_8821421C_038* arg0, Controller* arg1)
+@@ -1182,13 +1184,13 @@ s32 LabItem_BoxScreen_HandleInput(unk_func_8821421C_038* arg0, Controller* arg1)
      return var_v1;
  }
  
@@ -358,7 +411,7 @@ index 011a4f7c0f6041fa4e07587948a280ae034ef481..04ea886147b19ae1ae75a09d8fcccf43
      LabPC_BindGridStridedData(arg0->unk_30, &arg0->unk_60, arg1 | 0x20000);
  }
  
-@@ -1196,7 +1196,7 @@ s32 LabItem_RunBoxScreenModal(unk_func_8821421C_038* arg0, Controller* arg1) {
+@@ -1196,7 +1198,7 @@ s32 LabItem_RunBoxScreenModal(unk_func_8821421C_038* arg0, Controller* arg1) {
      s32 temp_v0;
      s32 var_v0;
      unk_func_8821421C_038_04C* temp_a0;
@@ -367,7 +420,7 @@ index 011a4f7c0f6041fa4e07587948a280ae034ef481..04ea886147b19ae1ae75a09d8fcccf43
  
      arg0->unk_4C->unk_00.unk_14(arg0->unk_4C, 1);
  
-@@ -2784,7 +2784,7 @@ s32 LabItem_BoxPairMenu_HandleInput(unk_func_8821421C_02C_06C* arg0, Controller*
+@@ -2784,7 +2786,7 @@ s32 LabItem_BoxPairMenu_HandleInput(unk_func_8821421C_02C_06C* arg0, Controller*
                              break;
                          } else {
                              LabItem_BoxLocationWidget_SetSelection(arg0->unk_00.unk_24->unk_30[sp4C], sp48);
@@ -376,7 +429,7 @@ index 011a4f7c0f6041fa4e07587948a280ae034ef481..04ea886147b19ae1ae75a09d8fcccf43
                                            sp48 << 0x10);
                              break;
                          }
-@@ -2851,7 +2851,7 @@ s32 LabItem_BoxPairMenu_HandleInput(unk_func_8821421C_02C_06C* arg0, Controller*
+@@ -2851,7 +2853,7 @@ s32 LabItem_BoxPairMenu_HandleInput(unk_func_8821421C_02C_06C* arg0, Controller*
      return var_s0;
  }
  
@@ -385,7 +438,7 @@ index 011a4f7c0f6041fa4e07587948a280ae034ef481..04ea886147b19ae1ae75a09d8fcccf43
      static Color_RGBA8 D_882181A4 = { 0x1E, 0x50, 0x50, 0xFF };
      static Color_RGBA8 D_882181A8 = { 0x00, 0x0A, 0x0A, 0xFF };
  
-@@ -2951,7 +2951,7 @@ void LabPC_ItemScreen_DrawLoop(unk_func_8821421C* arg0) {
+@@ -2951,7 +2953,7 @@ void LabPC_ItemScreen_DrawLoop(unk_func_8821421C* arg0) {
  }
  
  void LabPC_ItemScreen_InputThread(unk_func_8821421C* arg0) {
@@ -394,7 +447,7 @@ index 011a4f7c0f6041fa4e07587948a280ae034ef481..04ea886147b19ae1ae75a09d8fcccf43
  
      while (arg0->unk_2C->unk_2C->unk_00.unk_28 & 1) {
          Ui_SendMessageAndPollInput(0);
-@@ -2985,7 +2985,7 @@ void LabPC_ShowItems(UNUSED FontContext* arg0) {
+@@ -2985,7 +2987,7 @@ void LabPC_ShowItems(UNUSED FontContext* arg0) {
      sp30 = mem_pool_alloc(sp34, sizeof(unk_func_8821421C));
      LabPC_BuildItemScreenWidget(sp30, 0, 0, sp34, arg0, sp24);
  

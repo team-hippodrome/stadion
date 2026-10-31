@@ -246,9 +246,15 @@ constexpr u32 kParticleMathId = 4, kParticleMathLink = 0x81400000; // particle_m
 constexpr u32 kParticleFrameCounter = 0x8140E6B8; // gParticleFrameCounter (link address)
 constexpr u32 kGeoFrameCounter = 0x8006F084; // D_8006F084 (u16, main code): GeoRender_AdvanceFrameCounter's scene frame counter
 constexpr u32 kModelTexCounter = 0x800AF7AE; // D_800AF7AE (s16, main code): one per Pokemon model drawn (model texture frames)
+constexpr u32 kPlayCommand = 0x800367A0;     // Audio_PlayCommand (main code): traced with ARES_REF_XCHECK_SFX
+constexpr u32 kPlaySfxById = 0x80048B90;     // Audio_PlaySoundEffectById (main code): the same
+constexpr u32 kOsGetTime = 0x8005F150;       // osGetTime (main code): forced for the announcer's callers (below)
+constexpr u32 kOsTimeStream = 0x40;          // its stream (Port_XcheckOsGetTime)
+constexpr u32 kPlaySoundEffect = 0x80039024; // Audio_PlaySoundEffect (main code, every sound effect): the same
+constexpr u32 kQueueSequence = 0x80041C70;   // Audio_QueueSequenceId (main code, the announcer's lines): the same
 constexpr u32 kStartBattleMusic = 0x8004153C; // Audio_StartBattleMusicSequence (main code): skipped for "nomusic"
 enum Fn : int { BattleRandom, BattleRandomAccuracy, AiRandomBelow, AnimRandomRange, AnimRandomWarmup, kRandomFns,
-                AiSeed = kRandomFns, FragmentMap, BattleMusic, GuRandom, GameFrame, StartTurn, ResolveEnter, TimerExpired, MoveAnim, MoveAnimMid, ResolveExit };
+                AiSeed = kRandomFns, FragmentMap, BattleMusic, GuRandom, GameFrame, StartTurn, ResolveEnter, TimerExpired, MoveAnim, MoveAnimMid, SixSlotTrailUpdateSlot, ResolveExit, Probe, PlayCommand, PlaySfxById, QueueSequence, OsGetTime, PlaySoundEffect };
 // names shared with the port's trace (src/port/xcheck.cpp)
 const char* const kRandomNames[kRandomFns] = { "Battle_Random", "Battle_RandomAccuracy", "BattleAI_RandomBelowInclusive",
                                                "BattleAnim_RandomRange", "BattleAnim_RandomIntWithWarmup" };
@@ -260,6 +266,7 @@ const Hooked kHooked[] = {
     { 0x84302A78, MoveAnim },    // BattleScene_EnterRow3StartMoveAnim
     { 0x843033E0, MoveAnimMid }, // BattleScene_EnterRow19StartMoveAnimMidFrame
     { 0x84300E88, GameFrame },   // BattleScene_UpdateFrame: once per battle game frame
+    { 0x8436DAC4, SixSlotTrailUpdateSlot }, // BattleAnim_SixSlotTrail_UpdateSlot: reads a stack word it never writes
 };
 
 bool gOn = false, gForce = false, gCom = false, gStop = false;
@@ -277,7 +284,12 @@ struct Rule { int fn; std::string caller; std::vector<u32> values; size_t next =
 std::vector<MonLine> gMons;
 std::vector<Rule> gRules;
 int gStopTurns = 0, gTurns = 0;
-bool gNoMusic = false, gTraceGuRandom = false;
+bool gNoMusic = false, gTraceGuRandom = false, gTraceSfx = false;
+u32 gOsTimeCalls = 0; // the OsGetTime hook's index (Port_XcheckOsGetTime)
+// ARES_REF_XCHECK_PROBE=<link>:<sp offset>,...: at those battle engine function entries, log the stack word at
+// sp+offset, or register offset-1000 ("P <battle game frame> <link> <value>"; e.g. a variable the function reads
+// before it writes it)
+std::vector<std::pair<u32, s32>> gProbes;
 std::vector<std::pair<u32, std::string>> gSyms; // battle engine function starts (link addresses), sorted
 constexpr u32 kSessionContext = 0x800AE540;    // gSessionContext: battleSides at 0x1194 (0x28 each)
 std::map<u32, u32> gCalls; // per stream: the logic functions one each, the animation ones one per argument
@@ -471,6 +483,43 @@ bool hook(u32 address) {
         if (gAnimLeft > 0 && gOut) fprintf(gOut, "G %llu %s\n", (unsigned long long)(gGameFrame - gAnimStart),
                                            callerName((u32)cpu.ipu.r[31].u64).c_str());
         return false;
+    case PlaySoundEffect: // a0, a1 banks, a2 id, a3 priority, volume scale on the stack (5th word)
+        if (gOut && gTraceSfx) fprintf(gOut, "U %llu 3 %x %d %d\n", (unsigned long long)gGameFrame, cpu.ipu.r[6].u32,
+                                       (s32)cpu.ipu.r[7].u32, (s32)rd32((u32)cpu.ipu.r[29].u64 + 20));
+        return false;
+    case OsGetTime: { // the announcer's line choices (as Port_XcheckOsGetTime): the stream value of the call's index
+        // (from the battle's first game frame and each animation start) instead of CPU time, for the functions that use it to choose (3D140_2.c and one pitch
+        // variation in audio_commands_category2.c); every other caller gets the real time
+        static const u32 kChoosers[][2] = { // [start, end) in main code (decomp symbol_addrs, US)
+            { 0x8003DB84, 0x8003EB40 }, { 0x8003EB40, 0x8003F1AC }, { 0x8003F1AC, 0x8003F4C0 }, // func_8003DB84 .. F1AC
+            { 0x8003F4C0, 0x8003F624 },                                                         // func_8003F4C0
+            { 0x80041EF4, 0x800420C0 },                                    // Audio_SelectSoundAvoidingRecent
+            { 0x8004E304, 0x8004E810 } };                                  // Audio_PlayCategory12SoundCommand
+        u32 ra = (u32)cpu.ipu.r[31].u64;
+        bool chooser = false;
+        for (auto& r : kChoosers) chooser |= ra >= r[0] && ra < r[1];
+        if (!chooser) return false;
+        u32 v = streamValue(gSeed, kOsTimeStream, gOsTimeCalls++);
+        cpu.ipu.r[3].u64 = (u64)(s64)(s32)v; // OSTime (u64) comes back in v0 (high word) and v1 (low word)
+        return returnWith(0);
+    }
+    case PlayCommand: case PlaySfxById: case QueueSequence: // "U <battle game frame> <kind> <args>", as Port_XcheckSfx
+        if (gOut && gTraceSfx) fprintf(gOut, "U %llu %d %x %d %d\n", (unsigned long long)gGameFrame, fn == PlayCommand ? 0 : fn == PlaySfxById ? 1 : 2,
+                          cpu.ipu.r[4].u32, fn == PlayCommand ? (s32)cpu.ipu.r[5].u32 : 0,
+                          fn == PlayCommand ? (s32)cpu.ipu.r[6].u32 : 0);
+        if (fn == QueueSequence && gNoMusic) return returnWith(0); // (void) no announcer with "nomusic" (as the port)
+        return false;
+    case SixSlotTrailUpdateSlot: // its spA8 (lw s7,168(sp) after addiu sp,-176) is never set: the N64 reads what an
+        // earlier call left there; with forced randomness 0 on both sides, as the port initializes it
+        if (gForce)
+            for (int i = 0; i < 4; i++) wr8((u32)cpu.ipu.r[29].u64 - 8 + i, 0);
+        return false;
+    case Probe:
+        for (auto& [link, off] : gProbes)
+            if (rt(link) == address && gOut)
+                fprintf(gOut, "P %llu %08X %d\n", (unsigned long long)gGameFrame, link,
+                        off >= 1000 ? (s32)cpu.ipu.r[off - 1000].u32 : (s32)rd32((u32)cpu.ipu.r[29].u64 + off));
+        return false;
     case StartTurn: event("turn"); return false;
     case ResolveEnter: {
         event("resolve");
@@ -484,7 +533,12 @@ bool hook(u32 address) {
         return false;
     }
     case ResolveExit: event("resolved"); return false;
-    case GameFrame: gGameFrame++; return false;
+    case GameFrame: // "V <battle game frame> <VI frame>" (as Port_XcheckGameFrame): the N64 can take 3 VI frames for one in
+        // busy effects, and the sound check maps each side's sound onto battle game frames with these
+        gGameFrame++;
+        if (gGameFrame == 1) gOsTimeCalls = 0;
+        if (gOut) fprintf(gOut, "V %llu %llu\n", (unsigned long long)gGameFrame, (unsigned long long)gFrame);
+        return false;
     case TimerExpired: { // BattleScene_IsActionSelectionTimerExpired: "not yet", then "expired" (as the port)
         if (!gCom) return false;
         static bool asked = false;
@@ -500,6 +554,7 @@ bool hook(u32 address) {
             for (int i = 0; i < 4; i++) wr8(kGuRandomSeed + i, (u8)(174823885u >> (24 - 8 * i)));
             // and the effects' frame counter (as Port_XcheckMoveAnim)
             if (pfcAddr) for (int i = 0; i < 4; i++) wr8(pfcAddr + i, 0);
+            gOsTimeCalls = 0; // (OsGetTime)
             // and the model texture and scene frame counters (as Port_XcheckMoveAnim)
             for (u32 a : {kModelTexCounter, kGeoFrameCounter}) wr8(a, 0), wr8(a + 1, 0);
             // and the animation streams from their start (as Port_XcheckMoveAnim)
@@ -546,8 +601,12 @@ void place(u32 base) {
     gAt[kSetFragmentMap] = FragmentMap;
     if (gNoMusic) gAt[kStartBattleMusic] = BattleMusic;
     if (gTraceGuRandom) gAt[kGuRandom] = GuRandom;
+    if (gForce) gAt[kOsGetTime] = OsGetTime;
+    if (gTraceSfx) gAt[kPlayCommand] = PlayCommand, gAt[kPlaySfxById] = PlaySfxById, gAt[kPlaySoundEffect] = PlaySoundEffect;
+    if (gTraceSfx || gNoMusic) gAt[kQueueSequence] = QueueSequence; // (traced, and silent with "nomusic")
     if (base) {
         for (auto& h : kHooked) gAt[rt(h.link)] = h.fn;
+        for (auto& pr : gProbes) gAt.emplace(rt(pr.first), Probe); // (not over the hooks above)
     }
     for (auto& [a, f] : gAt) cpu.hostHooks.addresses.push_back(a); // (sorted: std::map order)
     cpu.recompiler.reset();
@@ -601,6 +660,17 @@ void init() {
     const char* rng = getenv("ARES_REF_XCHECK_RNG");
     gCom = getenv("ARES_REF_XCHECK_COM") != nullptr;
     gTraceGuRandom = getenv("ARES_REF_XCHECK_GURANDOM") != nullptr;
+    gTraceSfx = getenv("ARES_REF_XCHECK_SFX") != nullptr;
+    if (const char* pr = getenv("ARES_REF_XCHECK_PROBE")) {
+        for (const char* q = pr; *q;) {
+            char* e;
+            u32 link = (u32)strtoul(q, &e, 16);
+            s32 off = *e == ':' ? (s32)strtol(e + 1, &e, 0) : 0;
+            gProbes.push_back({ link, off });
+            if (*e != ',') break;
+            q = e + 1;
+        }
+    }
     if (const char* a = getenv("ARES_REF_XCHECK_ANIM")) gAnimDir = a;
     if (const char* n = getenv("ARES_REF_XCHECK_ANIM_FRAMES")) gAnimFrames = atoi(n);
     const char* cs = getenv("ARES_REF_XCHECK_CASE");

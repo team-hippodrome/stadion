@@ -1,0 +1,61 @@
+{
+ "Only archive flag 0x80 selects them. No US archive header sets it: the headers at 0x820000, 0x920000, 0x8CC000, 0x898000 (trainers), 0x783760 (text), 0x56E7D0 (... (routes/engine_left/README.md, \"Proven dead\")": [
+  "BinArchive_LoadFileFromLbaRange",
+  "Fragment_LoadFromLbaRange"
+ ],
+ "Only for `PRESJPEG` files in `Fragment_LoadFromRomRange`. That loader gets the model archives 0x920000 (214 PERS-SZP files and one raw file) and 0x8CC000 (63 PE... (routes/engine_left/README.md, \"Proven dead\")": [
+  "Jpeg_AllocAndDecodeFragment"
+ ],
+ "Needs `assetIsBusy & 0x20`. The only writers of `assetIsBusy` set 0x80 (`battle_engine_315D50.c`), 0x40 and 0x10 (`model_renderer.c`), or 0 (`session.c`). (routes/engine_left/README.md, \"Proven dead\")": [
+  "PokeIcon_WaitBackgroundLoad"
+ ],
+ "They are registered only by `WidgetTree_InitHorizontalMenu` and `WidgetTree_InitHorizontalFrame`. Nothing in the decomp calls either one: their only \"reach\" is ... (routes/engine_left/README.md, \"Proven dead\")": [
+  "WidgetTree_HandleHorizontalMenuInput",
+  "WidgetTree_SetHorizontalMenuState",
+  "WidgetTree_UpdateHorizontalMenuItems",
+  "WidgetTree_DrawHorizontalFrame"
+ ],
+ "The emitter list stays empty because `MiniFx_AllocEmitter` is unreferenced (`../minigames_gallery/README.md`). (routes/engine_left/README.md, \"Proven dead\")": [
+  "MiniFx_TryEmit",
+  "MiniFx_EmitParticles",
+  "MiniFx_ApplyEmitterToParticle",
+  "MiniFx_FreeEmitter"
+ ],
+ "No minigame sets `miniTutoScreenState` to 5 (`../minigames_gallery/README.md`). (routes/engine_left/README.md, \"Proven dead\")": [
+  "miniTutoScreenShow",
+  "miniDrawResultIcons"
+ ],
+ "Dead by code (`../minigames_gallery/README.md`): the banner timer is reset to 300 before the test, and the cursor callback runs only for active nodes. (routes/engine_left/README.md, \"Proven dead\")": [
+  "KidsClub_DrawWavyText",
+  "MiniGameSelect_UpdateCursor"
+ ],
+ "Badge-award state 4 is set only by `BattlePrepBadgeAward_StartScatter`, which nothing references. (routes/engine_left/README.md, \"Proven dead\")": [
+  "BattlePrepBadgeAward_ScatterStep"
+ ],
+ "Trophy state 1 is never set: the writers set 0, 2 (grow) and 3 (shrink). The function body is empty. (routes/engine_left/README.md, \"Proven dead\")": [
+  "BattlePrep_TrophyModelIdle"
+ ],
+ "Blit modes 2 and 1. Every `GbEmu_BlitWithPixelOp` call passes 0 or 0xFFFF. (routes/engine_left/README.md, \"Proven dead\")": [
+  "GbEmu_PixelOpAverage555",
+  "GbEmu_PixelOpDitherB"
+ ],
+ "Needs `unk_5DC4 != 0`. The flag is set to 1 only inside the branch it guards: `GbPak_ProbeCartridge` after the check, and `GbPak_VerifyWritableProbeBlock`, whic... (routes/engine_left/README.md, \"Proven dead\")": [
+  "GbPak_VerifyProbeBlock"
+ ],
+ "The only `GbPak_ReadRom` calls read the header at 0x120, which is in bank 0 (`../menus_trade/README.md`). (routes/engine_left/README.md, \"Proven dead\")": [
+  "GbPak_SelectRomBank",
+  "GbPak_RawWrite"
+ ],
+ "Called only from the 64DD boot state machine (`Leo_QueueDiskIdRead` and `Leo_QueueDiskReset`), and the port has no drive. (routes/engine_left/README.md, \"Proven dead\")": [
+  "Storage_QueueDiskIdRead",
+  "Storage_QueueDiskReset"
+ ],
+ "No C reference. The ROM words equal to their N64 addresses (0x80001304, 0x80031910, 0x82600C00) are unaligned, or (0x10c9d78) inside the compressed `pokemon_mod... (routes/engine_left/README.md, \"Proven dead\")": [
+  "Storage_QueueRtcRead",
+  "Mtx_BuildDirectionRotation",
+  "func_82600C00"
+ ],
+ "Called only by `Save_RestoreTypedRecord`, which nothing calls (`../error_paths/README.md`). (routes/engine_left/README.md, \"Proven dead\")": [
+  "Save_RestoreRecord"
+ ]
+}

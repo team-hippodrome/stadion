@@ -1,0 +1,58 @@
+[
+ {
+  "gate": "BattleAI_ChooseAction -> BattleAI_DecideAction",
+  "callee": "BattleAI_DecideAction",
+  "condition": "D_843C5564->unk_00 & 0x400000",
+  "unlocks": 4,
+  "set": "BattleAI_ChooseAction:D_843C5564*:4|=4194304"
+ },
+ {
+  "gate": "BattleAI_ChooseAction -> BattleAI_ResolveTiedActionChoice",
+  "callee": "BattleAI_ResolveTiedActionChoice",
+  "condition": "(D_843C60AC->unk_04 == 1)",
+  "unlocks": 2,
+  "set": "BattleAI_ChooseAction:D_843C60AC*+0x4:1=1"
+ },
+ {
+  "gate": "BattleAI_RecordUsedMove -> BattleAI_SimulateStatBoostGuess",
+  "callee": "BattleAI_SimulateStatBoostGuess",
+  "condition": "D_843C5564->unk_00 & 0x400",
+  "unlocks": 2,
+  "set": "BattleAI_RecordUsedMove:D_843C5564*:4|=1024"
+ },
+ {
+  "gate": "BattleScene_ActionSetupFinalizeStep -> BattleScene_RunMoveEffectEndHpTransition",
+  "callee": "BattleScene_RunMoveEffectEndHpTransition",
+  "condition": "sBattleScene.unk_00->unk_48 == 0x20",
+  "unlocks": 1,
+  "set": "BattleScene_ActionSetupFinalizeStep:sBattleScene*+0x48:4=32"
+ },
+ {
+  "gate": "BattleScene_HandlePlayerPartySelection -> BattleAnim_PlaySoundEffect1",
+  "callee": "BattleAnim_PlaySoundEffect1",
+  "condition": "(D_8439014C->buttonPressed & 0x10)",
+  "unlocks": 1,
+  "set": "BattleScene_HandlePlayerPartySelection:D_8439014C*+0x8:2|=16"
+ },
+ {
+  "gate": "BattleScene_HandlePlayerPartySelection -> BattleAnim_PlaySoundEffect3",
+  "callee": "BattleAnim_PlaySoundEffect3",
+  "condition": "!(D_8439014C->buttonDown & 0x10)",
+  "unlocks": 1,
+  "set": "BattleScene_HandlePlayerPartySelection:D_8439014C*+0x6:2=0"
+ },
+ {
+  "gate": "BattleScene_HandlePlayerPartySelection -> BattleScene_SelectActiveController",
+  "callee": "BattleScene_SelectActiveController",
+  "condition": "!(D_8439014C->buttonDown & 0x10)",
+  "unlocks": 1,
+  "set": "BattleScene_HandlePlayerPartySelection:D_8439014C*+0x6:2=0"
+ },
+ {
+  "gate": "BattleScene_TickHudTimers -> BattleHud_DrawBattleTimer",
+  "callee": "BattleHud_DrawBattleTimer",
+  "condition": "(sActivePokemon[0]->unk_728.unk_168->viewport.x == 0x17)",
+  "unlocks": 1,
+  "set": "BattleScene_TickHudTimers:sActivePokemon*+0x7f8+0x198*+0x30+0x8:2=23"
+ }
+]
