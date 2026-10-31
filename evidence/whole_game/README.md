@@ -13,8 +13,11 @@
   (draws in the cup prompts, the two-trainer roster, order-select details, the rules species window, TM into a free
   slot, the level-range filter, the reset button's PRE-NMI forced), 58 proven dead, 25 left with their gates.
 - `frontier.py`: same-named static copies (inline helpers in a header) now count the copy that ran.
-- Port fixes from this round's sessions: the Bonus stickers screen (PR #73), six functions that fell off their end
-  without a return (PR #74, one of them skipped the VS Mewtwo intro).
+- Port fixes from this round's sessions, merged: the Bonus stickers screen (PR #73), six functions that fell off their
+  end without a return (PR #74: the VS Mewtwo intro now plays; the Mewtwo routes still hit their frames), controllers
+  2-4 presented to the game when plugged in (PR #75: `PORT_CONTROLLERS`, instead of the forced
+  `Cont_InitControllers:gControllerBits` write). The functions #74 changed were re-run on the new binary (their old
+  profiles no longer match it).
 
 **Previous round: all functions 6973 of 7490 (93.1%), lines 85.3%, branches 76.8%; the code the shipped game can run
 6973 of 7282 (95.8%), 96.8% without the 64DD library** (`dead_classes.md`). Unreached 517: 208 proven dead, 79 the
