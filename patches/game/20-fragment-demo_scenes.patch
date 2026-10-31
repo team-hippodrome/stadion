@@ -371,7 +371,7 @@ index 57fe00fde0547792c5cfe38a08b91627e67df1c4..12e162dc40555fa658e5d8a984a61324
          D_86B0F9D0.node.callbackArg = 0;
          D_86B0F9D0.node.flags &= ~1;
 diff --git a/src/fragments/demo_scenes/demo_scenes_169A40.c b/src/fragments/demo_scenes/demo_scenes_169A40.c
-index 702f35a0db6ceecd574c8e516dcd30e653666154..f310044358185209662a5bb3fff6f0d44f3fc335 100644
+index 702f35a0db6ceecd574c8e516dcd30e653666154..5a55d24d5545e5cf7f7f04d6c4cecce0917f5b13 100644
 --- a/src/fragments/demo_scenes/demo_scenes_169A40.c
 +++ b/src/fragments/demo_scenes/demo_scenes_169A40.c
 @@ -16,7 +16,7 @@
@@ -383,6 +383,14 @@ index 702f35a0db6ceecd574c8e516dcd30e653666154..f310044358185209662a5bb3fff6f0d4
      0x0C00FFFF, 0x05000000, 0x0B00001E,  0x00000000, 0x014000F0, 0x00000032, 0x00000000, 0x00000118,
      0x05000000, 0x0D000000, 0x05000000,  0x14000000, 0x002B0012, 0xFFFFFF32, 0x16FFFFFF, 0x0F000003,
      0x05000000, 0x0A000000, &D_800AC840, 0x06000000, 0x06000000, 0x06000000, 0x06000000, 0x01000000,
+@@ -99,6 +99,7 @@ s32 MewtwoIntro_UpdateFade(void) {
+     if (var_v0) {
+         return 1;
+     }
++    return 0; // PORT: the N64 returned v0, which holds 0 here; the host fell off the end and always returned 1
+ }
+ 
+ void MewtwoIntro_RunLoop(void) {
 diff --git a/src/fragments/demo_scenes/demo_scenes_16A0E0.c b/src/fragments/demo_scenes/demo_scenes_16A0E0.c
 index 08a32500c88aa26d3712c21584abb88ccdcb746b..59d5ec8fd4657d1aff32fae46a9906443b21b694 100644
 --- a/src/fragments/demo_scenes/demo_scenes_16A0E0.c

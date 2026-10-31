@@ -50,7 +50,7 @@ index 3376f8b77744541fbd4cc2286a2e320d883654d4..65d03e200eedd63e29e4349e1a9452c2
  
  #endif // _FRAGMENT28_H_
 diff --git a/src/fragments/pokedex/pokedex_214920.c b/src/fragments/pokedex/pokedex_214920.c
-index 342ff0ab4a7382d6ddd075213f74d0b196e02645..73bc3e5714ccba0ccc02c655c76c4739bd1d5191 100644
+index 342ff0ab4a7382d6ddd075213f74d0b196e02645..77dbbcb9f958a8c02c21fd633fbc223c81806ed8 100644
 --- a/src/fragments/pokedex/pokedex_214920.c
 +++ b/src/fragments/pokedex/pokedex_214920.c
 @@ -38,8 +38,8 @@ static unk_func_8001B1FC* D_88826920;
@@ -64,7 +64,15 @@ index 342ff0ab4a7382d6ddd075213f74d0b196e02645..73bc3e5714ccba0ccc02c655c76c4739
  static s32 D_88826938;
  static s32 D_8882693C;
  static unk_func_888044BC* D_88826940;
-@@ -6181,7 +6181,7 @@ void Pokedex_EnterAreaMapScreen(void) {
+@@ -456,6 +456,7 @@ s32 Pokedex_DrawSortOrderLabel(unk_func_888044BC_040_030* arg0, s32 arg1, s32 ar
+ 
+     gDPPipeSync(gDisplayListHead++);
+     gDPSetAlphaCompare(gDisplayListHead++, G_AC_NONE);
++    return 1; // PORT: the N64 returned the last call's nonzero v0, so WidgetTree_Draw skipped the children
+ }
+ 
+ void Pokedex_ToggleSortOrderLabel(unk_func_888044BC_040_030* arg0) {
+@@ -6181,7 +6182,7 @@ void Pokedex_EnterAreaMapScreen(void) {
      StageContext_SaveAndSwitch(D_88826928);
      StageLoader_RunFrames(2);
      sp2C = Pokedex_GetSelectedSpeciesIndex(D_88826940->unk_38->unk_2C) + 1;
@@ -73,7 +81,7 @@ index 342ff0ab4a7382d6ddd075213f74d0b196e02645..73bc3e5714ccba0ccc02c655c76c4739
                    D_888267B0);
      StageFade_Start(8);
      BgStage_RunUntilCondition(0xA, Pokedex_DrawAreaMapFrame);
-@@ -6267,9 +6267,9 @@ s32 Pokedex_GetHighestSeenSpeciesIndex(void) {
+@@ -6267,9 +6268,9 @@ s32 Pokedex_GetHighestSeenSpeciesIndex(void) {
  }
  
  void Pokedex_InitFramebuffers(void) {
