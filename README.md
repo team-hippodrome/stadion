@@ -142,6 +142,10 @@ per player with the launcher's Controls button:
 | C-buttons | I / K / J / L | right stick |
 | Stick | W / A / S / D | left stick |
 
+The game sees controller 1 only, unless Controls switches "Plugged in" on for players 2-4 (or `PORT_CONTROLLERS=1,2`
+lists them): then it offers the 2-4 player and team battles. Input recordings note the controllers they were made
+with (`# controllers 1 2`) and replay with exactly those.
+
 ## Layout
 
 - `game/` — submodule: the decompiled game (C), unmodified; the port's changes are in `patches/game/` (see below)
