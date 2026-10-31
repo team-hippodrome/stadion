@@ -576,13 +576,13 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         return false;
     }
     sWindow->HandleEvents();
-    { // PORT debug: PORT_DEBUG_RESIZE=<frame>:<w>x<h> resizes the window once at that VI frame
+    { // PORT debug: PORT_DEBUG_RESIZE=<frame>:<w>x<h>[,<frame>:<w>x<h>...] resizes the window at those VI frames
         static const char* rs = getenv("PORT_DEBUG_RESIZE");
-        static bool done = false;
         unsigned long long f = 0;
-        int w = 0, h = 0;
-        if (rs && !done && sscanf(rs, "%llu:%dx%d", &f, &w, &h) == 3 && Port_ViTick() >= f) {
-            done = true;
+        int w = 0, h = 0, used = 0;
+        if (rs && sscanf(rs, "%llu:%dx%d%n", &f, &w, &h, &used) == 3 && Port_ViTick() >= f) {
+            rs += used;
+            if (*rs == ',') rs++;
             int n = 0;
             SDL_Window** wins = SDL_GetWindows(&n);
             if (wins && n > 0) SDL_SetWindowSize(wins[0], w, h);

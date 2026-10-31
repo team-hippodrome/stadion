@@ -1,5 +1,5 @@
 diff --git a/cmake/dependencies/common.cmake b/cmake/dependencies/common.cmake
-index ff2045c..6086c48 100644
+index ff2045c3..6086c483 100644
 --- a/cmake/dependencies/common.cmake
 +++ b/cmake/dependencies/common.cmake
 @@ -35,6 +35,55 @@ target_sources(ImGui
@@ -59,7 +59,7 @@ index ff2045c..6086c48 100644
  if(INCLUDE_MPQ_SUPPORT)
      set(stormlib_patch_file ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies/patches/stormlib-optimizations.patch)
 diff --git a/include/fast/Fast3dGui.h b/include/fast/Fast3dGui.h
-index 8dacf3e..ad26a73 100644
+index 8dacf3ea..ad26a739 100644
 --- a/include/fast/Fast3dGui.h
 +++ b/include/fast/Fast3dGui.h
 @@ -43,6 +43,9 @@ typedef struct {
@@ -73,7 +73,7 @@ index 8dacf3e..ad26a73 100644
              uint32_t Width;  ///< Framebuffer width in pixels.
              uint32_t Height; ///< Framebuffer height in pixels.
 diff --git a/include/fast/Fast3dWindow.h b/include/fast/Fast3dWindow.h
-index 728fa13..a8b8b9b 100644
+index 728fa13f..a8b8b9b6 100644
 --- a/include/fast/Fast3dWindow.h
 +++ b/include/fast/Fast3dWindow.h
 @@ -28,6 +28,7 @@ enum WindowBackend {
@@ -85,7 +85,7 @@ index 728fa13..a8b8b9b 100644
  
  /**
 diff --git a/include/fast/backends/gfx_direct3d_common.h b/include/fast/backends/gfx_direct3d_common.h
-index 4ba2d35..480e844 100644
+index 4ba2d354..480e8447 100644
 --- a/include/fast/backends/gfx_direct3d_common.h
 +++ b/include/fast/backends/gfx_direct3d_common.h
 @@ -149,6 +149,7 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
@@ -167,7 +167,7 @@ index 4ba2d35..480e844 100644
  
      // Previous states (to prevent setting states needlessly)
 diff --git a/include/fast/backends/gfx_dxgi.h b/include/fast/backends/gfx_dxgi.h
-index f381184..b475bf0 100644
+index f381184a..b475bf0b 100644
 --- a/include/fast/backends/gfx_dxgi.h
 +++ b/include/fast/backends/gfx_dxgi.h
 @@ -88,19 +88,19 @@ class GfxWindowBackendDXGI final : public GfxWindowBackend {
@@ -258,7 +258,7 @@ index f381184..b475bf0 100644
      std::shared_ptr<Ship::Config> mConfig;
  };
 diff --git a/include/fast/backends/gfx_metal.h b/include/fast/backends/gfx_metal.h
-index 51d5e2d..1424f27 100644
+index 51d5e2dd..1424f274 100644
 --- a/include/fast/backends/gfx_metal.h
 +++ b/include/fast/backends/gfx_metal.h
 @@ -8,6 +8,13 @@
@@ -361,7 +361,7 @@ index 51d5e2d..1424f27 100644
      std::vector<FramebufferMetal> mFramebuffers;
      FrameUniforms mFrameUniforms;
 diff --git a/include/fast/backends/gfx_opengl.h b/include/fast/backends/gfx_opengl.h
-index b00ea01..5905ef5 100644
+index b00ea01c..5905ef52 100644
 --- a/include/fast/backends/gfx_opengl.h
 +++ b/include/fast/backends/gfx_opengl.h
 @@ -119,6 +119,7 @@ class GfxRenderingAPIOGL final : public GfxRenderingAPI {
@@ -373,7 +373,7 @@ index b00ea01..5905ef5 100644
      void ReadFramebufferToCPU(int fbId, uint32_t width, uint32_t height, uint16_t* rgba16Buf) override;
      void ResolveMSAAColorBuffer(int fbIdTarger, int fbIdSrc) override;
 diff --git a/include/fast/backends/gfx_rendering_api.h b/include/fast/backends/gfx_rendering_api.h
-index 3eb0996..c665c4c 100644
+index 3eb09961..c665c4c8 100644
 --- a/include/fast/backends/gfx_rendering_api.h
 +++ b/include/fast/backends/gfx_rendering_api.h
 @@ -4,6 +4,8 @@
@@ -415,7 +415,7 @@ index 3eb0996..c665c4c 100644
      GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) = 0;
 diff --git a/include/fast/backends/gfx_vulkan.h b/include/fast/backends/gfx_vulkan.h
 new file mode 100644
-index 0000000..ddbbf01
+index 00000000..ddbbf016
 --- /dev/null
 +++ b/include/fast/backends/gfx_vulkan.h
 @@ -0,0 +1,389 @@
@@ -809,7 +809,7 @@ index 0000000..ddbbf01
 +
 +#endif
 diff --git a/include/fast/backends/gfx_window_manager_api.h b/include/fast/backends/gfx_window_manager_api.h
-index 3759991..1c518b3 100644
+index 3759991c..1c518b36 100644
 --- a/include/fast/backends/gfx_window_manager_api.h
 +++ b/include/fast/backends/gfx_window_manager_api.h
 @@ -42,13 +42,13 @@ class GfxWindowBackend {
@@ -833,7 +833,7 @@ index 3759991..1c518b3 100644
      bool mVsyncEnabled = true;
  };
 diff --git a/include/fast/interpreter.h b/include/fast/interpreter.h
-index a7334a9..5736855 100644
+index a7334a9a..57368555 100644
 --- a/include/fast/interpreter.h
 +++ b/include/fast/interpreter.h
 @@ -190,13 +190,25 @@ struct TextureCacheKey {
@@ -949,7 +949,7 @@ index a7334a9..5736855 100644
      GfxDimensions mGfxCurrentWindowDimensions{}; // gfx_current_window_dimensions;
      int32_t mCurWindowPosX{};
 diff --git a/include/libultraship/libultra/mbi.h b/include/libultraship/libultra/mbi.h
-index 3019a6c..ed1997f 100644
+index 3019a6ce..ed1997f7 100644
 --- a/include/libultraship/libultra/mbi.h
 +++ b/include/libultraship/libultra/mbi.h
 @@ -32,7 +32,10 @@
@@ -964,7 +964,7 @@ index 3019a6c..ed1997f 100644
  #define NUM_SEGMENTS (16)
  #define SEGMENT_OFFSET(a) ((u32)(a)&0x00FFFFFF)
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index cfab4be..11c73da 100644
+index cfab4bec..11c73dab 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
 @@ -168,6 +168,11 @@ endif()
@@ -980,7 +980,7 @@ index cfab4be..11c73da 100644
      target_compile_definitions(libultraship PUBLIC ENABLE_SCRIPTING)
      if(ENABLE_TCC_COMPILER)
 diff --git a/src/fast/Fast3dGui.cpp b/src/fast/Fast3dGui.cpp
-index 893dcd5..c5f4f22 100644
+index 893dcd57..c5f4f22b 100644
 --- a/src/fast/Fast3dGui.cpp
 +++ b/src/fast/Fast3dGui.cpp
 @@ -7,6 +7,7 @@
@@ -1117,7 +1117,7 @@ index 893dcd5..c5f4f22 100644
          case WindowBackend::FAST3D_DXGI_DX11:
              ImGui_ImplDX11_RenderDrawData(data);
 diff --git a/src/fast/Fast3dWindow.cpp b/src/fast/Fast3dWindow.cpp
-index b80c990..719941e 100644
+index b80c9907..719941e1 100644
 --- a/src/fast/Fast3dWindow.cpp
 +++ b/src/fast/Fast3dWindow.cpp
 @@ -11,6 +11,7 @@
@@ -1193,7 +1193,7 @@ index b80c990..719941e 100644
          default:
              return "";
 diff --git a/src/fast/backends/gfx_direct3d11.cpp b/src/fast/backends/gfx_direct3d11.cpp
-index f747b81..3f78441 100644
+index f747b818..3f784414 100644
 --- a/src/fast/backends/gfx_direct3d11.cpp
 +++ b/src/fast/backends/gfx_direct3d11.cpp
 @@ -6,6 +6,7 @@
@@ -1310,7 +1310,7 @@ index f747b81..3f78441 100644
  static const char* prism_shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
                                              bool first_cycle, bool hint_single_element) {
 diff --git a/src/fast/backends/gfx_dxgi.cpp b/src/fast/backends/gfx_dxgi.cpp
-index dd8cce5..c510610 100644
+index dd8cce5a..c5106109 100644
 --- a/src/fast/backends/gfx_dxgi.cpp
 +++ b/src/fast/backends/gfx_dxgi.cpp
 @@ -34,6 +34,7 @@
@@ -1338,7 +1338,7 @@ index dd8cce5..c510610 100644
          throw Ship::HResultException(res, message);
      }
 diff --git a/src/fast/backends/gfx_metal.cpp b/src/fast/backends/gfx_metal.cpp
-index afc07db..e0f6fd8 100644
+index afc07db0..451391a4 100644
 --- a/src/fast/backends/gfx_metal.cpp
 +++ b/src/fast/backends/gfx_metal.cpp
 @@ -7,8 +7,10 @@
@@ -1635,7 +1635,7 @@ index afc07db..e0f6fd8 100644
          mScreenReadbackCmdBuf = screen_framebuffer.mCommandBuffer->retain();
          mScreenReadbackDataReady = true;
      } else if (mScreenReadbackDataReady && mScreenReadbackCmdBuf) {
-@@ -751,6 +886,11 @@ void GfxRenderingAPIMetal::SetupScreenFramebuffer(uint32_t width, uint32_t heigh
+@@ -751,6 +886,109 @@ void GfxRenderingAPIMetal::SetupScreenFramebuffer(uint32_t width, uint32_t heigh
      autorelease_pool->release();
  }
  
@@ -1644,20 +1644,145 @@ index afc07db..e0f6fd8 100644
 +// the first pass into such a texture clears it to black, as an untouched N64 frame buffer would read.
 +static std::unordered_set<int> sFreshColorFbs;
 +
++// PORT: a game framebuffer's picture survives a size change (window resize). The N64 frame buffers keep their
++// picture and menus draw their static background only in a screen's first frames (Free Battle's rule screen), so a
++// new, cleared texture left the screen black until the next screen. The old picture is drawn into the new texture,
++// scaled uniformly so that the 4:3 picture (full height, or full width in a window narrower than 4:3) keeps its place;
++// what the old texture did not cover stays black. PORT_NO_RESIZE_KEEP=1: off (debug).
++static MTL::RenderPipelineState* ResizeCopyPipeline(MTL::Device* device, MTL::PixelFormat format, uint32_t samples) {
++    static std::unordered_map<uint64_t, MTL::RenderPipelineState*> sPipelines;
++    static MTL::Function* sVertex = nullptr;
++    static MTL::Function* sFragment = nullptr;
++    uint64_t key = ((uint64_t)format << 8) | samples;
++    if (auto it = sPipelines.find(key); it != sPipelines.end()) {
++        return it->second;
++    }
++    if (sVertex == nullptr) {
++        static const char* source = R"(
++            #include <metal_stdlib>
++            using namespace metal;
++            struct CopyOut { float4 pos [[position]]; float2 uv; };
++            vertex CopyOut resizeCopyVertex(uint vid [[vertex_id]], constant float4& rect [[buffer(0)]]) {
++                float2 corner = float2(vid & 1, vid >> 1); // triangle strip over the destination rectangle
++                CopyOut out;
++                out.pos = float4(mix(rect.xy, rect.zw, corner), 0.0, 1.0);
++                out.uv = corner;
++                return out;
++            }
++            fragment float4 resizeCopyFragment(CopyOut in [[stage_in]], texture2d<float> src [[texture(0)]]) {
++                constexpr sampler linearSampler(filter::linear, address::clamp_to_edge);
++                return src.sample(linearSampler, in.uv);
++            }
++        )";
++        NS::Error* error = nullptr;
++        MTL::Library* library = device->newLibrary(NS::String::string(source, NS::UTF8StringEncoding), nullptr, &error);
++        if (library == nullptr) {
++            SPDLOG_ERROR("Failed to compile the resize copy shader: {}",
++                         error ? error->localizedDescription()->cString(NS::UTF8StringEncoding) : "?");
++            return nullptr;
++        }
++        sVertex = library->newFunction(NS::String::string("resizeCopyVertex", NS::UTF8StringEncoding));
++        sFragment = library->newFunction(NS::String::string("resizeCopyFragment", NS::UTF8StringEncoding));
++        library->release();
++    }
++    MTL::RenderPipelineDescriptor* desc = MTL::RenderPipelineDescriptor::alloc()->init();
++    desc->setVertexFunction(sVertex);
++    desc->setFragmentFunction(sFragment);
++    desc->colorAttachments()->object(0)->setPixelFormat(format);
++    desc->setSampleCount(samples);
++    NS::Error* error = nullptr;
++    MTL::RenderPipelineState* pipeline = device->newRenderPipelineState(desc, &error);
++    desc->release();
++    if (pipeline == nullptr) {
++        SPDLOG_ERROR("Failed to create the resize copy pipeline: {}",
++                     error ? error->localizedDescription()->cString(NS::UTF8StringEncoding) : "?");
++    }
++    sPipelines[key] = pipeline;
++    return pipeline;
++}
++
++static bool DrawOldPictureScaled(MTL::Device* device, MTL::CommandQueue* queue, MTL::Texture* oldTex,
++                                 MTL::Texture* newTex, MTL::Texture* newMsaaTex, uint32_t msaa) {
++    MTL::RenderPipelineState* pipeline = ResizeCopyPipeline(device, newTex->pixelFormat(), msaa > 1 ? msaa : 1);
++    if (pipeline == nullptr) {
++        return false;
++    }
++    const float ow = (float)oldTex->width(), oh = (float)oldTex->height();
++    const float nw = (float)newTex->width(), nh = (float)newTex->height();
++    const float oldPicH = std::min(oh, ow * 3.0f / 4.0f), newPicH = std::min(nh, nw * 3.0f / 4.0f);
++    const float s = newPicH / oldPicH;
++    const float x0 = (nw - ow * s) / 2.0f, y0 = (nh - oh * s) / 2.0f;
++    // destination rectangle in clip space (y up; texture rows run down)
++    float rect[4] = { x0 / nw * 2.0f - 1.0f, 1.0f - y0 / nh * 2.0f, (x0 + ow * s) / nw * 2.0f - 1.0f,
++                      1.0f - (y0 + oh * s) / nh * 2.0f };
++
++    MTL::RenderPassDescriptor* pass = MTL::RenderPassDescriptor::renderPassDescriptor();
++    auto* color = pass->colorAttachments()->object(0);
++    if (msaa > 1 && newMsaaTex != nullptr) {
++        color->setTexture(newMsaaTex);
++        color->setResolveTexture(newTex);
++        color->setStoreAction(MTL::StoreActionStoreAndMultisampleResolve);
++    } else {
++        color->setTexture(newTex);
++        color->setStoreAction(MTL::StoreActionStore);
++    }
++    color->setLoadAction(MTL::LoadActionClear);
++    color->setClearColor(MTL::ClearColor::Make(0.0, 0.0, 0.0, 1.0));
++
++    MTL::CommandBuffer* cb = queue->commandBuffer();
++    MTL::RenderCommandEncoder* enc = cb->renderCommandEncoder(pass);
++    enc->setRenderPipelineState(pipeline);
++    enc->setVertexBytes(rect, sizeof(rect), 0);
++    enc->setFragmentTexture(oldTex, 0);
++    enc->drawPrimitives(MTL::PrimitiveTypeTriangleStrip, NS::UInteger(0), NS::UInteger(4));
++    enc->endEncoding();
++    cb->commit();
++    // resizes are rare: wait, so the old texture can go and no later pass (on either queue) runs before the copy
++    cb->waitUntilCompleted();
++    return true;
++}
++
  void GfxRenderingAPIMetal::UpdateFramebufferParameters(int fb_id, uint32_t width, uint32_t height, uint32_t msaa_level,
                                                         bool opengl_invertY, bool render_target, bool has_depth_buffer,
                                                         bool can_extract_depth) {
-@@ -791,6 +931,9 @@ void GfxRenderingAPIMetal::UpdateFramebufferParameters(int fb_id, uint32_t width
-             tex.texture->release();
+@@ -787,8 +1025,16 @@ void GfxRenderingAPIMetal::UpdateFramebufferParameters(int fb_id, uint32_t width
+         tex_descriptor->setPixelFormat(mSrgbMode ? MTL::PixelFormatBGRA8Unorm_sRGB : MTL::PixelFormatBGRA8Unorm);
+         tex_descriptor->setUsage((render_target ? MTL::TextureUsageRenderTarget : 0) | MTL::TextureUsageShaderRead);
  
-         tex.texture = mDevice->newTexture(tex_descriptor);
-+        if (render_target) {
-+            sFreshColorFbs.insert(fb_id);
+-        if (tex.texture != nullptr)
++        // PORT: a rendered picture of another size is drawn into the new texture (DrawOldPictureScaled)
++        static const bool sNoResizeKeep = getenv("PORT_NO_RESIZE_KEEP") != nullptr;
++        MTL::Texture* old_texture = nullptr;
++        if (render_target && fb.mRenderPassDescriptor != nullptr && tex.texture != nullptr && !sNoResizeKeep &&
++            (tex.width != width || tex.height != height) && tex.width > 1 && tex.height > 1 &&
++            tex.texture->pixelFormat() == tex_descriptor->pixelFormat()) {
++            old_texture = tex.texture;
++        } else if (tex.texture != nullptr) {
+             tex.texture->release();
 +        }
  
-         if (msaa_level > 1) {
-             tex_descriptor->setTextureType(MTL::TextureType2DMultisample);
-@@ -905,7 +1048,18 @@ void GfxRenderingAPIMetal::StartDrawToFramebuffer(int fb_id, float noise_scale)
+         tex.texture = mDevice->newTexture(tex_descriptor);
+ 
+@@ -803,6 +1049,18 @@ void GfxRenderingAPIMetal::UpdateFramebufferParameters(int fb_id, uint32_t width
+             tex.msaaTexture = mDevice->newTexture(tex_descriptor);
+         }
+ 
++        bool kept = old_texture != nullptr && DrawOldPictureScaled(mDevice, mCommandQueue, old_texture, tex.texture,
++                                                                   msaa_level > 1 ? tex.msaaTexture : nullptr,
++                                                                   msaa_level);
++        if (old_texture != nullptr) {
++            old_texture->release();
++        }
++        if (render_target && !kept) {
++            sFreshColorFbs.insert(fb_id);
++        } else if (kept) {
++            sFreshColorFbs.erase(fb_id);
++        }
++
+         if (render_target) {
+             MTL::RenderPassDescriptor* render_pass_descriptor = MTL::RenderPassDescriptor::renderPassDescriptor();
+ 
+@@ -905,7 +1163,18 @@ void GfxRenderingAPIMetal::StartDrawToFramebuffer(int fb_id, float noise_scale)
              fb.mCommandBuffer->enqueue();
          }
  
@@ -1676,7 +1801,7 @@ index afc07db..e0f6fd8 100644
          std::string fbce_label = fmt::format("FrameBuffer {} Command Encoder", fb_id);
          fb.mCommandEncoder->setLabel(NS::String::string(fbce_label.c_str(), NS::UTF8StringEncoding));
          fb.mCommandEncoder->setDepthClipMode(MTL::DepthClipModeClamp);
-@@ -971,6 +1125,19 @@ void GfxRenderingAPIMetal::ClearFramebuffer(bool color, bool depth) {
+@@ -971,6 +1240,19 @@ void GfxRenderingAPIMetal::ClearFramebuffer(bool color, bool depth) {
      framebuffer.mLastZmodeDecal = -1;
  }
  
@@ -1696,7 +1821,7 @@ index afc07db..e0f6fd8 100644
  void GfxRenderingAPIMetal::ResolveMSAAColorBuffer(int fb_id_target, int fb_id_source) {
      int source_texture_id = mFramebuffers[fb_id_source].mTextureId;
      MTL::Texture* source_texture = mTextures[source_texture_id].texture;
-@@ -1182,6 +1349,9 @@ void GfxRenderingAPIMetal::CopyFramebuffer(int fb_dst_id, int fb_src_id, int src
+@@ -1182,6 +1464,9 @@ void GfxRenderingAPIMetal::CopyFramebuffer(int fb_dst_id, int fb_src_id, int src
      source_framebuffer.mLastZmodeDecal = -1;
  }
  
@@ -1706,7 +1831,7 @@ index afc07db..e0f6fd8 100644
  void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFramebuffers.size()) {
          return;
-@@ -1202,6 +1372,10 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1202,6 +1487,10 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
  
              uint8_t* bgra = (uint8_t*)mScreenReadbackBuffer->contents();
              uint32_t count = mScreenReadbackWidth * mScreenReadbackHeight;
@@ -1717,7 +1842,7 @@ index afc07db..e0f6fd8 100644
              for (uint32_t i = 0; i < count; i++) {
                  uint8_t b = bgra[i * 4 + 0];
                  uint8_t g = bgra[i * 4 + 1];
-@@ -1217,6 +1391,9 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1217,6 +1506,9 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
          mScreenReadbackHeight = height;
      } else {
          // Custom Framebuffer: synchronous readback via readback queue
@@ -1727,7 +1852,7 @@ index afc07db..e0f6fd8 100644
          if (framebuffer.mCommandEncoder && !framebuffer.mHasEndedEncoding) {
              framebuffer.mCommandEncoder->endEncoding();
          }
-@@ -1267,6 +1444,16 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1267,6 +1559,16 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
      }
  }
  
@@ -1745,7 +1870,7 @@ index afc07db..e0f6fd8 100644
      mCurrentFilterMode = mode;
      gfx_texture_cache_clear();
 diff --git a/src/fast/backends/gfx_metal_shader.cpp b/src/fast/backends/gfx_metal_shader.cpp
-index 39b5d34..d3d7810 100644
+index 39b5d344..d3d7810d 100644
 --- a/src/fast/backends/gfx_metal_shader.cpp
 +++ b/src/fast/backends/gfx_metal_shader.cpp
 @@ -29,9 +29,8 @@ void gfx_metal_shader_set_resource_manager(std::shared_ptr<Ship::ResourceManager
@@ -1761,7 +1886,7 @@ index 39b5d34..d3d7810 100644
  static const char* p_shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
                                          bool first_cycle, bool hint_single_element) {
 diff --git a/src/fast/backends/gfx_opengl.cpp b/src/fast/backends/gfx_opengl.cpp
-index 6c4dfc8..caee3cd 100644
+index 6c4dfc86..caee3cd8 100644
 --- a/src/fast/backends/gfx_opengl.cpp
 +++ b/src/fast/backends/gfx_opengl.cpp
 @@ -1,9 +1,11 @@
@@ -2094,7 +2219,7 @@ index 6c4dfc8..caee3cd 100644
          uint8_t r = (rgba8[i * 4 + 0] >> 3) & 0x1F;
          uint8_t g = (rgba8[i * 4 + 1] >> 3) & 0x1F;
 diff --git a/src/fast/backends/gfx_sdl.cpp b/src/fast/backends/gfx_sdl.cpp
-index c8bc6cd..ff6981d 100644
+index c8bc6cdd..ff6981dc 100644
 --- a/src/fast/backends/gfx_sdl.cpp
 +++ b/src/fast/backends/gfx_sdl.cpp
 @@ -36,10 +36,11 @@
@@ -2177,7 +2302,7 @@ index c8bc6cd..ff6981d 100644
          if (mRenderer == nullptr) {
 diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
 new file mode 100644
-index 0000000..8568fab
+index 00000000..8568fab5
 --- /dev/null
 +++ b/src/fast/backends/gfx_vulkan.cpp
 @@ -0,0 +1,2718 @@
@@ -4900,7 +5025,7 @@ index 0000000..8568fab
 +
 +#endif
 diff --git a/src/fast/interpreter.cpp b/src/fast/interpreter.cpp
-index a1907a1..2b34a9a 100644
+index a1907a13..2b34a9a8 100644
 --- a/src/fast/interpreter.cpp
 +++ b/src/fast/interpreter.cpp
 @@ -11,6 +11,7 @@
@@ -7113,7 +7238,7 @@ index a1907a1..2b34a9a 100644
      mWapi->SwapBuffersBegin();
      mRapi->FinishRender();
 diff --git a/src/fast/resource/type/DisplayList.cpp b/src/fast/resource/type/DisplayList.cpp
-index bf0e76e..5ae57f9 100644
+index bf0e76e8..5ae57f91 100644
 --- a/src/fast/resource/type/DisplayList.cpp
 +++ b/src/fast/resource/type/DisplayList.cpp
 @@ -1,3 +1,4 @@
@@ -7122,7 +7247,7 @@ index bf0e76e..5ae57f9 100644
  #include <memory>
  
 diff --git a/src/fast/shaders/directx/default.shader.hlsl b/src/fast/shaders/directx/default.shader.hlsl
-index 3025a11..424c822 100644
+index 3025a112..424c8223 100644
 --- a/src/fast/shaders/directx/default.shader.hlsl
 +++ b/src/fast/shaders/directx/default.shader.hlsl
 @@ -189,6 +189,10 @@ PSInput VSMain(
@@ -7152,7 +7277,7 @@ index 3025a11..424c822 100644
              output.color = fromLinear(texel);
          @else
 diff --git a/src/fast/shaders/metal/default.shader.metal b/src/fast/shaders/metal/default.shader.metal
-index bf87639..babfa5f 100644
+index bf876398..babfa5f6 100644
 --- a/src/fast/shaders/metal/default.shader.metal
 +++ b/src/fast/shaders/metal/default.shader.metal
 @@ -18,6 +18,10 @@ struct DrawUniforms {
@@ -7185,7 +7310,7 @@ index bf87639..babfa5f 100644
          out.color = float4(texel, 1.0);
      @end
 diff --git a/src/fast/shaders/opengl/default.shader.glsl b/src/fast/shaders/opengl/default.shader.glsl
-index 3693c79..7903afd 100644
+index 3693c798..7903afd8 100644
 --- a/src/fast/shaders/opengl/default.shader.glsl
 +++ b/src/fast/shaders/opengl/default.shader.glsl
 @@ -1,297 +1,318 @@
@@ -7806,7 +7931,7 @@ index 3693c79..7903afd 100644
 \ No newline at end of file
 diff --git a/src/fast/shaders/vulkan/default.shader.glsl b/src/fast/shaders/vulkan/default.shader.glsl
 new file mode 100644
-index 0000000..134caef
+index 00000000..134caef3
 --- /dev/null
 +++ b/src/fast/shaders/vulkan/default.shader.glsl
 @@ -0,0 +1,320 @@
@@ -8131,7 +8256,7 @@ index 0000000..134caef
 +    }
 +@end
 diff --git a/src/ship/debug/CrashHandler.cpp b/src/ship/debug/CrashHandler.cpp
-index 63d5b07..a83bce7 100644
+index 63d5b071..a83bce7a 100644
 --- a/src/ship/debug/CrashHandler.cpp
 +++ b/src/ship/debug/CrashHandler.cpp
 @@ -6,7 +6,7 @@
@@ -8144,7 +8269,7 @@ index 63d5b07..a83bce7 100644
  #include <inttypes.h>
  #include <excpt.h>
 diff --git a/src/ship/utils/StringHelper.cpp b/src/ship/utils/StringHelper.cpp
-index 977f234..7e7ceb5 100644
+index 977f2340..7e7ceb5d 100644
 --- a/src/ship/utils/StringHelper.cpp
 +++ b/src/ship/utils/StringHelper.cpp
 @@ -1,3 +1,4 @@
@@ -8153,7 +8278,7 @@ index 977f234..7e7ceb5 100644
  
  #if (_MSC_VER)
 diff --git a/src/ship/window/FileDrop.cpp b/src/ship/window/FileDrop.cpp
-index 78ed604..621babc 100644
+index 78ed604a..621babc4 100644
 --- a/src/ship/window/FileDrop.cpp
 +++ b/src/ship/window/FileDrop.cpp
 @@ -6,7 +6,7 @@

@@ -459,6 +459,13 @@ harmless ones (`Geo_NodeReference`, `main_pool_set_func`, 64DD code in rsp.c).
   full-screen fill rectangle) and the amount of drawing changed from the frame before (`TrackSegmentsOnly`); steady
   animation is still skipped. PORT_SKIP_INCREMENTAL=1 skips them anyway; PORT_TRACE_FILL=1 logs the decision. Cost:
   menu route 7.4 s -> 9.7 s.
+- Window resize on such a screen (user report: Free Battle's rule screen went black): a size change recreates every
+  game framebuffer's colour texture, and its first pass cleared it to black (`sFreshColorFbs`), so the background
+  drawn in the screen's first frames was gone until the next screen. Metal now draws the old picture into the new
+  texture (gfx_metal.cpp `DrawOldPictureScaled`), scaled uniformly so the 4:3 picture keeps its place; margins the old
+  texture did not cover stay black. Checked with `PORT_DEBUG_RESIZE` (now a list, `f:WxH,f:WxH,...`) on
+  `tour_fb.rec` at 3000 -> 1100x700, 800x600, 500x700 and a 20-step drag (slightly softer after the drag, from the
+  repeated bilinear scaling). `PORT_NO_RESIZE_KEEP=1`: the old behaviour. OpenGL, DX11 and Vulkan still clear.
 - Copy mode with alpha compare skips texels whose alpha bit is 0 (`use_alpha` forced for that case; the shader only
   discarded with alpha blending): fixed the white boxes behind the order screen's icons and pointer.
 - Geo callbacks reached through fragment 31's jump table: all 60 targets are followed now. Their callback data from
