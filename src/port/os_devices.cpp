@@ -548,6 +548,44 @@ extern "C" int Port_LoadWaits(void) {
     return on;
 }
 
+// The controllers plugged into the N64, as the game's controller bits (bit 0 = controller 1). libultraship's
+// ControlDeck::Init reports only controller 1, which greys out every multiplayer choice (Free Battle with 2-4
+// players, team battles, minigames for several players). Controller 1 is always plugged in; controllers 2-4 when the
+// launcher's Controls panel says so (gPort.Controller<N>.PluggedIn), when PORT_CONTROLLERS lists them ("1,2" or
+// "12"), or, replaying a recording, when its "# controllers" line does (a recording without it was made with
+// controller 1 alone, and replays that way whatever the settings say).
+extern "C" int32_t CVarGetInteger(const char* name, int32_t defaultValue); // (libultraship's console variables)
+extern "C" int Port_ControllerBits(void) {
+    static const int bits = [] {
+        auto parse = [](const char* s) {
+            int b = 1;
+            for (; *s != '\0'; s++) {
+                if (*s >= '1' && *s <= '4') b |= 1 << (*s - '1');
+            }
+            return b;
+        };
+        if (const char* e = getenv("PORT_CONTROLLERS")) return parse(e);
+        if (const char* rp = getenv("PORT_REPLAY")) {
+            int b = 1;
+            if (FILE* f = fopen(rp, "r")) {
+                char line[256];
+                while (fgets(line, sizeof line, f)) {
+                    if (strncmp(line, "# controllers ", 14) == 0) b = parse(line + 14);
+                }
+                fclose(f);
+            }
+            return b;
+        }
+        int b = 1;
+        for (int i = 1; i < 4; i++) {
+            std::string key = "gPort.Controller" + std::to_string(i + 1) + ".PluggedIn";
+            if (CVarGetInteger(key.c_str(), 0) != 0) b |= 1 << i;
+        }
+        return b;
+    }();
+    return bits;
+}
+
 // ---- Controller input: live, recorded, replayed -----------------------------------------------------
 // The window thread publishes the live pad state (PublishPads). In lockstep mode the clock latches one state per
 // frame (what the game reads during that frame), records it to PORT_RECORD (default last_input.rec) and, with
@@ -618,6 +656,13 @@ void InputInit() {
         }
         if (Port_LoadWaits()) {
             fprintf(gRecord, "# load waits\n"); // (see Port_LoadWaits)
+        }
+        if (Port_ControllerBits() != 1) { // the controllers plugged in (see Port_ControllerBits)
+            fprintf(gRecord, "# controllers");
+            for (int i = 0; i < 4; i++) {
+                if (Port_ControllerBits() & (1 << i)) fprintf(gRecord, " %d", i + 1);
+            }
+            fputc('\n', gRecord);
         }
         fflush(gRecord);
     }

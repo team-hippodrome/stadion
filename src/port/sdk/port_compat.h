@@ -158,6 +158,9 @@ int Port_GameAudio(void);
 // The N64's loading time where the game's timing counts on it (the boot diorama's model loads, which the music is timed
 // around), as waits; off when replaying an input recording made before them (src/port/os_devices.cpp).
 int Port_LoadWaits(void);
+// The controllers plugged in, as osContInit's controller bits: 1 always, 2-4 as the launcher's Controls panel,
+// PORT_CONTROLLERS or a replayed recording say (src/port/os_devices.cpp).
+int Port_ControllerBits(void);
 // Blocks the calling game thread for that many retraces when Port_LoadWaits() is on (game/src/port_audio.c).
 void Port_LoadStall(int retraces);
 // A horizontal view half-angle (binary angle, 0x10000 = 360 degrees) widened for the picture's shape: unchanged at 4:3,
