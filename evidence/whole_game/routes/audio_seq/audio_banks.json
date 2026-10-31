@@ -1,0 +1,2444 @@
+[
+ {
+  "loader": "music file 0 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16ada80",
+  "entries": 16
+ },
+ {
+  "loader": "music file 1 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16ae070",
+  "entries": 16
+ },
+ {
+  "loader": "music file 2 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16aeee0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 3 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16b02e0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 4 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16b1330",
+  "entries": 16
+ },
+ {
+  "loader": "music file 5 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16b2770",
+  "entries": 16
+ },
+ {
+  "loader": "music file 6 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16b3b40",
+  "entries": 16
+ },
+ {
+  "loader": "music file 7 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16b61f0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 8 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16b6f00",
+  "entries": 16
+ },
+ {
+  "loader": "music file 9 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16b7b80",
+  "entries": 16
+ },
+ {
+  "loader": "music file 10 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16b8520",
+  "entries": 16
+ },
+ {
+  "loader": "music file 11 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16b88b0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 12 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16bad60",
+  "entries": 16
+ },
+ {
+  "loader": "music file 13 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16bca10",
+  "entries": 16
+ },
+ {
+  "loader": "music file 14 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16bd6f0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 15 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16be4f0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 16 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16bec90",
+  "entries": 16
+ },
+ {
+  "loader": "music file 17 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16bf150",
+  "entries": 16
+ },
+ {
+  "loader": "music file 18 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16bf400",
+  "entries": 16
+ },
+ {
+  "loader": "music file 19 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c2260",
+  "entries": 16
+ },
+ {
+  "loader": "music file 20 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c23e0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 21 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c3af0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 22 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c4600",
+  "entries": 16
+ },
+ {
+  "loader": "music file 23 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c5120",
+  "entries": 16
+ },
+ {
+  "loader": "music file 24 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c53b0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 25 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c5720",
+  "entries": 16
+ },
+ {
+  "loader": "music file 26 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c64c0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 27 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c6830",
+  "entries": 16
+ },
+ {
+  "loader": "music file 28 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c6b10",
+  "entries": 16
+ },
+ {
+  "loader": "music file 29 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c72b0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 30 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c7ca0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 31 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c7fc0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 32 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c8550",
+  "entries": 16
+ },
+ {
+  "loader": "music file 33 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16c8b80",
+  "entries": 16
+ },
+ {
+  "loader": "music file 34 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16ca420",
+  "entries": 16
+ },
+ {
+  "loader": "music file 35 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16cc200",
+  "entries": 16
+ },
+ {
+  "loader": "music file 36 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16cd040",
+  "entries": 16
+ },
+ {
+  "loader": "music file 37 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16cdff0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 38 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16cebd0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 39 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16cff10",
+  "entries": 16
+ },
+ {
+  "loader": "music file 40 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16d0600",
+  "entries": 16
+ },
+ {
+  "loader": "music file 41 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16d0ad0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 42 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16d1100",
+  "entries": 16
+ },
+ {
+  "loader": "music file 43 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16d1680",
+  "entries": 16
+ },
+ {
+  "loader": "music file 44 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16d2640",
+  "entries": 16
+ },
+ {
+  "loader": "music file 45 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16d2ad0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 46 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16d3620",
+  "entries": 16
+ },
+ {
+  "loader": "music file 47 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16d4930",
+  "entries": 16
+ },
+ {
+  "loader": "music file 48 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16d5d40",
+  "entries": 16
+ },
+ {
+  "loader": "music file 49 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16d6d20",
+  "entries": 16
+ },
+ {
+  "loader": "music file 50 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16d76c0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 51 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16d83d0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 52 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16d90a0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 53 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16da520",
+  "entries": 16
+ },
+ {
+  "loader": "music file 54 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16dc1b0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 55 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16de210",
+  "entries": 16
+ },
+ {
+  "loader": "music file 56 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16e02a0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 57 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16e0580",
+  "entries": 16
+ },
+ {
+  "loader": "music file 58 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16e27f0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 59 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16e2d30",
+  "entries": 16
+ },
+ {
+  "loader": "music file 60 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16e4ab0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 61 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16e57e0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 62 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16e5af0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 63 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16e6630",
+  "entries": 16
+ },
+ {
+  "loader": "music file 64 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16e68f0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 65 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16e70c0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 66 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16e77d0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 67 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16eb3b0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 68 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16ef290",
+  "entries": 16
+ },
+ {
+  "loader": "music file 69 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16ef730",
+  "entries": 16
+ },
+ {
+  "loader": "music file 70 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16f02d0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 71 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16f0c20",
+  "entries": 16
+ },
+ {
+  "loader": "music file 72 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16f10f0",
+  "entries": 16
+ },
+ {
+  "loader": "music file 73 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16f1890",
+  "entries": 16
+ },
+ {
+  "loader": "music file 74 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16f1e00",
+  "entries": 16
+ },
+ {
+  "loader": "music file 75 (Audio_StartMusicTrack -> D_800FC680)",
+  "kind": "song",
+  "rom": "0x16f22d0",
+  "entries": 16
+ },
+ {
+  "loader": "D_800FC688 (system FX: SFX_TITLE_START, Audio_PlayPersistentSoundCommand)",
+  "kind": "fx",
+  "rom": "0x16f2814",
+  "entries": 73
+ },
+ {
+  "loader": "move FX bank 1 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c2d04",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 2 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c2d84",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 3 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c2e14",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 4 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c2ea4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 5 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c2f34",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 6 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c2fc4",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 7 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3094",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 8 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3154",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 9 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3214",
+  "entries": 10
+ },
+ {
+  "loader": "move FX bank 10 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c32e4",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 11 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3394",
+  "entries": 12
+ },
+ {
+  "loader": "move FX bank 12 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3474",
+  "entries": 11
+ },
+ {
+  "loader": "move FX bank 13 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3554",
+  "entries": 13
+ },
+ {
+  "loader": "move FX bank 14 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3644",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 15 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3714",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 16 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c37e4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 17 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3884",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 18 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3914",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 19 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3984",
+  "entries": 15
+ },
+ {
+  "loader": "move FX bank 20 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3a94",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 21 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3b54",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 22 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3c04",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 23 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3cb4",
+  "entries": 10
+ },
+ {
+  "loader": "move FX bank 24 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3d84",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 25 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3e24",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 26 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3ec4",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 27 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3f64",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 28 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c3ff4",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 29 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c40c4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 30 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4154",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 31 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c41d4",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 32 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4254",
+  "entries": 13
+ },
+ {
+  "loader": "move FX bank 33 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4324",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 34 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c43b4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 35 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4454",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 36 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4514",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 37 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c45c4",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 38 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4674",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 39 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4724",
+  "entries": 4
+ },
+ {
+  "loader": "move FX bank 40 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4784",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 41 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c47f4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 42 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4884",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 43 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4914",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 44 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c49a4",
+  "entries": 11
+ },
+ {
+  "loader": "move FX bank 45 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4a64",
+  "entries": 3
+ },
+ {
+  "loader": "move FX bank 46 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4aa4",
+  "entries": 3
+ },
+ {
+  "loader": "move FX bank 47 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4ae4",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 48 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4b74",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 49 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4bf4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 50 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4ca4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 51 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4d54",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 52 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4e04",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 53 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4eb4",
+  "entries": 13
+ },
+ {
+  "loader": "move FX bank 54 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c4fa4",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 55 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5024",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 56 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c50c4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 57 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5154",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 58 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c51f4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 59 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5294",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 60 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5334",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 61 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c53e4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 62 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5484",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 63 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5534",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 64 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c55f4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 65 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5694",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 66 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5734",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 67 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5844",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 68 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c58e4",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 69 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5984",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 70 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5a34",
+  "entries": 10
+ },
+ {
+  "loader": "move FX bank 71 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5b04",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 72 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5c04",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 73 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5d04",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 74 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5da4",
+  "entries": 3
+ },
+ {
+  "loader": "move FX bank 75 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5de4",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 76 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c5ee4",
+  "entries": 13
+ },
+ {
+  "loader": "move FX bank 77 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6004",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 78 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c60b4",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 79 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6164",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 80 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6214",
+  "entries": 10
+ },
+ {
+  "loader": "move FX bank 81 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c62f4",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 82 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c63a4",
+  "entries": 10
+ },
+ {
+  "loader": "move FX bank 83 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6464",
+  "entries": 11
+ },
+ {
+  "loader": "move FX bank 84 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6544",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 85 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c65e4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 86 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6694",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 87 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6724",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 88 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c67d4",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 89 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6884",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 90 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6934",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 91 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c69e4",
+  "entries": 14
+ },
+ {
+  "loader": "move FX bank 92 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6ae4",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 93 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6b84",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 94 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6c14",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 95 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6cb4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 96 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6d54",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 97 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6e34",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 98 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6ec4",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 99 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c6f74",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 100 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7014",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 101 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7094",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 102 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7164",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 103 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7264",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 104 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7314",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 105 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7394",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 106 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7444",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 107 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c74b4",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 108 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7524",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 109 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c75a4",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 110 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7654",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 111 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c76c4",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 112 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7734",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 113 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c77a4",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 114 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7814",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 115 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7894",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 116 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7904",
+  "entries": 4
+ },
+ {
+  "loader": "move FX bank 117 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7964",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 118 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7a24",
+  "entries": 4
+ },
+ {
+  "loader": "move FX bank 119 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7a84",
+  "entries": 3
+ },
+ {
+  "loader": "move FX bank 120 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7ac4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 121 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7b74",
+  "entries": 10
+ },
+ {
+  "loader": "move FX bank 122 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7c44",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 123 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7ce4",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 124 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7d74",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 125 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7e24",
+  "entries": 13
+ },
+ {
+  "loader": "move FX bank 126 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7ef4",
+  "entries": 13
+ },
+ {
+  "loader": "move FX bank 127 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c7fd4",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 128 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8094",
+  "entries": 12
+ },
+ {
+  "loader": "move FX bank 129 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8174",
+  "entries": 10
+ },
+ {
+  "loader": "move FX bank 130 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8254",
+  "entries": 12
+ },
+ {
+  "loader": "move FX bank 131 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8314",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 132 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c83c4",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 133 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8484",
+  "entries": 3
+ },
+ {
+  "loader": "move FX bank 134 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c84c4",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 135 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8574",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 136 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8624",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 137 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c86d4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 138 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8764",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 139 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8864",
+  "entries": 5
+ },
+ {
+  "loader": "move FX bank 140 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c88e4",
+  "entries": 10
+ },
+ {
+  "loader": "move FX bank 141 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c89b4",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 142 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8ab4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 143 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8b54",
+  "entries": 14
+ },
+ {
+  "loader": "move FX bank 144 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8c94",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 145 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8d24",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 146 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8da4",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 147 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8e64",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 148 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8f14",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 149 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c8fc4",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 150 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9054",
+  "entries": 4
+ },
+ {
+  "loader": "move FX bank 151 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c90a4",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 152 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9124",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 153 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c91d4",
+  "entries": 7
+ },
+ {
+  "loader": "move FX bank 154 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9284",
+  "entries": 10
+ },
+ {
+  "loader": "move FX bank 155 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9354",
+  "entries": 10
+ },
+ {
+  "loader": "move FX bank 156 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9424",
+  "entries": 3
+ },
+ {
+  "loader": "move FX bank 157 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9464",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 158 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9534",
+  "entries": 12
+ },
+ {
+  "loader": "move FX bank 159 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9604",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 160 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9694",
+  "entries": 8
+ },
+ {
+  "loader": "move FX bank 161 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9794",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 162 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9874",
+  "entries": 12
+ },
+ {
+  "loader": "move FX bank 163 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9944",
+  "entries": 9
+ },
+ {
+  "loader": "move FX bank 164 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9a04",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 165 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9a84",
+  "entries": 6
+ },
+ {
+  "loader": "move FX bank 166 (func_800479C0 -> D_800FC698)",
+  "kind": "fx",
+  "rom": "0x17c9b14",
+  "entries": 15
+ },
+ {
+  "loader": "species FX bank 1 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8a14",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 2 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8a44",
+  "entries": 8
+ },
+ {
+  "loader": "species FX bank 3 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8ac4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 4 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8af4",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 5 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8b54",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 6 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8bb4",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 7 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8c14",
+  "entries": 8
+ },
+ {
+  "loader": "species FX bank 8 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8cf4",
+  "entries": 5
+ },
+ {
+  "loader": "species FX bank 9 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8d64",
+  "entries": 9
+ },
+ {
+  "loader": "species FX bank 10 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8e34",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 11 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8e64",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 12 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8e94",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 13 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8ec4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 14 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8ef4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 15 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8f44",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 16 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d8f74",
+  "entries": 6
+ },
+ {
+  "loader": "species FX bank 17 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9024",
+  "entries": 7
+ },
+ {
+  "loader": "species FX bank 18 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d90e4",
+  "entries": 7
+ },
+ {
+  "loader": "species FX bank 19 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9194",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 20 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d91c4",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 21 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9224",
+  "entries": 9
+ },
+ {
+  "loader": "species FX bank 22 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9304",
+  "entries": 7
+ },
+ {
+  "loader": "species FX bank 23 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d93b4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 24 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d93e4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 25 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9414",
+  "entries": 8
+ },
+ {
+  "loader": "species FX bank 26 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d94d4",
+  "entries": 5
+ },
+ {
+  "loader": "species FX bank 27 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9564",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 28 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d95c4",
+  "entries": 6
+ },
+ {
+  "loader": "species FX bank 29 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9644",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 30 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d96b4",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 31 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9724",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 32 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9794",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 33 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d97e4",
+  "entries": 5
+ },
+ {
+  "loader": "species FX bank 34 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9864",
+  "entries": 8
+ },
+ {
+  "loader": "species FX bank 35 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9904",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 36 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9974",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 37 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d99d4",
+  "entries": 5
+ },
+ {
+  "loader": "species FX bank 38 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9a54",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 39 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9ab4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 40 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9ae4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 41 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9b14",
+  "entries": 5
+ },
+ {
+  "loader": "species FX bank 42 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9be4",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 43 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9c54",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 44 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9ce4",
+  "entries": 6
+ },
+ {
+  "loader": "species FX bank 45 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9d74",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 46 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9dd4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 47 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9e04",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 48 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9e84",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 49 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9ed4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 50 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9f04",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 51 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9f34",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 52 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9f64",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 53 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9fc4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 54 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17d9ff4",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 55 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da054",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 56 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da0b4",
+  "entries": 6
+ },
+ {
+  "loader": "species FX bank 57 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da144",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 58 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da1c4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 59 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da214",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 60 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da264",
+  "entries": 8
+ },
+ {
+  "loader": "species FX bank 61 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da314",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 62 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da344",
+  "entries": 6
+ },
+ {
+  "loader": "species FX bank 63 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da3c4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 64 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da3f4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 65 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da424",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 66 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da484",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 67 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da4e4",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 68 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da544",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 69 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da5a4",
+  "entries": 7
+ },
+ {
+  "loader": "species FX bank 70 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da654",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 71 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da6a4",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 72 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da704",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 73 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da734",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 74 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da764",
+  "entries": 8
+ },
+ {
+  "loader": "species FX bank 75 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da7f4",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 76 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da854",
+  "entries": 7
+ },
+ {
+  "loader": "species FX bank 77 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da8e4",
+  "entries": 7
+ },
+ {
+  "loader": "species FX bank 78 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17da994",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 79 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17daa04",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 80 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17daa34",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 81 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17daa64",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 82 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17daa94",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 83 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17daac4",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 84 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dab24",
+  "entries": 8
+ },
+ {
+  "loader": "species FX bank 85 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dabb4",
+  "entries": 5
+ },
+ {
+  "loader": "species FX bank 86 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dac34",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 87 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dac94",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 88 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dacc4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 89 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dacf4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 90 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dad24",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 91 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dad54",
+  "entries": 7
+ },
+ {
+  "loader": "species FX bank 92 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dade4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 93 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dae14",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 94 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dae44",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 95 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dae74",
+  "entries": 12
+ },
+ {
+  "loader": "species FX bank 96 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17daf24",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 97 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17daf54",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 98 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17daf84",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 99 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dafb4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 100 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dafe4",
+  "entries": 6
+ },
+ {
+  "loader": "species FX bank 101 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db054",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 102 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db084",
+  "entries": 7
+ },
+ {
+  "loader": "species FX bank 103 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db134",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 104 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db184",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 105 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db1f4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 106 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db224",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 107 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db284",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 108 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db2e4",
+  "entries": 5
+ },
+ {
+  "loader": "species FX bank 109 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db364",
+  "entries": 5
+ },
+ {
+  "loader": "species FX bank 110 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db3d4",
+  "entries": 5
+ },
+ {
+  "loader": "species FX bank 111 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db444",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 112 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db4a4",
+  "entries": 9
+ },
+ {
+  "loader": "species FX bank 113 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db554",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 114 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db5a4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 115 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db5f4",
+  "entries": 9
+ },
+ {
+  "loader": "species FX bank 116 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db6a4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 117 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db6d4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 118 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db704",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 119 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db734",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 120 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db764",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 121 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db794",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 122 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db7c4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 123 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db7f4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 124 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db824",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 125 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db854",
+  "entries": 5
+ },
+ {
+  "loader": "species FX bank 126 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db8c4",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 127 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db924",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 128 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17db984",
+  "entries": 6
+ },
+ {
+  "loader": "species FX bank 129 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dba04",
+  "entries": 9
+ },
+ {
+  "loader": "species FX bank 130 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dba94",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 131 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbac4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 132 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbaf4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 133 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbb24",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 134 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbb84",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 135 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbbd4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 136 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbc24",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 137 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbc74",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 138 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbca4",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 139 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbcf4",
+  "entries": 3
+ },
+ {
+  "loader": "species FX bank 140 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbd54",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 141 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbda4",
+  "entries": 5
+ },
+ {
+  "loader": "species FX bank 142 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbe14",
+  "entries": 6
+ },
+ {
+  "loader": "species FX bank 143 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbe84",
+  "entries": 6
+ },
+ {
+  "loader": "species FX bank 144 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbee4",
+  "entries": 12
+ },
+ {
+  "loader": "species FX bank 145 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dbfb4",
+  "entries": 6
+ },
+ {
+  "loader": "species FX bank 146 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dc064",
+  "entries": 12
+ },
+ {
+  "loader": "species FX bank 147 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dc134",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 148 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dc184",
+  "entries": 2
+ },
+ {
+  "loader": "species FX bank 149 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dc1b4",
+  "entries": 7
+ },
+ {
+  "loader": "species FX bank 150 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dc274",
+  "entries": 4
+ },
+ {
+  "loader": "species FX bank 151 (func_80048060 -> D_800FC6B0)",
+  "kind": "fx",
+  "rom": "0x17dc2d4",
+  "entries": 2
+ },
+ {
+  "loader": "Audio_PlayCommand bank (D_800FC6F4[0] -> D_800FC6A8)",
+  "kind": "fx",
+  "rom": "0x17dc340",
+  "entries": 52
+ },
+ {
+  "loader": "category 0x2 bank (Audio_DispatchSoundBankCommand 0x20000 | id)",
+  "kind": "fx",
+  "rom": "0x1850c7c",
+  "entries": 12
+ },
+ {
+  "loader": "category 0x3 bank (Audio_DispatchSoundBankCommand 0x30000 | id)",
+  "kind": "fx",
+  "rom": "0x186108c",
+  "entries": 6
+ },
+ {
+  "loader": "category 0x4 bank (Audio_DispatchSoundBankCommand 0x40000 | id)",
+  "kind": "fx",
+  "rom": "0x186f9bc",
+  "entries": 8
+ },
+ {
+  "loader": "category 0x5 bank (Audio_DispatchSoundBankCommand 0x50000 | id)",
+  "kind": "fx",
+  "rom": "0x187df8c",
+  "entries": 16
+ },
+ {
+  "loader": "category 0x6 bank (Audio_DispatchSoundBankCommand 0x60000 | id)",
+  "kind": "fx",
+  "rom": "0x18a257c",
+  "entries": 14
+ },
+ {
+  "loader": "category 0x7 bank (Audio_DispatchSoundBankCommand 0x70000 | id)",
+  "kind": "fx",
+  "rom": "0x18bf6dc",
+  "entries": 10
+ },
+ {
+  "loader": "category 0x8 bank (Audio_DispatchSoundBankCommand 0x80000 | id)",
+  "kind": "fx",
+  "rom": "0x18cef2c",
+  "entries": 11
+ },
+ {
+  "loader": "category 0x9 bank (Audio_DispatchSoundBankCommand 0x90000 | id)",
+  "kind": "fx",
+  "rom": "0x18e5e2c",
+  "entries": 26
+ },
+ {
+  "loader": "category 0xA bank (Audio_DispatchSoundBankCommand 0xA0000 | id)",
+  "kind": "fx",
+  "rom": "0x1907b8c",
+  "entries": 29
+ },
+ {
+  "loader": "direct bank (Audio_PlayDirectSoundCommand, D_800FC6F4[2])",
+  "kind": "fx",
+  "rom": "0x192885c",
+  "entries": 8
+ },
+ {
+  "loader": "category 11 bank (Audio_PlayCategory11SoundCommand 0x01100000 | id, D_800FC6F4[3])",
+  "kind": "fx",
+  "rom": "0x192cd1c",
+  "entries": 40
+ },
+ {
+  "loader": "category 12 bank (Audio_PlayCategory12SoundCommand 0x01200000 | id, D_800FC6F4[4])",
+  "kind": "fx",
+  "rom": "0x1964a7c",
+  "entries": 11
+ }
+]

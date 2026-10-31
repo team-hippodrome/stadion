@@ -1,0 +1,29 @@
+{
+ "libmus voice commands no shipped song or sound effect uses (every song and FX bank the game's loaders reach, 76 songs and 331 FX banks, decoded along every path: audio_commands.md, routes/audio_seq/decode_seq.py)": [
+  "Audio_ApplyVoiceDetuneOnce",
+  "Audio_ClearVoiceFlagED",
+  "Audio_ClearVoiceFlagEE",
+  "Audio_ClearVoiceSubEnvelopePointer",
+  "Audio_DisableVoicePeriodicPitchModulation",
+  "Audio_DisableVoicePitchSlide",
+  "Audio_EnableVoiceVariableDuration",
+  "Audio_EnableVoiceVibratoDown",
+  "Audio_SetRandomVoiceVolume",
+  "Audio_SetVoiceEnvelopePointers",
+  "Audio_SetVoiceFlagED",
+  "Audio_SetVoiceFlagEE",
+  "Audio_SetVoiceSubEnvelopePointer",
+  "Audio_SkipVoiceCommandByte",
+  "Audio_SkipVoiceCommandWord"
+ ],
+ "libmus API commands nothing queues: command 5 only Audio_QueueVoicePan writes (nothing calls it), command 6 no function writes (audio_commands.md)": [
+  "Audio_ApplyVoiceFxMixCommand",
+  "Audio_ApplyVoicePanCommand"
+ ],
+ "n_alSynSetFXMix runs only for a voice whose reverb_intensity is not 0, which only command 6 (Audio_ApplyVoiceFxMixCommand) sets (audio_commands.md)": [
+  "n_alSynSetFXMix"
+ ],
+ "n_alFxParamHdl: nothing in the C code refers to it; the one ROM word equal to its address (ROM 0xa6e778) lies inside the compressed bytes of the Yay0 blob at ROM 0xa54408-0xa7b4a5 (audio_commands.md)": [
+  "n_alFxParamHdl"
+ ]
+}
