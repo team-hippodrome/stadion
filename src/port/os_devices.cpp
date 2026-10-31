@@ -300,14 +300,23 @@ static bool gViBlack = false;
 static float gViXScale = 1.0f;
 
 static std::condition_variable gSwapDone;
-// PORT: every address the game has shown with osViSwapBuffer; the renderer uses it to tell full-screen-sized
-// pictures drawn for use as textures (Gallery enlarge: a 640x480 photo) from frame buffers
+// PORT: every address the game has shown with osViSwapBuffer, or submitted a frame's display task for; the renderer
+// uses it to tell full-screen-sized pictures drawn for use as textures (Gallery enlarge: a 640x480 photo) from frame
+// buffers
 static std::mutex gViFbLock;
 static std::unordered_set<uintptr_t> gViFbs;
 extern "C" int Port_ViFrameBufferState(const void* addr) { // -1: none shown yet, 1: shown, 0: never shown
     std::lock_guard<std::mutex> g(gViFbLock);
     if (gViFbs.size() < 2) return -1;
     return gViFbs.count((uintptr_t)addr) ? 1 : 0;
+}
+// The display worker's frame buffer for the task it submits (dp_intro.c DisplayTask_Submit). A scene's new frame
+// buffers were only known after their first swap, so their first frame was rendered as an off-screen picture and the
+// swap presented the buffer's RAM instead: one black frame after the title (Game Pak check, first time after boot).
+extern "C" void Port_NoteFrameBuffer(const void* fb) {
+    if (fb == nullptr) return;
+    std::lock_guard<std::mutex> g(gViFbLock);
+    gViFbs.insert((uintptr_t)fb);
 }
 extern "C" bool Port_Lockstep();
 void port_osViSwapBuffer(void* fb) {
