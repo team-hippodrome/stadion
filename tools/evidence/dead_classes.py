@@ -2,7 +2,7 @@
 """Classes every unreached function by why no run reached it, and gives coverage of the code the shipped game can run.
 
 Usage:
-  tools/evidence/dead_classes.py <whole-game callgraph.json> <frontier.json> <rom.z64> <data_dead.json> <out.md>
+  tools/evidence/dead_classes.py <whole-game callgraph.json> <frontier.json> <rom.z64> <data_dead.json[,more.json]> <out.md>
 frontier.json: tools/evidence/frontier.py's output (its "unreached" list). data_dead.json: {"<reason>": [names]} for
 code the shipped data never selects, each reason with its proof in the evidence (e.g. battle_anim_slots.md).
 
@@ -34,7 +34,10 @@ def main():
     F = cg["functions"]
     fr = json.load(open(fr_path))
     unreached = set(fr["unreached"])
-    data_dead = json.load(open(data_path))
+    data_dead = {}
+    for path in data_path.split(","):  # (data_dead.json and the per-area proofs: data_dead_audio.json, ...)
+        for reason, names in json.load(open(path)).items():
+            data_dead.setdefault(reason, []).extend(names)
     callers = collections.defaultdict(set)
     for a, b, k, v in cg["edges"]:
         if a != b:
