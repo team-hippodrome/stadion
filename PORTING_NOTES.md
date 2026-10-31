@@ -722,6 +722,14 @@ saved without the pak leaves the cartridge undetected).
   (Display_ClearFramebufferLine; Display_GetFramebufferClearColor reads it back): written natively, black 0x0001 was
   shown as 0x0100, a dark green (0,32,0) blank screen. Debug: `PORT_TRACE_VI=1` lists CPU-presented frames and
   the line colours set.
+- Black frame after the title (fixed; user report: first confirm after boot only): the Game Pak check is a hi-res
+  scene with two new 640-wide frame buffers. The renderer told frame buffers from screen-sized off-screen pictures
+  (Gallery enlarge) by whether the VI had shown the address yet, so each new buffer's first frame was drawn as an
+  off-screen picture, and its swap presented the buffer's RAM: all zero (black) for the first one at frame 229 of
+  to_battle.rec, where ares shows white (title fade) and then the Game Pak check fading in. Later confirms reuse
+  buffers already shown. The display worker now names the frame buffer of each display task it submits
+  (`Port_NoteFrameBuffer`, dp_intro.c DisplayTask_Submit), so the first frame renders to the screen. Present since
+  the first port commit (same black frame in a build from 22 October).
 - Earlier attempt for the same report (kept, harmless): A frame buffer's colour texture is (re)created when
   the game first uses a frame-buffer address and whenever the window size changes; its contents are undefined
   (leftover GPU memory) until the game repaints it fully, and fades only add a translucent layer over the previous
