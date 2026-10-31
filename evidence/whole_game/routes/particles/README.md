@@ -1,7 +1,8 @@
 # Particles and battle animation: what the data selects
 
 The 80 live functions of `particle_math` (25), `particle_data_library` (2) and `battle_engine` (53) in
-`../../dead_classes.md`: 75 are code the shipped game cannot run, 5 are left live. The proof is
+`../../dead_classes.md`: 75 are code the shipped game cannot run, 1 is reached by a new route
+(`free_battle_team_1p2p.rec`), 4 are left live. The proof is
 `../../particle_descriptors.md`, written by `particle_descriptors.py`; the names are in
 `../../data_dead_particles.json` (the form of `data_dead.json`, for `tools/evidence/dead_classes.py`).
 
@@ -57,15 +58,33 @@ python3 -I evidence/whole_game/routes/particles/particle_descriptors.py <cg_all4
   Self-Destruct or recoil faint (those go through the faint / send-out phases that ran in the sweeps); no value of
   the scene's phase field is 33, and nothing pauses the scene.
 
-## Left live (5)
+## Reached: two players on one side
+
+`BattleScene_GetOpposingSelectedSideTeamSize` needs a side with two trainers (`battleSides[i].unk_01 == 2`): Free
+Battle's team options (`free_battle_rules.c` `D_84002BE8`, e.g. 1P & 2P vs COM). `free_battle_team_1p2p.rec`: the
+Free Battle route to the rule screen, then 1P & 2P vs COM (Normal), Anything Goes, each team picked from the 1P Game
+Pak (pad 1 for 1P and COM, pad 2 for 2P; the Cloyster / Omastar save of `runs.sh`), the order screen on both pads,
+and the battle. At the first faint (frame ~33100) `Battle_CheckFaintAfterMove` -> `func_84373018` takes its team
+branch and calls it. The same run reaches three live `battle_prep` functions (`BattlePrepRoster_LoadDexIdsDouble`,
+`BattlePrepRoster_PositionIconsDouble`, `BattlePrepRoster_DrawIconVariantB`: the roster screens of a double side).
+
+The port presents only controller 1 to the game: libultraship's `ControlDeck::Init` sets bit 0 of the controller
+bits and nothing sets the others, so the team options are greyed out and no multiplayer mode can be chosen in the
+port at all. The route forces pad 2 present (`--set "Cont_InitControllers:gControllerBits:1=3"`, the state of an
+N64 with two controllers) and drives it from the recording's second pad. Not fixed here: which ports count as
+plugged in needs a setting in the port (a follow-up).
+
+## Left live (4)
 
 | function | what selects it | tried |
 |---|---|---|
-| `BattleScene_GetOpposingSelectedSideTeamSize` | a side with two trainers (`battleSides[i].unk_01 == 2`: Free Battle's team options, e.g. 1P+2P vs COM, `free_battle_rules.c` `D_84002BE8[1]`), then a faint (`Battle_CheckFaintAfterMove` -> `func_84373018`), a status move against that side (`Battle_HasUsableSleepStatusTarget` / `...MajorStatusTarget`) or the residual-damage defeat check | no route yet: needs a two-controller Free Battle recording (pads 2-4 exist in the recording format) |
 | `BattleAnim_MarkParticleInactive` | effect 62 (Spike Cannon, move 131) marks a stream's particle inactive once the stream is older than 40 frames; the effect's update never finishes by itself, the move ends it | every playback ended first: 19 with the battle_xcheck Charmander (`mv131`, 20-21 frames), 75 with Cloyster and Omastar from a Game Pak (`fb_spike`, 21-26 frames, the first stream starts on the 4th); not proven by data, timing |
 | `func_843453E4` | the node callback `func_84345448` in mode 2 (the node drawn while visible); Ice Punch's (move 8) effect model sets it | `mv8`: set 7 times (mode 0), never drawn; the node's visibility is in the model's ROM data (not decoded) |
 | `BattleAI_AllCandidatesResistType` | the COM scoring a move of effect 0x27 / 0x2B (charge / trapping moves) with damage, when `D_843C60BC != 0` | not tried |
 | `BattleAI_ScoreCategorySetReady` | the COM's Substitute-style case 0x4F with one usable candidate and a set-up move found | not tried |
+
+Still to try for the team functions: `Battle_HasUsableSleepStatusTarget` / `...MajorStatusTarget` (a status move
+against a two-trainer side) and `BattleScene_GetCombinedTeamSize`.
 
 `runs.sh` repeats the runs (`OUT=<dir> BASE=<gbv4/base.sav> sh runs.sh`); their coverage is in the scratchpad
 (`par3_particles/runs/`).

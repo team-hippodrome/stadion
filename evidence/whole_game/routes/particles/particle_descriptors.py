@@ -362,6 +362,7 @@ def main():
         return out
     noref = {n for n in internal if not all_refs.get(n) and (n not in addr or not rom_word(addr[n]))
              and (n in unreached or n in forced_only)}
+    reached |= genuine & internal  # (runs newer than the frontier: their coverage.json)
     under_forced = reached - forced_only - genuine  # ran only below a forced call (in no other run's coverage.json)
     reached -= forced_only | under_forced
     data_dead = set()

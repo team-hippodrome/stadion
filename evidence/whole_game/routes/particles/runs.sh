@@ -18,3 +18,8 @@ python3 -I tools/evidence/gb_party.py "${BASE:?base save}" "$OUT/spike.sav" \
   "CLOYSTER:50,moves=131/131/131/131;OMASTAR:50,moves=131/131/131/131;CLOYSTER:50,moves=131/131/131/131;OMASTAR:50,moves=131/131/131/131;CLOYSTER:50,moves=131/131/131/131;OMASTAR:50,moves=131/131/131/131"
 r fb_spike --seed 7 --frames 30000 --rec evidence/battle_engine/routes/free_battle_gamepak.rec --gb "$GB:$OUT/spike.sav" \
   --watch BattleAnim_StartEffect62OwnerLinkedFourStream_Init,OwnerLinkedFourStream_IsComplete
+# Two players on one side (1P & 2P vs COM): the port presents only controller 1 (libultraship ControlDeck::Init sets
+# bit 0 only), so pad 2 is forced present; the team branch of func_84373018 calls
+# BattleScene_GetOpposingSelectedSideTeamSize at the first faint (and the roster screens' double-team variants run)
+r fb_team --seed 7 --frames 45000 --rec evidence/whole_game/routes/particles/free_battle_team_1p2p.rec \
+  --gb "$GB:$OUT/spike.sav" --set "Cont_InitControllers:gControllerBits:1=3"
