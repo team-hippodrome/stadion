@@ -263,6 +263,19 @@ pause at boot and at the title-to-menu change (~0.35 s): each scene decodes its 
 task waited for the next window-loop pass, which slept 1 ms; the loop now wakes when a task is queued
 (`Port::WaitForRspTasks`), and the pause is ~20 ms.
 
+### Controllers 2-4
+
+libultraship's `ControlDeck::Init` reports only controller 1 in the controller bits `osContInit` returns, so the game
+greyed out every multiplayer choice (Free Battle with 2-4 players, team battles such as 1P & 2P vs COM). The game now
+takes its bits from `Port_ControllerBits` (`os_devices.cpp`, called in `Cont_SetupControllers`): controller 1 always,
+2-4 when the launcher's Controls panel switches "Plugged in" on (`gPort.Controller<N>.PluggedIn`) or
+`PORT_CONTROLLERS=1,2` lists them. The game reads the bits once at boot, so a change applies the next time it starts.
+Recordings made with more than one controller carry a `# controllers 1 2` line; a replay uses that line and nothing
+else (no line: controller 1 alone), so old recordings and the settings never change a replay. Checked on the Free
+Battle rule screen (`free_battle_gamepak.rec`, frame 3000): unchanged by default, "1P & 2P" offered with the env
+variable or the recording line; the evidence pilot's two-player team battle (`free_battle_team_1p2p.rec`) plays
+through with pad 2 driven from the recording.
+
 ### Frame pacing: retraces follow the display
 
 At normal speed the VI retraces are timed by the display the window is on (`RetraceSchedule` in `os_devices.cpp`,
