@@ -6,6 +6,13 @@ set(PORT_VERSION "${PROJECT_VERSION}" CACHE STRING "Version of this build")
 if(NOT PORT_VERSION)
   set(PORT_VERSION "${PROJECT_VERSION}")
 endif()
+# Builds for other people (tools/release.sh): "<old>=<new>;..." prefixes rewritten in the paths the compiler puts into
+# the binaries (__FILE__, debug info), so local paths stay out. Compile options of this directory reach every target
+# below it, including fetched dependencies that set CMAKE_CXX_FLAGS themselves (prism).
+set(PORT_PATH_MAP "" CACHE STRING "Path prefixes to rewrite in the binaries: <old>=<new>;...")
+foreach(_map IN LISTS PORT_PATH_MAP)
+  add_compile_options("-ffile-prefix-map=${_map}")
+endforeach()
 
 if(APPLE)
   enable_language(OBJCXX)

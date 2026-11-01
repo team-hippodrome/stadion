@@ -114,6 +114,13 @@ The version (Windows file version, AppImage, `Info.plist`) is the `project()` ve
 `.github/workflows/release.yml` builds them with the version it is given, tags the commit `v<version>` and `latest`,
 and publishes a GitHub release. Both run by hand from the Actions tab.
 
+`tools/release.sh <version>` makes the same release on a Mac, plus the Android APK, without GitHub Actions. It builds a
+clean checkout of `origin/main` (or `--ref`), never the working tree. macOS and Android build on the Mac. Windows (x64,
+arm64) and Linux build in two OrbStack machines that see the Mac's `/Users`: their tool setup is described at the top
+of the script. The files land in `../releases/v<version>/dist` with a `SHA256SUMS`. `--publish` then tags the commit,
+moves `latest` and creates the GitHub release, after asking. `--only macos,windows-x64` builds some of them, and
+`tools/release.sh --help` lists the rest.
+
 Start `pokestadium` (`pokestadium.exe` on Windows) without arguments to get the launcher (all platforms): pick the
 Stadium ROM and save and, per player, a Game Boy cartridge and save for the Transfer Pak, then PLAY. The choices are
 remembered (`pokestadium.cfg.json`); Auto-play skips the launcher next time (hold Shift while starting to see it again),
