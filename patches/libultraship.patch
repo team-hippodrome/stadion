@@ -1019,6 +1019,60 @@ index 3019a6ce..ed1997f7 100644
  
  #define NUM_SEGMENTS (16)
  #define SEGMENT_OFFSET(a) ((u32)(a)&0x00FFFFFF)
+diff --git a/include/ship/resource/ResourceManager.h b/include/ship/resource/ResourceManager.h
+index 62ccbdea..e63c7ae1 100644
+--- a/include/ship/resource/ResourceManager.h
++++ b/include/ship/resource/ResourceManager.h
+@@ -69,6 +69,11 @@ class ResourceManager : public Component {
+ 
+     /** @brief Returns the ArchiveManager that manages the mounted archives. */
+     std::shared_ptr<ArchiveManager> GetArchiveManager();
++    /**
++     * @brief PORT: an archive (a ZIP image) built into the executable, mounted by Init before the archives found on
++     * disk. Call before Init; the memory must outlive the ResourceManager.
++     */
++    void SetBuiltInArchive(const std::string& name, const void* data, size_t size);
+     /** @brief Returns the ResourceLoader responsible for deserializing file data. */
+     std::shared_ptr<ResourceLoader> GetResourceLoader();
+ 
+@@ -449,6 +454,9 @@ class ResourceManager : public Component {
+     std::shared_ptr<Archive> mDefaultCacheArchive = nullptr;
+     std::shared_ptr<ThreadPool> mThreadPool;
+     std::shared_ptr<Keystore> mKeystore;
++    std::string mBuiltInArchiveName; // PORT: SetBuiltInArchive
++    const void* mBuiltInArchiveData = nullptr;
++    size_t mBuiltInArchiveSize = 0;
+ 
+     std::shared_ptr<ThreadPool> GetThreadPool();
+ };
+diff --git a/include/ship/resource/archive/O2rArchive.h b/include/ship/resource/archive/O2rArchive.h
+index 563dc1aa..0ffb29f9 100644
+--- a/include/ship/resource/archive/O2rArchive.h
++++ b/include/ship/resource/archive/O2rArchive.h
+@@ -35,6 +35,12 @@ class O2rArchive final : virtual public Archive {
+      */
+     O2rArchive(const std::string& archivePath, std::shared_ptr<ResourceManager> resourceManager = nullptr,
+                std::shared_ptr<Keystore> keystore = nullptr);
++    /**
++     * @brief PORT: constructs a read-only O2rArchive over a ZIP image in memory (an archive built into the
++     * executable). The memory must stay valid for the archive's lifetime; @p name only labels it.
++     */
++    O2rArchive(const std::string& name, const void* data, size_t size,
++               std::shared_ptr<ResourceManager> resourceManager = nullptr, std::shared_ptr<Keystore> keystore = nullptr);
+     ~O2rArchive();
+ 
+     /**
+@@ -76,6 +82,10 @@ class O2rArchive final : virtual public Archive {
+     zip_t* GetZipHandle();
+     /** @brief Returns a zip_t* handle back to the pool for reuse. */
+     void ReleaseZipHandle(zip_t* handle);
++    /** @brief PORT: opens the file, or the image in memory (read-only). */
++    zip_t* OpenZip(int flags);
++    const void* mMemoryData = nullptr;
++    size_t mMemorySize = 0;
+     zip_t* mZipArchive;
+     std::mutex mPoolMutex;
+     std::vector<zip_t*> mZipArchivePool;
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index cfab4bec..11c73dab 100644
 --- a/src/CMakeLists.txt
@@ -8595,6 +8649,96 @@ index 63d5b071..a83bce7a 100644
  #include <errhandlingapi.h>
  #include <inttypes.h>
  #include <excpt.h>
+diff --git a/src/ship/resource/ResourceManager.cpp b/src/ship/resource/ResourceManager.cpp
+index 4630654f..f95997eb 100644
+--- a/src/ship/resource/ResourceManager.cpp
++++ b/src/ship/resource/ResourceManager.cpp
+@@ -3,6 +3,7 @@
+ #include <nlohmann/json.hpp>
+ #include "ship/resource/File.h"
+ #include "ship/resource/archive/Archive.h"
++#include "ship/resource/archive/O2rArchive.h"
+ #include <algorithm>
+ #include <thread>
+ #include <stdexcept>
+@@ -32,6 +33,13 @@ void ResourceManager::OnInit(const nlohmann::json& initArgs) {
+         std::make_shared<ResourceLoader>(std::dynamic_pointer_cast<ResourceManager>(GetSharedComponent()));
+     mArchiveManager =
+         std::make_shared<ArchiveManager>(std::dynamic_pointer_cast<ResourceManager>(GetSharedComponent()), mKeystore);
++    if (mBuiltInArchiveData != nullptr) { // PORT: first, so archives on disk come after it
++        auto builtIn = std::make_shared<O2rArchive>(mBuiltInArchiveName, mBuiltInArchiveData, mBuiltInArchiveSize,
++                                                    std::dynamic_pointer_cast<ResourceManager>(GetSharedComponent()),
++                                                    mKeystore);
++        builtIn->Load();
++        mArchiveManager->AddArchive(builtIn);
++    }
+     GetArchiveManager()->Init(archivePaths, validHashes);
+ 
+     if (!mArchiveManager->IsInitialized()) {
+@@ -44,6 +52,12 @@ void ResourceManager::OnInit(const nlohmann::json& initArgs) {
+     }
+ }
+ 
++void ResourceManager::SetBuiltInArchive(const std::string& name, const void* data, size_t size) {
++    mBuiltInArchiveName = name;
++    mBuiltInArchiveData = data;
++    mBuiltInArchiveSize = size;
++}
++
+ ResourceManager::~ResourceManager() {
+     // Guard against logging after the Logger component (and spdlog) has shut down
+     // during Context teardown.
+diff --git a/src/ship/resource/archive/O2rArchive.cpp b/src/ship/resource/archive/O2rArchive.cpp
+index 989968fb..7d5b76ca 100644
+--- a/src/ship/resource/archive/O2rArchive.cpp
++++ b/src/ship/resource/archive/O2rArchive.cpp
+@@ -11,6 +11,28 @@ O2rArchive::O2rArchive(const std::string& archivePath, std::shared_ptr<ResourceM
+     mZipArchive = nullptr;
+ }
+ 
++O2rArchive::O2rArchive(const std::string& name, const void* data, size_t size,
++                       std::shared_ptr<ResourceManager> resourceManager, std::shared_ptr<Keystore> keystore)
++    : Archive(name, std::move(resourceManager), std::move(keystore)), mMemoryData(data), mMemorySize(size) {
++    mZipArchive = nullptr;
++}
++
++// PORT: every handle of a memory archive reads the same image (a zip source that does not own the data)
++zip_t* O2rArchive::OpenZip(int flags) {
++    if (mMemoryData == nullptr) {
++        return zip_open(GetPath().c_str(), flags, nullptr);
++    }
++    zip_error_t error;
++    zip_error_init(&error);
++    zip_source_t* source = zip_source_buffer_create(mMemoryData, mMemorySize, 0, &error);
++    zip_t* zip = source != nullptr ? zip_open_from_source(source, ZIP_RDONLY, &error) : nullptr;
++    if (zip == nullptr && source != nullptr) {
++        zip_source_free(source);
++    }
++    zip_error_fini(&error);
++    return zip;
++}
++
+ O2rArchive::~O2rArchive() {
+     SPDLOG_TRACE("destruct o2rarchive: {}", GetPath());
+     Close();
+@@ -23,7 +45,7 @@ zip_t* O2rArchive::GetZipHandle() {
+         mZipArchivePool.pop_back();
+         return handle;
+     }
+-    return zip_open(GetPath().c_str(), ZIP_RDONLY, nullptr);
++    return OpenZip(ZIP_RDONLY);
+ }
+ 
+ void O2rArchive::ReleaseZipHandle(zip_t* handle) {
+@@ -95,7 +117,7 @@ std::shared_ptr<File> O2rArchive::LoadFile(const std::string& filePath) {
+ }
+ 
+ bool O2rArchive::Open() {
+-    mZipArchive = zip_open(GetPath().c_str(), ZIP_CREATE, nullptr);
++    mZipArchive = OpenZip(ZIP_CREATE);
+     if (mZipArchive == nullptr) {
+         SPDLOG_ERROR("Failed to load zip file \"{}\"", GetPath());
+         return false;
 diff --git a/src/ship/utils/StringHelper.cpp b/src/ship/utils/StringHelper.cpp
 index 977f2340..7e7ceb5d 100644
 --- a/src/ship/utils/StringHelper.cpp

@@ -3,8 +3,7 @@
 
 Usage: tools/make_appimage.py <build dir> <output .AppImage> [version] [appimagetool]
 
-- usr/bin/pokestadium and usr/bin/pokestadium.o2r: the archive is found next to the executable (libultraship's
-  bundle path is the executable's directory); started without arguments the game shows the launcher
+- usr/bin/pokestadium (its resources are built in); started without arguments the game shows the launcher
 - AppRun sets SHIP_HOME to ${XDG_DATA_HOME:-~/.local/share}/pokestadium unless it is set already: config, logs and
   default saves go there (the AppImage itself is read-only; without SHIP_HOME libultraship uses the current directory)
 - a .desktop file and the icon from tools/launcher/assets
@@ -81,7 +80,6 @@ def main():
     for d in (bindir, apps, icons):
         os.makedirs(d)
     shutil.copy2(exe_src, os.path.join(bindir, "pokestadium"))
-    shutil.copy2(os.path.join(build, "pokestadium.o2r"), os.path.join(bindir, "pokestadium.o2r"))
     icon = os.path.join(root, "tools", "launcher", "assets", "pokestadium.png")
     shutil.copy2(icon, os.path.join(icons, "pokestadium.png"))
     shutil.copy2(icon, os.path.join(appdir, "pokestadium.png"))

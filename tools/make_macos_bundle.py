@@ -4,7 +4,6 @@
 Usage: tools/make_macos_bundle.py <build dir> <output .app> [version] [icon .png]
 
 - Contents/MacOS/pokestadium: the game; started without arguments it shows the launcher (src/port/launcher.cpp)
-- Contents/Resources/pokestadium.o2r: found there through libultraship's bundle path (NSBundle resourcePath)
 - Contents/Frameworks: the non-system dylibs (Homebrew's SDL3, GLEW, libzip, ...) and theirs, with every reference
   rewritten to @rpath, so the app runs without Homebrew
 - Info.plist: LSEnvironment sets SHIP_HOME to ~/Library/Application Support/<bundle id> (config, logs and default saves
@@ -126,7 +125,6 @@ def main():
         os.makedirs(d)
     exe = os.path.join(macos, "pokestadium")
     shutil.copy2(os.path.join(build, "pokestadium"), exe)
-    shutil.copy2(os.path.join(build, "pokestadium.o2r"), os.path.join(res, "pokestadium.o2r"))
     with open(os.path.join(app, "Contents", "Info.plist"), "w") as f:
         f.write(PLIST.format(bid=BUNDLE_ID, ver=version))
     icon = os.path.abspath(sys.argv[4]) if len(sys.argv) > 4 else os.path.join(root, "tools/macos/AppIcon.png")

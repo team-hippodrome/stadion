@@ -220,17 +220,21 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_options(pokestadium PRIVATE -fuse-ld=lld)
 endif()
 
-# Runtime resources (shaders, fonts) packed into an archive next to the executable.
-# (the shader warm-up list goes into it too: a new list rebuilds shader_warmup.cpp, so the archive is packed again)
-# and so do the shader templates: an edited template is packed again without a code change
-file(GLOB_RECURSE PORT_SHADER_TEMPLATES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*)
-set_property(SOURCE src/port/shader_warmup.cpp APPEND PROPERTY OBJECT_DEPENDS
-             ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt ${PORT_SHADER_TEMPLATES})
-if(NOT ANDROID)  # Android: the Gradle build packs it into the app's assets (android/app/build.gradle)
-add_custom_command(TARGET pokestadium POST_BUILD
-  COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py $<TARGET_FILE_DIR:pokestadium>/pokestadium.o2r
+# Runtime resources (shaders, fonts, the shader warm-up list, launcher pictures) packed into pokestadium.o2r and built
+# into the executable as a C array (tools/make_o2r.py --c): no separate file to lose or damage. The archive itself is
+# left in generated/ for inspection.
+file(GLOB_RECURSE PORT_O2R_INPUTS CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*
+     ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png
+     ${CMAKE_CURRENT_SOURCE_DIR}/ghostship-ref/port/fonts/*)
+add_custom_command(
+  OUTPUT ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c
+  COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
+          ${CMAKE_BINARY_DIR}/generated/pokestadium.o2r --c ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt
+          ${PORT_O2R_INPUTS}
   COMMENT "Packing pokestadium.o2r")
-endif()
+target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c)
 
 # Debug aid: cmake -DPORT_ASAN=ON builds the game code and the port layer with AddressSanitizer (finds the
 # out-of-bounds writes that 32-bit struct layouts turn into on 64-bit).

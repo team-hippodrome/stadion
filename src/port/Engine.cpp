@@ -155,6 +155,9 @@ static void EnsureControllerDb() {
     }
 }
 
+extern "C" const unsigned char gPortO2r[]; // generated/pokestadium_o2r.c
+extern "C" const size_t gPortO2rSize;
+
 bool Init() {
     Fast::gPortAddressResolver = Port_ResolveN64Address;
     sContext = Ship::Context::CreateInstance("Pokemon Stadium", "pokestadium");
@@ -234,58 +237,28 @@ bool Init() {
     sContext->GetChildren().Add(controlDeck);
     ControllerSetControlDeck(controlDeck);
 
-    // Placeholder archive: libultraship's GUI needs a ResourceManager with at least one archive.
-    // Game data is still read straight from the ROM at this milestone.
-#if defined(__ANDROID__)
-    // the archive ships as an app asset (android/app/build.gradle), which libzip cannot open in place: copy it to the
-    // app's files on every start (a fraction of a megabyte, and always the version that came with the app)
-    if (SDL_IOStream* in = SDL_IOFromFile("pokestadium.o2r", "rb")) {
-        std::string dst = Ship::Context::GetPathRelativeToAppDirectory("pokestadium.o2r");
-        if (SDL_IOStream* out = SDL_IOFromFile(dst.c_str(), "wb")) {
-            char chunk[65536];
-            size_t n;
-            while ((n = SDL_ReadIO(in, chunk, sizeof chunk)) > 0) {
-                SDL_WriteIO(out, chunk, n);
-            }
-            SDL_CloseIO(out);
-        }
-        SDL_CloseIO(in);
-    }
-#endif
-    std::string archivePath = "pokestadium.o2r";
+    // The port's archive (shaders, fonts, the shader warm-up list, launcher pictures; no game data, which is read from
+    // the ROM) is built into the executable (CMakeLists.txt, tools/make_o2r.py --c). It used to be a separate
+    // pokestadium.o2r next to the executable, and a damaged, unreadable or missing copy crashed the game a moment later
+    // (an uncaught exception on Windows). A pokestadium.o2r left over from an older version is not read.
     std::string archiveError;
     try {
-        archivePath = Ship::Context::LocateFileAcrossAppDirs("pokestadium.o2r"); // throws for an unreadable file
+        resourceManager->SetBuiltInArchive("pokestadium.o2r (built in)", gPortO2r, gPortO2rSize);
         nlohmann::json rmArgs;
-        rmArgs["archivePaths"] = std::vector<std::string>{ archivePath };
+        rmArgs["archivePaths"] = std::vector<std::string>{};
         rmArgs["validHashes"] = std::vector<uint32_t>{};
         resourceManager->Init(rmArgs);
+        if (!resourceManager->GetArchiveManager()->HasFile("port/shader_warmup.txt")) {
+            archiveError = "the built-in archive has no shader list";
+        }
     } catch (const std::exception& e) {
         archiveError = e.what();
     }
-    // The renderers build their shaders from the archive: without it the game crashed a moment later (an uncaught
-    // exception on Windows), with only the log telling why. A missing file opens as an empty archive (libzip's
-    // ZIP_CREATE), so the shaders are checked for too.
-    if (archiveError.empty() && (resourceManager->GetArchiveManager() == nullptr ||
-                                 !resourceManager->GetArchiveManager()->HasFile("port/shader_warmup.txt"))) {
-        archiveError = "the file is missing, empty or not this port's archive";
-    }
-    if (!archiveError.empty()) {
-        char message[2048];
-        snprintf(message, sizeof message,
-                 "pokestadium.o2r could not be loaded:\n%s\n(%s)\n\nIt comes with the game: copy it from the release "
-                 "download again, next to pokestadium%s. The download may have been incomplete, or the file was "
-                 "replaced or blocked.",
-                 archivePath.c_str(), archiveError.c_str(),
-#if defined(_WIN32)
-                 ".exe"
-#else
-                 ""
-#endif
-        );
+    if (!archiveError.empty()) { // a broken build: the renderers would fail on the missing shaders
+        std::string message = "The game's built-in resources could not be loaded (" + archiveError + ").";
         SPDLOG_CRITICAL("{}", message);
-        fprintf(stderr, "%s\n", message);
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pokémon Stadium: game files damaged", message, nullptr);
+        fprintf(stderr, "%s\n", message.c_str());
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pokémon Stadium", message.c_str(), nullptr);
         return false;
     }
 
