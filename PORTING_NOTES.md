@@ -471,9 +471,10 @@ harmless ones (`Geo_NodeReference`, `main_pool_set_func`, 64DD code in rsp.c).
   multisample buffer; OpenGL's multisample renderbuffers still start cleared and Vulkan only fills the single-sample
   image (MSAA not tested on any backend).
   Checked with `PORT_DEBUG_RESIZE` (now a list, `f:WxH,f:WxH,...`) on `tour_fb.rec` at 3000 -> 1100x700, 800x600,
-  500x700 and a 20-step drag on Metal, OpenGL and Vulkan (MoltenVK, `-DLUS_ENABLE_VULKAN=ON`): the background stays
-  (slightly softer after the drag, from the repeated bilinear scaling). DX11 compiles (llvm-mingw x64) but is not run
-  yet. `PORT_NO_RESIZE_KEEP=1`: the old behaviour.
+  500x700 and a 20-step drag on Metal, OpenGL and Vulkan (MoltenVK, `-DLUS_ENABLE_VULKAN=ON`), and 1100x700 on DX11
+  (llvm-mingw x64 build under Wine): the background stays (slightly softer after the drag, from the repeated bilinear
+  scaling); with `PORT_NO_RESIZE_KEEP=1` (the old behaviour) every backend went black. `PORT_DEBUG_RESIZE` resizes
+  through the window backend (`SetCurrentDimensions`): DX11's window is a Win32 one, not SDL's.
 - Copy mode with alpha compare skips texels whose alpha bit is 0 (`use_alpha` forced for that case; the shader only
   discarded with alpha blending): fixed the white boxes behind the order screen's icons and pointer.
 - Geo callbacks reached through fragment 31's jump table: all 60 targets are followed now. Their callback data from
