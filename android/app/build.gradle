@@ -20,6 +20,11 @@ android {
         externalNativeBuild {
             cmake {
                 arguments "-DANDROID_STL=c++_static", "-DPORT_VERSION=${versionName}"
+                // -PportPathMap=<old>=<new>;...: path prefixes rewritten in the binary (CMake PORT_PATH_MAP; tools/release.sh)
+                def portPathMap = project.findProperty("portPathMap")
+                if (portPathMap) {
+                    arguments "-DPORT_PATH_MAP=${portPathMap}"
+                }
                 abiFilters "arm64-v8a"  // the game's code is 64-bit only
             }
         }
