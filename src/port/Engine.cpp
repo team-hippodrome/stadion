@@ -252,13 +252,41 @@ bool Init() {
         SDL_CloseIO(in);
     }
 #endif
+    std::string archivePath = "pokestadium.o2r";
+    std::string archiveError;
     try {
+        archivePath = Ship::Context::LocateFileAcrossAppDirs("pokestadium.o2r"); // throws for an unreadable file
         nlohmann::json rmArgs;
-        rmArgs["archivePaths"] = std::vector<std::string>{ Ship::Context::LocateFileAcrossAppDirs("pokestadium.o2r") };
+        rmArgs["archivePaths"] = std::vector<std::string>{ archivePath };
         rmArgs["validHashes"] = std::vector<uint32_t>{};
         resourceManager->Init(rmArgs);
     } catch (const std::exception& e) {
-        SPDLOG_WARN("ResourceManager init deferred: {}", e.what());
+        archiveError = e.what();
+    }
+    // The renderers build their shaders from the archive: without it the game crashed a moment later (an uncaught
+    // exception on Windows), with only the log telling why. A missing file opens as an empty archive (libzip's
+    // ZIP_CREATE), so the shaders are checked for too.
+    if (archiveError.empty() && (resourceManager->GetArchiveManager() == nullptr ||
+                                 !resourceManager->GetArchiveManager()->HasFile("port/shader_warmup.txt"))) {
+        archiveError = "the file is missing, empty or not this port's archive";
+    }
+    if (!archiveError.empty()) {
+        char message[2048];
+        snprintf(message, sizeof message,
+                 "pokestadium.o2r could not be loaded:\n%s\n(%s)\n\nIt comes with the game: copy it from the release "
+                 "download again, next to pokestadium%s. The download may have been incomplete, or the file was "
+                 "replaced or blocked.",
+                 archivePath.c_str(), archiveError.c_str(),
+#if defined(_WIN32)
+                 ".exe"
+#else
+                 ""
+#endif
+        );
+        SPDLOG_CRITICAL("{}", message);
+        fprintf(stderr, "%s\n", message);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pokémon Stadium: game files damaged", message, nullptr);
+        return false;
     }
 
     auto console = std::make_shared<Ship::Console>();
