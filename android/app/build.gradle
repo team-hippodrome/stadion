@@ -42,8 +42,6 @@ android {
         }
     }
 
-    sourceSets.main.assets.srcDirs += layout.buildDirectory.dir("generated/o2r")
-
     packaging {
         // libmain.so carries debug info for crash stacks (tools/symbolize.sh); keep it out of the stripped copy check
         jniLibs.keepDebugSymbols += ["**/libmain.so"]
@@ -54,11 +52,3 @@ android {
     }
 }
 
-// the game's resources (shaders, fonts, shader warm-up list) as an asset; main.cpp copies it to the app's files
-def packO2r = tasks.register("packO2r", Exec) {
-    def out = layout.buildDirectory.file("generated/o2r/pokestadium.o2r")
-    outputs.file(out)
-    outputs.upToDateWhen { false } // packing takes a fraction of a second
-    commandLine "python3", "-I", "${repo}/tools/make_o2r.py", out.get().asFile.path
-}
-tasks.named("preBuild") { dependsOn packO2r }

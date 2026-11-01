@@ -155,6 +155,9 @@ static void EnsureControllerDb() {
     }
 }
 
+extern "C" const unsigned char gPortO2r[]; // generated/pokestadium_o2r.c
+extern "C" const size_t gPortO2rSize;
+
 bool Init() {
     Fast::gPortAddressResolver = Port_ResolveN64Address;
     sContext = Ship::Context::CreateInstance("Pokemon Stadium", "pokestadium");
@@ -234,31 +237,29 @@ bool Init() {
     sContext->GetChildren().Add(controlDeck);
     ControllerSetControlDeck(controlDeck);
 
-    // Placeholder archive: libultraship's GUI needs a ResourceManager with at least one archive.
-    // Game data is still read straight from the ROM at this milestone.
-#if defined(__ANDROID__)
-    // the archive ships as an app asset (android/app/build.gradle), which libzip cannot open in place: copy it to the
-    // app's files on every start (a fraction of a megabyte, and always the version that came with the app)
-    if (SDL_IOStream* in = SDL_IOFromFile("pokestadium.o2r", "rb")) {
-        std::string dst = Ship::Context::GetPathRelativeToAppDirectory("pokestadium.o2r");
-        if (SDL_IOStream* out = SDL_IOFromFile(dst.c_str(), "wb")) {
-            char chunk[65536];
-            size_t n;
-            while ((n = SDL_ReadIO(in, chunk, sizeof chunk)) > 0) {
-                SDL_WriteIO(out, chunk, n);
-            }
-            SDL_CloseIO(out);
-        }
-        SDL_CloseIO(in);
-    }
-#endif
+    // The port's archive (shaders, fonts, the shader warm-up list, launcher pictures; no game data, which is read from
+    // the ROM) is built into the executable (CMakeLists.txt, tools/make_o2r.py --c). It used to be a separate
+    // pokestadium.o2r next to the executable, and a damaged, unreadable or missing copy crashed the game a moment later
+    // (an uncaught exception on Windows). A pokestadium.o2r left over from an older version is not read.
+    std::string archiveError;
     try {
+        resourceManager->SetBuiltInArchive("pokestadium.o2r (built in)", gPortO2r, gPortO2rSize);
         nlohmann::json rmArgs;
-        rmArgs["archivePaths"] = std::vector<std::string>{ Ship::Context::LocateFileAcrossAppDirs("pokestadium.o2r") };
+        rmArgs["archivePaths"] = std::vector<std::string>{};
         rmArgs["validHashes"] = std::vector<uint32_t>{};
         resourceManager->Init(rmArgs);
+        if (!resourceManager->GetArchiveManager()->HasFile("port/shader_warmup.txt")) {
+            archiveError = "the built-in archive has no shader list";
+        }
     } catch (const std::exception& e) {
-        SPDLOG_WARN("ResourceManager init deferred: {}", e.what());
+        archiveError = e.what();
+    }
+    if (!archiveError.empty()) { // a broken build: the renderers would fail on the missing shaders
+        std::string message = "The game's built-in resources could not be loaded (" + archiveError + ").";
+        SPDLOG_CRITICAL("{}", message);
+        fprintf(stderr, "%s\n", message.c_str());
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pokémon Stadium", message.c_str(), nullptr);
+        return false;
     }
 
     auto console = std::make_shared<Ship::Console>();

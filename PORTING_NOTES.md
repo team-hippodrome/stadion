@@ -9,10 +9,14 @@
 ## Build / run
     cmake -S . -B build -GNinja -DCMAKE_BUILD_TYPE=Release
     cmake --build build --target pokestadium
-    cd build && ./pokestadium      # needs build/pokestadium.o2r (placeholder zip, see below)
+    cd build && ./pokestadium
 
-`build/pokestadium.o2r` is a placeholder zip containing one file (`portVersion`); libultraship's GUI
-refuses to start without at least one archive. Recreate it with python's zipfile if `build/` is wiped.
+The port's resources (shaders, fonts, the shader warm-up list, launcher pictures; `tools/make_o2r.py`) are packed into
+`pokestadium.o2r` and built into the executable as a C array (`generated/pokestadium_o2r.c`), mounted through
+`ResourceManager::SetBuiltInArchive` and an in-memory `O2rArchive` (patches/libultraship.patch). It used to be a
+separate file next to the executable; a damaged, unreadable or missing copy (a user's Windows install in a Steam folder)
+left libultraship without an archive and the renderer crashed a moment later on the shaders it reads from it (an
+uncaught C++ exception, 0x20474343). A `pokestadium.o2r` left from an older version is not read.
 
 ## Milestone 0 (done): window + Fast3D
 `main.cpp` builds a fill-rectangle display list and submits it every frame. Verified: process stays alive
