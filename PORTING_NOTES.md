@@ -459,6 +459,22 @@ harmless ones (`Geo_NodeReference`, `main_pool_set_func`, 64DD code in rsp.c).
   full-screen fill rectangle) and the amount of drawing changed from the frame before (`TrackSegmentsOnly`); steady
   animation is still skipped. PORT_SKIP_INCREMENTAL=1 skips them anyway; PORT_TRACE_FILL=1 logs the decision. Cost:
   menu route 7.4 s -> 9.7 s.
+- Window resize on such a screen (user report: Free Battle's rule screen went black): a size change recreates every
+  game framebuffer's colour texture, and its first pass cleared it to black (`sFreshColorFbs`), so the background
+  drawn in the screen's first frames was gone until the next screen. Every backend now puts the old picture into the
+  new texture, scaled uniformly so the 4:3 picture keeps its place (the rectangle: fast/backends/resize_keep.h);
+  margins the old texture did not cover stay black. Metal and DX11 draw a quad sampling the old texture
+  (`DrawOldPictureScaled`; DX11 saves and restores the context state it changes); OpenGL copies the old picture aside
+  and blits it back scaled once the depth renderbuffer has its new size too (a framebuffer draws only where all its
+  attachments reach: blitting earlier stopped at the old size), with the scissor test off meanwhile; Vulkan keeps the
+  old image until `vkCmdBlitImage` has scaled it into the new one. With MSAA on, Metal and DX11 draw into the
+  multisample buffer; OpenGL's multisample renderbuffers still start cleared and Vulkan only fills the single-sample
+  image (MSAA not tested on any backend).
+  Checked with `PORT_DEBUG_RESIZE` (now a list, `f:WxH,f:WxH,...`) on `tour_fb.rec` at 3000 -> 1100x700, 800x600,
+  500x700 and a 20-step drag on Metal, OpenGL and Vulkan (MoltenVK, `-DLUS_ENABLE_VULKAN=ON`), and 1100x700 on DX11
+  (llvm-mingw x64 build under Wine): the background stays (slightly softer after the drag, from the repeated bilinear
+  scaling); with `PORT_NO_RESIZE_KEEP=1` (the old behaviour) every backend went black. `PORT_DEBUG_RESIZE` resizes
+  through the window backend (`SetCurrentDimensions`): DX11's window is a Win32 one, not SDL's.
 - Copy mode with alpha compare skips texels whose alpha bit is 0 (`use_alpha` forced for that case; the shader only
   discarded with alpha blending): fixed the white boxes behind the order screen's icons and pointer.
 - Geo callbacks reached through fragment 31's jump table: all 60 targets are followed now. Their callback data from

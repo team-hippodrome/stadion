@@ -576,17 +576,14 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         return false;
     }
     sWindow->HandleEvents();
-    { // PORT debug: PORT_DEBUG_RESIZE=<frame>:<w>x<h> resizes the window once at that VI frame
+    { // PORT debug: PORT_DEBUG_RESIZE=<frame>:<w>x<h>[,<frame>:<w>x<h>...] resizes the window at those VI frames
         static const char* rs = getenv("PORT_DEBUG_RESIZE");
-        static bool done = false;
         unsigned long long f = 0;
-        int w = 0, h = 0;
-        if (rs && !done && sscanf(rs, "%llu:%dx%d", &f, &w, &h) == 3 && Port_ViTick() >= f) {
-            done = true;
-            int n = 0;
-            SDL_Window** wins = SDL_GetWindows(&n);
-            if (wins && n > 0) SDL_SetWindowSize(wins[0], w, h);
-            SDL_free(wins);
+        int w = 0, h = 0, used = 0;
+        if (rs && sscanf(rs, "%llu:%dx%d%n", &f, &w, &h, &used) == 3 && Port_ViTick() >= f) {
+            rs += used;
+            if (*rs == ',') rs++;
+            sWindow->SetCurrentDimensions((uint32_t)w, (uint32_t)h); // the window backend's own window (SDL, Win32)
             fprintf(stderr, "[resize] window -> %dx%d at frame %llu\n", w, h, (unsigned long long)Port_ViTick());
         }
         // PORT debug: PORT_QUIT_AT=<frame> sends the quit event a window close sends, at that VI frame
