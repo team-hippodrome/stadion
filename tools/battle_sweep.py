@@ -300,7 +300,11 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
             c["uses"].append({"move": mid, "path": path, "why": why, "user": user, "user_why": user_why})
             c["turns"] += turns
     for gp, mid, why in GENERIC:
-        if (only_move and mid != only_move) or (only_path and gp != only_path):
+        move_id = 0xA5 if gp == "struggle" else mid
+        # Struggle has no ordinary move-slot setup; its zero-PP case is its base
+        # path and must be included when the default sweep checks every move.
+        if (only_move and move_id != only_move) or (only_path and gp != only_path and
+                                                not (gp == "struggle" and only_path == "base")):
             continue
         usr = {"species": 113, "hp": 300, "status": {"user_paralyzed": 0x40, "user_asleep": 3, "user_frozen": 0x20,
                                                       "struggle": 0}[gp]}
