@@ -1143,6 +1143,10 @@ class LauncherWindow : public Ship::GuiWindow {
                 s.renderer = it == ids.end() || it + 1 == ids.end() ? ids.front() : *(it + 1);
                 mChanged = true;
             }
+            if (pending) {
+                Text(x + 616, y + 43, mRendererFailed == s.renderer ? "Unavailable" : "Restart required",
+                     gFonts.small, Theme::dim);
+            }
             if (ImGui::IsItemHovered()) {
                 std::string tip = "The graphics API the game draws with. A change applies the next time the game starts.";
                 if (mRendererFailed != 0 && s.renderer == mRendererFailed) {
