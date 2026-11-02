@@ -159,6 +159,8 @@ jobs:
             -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg }} \
             -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$PWD/cmake/toolchain-mingw-clang.cmake" -DPORT_VERSION="$VERSION"
           cmake --build build
+      - name: Audit build paths
+        run: python3 -I tools/check_build_paths.py build/pokestadium.exe
       - uses: actions/upload-artifact@v4
         with:
           name: pokestadium-windows-${{ matrix.arch }}

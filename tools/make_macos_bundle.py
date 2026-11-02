@@ -137,6 +137,7 @@ def main():
     if left:
         print("still outside the bundle:", ", ".join(sorted(set(left))))
         sys.exit(1)
+    subprocess.run([sys.executable, "-I", os.path.join(root, "tools", "check_build_paths.py"), app], check=True)
     print("wrote", app)
 
 
