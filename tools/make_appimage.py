@@ -92,6 +92,8 @@ def main():
         f.write(APPRUN)
     os.chmod(apprun, 0o755)
 
+    subprocess.run([sys.executable, "-I", os.path.join(root, "tools", "check_build_paths.py"), appdir], check=True)
+
     env = dict(os.environ, ARCH=elf_arch(exe_src), VERSION=version,
                APPIMAGE_EXTRACT_AND_RUN="1")  # appimagetool is an AppImage itself; containers have no FUSE
     if os.path.exists(out):

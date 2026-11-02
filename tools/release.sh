@@ -155,6 +155,7 @@ build_linux() {
             -DPORT_VERSION=$VERSION -DPORT_PATH_MAP=\"$VM_MAP\"
         nice -n 15 cmake --build \"\$B\" -j $JOBS
         strip --strip-debug \"\$B/pokestadium\"
+        python3 -I '$ROOT/tools/check_build_paths.py' \"\$B/pokestadium\"
         python3 -I '$SRC/tools/make_appimage.py' \"\$B\" \"\$B/pokestadium-linux-x86_64.AppImage\" $VERSION \$HOME/rel/appimagetool
         cp \"\$B/pokestadium-linux-x86_64.AppImage\" '$DIST/pokestadium-linux-x86_64-v$VERSION.AppImage'
         [ $KEEP = 1 ] || rm -rf \"\$B\"
@@ -221,6 +222,12 @@ if [ $KEEP = 0 ]; then
     rm -rf "$REL/build-macos"
     git -C "$MAIN" worktree remove --force "$SRC"
 fi
+# Check the packaged ZIP/APK contents too; AppImages are audited before compression by make_appimage.py.
+AUDIT=()
+for f in "${FILES[@]}"; do
+    case "$f" in *.AppImage) ;; *) AUDIT+=("$DIST/$f") ;; esac
+done
+if [ ${#AUDIT[@]} -gt 0 ]; then python3 -I "$ROOT/tools/check_build_paths.py" "${AUDIT[@]}"; fi
 (cd "$DIST" && shasum -a 256 "${FILES[@]}" > SHA256SUMS)
 say "files in $DIST:"
 (cd "$DIST" && ls -l "${FILES[@]}" SHA256SUMS) | sed 's/^/   /'
