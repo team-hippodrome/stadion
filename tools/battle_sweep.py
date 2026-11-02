@@ -269,9 +269,14 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
                 tgt["status"] = 7 if e == 0x20 else STATUS_ON_TARGET[e][1]  # asleep for the whole case
             if path == "target_asleep":
                 tgt["status"] = 3
+            if path == "base" and e == 0x08:
+                tgt["status"] = 3  # Dream Eater needs a sleeping target to play its animation.
             if path in ("invulnerable", "mirrors_tackle", "after_tackle"):
                 tgt["moves"] = [TACKLE]
                 tgt["spd"] = 300 if path != "invulnerable" else 20
+            if path == "base" and e == 0x09:
+                tgt["moves"] = [TACKLE]
+                tgt["spd"] = 300
             if e == 0x1A:  # Bide needs damage to store
                 tgt["moves"] = [TACKLE]
             if path == "target_faster":
@@ -286,6 +291,8 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
                 turns = max(turns, 1)
             if path.startswith("calls_"):
                 rules["Battle_Random@Battle_Effect_Metronome"] = [int(path[6:])]
+            if path == "base" and e == 0x53:
+                rules["Battle_Random@Battle_Effect_Metronome"] = [0x55]
             if e == 0x1B:
                 rules["Battle_Random@Battle_Effect_Thrash"] = [0]
             if e == 0x2A:
@@ -299,6 +306,15 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
                 c = open_group[key] = {"path": path, "target": tgt, "user": usr, "rules": rules, "uses": [], "turns": 0}
                 groups["%s#%d" % (key, len(groups))] = c
             c["uses"].append({"move": mid, "path": path, "why": why, "user": user, "user_why": user_why})
+            if path == "base" and e in (0x1A, 0x08, 0x09, 0x53):
+                c["uses"][-1]["require_animation"] = True
+            if e == 0x09 and path in ("base", "mirrors_tackle"):
+                c["uses"][-1]["animation_move"] = TACKLE
+            if e == 0x53 and path == "base":
+                c["uses"][-1]["animation_move"] = 0x55
+            if e == 0x1A:
+                # The automatic move picker must keep Bide selected while energy is stored and released.
+                c["pp"] = turns
             c["turns"] += turns
     for gp, mid, why in GENERIC:
         move_id = 0xA5 if gp == "struggle" else mid
@@ -334,7 +350,9 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
         # the user of the case: the first use's learner (animations follow the user's model)
         c["user"]["species"] = u[0]["user"]
         spec = json.dumps({k: c[k] for k in ("path", "target", "user", "rules", "turns")} |
-                          {"moves": [x["move"] for x in u]}, sort_keys=True)
+                          {"moves": [x["move"] for x in u]} | ({"pp": c["pp"]} if "pp" in c else {}) |
+                          ({"animation_moves": [x.get("animation_move", x["move"]) for x in u]}
+                           if any("animation_move" in x for x in u) else {}), sort_keys=True)
         c["id"] = "%s_%s_%s" % ("-".join("%03d" % x["move"] for x in u), c["path"],
                                 hashlib.sha1(spec.encode()).hexdigest()[:8])
         c["spec"] = spec
@@ -345,7 +363,7 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
 def case_file(c, species):
     us, ts = species[c["user"]["species"]], species[c["target"]["species"]]
     mv = [x["move"] for x in c["uses"]] + [0] * (4 - len(c["uses"]))
-    pp = [0 if c.get("pp0") else (1 if m else 0) for m in mv]
+    pp = [0 if c.get("pp0") else (c.get("pp", 1) if m else 0) for m in mv]
     lines = ["# %s" % c["id"]]
     lines.append("mon 0 * species=%d type1=%d type2=%d m1=%d m2=%d m3=%d m4=%d p1=%d p2=%d p3=%d p4=%d hp=%d maxhp=300 "
                  "level=50 status=%d atk=150 def=150 spd=150 spc=150" % (
@@ -707,7 +725,9 @@ def evaluate(c, d):
         aa = next((a for a in actions["ares"] if a["side"] == 0 and a["move"] == u["move"]), None)
         r["msgs_ares"] = aa["msgs"] if aa else ""
         # its animation on each side (Metronome: the called move's)
-        target_move = int(u["path"][6:]) if u["path"].startswith("calls_") else u["move"]
+        target_move = int(u["path"][6:]) if u["path"].startswith("calls_") else u.get("animation_move", u["move"])
+        if target_move != u["move"]:
+            r["animation_move"] = target_move
         got = {}
         for s in ("port", "ares"):
             a = next((x for x in anims[s] if x["side"] == 0 and x["move"] == target_move and x["k"] not in taken[s]), None)
