@@ -641,10 +641,13 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
     return true;
 }
 
+extern "C" void Port_ProcessControllerInitRequests(void);
+
 bool PumpFrame() {
     if (!WindowIsRunning()) {
         return false;
     }
+    Port_ProcessControllerInitRequests();
     sWindow->HandleEvents();
     { // the display the window is on sets the pacing (os_devices.cpp, LockstepClock)
         int n = 0;
@@ -656,8 +659,8 @@ bool PumpFrame() {
     // Poll the controllers here, on the window thread.
     if (auto deck = ControllerGetControlDeck()) {
         OSContPad pads[MAXCONTROLLERS] = {};
-        // the deck is set up by the game's osContInit (game thread); polling before that throws (no wheel handler
-        // yet). On macOS the game usually got there first; on Linux the window thread does.
+        // The game may not have requested controller initialization yet; polling an uninitialized deck throws
+        // because its wheel handler has not been installed.
         try {
             deck->WriteToPad(pads);
         } catch (const std::runtime_error&) {

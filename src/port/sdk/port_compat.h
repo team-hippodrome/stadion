@@ -185,6 +185,10 @@ u32 port_osGetCount(void);
 #define osGetTime port_osGetTime
 #define osGetCount port_osGetCount
 
+// Controller setup touches SDL and the mapping CVars; serialize it with polling on the window thread.
+s32 port_osContInit(OSMesgQueue* mq, u8* bits, OSContStatus* status);
+#define osContInit port_osContInit
+
 // libultraship's controller read posts its completion with its own non-blocking queue code, which does not wake a
 // game thread blocked in osRecvMesg; the wrapper posts then wakes.
 s32 port_osContStartReadData(OSMesgQueue* mq);
