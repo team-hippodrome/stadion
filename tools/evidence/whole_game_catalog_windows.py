@@ -131,6 +131,14 @@ def recipes(fixtures, output=None, backend='opengl'):
                               ('boxes_ck_moves_save', 'gbv/boxes_full.sav', 'labfull'), ('boxes_sides', 'gbv/boxes_full.sav', 'labfull'),
                               ('poke_reorder_release', 'gbv/boxes_full.sav', 'labfull'), ('prize_pokemon', 'gbv/items.sav', 'prize')]:
         add('lab_pc2', stem, save=save, flash=flash)
+        cases[-1]['expect'] = list({
+            'items_gp_new_box': ('LabItem_RunBoxScreenModal', 'LabItem_WriteDeckBack'),
+            'items_gp_merge': ('LabItem_CombineStackQuantities', 'LabItem_WriteDeckBack'),
+            'boxes_ck_moves_save': ('LabPC_SaveModifiedBoxes', 'LabPC_WriteBoxEntries', 'LabPC_MarkBoxSeen'),
+            'boxes_sides': ('LabPC_BoxPairSelector_SwapSides', 'LabPC_BoxMenu_ClearButtonHighlights'),
+            'poke_reorder_release': ('LabPC_SwapMonsInBox', 'LabPC_RemoveMonFromBox'),
+            'prize_pokemon': ('LabPC_PrizePokemonThread', 'LabPC_FindDirtyDeck'),
+        }[stem])
     for stem, frames, save, save2, expect in [
         ('trade_evolution', 16600, 'evo1.sav', 'evo2.sav', ('Trade_ApplyEvolution',)),
         ('trade_box_pages', 14600, 'gbv/boxes_mixed.sav', 'evo2.sav', ('Trade_UpdatePickScreenPageSwipe',)),
@@ -168,6 +176,8 @@ def recipes(fixtures, output=None, backend='opengl'):
         add('rental_grid', stem, frames=frames, save=save, flash=flash, state=state, expect=expect, extra=extra)
     for stem, frames in [('hm_squirtle', 9000), ('lab_level_group', 9000), ('tm24_save', 11000)]:
         add('engine_left', stem, frames=frames, save='gbv/boxes_full.sav', flash='labfull')
+        cases[-1]['expect'] = list({'hm_squirtle': ('LabPCList_ClearMovesFrom',),
+                                    'lab_level_group': ('LabPCList_FilterByLevelRange',)}.get(stem, ()))
     add('engine_left', 'order_detail_cap', frames=11300, save='six', extra=('--set', 'BattleMenu_InitOrderSelectPanels@exit:gSessionContext+0x1:1=3'),
         expect=('BattleMenu_DrawOrderSelectPanel_MonDetail',))
     add('error_paths', 'continue_delete', frames=3800, save='gbv/party6.sav', flash='continue')
