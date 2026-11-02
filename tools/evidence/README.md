@@ -29,6 +29,24 @@ call paths, and recognised as the same function when several paths reach it.
 The instrumented build behaves like the plain one: seed 7 gives the same 71 events and the same 6387 forced random
 calls (per function) as the lockstep reference run.
 
+On Windows, `whole_game_windows.py --bin EXE --rom STADIUM.z64 --out DIR --backend opengl --gb-rom YELLOW.gb`
+runs the full stored-route catalog with the user's German Yellow cartridge. Use `--plan` to inspect the inventory
+first, and repeat with `vulkan` and `directx` for the other renderers. Run Python with `-X utf8 -I`. The catalog
+currently covers all 144 stored recordings in 163 scenarios; without `--gb-rom`, only the 37 cartridge-independent
+recipes are available. Generated Game Boy saves and Stadium flashes remain under the output directory, while
+each run receives its own writable copies. Cartridge ROM and save contents participate in cache fingerprints.
+The album/printing cases wait for the album-producing route, including with multiple jobs. A failed case stops
+new launches; completed matching cases are reused on resumption. Lab and registration cases require evidence
+that their target screen was reached, in addition to a clean exit and a coverage profile.
+
+The cartridge fixtures reproduce the documented party, box, item, and progress conditions. They are synthetic
+saves for Stadium's cartridge-reading screens; continuing an overworld in GB Tower requires a save written by
+the Game Boy game itself (see `tools/gb_save.py`). Deliberately hanging 64DD probes and macOS crash-buffer injection
+from the diagnostic scripts are separate hardware/platform experiments, rather than stored-route passes.
+The title-screen audio probe exercises bank-stop dispatch and random seeding. Category 12 playback is checked
+through the album's real delete-photo caller: injecting it at title exit lets the following menu replace the
+shared FX bank while its command stream is active.
+
 ## Evidence record
 
 ```json

@@ -16,8 +16,10 @@ import time
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import battle_xcheck as bx
 from runner_platform import process_options
+from run import cartridge_paths
 
 
 def recipes(fixtures):
@@ -101,16 +103,27 @@ def prepare(directory):
     edit('options', directory / 'st.flash', '--bonus', 'MEWTWO', '-o', directory / 'st_bonus.flash')
 
 
-def run_case(case, args):
-    out = Path(args.out).resolve() / args.backend / case['name']
-    out.mkdir(parents=True, exist_ok=True)
-    inputs = [args.rom, case['rec'] or str(Path(args.out).resolve() / 'battle-route/port.rec')]
+def case_fingerprint(case, args):
+    route = Path(getattr(args, 'route_dir', Path(args.out).resolve() / 'battle-route')) / 'port.rec'
+    inputs = [args.rom, case['rec'] or str(route)]
     inputs += [case['extra'][i + 1] for i, value in enumerate(case['extra']) if value in ('--flash', '--call-file')]
+    for i, value in enumerate(case['extra']):
+        if value in ('--gb', '--gb2'):
+            inputs.extend(cartridge_paths(case['extra'][i + 1]))
     fingerprint = hashlib.sha256((json.dumps(case, sort_keys=True) + args.binary_hash).encode())
     for source in inputs:
         with open(source, 'rb') as f:
             fingerprint.update(hashlib.file_digest(f, 'sha256').digest())
-    key = fingerprint.hexdigest()
+    return fingerprint.hexdigest()
+
+
+def run_case(case, args):
+    if case.get('derived_flash'):
+        from whole_game_catalog_windows import materialize
+        materialize(case)
+    out = Path(args.out).resolve() / args.backend / case['name']
+    out.mkdir(parents=True, exist_ok=True)
+    key = case_fingerprint(case, args)
     result_path = out / 'result.json'
     if result_path.exists():
         cached = json.loads(result_path.read_text(encoding='utf-8'))
@@ -121,9 +134,11 @@ def run_case(case, args):
         (out / artifact).unlink(missing_ok=True)
     command = [sys.executable, '-X', 'utf8', '-I', str(ROOT / 'tools/evidence/run.py'), str(out),
                '--bin', args.bin, '--seq-max', '2', '--dump-every', '300', '--frames', str(case['frames'])]
-    command += ['--rec', case['rec'] or str(Path(args.out).resolve() / 'battle-route/port.rec')]
+    route = Path(getattr(args, 'route_dir', Path(args.out).resolve() / 'battle-route')) / 'port.rec'
+    command += ['--rec', case['rec'] or str(route)]
     command += case['extra']
     env = dict(os.environ, ROM=args.rom, PORT_TEST_BACKEND=args.backend)
+    env.update(case.get('env', {}))
     if case['name'] == 'prenmi':
         env['PORT_FREEZE_CHECK'] = '0'  # The fully faded reset screen is intentionally static.
     if case['name'].startswith('audio_'):
@@ -138,6 +153,8 @@ def run_case(case, args):
         coverage = json.loads((out / 'coverage.json').read_text()) if (out / 'coverage.json').exists() else {}
         functions = coverage.get('functions', {})
         missing = sorted(set(case['expect']) - set(functions))
+        missing_prefixes = [prefix for prefix in case.get('expect_prefixes', [])
+                            if not any(name.startswith(prefix) for name in functions)]
         missing_edges = [f'{parent} -> {child}' for parent, child in case.get('expect_edges', ())
                          if not any(site[0] == parent and site[2] > 0 for site in functions.get(child, {}).get('sites', []))]
         insufficient_calls = {name: {'expected': count, 'actual': functions.get(name, {}).get('count', 0)}
@@ -145,10 +162,11 @@ def run_case(case, args):
                               if functions.get(name, {}).get('count', 0) < count}
         result.update(exit_code=proc.returncode, game_exit_code=status.get('exit_code'),
                       actual_backend=status.get('actual_backend'), functions=len(coverage.get('functions', {})),
-                      missing_expected=missing, missing_edges=missing_edges, insufficient_calls=insufficient_calls, profile=(out / 'coverage.profraw').exists())
+                      missing_expected=missing, missing_prefixes=missing_prefixes, missing_edges=missing_edges,
+                      insufficient_calls=insufficient_calls, profile=(out / 'coverage.profraw').exists())
         result['status'] = ('COMPLETE' if proc.returncode == 0 and status.get('exit_code') == 0 and
                             coverage.get('functions') and result['profile'] else 'ERROR')
-        if (missing or missing_edges or insufficient_calls) and result['status'] == 'COMPLETE':
+        if (missing or missing_prefixes or missing_edges or insufficient_calls) and result['status'] == 'COMPLETE':
             result['status'] = 'NOT_REACHED'
     except subprocess.TimeoutExpired:
         result['status'] = 'TIMEOUT'
@@ -170,30 +188,70 @@ def main():
     parser.add_argument('--jobs', type=int, default=2)
     parser.add_argument('--case')
     parser.add_argument('--plan', action='store_true')
+    parser.add_argument('--gb-rom', help='include the full stored-route catalog using this German Yellow cartridge')
     args = parser.parse_args()
     args.bin, args.rom = str(Path(args.bin).resolve()), str(Path(args.rom).resolve())
     output = Path(args.out).resolve()
     output.mkdir(parents=True, exist_ok=True)
-    fixtures = output / 'fixtures'
+    fixtures = output / 'fixtures' / args.backend
     cases = recipes(fixtures)
+    if args.gb_rom:
+        from whole_game_catalog_windows import recipes as cartridge_recipes, ordered
+        full_fixtures = output / 'cartridge-fixtures' / args.backend
+        cases = ordered(cases + cartridge_recipes(full_fixtures, output, args.backend))
     covered_recordings = {Path(c['rec']).resolve() for c in cases if c['rec']}
     inventory = [dict(recording=str(p.relative_to(ROOT)), status='RECIPE_READY' if p.resolve() in covered_recordings
                       else 'REQUIRES_FIXTURES_OR_RECIPE_PORT') for p in sorted((ROOT / 'evidence/whole_game/routes').rglob('*.rec'))]
-    (output / 'plan.json').write_text(json.dumps(dict(cases=cases, recordings=inventory), indent=2), encoding='utf-8')
+    backend_output = output / args.backend
+    backend_output.mkdir(parents=True, exist_ok=True)
+    (backend_output / 'plan.json').write_text(json.dumps(dict(cases=cases, recordings=inventory), indent=2), encoding='utf-8')
     if args.plan:
         print('%d source-documented scenarios; %d stored route recordings inventoried' % (len(cases), len(inventory)))
         return
     if args.case and not any(c['name'] == args.case for c in cases):
         parser.error('unknown case: ' + args.case)
     prepare(fixtures)
-    route = output / 'battle-route'
-    route.mkdir(exist_ok=True)
+    if args.gb_rom:
+        from whole_game_catalog_windows import prepare as prepare_cartridge
+        prepare_cartridge(full_fixtures, args.gb_rom)
+    route = output / 'battle-route' / args.backend
+    route.mkdir(parents=True, exist_ok=True)
+    args.route_dir = str(route)
     bx.write_inputs(str(route), 24000)
     args.binary_hash = hashlib.sha256(Path(args.bin).read_bytes()).hexdigest()
     selected = [c for c in cases if not args.case or c['name'] == args.case]
+    # Dependency cases consume FlashRAM written by their prerequisite run. Queue
+    # them only after that run completes, including when --jobs exceeds one.
+    if args.case:
+        required = set()
+        by_name = {case['name']: case for case in cases}
+        def require(case):
+            for name in case.get('depends_on', []):
+                require(by_name[name])
+                required.add(name)
+        require(selected[0])
+        selected = [c for c in cases if c['name'] in required or c['name'] == args.case]
+    pending = list(selected)
+    results, completed, running = [], set(), {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        futures = [pool.submit(run_case, c, args) for c in selected]
-        results = [f.result() for f in concurrent.futures.as_completed(futures)]
+        while pending or running:
+            for case in list(pending):
+                if len(running) >= args.jobs:
+                    break
+                if set(case.get('depends_on', [])) <= completed:
+                    running[pool.submit(run_case, case, args)] = case
+                    pending.remove(case)
+            if not running:
+                raise ValueError('unresolved whole-game dependencies')
+            ready, _ = concurrent.futures.wait(running, return_when=concurrent.futures.FIRST_COMPLETED)
+            for future in ready:
+                case = running.pop(future)
+                result = future.result()
+                results.append(result)
+                if result['status'] == 'COMPLETE':
+                    completed.add(case['name'])
+                else:
+                    pending.clear()  # preserve other in-flight evidence; stop launching after a failure
     (output / args.backend / 'results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
     if any(r['status'] != 'COMPLETE' for r in results):
         raise SystemExit(1)
