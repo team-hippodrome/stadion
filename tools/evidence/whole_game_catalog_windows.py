@@ -166,6 +166,11 @@ def recipes(fixtures, output=None, backend='opengl'):
             'mewtwo_loss_quit': ('BattlePrep_DrawQuitPrompt',),
             'battle_now': ('BattlePrep_ConfirmSimpleRules',),
         }.get(stem, ()))
+    # Exercise the Champion's banner before the long Elite Four/rival route reaches it.
+    add('castle_mewtwo', 'castle_round_save_quit', frames=9000, save='op6', flash='teams',
+        expect=('BattlePrep_LoadBannerAssets', 'BattlePrep_BindCarouselSegment1'),
+        extra=('--set', 'State_TitleScreen#1@exit:gCurrentGameState:4=39;BattlePrep_LoadBannerAssets:gSessionContext+0x2:1=9'))
+    cases[-1]['name'] = 'champion_banner_probe_round'
     for stem, frames, flash, save, state, expect in [
         ('cup_level_cap', 7600, None, 'L55', None, ('Rental_HandleLevelCapWarning',)),
         ('cup_register_full', 7400, 'CUP10', None, None, ('Rental_HandleTeamCancel',)),

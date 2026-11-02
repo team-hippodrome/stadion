@@ -51,10 +51,19 @@ index 20b0fe8eec8b41a972488b4148f9efab96101cf3..4b4a2b0d950ecdb8a7aa788f205a924f
      0x0D000000, 0x05000000,    0x0F000000, 0x05000000, 0x20050000, 0x00000000,  0x00000000,  0x00000000,  0x00000000,
      0x08000000, BattlePrep_StarfieldGeoCallback, D_84B19910, 0x06000000, 0x0F000002, 0x05000000,  0x0A000000,  &D_800AC840, 0x06000000,
 diff --git a/src/fragments/battle_prep/battle_prep_397B10.c b/src/fragments/battle_prep/battle_prep_397B10.c
-index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2c2583cb6 100644
+index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..1fd4da55064f2c7374d62c7fa52e16ef1ce95c65 100644
 --- a/src/fragments/battle_prep/battle_prep_397B10.c
 +++ b/src/fragments/battle_prep/battle_prep_397B10.c
-@@ -53,6 +53,7 @@ static Color_RGBA8 D_84B0FCFC[] = {
+@@ -31,6 +31,8 @@ static u8* D_84B0FC54[] = {
+ };
+ static u8* D_84B0FC6C[] = {
+     D_303BD30, D_303D310, D_303E8F0, D_303FED0, D_30414B0, D_3042A90, D_3044070, D_3045650, D_3046C30,
++    // Castle location 9 uses the Champion banner, also the first entry of D_84B0FC90 in the N64 layout.
++    D_3048210,
+ };
+ static u8* D_84B0FC90[] = {
+     D_3048210, D_3029270, D_3029670, D_3029A70, D_3029E70, D_302A270, D_302A670,
+@@ -53,6 +55,7 @@ static Color_RGBA8 D_84B0FCFC[] = {
      { 0xDC, 0xDC, 0x1E, 0xFF }, { 0xDC, 0x64, 0xDC, 0xFF }, { 0xFF, 0xC8, 0xFF, 0xFF }, { 0xFF, 0xFF, 0xFF, 0xFF },
      { 0xC8, 0x82, 0x82, 0xFF }, { 0xC8, 0xC8, 0x1E, 0xFF }, { 0xC8, 0xC8, 0x1E, 0xFF }, { 0x1E, 0xDC, 0x82, 0xFF },
  };
@@ -62,7 +71,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
  static Vtx D_84B0FD40[] = {
      VTX(-128, 48, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF),      VTX(-128, 16, 0, 0, 1024, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(-64, 16, 0, 2048, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(-64, 48, 0, 2048, 0, 0xFF, 0xFF, 0xFF, 0xFF),
-@@ -62,8 +63,6 @@ static Vtx D_84B0FD40[] = {
+@@ -62,8 +65,6 @@ static Vtx D_84B0FD40[] = {
      VTX(64, 16, 0, 6144, 1024, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(64, 48, 0, 6144, 0, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(64, 48, 0, 6144, 0, 0xFF, 0xFF, 0xFF, 0xFF),     VTX(64, 16, 0, 6144, 1024, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(128, 16, 0, 8192, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(128, 48, 0, 8192, 0, 0xFF, 0xFF, 0xFF, 0xFF),
@@ -71,7 +80,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
      VTX(-128, 16, 0, 0, 1024, 0xFF, 0xFF, 0xFF, 0xFF),    VTX(-128, -16, 0, 0, 2048, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(-64, -16, 0, 2048, 2048, 0xFF, 0xFF, 0xFF, 0xFF), VTX(-64, 16, 0, 2048, 1024, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(-64, 16, 0, 2048, 1024, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(-64, -16, 0, 2048, 2048, 0xFF, 0xFF, 0xFF, 0xFF),
-@@ -72,8 +71,6 @@ static Vtx D_84B0FE40[] = {
+@@ -72,8 +73,6 @@ static Vtx D_84B0FE40[] = {
      VTX(64, -16, 0, 6144, 2048, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(64, 16, 0, 6144, 1024, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(64, 16, 0, 6144, 1024, 0xFF, 0xFF, 0xFF, 0xFF),   VTX(64, -16, 0, 6144, 2048, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(128, -16, 0, 8192, 2048, 0xFF, 0xFF, 0xFF, 0xFF), VTX(128, 16, 0, 8192, 1024, 0xFF, 0xFF, 0xFF, 0xFF),
@@ -80,7 +89,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
      VTX(-128, -16, 0, 0, 2048, 0xFF, 0xFF, 0xFF, 0xFF),   VTX(-128, -48, 0, 0, 3072, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(-64, -48, 0, 2048, 3072, 0xFF, 0xFF, 0xFF, 0xFF), VTX(-64, -16, 0, 2048, 2048, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(-64, -16, 0, 2048, 2048, 0xFF, 0xFF, 0xFF, 0xFF), VTX(-64, -48, 0, 2048, 3072, 0xFF, 0xFF, 0xFF, 0xFF),
-@@ -83,6 +80,8 @@ static Vtx D_84B0FF40[] = {
+@@ -83,6 +82,8 @@ static Vtx D_84B0FF40[] = {
      VTX(64, -16, 0, 6144, 2048, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(64, -48, 0, 6144, 3072, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(128, -48, 0, 8192, 3072, 0xFF, 0xFF, 0xFF, 0xFF), VTX(128, -16, 0, 8192, 2048, 0xFF, 0xFF, 0xFF, 0xFF),
  };
@@ -89,7 +98,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
  static Gfx D_84B10040[] = {
      gsSPSetGeometryMode(G_CULL_BACK),
      gsDPSetCombineMode(G_CC_DECALRGBA, G_CC_PASS2),
-@@ -132,20 +131,20 @@ static Gfx D_84B10040[] = {
+@@ -132,20 +133,20 @@ static Gfx D_84B10040[] = {
      gsSP2Triangles(12, 13, 14, 0, 12, 14, 15, 0),
      gsSPEndDisplayList(),
  };
@@ -113,7 +122,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
  static Gfx D_84B10470[] = {
      gsSPSetGeometryMode(G_CULL_BACK),
      gsDPSetCombineLERP(TEXEL0, 0, SHADE, 0, TEXEL0, 0, PRIM_LOD_FRAC, 0, 0, 0, 0, COMBINED, 0, 0, 0, COMBINED),
-@@ -187,27 +186,27 @@ static Gfx D_84B10498[] = {
+@@ -187,27 +188,27 @@ static Gfx D_84B10498[] = {
      gsSP2Triangles(4, 10, 11, 0, 4, 11, 5, 0),
      gsSPEndDisplayList(),
  };
@@ -145,7 +154,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
  static Gfx D_84B106F8[] = {
      gsSPSetGeometryMode(G_CULL_BACK),
      gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),
-@@ -253,11 +252,11 @@ static Gfx D_84B10718[] = {
+@@ -253,11 +254,11 @@ static Gfx D_84B10718[] = {
      gsSP2Triangles(6, 14, 15, 0, 6, 15, 7, 0),
      gsSPEndDisplayList(),
  };
@@ -159,7 +168,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
      0x17000000,    0x00000010, 0x00000000, 0x00000000, D_84B105F8, 0x05000000, 0x1B000000,
      0x00000000,    0x00000000, 0x00120000, 0x05000000, 0x22050000, 0x00000000, 0x08000000,
      BattlePrep_BindCarouselSegment1, D_84B10718, 0x06000000, 0x06000000, 0x01000000, 0x00000000,
-@@ -295,7 +294,7 @@ static Gfx D_84B10948[] = {
+@@ -295,7 +296,7 @@ static Gfx D_84B10948[] = {
      gsSP2Triangles(2, 6, 7, 0, 2, 7, 3, 0),
      gsSPEndDisplayList(),
  };
@@ -168,7 +177,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
      0x17000000,    0x00000008, 0x00000000, 0x00000000, D_84B108C8, 0x05000000, 0x1B000000,
      0x00000000,    0x00000000, 0x00020000, 0x05000000, 0x22050000, 0x00000000, 0x08000000,
      BattlePrep_BindCarouselSegment2, D_84B10948, 0x06000000, 0x06000000, 0x01000000, 0x00000000,
-@@ -345,7 +344,7 @@ static Gfx D_84B10B00[] = {
+@@ -345,7 +346,7 @@ static Gfx D_84B10B00[] = {
      gsSP2Triangles(4, 10, 11, 0, 4, 11, 5, 0),
      gsSPEndDisplayList(),
  };
@@ -177,7 +186,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
      0x17000000, 0x0000000C,    0x00000000, 0x00000000,    D_84B10A40, 0x05000000, 0x1B000000, 0x00000000,
      0x00000000, 0xFFEE0000,    0x08000000, BattlePrep_CarouselDepthCallback, 0x00000000, 0x05000000, 0x22050000, 0x00000000,
      0x08000000, BattlePrep_BindCarouselSegment3, D_84B10B00, 0x06000000,    0x06000000, 0x06000000, 0x01000000, 0x00000000,
-@@ -383,7 +382,7 @@ static Gfx D_84B10CC8[] = {
+@@ -383,7 +384,7 @@ static Gfx D_84B10CC8[] = {
      gsSP2Triangles(2, 6, 7, 0, 2, 7, 3, 0),
      gsSPEndDisplayList(),
  };
@@ -186,7 +195,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
      0x17000000, 0x00000008,    0x00000000, 0x00000000,    D_84B10C48, 0x05000000, 0x1B000000, 0x00000000,
      0x00000000, 0xFFEE0000,    0x08000000, BattlePrep_CarouselDepthCallback, 0x00000000, 0x05000000, 0x22050000, 0x00000000,
      0x08000000, BattlePrep_BindCarouselSegment3, D_84B10CC8, 0x06000000,    0x06000000, 0x06000000, 0x01000000, 0x00000000,
-@@ -415,7 +414,7 @@ static Gfx D_84B10DD0[] = {
+@@ -415,7 +416,7 @@ static Gfx D_84B10DD0[] = {
      gsSP2Triangles(2, 6, 7, 0, 2, 7, 3, 0),
      gsSPEndDisplayList(),
  };
@@ -195,7 +204,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
      0x17000000, 0x00000008, 0x00000000, 0x00000000, D_84B10C48, 0x05000000, 0x1B000000, 0x00000000,
      0x00000000, 0xFFEE0000, 0x05000000, 0x22050000, D_84B10DD0, 0x06000000, 0x06000000, 0x01000000,
  };
-@@ -457,11 +456,12 @@ static Gfx D_84B10F78[] = {
+@@ -457,11 +458,12 @@ static Gfx D_84B10F78[] = {
      gsSP2Triangles(4, 10, 11, 0, 4, 11, 5, 0),
      gsSPEndDisplayList(),
  };
@@ -209,7 +218,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
  static Vtx D_84B110C0[] = {
      VTX(-32, 24, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF),      VTX(-32, 0, 0, 0, 768, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(32, 0, 0, 2048, 768, 0xFF, 0xFF, 0xFF, 0xFF),   VTX(32, 24, 0, 2048, 0, 0xFF, 0xFF, 0xFF, 0xFF),
-@@ -471,8 +471,6 @@ static Vtx D_84B110C0[] = {
+@@ -471,8 +473,6 @@ static Vtx D_84B110C0[] = {
      VTX(22, 0, 0, 1920, 1024, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(22, 22, 0, 1920, 128, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(-22, 0, 0, 128, 0, 0xFF, 0xFF, 0xFF, 0xFF),     VTX(-22, -22, 0, 128, 896, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(22, -22, 0, 1920, 896, 0xFF, 0xFF, 0xFF, 0xFF), VTX(22, 0, 0, 1920, 0, 0xFF, 0xFF, 0xFF, 0xFF),
@@ -218,7 +227,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
      VTX(-32, 24, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF),      VTX(-32, 16, 0, 0, 256, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(-24, 16, 0, 256, 256, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(-24, 24, 0, 256, 0, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(24, 24, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF),       VTX(24, 16, 0, 0, 256, 0xFF, 0xFF, 0xFF, 0xFF),
-@@ -490,6 +488,7 @@ static Vtx D_84B111C0[] = {
+@@ -490,6 +490,7 @@ static Vtx D_84B111C0[] = {
      VTX(24, 16, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF),       VTX(24, -16, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(32, -16, 0, 256, 0, 0xFF, 0xFF, 0xFF, 0xFF),    VTX(32, 16, 0, 256, 0, 0xFF, 0xFF, 0xFF, 0xFF),
  };
@@ -226,7 +235,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
  static Gfx D_84B113C0[] = {
      gsSPSetGeometryMode(G_CULL_BACK),
      gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),
-@@ -535,13 +534,14 @@ static Gfx D_84B114F8[] = {
+@@ -535,13 +536,14 @@ static Gfx D_84B114F8[] = {
      gsSP2Triangles(28, 29, 30, 0, 28, 30, 31, 0),
      gsSPEndDisplayList(),
  };
@@ -242,7 +251,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
  static Vtx D_84B116E0[] = {
      VTX(-32, 48, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF),       VTX(-32, 16, 0, 0, 1024, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(32, 16, 0, 2048, 1024, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(32, 48, 0, 2048, 0, 0xFF, 0xFF, 0xFF, 0xFF),
-@@ -549,8 +549,6 @@ static Vtx D_84B116E0[] = {
+@@ -549,8 +551,6 @@ static Vtx D_84B116E0[] = {
      VTX(32, -16, 0, 2048, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(32, 16, 0, 2048, 0, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(-32, -16, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF),      VTX(-32, -48, 0, 0, 1024, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(32, -48, 0, 2048, 1024, 0xFF, 0xFF, 0xFF, 0xFF), VTX(32, -16, 0, 2048, 0, 0xFF, 0xFF, 0xFF, 0xFF),
@@ -251,7 +260,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
      VTX(-32, 48, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF),      VTX(-32, 40, 0, 0, 256, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(-24, 40, 0, 256, 256, 0xFF, 0xFF, 0xFF, 0xFF),  VTX(-24, 48, 0, 256, 0, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(24, 48, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF),       VTX(24, 40, 0, 0, 256, 0xFF, 0xFF, 0xFF, 0xFF),
-@@ -568,6 +566,7 @@ static Vtx D_84B117A0[] = {
+@@ -568,6 +568,7 @@ static Vtx D_84B117A0[] = {
      VTX(27, 40, 0, 96, 0, 0xFF, 0xFF, 0xFF, 0xFF),      VTX(27, -40, 0, 96, 0, 0xFF, 0xFF, 0xFF, 0xFF),
      VTX(32, -40, 0, 256, 0, 0xFF, 0xFF, 0xFF, 0xFF),    VTX(32, 40, 0, 256, 0, 0xFF, 0xFF, 0xFF, 0xFF),
  };
@@ -259,7 +268,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
  static Gfx D_84B119A0[] = {
      gsSPSetGeometryMode(G_CULL_BACK),
      gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),
-@@ -608,7 +607,7 @@ static Gfx D_84B11A88[] = {
+@@ -608,7 +609,7 @@ static Gfx D_84B11A88[] = {
      gsSP2Triangles(28, 29, 30, 0, 28, 30, 31, 0),
      gsSPEndDisplayList(),
  };
@@ -268,7 +277,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
      0x17000000,    0x00000000, 0x00000000, 0x00000000, D_84B116E0, 0x05000000,    0x22050000, 0x00000000, 0x08000000,
      BattlePrep_BadgeCarouselTextureCallback, D_84B119A0, 0x22050000, 0x00000000, 0x08000000, BattlePrep_BadgeCarouselGlowCallback2, D_84B11A88, 0x06000000, 0x01000000,
  };
-@@ -620,7 +619,7 @@ s32 BattlePrep_BindCarouselSegment0(s32 arg0, unk_func_80011B94* arg1) {
+@@ -620,7 +621,7 @@ s32 BattlePrep_BindCarouselSegment0(s32 arg0, unk_func_80011B94* arg1) {
          temp_a0 = (unk_D_84B259E8*)D_8006F09C->node.callbackArg;
  
          gDPPipeSync(gDisplayListHead++);
@@ -277,7 +286,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
          gSPDisplayList(gDisplayListHead++, arg1->display_node_header.callbackArg);
  
          GeoRender_ApplyMaterialState();
-@@ -635,7 +634,7 @@ s32 BattlePrep_BindCarouselSegment1(s32 arg0, unk_func_80011B94* arg1) {
+@@ -635,7 +636,7 @@ s32 BattlePrep_BindCarouselSegment1(s32 arg0, unk_func_80011B94* arg1) {
          temp_a0 = (unk_D_84B259E8*)D_8006F09C->node.callbackArg;
  
          gDPPipeSync(gDisplayListHead++);
@@ -286,7 +295,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
          gSPDisplayList(gDisplayListHead++, arg1->display_node_header.callbackArg);
  
          GeoRender_ApplyMaterialState();
-@@ -650,8 +649,8 @@ s32 BattlePrep_BindCarouselSegment3(s32 arg0, unk_func_80011B94* arg1) {
+@@ -650,8 +651,8 @@ s32 BattlePrep_BindCarouselSegment3(s32 arg0, unk_func_80011B94* arg1) {
          temp_a0 = (unk_D_84B259E8*)D_8006F09C->node.callbackArg;
  
          gDPPipeSync(gDisplayListHead++);
@@ -297,7 +306,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
          gSPDisplayList(gDisplayListHead++, arg1->display_node_header.callbackArg);
  
          GeoRender_ApplyMaterialState();
-@@ -666,7 +665,7 @@ s32 BattlePrep_BindCarouselSegment2(s32 arg0, unk_func_80011B94* arg1) {
+@@ -666,7 +667,7 @@ s32 BattlePrep_BindCarouselSegment2(s32 arg0, unk_func_80011B94* arg1) {
          temp_a0 = (unk_D_84B259E8*)D_8006F09C->node.callbackArg;
  
          gDPPipeSync(gDisplayListHead++);
@@ -306,7 +315,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
          gSPDisplayList(gDisplayListHead++, arg1->display_node_header.callbackArg);
  
          GeoRender_ApplyMaterialState();
-@@ -1273,7 +1272,7 @@ s32 BattlePrep_BadgeCarouselGeoCallback(s32 arg0, unk_func_80011B94* arg1) {
+@@ -1273,7 +1274,7 @@ s32 BattlePrep_BadgeCarouselGeoCallback(s32 arg0, unk_func_80011B94* arg1) {
          tmp2 = (arg1->display_node_header.callbackArg * 4) + tmp;
  
          gDPPipeSync(gDisplayListHead++);
@@ -315,7 +324,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
          gSPDisplayList(gDisplayListHead++, D_84B113C0);
  
          GeoRender_ApplyMaterialState();
-@@ -1324,7 +1323,7 @@ s32 BattlePrep_BadgeCarouselTextureCallback(s32 arg0, unk_func_80011B94* arg1) {
+@@ -1324,7 +1325,7 @@ s32 BattlePrep_BadgeCarouselTextureCallback(s32 arg0, unk_func_80011B94* arg1) {
  
          gDPPipeSync(gDisplayListHead++);
  
@@ -324,7 +333,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
          gSPDisplayList(gDisplayListHead++, arg1->display_node_header.callbackArg);
  
          GeoRender_ApplyMaterialState();
-@@ -1364,9 +1363,9 @@ s32 BattlePrep_BadgeCarouselGlowCallback2(s32 arg0, unk_func_80011B94* arg1) {
+@@ -1364,9 +1365,9 @@ s32 BattlePrep_BadgeCarouselGlowCallback2(s32 arg0, unk_func_80011B94* arg1) {
      return 0;
  }
  
@@ -336,7 +345,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
  
      GfxImage_Initialize(&sp40, 0, 2, 0x40, 0x40, arg0);
      GfxImage_SetRenderTarget(&gDisplayListHead, &sp40);
-@@ -1512,7 +1511,7 @@ void BattlePrep_InitBadgeCarousel(unk_D_84B259E8* arg0, DisplayObject* arg1, s16
+@@ -1512,7 +1513,7 @@ void BattlePrep_InitBadgeCarousel(unk_D_84B259E8* arg0, DisplayObject* arg1, s16
          for (i = 4; i < 8; i++) {
              Model_InitDisplayObject(&arg0->unk_08[i], 1, 0, arg0->unk_0C);
              Vec3f_SetComponentsDuplicate(&arg0->unk_08[i].position, 320.0f, -48.0f, -289.0f);
@@ -345,7 +354,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
          }
          arg0->unk_00 = 1;
      } else {
-@@ -1561,21 +1560,22 @@ void BattlePrep_RenderBadgeBackground(unk_D_84B259E8* arg0, s16 arg1, char* arg2
+@@ -1561,21 +1562,22 @@ void BattlePrep_RenderBadgeBackground(unk_D_84B259E8* arg0, s16 arg1, char* arg2
      }
  }
  
@@ -374,7 +383,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
          main_pool_realloc(arg0, (temp_v0 + sp1C));
          for (; arg0 < sp24;) {
              *--sp20 = *--sp24;
-@@ -1587,7 +1587,10 @@ s32 BattlePrep_Align64PoolBlock(s32* arg0) {
+@@ -1587,7 +1589,10 @@ s32 BattlePrep_Align64PoolBlock(s32* arg0) {
  
  void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArchive* arg2) {
      s16 i;
@@ -386,7 +395,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
      unk_func_84B067B4* temp_s5;
      unk_func_84B067B4* ptr;
      s16 tmp;
-@@ -1626,16 +1629,16 @@ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArc
+@@ -1626,16 +1631,16 @@ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArc
              break;
      }
  
@@ -406,7 +415,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..5c4c42834b210a72919974391480d4c2
              arg0->unk_10[i] = BattlePrep_Align64PoolBlock(BinArchive_GetFile(arg2, tmp));
              if (i < (gSessionContext.roundOrDemoId - 1)) {
                  BattlePrep_RenderBadgeGlowTexture(arg0->unk_10[i]);
-@@ -1645,8 +1648,9 @@ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArc
+@@ -1645,8 +1650,9 @@ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArc
          }
      } else {
          for (i = 0; i < 8; i++) {
