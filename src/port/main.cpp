@@ -3,6 +3,9 @@
 #include "interp.h"
 #include "port_platform.h"
 #include "launcher.h"
+#ifdef ENABLE_VULKAN
+#include <fast/backends/gfx_vulkan.h>
+#endif
 
 #include <SDL3/SDL_messagebox.h>
 
@@ -225,7 +228,7 @@ static bool RomIsOriginal(const std::string& path) {
     return false;
 }
 
-int main(int argc, char** argv) {
+static int RunGame(int argc, char** argv) {
 #if defined(_WIN32)
     AttachToConsole();
 #endif
@@ -282,4 +285,16 @@ int main(int argc, char** argv) {
     Port_InputFinish();
     fflush(nullptr);
     _exit(0);
+}
+
+int main(int argc, char** argv) {
+#ifdef ENABLE_VULKAN
+    try {
+        return RunGame(argc, argv);
+    } catch (const Fast::VulkanSwapchainError& e) {
+        Port::ExitAfterVulkanFailure(e.what());
+    }
+#else
+    return RunGame(argc, argv);
+#endif
 }

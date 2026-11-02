@@ -415,10 +415,10 @@ index 3eb09961..c665c4c8 100644
      GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) = 0;
 diff --git a/include/fast/backends/gfx_vulkan.h b/include/fast/backends/gfx_vulkan.h
 new file mode 100644
-index 00000000..ddbbf016
+index 00000000..30efd974
 --- /dev/null
 +++ b/include/fast/backends/gfx_vulkan.h
-@@ -0,0 +1,389 @@
+@@ -0,0 +1,396 @@
 +//
 +//  gfx_vulkan.h
 +//  libultraship
@@ -450,6 +450,7 @@ index 00000000..ddbbf016
 +#include <condition_variable>
 +#include <mutex>
 +#include <thread>
++#include <stdexcept>
 +
 +struct SDL_Window;
 +struct ImDrawData;
@@ -460,6 +461,12 @@ index 00000000..ddbbf016
 +} // namespace Ship
 +
 +namespace Fast {
++
++// PORT: a swapchain failure must leave the render loop before another driver call uses an invalid handle.
++class VulkanSwapchainError : public std::runtime_error {
++  public:
++    using std::runtime_error::runtime_error;
++};
 +
 +constexpr uint32_t VK_FRAMES_IN_FLIGHT = 3;
 +
@@ -2639,10 +2646,10 @@ index c8bc6cdd..ff6981dc 100644
          if (mRenderer == nullptr) {
 diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
 new file mode 100644
-index 00000000..de41dfaf
+index 00000000..d9bf055d
 --- /dev/null
 +++ b/src/fast/backends/gfx_vulkan.cpp
-@@ -0,0 +1,2762 @@
+@@ -0,0 +1,2802 @@
 +//
 +//  gfx_vulkan.cpp
 +//  libultraship
@@ -3229,19 +3236,36 @@ index 00000000..de41dfaf
 +    mSwapchainViews.clear();
 +}
 +
++static void CheckSwapchainResult(VkResult result, const char* operation) {
++    if (result != VK_SUCCESS) {
++        const std::string message = std::string(operation) + " failed (Vulkan error " + std::to_string(result) + ").";
++        SPDLOG_ERROR("{}", message);
++        throw VulkanSwapchainError(message);
++    }
++}
++
 +void GfxRenderingAPIVK::CreateSwapchain(uint32_t width, uint32_t height) {
-+    vkDeviceWaitIdle(mDevice);
++    CheckSwapchainResult(vkDeviceWaitIdle(mDevice), "vkDeviceWaitIdle");
 +    DestroySwapchainViews();
 +
-+    VkSurfaceCapabilitiesKHR caps;
-+    VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, mSurface, &caps));
++    VkSurfaceCapabilitiesKHR caps = {};
++    CheckSwapchainResult(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, mSurface, &caps),
++                         "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
 +
 +    uint32_t formatCount = 0;
-+    vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &formatCount, nullptr);
++    CheckSwapchainResult(vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &formatCount, nullptr),
++                         "vkGetPhysicalDeviceSurfaceFormatsKHR");
 +    std::vector<VkSurfaceFormatKHR> formats(formatCount);
-+    vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &formatCount, formats.data());
++    CheckSwapchainResult(vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &formatCount, formats.data()),
++                         "vkGetPhysicalDeviceSurfaceFormatsKHR");
 +
++    if (formats.empty()) {
++        throw VulkanSwapchainError("The Vulkan driver reported no surface formats.");
++    }
 +    VkSurfaceFormatKHR chosen = formats[0];
++    if (chosen.format == VK_FORMAT_UNDEFINED) {
++        chosen.format = VK_FORMAT_B8G8R8A8_UNORM;
++    }
 +    for (const auto& f : formats) {
 +        if ((f.format == VK_FORMAT_B8G8R8A8_UNORM || f.format == VK_FORMAT_R8G8B8A8_UNORM) &&
 +            f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -3271,9 +3295,11 @@ index 00000000..de41dfaf
 +    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
 +    if (!mVsync) {
 +        uint32_t modeCount = 0;
-+        vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &modeCount, nullptr);
++        CheckSwapchainResult(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &modeCount, nullptr),
++                             "vkGetPhysicalDeviceSurfacePresentModesKHR");
 +        std::vector<VkPresentModeKHR> modes(modeCount);
-+        vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &modeCount, modes.data());
++        CheckSwapchainResult(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &modeCount, modes.data()),
++                             "vkGetPhysicalDeviceSurfacePresentModesKHR");
 +        for (VkPresentModeKHR want : { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR }) {
 +            if (std::find(modes.begin(), modes.end(), want) != modes.end()) {
 +                presentMode = want;
@@ -3289,16 +3315,21 @@ index 00000000..de41dfaf
 +    sci.imageColorSpace = chosen.colorSpace;
 +    sci.imageExtent = extent;
 +    sci.imageArrayLayers = 1;
-+    sci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-+                     VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
++    const VkImageUsageFlags requiredUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
++                                            VK_IMAGE_USAGE_TRANSFER_DST_BIT;
++    if ((caps.supportedUsageFlags & requiredUsage) != requiredUsage) {
++        throw VulkanSwapchainError("The Vulkan surface does not support the required render/copy image usage.");
++    }
++    // Sampling a swapchain image is optional; do not request a usage the surface does not support.
++    sci.imageUsage = requiredUsage | (caps.supportedUsageFlags & VK_IMAGE_USAGE_SAMPLED_BIT);
 +    sci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 +    sci.preTransform = caps.currentTransform;
-+    sci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-+    if (!(caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)) {
-+        sci.compositeAlpha = (caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR)
-+                                 ? VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR
-+                                 : VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR;
++    if (caps.supportedCompositeAlpha == 0) {
++        throw VulkanSwapchainError("The Vulkan surface reported no supported composite alpha mode.");
 +    }
++    // Pick a mode actually advertised by this surface (OPAQUE first when available).
++    sci.compositeAlpha = static_cast<VkCompositeAlphaFlagBitsKHR>(caps.supportedCompositeAlpha &
++                                                                 (~caps.supportedCompositeAlpha + 1u));
 +    sci.presentMode = presentMode;
 +    if (sStats) {
 +        fprintf(stderr, "[vkstats] swapchain %ux%u, present mode %d (vsync %s)\n", extent.width, extent.height,
@@ -3308,20 +3339,36 @@ index 00000000..de41dfaf
 +    sci.oldSwapchain = mSwapchain;
 +
 +    VkSwapchainKHR newSwapchain = VK_NULL_HANDLE;
-+    VK_CHECK(vkCreateSwapchainKHR(mDevice, &sci, nullptr, &newSwapchain));
++    // PORT debug: fail a chosen creation (1 = startup, 2 = first resize) to test the driver's error path.
++    static unsigned int creations = 0;
++    const char* failAt = getenv("PORT_VK_FAIL_SWAPCHAIN_AT");
++    const bool injectFailure = failAt != nullptr && ++creations == strtoul(failAt, nullptr, 10);
++    CheckSwapchainResult(injectFailure ? VK_ERROR_OUT_OF_HOST_MEMORY
++                                      : vkCreateSwapchainKHR(mDevice, &sci, nullptr, &newSwapchain),
++                         "vkCreateSwapchainKHR");
 +    if (mSwapchain != VK_NULL_HANDLE) {
 +        vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
 +    }
 +    mSwapchain = newSwapchain;
 +
 +    uint32_t count = 0;
-+    vkGetSwapchainImagesKHR(mDevice, mSwapchain, &count, nullptr);
++    CheckSwapchainResult(vkGetSwapchainImagesKHR(mDevice, mSwapchain, &count, nullptr),
++                         "vkGetSwapchainImagesKHR");
 +    mSwapchainImages.resize(count);
-+    vkGetSwapchainImagesKHR(mDevice, mSwapchain, &count, mSwapchainImages.data());
++    CheckSwapchainResult(vkGetSwapchainImagesKHR(mDevice, mSwapchain, &count, mSwapchainImages.data()),
++                         "vkGetSwapchainImagesKHR");
 +
++    if (count == 0) {
++        throw VulkanSwapchainError("The Vulkan driver returned an empty swapchain.");
++    }
 +    mSwapchainViews.resize(count);
 +    for (uint32_t i = 0; i < count; i++) {
-+        mSwapchainViews[i] = CreateImageView(mSwapchainImages[i], mSwapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT);
++        VkImageViewCreateInfo view = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
++        view.image = mSwapchainImages[i];
++        view.viewType = VK_IMAGE_VIEW_TYPE_2D;
++        view.format = mSwapchainFormat;
++        view.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
++        CheckSwapchainResult(vkCreateImageView(mDevice, &view, nullptr, &mSwapchainViews[i]), "vkCreateImageView");
 +    }
 +    mSwapchainImageUsed.assign(count, false);
 +
