@@ -4,6 +4,7 @@
 //                                 ("R <function> <call> <arg> <value> caller=<function>") and per battle event
 //                                 ("E <n> <event> ..." with the raw bytes of both Pokemon's ActivePokemonState, the
 //                                 BattleScene, gBattleDamage and the message queues)
+//   PORT_XCHECK_VI_TIMING=<file>  observed "game-frame retrace" pairs; comparison-only mixer-clock pacing
 //   PORT_XCHECK_RNG=<seed>        the battle's random functions (Battle_Random, Battle_RandomAccuracy,
 //                                 BattleAI_RandomBelowInclusive, BattleAnim_RandomRange, BattleAnim_RandomIntWithWarmup)
 //                                 return a seeded stream instead of their osGetCount-timed generators, so the port and the
@@ -50,6 +51,7 @@ extern "C" const unsigned gPortHostSymbolCount;
 #endif
 
 extern "C" unsigned long long Port_ViTick(void);
+extern "C" void Port_XcheckWaitRetraces(uint64_t retraces);
 extern "C" unsigned long long osGetTime(void);         // libultra (port_os)
 extern "C" void Port_GuRandomSeed(unsigned int seed); // game/lib/ultralib/src/gu/random.c
 extern "C" int gPortXcheckTraceGuRandom;              // (below)
@@ -87,6 +89,8 @@ struct State {
     unsigned events = 0;
     std::string animDir, animCur;
     int animFrames = 300, animCount = 0;
+    std::vector<uint64_t> referenceVi{ 0 };
+    uint64_t referencePortStart = 0;
     std::vector<int> loadWait; // PORT_XCHECK_LOAD_WAIT: per animation, game frames left to report "still loading"
     unsigned long long gameFrame = 0;               // battle game frames so far
     unsigned long long animStart = 0, animLast = 0; // game frame of the animation's start, of the last saved frame
@@ -151,6 +155,26 @@ void Init() {
     g.traceSfx = getenv("PORT_XCHECK_SFX") != nullptr;
     if (const char* a = getenv("PORT_XCHECK_ANIM")) g.animDir = a;
     if (const char* n = getenv("PORT_XCHECK_ANIM_FRAMES")) g.animFrames = atoi(n);
+    if (const char* p = getenv("PORT_XCHECK_VI_TIMING")) {
+        std::ifstream file(p);
+        std::string line;
+        while (std::getline(file, line)) {
+            std::istringstream row(line);
+            int64_t frame, retrace;
+            std::string trailing;
+            if (!(row >> frame >> retrace) || (row >> trailing) || frame <= 0 || retrace < 0 ||
+                (uint64_t)frame != g.referenceVi.size() || frame > 1000000 ||
+                (frame > 1 && (uint64_t)retrace < g.referenceVi.back())) {
+                fprintf(stderr, "[xcheck] invalid reference VI schedule: %s\n", p);
+                _exit(2);
+            }
+            g.referenceVi.push_back(retrace);
+        }
+        if (!file.eof() || g.referenceVi.size() < 2) {
+            fprintf(stderr, "[xcheck] cannot read reference VI schedule: %s\n", p);
+            _exit(2);
+        }
+    }
     if (const char* w = getenv("PORT_XCHECK_LOAD_WAIT")) {
         std::stringstream ws(w);
         std::string v;
@@ -402,9 +426,17 @@ unsigned long long Port_XcheckOsGetTime(void) {
 // battle_engine_main.c: BattleScene_UpdateFrame runs (once per battle game frame)
 void Port_XcheckGameFrame(void) {
     g.gameFrame++;
-    if (g.gameFrame == 1) g.osTimeCalls = 0;
-    // "V <battle game frame> <VI frame>", as the ares driver: where each game frame starts in time (the sound check maps
-    // both sides' sound onto game frames, so the N64's slowdown in busy effects does not count as a sound difference)
+    if (g.gameFrame == 1) {
+        g.osTimeCalls = 0;
+        g.referencePortStart = Port_ViTick();
+    }
+    if (g.gameFrame < g.referenceVi.size()) {
+        uint64_t target = g.referencePortStart + g.referenceVi[g.gameFrame] - g.referenceVi[1];
+        uint64_t now = Port_ViTick();
+        if (target > now) Port_XcheckWaitRetraces(target - now);
+    }
+    // "V <battle game frame> <VI frame>", as the ares driver. The runner can replay its retrace gaps so sound
+    // commands run on the observed N64 timeline while the mixer retains its original sample clock.
     if (g.out) fprintf(g.out, "V %llu %llu\n", g.gameFrame, Port_ViTick());
 }
 

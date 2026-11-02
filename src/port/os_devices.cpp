@@ -1038,6 +1038,16 @@ void port_osCreateViManager(OSPri) {
 
 } // extern "C"
 
+// The comparison runner supplies an observed N64 retrace schedule for battle frames.
+extern "C" void Port_XcheckWaitRetraces(uint64_t retraces) {
+    OSMesgQueue queue;
+    OSMesg message;
+    OSTimer timer;
+    osCreateMesgQueue(&queue, &message, 1);
+    osSetTimer(&timer, retraces * (46875000 / 60), 0, &queue, nullptr);
+    osRecvMesg(&queue, nullptr, OS_MESG_BLOCK);
+}
+
 // ---- RSP / RDP tasks --------------------------------------------------------------------------------
 
 extern "C" {

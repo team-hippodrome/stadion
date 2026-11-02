@@ -99,3 +99,20 @@ those unsupported requests fail explicitly rather than being simulated.
 
 Animation `--open` and reports supplied `--port-bin` reject stale executable hashes
 and case specifications. Evidence-mode cache reuse also requires the raw profile.
+
+
+## Audio comparison timing
+
+The animation runner replays the reference's observed `V <game-frame> <retrace>`
+schedule on its second port pass, in addition to matching asset-load waits. N64
+rendering can take more than two retraces per battle frame. Without matching that
+cadence, later sound commands run early on the native port and an otherwise matching
+sound is compared against a different instant of the reference's mix.
+
+`PORT_XCHECK_VI_TIMING` is a comparison-only file option; normal play is unchanged.
+The mixer keeps its original sample clock, and audio thresholds are unchanged.
+Case results record `timing_mode` and the schedule's SHA256. Set
+`XCHECK_REFERENCE_TIMING=0` to diagnose native-speed differences; those results
+cannot reuse reference-paced cache entries. Malformed or discontinuous schedules
+fail explicitly. `python -X utf8 -I tools/test_reference_timing.py` checks schedule
+handling and confirms that missing audio still fails comparison.
