@@ -929,7 +929,7 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(x + 52, y + 300, saveName, gFonts.small);
         if (Button("Change", x + w - 76, y + 294, 66, 26)) {
             if (g.save.empty()) g.save = save;
-            Pick(&g.save, true, kGbSaveFilter, 2, save);
+            Pick(&g.save, false, kGbSaveFilter, 2, save);
         }
 
         Text(x + 12, y + h - 26, "Transfer Pak · controller " + std::to_string(i + 1), gFonts.small, Theme::dim);
