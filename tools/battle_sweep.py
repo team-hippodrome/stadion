@@ -27,13 +27,16 @@ The player's lead knows up to four test moves with 1 PP each: the game's time-li
 them on consecutive turns. The opponent is a sturdy target (999 HP) that only knows Splash unless the path needs it
 to act (Substitute, Mirror Move, Counter, invulnerable turn).
 """
-import hashlib, json, os, re, shutil, struct, subprocess, sys, time
+import hashlib, json, os, re, shutil, struct, subprocess, sys, time, zipfile
+from pathlib import Path
+from functools import lru_cache
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import battle_xcheck as bx  # noqa: E402
+from runner_platform import BACKENDS, actual_backend
 
 WORK = os.path.abspath(os.environ.get("XCHECK_SWEEP_DIR", os.path.join(ROOT, "build-xcheck-sweep")))
 SEED = "1"
@@ -346,7 +349,7 @@ def ares_paths():
     build = os.environ.get("ARES_REF_BUILD", os.path.join(ROOT, "build-ares", "build"))
     fw = os.environ.get("ARES_REF_FIRMWARE") or os.path.join(
         os.environ.get("ARES_REF_SRC", os.path.join(ROOT, "build-ares", "ares")), "mia", "Firmware", "Nintendo 64")
-    return os.path.join(build, "ares_ref"), fw
+    return bx.reference_exe(build), fw
 
 
 def ares_env(fw, extra):
@@ -356,7 +359,7 @@ def ares_env(fw, extra):
 def rom_link():
     link = os.path.join(WORK, "rom.z64")  # nall rewrites path arguments with spaces
     if not os.path.lexists(link):
-        os.symlink(bx.ROM, link)
+        bx.reference_rom(bx.ROM, link)
     return link
 
 
@@ -373,8 +376,10 @@ def start_state():
     script += ["save %d %s\n" % (STATE_FRAME, st), "end %d\n" % STATE_FRAME]
     open(os.path.join(tmp, "s.txt"), "w").writelines(script)
     shutil.copyfile(os.path.join(ROOT, "replays", "default.flash"), os.path.join(tmp, "f.flash"))
-    subprocess.run([exe, rom_link(), os.path.join(tmp, "s.txt")], env=ares_env(fw, {"ARES_REF_FLASH": os.path.join(tmp, "f.flash")}),
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, preexec_fn=bx.low_priority, check=True)
+    with open(os.path.join(tmp, "ares.log"), "w") as log:
+        subprocess.run([exe, rom_link(), os.path.join(tmp, "s.txt")],
+                       env=ares_env(fw, {"ARES_REF_FLASH": os.path.join(tmp, "f.flash")}),
+                       stdout=log, stderr=subprocess.STDOUT, **bx.process_options(), check=True, timeout=900)
     shutil.rmtree(tmp)
     return st
 
@@ -401,9 +406,53 @@ def load_waits(d):
     return wait
 
 
+def reference_archive(d, exe, max_frames):
+    """Optional shared oracle captures, keyed by every input and the reference executable."""
+    cache = os.environ.get("XCHECK_REFERENCE_CACHE")
+    if not cache:
+        return None
+    key = hashlib.sha256()
+    _, firmware = ares_paths()
+    paths = [bx.ROM, exe, symbols_file(), start_state(), os.path.join(ROOT, "replays", "default.flash"),
+             os.path.join(d, "case.txt"), os.path.join(d, "ares.txt")]
+    paths += sorted(str(p) for p in Path(firmware).rglob("*") if p.is_file())
+    for path in paths:
+        with open(path, "rb") as f:
+            for block in iter(lambda: f.read(1024 * 1024), b""):
+                key.update(block)
+    key.update(repr((max_frames, STATE_FRAME, ANIM_FRAMES, SEED,
+                     sorted((k, v) for k, v in os.environ.items() if k.startswith("ARES_REF_")))).encode())
+    os.makedirs(cache, exist_ok=True)
+    return os.path.join(cache, key.hexdigest() + ".zip")
+
+
+@lru_cache(maxsize=8)
+def binary_fingerprint(path):
+    with open(path, "rb") as f:
+        return hashlib.file_digest(f, "sha256").hexdigest()
+
+
+def clear_port_outputs(directory):
+    for name in ("coverage.profraw", "calls.txt", "seq.txt", "port.trace", "port.pcm", "port.pcm.frames"):
+        path = os.path.join(directory, name)
+        if os.path.isfile(path):
+            os.unlink(path)
+
+
+def wait_case_process(process):
+    try:
+        process.wait(timeout=900)
+        return False
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+        return True
+
+
 def run_case(c, species, port_bin, max_frames):
     d = os.path.join(WORK, "cases", c["id"])
     os.makedirs(d, exist_ok=True)
+    clear_port_outputs(d)
     open(os.path.join(d, "case.txt"), "w").write(case_file(c, species))
     for sub in ("port_anim", "ares_anim"):
         shutil.rmtree(os.path.join(d, sub), ignore_errors=True)
@@ -432,18 +481,44 @@ def run_case(c, species, port_bin, max_frames):
                          "ARES_REF_XCHECK_CASE": os.path.join(d, "case.txt"), "ARES_REF_XCHECK_SYMS": symbols_file(),
                          "ARES_REF_XCHECK_ANIM": os.path.join(d, "ares_anim"), "ARES_REF_XCHECK_ANIM_FRAMES": str(ANIM_FRAMES),
                          "ARES_REF_WAV": os.path.join(d, "ares.pcm")})
-    t0 = time.time()
-    with open(os.path.join(d, "port.log"), "w") as pl, open(os.path.join(d, "ares.log"), "w") as al:
-        pp = subprocess.Popen([port_bin, bx.ROM], cwd=os.path.dirname(port_bin), env=penv, stdout=pl,
-                              stderr=subprocess.STDOUT, preexec_fn=bx.low_priority)
-        ap = subprocess.Popen([exe, rom_link(), os.path.join(d, "ares.txt"), "--load", start_state()], env=aenv,
-                              stdout=al, stderr=subprocess.STDOUT, preexec_fn=bx.low_priority)
+    bx.backend_home(penv, os.path.join(d, "home"))
+    if os.environ.get("XCHECK_EVIDENCE"):
+        penv.update(PORT_EVID=os.path.join(d, "calls.txt"), PORT_EVID_SEQ=os.path.join(d, "seq.txt"),
+                    PORT_EVID_SEQ_MAX="2", PORT_EVID_DUMP_EVERY="300",
+                    LLVM_PROFILE_FILE=os.path.join(d, "coverage.profraw"))
+    archive = reference_archive(d, exe, max_frames)
+    cached_reference = bool(archive and os.path.exists(archive))
+    if cached_reference:
         try:
-            pp.wait(timeout=900)
-            ap.wait(timeout=900)
-        except subprocess.TimeoutExpired:
-            pp.kill()
-            ap.kill()
+            with zipfile.ZipFile(archive) as z:
+                if "ares.trace" not in z.namelist() or z.testzip() is not None:
+                    raise ValueError("incomplete reference archive")
+                for member in z.namelist():
+                    target = os.path.abspath(os.path.join(d, member))
+                    if os.path.commonpath([target, os.path.abspath(d)]) != os.path.abspath(d):
+                        raise ValueError("reference archive contains an unsafe path")
+                z.extractall(d)
+        except (OSError, ValueError, zipfile.BadZipFile) as error:
+            print("reference cache miss: %s" % error, flush=True)
+            cached_reference = False
+    t0 = time.time()
+    with open(os.path.join(d, "port.log"), "w") as pl, open(os.devnull if cached_reference else os.path.join(d, "ares.log"), "w") as al:
+        pp = subprocess.Popen([port_bin, bx.ROM], cwd=os.path.dirname(port_bin), env=penv, stdout=pl,
+                              stderr=subprocess.STDOUT, **bx.process_options())
+        ap = None if cached_reference else subprocess.Popen(
+            [exe, rom_link(), os.path.join(d, "ares.txt"), "--load", start_state()], env=aenv,
+            stdout=al, stderr=subprocess.STDOUT, **bx.process_options())
+        port_timed_out = wait_case_process(pp)
+        reference_timed_out = wait_case_process(ap) if ap is not None else False
+    if (archive and not cached_reference and ap.returncode == 0
+            and os.path.isfile(os.path.join(d, "ares.trace")) and os.path.getsize(os.path.join(d, "ares.trace"))):
+        with zipfile.ZipFile(archive + ".tmp", "w", zipfile.ZIP_DEFLATED, compresslevel=1) as z:
+            files = list(Path(d, "ares_anim").rglob("*.ppm"))
+            files += [Path(d, name) for name in ("ares.trace", "ares.log", "ares.pcm", "ares.pcm.frames")]
+            for path in files:
+                if path.is_file():
+                    z.write(path, path.relative_to(d).as_posix())
+        os.replace(archive + ".tmp", archive)
     # the N64 can take game frames longer to load a move's effect assets (DMA) and starts the animation later; what
     # runs on meanwhile (Moltres' simulated flames, idle motions) then enters the animation in another state. The
     # port runs again and waits as long before each such animation (PORT_XCHECK_LOAD_WAIT, src/port/xcheck.cpp).
@@ -452,20 +527,33 @@ def run_case(c, species, port_bin, max_frames):
         shutil.rmtree(os.path.join(d, "port_anim"), ignore_errors=True)
         os.makedirs(os.path.join(d, "port_anim"))
         shutil.copyfile(os.path.join(ROOT, "replays", "default.flash"), os.path.join(d, "port.flash"))
+        clear_port_outputs(d)
         penv["PORT_XCHECK_LOAD_WAIT"] = ",".join(map(str, wait))
         with open(os.path.join(d, "port.log"), "w") as pl:
             pp = subprocess.Popen([port_bin, bx.ROM], cwd=os.path.dirname(port_bin), env=penv, stdout=pl,
-                                  stderr=subprocess.STDOUT, preexec_fn=bx.low_priority)
-            try:
-                pp.wait(timeout=900)
-            except subprocess.TimeoutExpired:
-                pp.kill()
+                                  stderr=subprocess.STDOUT, **bx.process_options())
+            port_timed_out = wait_case_process(pp)
     secs = time.time() - t0
     try:
         res = evaluate(c, d)
     except Exception as ex:  # a broken run is a result too
         res = {"error": "%s: %s" % (type(ex).__name__, ex), "uses": []}
+    res["port_exit_code"] = pp.returncode
+    res["reference_exit_code"] = ap.returncode if ap is not None else 0
+    if port_timed_out or reference_timed_out:
+        res["error"] = "port or reference timed out"
+    elif pp.returncode != 0 or res["reference_exit_code"] != 0:
+        res["error"] = "port exit %s, reference exit %s" % (pp.returncode, res["reference_exit_code"])
     res["seconds"] = round(secs, 1)
+    res["reference_cached"] = cached_reference
+    res["port_binary_sha256"] = binary_fingerprint(port_bin)
+    res["evidence_profile"] = os.path.isfile(os.path.join(d, "coverage.profraw")) if os.environ.get("XCHECK_EVIDENCE") else False
+    backend = os.environ.get("PORT_TEST_BACKEND")
+    if backend:
+        res["requested_backend"] = backend
+        res["actual_backend"] = actual_backend(os.path.join(d, "home"))
+        if res["actual_backend"] != BACKENDS[backend][0]:
+            res["error"] = "requested %s, actual backend id %s" % (backend, res["actual_backend"])
     if any(wait):
         res["load_wait"] = wait
     res["spec"] = c["spec"]
@@ -949,12 +1037,15 @@ def main():
     if cmd == "run":
         port_bin = os.path.abspath(args.get("--port-bin", os.path.join(ROOT, "build", "pokestadium")))
         frames = int(args.get("--frames", "12000"))
-        todo = open_cases(cases) if args.get("--open") else []
+        todo = open_cases(cases, port_bin) if args.get("--open") else []
         for c in ([] if args.get("--open") else cases):
             rp = os.path.join(WORK, "cases", c["id"], "result.json")
             if os.path.exists(rp) and not args.get("--force"):
                 try:
-                    if json.load(open(rp)).get("spec") == c["spec"]:
+                    cached = json.load(open(rp))
+                    if (cached.get("spec") == c["spec"] and
+                            cached.get("port_binary_sha256") == binary_fingerprint(port_bin) and
+                            (not os.environ.get("XCHECK_EVIDENCE") or os.path.isfile(os.path.join(os.path.dirname(rp), "coverage.profraw")))):
                         continue
                 except ValueError:
                     pass
@@ -975,7 +1066,7 @@ def main():
         print("ran %d cases in %.0f s" % (len(todo), time.time() - t0))
         cmd = "report"
     if cmd == "report":
-        report(cases, skipped, moves, mvn, spn)
+        report(cases, skipped, moves, mvn, spn, args.get("--port-bin"))
         print("(report of %s)" % ("every path" if args.get("--all-paths") else "the base path: each move once"))
 
 
@@ -989,14 +1080,21 @@ def run_limits(rows):
     return common, median, floor
 
 
-def open_cases(cases):
+def result_matches_build(result, case, port_bin, directory):
+    return (result is not None and result.get("spec") == case["spec"] and
+            (not port_bin or result.get("port_binary_sha256") == binary_fingerprint(os.path.abspath(port_bin))) and
+            (not os.environ.get("XCHECK_EVIDENCE") or os.path.isfile(os.path.join(directory, "coverage.profraw"))))
+
+
+def open_cases(cases, port_bin):
     """the cases --open reruns: not run yet, spec changed, an error, or a use whose verdict (as in the report) or sound
     is not a match"""
     results = {}
     for c in cases:
         rp = os.path.join(WORK, "cases", c["id"], "result.json")
         try:
-            results[c["id"]] = json.load(open(rp)) if os.path.exists(rp) else None
+            r = json.load(open(rp)) if os.path.exists(rp) else None
+            results[c["id"]] = r if result_matches_build(r, c, port_bin, os.path.dirname(rp)) else None
         except ValueError:
             results[c["id"]] = None
     rows = [(u, r, c) for c in cases for r in [results[c["id"]]] if r for u in r.get("uses", [])]
@@ -1011,7 +1109,7 @@ def open_cases(cases):
     return todo
 
 
-def report(cases, skipped, moves, mvn, spn):
+def report(cases, skipped, moves, mvn, spn, port_bin=None):
     rows, missing = [], 0
     secs = 0.0
     for c in cases:
@@ -1021,9 +1119,16 @@ def report(cases, skipped, moves, mvn, spn):
             for u in c["uses"]:
                 rows.append((u, None, c))
             continue
-        r = json.load(open(rp))
+        try:
+            r = json.load(open(rp))
+        except ValueError:
+            r = None
+        if not result_matches_build(r, c, port_bin, os.path.dirname(rp)):
+            missing += 1
+            rows.extend((u, None, c) for u in c["uses"])
+            continue
         secs += r.get("seconds", 0)
-        for u in r.get("uses", []):
+        for u in r.get("uses") or c["uses"]:
             rows.append((u, r, c))
     common, median, floor = run_limits(rows)
     out = ["# Move sweep: port vs ares", ""]

@@ -24,22 +24,47 @@ coverage.json: {"functions": {name: {"count", "first_frame",
                                      "sites": [[instrumented caller, return-address function, count, frame, ctx]]}},
                 "paths": [[count, first_frame, [innermost..outer]]], "seq": [...], "watch": [...]}
 """
-import bisect, json, os, re, subprocess, sys
+import bisect, json, os, re, subprocess, sys, shutil, struct
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
+sys.path.insert(0, os.path.dirname(HERE))
+from runner_platform import process_options, backend_home, actual_backend, BACKENDS
 BASE = 0x100000000
+
+
+def image_base(binary):
+    with open(binary, "rb") as f:
+        header = f.read(64)
+        if header[:2] == b"MZ":
+            f.seek(struct.unpack_from("<I", header, 0x3c)[0] + 24)
+            optional = f.read(32)
+            return struct.unpack_from("<Q" if optional[:2] == b"\x0b\x02" else "<I", optional,
+                                      24 if optional[:2] == b"\x0b\x02" else 28)[0]
+    return BASE
+
+
+def nm_tool():
+    return os.environ.get("NM") or shutil.which("llvm-nm") or "nm"
+
+
+def cartridge_paths(spec):
+    if "|" in spec:
+        return spec.split("|", 1)
+    paths = re.split(r":(?=[A-Za-z]:[\\/])", spec, maxsplit=1)
+    return paths if len(paths) == 2 else spec.split(":", 1)
 
 
 def symbols(binary):
     """sorted [(offset, name)] of the text symbols (local ones too: nm, not dladdr)"""
-    out = subprocess.run(["nm", "-n", binary], capture_output=True, text=True, check=True).stdout
+    out = subprocess.run([nm_tool(), "-n", binary], capture_output=True, text=True, check=True).stdout
     syms = []
+    base = image_base(binary)
     for line in out.splitlines():
         p = line.split()
         if len(p) == 3 and p[1] in "tT":
-            name = p[2][1:] if p[2].startswith("_") else p[2]
-            syms.append((int(p[0], 16) - BASE, name))
+            name = p[2][1:] if os.name != "nt" and p[2].startswith("_") else p[2]
+            syms.append((int(p[0], 16) - base, name))
     return syms
 
 
@@ -58,12 +83,14 @@ class Resolver:
 
 
 def data_symbols(binary):
-    out = subprocess.run(["nm", binary], capture_output=True, text=True, check=True).stdout
+    out = subprocess.run([nm_tool(), binary], capture_output=True, text=True, check=True).stdout
     syms = {}
+    base = image_base(binary)
     for line in out.splitlines():
         p = line.split()
         if len(p) == 3 and p[1] in "dDbBsS":
-            syms[p[2][1:] if p[2].startswith("_") else p[2]] = int(p[0], 16) - BASE
+            name = p[2][1:] if os.name != "nt" and p[2].startswith("_") else p[2]
+            syms[name] = int(p[0], 16) - base
     return syms
 
 
@@ -163,10 +190,14 @@ def main():
     if opt("--call-file"):  # one spec per line (tools/evidence/dead_calls.py), "#" lines ignored
         call_specs += [l.strip() for l in open(opt("--call-file")) if l.strip() and not l.startswith("#")]
     if "--call-fork" in args:
+        if os.name == "nt":
+            sys.exit("--call-fork is unavailable on Windows; no forked probe was run")
         env["PORT_EVID_CALL_FORK"] = "1"
     if call_specs:  # direct calls (evidence_rt.c PORT_EVID_CALL): "AtFn#1:Target:i:p0,i20,i2"
         specs = []
         for x in call_specs:
+            if os.name == "nt" and re.search(r"[:,]f[-+0-9]", x):
+                sys.exit("mixed float direct-call probes require the original ARM64 ABI; probe not run")
             at, target, rest = x.split(":", 2)
             when = ""
             if at.endswith("@exit"):  # when that call of AtFn returns
@@ -185,7 +216,7 @@ def main():
     seed = opt("--seed", "1")
     if opt("--queue"):
         seed += ":" + os.path.abspath(opt("--queue"))
-    cmd = [sys.executable, "-I", os.path.join(ROOT, "tools", "battle_xcheck.py"), "run", out, "--seed", seed,
+    cmd = [sys.executable, "-X", "utf8", "-I", os.path.join(ROOT, "tools", "battle_xcheck.py"), "run", out, "--seed", seed,
            "--frames", opt("--frames", "20000"), "--port-bin", binary]
     if "--ares" not in args:
         cmd.append("--port-only")
@@ -198,13 +229,13 @@ def main():
               open(os.path.join(out, "scenario.json"), "w"), indent=1)
     if opt("--gb"):  # Transfer Pak cartridge: ROM and a copy of the save (the game writes it back)
         import shutil
-        rom, sav = opt("--gb").split(":", 1)
+        rom, sav = cartridge_paths(opt("--gb"))
         shutil.copyfile(sav, os.path.join(out, "gb.sav"))
         env["PORT_GB_ROM"] = os.path.abspath(rom)
         env["PORT_GB_SAVE"] = os.path.join(out, "gb.sav")
     if opt("--gb2"):  # a second cartridge (controller 2): the Trade Machine needs two
         import shutil
-        rom, sav = opt("--gb2").split(":", 1)
+        rom, sav = cartridge_paths(opt("--gb2"))
         shutil.copyfile(sav, os.path.join(out, "gb2.sav"))
         env["PORT_GB_ROM2"] = os.path.abspath(rom)
         env["PORT_GB_SAVE2"] = os.path.join(out, "gb2.sav")
@@ -224,15 +255,23 @@ def main():
         if "--natural" in args:  # a recording made with the game's own randomness and input: no forcing
             for k in ("PORT_XCHECK_RNG", "PORT_XCHECK_COM"):
                 env.pop(k, None)
+        backend_home(env, os.path.join(out, "home"))
         with open(os.path.join(out, "port.log"), "w") as log:
-            subprocess.run([binary, bx.ROM], cwd=os.path.dirname(binary), env=env, stdout=log, stderr=subprocess.STDOUT,
-                           preexec_fn=low_priority)
+            completed = subprocess.run([binary, bx.ROM], cwd=out, env=env, stdout=log, stderr=subprocess.STDOUT,
+                           **process_options(), timeout=max(300, int(opt("--frames", "20000")) / 40))
+        backend = env.get("PORT_TEST_BACKEND")
+        json.dump({"exit_code": completed.returncode, "requested_backend": backend,
+                   "actual_backend": actual_backend(os.path.join(out, "home"))}, open(os.path.join(out, "run_status.json"), "w"))
+        if backend and actual_backend(os.path.join(out, "home")) != BACKENDS[backend][0]:
+            sys.exit("Requested renderer was not selected")
     else:
         subprocess.run(cmd, env=env, check=True)
     cov = parse(out, res)
     json.dump(cov, open(os.path.join(out, "coverage.json"), "w"))
     print("%d functions reached, %d call paths, %d sequence lines, %d watch records" % (
         len(cov["functions"]), len(cov["paths"]), len(cov["seq"]), len(cov["watch"])))
+    if opt("--rec") and completed.returncode:
+        raise SystemExit(completed.returncode)
 
 
 if __name__ == "__main__":

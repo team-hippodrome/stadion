@@ -25,7 +25,7 @@ Needs the runs' coverage.profraw (build with PORT_EVID_COVERAGE, cmake/evidence.
   input, other globals;
 - line and branch coverage of the instrumented files.
 """
-import collections, json, os, re, subprocess, sys
+import collections, json, os, re, subprocess, sys, shutil
 
 CLASSES = [
     ("hardware (64DD, Controller Pak, Rumble Pak)", r"Leo[A-Z]|LeoDrive|osPfs|osMotor|Rumble|ControllerPak"),
@@ -135,6 +135,9 @@ def propose(gates, F, build, tmp):
 
 
 def tool(name):
+    found = shutil.which(name)
+    if found:
+        return found
     return subprocess.run(["xcrun", "-f", name], capture_output=True, text=True, check=True).stdout.strip()
 
 

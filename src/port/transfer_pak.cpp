@@ -246,6 +246,7 @@ s32 osGbpakPower(OSPfs* pfs, s32 flag) {
     if (c == nullptr) {
         return PFS_ERR_NOPACK;
     }
+    if (getenv("PORT_TRACE_GBPAK")) fprintf(stderr, "[gbpak-trace] power channel=%d flag=%d\n", pfs->channel, (int)flag);
     c->power = flag != 0;
     if (!c->power) {
         FlushSave(*c);
@@ -276,6 +277,12 @@ s32 osGbpakReadWrite(OSPfs* pfs, u16 flag, u16 address, u8* buffer, u16 size) {
         } else {
             BusWrite(*c, (u32)address + i, buffer[i]);
         }
+    }
+    if (getenv("PORT_TRACE_GBPAK") && flag == OS_READ && (address < 0x8000 || size >= 0x100)) {
+        unsigned sum = 0;
+        for (unsigned i = 0; i < size; i++) sum += buffer[i];
+        fprintf(stderr, "[gbpak-trace] read channel=%d addr=%04x size=%04x rombank=%u rambank=%u sum=%x\n",
+                pfs->channel, address, size, c->romBank, c->ramBank, sum);
     }
     if (flag != OS_READ) {
         FlushSave(*c);
