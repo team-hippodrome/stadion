@@ -1,5 +1,6 @@
 // SHA-1 (FIPS 180-4) for the ROM check: the port only needs it to tell the original dump from any other file.
 #include "rom_check.h"
+#include "file_io.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -113,7 +114,7 @@ std::string Sha1Hex(const uint8_t* data, size_t size) {
 }
 
 std::string Sha1HexFile(const std::string& path) {
-    FILE* f = fopen(path.c_str(), "rb");
+    FILE* f = OpenFileUtf8(path.c_str(), "rb");
     if (f == nullptr) {
         return "";
     }
@@ -142,7 +143,7 @@ std::string CheckRomDumpFile(const std::string& path) {
     if (AnyRomAllowed()) {
         return "";
     }
-    FILE* f = fopen(path.c_str(), "rb");
+    FILE* f = OpenFileUtf8(path.c_str(), "rb");
     if (f == nullptr) {
         return "Cannot open the file";
     }

@@ -6,6 +6,7 @@
 #include <port_compat.h>
 
 #include "Engine.h"
+#include "file_io.h"
 #include "interp.h"
 #include "pacing.h"
 
@@ -56,7 +57,7 @@ OSPiHandle gCartHandle, gDriveHandle;
 } // namespace
 
 bool Port::LoadRom(const char* path) {
-    FILE* f = fopen(path, "rb");
+    FILE* f = OpenFileUtf8(path, "rb");
     if (!f) {
         return false;
     }
