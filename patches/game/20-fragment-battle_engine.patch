@@ -1607,7 +1607,7 @@ index 2d35ee2a19e970aaf95a39c954d0ca2df22379e1..6091345938b61fcb8dda8141bbcf696c
  #include "moves.h"
  #include "src/text_system.h"
 diff --git a/src/fragments/battle_engine/battle_engine_361050.c b/src/fragments/battle_engine/battle_engine_361050.c
-index 1463c36f9d91811ef32fd53a4bad18102a7318ed..0ecbafaeee4802522054d9324fd2ac43f7eb4cab 100644
+index 1463c36f9d91811ef32fd53a4bad18102a7318ed..542995eadd70f90f800d7aa52e905c1b1d75eb68 100644
 --- a/src/fragments/battle_engine/battle_engine_361050.c
 +++ b/src/fragments/battle_engine/battle_engine_361050.c
 @@ -66,16 +66,25 @@ static u8 D_8438B0D8[] = {
@@ -1695,7 +1695,19 @@ index 1463c36f9d91811ef32fd53a4bad18102a7318ed..0ecbafaeee4802522054d9324fd2ac43
      u8 sp90[3];
      u8 sp78[0x18];
      u8 spBF;
-@@ -5394,7 +5409,7 @@ s32 func_843831A0(TeamRoster* arg0, TeamRoster* arg1, TeamRoster* ai_roster, s32
+@@ -4762,7 +4777,10 @@ u8 BattleAI_ScoreAttackVsSwitch(BattleAiMonState* arg0, BattleAiMonState* arg1,
+                     sp6C += 0x80;
+                 } else {
+                     if ((D_843C5564->unk_00 & 0x400000) && (arg5 != NULL)) {
+-                        if (arg5[arg0->unk_00].unk_04[arg5[arg0->unk_00].unk_B4].unk_0C >= 0xFB) {
++                        // PORT: move-score records are built only for living Pokemon; a fainted record has no
++                        // initialized selected-move index. Its final switch score is forced to 0xFF below.
++                        if ((sp40->unk_0C > 0) &&
++                            (arg5[arg0->unk_00].unk_04[arg5[arg0->unk_00].unk_B4].unk_0C >= 0xFB)) {
+                             sp6C -= 0xFF;
+                         }
+                     } else if (sp64 >= 0xFA) {
+@@ -5394,7 +5412,7 @@ s32 func_843831A0(TeamRoster* arg0, TeamRoster* arg1, TeamRoster* ai_roster, s32
      if (ai_difficulty < 0xFF) {
          BattleAI_LoadConfiguration(ai_difficulty, &D_843C60F0);
      }
