@@ -7738,10 +7738,10 @@ index bf876398..babfa5f6 100644
          out.color = float4(texel, 1.0);
      @end
 diff --git a/src/fast/shaders/opengl/default.shader.glsl b/src/fast/shaders/opengl/default.shader.glsl
-index 3693c798..7903afd8 100644
+index 3693c798..c806ca46 100644
 --- a/src/fast/shaders/opengl/default.shader.glsl
 +++ b/src/fast/shaders/opengl/default.shader.glsl
-@@ -1,297 +1,318 @@
+@@ -1,297 +1,319 @@
 -@prism(type='fragment', name='Fast3D Fragment Shader', version='1.0.0', description='Ported shader to prism', author='Emill & Prism Team')
 -
 -@{GLSL_VERSION}
@@ -8328,6 +8328,10 @@ index 3693c798..7903afd8 100644
 +            @if(o_alpha_threshold)
 +                if (texel.a < 8.0 / 256.0) discard;
 +            @end
++            // Depth-only masks preserve colour and coverage. The second output's alpha drives RGB blending.
++            @if(o_invisible)
++                texel.a = 0.0;
++            @end
 +            @if(dual_source)
 +                // PORT: the alpha written is the N64 coverage bit: 1 for every drawn pixel, kept (0) for o_invisible
 +                // draws; the blend alpha goes to the second output (as default.shader.metal)
@@ -8338,9 +8342,6 @@ index 3693c798..7903afd8 100644
 +                @end
 +                vOutColor1 = vec4(0.0, 0.0, 0.0, texel.a);
 +            @else
-+                @if(o_invisible)
-+                    texel.a = 0.0;
-+                @end
 +                @{vOutColor} = texel;
 +            @end
 +        @else
@@ -8359,10 +8360,10 @@ index 3693c798..7903afd8 100644
 \ No newline at end of file
 diff --git a/src/fast/shaders/vulkan/default.shader.glsl b/src/fast/shaders/vulkan/default.shader.glsl
 new file mode 100644
-index 00000000..134caef3
+index 00000000..ab499ae8
 --- /dev/null
 +++ b/src/fast/shaders/vulkan/default.shader.glsl
-@@ -0,0 +1,320 @@
+@@ -0,0 +1,321 @@
 +@prism(type='fragment', name='Fast3D Vulkan Shader', version='1.0.0', description='Ported shader to prism', author='Emill & Prism Team')
 +
 +#version 450
@@ -8655,6 +8656,10 @@ index 00000000..134caef3
 +            @if(o_alpha_threshold)
 +                if (texel.a < 8.0 / 256.0) discard;
 +            @end
++            // Depth-only masks preserve colour and coverage. The second output's alpha drives RGB blending.
++            @if(o_invisible)
++                texel.a = 0.0;
++            @end
 +            @if(dual_out)
 +                // PORT: the alpha written is the N64 coverage bit: 1 for every drawn pixel, kept (0) for o_invisible
 +                // draws; the blend alpha goes to the second output (as default.shader.metal)
@@ -8665,9 +8670,6 @@ index 00000000..134caef3
 +                @end
 +                vOutColor1 = vec4(0.0, 0.0, 0.0, texel.a);
 +            @else
-+                @if(o_invisible)
-+                    texel.a = 0.0;
-+                @end
 +                vOutColor = texel;
 +            @end
 +        @else
