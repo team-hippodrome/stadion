@@ -33,6 +33,33 @@ class SweepPlanTests(unittest.TestCase):
             self.assertTrue(sweep.classify(use, 0).startswith('animation mismatch'))
         self.assertEqual(sweep.classify({'used': True}, 0), 'match (no animation)')
 
+    def test_bide_and_dream_eater_base_setups_can_play_their_animations(self):
+        moves, species, chart = sweep.decomp_tables()
+        cases, _ = sweep.plan(moves, species, chart, only_path='base')
+        bide = next(c for c in cases if c['uses'][0]['move'] == 117)
+        self.assertGreaterEqual(bide['pp'], bide['turns'])
+        self.assertIn('"pp":', bide['spec'])
+        self.assertIn('p1=5 ', sweep.case_file(bide, species))
+        dream = next(c for c in cases if c['uses'][0]['move'] == 138)
+        self.assertGreater(dream['target']['status'] & 7, 0)
+        for case in (bide, dream):
+            self.assertEqual(len(case['uses']), 1)
+            self.assertTrue(case['uses'][0]['require_animation'])
+
+    def test_copied_moves_capture_the_animation_the_game_actually_plays(self):
+        moves, species, chart = sweep.decomp_tables()
+        cases, _ = sweep.plan(moves, species, chart, only_path='base')
+        mirror = next(c for c in cases if c['uses'][0]['move'] == 119)
+        self.assertEqual(mirror['target']['moves'], [33])
+        self.assertGreater(mirror['target']['spd'], 150)
+        self.assertEqual(mirror['uses'][0]['animation_move'], 33)
+        metronome = next(c for c in cases if c['uses'][0]['move'] == 118)
+        self.assertEqual(metronome['rules']['Battle_Random@Battle_Effect_Metronome'], [85])
+        self.assertEqual(metronome['uses'][0]['animation_move'], 85)
+        for case in (mirror, metronome):
+            self.assertIn('"animation_moves":', case['spec'])
+            self.assertTrue(case['uses'][0]['require_animation'])
+
     def test_explicit_move_and_generic_path_filters_are_preserved(self):
         moves, species, chart = sweep.decomp_tables()
         for move in (1, 33, 165):
