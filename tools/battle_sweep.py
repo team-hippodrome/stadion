@@ -406,6 +406,26 @@ def load_waits(d):
     return wait
 
 
+def reference_vi_schedule(directory):
+    """Replay observed retrace gaps while retaining the mixer's original sample clock."""
+    if os.environ.get("XCHECK_REFERENCE_TIMING") == "0":
+        return None
+    rows = []
+    with open(os.path.join(directory, "ares.trace")) as source:
+        for line in source:
+            if line.startswith("V "):
+                frame, retrace = map(int, line.split()[1:])
+                if frame != len(rows) + 1 or retrace < 0 or (rows and retrace < rows[-1][1]):
+                    raise ValueError("non-contiguous reference battle-frame timing")
+                rows.append((frame, retrace))
+    if not rows:
+        raise ValueError("reference has no battle-frame timing")
+    path = os.path.join(directory, "reference-vi.txt")
+    with open(path, "w") as output:
+        output.writelines("%d %d\n" % row for row in rows)
+    return path
+
+
 def reference_archive(d, exe, max_frames):
     """Optional shared oracle captures, keyed by every input and the reference executable."""
     cache = os.environ.get("XCHECK_REFERENCE_CACHE")
@@ -523,12 +543,15 @@ def run_case(c, species, port_bin, max_frames):
     # runs on meanwhile (Moltres' simulated flames, idle motions) then enters the animation in another state. The
     # port runs again and waits as long before each such animation (PORT_XCHECK_LOAD_WAIT, src/port/xcheck.cpp).
     wait = load_waits(d)
-    if any(wait):
+    timing = reference_vi_schedule(d) if not reference_timed_out and (ap is None or ap.returncode == 0) else None
+    if any(wait) or timing:
         shutil.rmtree(os.path.join(d, "port_anim"), ignore_errors=True)
         os.makedirs(os.path.join(d, "port_anim"))
         shutil.copyfile(os.path.join(ROOT, "replays", "default.flash"), os.path.join(d, "port.flash"))
         clear_port_outputs(d)
         penv["PORT_XCHECK_LOAD_WAIT"] = ",".join(map(str, wait))
+        if timing:
+            penv["PORT_XCHECK_VI_TIMING"] = timing
         with open(os.path.join(d, "port.log"), "w") as pl:
             pp = subprocess.Popen([port_bin, bx.ROM], cwd=os.path.dirname(port_bin), env=penv, stdout=pl,
                                   stderr=subprocess.STDOUT, **bx.process_options())
@@ -545,6 +568,10 @@ def run_case(c, species, port_bin, max_frames):
     elif pp.returncode != 0 or res["reference_exit_code"] != 0:
         res["error"] = "port exit %s, reference exit %s" % (pp.returncode, res["reference_exit_code"])
     res["seconds"] = round(secs, 1)
+    res["timing_mode"] = "reference-vi-v1" if timing else "native"
+    if timing:
+        with open(timing, "rb") as source:
+            res["reference_vi_sha256"] = hashlib.file_digest(source, "sha256").hexdigest()
     res["reference_cached"] = cached_reference
     res["port_binary_sha256"] = binary_fingerprint(port_bin)
     res["evidence_profile"] = os.path.isfile(os.path.join(d, "coverage.profraw")) if os.environ.get("XCHECK_EVIDENCE") else False
@@ -1043,9 +1070,7 @@ def main():
             if os.path.exists(rp) and not args.get("--force"):
                 try:
                     cached = json.load(open(rp))
-                    if (cached.get("spec") == c["spec"] and
-                            cached.get("port_binary_sha256") == binary_fingerprint(port_bin) and
-                            (not os.environ.get("XCHECK_EVIDENCE") or os.path.isfile(os.path.join(os.path.dirname(rp), "coverage.profraw")))):
+                    if result_matches_build(cached, c, port_bin, os.path.dirname(rp)):
                         continue
                 except ValueError:
                     pass
@@ -1082,6 +1107,7 @@ def run_limits(rows):
 
 def result_matches_build(result, case, port_bin, directory):
     return (result is not None and result.get("spec") == case["spec"] and
+            result.get("timing_mode") == ("native" if os.environ.get("XCHECK_REFERENCE_TIMING") == "0" else "reference-vi-v1") and
             (not port_bin or result.get("port_binary_sha256") == binary_fingerprint(os.path.abspath(port_bin))) and
             (not os.environ.get("XCHECK_EVIDENCE") or os.path.isfile(os.path.join(directory, "coverage.profraw"))))
 
