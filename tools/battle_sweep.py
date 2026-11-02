@@ -87,7 +87,7 @@ TARGET_POOL = [113, 143, 80, 76, 112, 131, 91, 130, 149, 94, 59, 103, 45, 34, 26
 
 # ---- decomp tables ----
 def decomp_tables():
-    src = open(os.path.join(ROOT, "game", "src", "gb_data.c")).read()
+    src = Path(ROOT, "game", "src", "gb_data.c").read_text(encoding="utf-8")
     body = src[src.index("gMoveDataWithZeroth[166] = {"):]
     body = body[:body.index("};")]
     moves = {}
@@ -102,7 +102,7 @@ def decomp_tables():
         g = [int(x, 0) for x in m.groups()[:8]]
         species[g[0]] = {"id": g[0], "hp": g[1], "atk": g[2], "def": g[3], "spd": g[4], "spc": g[5], "types": (g[6], g[7]),
                          "start": [int(x, 0) for x in m.group(9).split(",")]}
-    be = open(os.path.join(ROOT, "game", "src", "fragments", "battle_engine", "battle_engine_359F90.c")).read()
+    be = Path(ROOT, "game", "src", "fragments", "battle_engine", "battle_engine_359F90.c").read_text(encoding="utf-8")
     body = be[be.index("u8 gTypeEffects[] = {"):]
     nums = [int(x, 0) for x in re.findall(r"0x[0-9A-Fa-f]+|\d+", body[body.index("{"):body.index("};")])]
     chart = {}
