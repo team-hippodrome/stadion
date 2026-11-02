@@ -22,6 +22,8 @@
 #include <cstring>
 #include <string>
 #include <deque>
+#include <future>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -365,11 +367,52 @@ void port_osViSetXScale(f32 scale) {
 // The libultraship implementation, reached through its real symbol name (the macro in port_compat.h renames the
 // game's calls to the wrapper below).
 #if defined(__APPLE__)
+extern "C" int32_t LUS_osContInit(OSMesgQueue* mq, uint8_t* bits, OSContStatus* status) __asm__("_osContInit");
 extern "C" int32_t LUS_osContStartReadData(OSMesgQueue* mq) __asm__("_osContStartReadData");
 #else
+extern "C" int32_t LUS_osContInit(OSMesgQueue* mq, uint8_t* bits, OSContStatus* status) __asm__("osContInit");
 extern "C" int32_t LUS_osContStartReadData(OSMesgQueue* mq) __asm__("osContStartReadData");
 #endif
 extern "C" void port_WakeQueue(OSMesgQueue* mq);
+
+struct ControllerInitRequest {
+    OSMesgQueue* mq;
+    uint8_t* bits;
+    OSContStatus* status;
+    std::promise<s32> completion;
+};
+static std::mutex gControllerInitLock;
+static std::deque<std::shared_ptr<ControllerInitRequest>> gControllerInitRequests;
+
+extern "C" s32 port_osContInit(OSMesgQueue* mq, u8* bits, OSContStatus* status) {
+    auto request = std::make_shared<ControllerInitRequest>();
+    request->mq = mq;
+    request->bits = bits;
+    request->status = status;
+    auto completion = request->completion.get_future();
+    {
+        std::lock_guard<std::mutex> lock(gControllerInitLock);
+        gControllerInitRequests.push_back(request);
+    }
+    // Keep the virtual game thread runnable while the host waits. Releasing its scheduler token would let
+    // retraces advance during initialization and change the replay's initial clock and RNG seed.
+    return completion.get();
+}
+
+extern "C" void Port_ProcessControllerInitRequests(void) {
+    for (;;) {
+        std::shared_ptr<ControllerInitRequest> request;
+        {
+            std::lock_guard<std::mutex> lock(gControllerInitLock);
+            if (gControllerInitRequests.empty()) return;
+            request = gControllerInitRequests.front();
+            gControllerInitRequests.pop_front();
+        }
+        // Both initialization and polling run on the window thread: the CVar map and partially installed
+        // controller mappings must never be read by polling while initialization is changing them.
+        request->completion.set_value(LUS_osContInit(request->mq, request->bits, request->status));
+    }
+}
 
 extern "C" s32 port_osContStartReadData(OSMesgQueue* mq) {
     // libultraship reads the pads synchronously in osContGetReadData and never posts the SI completion the game
