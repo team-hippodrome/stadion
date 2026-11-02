@@ -33,10 +33,19 @@ class WholeGameCatalogTests(unittest.TestCase):
                 continue
             if Path(case['rec']).name == 'idle.rec':
                 continue  # short diagnostic probes intentionally stop before idle's late exit button
+            if case['name'] == 'champion_banner_probe_round':
+                continue  # the diagnostic ends after drawing the Champion banner, before the recorded battle
             frames = [int(line.split()[0]) for line in Path(case['rec']).read_text().splitlines()
                       if line.strip() and not line.startswith('#')]
             with self.subTest(case=case['name']):
                 self.assertGreaterEqual(case['frames'], max(frames, default=0))
+
+    def test_champion_diagnostic_selects_and_draws_the_last_castle_banner(self):
+        cases = catalog.recipes(Path('fixtures').resolve())
+        case = next(c for c in cases if c['name'] == 'champion_banner_probe_round')
+        self.assertEqual(case['frames'], 9000)
+        self.assertIn('BattlePrep_LoadBannerAssets:gSessionContext+0x2:1=9', case['extra'][case['extra'].index('--set') + 1])
+        self.assertIn('BattlePrep_BindCarouselSegment1', case['expect'])
 
     def test_album_dependencies_precede_readers(self):
         cases = catalog.ordered(catalog.recipes(Path('fixtures').resolve()))
