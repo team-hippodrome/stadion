@@ -220,6 +220,8 @@ def recipes(fixtures, output=None, backend='opengl'):
         cases[-1]['expect'] = (['Gallery_SwapPhotoRecords', 'Gallery_SnapUpdatePasteConfirm', 'Gallery_AlbumConfirmAndExit', 'Audio_PlayCategory12SoundCommand']
                               if stem == 'gal_album' else ['Gallery_LoadSurfingPikachuIcon', 'Gallery_AlbumMain']
                               if stem == 'gal_album_boot' else ['Gallery_LoadSurfingPikachuIcon', 'Gallery_SwitchBackgroundSet'])
+        if stem == 'gal_album':
+            cases[-1]['expect_edges'] = [('Audio_PlayCategory12SoundCommand', 'Audio_PlaySoundEffect')]
     add('minigames_gallery', 'gal_busy', frames=3400, save='base', state=17, env={'PORT_CONTROLLERS': '1,2'},
         extra=('--gb2', str(fixtures / 'yellow_de.gb') + '|' + str(fixtures / 'gbv/bad_checksum.sav')))
     add('minigames_gallery', 'gal_busy_boot', frames=3800, save='gbv/bad_checksum.sav')
