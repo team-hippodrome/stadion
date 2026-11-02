@@ -68,3 +68,13 @@ Host offsets come from `offsetof` with `session.c`'s flags. On the host, `Battle
 | func_81203C58 | the GB Tower emulator's state test (`unk_549C`, `unk_559C`, `unk_53E8 == 0x100` in emulated memory) | Not traced. |
 | Sched_TryYieldActiveTask, Sched_RequestTaskYield | at retrace, a pending task while another task is still on the RSP (`unk_A14 != NULL`) | The port runs RSP tasks to completion when they are started, so none is active at retrace. Timing the port does not reproduce. |
 | SoftReset_ClearLines640, func_8000559C, DisplayWorker_DrainEvents | after PRE-NMI: a 640-wide framebuffer, no display status, the display worker looping with the reset flag set | The forced PRE-NMI run cleared one line in 320 mode. The worker stayed blocked on its queue. |
+
+
+### Native Windows PRE-NMI evidence
+
+The Windows runner injects `port_PostEvent(14)` after the title screen and ends at
+`Sched_HandleRetrace#3000@exit` through `Port_EvidenceExit(0)`. It requires
+`Sched_HandlePreNMI` and16 calls to the repeated-line fade helper `func_8000559C`.
+PRE-NMI stops normal render clients, so a rendered-frame stop cannot complete this
+terminal route. The evidence exit flushes calls and LLVM profiles before `_exit`,
+keeping host GUI teardown outside the emulated reset sequence.

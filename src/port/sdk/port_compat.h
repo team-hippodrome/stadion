@@ -136,12 +136,14 @@ int _Printf(_PrintfOutFun* prout, char* arg, const char* fmt, va_list args);
 // libultraship's versions take its union OSMesg; the game passes plain integers/pointers.
 void port_osViSetEvent(OSMesgQueue* mq, OSMesg msg, u32 retraceCount);
 void port_osViSwapBuffer(void* fb);
+void* port_osViGetCurrentFramebuffer(void);
 void port_osViBlack(u8 black);
 void port_osViSetXScale(f32 scale);
 void port_osViSetMode(void* mode); // OSViMode*
 s32 port_osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* mq, OSMesg msg);
 #define osViSetEvent port_osViSetEvent
 #define osViSwapBuffer port_osViSwapBuffer
+#define osViGetCurrentFramebuffer port_osViGetCurrentFramebuffer
 #define osViBlack port_osViBlack
 #define osViSetXScale port_osViSetXScale
 #define osViSetMode port_osViSetMode
