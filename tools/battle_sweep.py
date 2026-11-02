@@ -7,8 +7,9 @@ Usage:
   tools/battle_sweep.py run [--move N|NAME | --case ID] [--path P | --all-paths] [--user SPECIES] [--jobs 2] [--force]
                             [--open] [--port-bin build-xcheck/pokestadium]
   tools/battle_sweep.py report [--all-paths]             build-xcheck-sweep/report.md from the cached cases
-By default each move runs once, on its base path, with its sound compared (the battle music is switched off on
-both sides, so the move's sound effects are what is heard); --all-paths runs every path of the catalog.
+By default each move runs on its base path, with additional injured-user healing cases and its sound compared
+(the battle music is switched off on both sides, so the move's sound effects are what is heard); --all-paths runs
+every path of the catalog.
 
 Work and results go to build-xcheck-sweep/ (XCHECK_SWEEP_DIR overrides): cases/<id>/result.json (+ sheets of
 mismatching animations). Finished cases are cached: a rerun only runs cases that are missing or whose spec changed
@@ -314,6 +315,19 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
                       "user": usr, "rules": rules, "turns": 3 if gp != "struggle" else 2,
                       "uses": [{"move": mid if gp != "struggle" else 0xA5, "path": gp, "why": why, "user": 113,
                                 "user_why": "generic case"}], "pp0": gp == "struggle"}
+    # Keep the original batches stable for cached comparisons. Healing at full HP takes the failure path, so
+    # additionally exercise each healing move alone with missing HP; batching healers would refill the next user's HP.
+    if only_path in (None, "base", "injured"):
+        for mid, mv in moves.items():
+            if mv["effect"] != 0x38 or (only_move and mid != only_move):
+                continue
+            user, user_why = (user_override, "--user") if user_override else pick_user(mv, species)
+            groups["injured:%d" % mid] = {
+                "path": "injured", "target": {"species": 113, "moves": [SPLASH], "spd": 20, "hp": 999, "status": 0},
+                "user": {"species": user, "hp": 150, "status": 0},
+                "rules": {"Battle_RandomAccuracy@func_843708CC": [0], "Battle_Random@Battle_CheckCriticalHit": [255]},
+                "turns": 1, "uses": [{"move": mid, "path": "injured", "why": "healing succeeds with missing HP",
+                                      "user": user, "user_why": user_why, "require_animation": True}]}
     cases = []
     for c in groups.values():
         u = c["uses"]
@@ -685,6 +699,8 @@ def evaluate(c, d):
     taken = {"port": set(), "ares": set()}
     for u in c["uses"]:
         r = {"move": u["move"], "path": u["path"], "why": u["why"], "user": u["user"], "user_why": u["user_why"]}
+        if u.get("require_animation"):
+            r["require_animation"] = True
         act = next((a for a in actions["port"] if a["side"] == 0 and a["move"] == u["move"]), None)
         r["used"] = act is not None
         r["msgs"] = act["msgs"] if act else ""
@@ -1013,10 +1029,15 @@ def classify(u, common_offset, floor=None):
     if not u.get("used"):
         return "not reached"
     if "port" not in a and "ares" not in a:
+        if u.get("require_animation"):
+            return "animation mismatch (required animation absent)"
         return "match (no animation)"
     if ("port" in a) != ("ares" in a):
         return "animation mismatch (only on %s)" % ("port" if "port" in a else "ares")
     s = u.get("score", {})
+    if u.get("require_animation") and (len(s.get("frames", [])) != 2 or not all(s["frames"]) or
+                                       not all(k in s for k in ("offset", "ssim", "effect_p90"))):
+        return "animation mismatch (required capture or comparison absent)"
     notes = []
     if "effect_p90" in s and s["effect_p90"] > (EFFECT_LIMIT if floor is None else floor):
         notes.append("effects differ: %.0f (worst frame %d: %.0f)" % (s["effect_p90"], s["worst_frame"], s["effect_max"]))
@@ -1119,7 +1140,7 @@ def main():
         cmd = "report"
     if cmd == "report":
         report(cases, skipped, moves, mvn, spn, args.get("--port-bin"))
-        print("(report of %s)" % ("every path" if args.get("--all-paths") else "the base path: each move once"))
+        print("(report of %s)" % ("every path" if args.get("--all-paths") else "the base paths and successful healing"))
 
 
 def run_limits(rows):
