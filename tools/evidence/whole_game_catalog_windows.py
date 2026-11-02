@@ -23,7 +23,7 @@ def prepare(directory, cartridge):
         shutil.copyfile(cartridge, rom)
     source_hash = hashlib.sha256(rom.read_bytes()).hexdigest()
     stamp = directory / 'prepared.json'
-    if stamp.exists() and json.loads(stamp.read_text()).get('rom_sha256') == source_hash and json.loads(stamp.read_text()).get('version') == 2:
+    if stamp.exists() and json.loads(stamp.read_text()).get('rom_sha256') == source_hash and json.loads(stamp.read_text()).get('version') == 3:
         return
     env = dict(os.environ, PYTHONPATH=str(ROOT / 'tools/save_editor'))
     def run(script, *args):
@@ -46,6 +46,7 @@ def prepare(directory, cartridge):
         'pika3': 'PIKACHU:25,moves=84/45/86;BULBASAUR:20;CHARMANDER:18',
         'pika4': 'PIKACHU:25,moves=84/45/86/98;BULBASAUR:20;CHARMANDER:18',
         'spike': ';'.join(s + ':50,moves=131/131/131/131' for s in ['CLOYSTER', 'OMASTAR'] * 3),
+        'event6': ';'.join(s + ':50' for s in ['PIKACHU', 'VENUSAUR', 'CHARIZARD', 'BLASTOISE', 'SNORLAX', 'LAPRAS']),
     }
     for name, party in parties.items():
         run('tools/evidence/gb_party.py', directory / 'base.sav', directory / (name + '.sav'), party)
@@ -80,7 +81,7 @@ def prepare(directory, cartridge):
         mons = ['SNORLAX:50', 'PIKACHU:50', 'LAPRAS:50'] + (['TAUROS:50', 'STARMIE:50', 'ALAKAZAM:50'] if name == 'CUP10X6' else [])
         for slot in range(count):
             edit('team', dest, 'set', category, slot, *mons)
-    stamp.write_text(json.dumps({'version': 2, 'rom_sha256': source_hash, 'files': {str(p.relative_to(directory)): hashlib.sha256(p.read_bytes()).hexdigest()
+    stamp.write_text(json.dumps({'version': 3, 'rom_sha256': source_hash, 'files': {str(p.relative_to(directory)): hashlib.sha256(p.read_bytes()).hexdigest()
                          for p in directory.rglob('*') if p.is_file() and p != stamp}}, indent=2))
 
 
@@ -174,8 +175,13 @@ def recipes(fixtures, output=None, backend='opengl'):
         extra = ('--gb2', str(fixtures / 'yellow_de.gb') + '|' + str(fixtures / 'gbv/party6.sav')) if 'trade' in stem else ()
         add('', stem, save='gbv/boxes_full.sav', flash='labfull', extra=extra, env={'PORT_CONTROLLERS': '1,2'})
     for stem in ['event_battle', 'event_battle_settings']:
-        add('', stem, save='gbv/party6.sav', state=18, env={'PORT_CONTROLLERS': '1,2'},
-            extra=('--gb2', str(fixtures / 'yellow_de.gb') + '|' + str(fixtures / 'gbv/party6.sav')))
+        # The settings recording uses the disabled Start option to enter its
+        # settings branch; the battle-entry recording needs an eligible team.
+        save = 'event6.sav' if stem == 'event_battle' else 'gbv/party6.sav'
+        add('', stem, save=save, state=18, env={'PORT_CONTROLLERS': '1,2'},
+            frames=9000 if stem == 'event_battle' else None,
+            expect=('EventBattle_StartBattle', 'State_BattleFromEvent') if stem == 'event_battle' else ('EventBattle_RunSettingsPanel',),
+            extra=('--gb2', str(fixtures / 'yellow_de.gb') + '|' + str(fixtures / save)))
     for count in (3, 4):
         add('', f'pikachu_reward_{count}moves', save='pika' + str(count), natural=False,
             extra=('--call', 'BattlePrep_RunRulesScreen#2@exit:Fragment_LoadAndCall:i:i34,i3891504,i3900720,i0,i0'))
