@@ -148,7 +148,8 @@ def main():
     cc = json.load(open(os.path.join(build, "compile_commands.json")))
     entries = [e for e in cc if re.search(regex, e["file"]) and e["file"].endswith(".c")]
     tmp = tempfile.mkdtemp(prefix="callgraph-", dir=os.environ.get("TMPDIR"))
-    os.nice(15)
+    if hasattr(os, "nice"):
+        os.nice(15)
     with ThreadPoolExecutor(jobs) as ex:
         irs = list(ex.map(lambda e: (e, ir_for(e, tmp)), entries))
 

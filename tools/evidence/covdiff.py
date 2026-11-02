@@ -5,10 +5,13 @@ instrumented files). For judging a lever: a Game Pak party, a save, forced memor
 Usage:
   tools/evidence/covdiff.py <binary> <out.md> --base <run dir>... --new <run dir>...
 """
-import collections, json, os, subprocess, sys, tempfile
+import collections, json, os, subprocess, sys, tempfile, shutil
 
 
 def tool(name):
+    found = shutil.which(name)
+    if found:
+        return found
     return subprocess.run(["xcrun", "-f", name], capture_output=True, text=True, check=True).stdout.strip()
 
 

@@ -50,6 +50,9 @@
 #include <vector>
 #include <algorithm>
 #include <sys/stat.h>
+#ifdef _WIN32
+#include <direct.h>
+#endif
 
 using namespace ares;
 
@@ -572,7 +575,11 @@ bool hook(u32 address) {
             char name[64];
             snprintf(name, sizeof(name), "/m%02d_%03u", gAnimCount, move);
             gAnimCur = gAnimDir + name;
+#ifdef _WIN32
+            _mkdir(gAnimCur.c_str());
+#else
             mkdir(gAnimCur.c_str(), 0755);
+#endif
             gAnimLeft = gAnimFrames;
             gAnimStart = gGameFrame;
             gSavedGameFrame = ~0ull;

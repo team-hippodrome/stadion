@@ -37,10 +37,14 @@
 #include <string>
 #include <unistd.h>
 #include <vector>
+#include <algorithm>
 #include <sys/stat.h>
 #if defined(_WIN32)
 #include <direct.h>
 #define mkdir(path, mode) _mkdir(path)
+struct PortHostSymbol { void* address; const char* name; };
+extern "C" const PortHostSymbol gPortHostSymbols[];
+extern "C" const unsigned gPortHostSymbolCount;
 #else
 #include <dlfcn.h>
 #endif
@@ -183,7 +187,20 @@ std::string Hex(const void* p, size_t n) {
 
 // the game function a return address lies in (the game's functions are exported: dladdr names them)
 const char* CallerName(void* ra) {
-#if !defined(_WIN32) // no dladdr on Windows: the cross-check runs on macOS and Linux
+#if defined(_WIN32)
+    static const std::vector<PortHostSymbol> symbols = [] {
+        std::vector<PortHostSymbol> rows(gPortHostSymbols, gPortHostSymbols + gPortHostSymbolCount);
+        std::sort(rows.begin(), rows.end(), [](const auto& a, const auto& b) {
+            return reinterpret_cast<uintptr_t>(a.address) < reinterpret_cast<uintptr_t>(b.address);
+        });
+        return rows;
+    }();
+    if (ra) {
+        auto found = std::upper_bound(symbols.begin(), symbols.end(), reinterpret_cast<uintptr_t>(ra),
+            [](uintptr_t address, const auto& row) { return address < reinterpret_cast<uintptr_t>(row.address); });
+        if (found != symbols.begin()) return (--found)->name;
+    }
+#else
     Dl_info info;
     if (ra && dladdr(ra, &info) && info.dli_sname) return info.dli_sname[0] == '_' ? info.dli_sname + 1 : info.dli_sname;
 #endif

@@ -2,6 +2,7 @@
 """Plays the stored input recordings (replays/*.rec) and reports which still reach their stop frame.
 
 Usage: tools/run_replays.py [--all] [--update] [-j N] [--rom PATH] [name ...]   (or PORT_ROM=<path>)
+       [--port-bin PATH] [--backend directx|opengl|vulkan] [--out DIR] [--reference-dir DIR]
 
 Each recording runs at max speed with the game window hidden (PORT_HIDDEN_WINDOW=1), several at a time (-j, default:
 the number of CPU cores minus two), from a fresh copy of its save
@@ -13,13 +14,18 @@ reference), BADADDR (the renderer or a DMA met a wild address: "[timg] bad", "[d
 data), FREEZE (the game stopped changing the picture), CRASH, TIMEOUT. Recordings marked "long" in the list run
 only with --all or when named. Exit status 1 when any recording did not pass.
 """
-import os, shutil, subprocess, sys, tempfile, time
-from concurrent.futures import ThreadPoolExecutor
+import os, shutil, subprocess, sys, tempfile, time, json
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from runner_platform import BACKENDS, backend_home, actual_backend, process_options
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPLAYS = os.path.join(ROOT, "replays")
 BUILD = os.path.join(ROOT, "build")
 OUT = os.path.join(BUILD, "replays")
+PORT_BIN = os.path.join(BUILD, "pokestadium.exe" if os.name == "nt" else "pokestadium")
+BACKEND = None
+REFERENCE_DIR = None
 DEFAULT_ROM = os.environ.get("PORT_ROM", "/Users/michael/Downloads/romis/Pokemon Stadium (USA).z64")
 DIFF_LIMIT = 2.0  # mean absolute difference per sampled channel value that still counts as the same picture
 
@@ -74,7 +80,7 @@ def run_one(name, stop, env_extra, rom, update):
     save = os.path.join(REPLAYS, name + ".flash")
     if not os.path.exists(save):
         save = os.path.join(REPLAYS, "default.flash")
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=(os.name == "nt")) as tmp:
         env = dict(os.environ)
         env.update({
             "PORT_HIDDEN_WINDOW": "1", "PORT_SPEED": "max", "PORT_EXIT_ON_FREEZE": "1",
@@ -98,15 +104,21 @@ def run_one(name, stop, env_extra, rom, update):
             else:  # values naming a file in the repository (gb/..., replays/...) become absolute
                 env[k] = path if os.path.exists(path) else v
         start = time.time()
+        backend_home(env, os.path.join(tmp, "home"), BACKEND)
         log = open(os.path.join(OUT, name + ".log"), "w")
         try:
             # timeout: generous for max speed (a few thousand frames per second), at least 2 minutes
-            code = subprocess.run([os.path.join(BUILD, "pokestadium"), rom], cwd=BUILD, env=env, stdout=log,
-                                  stderr=subprocess.STDOUT, timeout=max(120, stop / 200)).returncode
+            code = subprocess.run([PORT_BIN, rom], cwd=tmp, env=env, stdout=log,
+                                  stderr=subprocess.STDOUT,
+                                  timeout=max(300, stop / 40) if os.name == "nt" else max(120, stop / 200),
+                                  **process_options()).returncode
         except subprocess.TimeoutExpired:
             code = None
         log.close()
         secs = time.time() - start
+        selected = actual_backend(os.path.join(tmp, "home")) if BACKEND else None
+        if BACKEND and selected != BACKENDS[BACKEND][0]:
+            return name, "BACKEND", secs, "requested %s, actual backend id %s" % (BACKEND, selected)
         # the first frame drawn at or after the stop frame (the game may not draw on every retrace)
         shots = sorted(f for f in os.listdir(tmp) if f.startswith("stop_") and f.endswith(".ppm"))
         shot = os.path.join(tmp, shots[0]) if shots else ""
@@ -122,7 +134,9 @@ def run_one(name, stop, env_extra, rom, update):
         shutil.copyfile(shot, result)
     if bad:
         return name, "BADADDR", secs, "%d lines, first: %s" % (len(bad), bad[0])
-    ref = os.path.join(OUT, "ref", name + ".ppm")
+    ref = os.path.join(REFERENCE_DIR or os.path.join(OUT, "ref"), name + ".ppm")
+    if REFERENCE_DIR and not os.path.exists(ref):
+        return name, "NOREF", secs, "reference missing: %s" % ref
     if update or not os.path.exists(ref):
         shutil.copyfile(result, ref)
         return name, "OK", secs, "reference written" if update else "new reference"
@@ -131,6 +145,7 @@ def run_one(name, stop, env_extra, rom, update):
 
 
 def main():
+    global PORT_BIN, OUT, BACKEND, REFERENCE_DIR
     args = sys.argv[1:]
     run_all = "--all" in args
     update = "--update" in args
@@ -141,11 +156,21 @@ def main():
             jobs = int(args[i + 1]); i += 1
         elif args[i] == "--rom":
             rom = args[i + 1]; i += 1
+        elif args[i] == "--port-bin":
+            PORT_BIN = os.path.abspath(args[i + 1]); i += 1
+        elif args[i] == "--out":
+            OUT = os.path.abspath(args[i + 1]); i += 1
+        elif args[i] == "--backend":
+            BACKEND = args[i + 1]; i += 1
+            if BACKEND not in BACKENDS:
+                sys.exit("backend must be directx, opengl or vulkan")
+        elif args[i] == "--reference-dir":
+            REFERENCE_DIR = os.path.abspath(args[i + 1]); i += 1
         elif not args[i].startswith("--"):
             names.append(args[i][:-4] if args[i].endswith(".rec") else os.path.basename(args[i]))
         i += 1
-    if not os.path.exists(os.path.join(BUILD, "pokestadium")):
-        sys.exit("build/pokestadium is missing: build first")
+    if not os.path.exists(PORT_BIN):
+        sys.exit("port binary is missing: %s" % PORT_BIN)
     if not os.path.exists(rom):
         sys.exit("ROM not found: %s (use --rom)" % rom)
     os.makedirs(os.path.join(OUT, "ref"), exist_ok=True)
@@ -160,10 +185,25 @@ def main():
             continue
         todo.append((name, stop or end_frame(os.path.join(REPLAYS, rec)), env))
     with ThreadPoolExecutor(max_workers=jobs) as pool:
-        results = list(pool.map(lambda t: run_one(t[0], t[1], t[2], rom, update), todo))
+        futures = {pool.submit(run_one, t[0], t[1], t[2], rom, update): t[0] for t in todo}
+        results = []
+        for future in as_completed(futures):
+            try:
+                row = future.result()
+            except Exception as error:
+                row = (futures[future], "ERROR", 0.0, "%s: %s" % (type(error).__name__, error))
+            results.append(row)
+            n, s, t, v = row
+            with open(os.path.join(OUT, n + ".result.json"), "w") as f:
+                json.dump(dict(name=n, status=s, seconds=t, note=v), f, indent=2)
+            print("%s: %s (%.1f s) %s" % row, flush=True)
+    results.sort()
     width = max([len(r[0]) for r in results] + [9])
     for name, status, secs, note in results:
         print("%-*s  %-7s %6.1f s  %s" % (width, name, status, secs, note))
+    with open(os.path.join(OUT, "results.json"), "w") as f:
+        json.dump({"backend": BACKEND, "binary": PORT_BIN, "results": [dict(name=n, status=s, seconds=t, note=v)
+                   for n, s, t, v in results]}, f, indent=2)
     sys.exit(0 if all(r[1] in ("OK", "SKIPPED") for r in results) else 1)
 
 

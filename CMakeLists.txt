@@ -107,6 +107,19 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_S
 # C arrays of 16/32-bit words in the game sources (textures among them need N64 byte order): their files are compiled
 # through generated wrappers that register the arrays with the renderer (see tools/gen_word_arrays.py)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+if(WIN32)
+  # Windows has no dladdr: cross-check caller rules use the same named game functions as the ROM callback table.
+  execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_xcheck_symbols.py
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_func_table.c
+      ${CMAKE_BINARY_DIR}/generated/xcheck_symbols.c RESULT_VARIABLE PORT_XCHECK_SYMBOL_RESULT)
+  if(NOT PORT_XCHECK_SYMBOL_RESULT EQUAL 0)
+    message(FATAL_ERROR "Could not generate Windows cross-check caller symbols")
+  endif()
+  target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/xcheck_symbols.c)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+      ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_xcheck_symbols.py
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_func_table.c)
+endif()
 execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_word_arrays.py
                         ${CMAKE_CURRENT_SOURCE_DIR}/game/src ${CMAKE_BINARY_DIR}/generated)
 include(${CMAKE_BINARY_DIR}/generated/word_wrappers.cmake)
