@@ -32,7 +32,7 @@ calls (per function) as the lockstep reference run.
 On Windows, `whole_game_windows.py --bin EXE --rom STADIUM.z64 --out DIR --backend opengl --gb-rom YELLOW.gb`
 runs the full stored-route catalog with the user's German Yellow cartridge. Use `--plan` to inspect the inventory
 first, and repeat with `vulkan` and `directx` for the other renderers. Run Python with `-X utf8 -I`. The catalog
-currently covers all 144 stored recordings in 163 scenarios; without `--gb-rom`, only the 37 cartridge-independent
+currently covers all 144 stored recordings in 164 scenarios; without `--gb-rom`, only the 37 cartridge-independent
 recipes are available. Generated Game Boy saves and Stadium flashes remain under the output directory, while
 each run receives its own writable copies. Cartridge ROM and save contents participate in cache fingerprints.
 The album/printing cases wait for the album-producing route, including with multiple jobs. A failed case stops

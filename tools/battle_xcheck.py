@@ -28,6 +28,7 @@ tools/ares_ref/build.sh (ARES_REF_BUILD: its build directory; ARES_REF_FIRMWARE 
 Frame dumps are large: `anim` deletes the raw frames after making the sheets unless --keep-frames.
 """
 import os, shutil, struct, subprocess, sys, zlib
+from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from runner_platform import process_options, backend_home, reference_rom, reference_exe
 
@@ -229,11 +230,11 @@ SIDE_ENDIAN = {"port": "<", "ares": ">"}
 def names():
     species, moves = {}, {}
     import re
-    for line in open(os.path.join(ROOT, "game", "include", "pokemon.h")):
+    for line in Path(ROOT, "game", "include", "pokemon.h").read_text(encoding="utf-8").splitlines():
         m = re.match(r"#define (\w+)\s+(\d+)\s*$", line)
         if m and 1 <= int(m.group(2)) <= 151:
             species.setdefault(int(m.group(2)), m.group(1).replace("_", " ").title())
-    for line in open(os.path.join(ROOT, "game", "include", "moves.h")):
+    for line in Path(ROOT, "game", "include", "moves.h").read_text(encoding="utf-8").splitlines():
         m = re.match(r"#define (\w+)\s+(0x[0-9A-Fa-f]+|\d+)", line)
         if m:
             moves.setdefault(int(m.group(2), 0), m.group(1).replace("_", " ").title())
