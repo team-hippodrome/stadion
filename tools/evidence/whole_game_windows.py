@@ -23,9 +23,10 @@ from runner_platform import process_options
 def recipes(fixtures):
     cases = []
     base = ROOT / 'evidence/whole_game/routes'
-    def add(name, rec, frames, source, *extra, expect=()):
+    def add(name, rec, frames, source, *extra, expect=(), expect_edges=(), min_calls=None):
         cases.append(dict(name=name, rec=str(base / rec) if rec else None, frames=frames,
-                          source=source, extra=list(extra), expect=list(expect)))
+                          source=source, extra=list(extra), expect=list(expect),
+                          expect_edges=list(expect_edges), min_calls=min_calls or {}))
     flash = str(ROOT / 'replays/cup_win_badge.flash')
     for name, win0, win1 in [('cup_loss_opt0', 0, 1), ('cup_draw0', 0, 0), ('cup_draw1', 1, 1)]:
         add('engine_' + name, 'engine_left/cup_loss_opt0.rec', 26000, 'engine_left/runs.sh', '--natural',
@@ -34,10 +35,13 @@ def recipes(fixtures):
     add('rules_species_scroll', 'engine_left/rules_species_scroll.rec', 5600, 'engine_left/runs.sh', '--natural',
         expect=('RentalRules_ScrollPageDown', 'RentalRules_ScrollPageUp'))
     add('prenmi', 'engine_left/title_a.rec', 3000, 'engine_left/runs.sh', '--natural', '--call',
-        'State_TitleScreen#1@exit:port_PostEvent:v:i14', expect=('Sched_HandlePreNMI',))
+        'State_TitleScreen#1@exit:port_PostEvent:v:i14;Sched_HandleRetrace#3000@exit:Port_EvidenceExit:v:i0',
+        expect=('Sched_HandlePreNMI',), min_calls={'func_8000559C': 16})
     for name in ('cup_grid', 'cup_grid_exchange'):
-        add(name, 'rental_grid/' + name + '.rec', 7700, 'rental_grid/README.md', '--natural', '--flash', flash,
-            expect=('Rental_ConfirmTeam',))
+        add(name, 'rental_grid/' + name + '.rec', 8200 if name == 'cup_grid_exchange' else 7700, 'rental_grid/README.md', '--natural', '--flash', flash,
+            expect=(('Rental_ResolveSlotPick', 'Rental_CarouselConfirmMon') if name == 'cup_grid_exchange' else ('Rental_ConfirmTeam',)),
+            expect_edges=(('Rental_ResolveSlotPick', 'Rental_CarouselResumeInput'),) if name == 'cup_grid_exchange' else (),
+            min_calls={'Rental_CarouselConfirmMon': 7} if name == 'cup_grid_exchange' else {})
     for name, frames, state in [('gal_tutorial', 6500, 17), ('gal_reselect', 5600, 17), ('kc_grid_cancel', 4800, 35)]:
         add(name, 'minigames_gallery/' + name + '.rec', frames, 'minigames_gallery/runs.sh', '--natural', '--set',
             f'State_TitleScreen#1@exit:gCurrentGameState:4={state}')
@@ -120,6 +124,8 @@ def run_case(case, args):
     command += ['--rec', case['rec'] or str(Path(args.out).resolve() / 'battle-route/port.rec')]
     command += case['extra']
     env = dict(os.environ, ROM=args.rom, PORT_TEST_BACKEND=args.backend)
+    if case['name'] == 'prenmi':
+        env['PORT_FREEZE_CHECK'] = '0'  # The fully faded reset screen is intentionally static.
     if case['name'].startswith('audio_'):
         env['PORT_GAME_AUDIO'] = '1'
     start = time.monotonic()
@@ -130,13 +136,19 @@ def run_case(case, args):
                                   timeout=max(360, case['frames'] / 30 + 30), **process_options())
         status = json.loads((out / 'run_status.json').read_text()) if (out / 'run_status.json').exists() else {}
         coverage = json.loads((out / 'coverage.json').read_text()) if (out / 'coverage.json').exists() else {}
-        missing = sorted(set(case['expect']) - set(coverage.get('functions', {})))
+        functions = coverage.get('functions', {})
+        missing = sorted(set(case['expect']) - set(functions))
+        missing_edges = [f'{parent} -> {child}' for parent, child in case.get('expect_edges', ())
+                         if not any(site[0] == parent and site[2] > 0 for site in functions.get(child, {}).get('sites', []))]
+        insufficient_calls = {name: {'expected': count, 'actual': functions.get(name, {}).get('count', 0)}
+                              for name, count in case.get('min_calls', {}).items()
+                              if functions.get(name, {}).get('count', 0) < count}
         result.update(exit_code=proc.returncode, game_exit_code=status.get('exit_code'),
                       actual_backend=status.get('actual_backend'), functions=len(coverage.get('functions', {})),
-                      missing_expected=missing, profile=(out / 'coverage.profraw').exists())
+                      missing_expected=missing, missing_edges=missing_edges, insufficient_calls=insufficient_calls, profile=(out / 'coverage.profraw').exists())
         result['status'] = ('COMPLETE' if proc.returncode == 0 and status.get('exit_code') == 0 and
                             coverage.get('functions') and result['profile'] else 'ERROR')
-        if missing and result['status'] == 'COMPLETE':
+        if (missing or missing_edges or insufficient_calls) and result['status'] == 'COMPLETE':
             result['status'] = 'NOT_REACHED'
     except subprocess.TimeoutExpired:
         result['status'] = 'TIMEOUT'

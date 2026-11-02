@@ -296,6 +296,7 @@ u32 osDpGetCounters(u32* buf) {
 extern "C" uint64_t Port_GpuDrawStamp(const void* address);
 static std::mutex gSwapLock;
 static void* gViPending = nullptr;
+static void* gViCurrent = nullptr;
 static std::unordered_map<const void*, uint64_t> gViStampAtLastSwap; // per frame buffer
 static bool gViBlack = false;
 static float gViXScale = 1.0f;
@@ -320,6 +321,11 @@ extern "C" void Port_NoteFrameBuffer(const void* fb) {
     gViFbs.insert((uintptr_t)fb);
 }
 extern "C" bool Port_Lockstep();
+void* port_osViGetCurrentFramebuffer(void) {
+    std::lock_guard<std::mutex> g(gSwapLock);
+    return gViCurrent;
+}
+
 void port_osViSwapBuffer(void* fb) {
     {
         std::lock_guard<std::mutex> v(gViFbLock);
@@ -1179,6 +1185,7 @@ static void TryPresentCpuFrame() {
         }
         if (gViPending != nullptr && !gfxQueued) {
             fb = gViPending;
+            gViCurrent = fb;
             gViPending = nullptr;
             gSwapDone.notify_all();
         }

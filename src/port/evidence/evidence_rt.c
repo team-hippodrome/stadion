@@ -537,6 +537,13 @@ static NOINST void Dump(void) {
     if (__llvm_profile_write_file && getenv("LLVM_PROFILE_FILE")) __llvm_profile_write_file();
 }
 
+// Terminal probes stop the game threads; flush evidence before ending without host GUI destructors.
+void NOINST Port_EvidenceExit(int status) {
+    Dump();
+    fflush(NULL);
+    _exit(status);
+}
+
 static NOINST uint64_t Mix(uint64_t h, uint64_t v) {
     h ^= v + 0x9E3779B97F4A7C15ull + (h << 6) + (h >> 2);
     return h * 0xBF58476D1CE4E5B9ull;
