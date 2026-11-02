@@ -27,7 +27,7 @@ The player's lead knows up to four test moves with 1 PP each: the game's time-li
 them on consecutive turns. The opponent is a sturdy target (999 HP) that only knows Splash unless the path needs it
 to act (Substitute, Mirror Move, Counter, invulnerable turn).
 """
-import hashlib, json, os, re, shutil, struct, subprocess, sys, time, zipfile
+import hashlib, json, os, re, shutil, struct, subprocess, sys, tempfile, time, zipfile
 from pathlib import Path
 from functools import lru_cache
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -446,6 +446,35 @@ def reference_archive(d, exe, max_frames):
     return os.path.join(cache, key.hexdigest() + ".zip")
 
 
+def publish_reference_archive(archive, directory):
+    # Renderer workers can finish the same oracle case together. Each writer needs
+    # its own staging file; readers must only see a complete archive.
+    descriptor, temporary = tempfile.mkstemp(prefix=Path(archive).name + ".", suffix=".tmp",
+                                            dir=os.path.dirname(archive))
+    os.close(descriptor)
+    try:
+        with zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED, compresslevel=1) as z:
+            files = list(Path(directory, "ares_anim").rglob("*.ppm"))
+            files += [Path(directory, name) for name in ("ares.trace", "ares.log", "ares.pcm", "ares.pcm.frames")]
+            for path in files:
+                if path.is_file():
+                    z.write(path, path.relative_to(directory).as_posix())
+        try:
+            # A hard link publishes once without replacing a capture another
+            # worker may already have open (replacement is denied on Windows).
+            os.link(temporary, archive)
+        except FileExistsError:
+            try:
+                with zipfile.ZipFile(archive) as existing:
+                    if "ares.trace" not in existing.namelist() or existing.testzip() is not None:
+                        raise ValueError("incomplete reference archive")
+            except (ValueError, zipfile.BadZipFile):
+                os.replace(temporary, archive)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
 @lru_cache(maxsize=8)
 def binary_fingerprint(path):
     with open(path, "rb") as f:
@@ -532,13 +561,7 @@ def run_case(c, species, port_bin, max_frames):
         reference_timed_out = wait_case_process(ap) if ap is not None else False
     if (archive and not cached_reference and ap.returncode == 0
             and os.path.isfile(os.path.join(d, "ares.trace")) and os.path.getsize(os.path.join(d, "ares.trace"))):
-        with zipfile.ZipFile(archive + ".tmp", "w", zipfile.ZIP_DEFLATED, compresslevel=1) as z:
-            files = list(Path(d, "ares_anim").rglob("*.ppm"))
-            files += [Path(d, name) for name in ("ares.trace", "ares.log", "ares.pcm", "ares.pcm.frames")]
-            for path in files:
-                if path.is_file():
-                    z.write(path, path.relative_to(d).as_posix())
-        os.replace(archive + ".tmp", archive)
+        publish_reference_archive(archive, d)
     # the N64 can take game frames longer to load a move's effect assets (DMA) and starts the animation later; what
     # runs on meanwhile (Moltres' simulated flames, idle motions) then enters the animation in another state. The
     # port runs again and waits as long before each such animation (PORT_XCHECK_LOAD_WAIT, src/port/xcheck.cpp).
