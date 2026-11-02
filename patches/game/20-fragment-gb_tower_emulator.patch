@@ -12,7 +12,7 @@ index 1f6bcb9d7713bc66a570536498c22ce273cc0dfc..e007fda00ccb8c19425926b79c7b4be8
  s32 osGbSetNextBuffer(void*, s32);
  void GbAudio_SetAlternateStreamId(s32);
 diff --git a/src/fragments/gb_tower_emulator/gb_tower_emulator_7F9A0.c b/src/fragments/gb_tower_emulator/gb_tower_emulator_7F9A0.c
-index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2684e3605 100644
+index 596d204aba9d292e8c61e927ce721264705a909b..dcc2e971735e79f467b248666528cae29a91462f 100644
 --- a/src/fragments/gb_tower_emulator/gb_tower_emulator_7F9A0.c
 +++ b/src/fragments/gb_tower_emulator/gb_tower_emulator_7F9A0.c
 @@ -1,3 +1,4 @@
@@ -84,7 +84,27 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
  u8* D_8122C754;
  u8* D_8122C758[2];
  u32 D_8122C760;
-@@ -1490,7 +1496,9 @@ void func_812011D0(u16* fb, u8* cmd) {
+@@ -1138,8 +1144,10 @@ s32 GbPak_DetectSupportedCartridgeVariant(unk_func_812009D0* arg0) {
+   u8* var_s1;
+   s32 i;
+ 
+-  var_s1 = &D_8120DD70;
+   for (i = 4; i > 0; i--) {
++      // PORT: Red/Green/Blue are inside D_8120DD2C; Yellow is a separate array.
++      // Their original N64 addresses were adjacent, but host linkers may insert padding or reorder them.
++      var_s1 = (i == 4) ? D_8120DD70 : &D_8120DD2C[0x14 + (i - 1) * 0x10];
+       if (
+           (bcmp(var_s1, arg0->data, 0x10) == 0) &&
+           (arg0->unk_44 == 0x3031) &&
+@@ -1150,7 +1158,6 @@ s32 GbPak_DetectSupportedCartridgeVariant(unk_func_812009D0* arg0) {
+       ) {
+          return i;
+       }
+-      var_s1 -= 0x10;
+   }
+   return i;
+ }
+@@ -1490,7 +1497,9 @@ void func_812011D0(u16* fb, u8* cmd) {
              for (row = 0; row != tileSize; row++) {
                  for (col = 0; col != width; col++) {
                      if (trans || (pal[*src & 0xF] != 0)) {
@@ -95,7 +115,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
                      }
                      dst++;
                      src++;
-@@ -1506,6 +1514,14 @@ void func_812011D0(u16* fb, u8* cmd) {
+@@ -1506,6 +1515,14 @@ void func_812011D0(u16* fb, u8* cmd) {
      }
  }
  
@@ -110,7 +130,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
  s32 GbEmu_PixelOpDitherA(s32 arg0, s32 arg1) {
    return (arg1 & 1) ? arg1 : arg0;
  }
-@@ -1536,7 +1552,7 @@ void GbEmu_BlitWithPixelOp(u16* dst, u16* src, s32 mode, s32 width, s32 height)
+@@ -1536,7 +1553,7 @@ void GbEmu_BlitWithPixelOp(u16* dst, u16* src, s32 mode, s32 width, s32 height)
  
    for (x = 0; x != height; x++) {
        for (y = 0; y != width; y++) {
@@ -119,7 +139,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
            dst++;
            src++;
        }
-@@ -1565,7 +1581,7 @@ void GbEmu_DrawFramedPanel(u16* dst) {
+@@ -1565,7 +1582,7 @@ void GbEmu_DrawFramedPanel(u16* dst) {
      // 30x30 interior fill
      for (y = 0; y < 30; y++) {
          for (i = 0; i < 30; i++) {
@@ -128,7 +148,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
          }
      }
  }
-@@ -1577,10 +1593,10 @@ void func_812018C0(u16* dst, u16* src, s32 color, s32 width, s32 height) {
+@@ -1577,10 +1594,10 @@ void func_812018C0(u16* dst, u16* src, s32 color, s32 width, s32 height) {
  
      for (y = 0; y < height; y++) {
          for (x = 0; x < width; x++) {
@@ -143,7 +163,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
          }
      }
  }
-@@ -1596,20 +1612,20 @@ void func_81201DDC(u16* dst, u8* alpha_map, s32 color, s32 width, s32 height, u3
+@@ -1596,20 +1613,20 @@ void func_81201DDC(u16* dst, u8* alpha_map, s32 color, s32 width, s32 height, u3
    for (y = 0; y < height; y++) {
        for (x = 0; x < width; x++) {
            var_a0 = alpha_map[y * alpha_stride + x] & 0xF;
@@ -169,7 +189,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
    s32 var_s0;
    s32 var_s1;
    s32 i;
-@@ -1639,9 +1655,9 @@ void func_812020C0(u16* dst, s32 arg1, s32 arg2) {
+@@ -1639,9 +1656,9 @@ void func_812020C0(u16* dst, s32 arg1, s32 arg2) {
  
    for (row = 0; row < 11; row++) {
        for (col = 0; col < 12; col++) {
@@ -181,7 +201,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
            }
            src += arg1;
        }
-@@ -1695,10 +1711,10 @@ void func_81202210(s32 arg0, s32 arg1) {
+@@ -1695,10 +1712,10 @@ void func_81202210(s32 arg0, s32 arg1) {
  
  void func_8120241C(void) {
      u8* var_s2;
@@ -194,7 +214,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
      u16 temp_v1;
  
      temp_v1 = D_8122B2C0->unk_5DC5;
-@@ -1732,7 +1748,8 @@ void func_8120241C(void) {
+@@ -1732,7 +1749,8 @@ void func_8120241C(void) {
  
      var_s0 = 0;
      var_s4 -= 0x266;
@@ -204,7 +224,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
          func_81201DDC((var_s0 * 2) + var_s4,
                        (D_8120E580[var_s2[0x116] - var_s1 + 0x80] * 0xC0) + gGbEmuFont2Data,
                        0xFFFE, 0xC, 0xC, 0x10);
-@@ -1746,7 +1763,7 @@ void func_8120241C(void) {
+@@ -1746,7 +1764,7 @@ void func_8120241C(void) {
      }
  }
  
@@ -213,7 +233,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
      s32 temp_s4;
      s32 temp_s6;
      s32 i;
-@@ -1815,12 +1832,12 @@ void func_812029B0(u16* dst, u16 (*arg1)[6][0x640], s32 arg2, s32 arg3) {
+@@ -1815,12 +1833,12 @@ void func_812029B0(u16* dst, u16 (*arg1)[6][0x640], s32 arg2, s32 arg3) {
  
      if (D_8122C74C == 0) {
          xpos = 0;
@@ -228,7 +248,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
          D_8122B2F4 += 0x2580;
          bzero((void*) D_8122C750, 0x2580);
          x++;
-@@ -1848,8 +1865,8 @@ void func_812029B0(u16* dst, u16 (*arg1)[6][0x640], s32 arg2, s32 arg3) {
+@@ -1848,8 +1866,8 @@ void func_812029B0(u16* dst, u16 (*arg1)[6][0x640], s32 arg2, s32 arg3) {
  
      for (j = 0; j < 6; j++) {
          for (x = 0; x < 320; x++) {
@@ -239,7 +259,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
          }
      }
  
-@@ -1860,7 +1877,7 @@ void func_812029B0(u16* dst, u16 (*arg1)[6][0x640], s32 arg2, s32 arg3) {
+@@ -1860,7 +1878,7 @@ void func_812029B0(u16* dst, u16 (*arg1)[6][0x640], s32 arg2, s32 arg3) {
  
      for (j = 0; j < 72; j++) {
          for (x = 0; x < 320; x++) {
@@ -248,7 +268,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
          }
      }
  
-@@ -1897,7 +1914,7 @@ void func_812029B0(u16* dst, u16 (*arg1)[6][0x640], s32 arg2, s32 arg3) {
+@@ -1897,7 +1915,7 @@ void func_812029B0(u16* dst, u16 (*arg1)[6][0x640], s32 arg2, s32 arg3) {
      }
  
      D_8122C771 = arg2;
@@ -257,7 +277,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
      D_8122C770 = 0;
      D_8122C768 = 0x800000;
      D_8122C764 = 0xA0;
-@@ -1911,26 +1928,26 @@ void func_81202EA8(u16* arg0, u16* arg1, s16* arg2, s32 arg3, s32 arg4) {
+@@ -1911,26 +1929,26 @@ void func_81202EA8(u16* arg0, u16* arg1, s16* arg2, s32 arg3, s32 arg4) {
  
      for (j = 0; j < arg3; j++) {
          for (i = 0; i < 320; i++) {
@@ -289,7 +309,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
      s32 var_s0;
  
      var_s0 = 0;
-@@ -2055,7 +2072,12 @@ void func_812033F4(s32 arg0, s32 arg1, OSId arg2, s32 arg3, OSMesgQueue* arg4, u
+@@ -2055,7 +2073,12 @@ void func_812033F4(s32 arg0, s32 arg1, OSId arg2, s32 arg3, OSMesgQueue* arg4, u
  
      D_8122B1E0 = GfxImage_Allocate(0, 2, 320, 288, 1);
      D_8122B1E4 = GfxImage_Allocate(0, 2, 320, 288, 1);
@@ -303,7 +323,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
      if (D_8122B2F8 == NULL) {
          D_8122C4DC = 1;
          D_8122B2FC = 4;
-@@ -2124,8 +2146,8 @@ void func_812033F4(s32 arg0, s32 arg1, OSId arg2, s32 arg3, OSMesgQueue* arg4, u
+@@ -2124,8 +2147,8 @@ void func_812033F4(s32 arg0, s32 arg1, OSId arg2, s32 arg3, OSMesgQueue* arg4, u
          }
      }
  
@@ -314,7 +334,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
      D_8122C748 = D_8122B2F4;
      D_8122B2F4 += 0xC5C0;
      D_8122B2C0->unk_5C58 = D_8122C748;
-@@ -2139,8 +2161,8 @@ void func_812033F4(s32 arg0, s32 arg1, OSId arg2, s32 arg3, OSMesgQueue* arg4, u
+@@ -2139,8 +2162,8 @@ void func_812033F4(s32 arg0, s32 arg1, OSId arg2, s32 arg3, OSMesgQueue* arg4, u
      }
  
      func_812070A0();
@@ -325,7 +345,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
      GbApu_Reset((unk_D_8122B2F8*)D_8122B2F4);
      GbAudio_SetAlternateRendererEnabled(0);
      GbApu_SelectRegionClock(0);
-@@ -2170,21 +2192,24 @@ void func_812033F4(s32 arg0, s32 arg1, OSId arg2, s32 arg3, OSMesgQueue* arg4, u
+@@ -2170,21 +2193,24 @@ void func_812033F4(s32 arg0, s32 arg1, OSId arg2, s32 arg3, OSMesgQueue* arg4, u
  
      switch (gGbEmuPresentationMode) {
          case 2:
@@ -354,7 +374,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
  
      osWritebackDCacheAll();
  
-@@ -2241,13 +2266,13 @@ void func_81203C58(unk_D_8122B2C0* arg0) {
+@@ -2241,13 +2267,13 @@ void func_81203C58(unk_D_8122B2C0* arg0) {
          do {
              sp58 = *var_s4 & 0xFF;
              sp5C = *var_s4 / 0x100;
@@ -370,7 +390,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
                      Yay0_Decompress((u8*)arg0->unk_53BC + 0xF0000, (u8*)arg0->unk_53BC + 0xEC000);
                      var_v1 = (u8*)arg0->unk_53BC + 0xEC000;
                      var_v0 = (u8*)arg0->unk_53BC + (sp58 << 14);
-@@ -2634,7 +2659,7 @@ update_menu:
+@@ -2634,7 +2660,7 @@ update_menu:
  #if defined(VERSION_US_REV2)
  #pragma GLOBAL_ASM("asm/us/nonmatchings/fragments/gb_tower_emulator/gb_tower_emulator_7F9A0/func_81204A84.s")
  #else
@@ -379,7 +399,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
      s32 pad;
      s32 j;
      s32 i;
-@@ -2672,7 +2697,7 @@ void func_81204A84(s32 arg0) {
+@@ -2672,7 +2698,7 @@ void func_81204A84(s32 arg0) {
          transition:
              func_812020C0((u16*)(D_8122B2D8[D_8122B2E8] + 0x9C), 1, D_8122C4E7);
              D_8122B1E8[D_8122B2B8].unk_3C = 0x1010;
@@ -388,7 +408,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
              D_8122B1E8[D_8122B2B8].unk_5C &= 0xFFFF;
              func_812011D0(base, D_8120E8D8);
              return;
-@@ -2926,11 +2951,11 @@ void func_81204A84(s32 arg0) {
+@@ -2926,11 +2952,11 @@ void func_81204A84(s32 arg0) {
      x = j * 0x12 + 0x37;
      for (j = 1; j < 0x11; j++) {
          base[(row + j) * 320 + x] = base[(row + j) * 320 + x + 1] = base[(row + j) * 320 + x + 0x10] =
@@ -402,7 +422,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
      }
  }
  #endif
-@@ -3016,7 +3041,7 @@ s32 func_8120572C(s32 arg0) {
+@@ -3016,7 +3042,7 @@ s32 func_8120572C(s32 arg0) {
                      }
                      func_812020C0((u16*)(D_8122B2D8[D_8122B2E8] + 0x9C), emu->unk_5DD0, D_8122C4E7);
                      D_8122B1E8[D_8122B2B8].unk_3C = 0x1010;
@@ -411,7 +431,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
                  } else {
                      D_8122B2E8 ^= 1;
                      if (!(D_8122C4E8 & (1 << D_8122B2E8))) {
-@@ -3075,14 +3100,14 @@ s32 func_8120572C(s32 arg0) {
+@@ -3075,14 +3101,14 @@ s32 func_8120572C(s32 arg0) {
                      } else {
                          emu->unk_5485 = 1;
                      }
@@ -429,7 +449,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
                      } else {
                          emu->unk_5398 = 0;
                      }
-@@ -3125,7 +3150,7 @@ s32 func_8120572C(s32 arg0) {
+@@ -3125,7 +3151,7 @@ s32 func_8120572C(s32 arg0) {
                  goto shutdown;
              }
              if ((D_8122C4DC != 0) &&
@@ -438,7 +458,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
                  osWritebackDCacheAll();
                  osViSwapBuffer((&D_8122B1E0)[D_8122B2B8]->img_p);
                  D_8122B2B8 ^= 1;
-@@ -3155,9 +3180,9 @@ s32 func_8120572C(s32 arg0) {
+@@ -3155,9 +3181,9 @@ s32 func_8120572C(s32 arg0) {
                          (emu->unk_5DA4[2] != 0x7F) || (emu->unk_5DA4[3] != 0xAB) || (emu->unk_5DA4[4] != 0xA8)) {
                          goto start_transfer;
                      }
@@ -450,7 +470,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
                      emu->unk_5DC6 = 1;
                      bzero((u8*)emu->unk_53BC + 0xB4000, 0x4C000);
                      for (i = 0x2D; i < 0x40; i++) {
-@@ -3169,9 +3194,9 @@ s32 func_8120572C(s32 arg0) {
+@@ -3169,9 +3195,9 @@ s32 func_8120572C(s32 arg0) {
                          (emu->unk_5DA4[2] != 0x7F) || (emu->unk_5DA4[3] != 0xAB) || (emu->unk_5DA4[4] != 0xA8)) {
                          goto start_transfer;
                      }
@@ -462,7 +482,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
                      emu->unk_5DC6 = 0;
                      bzero((u8*)emu->unk_53BC + 0xB4000, 0x4C000);
                      for (i = 0x2D; i < 0x40; i++) {
-@@ -3183,9 +3208,9 @@ s32 func_8120572C(s32 arg0) {
+@@ -3183,9 +3209,9 @@ s32 func_8120572C(s32 arg0) {
                          (emu->unk_5DA4[2] != 0x91) || (emu->unk_5DA4[3] != 0x84) || (emu->unk_5DA4[4] != 0x92)) {
                          goto start_transfer;
                      }
@@ -474,7 +494,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
                      emu->unk_5DC6 = 0;
                      bzero((u8*)emu->unk_53BC + 0xEC000, 0x4000);
                      emu->unk_549C[0x3B] = 0xFF;
-@@ -3225,7 +3250,7 @@ s32 func_8120572C(s32 arg0) {
+@@ -3225,7 +3251,7 @@ s32 func_8120572C(s32 arg0) {
                      D_8122C4F9++;
                  }
                  D_8122B1E8[D_8122B2B8].unk_3C = (D_8122C4F9 / 2) | 0x1000;
@@ -483,7 +503,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
              } else {
                  D_8122B1E8[D_8122B2B8].unk_3C = 0x1010;
                  D_8122B1E8[D_8122B2B8].unk_38 = D_8122B2E0;
-@@ -3250,7 +3275,7 @@ s32 func_8120572C(s32 arg0) {
+@@ -3250,7 +3276,7 @@ s32 func_8120572C(s32 arg0) {
                  } else {
                      emu->unk_5485 = 1;
                  }
@@ -492,7 +512,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
                  emu->unk_5394 = 0x100000;
                  GbEmu_InitContext(emu);
              }
-@@ -3285,8 +3310,7 @@ s32 func_8120572C(s32 arg0) {
+@@ -3285,8 +3311,7 @@ s32 func_8120572C(s32 arg0) {
      if (D_8122C4F7 == 0) {
          D_8122C4EC = GbCpu_Execute(emu, emu->unk_548E * 0x9A);
      } else if (D_8122B2F0 != 0) {
@@ -502,7 +522,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
      }
  
      func_81203F3C(emu);
-@@ -3367,10 +3391,10 @@ s32 func_8120572C(s32 arg0) {
+@@ -3367,10 +3392,10 @@ s32 func_8120572C(s32 arg0) {
  
      if ((D_8122C4DC == 0xFF) && (D_8122C4F6 == 0) && (emu->unk_53E8 == 0x100)) {
          D_8122C4F6 = 1;
@@ -516,7 +536,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
          } else {
              emu->unk_5398 = 0;
          }
-@@ -3395,10 +3419,10 @@ s32 func_8120572C(s32 arg0) {
+@@ -3395,10 +3420,10 @@ s32 func_8120572C(s32 arg0) {
  
      if (emu->unk_5485 != 0) {
          D_8122B1E8[D_8122B2B8].unk_28 = D_8122A260;
@@ -529,7 +549,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
      }
      D_8122B1E8[D_8122B2B8].unk_40 = emu->unk_53B4;
      D_8122B1E8[D_8122B2B8].unk_48 = (&D_8122B1E0)[D_8122B2B8]->img_p;
-@@ -3410,13 +3434,20 @@ s32 func_8120572C(s32 arg0) {
+@@ -3410,13 +3435,20 @@ s32 func_8120572C(s32 arg0) {
  
      if (D_8122B2F0 != 0) {
          osRecvMesg(&D_8122B1E8[D_8122B2B8 ^ 1].queue, NULL, OS_MESG_BLOCK);
@@ -552,7 +572,7 @@ index 596d204aba9d292e8c61e927ce721264705a909b..bb405a673e44e63d807cdf7b07fe15f2
              emu->unk_5388 = 0;
              Sched_SubmitTask((UnkStruct80001380*)&D_8122B1E8[D_8122B2B8], 0);
          }
-@@ -3429,6 +3460,17 @@ s32 func_8120572C(s32 arg0) {
+@@ -3429,6 +3461,17 @@ s32 func_8120572C(s32 arg0) {
  }
  #endif
  
