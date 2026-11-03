@@ -12,6 +12,8 @@ class Fast3dWindow;
 // Owns the libultraship context and window for the Pokemon Stadium port.
 namespace Port {
 bool Init();
+// Reports a Vulkan swapchain failure, saves a usable renderer for the next start, and exits without driver teardown.
+[[noreturn]] void ExitAfterVulkanFailure(const char* reason);
 // Runs one frame: pumps window events, submits a display list, presents.
 // Returns false once the window has been closed.
 bool RunFrame(void* gfxCommands);

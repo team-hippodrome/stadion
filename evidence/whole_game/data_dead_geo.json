@@ -1,0 +1,35 @@
+{
+ "geo layout commands no shipped layout uses, and the node types only they create (geo_commands.md)": [
+  "GeoNode_CreateClearDepth",
+  "GeoNode_CreateCullDistance",
+  "GeoNode_CreateGroup",
+  "Geo_NodeClearDepth",
+  "Geo_NodeCullDistance",
+  "Geo_NodeGroup",
+  "Geo_NodeType12Empty",
+  "Geo_NodeType3Pass",
+  "Geo_NodeType9Empty",
+  "geo_layout_cmd_create_clear_depth",
+  "geo_layout_cmd_create_cull_distance",
+  "geo_layout_cmd_create_group",
+  "geo_layout_cmd_jump",
+  "geo_layout_cmd_noop",
+  "geo_layout_cmd_skip"
+ ],
+ "slot-model segment types and vertex classes the two built-in templates never produce (geo_commands.md, 33FE0.c)": [
+  "Model_AccumulateVertexOffset",
+  "Model_ApplyTransformCommands",
+  "Model_ApplyVertexTransforms",
+  "Model_CopyPositionBuffer",
+  "Model_ExtrapolateVertexPosition",
+  "Model_GetVertexMatrixClass",
+  "Model_GetVertexMergeClass",
+  "Model_GetVertexSourceClass",
+  "Model_GetVertexTargetClass",
+  "Model_OffsetVertexHeights",
+  "func_80033568",
+  "func_80034348",
+  "func_80034824",
+  "func_80034BD4"
+ ]
+}

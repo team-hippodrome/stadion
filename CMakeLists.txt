@@ -6,6 +6,8 @@ set(PORT_VERSION "${PROJECT_VERSION}" CACHE STRING "Version of this build")
 if(NOT PORT_VERSION)
   set(PORT_VERSION "${PROJECT_VERSION}")
 endif()
+# Redact builder paths in every build, including ordinary local and CI builds.
+include(cmake/BuildPaths.cmake)
 
 if(APPLE)
   enable_language(OBJCXX)
@@ -108,6 +110,19 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_S
 # C arrays of 16/32-bit words in the game sources (textures among them need N64 byte order): their files are compiled
 # through generated wrappers that register the arrays with the renderer (see tools/gen_word_arrays.py)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+if(WIN32)
+  # Windows has no dladdr: cross-check caller rules use the same named game functions as the ROM callback table.
+  execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_xcheck_symbols.py
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_func_table.c
+      ${CMAKE_BINARY_DIR}/generated/xcheck_symbols.c RESULT_VARIABLE PORT_XCHECK_SYMBOL_RESULT)
+  if(NOT PORT_XCHECK_SYMBOL_RESULT EQUAL 0)
+    message(FATAL_ERROR "Could not generate Windows cross-check caller symbols")
+  endif()
+  target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/xcheck_symbols.c)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+      ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_xcheck_symbols.py
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_func_table.c)
+endif()
 execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_word_arrays.py
                         ${CMAKE_CURRENT_SOURCE_DIR}/game/src ${CMAKE_BINARY_DIR}/generated)
 include(${CMAKE_BINARY_DIR}/generated/word_wrappers.cmake)
@@ -223,17 +238,21 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_options(pokestadium PRIVATE -fuse-ld=lld)
 endif()
 
-# Runtime resources (shaders, fonts) packed into an archive next to the executable.
-# (the shader warm-up list goes into it too: a new list rebuilds shader_warmup.cpp, so the archive is packed again)
-# and so do the shader templates: an edited template is packed again without a code change
-file(GLOB_RECURSE PORT_SHADER_TEMPLATES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*)
-set_property(SOURCE src/port/shader_warmup.cpp APPEND PROPERTY OBJECT_DEPENDS
-             ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt ${PORT_SHADER_TEMPLATES})
-if(NOT ANDROID)  # Android: the Gradle build packs it into the app's assets (android/app/build.gradle)
-add_custom_command(TARGET pokestadium POST_BUILD
-  COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py $<TARGET_FILE_DIR:pokestadium>/pokestadium.o2r
+# Runtime resources (shaders, fonts, the shader warm-up list, launcher pictures) packed into pokestadium.o2r and built
+# into the executable as a C array (tools/make_o2r.py --c): no separate file to lose or damage. The archive itself is
+# left in generated/ for inspection.
+file(GLOB_RECURSE PORT_O2R_INPUTS CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*
+     ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png
+     ${CMAKE_CURRENT_SOURCE_DIR}/ghostship-ref/port/fonts/*)
+add_custom_command(
+  OUTPUT ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c
+  COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
+          ${CMAKE_BINARY_DIR}/generated/pokestadium.o2r --c ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt
+          ${PORT_O2R_INPUTS}
   COMMENT "Packing pokestadium.o2r")
-endif()
+target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c)
 
 # Debug aid: cmake -DPORT_ASAN=ON builds the game code and the port layer with AddressSanitizer (finds the
 # out-of-bounds writes that 32-bit struct layouts turn into on 64-bit).

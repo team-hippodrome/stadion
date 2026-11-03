@@ -1526,7 +1526,7 @@ index 5d2cd94b608badc67a3eb52caff30d10cdef6f1d..e31b8d3b6bc51bc3a22589936f34c5b6
  
  #endif // _DMA_H_
 diff --git a/src/dp_intro.c b/src/dp_intro.c
-index c46aea4b588b4d137c1110afd5c272d29681da12..98c9f04369b9da240bf5bd0a41d9cc8f3076b140 100644
+index c46aea4b588b4d137c1110afd5c272d29681da12..60e5fd91778fb14bd40cd4c3b2bd67524b6cf765 100644
 --- a/src/dp_intro.c
 +++ b/src/dp_intro.c
 @@ -1,3 +1,6 @@
@@ -1545,16 +1545,21 @@ index c46aea4b588b4d137c1110afd5c272d29681da12..98c9f04369b9da240bf5bd0a41d9cc8f
  
  void DisplayTask_Initialize(UnkStruct80001380* arg0) {
      arg0->task.t.type = M_GFXTASK;
-@@ -56,7 +59,7 @@ void DisplayTask_Initialize(UnkStruct80001380* arg0) {
+@@ -56,7 +59,12 @@ void DisplayTask_Initialize(UnkStruct80001380* arg0) {
  }
  
  void DisplayTask_Submit(UnkStruct80001380* arg0, struct UnkArray4* arg1, s32 arg2) {
 -    arg0->task.t.data_ptr = (void*)(uintptr_t)arg1->unk_04;
++    extern void Port_NoteFrameBuffer(const void* fb);
++    // PORT: the renderer learns that this task draws a frame buffer before the buffer is first shown (os_devices.cpp)
++    if (arg1->unk_0C != NULL) {
++        Port_NoteFrameBuffer(arg1->unk_0C->img_p);
++    }
 +    arg0->task.t.data_ptr = (void*)arg1->unk_04;
      arg0->task.t.data_size = arg1->unk_08;
      Sched_SubmitTask(arg0, arg2);
  }
-@@ -112,6 +115,10 @@ void DisplayWorker_ProcessFrame(void) {
+@@ -112,6 +120,10 @@ void DisplayWorker_ProcessFrame(void) {
          sp20 = 1;
      }
  
@@ -1565,7 +1570,7 @@ index c46aea4b588b4d137c1110afd5c272d29681da12..98c9f04369b9da240bf5bd0a41d9cc8f
      for (i = 1; i < D_80083CA0.unk_AAC.unk_00; i++) {
          Sched_WaitClientQueue(&D_80083CA0);
      }
-@@ -217,8 +224,9 @@ void Display_ClearFramebufferLine(u16 color) {
+@@ -217,8 +229,9 @@ void Display_ClearFramebufferLine(u16 color) {
      s32 width = 640;
      u16* buf = (u16*)D_80083CA0.unk_9E0->img_p;
  
@@ -1576,7 +1581,7 @@ index c46aea4b588b4d137c1110afd5c272d29681da12..98c9f04369b9da240bf5bd0a41d9cc8f
      }
  
      osWritebackDCache(D_80083CA0.unk_9E0->img_p, 0x500);
-@@ -226,7 +234,7 @@ void Display_ClearFramebufferLine(u16 color) {
+@@ -226,7 +239,7 @@ void Display_ClearFramebufferLine(u16 color) {
  
  u16 Display_GetFramebufferClearColor(void) {
      u16* ptr = (u16*)D_80083CA0.unk_9E0->img_p;
@@ -1585,7 +1590,7 @@ index c46aea4b588b4d137c1110afd5c272d29681da12..98c9f04369b9da240bf5bd0a41d9cc8f
  }
  
  s32 Display_IsCurrentFramebuffer(void) {
-@@ -254,7 +262,7 @@ void Display_WaitForFrames(s32 arg0) {
+@@ -254,7 +267,7 @@ void Display_WaitForFrames(s32 arg0) {
      }
  }
  
@@ -1594,7 +1599,7 @@ index c46aea4b588b4d137c1110afd5c272d29681da12..98c9f04369b9da240bf5bd0a41d9cc8f
      arg0->unk_01 = arg1;
      arg0->unk_02 = arg2;
      arg0->unk_00 = arg3;
-@@ -264,20 +272,29 @@ void Display_SetBufferConfig(struct UnkArray4* arg0, u8 arg1, u8 arg2, u8 arg3,
+@@ -264,20 +277,29 @@ void Display_SetBufferConfig(struct UnkArray4* arg0, u8 arg1, u8 arg2, u8 arg3,
      arg0->unk_0C = (struct unk_D_80068BB0*)(uintptr_t)arg7;
  }
  
@@ -5838,7 +5843,7 @@ index 50e329b67e2a2a629de00e6813a9a7de97f801c5..8062d42d474844f2f1aad3f3924be73b
  struct Profiler gProfiler;
  
 diff --git a/src/reset.c b/src/reset.c
-index 0939ba6cc85751c0ef9d7f1d6440c019189ab94c..1e7aa18fac156c4d2b51b57b18e80aeade052298 100644
+index 0939ba6cc85751c0ef9d7f1d6440c019189ab94c..27b40fd4f56f10aa944fbee232af1fd8d38a138f 100644
 --- a/src/reset.c
 +++ b/src/reset.c
 @@ -1,6 +1,7 @@
@@ -5849,16 +5854,87 @@ index 0939ba6cc85751c0ef9d7f1d6440c019189ab94c..1e7aa18fac156c4d2b51b57b18e80aea
  
  // this file handles the soft reset effect.
  typedef struct UnkStruct800A6D20 {
-@@ -88,8 +89,7 @@ void func_8000559C(void) {
-         Display_ClearFramebufferLine(((((gSoftResetRed * (15 - gSoftResetLineNum)) >> 4) << 11) |
-                        (((gSoftResetGreen * (15 - gSoftResetLineNum)) >> 4) << 6) |
-                        (((gSoftResetBlue * (15 - gSoftResetLineNum)) >> 4) << 1) | 1) &
+@@ -17,14 +18,12 @@ typedef struct UnkStruct4 {
+     /* 0x00 */ s32 unk_00;
+     /* 0x04 */ u16 unk_04;
+     /* 0x06 */ u16 unk_06;
+-    /* 0x08 */ s32 unk_08;
++    /* 0x08 */ u16* unk_08; // Framebuffer supplied by Display_GetWorkerStatus.
++    //@src/dp_intro.c
+ } UnkStruct4; // size >= 0xC
+ 
++// The wipe helpers and reset thread share this state through the host structure.
+ UnkStruct800A6D20 D_800A6D20;
+-extern u32 gSoftResetLineNum;
+-extern s32 gSoftResetRed;
+-extern s32 gSoftResetGreen;
+-extern s32 gSoftResetBlue;
+ 
+ /**
+  * Perform the horizontal framebuffer wipe across 15 different lines for a
+@@ -33,9 +32,9 @@ extern s32 gSoftResetBlue;
+ void SoftReset_ClearLines320(u16* buf) {
+     int i, j;
+ 
+-    if (gSoftResetLineNum <= 15) {
++    if (D_800A6D20.gSoftResetLineNum <= 15) {
+         // where is the framebuffer starting, based on the line number of the effect?
+-        u16* ptr = buf + gSoftResetLineNum * 320;
++        u16* ptr = buf + D_800A6D20.gSoftResetLineNum * 320;
+ 
+         // iterate over and clear the 15 lines of the next frame during the effect.
+         for (j = 0; j < 15; j++) {
+@@ -56,9 +55,9 @@ void SoftReset_ClearLines320(u16* buf) {
+ void SoftReset_ClearLines640(u16* buf) {
+     int i, j;
+ 
+-    if (gSoftResetLineNum <= 15) {
++    if (D_800A6D20.gSoftResetLineNum <= 15) {
+         // where is the framebuffer starting, based on the line number of the effect?
+-        u16* ptr = buf + gSoftResetLineNum * (640 * 2);
++        u16* ptr = buf + D_800A6D20.gSoftResetLineNum * (640 * 2);
+ 
+         // iterate over and clear the 15 lines of the next frame during the effect.
+         for (j = 0; j < 15; j++) {
+@@ -75,21 +74,20 @@ void SoftReset_ClearLines640(u16* buf) {
+ // not enough information to name this function. seems to get some unknown
+ // color from dp_intro.c and then only writes a single line to the framebuffer???
+ void func_8000559C(void) {
+-    if (gSoftResetLineNum <= 15) {
+-        if (gSoftResetLineNum == 0) {
++    if (D_800A6D20.gSoftResetLineNum <= 15) {
++        if (D_800A6D20.gSoftResetLineNum == 0) {
+             u16 color = Display_GetFramebufferClearColor();
+             // decoding a 5551 value back to the raw R/G/B values.
+-            gSoftResetRed = (color >> 11) & 31;  // masked red?
+-            gSoftResetGreen = (color >> 6) & 31; // masked green?
+-            gSoftResetBlue = (color >> 1) & 31;  // masked blue?
++            D_800A6D20.gSoftResetRed = (color >> 11) & 31;  // masked red?
++            D_800A6D20.gSoftResetGreen = (color >> 6) & 31; // masked green?
++            D_800A6D20.gSoftResetBlue = (color >> 1) & 31;  // masked blue?
+         }
+         // this function is supposed to only take 1 argument. huh?
+         // this function packs 3 values into a RGBA5551 format.
+-        Display_ClearFramebufferLine(((((gSoftResetRed * (15 - gSoftResetLineNum)) >> 4) << 11) |
+-                       (((gSoftResetGreen * (15 - gSoftResetLineNum)) >> 4) << 6) |
+-                       (((gSoftResetBlue * (15 - gSoftResetLineNum)) >> 4) << 1) | 1) &
 -                          0xFFFF,
 -                      gSoftResetLineNum);
++        Display_ClearFramebufferLine(((((D_800A6D20.gSoftResetRed * (15 - D_800A6D20.gSoftResetLineNum)) >> 4) << 11) |
++                       (((D_800A6D20.gSoftResetGreen * (15 - D_800A6D20.gSoftResetLineNum)) >> 4) << 6) |
++                       (((D_800A6D20.gSoftResetBlue * (15 - D_800A6D20.gSoftResetLineNum)) >> 4) << 1) | 1) &
 +                          0xFFFF);
      }
  }
  
+@@ -142,6 +140,6 @@ void SoftReset_Thread(void* unused) {
+ void SoftReset_CreateThread(void) {
+     Sched_InitClientQueue(&D_800A6D20.thread, 2, 1);
+     D_800A6D20.gSoftResetLineNum = 0;
+-    osCreateThread(&D_800A6D20.thread, THREAD_ID_RESET, SoftReset_Thread, NULL, &gSoftResetLineNum, THREAD_PRI_RESET);
++    osCreateThread(&D_800A6D20.thread, THREAD_ID_RESET, SoftReset_Thread, NULL, &D_800A6D20.gSoftResetLineNum, THREAD_PRI_RESET);
+     osStartThread(&D_800A6D20.thread);
+ }
 diff --git a/src/rom_device.c b/src/rom_device.c
 index dfb7c0ec30e85f11567dc77168c551abd01b67ab..47fb4a4e738b4cb45b0e32038f3858caee9e3606 100644
 --- a/src/rom_device.c
