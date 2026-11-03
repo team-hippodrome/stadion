@@ -367,6 +367,7 @@ std::string* gPickTarget = nullptr;
 std::string gPickResult, gPickError;
 bool gPickDone = false;
 bool gPickStadiumSave = false;
+std::string gPickExportSource;
 
 #if defined(__ANDROID__)
 // Android's file picker returns content:// URIs, which the game's file functions cannot open: copy the picked file into
@@ -451,7 +452,7 @@ void Pick(std::string* target, bool save, const SDL_DialogFileFilter* filters, i
           const std::string& suggested = "", bool stadiumSave = false) {
     {
         std::lock_guard<std::mutex> g(gPickLock);
-        if (gPickTarget != nullptr) {
+        if (gPickTarget != nullptr || !gPickExportSource.empty()) {
             return; // one dialog at a time
         }
         gPickTarget = target;
@@ -475,6 +476,14 @@ void Pick(std::string* target, bool save, const SDL_DialogFileFilter* filters, i
 // a dialog that finished since the last frame: store its file
 bool ApplyPick() {
     std::lock_guard<std::mutex> g(gPickLock);
+    if (!gPickExportSource.empty() && gPickDone) {
+        if (!gPickError.empty())
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not export document", gPickError.c_str(), MainWindow());
+        else if (!gPickResult.empty())
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Export complete", "The document was saved to the selected location. The local copy and active save were kept.", MainWindow());
+        gPickExportSource.clear();
+        return false;
+    }
     if (gPickTarget == nullptr || !gPickDone) {
         return false;
     }
@@ -501,6 +510,55 @@ const SDL_DialogFileFilter kRomFilter[] = { { "N64 ROM (.z64)", "z64" }, { "All 
 const SDL_DialogFileFilter kSaveFilter[] = { { "N64 cartridge save", "flash;fla;sra;sav;bin" }, { "All files", "*" } };
 const SDL_DialogFileFilter kGbRomFilter[] = { { "Game Boy ROM", "gb;gbc" }, { "All files", "*" } };
 const SDL_DialogFileFilter kGbSaveFilter[] = { { "Game Boy save (.sav)", "sav" }, { "All files", "*" } };
+
+// Android's app-files directory is restricted in system file browsers. Export through the
+// Storage Access Framework rather than requiring broad storage permissions or a share provider.
+#if defined(__ANDROID__)
+void ExportPicked(void*, const char* const* files, int) {
+    std::string source;
+    { std::lock_guard<std::mutex> guard(gPickLock); source = gPickExportSource; }
+    std::string result, error;
+    if (files == nullptr) {
+        error = "Could not open the system Save as picker. The local export was kept.";
+    } else if (files[0] != nullptr) {
+        std::ifstream input(fs::u8path(source), std::ios::binary | std::ios::ate);
+        const auto length = input ? input.tellg() : std::streampos(-1);
+        std::vector<uint8_t> data;
+        bool readable = length > 0 && length <= 1024 * 1024;
+        if (readable) {
+            data.resize(static_cast<size_t>(length)); input.seekg(0);
+            readable = bool(input.read(reinterpret_cast<char*>(data.data()), data.size()));
+        }
+        SDL_IOStream* output = readable ? SDL_IOFromFile(files[0], "wb") : nullptr;
+        bool ok = output != nullptr && SDL_WriteIO(output, data.data(), data.size()) == data.size();
+        if (output != nullptr && !SDL_CloseIO(output)) ok = false;
+        if (ok) result = files[0];
+        else error = "The selected document could not be completely written; it may be incomplete. The local export and active save were kept. Try another location.";
+    }
+    std::lock_guard<std::mutex> guard(gPickLock);
+    gPickError = error; gPickResult = result; gPickDone = true;
+}
+#endif
+void OfferExport(const std::string& path) {
+#if defined(__ANDROID__)
+    bool busy;
+    {
+        std::lock_guard<std::mutex> guard(gPickLock);
+        busy = gPickTarget != nullptr || !gPickExportSource.empty();
+        if (!busy) { gPickExportSource = path; gPickResult.clear(); gPickError.clear(); gPickDone = false; }
+    }
+    if (busy) {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Export saved locally", "Close the existing file picker before exporting another document. The local export was kept.", MainWindow());
+        return;
+    }
+    static const SDL_DialogFileFilter saveFilter[] = {{"N64 save (.fla)", "fla"}};
+    static const SDL_DialogFileFilter reportFilter[] = {{"Diagnostic report (.txt)", "txt"}};
+    const bool report = fs::u8path(path).extension() == ".txt";
+    SDL_ShowSaveFileDialog(ExportPicked, nullptr, MainWindow(), report ? reportFilter : saveFilter, 1, path.c_str());
+#else
+    (void)path;
+#endif
+}
 
 // ---- save editor (debug option) --------------------------------------------------------------------------------------
 
@@ -941,14 +999,18 @@ class LauncherWindow : public Ship::GuiWindow {
             if (ToolAction("Open saves folder")) OpenFolder(fs::u8path(mState->save).parent_path());
             if (ToolAction("Export N64 save")) {
                 std::string path, error;
-                mToolsStatus = Port::ExportStadiumSave(fs::u8path(mState->save), directory, path, error)
-                    ? "Exported: " + path + "\nThe active save was kept unchanged." : error;
+                if (Port::ExportStadiumSave(fs::u8path(mState->save), directory, path, error)) {
+                    mToolsStatus = "Exported: " + path + "\nThe active save was kept unchanged.";
+                    OfferExport(path);
+                } else mToolsStatus = error;
             }
             if (ToolAction("Export diagnostics")) {
                 std::string path, error;
-                mToolsStatus = Port::ExportLauncherDiagnostics(directory, PORT_BUILD_VERSION,
-                    RendererName(mState->renderer), RendererName(ActiveRenderer()), path, error)
-                    ? "Exported: " + path + "\nReview the report before sharing it." : error;
+                if (Port::ExportLauncherDiagnostics(directory, PORT_BUILD_VERSION,
+                    RendererName(mState->renderer), RendererName(ActiveRenderer()), path, error)) {
+                    mToolsStatus = "Exported: " + path + "\nReview the report before sharing it.";
+                    OfferExport(path);
+                } else mToolsStatus = error;
             }
             if (ToolAction("Disable Auto-play")) { mState->autoPlay = false; mChanged = true; mToolsStatus = "Auto-play disabled."; }
             if (ToolAction("Use safe renderer next start")) {
