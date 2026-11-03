@@ -342,6 +342,7 @@ if(EMSCRIPTEN)
        ${CMAKE_CURRENT_SOURCE_DIR}/ghostship-ref/port/fonts/*)
   set_property(TARGET pokestadium APPEND PROPERTY LINK_DEPENDS
                ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
+               ${CMAKE_CURRENT_SOURCE_DIR}/src/port/vulkan_pipeline_warmup.txt
                ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt ${PORT_WEB_RESOURCE_INPUTS})
   add_custom_command(TARGET pokestadium POST_BUILD
     COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
@@ -360,6 +361,7 @@ add_custom_command(
   COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
           ${CMAKE_BINARY_DIR}/generated/pokestadium.o2r --c ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt
+          ${CMAKE_CURRENT_SOURCE_DIR}/src/port/vulkan_pipeline_warmup.txt
           ${PORT_O2R_INPUTS}
   COMMENT "Packing pokestadium.o2r")
 target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c)

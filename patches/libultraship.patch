@@ -2803,10 +2803,10 @@ index c8bc6cd..00000000 100644
      const int64_t next = previous_time + 10 * FRAME_INTERVAL_US_NUMERATOR / FRAME_INTERVAL_US_DENOMINATOR;
 diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
 new file mode 100644
-index 0000000000000000000000000000000000000000..68b9c36f5c9e755e79e8cdc499a94cea4fc2f9e8
+index 0000000000000000000000000000000000000000..c86f0e6ffb0d8c94fc3928d73fd5f23d2bae39b6
 --- /dev/null
 +++ b/src/fast/backends/gfx_vulkan.cpp
-@@ -0,0 +1,2808 @@
+@@ -0,0 +1,2824 @@
 +//
 +//  gfx_vulkan.cpp
 +//  libultraship
@@ -2848,6 +2848,7 @@ index 0000000000000000000000000000000000000000..68b9c36f5c9e755e79e8cdc499a94cea
 +#include "libultraship/libultra/gbi.h"
 +#include "ship/config/ConsoleVariable.h"
 +#include "ship/resource/ResourceManager.h"
++#include "ship/resource/archive/ArchiveManager.h"
 +#include "ship/resource/factory/ShaderFactory.h"
 +#include "ship/core/Context.h"
 +
@@ -3976,6 +3977,21 @@ index 0000000000000000000000000000000000000000..68b9c36f5c9e755e79e8cdc499a94cea
 +        return false;
 +    }
 +    std::lock_guard<std::mutex> lock(mPrebuildMutex);
++    // The shared warm-up list covers programs. Vulkan also needs the render
++    // state for each pipeline, even when the program is already compiled.
++    if (sVKResourceManager) {
++        auto archive = sVKResourceManager->GetArchiveManager();
++        if (auto file = archive->LoadFile("port/vulkan_pipeline_warmup.txt"); file && file->Buffer) {
++            std::istringstream recipes(std::string(file->Buffer->begin(), file->Buffer->end()));
++            uint64_t id0, id1;
++            uint32_t state;
++            while (recipes >> std::hex >> id0 >> id1 >> state) {
++                if (mKnownPipelines.insert({ id0, id1, state }).second) {
++                    mPipelineList[{ id0, id1 }].push_back(state);
++                }
++            }
++        }
++    }
 +    std::set<std::pair<uint64_t, uint64_t>> queued;
 +    for (const auto& [key, job] : mPrebuildQueue) {
 +        queued.insert(key);

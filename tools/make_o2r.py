@@ -32,6 +32,8 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
             z.writestr("shaders/" + p.relative_to(shaders).as_posix(), data)
     # the shader programs built ahead while the launcher shows (src/port/shader_warmup.cpp, tools/shader_list.py)
     z.write(root / "src/port/shader_warmup.txt", "port/shader_warmup.txt")
+    # Pipeline states first recorded after entering the arena in to_battle.rec.
+    z.write(root / "src/port/vulkan_pipeline_warmup.txt", "port/vulkan_pipeline_warmup.txt")
     # launcher pictures (cartridges, N64), shown by src/port/launcher.cpp
     for p in sorted((root / "tools/launcher/assets").glob("*.png")):
         z.write(p, "textures/launcher/" + p.name)
