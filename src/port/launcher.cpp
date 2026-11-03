@@ -10,6 +10,8 @@
 // Transfer Pak cards and the controls on pages of their own, everything reachable with the gamepad (D-pad or stick
 // moves the focus, A presses, B goes back) as well as by touch.
 #include "launcher.h"
+#include "launcher_files.h"
+#include "port_platform.h"
 #include "Engine.h"
 #include "rom_check.h"
 
@@ -125,12 +127,13 @@ int ActiveRenderer() {
 
 State Load() {
     State s;
-    s.rom = CVarGetString(Key("Rom").c_str(), "");
-    s.save = CVarGetString(Key("Save").c_str(), DefaultSave().c_str());
+    const auto directory = fs::u8path(Ship::Context::GetAppDirectoryPath());
+    s.rom = Port::ResolveLauncherPath(CVarGetString(Key("Rom").c_str(), ""), directory);
+    s.save = Port::ResolveLauncherPath(CVarGetString(Key("Save").c_str(), DefaultSave().c_str()), directory);
     for (int i = 0; i < 4; i++) {
         s.gb[i].enabled = CVarGetInteger(GbKey(i, "Enabled").c_str(), 0) != 0;
-        s.gb[i].rom = CVarGetString(GbKey(i, "Rom").c_str(), "");
-        s.gb[i].save = CVarGetString(GbKey(i, "Save").c_str(), "");
+        s.gb[i].rom = Port::ResolveLauncherPath(CVarGetString(GbKey(i, "Rom").c_str(), ""), directory);
+        s.gb[i].save = Port::ResolveLauncherPath(CVarGetString(GbKey(i, "Save").c_str(), ""), directory);
     }
     s.autoPlay = CVarGetInteger(Key("AutoPlay").c_str(), 0) != 0;
     s.debug = CVarGetInteger(Key("Debug").c_str(), 0) != 0;
@@ -145,12 +148,13 @@ State Load() {
 }
 
 void Store(const State& s) {
-    CVarSetString(Key("Rom").c_str(), s.rom.c_str());
-    CVarSetString(Key("Save").c_str(), s.save.c_str());
+    const auto directory = fs::u8path(Ship::Context::GetAppDirectoryPath());
+    CVarSetString(Key("Rom").c_str(), Port::StoreLauncherPath(s.rom, directory).c_str());
+    CVarSetString(Key("Save").c_str(), Port::StoreLauncherPath(s.save, directory).c_str());
     for (int i = 0; i < 4; i++) {
         CVarSetInteger(GbKey(i, "Enabled").c_str(), s.gb[i].enabled ? 1 : 0);
-        CVarSetString(GbKey(i, "Rom").c_str(), s.gb[i].rom.c_str());
-        CVarSetString(GbKey(i, "Save").c_str(), s.gb[i].save.c_str());
+        CVarSetString(GbKey(i, "Rom").c_str(), Port::StoreLauncherPath(s.gb[i].rom, directory).c_str());
+        CVarSetString(GbKey(i, "Save").c_str(), Port::StoreLauncherPath(s.gb[i].save, directory).c_str());
     }
     CVarSetInteger(Key("AutoPlay").c_str(), s.autoPlay ? 1 : 0);
     CVarSetInteger(Key("Debug").c_str(), s.debug ? 1 : 0);
@@ -312,6 +316,7 @@ std::mutex gPickLock;
 std::string* gPickTarget = nullptr;
 std::string gPickResult;
 bool gPickDone = false;
+bool gPickStadiumSave = false;
 
 #if defined(__ANDROID__)
 // Android's file picker returns content:// URIs, which the game's file functions cannot open: copy the picked file into
@@ -380,7 +385,7 @@ SDL_Window* MainWindow() {
 }
 
 void Pick(std::string* target, bool save, const SDL_DialogFileFilter* filters, int nfilters,
-          const std::string& suggested = "") {
+          const std::string& suggested = "", bool stadiumSave = false) {
     {
         std::lock_guard<std::mutex> g(gPickLock);
         if (gPickTarget != nullptr) {
@@ -388,6 +393,7 @@ void Pick(std::string* target, bool save, const SDL_DialogFileFilter* filters, i
         }
         gPickTarget = target;
         gPickDone = false;
+        gPickStadiumSave = stadiumSave;
     }
     std::string start = !target->empty() ? *target : suggested;
 #if defined(__ANDROID__)
@@ -409,14 +415,24 @@ bool ApplyPick() {
         return false;
     }
     if (!gPickResult.empty()) {
-        *gPickTarget = gPickResult;
+        if (gPickStadiumSave) {
+            std::string imported, error;
+            if (Port::ImportStadiumSave(fs::u8path(gPickResult), fs::u8path(Ship::Context::GetAppDirectoryPath()),
+                                       imported, error)) {
+                *gPickTarget = imported;
+            } else {
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not import Stadium save", error.c_str(), MainWindow());
+            }
+        } else {
+            *gPickTarget = gPickResult;
+        }
     }
     gPickTarget = nullptr;
     return true;
 }
 
 const SDL_DialogFileFilter kRomFilter[] = { { "N64 ROM (.z64)", "z64" }, { "All files", "*" } };
-const SDL_DialogFileFilter kSaveFilter[] = { { "Stadium save (.flash)", "flash;fla" }, { "All files", "*" } };
+const SDL_DialogFileFilter kSaveFilter[] = { { "N64 cartridge save", "flash;fla;sra;sav;bin" }, { "All files", "*" } };
 const SDL_DialogFileFilter kGbRomFilter[] = { { "Game Boy ROM", "gb;gbc" }, { "All files", "*" } };
 const SDL_DialogFileFilter kGbSaveFilter[] = { { "Game Boy save (.sav)", "sav" }, { "All files", "*" } };
 
@@ -1097,9 +1113,10 @@ class LauncherWindow : public Ship::GuiWindow {
         std::string saveName = "Save: " + FileName(s.save);
         if (saveName.size() > 30) saveName = saveName.substr(0, 29) + "…";
         Text(x + 250, y + 61, saveName, gFonts.small, Theme::dim);
-        if (Button("Change save", x + 450, y + 56, 100, 26)) {
-            Pick(&s.save, true, kSaveFilter, 2, s.save);
+        if (Button("Import save", x + 450, y + 56, 100, 26)) {
+            Pick(&s.save, false, kSaveFilter, 2, s.save, true);
         }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Import a raw N64 Stadium cartridge save. A working copy is saved beside the launcher; the original is kept.");
         if (s.debug) {
             if (Button("Save editor", x + 556, y + 56, 96, 26)) {
                 OpenSaveEditor(s.save);
@@ -1331,8 +1348,8 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button(s.rom.empty() ? "Load ROM" : "Change ROM", cx + 24, cy + 340, 190, 56, gFonts.game)) {
             Pick(&s.rom, false, kRomFilter, 2);
         }
-        if (Button("Change save", cx + cw - 214, cy + 340, 190, 56, gFonts.game)) {
-            Pick(&s.save, true, kSaveFilter, 2, s.save);
+        if (Button("Import save", cx + cw - 214, cy + 340, 190, 56, gFonts.game)) {
+            Pick(&s.save, false, kSaveFilter, 2, s.save, true);
         }
 
         // PLAY (the default focus: A starts the game right away)
@@ -1423,6 +1440,10 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
     // start directly: the stored ROM, unless Shift is held (or it is no longer valid)
     window->HandleEvents();
     bool shift = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
+#if defined(_WIN32)
+    // DirectX uses a native Win32 window, so SDL does not receive its keyboard events.
+    shift = shift || (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+#endif
     // (the handheld layout has no Auto-play: without a Shift key there would be no way back to the launcher)
     if (!(state.autoPlay && !shift && !Handheld() && CheckRom(state.rom).empty())) {
         LoadFonts(); // before the first frame: ImGui builds its font atlas then
@@ -1511,9 +1532,11 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
 }
 
 void UseShipHomeDefaults() {
+#if !defined(_WIN32)
     if (getenv("SHIP_HOME") == nullptr) {
         return;
     }
+#endif
     if (getenv("PORT_RECORD") == nullptr) {
         SetEnv("PORT_RECORD", Ship::Context::GetPathRelativeToAppDirectory("last_input.rec"));
     }

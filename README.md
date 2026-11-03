@@ -129,6 +129,16 @@ and Debug adds a save-editor button (needs python3). Screen picks the picture's 
 overrides it). Renderer cycles through the graphics APIs the build has (DX11, OpenGL, Metal, Vulkan); the choice
 applies the next time the game starts. With a ROM path as argument the game starts right away:
 `cd build && ./pokestadium "/path/to/Pokemon Stadium (USA).z64"`.
+
+On Windows, `pokestadium.cfg.json`, logs and the default `saves/` folder live beside `pokestadium.exe`, including when
+started from a shortcut or another working directory. A missing config is generated on first start; an existing one
+beside the executable is reused. Move the config and `saves/` with the executable to keep settings and progress.
+Paths to ROMs and saves inside that folder are stored relatively. `SHIP_HOME` explicitly overrides the data folder.
+
+**Import save** loads an existing raw 128 KiB Pokémon Stadium (USA) N64 cartridge save (`.flash`, `.fla`, `.sra`, `.sav`
+or `.bin`). Native and common byte-swapped emulator dumps are recognized by their record checksums. A working copy
+is created in `saves/`; the original and earlier imports are left untouched. Save states, Controller Pak files and
+saves for other games are not cartridge saves. With no imported save, the game creates a fresh default save.
 Useful environment variables (all in PORTING_NOTES.md): `PORT_FLASH_FILE` (Stadium save), `PORT_GB_ROM` /
 `PORT_GB_SAVE` (Transfer Pak cartridge of player 1; `PORT_GB_ROM2..4` for the others), `PORT_SOUND=0` (no sound
 output; it is on by default at normal speed).

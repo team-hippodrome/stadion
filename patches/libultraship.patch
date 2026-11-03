@@ -8685,6 +8685,55 @@ index 00000000..ab499ae8
 +        @end
 +    }
 +@end
+diff --git a/src/ship/config/Config.cpp b/src/ship/config/Config.cpp
+index 8f18a3db..f140d370 100644
+--- a/src/ship/config/Config.cpp
++++ b/src/ship/config/Config.cpp
+@@ -200,12 +200,12 @@ void Config::Copy(const std::string& fromKey, const std::string& toKey) {
+ }
+ 
+ void Config::Reload() {
+-    if (mPath == "None" || !fs::exists(mPath) || !fs::is_regular_file(mPath)) {
++    if (mPath == "None" || !fs::exists(fs::u8path(mPath)) || !fs::is_regular_file(fs::u8path(mPath))) {
+         mIsNewInstance = true;
+         mFlattenedJson = nlohmann::json::object();
+         return;
+     }
+-    std::ifstream ifs(mPath);
++    std::ifstream ifs(fs::u8path(mPath));
+ 
+     mNestedJson = nlohmann::json::object();
+     mFlattenedJson = nlohmann::json::object();
+@@ -218,7 +218,7 @@ void Config::Reload() {
+ }
+ 
+ void Config::Save() {
+-    std::ofstream file(mPath);
++    std::ofstream file(fs::u8path(mPath));
+     mNestedJson = mFlattenedJson.unflatten();
+     file << mNestedJson.dump(4);
+ }
+diff --git a/src/ship/core/Context.cpp b/src/ship/core/Context.cpp
+index ea34621d..820e5491 100644
+--- a/src/ship/core/Context.cpp
++++ b/src/ship/core/Context.cpp
+@@ -350,6 +350,16 @@ std::string Context::GetAppDirectoryPath(const std::string& appName) {
+     }
+ #endif
+ 
++#if defined(_WIN32)
++    if (const char* home = SDL_GetEnvironmentVariable(SDL_GetEnvironment(), "SHIP_HOME"); home != nullptr && *home) {
++        const auto path = std::filesystem::absolute(std::filesystem::u8path(home)).u8string();
++        return {path.begin(), path.end()};
++    }
++    if (const char* base = SDL_GetBasePath()) {
++        return base;
++    }
++#endif
++
+ #ifdef NON_PORTABLE
+     const std::string effectiveAppName = appName.empty() ? "libultraship" : appName;
+     char* prefpath = SDL_GetPrefPath(NULL, effectiveAppName.c_str());
 diff --git a/src/ship/debug/CrashHandler.cpp b/src/ship/debug/CrashHandler.cpp
 index 63d5b071..a83bce7a 100644
 --- a/src/ship/debug/CrashHandler.cpp

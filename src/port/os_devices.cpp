@@ -129,15 +129,15 @@ std::string FlashPath() {
 void FlashLoad() {
     if (gFlashLoaded) return;
     gFlashLoaded = true;
-    if (FILE* f = fopen(FlashPath().c_str(), "rb")) {
+    if (FILE* f = Port::OpenFileUtf8(FlashPath().c_str(), "rb")) {
         size_t n = fread(gFlash.data(), 1, gFlash.size(), f);
-        (void)n;
+        if (getenv("PORT_TRACE_FLASH")) fprintf(stderr, "[flash] loaded %zu bytes from %s\n", n, FlashPath().c_str());
         fclose(f);
     }
 }
 
 void FlashSave() {
-    if (FILE* f = fopen(FlashPath().c_str(), "wb")) {
+    if (FILE* f = Port::OpenFileUtf8(FlashPath().c_str(), "wb")) {
         fwrite(gFlash.data(), 1, gFlash.size(), f);
         fclose(f);
     }
