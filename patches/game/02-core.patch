@@ -3280,7 +3280,7 @@ index 5ca5681f57f4684791ea64af385a21fc6e9fdaa5..2ab4a57c66df217d05cf7c934faf9255
      return ret;
  }
 diff --git a/src/jpeg_stream.c b/src/jpeg_stream.c
-index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e69bd28ac2 100644
+index 9e42cc44a4842f666893c0d23361241e4f5fc91a..30ef0cc27f777af3d2ce8aece2dbe39b96dcd85f 100644
 --- a/src/jpeg_stream.c
 +++ b/src/jpeg_stream.c
 @@ -1,10 +1,13 @@
@@ -3479,7 +3479,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e6
      u32 sp20 = main_pool_get_block_dist(addr);
  
      main_pool_set_func(addr, arg0 + 0x81000000, &Fragment_FreeCallback);
-@@ -516,19 +538,83 @@ void Fragment_Register(s32 arg0, Fragment* addr) {
+@@ -516,19 +538,90 @@ void Fragment_Register(s32 arg0, Fragment* addr) {
      if (sp20 < addr->sizeInRam) {
          main_pool_realloc(addr, addr->sizeInRam);
          Memmap_RelocateFragment(arg0, addr);
@@ -3556,6 +3556,13 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e6
 +        extern void Port_FragmentResetData(void* entry);
 +        Port_FragmentResetData(Port_FragmentEntry(romStart));
 +    }
++#ifdef __EMSCRIPTEN__
++    {
++        // web build: a thunk of FragmentEntry's type (tools/gen_fragment_thunks.py)
++        extern void* Port_FragmentCallable(void* entry);
++        return (ret_func_80004454)Port_FragmentCallable(Port_FragmentEntry(romStart));
++    }
++#endif
 +    return (ret_func_80004454)Port_FragmentEntry(romStart);
 +#else
      return addr;
@@ -3563,7 +3570,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e6
  }
  
  void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2) {
-@@ -542,6 +628,295 @@ void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2) {
+@@ -542,6 +635,300 @@ void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2) {
      return sp2C;
  }
  
@@ -3740,6 +3747,11 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e6
 +    if (addr >= 0x100000000ULL || addr == 0) {
 +        return (void*)addr; // already a host pointer
 +    }
++#ifdef __EMSCRIPTEN__
++    if (Port_IsHostFunction(addr)) {
++        return (void*)addr; // web build: a host function pointer is a function table index
++    }
++#endif
 +    if (Port_VLinkOf(addr) != 0) {
 +        addr = Port_VLinkOf(addr); // a data blob's pointer (Port_RelocateDataBlob): look up its link address
 +    }
@@ -3859,7 +3871,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e6
  BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
      BinArchive* ret = NULL;
      u32 sp28;
-@@ -553,6 +928,8 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
+@@ -553,6 +940,8 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
              newaddr = Asset_LoadCompressed(romStart, romEnd, 0, 0);
              ret = newaddr;
              if (newaddr != NULL) {
@@ -3868,7 +3880,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e6
                  newaddr[0] |= 1;
              }
              break;
-@@ -561,11 +938,14 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
+@@ -561,11 +950,14 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
              newaddr = Asset_LoadCompressed(romStart, romStart + 0x20, 0, 0);
              ret = newaddr;
              if (newaddr != NULL) {
@@ -3883,7 +3895,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e6
                      *newaddr |= 2;
                      if (arg3 == 1) {
                          *newaddr |= 4;
-@@ -578,10 +958,15 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
+@@ -578,10 +970,15 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
              newaddr = Asset_LoadCompressed(romStart, romStart + 0x20, 1, 0);
              ret = newaddr;
              if (newaddr != NULL) {
@@ -3899,7 +3911,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e6
                  if ((newaddr != NULL) && (arg3 == 1)) {
                      *newaddr |= 4;
                  }
-@@ -664,11 +1049,22 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
+@@ -664,11 +1061,22 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
      UNUSED s32 pad;
      BinArchiveFile* sp18 = (u8*)archive + sizeof(BinArchive) + (file_number * sizeof(BinArchiveFile));
  
@@ -3924,7 +3936,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e6
          } else {
              if (archive->unk_00 & 0x80) {
                  var_a2 = BinArchive_LoadFileBuffered(archive, sp18);
-@@ -677,11 +1073,21 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
+@@ -677,11 +1085,21 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
              }
  
              if (var_a2 != NULL) {
@@ -3948,7 +3960,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e6
              }
          }
      }
-@@ -689,12 +1095,12 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
+@@ -689,12 +1107,12 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
      return var_a2;
  }
  
@@ -3965,7 +3977,7 @@ index 9e42cc44a4842f666893c0d23361241e4f5fc91a..4dd60a5398cada44aaab304d7cdc39e6
      return var_v1;
  }
 diff --git a/src/jpeg_stream.h b/src/jpeg_stream.h
-index 763a2bfaec45ec26efc206c368ef781f3ddb9b26..915fda0c482aa226234d1444d39c0b6395b1bfc0 100644
+index 763a2bfaec45ec26efc206c368ef781f3ddb9b26..8243115a9780d63dd823cd84d12a919f70aed3a2 100644
 --- a/src/jpeg_stream.h
 +++ b/src/jpeg_stream.h
 @@ -74,12 +74,13 @@ typedef struct unk_func_80003680_sp300 {
@@ -4020,12 +4032,15 @@ index 763a2bfaec45ec26efc206c368ef781f3ddb9b26..915fda0c482aa226234d1444d39c0b63
  void Fragment_Register(s32 arg0, Fragment* addr);
  ret_func_80004454 Fragment_Load(s32 arg0, u8* romStart, u8* romEnd);
  void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2);
-@@ -118,6 +119,14 @@ void BinArchive_Free(void* arg0);
+@@ -118,6 +119,17 @@ void BinArchive_Free(void* arg0);
  Fragment* BinArchive_LoadFileFromRom(BinArchive* arg0, BinArchiveFile* arg1);
  void* BinArchive_LoadFileBuffered(BinArchive* arg0, BinArchiveFile* arg1);
  void* BinArchive_GetFile(BinArchive* archive, s32 file_number);
 -s32 BinArchive_GetCachedFile(BinArchive* archive, s32 file_number);
 +void* Port_ResolveCode(uintptr_t addr);
++#ifdef __EMSCRIPTEN__
++int Port_IsHostFunction(uintptr_t addr); // web build: a function table index (port_platform.c)
++#endif
 +uintptr_t Port_CallFragmentLeaf(const void* code, s32 a0, s32 a1);
 +void Port_NoteLoadedFragment(u32 slot, u8* romStart);
 +extern int gPortRelocateDataBlob;
@@ -8375,7 +8390,7 @@ index 5a37c84ad6105f37549b73eeb272dca09e8e7a8f..e80c75349b5859019628b0590a42cc32
  }
  
 diff --git a/src/util.c b/src/util.c
-index 5ae41f829793d0da384e189c49190a958254dc7a..27ec7a90e0f25061d92985f891a4f44513277db5 100644
+index 5ae41f829793d0da384e189c49190a958254dc7a..9404d28c637be49a10f098e83fb612a7f92ef031 100644
 --- a/src/util.c
 +++ b/src/util.c
 @@ -2,6 +2,11 @@
@@ -8390,7 +8405,14 @@ index 5ae41f829793d0da384e189c49190a958254dc7a..27ec7a90e0f25061d92985f891a4f445
  
  /**
   * Based on the context of this variable's usage, it appears to be intended to
-@@ -23,10 +28,15 @@ s32 StageContext_IsHighResolution(void);
+@@ -20,13 +25,27 @@ s32 StageContext_IsHighResolution(void);
+ /**
+  * Convert any valid address to its virtual (KSEG0) counterpart.
+  */
++#ifdef __EMSCRIPTEN__
++int Port_IsHostFunction(uintptr_t addr); // web build: a function table index (port_platform.c)
++#endif
++
  uintptr_t Util_ConvertAddrToVirtAddr(uintptr_t addr) {
      uintptr_t retaddr = NULL; // any invalid cases are treated as NULL return.
  
@@ -8399,6 +8421,11 @@ index 5ae41f829793d0da384e189c49190a958254dc7a..27ec7a90e0f25061d92985f891a4f445
 +    // PORT: a host pointer (>= 4 GB) is already a valid address.
 +    if (addr >= 0x100000000ULL) {
 +        retaddr = addr;
++#ifdef __EMSCRIPTEN__
++    // PORT (web build): a host function pointer is a small number there, an index into the function table
++    } else if (addr != 0 && Port_IsHostFunction(addr)) {
++        retaddr = addr;
++#endif
 +        // convert physical (in installed memory range) to virtual.
 +    } else if (addr < osMemSize) {
          retaddr = addr | 0x80000000;
@@ -8408,7 +8435,7 @@ index 5ae41f829793d0da384e189c49190a958254dc7a..27ec7a90e0f25061d92985f891a4f445
      } else if (addr < 0x10000000U) {
          retaddr = Memmap_GetSegmentVaddr(addr);
          // convert a fragment pre-relocated address to a post-relocated virtual address.
-@@ -62,12 +72,10 @@ void Util_InitMainPools(void) {
+@@ -62,12 +81,10 @@ void Util_InitMainPools(void) {
       * 0x600000. This is not known to occur in practical contexts, but there may be
       * some other unknown reason for this.
       */

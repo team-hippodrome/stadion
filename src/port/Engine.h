@@ -23,6 +23,8 @@ bool TrackFrame(void* gfxCommands);
 bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame, bool readBack = false);
 // saves the picture just drawn as a PPM file
 void SaveScreen(const char* path);
+// how many frames RunFrameWith has drawn so far (the web build's window loop, main.cpp)
+uint64_t FramesDrawn();
 void Shutdown();
 
 // Cartridge ROM image the game reads through PI DMA (osEPiStartDma).
@@ -36,6 +38,8 @@ void ApplyAspect();
 std::shared_ptr<Fast::Fast3dWindow> GetWindow();
 // starts building the shader programs earlier runs drew, and records new ones (shader_warmup.cpp; after Init)
 bool RunShaderWarmup();
+void BeginShaderWarmup();
+bool PumpShaderWarmup();
 const uint8_t* RomData();
 size_t RomSize();
 

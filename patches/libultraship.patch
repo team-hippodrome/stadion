@@ -1,3 +1,17 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index fb76646..6b4f2a1 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -84,7 +84,8 @@ endif()
+ 
+ include(cmake/dependencies/common.cmake)
+ 
+-if (CMAKE_SYSTEM_NAME STREQUAL "Android")
++if (CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
++	# Emscripten (the web build): the same libraries as Android, fetched and built from source
+ 	include(cmake/dependencies/android.cmake)
+ endif()
+ 
 diff --git a/cmake/dependencies/common.cmake b/cmake/dependencies/common.cmake
 index ff2045c3..6086c483 100644
 --- a/cmake/dependencies/common.cmake
@@ -1131,10 +1145,19 @@ new file mode 100644
 +}
 +} // namespace Ship
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index cfab4bec..11c73dab 100644
+index cfab4be..00000000 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
-@@ -168,6 +168,11 @@ endif()
+@@ -160,6 +160,8 @@ if (USE_OPENGLES)
+         target_link_libraries(libultraship PRIVATE GLESv3)
+     elseif(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
+         target_link_libraries(libultraship PRIVATE OpenGL::GLES2)
++    elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
++        # WebGL 2 (OpenGL ES 3), provided by Emscripten's GL library (linked with -sMAX_WEBGL_VERSION=2)
+     else()
+         find_library(OPENGLES_LIBRARY GLESv2)
+         target_link_libraries(libultraship PRIVATE GLESv2)
+@@ -168,6 +170,11 @@ endif()
  
  target_link_libraries(libultraship PUBLIC prism monocypher)
  
@@ -2630,7 +2653,7 @@ index 6c4dfc86..7e739df9 100644
          uint8_t r = (rgba8[i * 4 + 0] >> 3) & 0x1F;
          uint8_t g = (rgba8[i * 4 + 1] >> 3) & 0x1F;
 diff --git a/src/fast/backends/gfx_sdl.cpp b/src/fast/backends/gfx_sdl.cpp
-index c8bc6cdd..ff6981dc 100644
+index c8bc6cd..00000000 100644
 --- a/src/fast/backends/gfx_sdl.cpp
 +++ b/src/fast/backends/gfx_sdl.cpp
 @@ -36,10 +36,11 @@
@@ -2684,7 +2707,33 @@ index c8bc6cdd..ff6981dc 100644
          SDL_SetHint(SDL_HINT_RENDER_DRIVER, "metal");
      }
  
-@@ -391,6 +401,13 @@ void GfxWindowBackendSDL::Init(const char* gameName, const char* gfxApiName, boo
+@@ -361,6 +371,12 @@ void GfxWindowBackendSDL::Init(const char* gameName, const char* gfxApiName, boo
+     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+ #endif
++#if defined(__EMSCRIPTEN__)
++    // PORT: the web build renders with WebGL 2 (OpenGL ES 3.0)
++    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
++    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
++    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
++#endif
+ 
+ #ifdef _WIN32
+     // Use high-resolution mTimer by default on Windows 10 (so that NtSetTimerResolution (...) hacks are not needed)
+@@ -384,13 +400,24 @@ void GfxWindowBackendSDL::Init(const char* gameName, const char* gfxApiName, boo
+     int len = snprintf(title, sizeof(title), "%s (%s)", gameName, gfxApiName);
+ 
+ #ifdef __IOS__
+-    Uint32 flags = SDL_WINDOW_BORDERLESS;
++    SDL_WindowFlags flags = SDL_WINDOW_BORDERLESS;
++#elif defined(__EMSCRIPTEN__)
++    // PORT: the web build's canvas (#canvas) fills the browser window and follows its size, with a back buffer of
++    // devicePixelRatio pixels per point (sizes in points below, as on macOS)
++    SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_FILL_DOCUMENT;
+ #else
+-    Uint32 flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
++    SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+ #endif
  
      if (use_opengl) {
          flags = flags | SDL_WINDOW_OPENGL;
@@ -2698,7 +2747,19 @@ index c8bc6cdd..ff6981dc 100644
      } else {
          flags = flags | SDL_WINDOW_METAL;
      }
-@@ -437,6 +454,12 @@ void GfxWindowBackendSDL::Init(const char* gameName, const char* gfxApiName, boo
+@@ -425,7 +452,11 @@ void GfxWindowBackendSDL::Init(const char* gameName, const char* gfxApiName, boo
+     }
+ 
+     if (use_opengl) {
++#if defined(__EMSCRIPTEN__)
++        SDL_GetWindowSize(mWnd, &mWindowWidth, &mWindowHeight); // PORT: in points, as on macOS
++#else
+         SDL_GetWindowSizeInPixels(mWnd, &mWindowWidth, &mWindowHeight);
++#endif
+ 
+         if (startFullScreen) {
+             SetFullscreenImpl(true, false);
+@@ -437,6 +468,12 @@ void GfxWindowBackendSDL::Init(const char* gameName, const char* gfxApiName, boo
          SDL_GL_SetSwapInterval(mVsyncEnabled ? 1 : 0);
  
          window_impl.Opengl = { mWnd, mCtx };
@@ -2711,6 +2772,35 @@ index c8bc6cdd..ff6981dc 100644
      } else {
          mRenderer = SDL_CreateRenderer(mWnd, nullptr);
          if (mRenderer == nullptr) {
+@@ -551,7 +588,7 @@ void GfxWindowBackendSDL::SetMouseCallbacks(bool (*onMouseButtonDown)(int btn),
+ }
+ 
+ void GfxWindowBackendSDL::GetDimensions(uint32_t* width, uint32_t* height, int32_t* posX, int32_t* posY) {
+-#ifdef __APPLE__
++#if defined(__APPLE__) || defined(__EMSCRIPTEN__) // PORT: (web build: HiDPI canvas)
+     SDL_GetWindowSize(mWnd, static_cast<int*>((void*)width), static_cast<int*>((void*)height));
+ #else
+     SDL_GetWindowSizeInPixels(mWnd, static_cast<int*>((void*)width), static_cast<int*>((void*)height));
+@@ -657,7 +694,7 @@ void GfxWindowBackendSDL::HandleSingleEvent(SDL_Event& event) {
+             break;
+ #endif
+         case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+-#ifdef __APPLE__
++#if defined(__APPLE__) || defined(__EMSCRIPTEN__) // PORT: (web build: HiDPI canvas)
+             SDL_GetWindowSize(mWnd, &mWindowWidth, &mWindowHeight);
+ #else
+             SDL_GetWindowSizeInPixels(mWnd, &mWindowWidth, &mWindowHeight);
+@@ -711,6 +748,10 @@ static uint64_t qpc_to_100ns(uint64_t qpc) {
+ }
+ 
+ void GfxWindowBackendSDL::SyncFramerateWithTime() const {
++#if defined(__EMSCRIPTEN__)
++    // PORT: the browser paces the frames (one per requestAnimationFrame); sleeping would block its main thread
++    return;
++#endif
+     uint64_t t = qpc_to_100ns(SDL_GetPerformanceCounter());
+ 
+     const int64_t next = previous_time + 10 * FRAME_INTERVAL_US_NUMERATOR / FRAME_INTERVAL_US_DENOMINATOR;
 diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
 new file mode 100644
 index 0000000000000000000000000000000000000000..68b9c36f5c9e755e79e8cdc499a94cea4fc2f9e8

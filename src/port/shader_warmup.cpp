@@ -98,9 +98,11 @@ class ShaderWarmupWindow : public Ship::GuiWindow {
     void UpdateElement() override {}
 };
 
+std::shared_ptr<ShaderWarmupWindow> sScreen;
+
 } // namespace
 
-bool RunShaderWarmup() {
+void BeginShaderWarmup() {
     const char* listEnv = getenv("PORT_SHADER_LIST");
     sListPath = listEnv != nullptr ? listEnv : AppPath("shaders.txt");
     std::vector<ShaderId> ids;
@@ -118,31 +120,46 @@ bool RunShaderWarmup() {
         fprintf(stderr, "[shader] warm-up: %zu programs (%zu shipped, %zu from %s)%s\n", ids.size(), shipped,
                 ids.size() - shipped, sListPath.c_str(), getenv("PORT_NO_SHADER_WARMUP") ? ", off" : "");
     }
-    if (getenv("PORT_NO_SHADER_WARMUP")) return true;
+    if (getenv("PORT_NO_SHADER_WARMUP")) return;
 
     auto window = GetWindow();
     auto interpreter = window->GetInterpreterWeak().lock();
-    if (!interpreter) return true;
+    if (!interpreter) return;
     interpreter->QueueShaderWarmup(std::move(ids));
-    if (interpreter->ShaderWarmupProgress() >= 1.0f) return true;
+    if (interpreter->ShaderWarmupProgress() >= 1.0f) return;
 
-    auto screen = std::make_shared<ShaderWarmupWindow>();
-    screen->Init();
-    auto gui = window->GetGui();
-    gui->AddGuiWindow(screen);
+    sScreen = std::make_shared<ShaderWarmupWindow>();
+    sScreen->Init();
+    window->GetGui()->AddGuiWindow(sScreen);
+}
+
+// True while warm-up still needs another frame.
+bool PumpShaderWarmup() {
+    if (!sScreen) return false;
+    auto window = GetWindow();
+    auto interpreter = window->GetInterpreterWeak().lock();
     Gfx empty[1];
     gSPEndDisplayList(&empty[0]);
-    while (window->IsRunning()) {
+    if (window->IsRunning() && interpreter) {
         window->HandleEvents();
-        if (!window->IsRunning()) break;
-        screen->progress = interpreter->ShaderWarmupProgress();
-        const bool drawn = window->DrawAndRunGraphicsCommands(empty, {});
-        if (drawn && screen->progress >= 1.0f) break;
-        SDL_Delay(1);
+        if (window->IsRunning()) {
+            sScreen->progress = interpreter->ShaderWarmupProgress();
+            const bool drawn = window->DrawAndRunGraphicsCommands(empty, {});
+            if (!drawn || sScreen->progress < 1.0f) return true;
+        }
     }
-    gui->RemoveGuiWindow(screen->GetName());
-    if (trace && window->IsRunning()) fprintf(stderr, "[shader] startup warm-up complete; starting intro\n");
-    return window->IsRunning();
+    window->GetGui()->RemoveGuiWindow(sScreen->GetName());
+    sScreen.reset();
+    if (window->IsRunning() && (getenv("PORT_TRACE_SHADERS") || getenv("PORT_TRACE_PACING"))) {
+        fprintf(stderr, "[shader] startup warm-up complete; starting intro\n");
+    }
+    return false;
+}
+
+bool RunShaderWarmup() {
+    BeginShaderWarmup();
+    while (PumpShaderWarmup()) SDL_Delay(1);
+    return GetWindow()->IsRunning();
 }
 
 } // namespace Port

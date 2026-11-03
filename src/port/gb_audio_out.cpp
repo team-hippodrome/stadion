@@ -10,6 +10,7 @@
 // its buffers as on hardware (~802 samples per frame; reporting 0 made every buffer the maximum 816 samples and the
 // PORT_GB_WAV dump ran ~1.5 % slow against ares).
 #include <SDL3/SDL.h>
+#include "web_audio.h" // (web build: an AudioWorklet instead of SDL's audio device)
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>

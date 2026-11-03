@@ -17,6 +17,8 @@
 #include <port_compat.h>
 #include <PR/os_gbpak.h>
 
+#include "port_platform.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -141,6 +143,7 @@ void FlushSave(Cart& c) {
     std::string error;
     if (Port::WriteProtectedSave(std::filesystem::u8path(c.savePath), c.ram.data(), c.ram.size(), error)) {
         c.ramDirty = false;
+        Port_SaveWritten();
     } else {
         Port::ReportSaveFailure(error);
         fprintf(stderr, "[gbpak] SAVE FAILED: %s\n", error.c_str());

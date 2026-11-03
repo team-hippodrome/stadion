@@ -1,5 +1,5 @@
 // Small platform layer for the port's debug output (stack traces, image load address, readable-memory checks).
-// macOS, Linux, Windows and Android. C and C++.
+// macOS, Linux, Windows, Android and the web build (Emscripten). C and C++.
 #ifndef PORT_PLATFORM_H
 #define PORT_PLATFORM_H
 
@@ -19,6 +19,8 @@
 #include <execinfo.h>
 #include <mach-o/dyld.h>
 #include <mach/mach.h>
+#include <unistd.h>
+#elif defined(__EMSCRIPTEN__)
 #include <unistd.h>
 #elif defined(__ANDROID__)
 #include <dlfcn.h>
@@ -46,6 +48,8 @@ static inline unsigned long Port_ImageSlide(void) {
     // the game is libmain.so, loaded by the app process: its own load address
     Dl_info info;
     return dladdr((void*)&Port_ImageSlide, &info) ? (unsigned long)(uintptr_t)info.dli_fbase : 0;
+#elif defined(__EMSCRIPTEN__)
+    return 0; // (WebAssembly code has no addresses; the browser's console shows the stack of a crash)
 #else
     return (unsigned long)(uintptr_t)__executable_start;
 #endif
@@ -77,6 +81,10 @@ static inline int Port_Backtrace(void** frames, int max) {
     struct Port_BacktraceState st = { frames, 0, max };
     _Unwind_Backtrace(Port_BacktraceStep, &st);
     return st.n;
+#elif defined(__EMSCRIPTEN__)
+    (void)frames;
+    (void)max;
+    return 0;
 #else
     return backtrace(frames, max);
 #endif
@@ -124,6 +132,11 @@ static inline int Port_Readable(const void* p, size_t n) {
 #elif defined(__APPLE__)
     vm_size_t got = 0;
     return vm_read_overwrite(mach_task_self(), (vm_address_t)p, n, (vm_address_t)tmp, &got) == KERN_SUCCESS;
+#elif defined(__EMSCRIPTEN__)
+    // all of the linear memory can be read; the program's own part starts at 4 GB (CMakeLists.txt)
+    (void)tmp;
+    uintptr_t a = (uintptr_t)p;
+    return a >= 0x100000000ull && a + n <= (uintptr_t)__builtin_wasm_memory_size(0) * 65536u;
 #else
     // the kernel reads the bytes for write(); an unreadable address fails with EFAULT instead of a crash
     static int fds[2] = { -1, -1 };
@@ -140,6 +153,10 @@ static inline int Port_Readable(const void* p, size_t n) {
     return w == (ssize_t)n;
 #endif
 }
+
+// Called after a save file was written (flash, Game Boy cartridge RAM). The web build copies the files to the browser's
+// storage then (web/port.js); elsewhere they are on disk already.
+void Port_SaveWritten(void);
 
 // Gives the calling thread its own signal stack, so the crash handler (main.cpp) also reports stack overflows.
 static inline void Port_AltSignalStack(void) {

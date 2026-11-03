@@ -46,6 +46,11 @@ if(ANDROID)
   # Android: OpenGL ES 3 renderer (libultraship fetches SDL3 and the other libraries itself, see android/)
   set(USE_OPENGLES ON CACHE BOOL "" FORCE)
 endif()
+if(EMSCRIPTEN)
+  # Web build (tools/build_web.sh): WebGL 2 through the OpenGL ES 3 renderer; libultraship fetches SDL3 and the other
+  # libraries as for Android. All code is built as 64-bit WebAssembly (memory64) with threads (see PORT_WEB_* below).
+  set(USE_OPENGLES ON CACHE BOOL "" FORCE)
+endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # fmt 10.1 (distro spdlog) + clang 20: FMT_STRING's consteval check fails to compile; plain constexpr is enough
   add_compile_definitions(FMT_CONSTEVAL=)
@@ -66,8 +71,10 @@ set(PORT_MAIN_SOURCES
   src/port/xcheck.cpp
   src/port/stubs.c
   src/port/port_platform.c
-  src/port/generated/abs_syms.S
 )
+if(NOT EMSCRIPTEN)  # web: an object file written by tools/gen_wasm_abs_syms.py instead (below)
+  list(APPEND PORT_MAIN_SOURCES src/port/generated/abs_syms.S)
+endif()
 if(ANDROID)
   # SDL's Java activity (android/) loads the game as libmain.so and calls its main (SDL_main)
   add_library(pokestadium SHARED ${PORT_MAIN_SOURCES})
@@ -138,6 +145,14 @@ foreach(_i RANGE 0 ${_last} 2)
   list(APPEND STADIUM_GAME_SOURCES ${_wrap})
   list(APPEND PORT_WRAPPED_SOURCES ${_orig} ${_wrap})
 endforeach()
+if(EMSCRIPTEN)
+  # web build: FragmentEntry-typed thunks for the fragment entries (WebAssembly traps on calls through another type)
+  execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_fragment_thunks.py
+                          ${CMAKE_CURRENT_SOURCE_DIR}/game/src ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_fragment_entries.c
+                          ${CMAKE_BINARY_DIR}/generated)
+  list(APPEND STADIUM_GAME_SOURCES ${CMAKE_BINARY_DIR}/generated/fragment_thunks.c)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_fragment_thunks.py)
+endif()
 add_library(stadium_game STATIC ${STADIUM_GAME_SOURCES})
 # Per-fragment data sections, restored whenever the game loads the fragment (see tools/gen_frag_sections.py)
 execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_frag_sections.py
@@ -193,6 +208,9 @@ target_compile_options(stadium_game PRIVATE
 # headers include <ultra64.h> themselves.
 add_library(port_os STATIC src/port/os_thread.cpp src/port/os_devices.cpp src/port/transfer_pak.cpp src/port/gb_audio_out.cpp src/port/audio_out.cpp src/port/audio_hle.cpp src/port/gb_core.c
   src/port/jpeg_task.cpp src/port/gfx_translate.cpp)
+if(EMSCRIPTEN)
+  target_sources(port_os PRIVATE src/port/web_audio.cpp) # sound output through an AudioWorklet (web_audio.h)
+endif()
 target_include_directories(port_os PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/port
   ${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk
@@ -211,7 +229,7 @@ target_compile_definitions(port_os PRIVATE LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 ND
 target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/port_compat.h
   ${PORT_NO_WARNINGS})
 # the GB Tower's sound output uses SDL3 directly (same SDL3 the window uses)
-if(ANDROID)  # the SDL3 that libultraship fetched (no system copy to find)
+if(ANDROID OR EMSCRIPTEN)  # the SDL3 that libultraship fetched (no system copy to find)
   target_link_libraries(port_os PRIVATE SDL3::Headers)
 else()
   find_path(PORT_SDL3_INCLUDE SDL3/SDL.h HINTS /opt/homebrew/include /usr/local/include)
@@ -244,6 +262,67 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_link_options(pokestadium PRIVATE -fuse-ld=lld)
 endif()
 
+if(EMSCRIPTEN)
+  # The port tells N64 addresses from host pointers by their value (port_platform.c): host memory must lie above 4 GB,
+  # so the program's static data, stacks and heap start there (the 4 GB below stay untouched, not backed by real memory).
+  set(PORT_WEB_GLOBAL_BASE 4294967296)
+  # The decompiled code calls functions through pointer types that differ from their definitions: harmless on the N64
+  # and on native hosts, a trap in WebAssembly. Emscripten's emulation makes every indirect call tolerant (larger and
+  # somewhat slower). The fragment entries have exact-type thunks (tools/gen_fragment_thunks.py), but the callbacks
+  # (geo layouts, particles, widgets: any of the ~15,000 functions the N64 addresses resolve to) are called through
+  # many types, so PORT_WEB_FPCAST=OFF still traps at the first geo callback.
+  option(PORT_WEB_FPCAST "Web build: emulate function pointer casts" ON)
+  if(PORT_WEB_FPCAST)
+    target_link_options(pokestadium PRIVATE -sEMULATE_FUNCTION_POINTER_CASTS=1
+                        "-sBINARYEN_EXTRA_PASSES=--pass-arg=max-func-params@64")
+  endif()
+  # the game's absolute symbols (src/port/generated/abs_syms.S), as a wasm object; it must come first on the link line
+  # (the linker options precede the objects), see tools/gen_wasm_abs_syms.py
+  set(PORT_WEB_ABS_OBJ ${CMAKE_BINARY_DIR}/generated/abs_syms_wasm.o)
+  add_custom_command(OUTPUT ${PORT_WEB_ABS_OBJ}
+    COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_wasm_abs_syms.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/abs_syms.S ${PORT_WEB_ABS_OBJ} ${PORT_WEB_GLOBAL_BASE}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_wasm_abs_syms.py ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/abs_syms.S)
+  add_custom_target(port_web_abs_syms DEPENDS ${PORT_WEB_ABS_OBJ})
+  # each fragment's static data, from the linker map (tools/gen_frag_ranges.py); make_o2r.py packs it (below)
+  add_custom_command(TARGET pokestadium POST_BUILD
+    COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_frag_ranges.py ${CMAKE_BINARY_DIR}/pokestadium.map
+            ${CMAKE_CURRENT_SOURCE_DIR}/game/src ${CMAKE_BINARY_DIR}/generated/frag_sections.txt
+            ${CMAKE_BINARY_DIR}/frag_ranges.txt
+    COMMENT "Finding the fragments' data in the linker map")
+  set(PORT_O2R_EXTRA --add port/frag_ranges.txt=${CMAKE_BINARY_DIR}/frag_ranges.txt)
+  add_dependencies(pokestadium port_web_abs_syms)
+  set_property(TARGET pokestadium APPEND PROPERTY LINK_DEPENDS ${PORT_WEB_ABS_OBJ})
+  set_target_properties(pokestadium PROPERTIES SUFFIX ".js")
+  target_link_options(pokestadium BEFORE PRIVATE ${PORT_WEB_ABS_OBJ})
+  target_link_options(pokestadium PRIVATE
+    -sGLOBAL_BASE=${PORT_WEB_GLOBAL_BASE}
+    # 4 GB unused below the program, plus room for it (the game, the renderer's caches, the ROM)
+    -sINITIAL_MEMORY=5GB -sALLOW_MEMORY_GROWTH=0
+    -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3=1
+    # every libultra thread is a host thread (os_thread.cpp): workers made ahead of time, since a new worker only starts
+    # once the browser's main thread returns to its event loop
+    -sPTHREAD_POOL_SIZE=32 -sSTACK_SIZE=4MB -sDEFAULT_PTHREAD_STACK_SIZE=2MB
+    # the page (web/) loads the ROM and the saves before it starts the game (callMain)
+    -sINVOKE_RUN=0 -sEXIT_RUNTIME=0 -sFORCE_FILESYSTEM=1 -lidbfs.js
+    "-sEXPORTED_RUNTIME_METHODS=callMain,ccall,FS,IDBFS" "-sEXPORTED_FUNCTIONS=_main,_setenv,_Port_ViTick"
+    # PORT_WEB_EXTRA_LINK: link flags for debugging, e.g. "-sASSERTIONS=1 -sSAFE_HEAP=1" (checks every memory access)
+    # the linker map: tools/gen_frag_ranges.py finds each fragment's static data in it (see frag_sections.c)
+    "-Wl,--Map=${CMAKE_BINARY_DIR}/pokestadium.map"
+    -sENVIRONMENT=web,worker ${PORT_WEB_EXTRA_LINK}
+    --profiling-funcs) # function names in the browser's stack traces
+  file(GLOB_RECURSE PORT_WEB_RESOURCE_INPUTS CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*
+       ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png
+       ${CMAKE_CURRENT_SOURCE_DIR}/ghostship-ref/port/fonts/*)
+  set_property(TARGET pokestadium APPEND PROPERTY LINK_DEPENDS
+               ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
+               ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt ${PORT_WEB_RESOURCE_INPUTS})
+  add_custom_command(TARGET pokestadium POST_BUILD
+    COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
+            $<TARGET_FILE_DIR:pokestadium>/pokestadium.o2r ${PORT_O2R_EXTRA}
+    COMMENT "Packing web resources")
+else()
 # Runtime resources (shaders, fonts, the shader warm-up list, launcher pictures) packed into pokestadium.o2r and built
 # into the executable as a C array (tools/make_o2r.py --c): no separate file to lose or damage. The archive itself is
 # left in generated/ for inspection.
@@ -259,6 +338,7 @@ add_custom_command(
           ${PORT_O2R_INPUTS}
   COMMENT "Packing pokestadium.o2r")
 target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c)
+endif()
 
 # Debug aid: cmake -DPORT_ASAN=ON builds the game code and the port layer with AddressSanitizer (finds the
 # out-of-bounds writes that 32-bit struct layouts turn into on 64-bit).
