@@ -138,7 +138,7 @@ Paths to ROMs and saves inside that folder are stored relatively. `SHIP_HOME` ex
 **Import save** loads an existing raw 128 KiB Pokémon Stadium (USA) N64 cartridge save (`.flash`, `.fla`, `.sra`, `.sav`
 or `.bin`). Native and common byte-swapped emulator dumps are recognized by their record checksums. A working copy
 is created in `saves/`; the original and earlier imports are left untouched. Save states, Controller Pak files and
-saves for other games are not cartridge saves. With no imported save, the game creates a fresh default save.
+saves for other games are not Stadium cartridge saves. With no imported save, the game creates a fresh default save.
 Useful environment variables (all in PORTING_NOTES.md): `PORT_FLASH_FILE` (Stadium save), `PORT_GB_ROM` /
 `PORT_GB_SAVE` (Transfer Pak cartridge of player 1; `PORT_GB_ROM2..4` for the others), `PORT_SOUND=0` (no sound
 output; it is on by default at normal speed).
