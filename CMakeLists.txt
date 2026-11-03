@@ -228,6 +228,8 @@ if(WIN32)
   list(JOIN _v "," PORT_VERSION_RC)
   set(PORT_ICON ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/pokestadium.ico)
   configure_file(src/port/pokestadium.rc.in ${CMAKE_BINARY_DIR}/generated/pokestadium.rc @ONLY)
+  set_source_files_properties("${CMAKE_BINARY_DIR}/generated/pokestadium.rc" PROPERTIES
+    OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/port/pokestadium.manifest")
   target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/pokestadium.rc)
 endif()
 if(WIN32 AND NOT MSVC) # mingw (gcc or clang)
