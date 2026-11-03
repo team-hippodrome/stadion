@@ -42,14 +42,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <mach-o/dyld.h>
 #include <signal.h>
-#include <sys/wait.h>
 #include <unistd.h>
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
 #include <mach-o/ldsyms.h>
 #include <dispatch/dispatch.h>
 #include <objc/message.h>
 #include <objc/runtime.h>
+#endif
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
+#include <sys/wait.h>
+#endif
 #include "fragments/battle_engine/battle_engine.h"
 
 #define NOINST __attribute__((no_instrument_function))
@@ -145,8 +152,8 @@ static NOINST void ParseCalls(const char* p) {
 
 // arm64 passes integer and float arguments in separate registers (x0..x7, s0..s7) in order within each kind, so one
 // call shape with six integers and four floats fits any prototype with at most that many of each
-typedef long (*FnMix)(long, long, long, long, long, long, float, float, float, float);
-typedef float (*FnMixF)(long, long, long, long, long, long, float, float, float, float);
+typedef intptr_t (*FnMix)(intptr_t, intptr_t, intptr_t, intptr_t, intptr_t, intptr_t, float, float, float, float);
+typedef float (*FnMixF)(intptr_t, intptr_t, intptr_t, intptr_t, intptr_t, intptr_t, float, float, float, float);
 
 // exit: as ApplySets (an @exit record is armed at the entry it counts and runs when that call returns)
 static NOINST void DoCalls(uintptr_t fn, int exit) {
@@ -166,7 +173,7 @@ static NOINST void DoCalls(uintptr_t fn, int exit) {
             r->armedDepth = 0;
         }
         memcpy(sCallBuf, sCallBufInit, sizeof sCallBuf);
-        long a[6] = { 0 };
+        intptr_t a[6] = { 0 };
         float f[4] = { 0 };
         int floats = 0;
         int ints = 0;
@@ -174,11 +181,18 @@ static NOINST void DoCalls(uintptr_t fn, int exit) {
             if (r->kind[k] == 'f') {
                 if (floats < 4) f[floats++] = (float)r->val[k];
             } else if (ints < 6) {
-                a[ints++] = r->kind[k] == 'p' ? (long)(sCallBuf + (long)r->val[k]) : (long)r->val[k];
+                a[ints++] = r->kind[k] == 'p' ? (intptr_t)(sCallBuf + (intptr_t)r->val[k]) : (intptr_t)r->val[k];
             }
         }
         void* t = (void*)(sBase + r->target);
         char ret[64] = "-";
+#if defined(_WIN32)
+        if (sCallFork || floats) {
+            if (sSeq) fprintf(sSeq, "K %llu %lx unsupported=windows_fork_or_float_arguments\n",
+                              (unsigned long long)Port_ViTick(), (unsigned long)r->target);
+            continue;
+        }
+#else
         pid_t child = 0;
         if (sCallFork) {
             // PORT_EVID_CALL_FORK: the call runs in a forked child (2 s alarm), so a crash or a hang costs only that
@@ -197,11 +211,12 @@ static NOINST void DoCalls(uintptr_t fn, int exit) {
             }
             alarm(2);
         }
+#endif
         if (r->ret == 'f') {
             snprintf(ret, sizeof ret, "%g", (double)((FnMixF)t)(a[0], a[1], a[2], a[3], a[4], a[5], f[0], f[1], f[2], f[3]));
         } else {
-            long v = ((FnMix)t)(a[0], a[1], a[2], a[3], a[4], a[5], f[0], f[1], f[2], f[3]);
-            if (r->ret == 'i') snprintf(ret, sizeof ret, "%ld", v);
+            intptr_t v = ((FnMix)t)(a[0], a[1], a[2], a[3], a[4], a[5], f[0], f[1], f[2], f[3]);
+            if (r->ret == 'i') snprintf(ret, sizeof ret, "%lld", (long long)v);
         }
         if (sSeq) {
             fprintf(sSeq, "K %llu %lx ret=%s", (unsigned long long)Port_ViTick(), (unsigned long)r->target, ret);
@@ -209,6 +224,7 @@ static NOINST void DoCalls(uintptr_t fn, int exit) {
             Hex(sSeq, "buf1", sCallBuf, sCallBufLen);
             fputc('\n', sSeq);
         }
+#if !defined(_WIN32)
         if (sCallFork && child == 0) {
             char path[1100];
             if (sSeq) fflush(sSeq);
@@ -219,6 +235,7 @@ static NOINST void DoCalls(uintptr_t fn, int exit) {
             }
             _exit(0);
         }
+#endif
     }
 }
 
@@ -275,18 +292,28 @@ static NOINST void Dump(void);
 // PORT_EVID_BACKGROUND=1: the game runs as a macOS accessory app (no Dock icon, does not take the focus from the app
 // in use), set on the main thread; with PORT_HIDDEN_WINDOW=1 (Engine.cpp) a run has nothing on screen. SDL's own
 // SDL_MAC_BACKGROUND_APP hint only applies when SDL creates the application object, which the port does earlier
+#if defined(__APPLE__)
 static NOINST void Background(void* unused) {
     (void)unused;
     id app = ((id(*)(Class, SEL))objc_msgSend)(objc_getClass("NSApplication"), sel_registerName("sharedApplication"));
     if (app) ((void (*)(id, SEL, long))objc_msgSend)(app, sel_registerName("setActivationPolicy:"), 1);
 }
 
+#endif
+
 static NOINST void Init(void) {
     sInit = 1;
     sOutPath = getenv("PORT_EVID");
     if (sOutPath == NULL) return;
+#if defined(__APPLE__)
     if (getenv("PORT_EVID_BACKGROUND")) dispatch_async_f(dispatch_get_main_queue(), NULL, Background);
     sBase = (uintptr_t)&_mh_execute_header;
+#elif defined(_WIN32)
+    sBase = (uintptr_t)GetModuleHandleA(NULL);
+#else
+    extern char __executable_start[];
+    sBase = (uintptr_t)__executable_start;
+#endif
     sSites = calloc(kSiteSlots, sizeof(SiteRec));
     sPaths = calloc(kPathSlots, sizeof(PathRec));
     if (getenv("PORT_EVID_SEQ")) sSeq = fopen(getenv("PORT_EVID_SEQ"), "w");
@@ -414,6 +441,7 @@ static NOINST void ApplySets(uintptr_t fn, int exit) {
 // also hooks SIGSEGV/SIGBUS/SIGILL/SIGFPE/SIGABRT: dump once more, then hand the signal to the handler installed
 // before (the port's crash report). Hooked at the first dump rather than at start-up, when the port's handler is
 // in place. Not async-signal-safe (stdio, the profile writer); acceptable for a run that is ending anyway.
+#if !defined(_WIN32)
 static const int kCrashSigs[] = { SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT };
 static struct sigaction sPrevAct[5];
 static volatile sig_atomic_t sCrashing;
@@ -453,6 +481,28 @@ static NOINST void HookCrashes(void) {
     }
 }
 
+#else
+static volatile sig_atomic_t sCrashing;
+static int sCrashHooked;
+static LONG CALLBACK NOINST EvidenceException(EXCEPTION_POINTERS* exception) {
+    DWORD code = exception->ExceptionRecord->ExceptionCode;
+    if (!sCrashing && (code == EXCEPTION_ACCESS_VIOLATION || code == EXCEPTION_ILLEGAL_INSTRUCTION ||
+                       code == EXCEPTION_INT_DIVIDE_BY_ZERO || code == EXCEPTION_FLT_DIVIDE_BY_ZERO)) {
+        int wasBusy = tBusy;
+        sCrashing = 1;
+        tBusy = 1;
+        Dump();
+        tBusy = wasBusy;
+        sCrashing = 0; // a later handler may recover this first-chance exception
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+static NOINST void HookCrashes(void) {
+    sCrashHooked = 1;
+    AddVectoredExceptionHandler(1, EvidenceException);
+}
+#endif
+
 static NOINST void Dump(void) {
     if (!sOn) return;
     if (!sCrashHooked && !sCrashing) HookCrashes();
@@ -478,9 +528,20 @@ static NOINST void Dump(void) {
         }
     }
     fclose(f);
+#if defined(_WIN32)
+    MoveFileExA(tmp, sOutPath, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+#else
     rename(tmp, sOutPath);
+#endif
     if (sSeq) fflush(sSeq);
     if (__llvm_profile_write_file && getenv("LLVM_PROFILE_FILE")) __llvm_profile_write_file();
+}
+
+// Terminal probes stop the game threads; flush evidence before ending without host GUI destructors.
+void NOINST Port_EvidenceExit(int status) {
+    Dump();
+    fflush(NULL);
+    _exit(status);
 }
 
 static NOINST uint64_t Mix(uint64_t h, uint64_t v) {

@@ -8,7 +8,7 @@ the Castle routes from the state shortcut. All runs: `--bin build-evidence-all2/
 | route | run options | reaches |
 |---|---|---|
 | `cup_grid.rec` | `--frames 7700 --flash replays/cup_win_badge.flash` | six rentals, "Reselect some": grid cursor up/down/left/right (`Rental_TeamCursor*`, `Rental_TeamTraySlideTick`), A on a slot (`Rental_OpenSlotAssignmentDialog`, "Exchange? No" → `Rental_ResolveSlotPick`), B (`Rental_ConfirmTeam`) back to the prompt, OK |
-| `cup_grid_exchange.rec` | same | "Exchange? Yes": the carousel resumes and the slot gets a new rental |
+| `cup_grid_exchange.rec` | `--frames 8200 --flash replays/cup_win_badge.flash` | "Exchange? Yes": the carousel resumes and the slot gets a new rental |
 | `cup_level_cap.rec` | `--frames 7600 --flash replays/cup_win_badge.flash --gb yellow_de.gb:L55.sav` | six L55 Game Pak Pokémon, grid, B: "combined levels of the three lowest … too high" (`Rental_HandleLevelCapWarning`), A (back to the grid) and B (replace the last slot) |
 | `cup_register_full.rec` | `--frames 7400 --flash CUP10.flash` | rentals, "OK to Register" with 10 Poké Cup teams: "File full -- registration failed" (`Rental_HandleTeamCancel`) |
 | `cup_back_to_registered.rec` | `--frames 5600 --flash CUP10X6.flash` | Rental Only, B out of the carousel with no picks, then Registered Pokémon: the tray update runs idle (`Rental_TeamTrayHide`); list scroll down/up (`..._GetNext`), "Check": Pokémon cursor (`..._MovePokemonRight/Up`, `TeamSelection_Preview_StartCompact`) |
@@ -22,3 +22,12 @@ Saves (not in the repository): `L55.sav` = `tools/gb_save.py base.sav --got-poke
 `CUP10.flash` / `CUP10X6.flash`: `replays/cup_win_badge.flash` with `python3 -m stadium_save team F set poke_cup <0..9>
 SNORLAX:50 PIKACHU:50 LAPRAS:50 [TAUROS:50 STARMIE:50 ALAKAZAM:50]`. `CASTLE9/10.flash`: the `teams` flash (one Castle
 team) with `gym_leader_castle` slots 1..8 (1..9) set the same way.
+
+
+The exchange route returns from the slot dialog to the carousel through
+`Rental_ResolveSlotPick -> Rental_CarouselResumeInput`, then selects the replacement.
+Its final input is at frame7800 (released at7808); capture after it. Unlike
+`cup_grid.rec`, this route does not press B from the team grid, so
+`Rental_ConfirmTeam` is not an expected function. Validate the exchange-specific
+call edge and at least seven `Rental_CarouselConfirmMon` calls (six initial picks
+plus a replacement).

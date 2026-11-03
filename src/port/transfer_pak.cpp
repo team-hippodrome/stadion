@@ -1,3 +1,6 @@
+#include "file_io.h"
+#include "launcher_reliability.h"
+#include "launcher_files.h"
 // Transfer Pak (64GB-Pak) emulation: the libultra osGbpak* calls, served by a Game Boy cartridge held in memory.
 //
 // Configuration (environment):
@@ -86,7 +89,7 @@ void LoadCarts() {
         if (romPath == nullptr || *romPath == 0) {
             continue;
         }
-        FILE* f = fopen(romPath, "rb");
+        FILE* f = Port::OpenFileUtf8(romPath, "rb");
         if (f == nullptr) {
             fprintf(stderr, "[gbpak] cannot open %s\n", romPath);
             continue;
@@ -119,7 +122,7 @@ void LoadCarts() {
             size_t dot = c.savePath.find_last_of('.');
             c.savePath = (dot == std::string::npos ? c.savePath : c.savePath.substr(0, dot)) + ".sav";
         }
-        if (FILE* s = fopen(c.savePath.c_str(), "rb")) {
+        if (FILE* s = Port::OpenFileUtf8(c.savePath.c_str(), "rb")) {
             size_t n = fread(c.ram.data(), 1, c.ram.size(), s);
             fclose(s);
             fprintf(stderr, "[gbpak] controller %d: save %s (%zu bytes)\n", ch + 1, c.savePath.c_str(), n);
@@ -137,11 +140,13 @@ void FlushSave(Cart& c) {
     if (!c.ramDirty || c.savePath.empty()) {
         return;
     }
-    if (FILE* s = fopen(c.savePath.c_str(), "wb")) {
-        fwrite(c.ram.data(), 1, c.ram.size(), s);
-        fclose(s);
+    std::string error;
+    if (Port::WriteProtectedSave(std::filesystem::u8path(c.savePath), c.ram.data(), c.ram.size(), error)) {
         c.ramDirty = false;
         Port_SaveWritten();
+    } else {
+        Port::ReportSaveFailure(error);
+        fprintf(stderr, "[gbpak] SAVE FAILED: %s\n", error.c_str());
     }
 }
 
@@ -249,6 +254,7 @@ s32 osGbpakPower(OSPfs* pfs, s32 flag) {
     if (c == nullptr) {
         return PFS_ERR_NOPACK;
     }
+    if (getenv("PORT_TRACE_GBPAK")) fprintf(stderr, "[gbpak-trace] power channel=%d flag=%d\n", pfs->channel, (int)flag);
     c->power = flag != 0;
     if (!c->power) {
         FlushSave(*c);
@@ -279,6 +285,12 @@ s32 osGbpakReadWrite(OSPfs* pfs, u16 flag, u16 address, u8* buffer, u16 size) {
         } else {
             BusWrite(*c, (u32)address + i, buffer[i]);
         }
+    }
+    if (getenv("PORT_TRACE_GBPAK") && flag == OS_READ && (address < 0x8000 || size >= 0x100)) {
+        unsigned sum = 0;
+        for (unsigned i = 0; i < size; i++) sum += buffer[i];
+        fprintf(stderr, "[gbpak-trace] read channel=%d addr=%04x size=%04x rombank=%u rambank=%u sum=%x\n",
+                pfs->channel, address, size, c->romBank, c->ramBank, sum);
     }
     if (flag != OS_READ) {
         FlushSave(*c);

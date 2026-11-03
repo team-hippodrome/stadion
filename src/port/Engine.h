@@ -12,6 +12,8 @@ class Fast3dWindow;
 // Owns the libultraship context and window for the Pokemon Stadium port.
 namespace Port {
 bool Init();
+// Reports a Vulkan swapchain failure, saves a usable renderer for the next start, and exits without driver teardown.
+[[noreturn]] void ExitAfterVulkanFailure(const char* reason);
 // Runs one frame: pumps window events, submits a display list, presents.
 // Returns false once the window has been closed.
 bool RunFrame(void* gfxCommands);
@@ -35,7 +37,9 @@ void ApplyAspect();
 // the game window (after Init), for the launcher
 std::shared_ptr<Fast::Fast3dWindow> GetWindow();
 // starts building the shader programs earlier runs drew, and records new ones (shader_warmup.cpp; after Init)
-void StartShaderWarmup();
+bool RunShaderWarmup();
+void BeginShaderWarmup();
+bool PumpShaderWarmup();
 const uint8_t* RomData();
 size_t RomSize();
 

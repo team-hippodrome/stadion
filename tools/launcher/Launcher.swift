@@ -1,6 +1,6 @@
 // Pokémon Stadium launcher (macOS port): pick the Stadium ROM + save and up to four Game Boy cartridges + saves for
-// the players' Transfer Paks, then PLAY starts build/pokestadium. Everything is preselected (Stadium ROM, saves, German
-// Pokémon Yellow on player 1) and remembered between runs. Styled after the PokemonStadiumRecomp launcher.
+// the players' Transfer Paks, then PLAY starts build/pokestadium. Choices use the shared portable JSON config.
+// Styled after the PokemonStadiumRecomp launcher.
 // Plain AppKit (the command-line tools lack SwiftUI's macro plugins). Built into "Pokemon Stadium.app" by
 // tools/make_app.sh. Debug option (checkbox, off by default): a "Save editor" button opens tools/save_editor's web UI on
 // the Stadium save. Test hooks: LAUNCHER_SNAPSHOT=<png> (save the window picture and quit), LAUNCHER_AUTOPLAY=1,
@@ -23,15 +23,18 @@ let projectDir: String = {
 }()
 
 enum Defaults {
-    static let rom = "/Users/michael/Downloads/romis/Pokemon Stadium (USA).z64"
-    static let yellowRom = "/Users/michael/Downloads/Pokemon - Gelbe Edition - Special Pikachu Edition (Germany) (GBC,SGB Enhanced).gb"
-    static var saves: String { projectDir + "/saves" }
+    static let rom = ""
+    static let yellowRom = ""
+    static var saves: String { launcherDirectory.path + "/saves" }
     static var stadiumSave: String { saves + "/stadium.flash" }
     static var yellowSave: String { saves + "/yellow.sav" }
     static let stadiumSha1 = "ed7bef5a306f88c0a6e96b15e71fee2ef32058f3" // Pokémon Stadium (USA) v1.0
 }
 
-let store = UserDefaults.standard
+let launcherDirectory = portableLauncherDirectory(bundle: Bundle.main.bundleURL,
+                                                  executable: Bundle.main.executableURL,
+                                                  environment: ProcessInfo.processInfo.environment)
+let store = PortableLauncherStore(directory: launcherDirectory, legacy: UserDefaults.standard.dictionaryRepresentation())
 
 func asset(_ name: String) -> NSImage? {
     if let p = Bundle.main.path(forResource: name, ofType: "png") { return NSImage(contentsOfFile: p) }
@@ -210,7 +213,7 @@ final class PlayerCard: NSObject {
         self.index = index
         rom = store.string(forKey: "p\(index)_rom") ?? (index == 0 ? Defaults.yellowRom : "")
         save = store.string(forKey: "p\(index)_save") ?? (index == 0 ? Defaults.yellowSave : "")
-        isOn = store.object(forKey: "p\(index)_on") as? Bool ?? (index == 0)
+        isOn = store.object(forKey: "p\(index)_on") as? Bool ?? false
         view = makeCard(frame)
         super.init()
 
@@ -613,12 +616,9 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
+        if let error = store.lastError { fail(error); NSApp.terminate(nil); return }
+        store.onError = { [weak self] message in self?.fail(message) }
         let env = ProcessInfo.processInfo.environment
-        // Auto-play: start right away (hold ⌥ Option while opening the app to get the launcher)
-        if store.bool(forKey: "autoplay") && !NSEvent.modifierFlags.contains(.option) && env["LAUNCHER_SNAPSHOT"] == nil {
-            play()
-            if game != nil { return }
-        }
         let W: CGFloat = 960, H: CGFloat = 556
         let content = Flipped(frame: NSRect(x: 0, y: 0, width: W, height: H))
         content.wantsLayer = true
@@ -665,7 +665,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         bar.addSubview(changeRom)
         saveLabel.frame = NSRect(x: 246, y: 61, width: 200, height: 16)
         bar.addSubview(saveLabel)
-        let changeSave = button("Change save", self, #selector(pickSave))
+        let changeSave = button("Import save", self, #selector(pickSave))
         changeSave.frame = NSRect(x: 450, y: 56, width: 100, height: 26)
         bar.addSubview(changeSave)
         editorButton = button("Save editor", self, #selector(openEditorButton))
@@ -702,6 +702,18 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         refreshRom()
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        // Auto-play: start right away (hold ⌥ Option while opening the app to get the launcher)
+        let recovery = launcherDirectory.appendingPathComponent("frontend-session.txt")
+        let interrupted = FileManager.default.fileExists(atPath: recovery.path)
+        if interrupted { store.set(false, forKey: "autoplay") }
+        if CommandLine.arguments.contains("--safe-mode") { store.useSafeRenderer() }
+        if store.bool(forKey: "autoplay") && !interrupted && !CommandLine.arguments.contains("--launcher") &&
+           !CommandLine.arguments.contains("--safe-mode") && env["PORT_FORCE_LAUNCHER"] == nil &&
+           !NSEvent.modifierFlags.contains(.option) && env["LAUNCHER_SNAPSHOT"] == nil {
+            play()
+            if game != nil { return }
+        }
 
         if env["LAUNCHER_OPEN_EDITOR"] != nil || env["LAUNCHER_EDITOR_SNAPSHOT"] != nil || env["LAUNCHER_EDITOR_TEST"] != nil {
             openEditor(gbIndex: nil)
@@ -778,8 +790,76 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         win.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         win.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowItem.submenu = win
+        let filesItem = NSMenuItem()
+        main.addItem(filesItem)
+        let files = NSMenu(title: "Files & Help")
+        for (title, action) in [("Check setup", #selector(checkSetup)),
+                                ("Open settings folder", #selector(openSettings)),
+                                ("Open saves folder", #selector(openSaves)),
+                                ("Export N64 save", #selector(exportSave)),
+                                ("Export diagnostics", #selector(exportDiagnostics)),
+                                ("Disable Auto-play", #selector(disableAutoplay)),
+                                ("Use safe renderer next start", #selector(safeRenderer))] {
+            let item = files.addItem(withTitle: title, action: action, keyEquivalent: "")
+            item.target = self
+        }
+        filesItem.submenu = files
         NSApp.mainMenu = main
     }
+
+    func runUtility(_ arguments: [String]) throws -> (Int32, String) {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: projectDir + "/build/pokestadium")
+        p.arguments = arguments
+        var env = ProcessInfo.processInfo.environment
+        env["SHIP_HOME"] = launcherDirectory.path
+        p.environment = env
+        let out = Pipe()
+        p.standardOutput = out; p.standardError = out
+        try p.run()
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        p.waitUntilExit()
+        return (p.terminationStatus, String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "")
+    }
+    func preflight() throws -> (Int32, String) {
+        var arguments = ["--check-launcher", rom, save]
+        for i in 0..<4 {
+            let on = i < cards.count ? cards[i].isOn : store.bool(forKey: "p\(i)_on")
+            let path = i < cards.count ? cards[i].rom : store.string(forKey: "p\(i)_rom") ?? ""
+            let selected = i < cards.count ? cards[i].save : store.string(forKey: "p\(i)_save") ?? ""
+            if on && path.isEmpty { return (1, "Error: Player \(i + 1): Choose a Game Boy ROM or turn this Transfer Pak off.") }
+            let battery = selected.isEmpty ? URL(fileURLWithPath: path).deletingPathExtension().appendingPathExtension("sav").path : selected
+            arguments += [on ? path : "", on ? battery : ""]
+        }
+        return try runUtility(arguments)
+    }
+    @objc func checkSetup() {
+        do { let (_, text) = try preflight(); fail(text.isEmpty ? "All selected files and save locations are ready." : text) }
+        catch { fail(error.localizedDescription) }
+    }
+    @objc func openSettings() { NSWorkspace.shared.open(launcherDirectory) }
+    @objc func openSaves() {
+        let folder = URL(fileURLWithPath: save).deletingLastPathComponent()
+        do { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true); NSWorkspace.shared.open(folder) }
+        catch { fail(error.localizedDescription) }
+    }
+    @objc func exportSave() {
+        guard game == nil, editor == nil else { return fail("Close the game and save editor before exporting.") }
+        do {
+            let (status, text) = try runUtility(["--export-stadium-save", save])
+            if status != 0 { return fail(text) }
+            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: text)])
+        } catch { fail(error.localizedDescription) }
+    }
+    @objc func exportDiagnostics() {
+        do {
+            let (status, text) = try runUtility(["--launcher-diagnostics"])
+            if status != 0 { return fail(text) }
+            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: text)])
+        } catch { fail(error.localizedDescription) }
+    }
+    @objc func disableAutoplay() { store.set(false, forKey: "autoplay"); autoplay?.state = .off }
+    @objc func safeRenderer() { store.useSafeRenderer(); autoplay?.state = .off; fail("Metal selected and Auto-play disabled. Restart to apply. Saves and controller mappings are kept.") }
 
     @objc func pickRom() {
         if let p = choosePath(save: false, current: rom, types: ["z64", "n64", "v64"], message: "Pokémon Stadium (USA) ROM") {
@@ -789,10 +869,13 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @objc func pickSave() {
-        if let p = choosePath(save: true, current: save, types: ["flash", "fla"],
-                              message: "Stadium FlashRAM save (existing or new)") {
-            save = p
-            refreshRom()
+        if let p = choosePath(save: false, current: save, types: ["flash", "fla", "sra", "sav", "bin"],
+                              message: "Import a raw 128 KiB Stadium cartridge save; the original is kept") {
+            do {
+                save = try importStadiumSave(executable: URL(fileURLWithPath: projectDir + "/build/pokestadium"),
+                                            source: URL(fileURLWithPath: p), directory: launcherDirectory)
+                refreshRom()
+            } catch { fail(error.localizedDescription) }
         }
     }
 
@@ -856,16 +939,27 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let exe = projectDir + "/build/pokestadium"
         guard fm.isExecutableFile(atPath: exe) else { return fail("The game is not built yet:\n\(exe)") }
         guard fm.fileExists(atPath: rom) else { return fail("Stadium ROM not found:\n\(rom)") }
+        do {
+            let (status, text) = try preflight()
+            if status != 0 { return fail(text) }
+            if !text.isEmpty {
+                let alert = NSAlert()
+                alert.messageText = "Check cartridge saves"; alert.informativeText = text
+                alert.addButton(withTitle: "Back"); alert.addButton(withTitle: "Play anyway")
+                guard alert.runModal() == .alertSecondButtonReturn else { return }
+            }
+        } catch { return fail(error.localizedDescription) }
         var env = ProcessInfo.processInfo.environment
         try? fm.createDirectory(atPath: Defaults.saves, withIntermediateDirectories: true)
         try? fm.createDirectory(atPath: (save as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+        env["SHIP_HOME"] = launcherDirectory.path
         env["PORT_FLASH_FILE"] = save
         let romVars = ["PORT_GB_ROM", "PORT_GB_ROM2", "PORT_GB_ROM3", "PORT_GB_ROM4"]
         let saveVars = ["PORT_GB_SAVE", "PORT_GB_SAVE2", "PORT_GB_SAVE3", "PORT_GB_SAVE4"]
         // the cards exist only when the window was shown; with auto-play the stored choices are used
         let slots: [(on: Bool, rom: String, save: String)] = (0..<4).map { i in
             if i < cards.count { return (cards[i].isOn, cards[i].rom, cards[i].save) }
-            return (store.object(forKey: "p\(i)_on") as? Bool ?? (i == 0),
+            return (store.object(forKey: "p\(i)_on") as? Bool ?? false,
                     store.string(forKey: "p\(i)_rom") ?? (i == 0 ? Defaults.yellowRom : ""),
                     store.string(forKey: "p\(i)_save") ?? (i == 0 ? Defaults.yellowSave : ""))
         }
@@ -874,14 +968,10 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
             env.removeValue(forKey: saveVars[i])
             guard s.on, !s.rom.isEmpty else { continue }
             guard fm.fileExists(atPath: s.rom) else { return fail("Player \(i + 1): Game Boy ROM not found:\n\(s.rom)") }
-            if !s.save.isEmpty {
-                try? fm.createDirectory(atPath: (s.save as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
-                // the default Yellow save starts from the prepared one (party PIKACHU, BULBASAUR, CHARMANDER)
-                let seed = projectDir + "/gb/yellow_de.sav"
-                if !fm.fileExists(atPath: s.save) && s.save == Defaults.yellowSave && fm.fileExists(atPath: seed) {
-                    try? fm.copyItem(atPath: seed, toPath: s.save)
-                }
-                env[saveVars[i]] = s.save
+            let battery = s.save.isEmpty ? URL(fileURLWithPath: s.rom).deletingPathExtension().appendingPathExtension("sav").path : s.save
+            if !battery.isEmpty {
+                try? fm.createDirectory(atPath: (battery as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+                env[saveVars[i]] = battery
             }
             env[romVars[i]] = s.rom
         }
@@ -898,19 +988,26 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         p.terminationHandler = { proc in
             DispatchQueue.main.async {
-                if proc.terminationStatus != 0,
-                   let text = try? String(contentsOfFile: logPath, encoding: .utf8), text.contains("crash") {
-                    self.fail("The game stopped unexpectedly.\nDetails: \(logPath)")
+                try? FileManager.default.removeItem(at: launcherDirectory.appendingPathComponent("frontend-session.txt"))
+                if proc.terminationStatus != 0 {
+                    self.game = nil
+                    self.disableAutoplay()
+                    self.window?.makeKeyAndOrderFront(nil)
+                    NSApp.activate(ignoringOtherApps: true)
+                    self.fail("The game stopped unexpectedly. Auto-play has been disabled.\nUse Files & Help to select the safe renderer or export diagnostics.\nDetails: \(logPath)")
+                    return
                 }
                 NSApp.terminate(nil)
             }
         }
         do {
+            try Data("game\n".utf8).write(to: launcherDirectory.appendingPathComponent("frontend-session.txt"), options: .atomic)
             try p.run()
             game = p
             refreshRom()
             window?.orderOut(nil) // the launcher waits in the background until the game ends
         } catch {
+            try? fm.removeItem(at: launcherDirectory.appendingPathComponent("frontend-session.txt"))
             fail("Could not start the game: \(error.localizedDescription)")
         }
     }
@@ -920,8 +1017,14 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 }
 
-let app = NSApplication.shared
-let delegate = Launcher()
-app.delegate = delegate
-app.setActivationPolicy(.regular)
-app.run()
+@main
+@MainActor
+struct LauncherApp {
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = Launcher()
+        app.delegate = delegate
+        app.setActivationPolicy(.regular)
+        withExtendedLifetime(delegate) { app.run() }
+    }
+}

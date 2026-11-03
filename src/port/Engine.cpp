@@ -1,4 +1,5 @@
 #include "Engine.h"
+#include "launcher_reliability.h"
 #include "touch_controls.h"
 #include "pacing.h"
 
@@ -27,6 +28,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <unistd.h>
 #include <chrono>
@@ -162,6 +164,11 @@ static void EnsureControllerDb() {
     }
 }
 
+#if !defined(__EMSCRIPTEN__)
+extern "C" const unsigned char gPortO2r[]; // generated/pokestadium_o2r.c
+extern "C" const size_t gPortO2rSize;
+#endif
+
 bool Init() {
     Fast::gPortAddressResolver = Port_ResolveN64Address;
     sContext = Ship::Context::CreateInstance("Pokemon Stadium", "pokestadium");
@@ -180,6 +187,20 @@ bool Init() {
     auto cvars = std::make_shared<Ship::ConsoleVariable>(config);
     sContext->GetChildren().Add(cvars);
     CVarSetConsoleVariable(cvars);
+    if (getenv("PORT_SAFE_MODE") != nullptr) {
+#ifdef __APPLE__
+        config->SetInt("Window.Backend.Id", Fast::FAST3D_SDL_METAL);
+        config->SetString("Window.Backend.Name", "Metal");
+        cvars->SetInteger("gLauncher.Renderer", Fast::FAST3D_SDL_METAL);
+#else
+        config->SetInt("Window.Backend.Id", Fast::FAST3D_SDL_OPENGL);
+        config->SetString("Window.Backend.Name", "OpenGL");
+        cvars->SetInteger("gLauncher.Renderer", Fast::FAST3D_SDL_OPENGL);
+#endif
+        cvars->SetInteger("gLauncher.AutoPlay", 0);
+        cvars->Save();
+    }
+
     // Vsync would cap the speed-up at the display rate: PORT_SPEED > 1 turns it off for that run. The config is saved
     // with it (on the first run, from the settings menu), and later runs at normal speed then presented without vsync
     // (frames shown whenever they were done, out of step with the display); the player's own value is therefore kept
@@ -249,31 +270,33 @@ bool Init() {
     sContext->GetChildren().Add(controlDeck);
     ControllerSetControlDeck(controlDeck);
 
-    // Placeholder archive: libultraship's GUI needs a ResourceManager with at least one archive.
-    // Game data is still read straight from the ROM at this milestone.
-#if defined(__ANDROID__)
-    // the archive ships as an app asset (android/app/build.gradle), which libzip cannot open in place: copy it to the
-    // app's files on every start (a fraction of a megabyte, and always the version that came with the app)
-    if (SDL_IOStream* in = SDL_IOFromFile("pokestadium.o2r", "rb")) {
-        std::string dst = Ship::Context::GetPathRelativeToAppDirectory("pokestadium.o2r");
-        if (SDL_IOStream* out = SDL_IOFromFile(dst.c_str(), "wb")) {
-            char chunk[65536];
-            size_t n;
-            while ((n = SDL_ReadIO(in, chunk, sizeof chunk)) > 0) {
-                SDL_WriteIO(out, chunk, n);
-            }
-            SDL_CloseIO(out);
-        }
-        SDL_CloseIO(in);
-    }
-#endif
+    // The port's archive (shaders, fonts, the shader warm-up list, launcher pictures; no game data, which is read from
+    // the ROM) is built into the executable (CMakeLists.txt, tools/make_o2r.py --c). It used to be a separate
+    // pokestadium.o2r next to the executable, and a damaged, unreadable or missing copy crashed the game a moment later
+    // (an uncaught exception on Windows). A pokestadium.o2r left over from an older version is not read.
+    std::string archiveError;
     try {
         nlohmann::json rmArgs;
-        rmArgs["archivePaths"] = std::vector<std::string>{ Ship::Context::LocateFileAcrossAppDirs("pokestadium.o2r") };
+#if defined(__EMSCRIPTEN__)
+        rmArgs["archivePaths"] = std::vector<std::string>{ AppPath("pokestadium.o2r") };
+#else
+        resourceManager->SetBuiltInArchive("pokestadium.o2r (built in)", gPortO2r, gPortO2rSize);
+        rmArgs["archivePaths"] = std::vector<std::string>{};
+#endif
         rmArgs["validHashes"] = std::vector<uint32_t>{};
         resourceManager->Init(rmArgs);
+        if (!resourceManager->GetArchiveManager()->HasFile("port/shader_warmup.txt")) {
+            archiveError = "the resource archive has no shader list";
+        }
     } catch (const std::exception& e) {
-        SPDLOG_WARN("ResourceManager init deferred: {}", e.what());
+        archiveError = e.what();
+    }
+    if (!archiveError.empty()) { // a broken build: the renderers would fail on the missing shaders
+        std::string message = "The game's resources could not be loaded (" + archiveError + ").";
+        SPDLOG_CRITICAL("{}", message);
+        fprintf(stderr, "%s\n", message.c_str());
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pokémon Stadium", message.c_str(), nullptr);
+        return false;
     }
 #if defined(__EMSCRIPTEN__)
     // Web build: where each fragment's static data lies (tools/gen_frag_ranges.py), copied now, before the game runs, so
@@ -322,7 +345,6 @@ bool Init() {
     sContext->GetChildren().Add(events);
     EventSystemSetEvents(events);
 
-    StartShaderWarmup();
     return true;
 }
 
@@ -511,7 +533,7 @@ static void MaybeScreenshot() {
 
 // Saves the picture just drawn as an 8-bit PPM (interp.cpp: in-between frames).
 void SaveScreen(const char* path) {
-    int w = 0, h = 0;
+    int w = static_cast<int>(sWindow->GetWidth()), h = static_cast<int>(sWindow->GetHeight());
     int count = 0;
     if (SDL_Window** ws = SDL_GetWindows(&count)) {
         if (count > 0) SDL_GetWindowSizeInPixels(ws[0], &w, &h);
@@ -607,17 +629,14 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         return false;
     }
     sWindow->HandleEvents();
-    { // PORT debug: PORT_DEBUG_RESIZE=<frame>:<w>x<h> resizes the window once at that VI frame
+    { // PORT debug: PORT_DEBUG_RESIZE=<frame>:<w>x<h>[,<frame>:<w>x<h>...] resizes the window at those VI frames
         static const char* rs = getenv("PORT_DEBUG_RESIZE");
-        static bool done = false;
         unsigned long long f = 0;
-        int w = 0, h = 0;
-        if (rs && !done && sscanf(rs, "%llu:%dx%d", &f, &w, &h) == 3 && Port_ViTick() >= f) {
-            done = true;
-            int n = 0;
-            SDL_Window** wins = SDL_GetWindows(&n);
-            if (wins && n > 0) SDL_SetWindowSize(wins[0], w, h);
-            SDL_free(wins);
+        int w = 0, h = 0, used = 0;
+        if (rs && sscanf(rs, "%llu:%dx%d%n", &f, &w, &h, &used) == 3 && Port_ViTick() >= f) {
+            rs += used;
+            if (*rs == ',') rs++;
+            sWindow->SetCurrentDimensions((uint32_t)w, (uint32_t)h); // the window backend's own window (SDL, Win32)
             fprintf(stderr, "[resize] window -> %dx%d at frame %llu\n", w, h, (unsigned long long)Port_ViTick());
         }
         // PORT debug: PORT_QUIT_AT=<frame> sends the quit event a window close sends, at that VI frame
@@ -674,10 +693,22 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
     return true;
 }
 
+extern "C" void Port_ProcessControllerInitRequests(void);
+
 bool PumpFrame() {
+    static bool saveFailureShown = false;
+    if (!saveFailureShown) {
+        const auto error = TakeSaveFailure();
+        if (!error.empty()) {
+            saveFailureShown = true;
+            const auto text = error + "\n\nProgress could not be saved. Free disk space or restore write access before continuing. The previous on-disk save was preserved.";
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Save failed", text.c_str(), nullptr);
+        }
+    }
     if (!WindowIsRunning()) {
         return false;
     }
+    Port_ProcessControllerInitRequests();
     sWindow->HandleEvents();
     { // the display the window is on sets the pacing (os_devices.cpp, LockstepClock)
         int n = 0;
@@ -689,8 +720,8 @@ bool PumpFrame() {
     // Poll the controllers here, on the window thread.
     if (auto deck = ControllerGetControlDeck()) {
         OSContPad pads[MAXCONTROLLERS] = {};
-        // the deck is set up by the game's osContInit (game thread); polling before that throws (no wheel handler
-        // yet). On macOS the game usually got there first; on Linux the window thread does.
+        // The game may not have requested controller initialization yet; polling an uninitialized deck throws
+        // because its wheel handler has not been installed.
         try {
             deck->WriteToPad(pads);
         } catch (const std::runtime_error&) {
@@ -781,6 +812,37 @@ std::string AppPath(const char* name) {
 
 std::shared_ptr<Fast::Fast3dWindow> GetWindow() {
     return sWindow;
+}
+
+[[noreturn]] void ExitAfterVulkanFailure(const char* reason) {
+    bool saved = false;
+    try {
+        // Vulkan can fail before the launcher opens. Save both the active backend and the launcher's request so
+        // Store() cannot restore the failing renderer on the next start. Keep every other setting and save file.
+        if (sWindow != nullptr) {
+            auto config = sWindow->GetContext()->GetChildren().GetFirst<Ship::Config>();
+            if (config != nullptr) {
+                CVarSetInteger("gLauncher.Renderer", Fast::FAST3D_SDL_OPENGL);
+                config->SetInt("Window.Backend.Id", Fast::FAST3D_SDL_OPENGL);
+                config->SetString("Window.Backend.Name", "OpenGL");
+                config->Save();
+                CVarSave();
+                saved = true;
+            }
+        }
+    } catch (const std::exception& e) {
+        fprintf(stderr, "Could not save the renderer fallback: %s\n", e.what());
+    }
+    std::string message = std::string("Vulkan could not create the display images.\n\n") + reason +
+                          (saved ? "\n\nOpenGL has been selected for the next launch. Please restart the game."
+                                 : "\n\nPlease select OpenGL or DirectX 11 in pokestadium.cfg.json before restarting.");
+    SPDLOG_ERROR("{}", message);
+    fprintf(stderr, "%s\n", message.c_str());
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pokémon Stadium: Vulkan error", message.c_str(), nullptr);
+    // A failed swapchain may already have retired the old one. Do not unwind driver objects or run static
+    // destructors while game threads are still alive (the normal shutdown path also exits the process directly).
+    fflush(nullptr);
+    std::_Exit(1);
 }
 
 void Shutdown() {

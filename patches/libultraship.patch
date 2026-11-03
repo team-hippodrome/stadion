@@ -13,7 +13,7 @@ index fb76646..6b4f2a1 100644
  endif()
  
 diff --git a/cmake/dependencies/common.cmake b/cmake/dependencies/common.cmake
-index ff2045c..6086c48 100644
+index ff2045c3..6086c483 100644
 --- a/cmake/dependencies/common.cmake
 +++ b/cmake/dependencies/common.cmake
 @@ -35,6 +35,55 @@ target_sources(ImGui
@@ -73,7 +73,7 @@ index ff2045c..6086c48 100644
  if(INCLUDE_MPQ_SUPPORT)
      set(stormlib_patch_file ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies/patches/stormlib-optimizations.patch)
 diff --git a/include/fast/Fast3dGui.h b/include/fast/Fast3dGui.h
-index 8dacf3e..ad26a73 100644
+index 8dacf3ea..ad26a739 100644
 --- a/include/fast/Fast3dGui.h
 +++ b/include/fast/Fast3dGui.h
 @@ -43,6 +43,9 @@ typedef struct {
@@ -87,7 +87,7 @@ index 8dacf3e..ad26a73 100644
              uint32_t Width;  ///< Framebuffer width in pixels.
              uint32_t Height; ///< Framebuffer height in pixels.
 diff --git a/include/fast/Fast3dWindow.h b/include/fast/Fast3dWindow.h
-index 728fa13..a8b8b9b 100644
+index 728fa13f..a8b8b9b6 100644
 --- a/include/fast/Fast3dWindow.h
 +++ b/include/fast/Fast3dWindow.h
 @@ -28,6 +28,7 @@ enum WindowBackend {
@@ -99,7 +99,7 @@ index 728fa13..a8b8b9b 100644
  
  /**
 diff --git a/include/fast/backends/gfx_direct3d_common.h b/include/fast/backends/gfx_direct3d_common.h
-index 4ba2d35..480e844 100644
+index 4ba2d354..480e8447 100644
 --- a/include/fast/backends/gfx_direct3d_common.h
 +++ b/include/fast/backends/gfx_direct3d_common.h
 @@ -149,6 +149,7 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
@@ -181,7 +181,7 @@ index 4ba2d35..480e844 100644
  
      // Previous states (to prevent setting states needlessly)
 diff --git a/include/fast/backends/gfx_dxgi.h b/include/fast/backends/gfx_dxgi.h
-index f381184..b475bf0 100644
+index f381184a..b475bf0b 100644
 --- a/include/fast/backends/gfx_dxgi.h
 +++ b/include/fast/backends/gfx_dxgi.h
 @@ -88,19 +88,19 @@ class GfxWindowBackendDXGI final : public GfxWindowBackend {
@@ -272,7 +272,7 @@ index f381184..b475bf0 100644
      std::shared_ptr<Ship::Config> mConfig;
  };
 diff --git a/include/fast/backends/gfx_metal.h b/include/fast/backends/gfx_metal.h
-index 51d5e2d..1424f27 100644
+index 51d5e2dd5c093692604d4b063ae18ebd4f034c59..97967e8a441cc6449ec55a1c5158f418a0ff8aa9 100644
 --- a/include/fast/backends/gfx_metal.h
 +++ b/include/fast/backends/gfx_metal.h
 @@ -8,6 +8,13 @@
@@ -318,7 +318,7 @@ index 51d5e2d..1424f27 100644
  
      /** @name GfxRenderingAPI implementation */
      /** @{ */
-@@ -166,7 +177,10 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
+@@ -166,7 +177,11 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
      void LoadShader(ShaderProgram* newPrg) override;
      ShaderProgram* CreateAndLoadNewShader(uint64_t shaderId0, uint64_t shaderId1) override;
      ShaderProgram* LookupShader(uint64_t shaderId0, uint64_t shaderId1) override;
@@ -326,10 +326,11 @@ index 51d5e2d..1424f27 100644
 +    MTL::RenderPipelineState* PipelineFor(ShaderProgramMetal* prg, int msaaLevel);
      void ShaderGetInfo(ShaderProgram* prg, uint8_t* numInputs, bool usedTextures[2]) override;
 +    bool PrebuildShadersAsync(const std::vector<std::pair<uint64_t, uint64_t>>& ids) override;
++    float ShaderPrebuildProgress() override;
      void ClearShaderCache() override;
      uint32_t NewTexture() override;
      void SelectTexture(int tile, uint32_t textureId) override;
-@@ -192,7 +206,9 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
+@@ -192,7 +207,9 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
      void CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0,
                           int dstX1, int dstY1) override;
      void ClearFramebuffer(bool color, bool depth) override;
@@ -339,7 +340,7 @@ index 51d5e2d..1424f27 100644
      void ResolveMSAAColorBuffer(int fbIdTarge, int fbIdSrc) override;
      std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
      GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) override;
-@@ -229,6 +245,34 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
+@@ -229,6 +246,34 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
      std::unordered_map<std::pair<uint64_t, uint32_t>, struct ShaderProgramMetal, hash_pair_shader_ids>
          mShaderProgramPool;
  
@@ -375,7 +376,7 @@ index 51d5e2d..1424f27 100644
      std::vector<FramebufferMetal> mFramebuffers;
      FrameUniforms mFrameUniforms;
 diff --git a/include/fast/backends/gfx_opengl.h b/include/fast/backends/gfx_opengl.h
-index b00ea01..5905ef5 100644
+index b00ea01c..5905ef52 100644
 --- a/include/fast/backends/gfx_opengl.h
 +++ b/include/fast/backends/gfx_opengl.h
 @@ -119,6 +119,7 @@ class GfxRenderingAPIOGL final : public GfxRenderingAPI {
@@ -387,7 +388,7 @@ index b00ea01..5905ef5 100644
      void ReadFramebufferToCPU(int fbId, uint32_t width, uint32_t height, uint16_t* rgba16Buf) override;
      void ResolveMSAAColorBuffer(int fbIdTarger, int fbIdSrc) override;
 diff --git a/include/fast/backends/gfx_rendering_api.h b/include/fast/backends/gfx_rendering_api.h
-index 3eb0996..c665c4c 100644
+index 3eb09961909f0f10ee498311bd175b85e86baca0..870ae1ec8c765ad99f77153224b505662785f0c1 100644
 --- a/include/fast/backends/gfx_rendering_api.h
 +++ b/include/fast/backends/gfx_rendering_api.h
 @@ -4,6 +4,8 @@
@@ -399,7 +400,7 @@ index 3eb0996..c665c4c 100644
  #include "imconfig.h"
  
  namespace Fast {
-@@ -39,6 +41,11 @@ class GfxRenderingAPI {
+@@ -39,6 +41,12 @@ class GfxRenderingAPI {
      virtual ShaderProgram* CreateAndLoadNewShader(uint64_t shaderId0, uint64_t shaderId1) = 0;
      virtual ShaderProgram* LookupShader(uint64_t shaderId0, uint64_t shaderId1) = 0;
      virtual void ShaderGetInfo(ShaderProgram* prg, uint8_t* numInputs, bool usedTextures[2]) = 0;
@@ -408,10 +409,11 @@ index 3eb0996..c665c4c 100644
 +    virtual bool PrebuildShadersAsync(const std::vector<std::pair<uint64_t, uint64_t>>& ids) {
 +        return false;
 +    }
++    virtual float ShaderPrebuildProgress() { return 1.0f; }
      virtual uint32_t NewTexture() = 0;
      virtual void SelectTexture(int tile, uint32_t textureId) = 0;
      virtual void UploadTexture(const uint8_t* rgba32Buf, uint32_t width, uint32_t height) = 0;
-@@ -67,7 +74,15 @@ class GfxRenderingAPI {
+@@ -67,7 +75,15 @@ class GfxRenderingAPI {
          // (e.g. OpenGL) should override for a more precise partial clear.
          ClearFramebuffer(false, true);
      }
@@ -429,10 +431,10 @@ index 3eb0996..c665c4c 100644
      GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) = 0;
 diff --git a/include/fast/backends/gfx_vulkan.h b/include/fast/backends/gfx_vulkan.h
 new file mode 100644
-index 0000000..ddbbf01
+index 0000000000000000000000000000000000000000..37e4a2f8e4f9e2ae8a66b4b9e6d3092036669a31
 --- /dev/null
 +++ b/include/fast/backends/gfx_vulkan.h
-@@ -0,0 +1,389 @@
+@@ -0,0 +1,397 @@
 +//
 +//  gfx_vulkan.h
 +//  libultraship
@@ -464,6 +466,7 @@ index 0000000..ddbbf01
 +#include <condition_variable>
 +#include <mutex>
 +#include <thread>
++#include <stdexcept>
 +
 +struct SDL_Window;
 +struct ImDrawData;
@@ -474,6 +477,12 @@ index 0000000..ddbbf01
 +} // namespace Ship
 +
 +namespace Fast {
++
++// PORT: a swapchain failure must leave the render loop before another driver call uses an invalid handle.
++class VulkanSwapchainError : public std::runtime_error {
++  public:
++    using std::runtime_error::runtime_error;
++};
 +
 +constexpr uint32_t VK_FRAMES_IN_FLIGHT = 3;
 +
@@ -590,6 +599,7 @@ index 0000000..ddbbf01
 +    ShaderProgram* LookupShader(uint64_t shaderId0, uint64_t shaderId1) override;
 +    void ShaderGetInfo(ShaderProgram* prg, uint8_t* numInputs, bool usedTextures[2]) override;
 +    bool PrebuildShadersAsync(const std::vector<std::pair<uint64_t, uint64_t>>& ids) override;
++    float ShaderPrebuildProgress() override;
 +    void ClearShaderCache() override;
 +    uint32_t NewTexture() override;
 +    void SelectTexture(int tile, uint32_t textureId) override;
@@ -823,7 +833,7 @@ index 0000000..ddbbf01
 +
 +#endif
 diff --git a/include/fast/backends/gfx_window_manager_api.h b/include/fast/backends/gfx_window_manager_api.h
-index 3759991..1c518b3 100644
+index 3759991c..1c518b36 100644
 --- a/include/fast/backends/gfx_window_manager_api.h
 +++ b/include/fast/backends/gfx_window_manager_api.h
 @@ -42,13 +42,13 @@ class GfxWindowBackend {
@@ -846,8 +856,64 @@ index 3759991..1c518b3 100644
      bool mIsRunning = true;
      bool mVsyncEnabled = true;
  };
+diff --git a/include/fast/backends/resize_keep.h b/include/fast/backends/resize_keep.h
+new file mode 100644
+index 00000000..987d6c01
+--- /dev/null
++++ b/include/fast/backends/resize_keep.h
+@@ -0,0 +1,50 @@
++#pragma once
++
++// PORT: a game framebuffer's picture survives a size change (window resize). The N64 frame buffers keep their picture
++// and menus draw their static background only in a screen's first frames (Free Battle's rule screen), so a new, cleared
++// colour texture left the screen black until the next screen. Each backend draws the old picture into the new texture,
++// scaled uniformly so that the 4:3 picture (full height, or full width in a window narrower than 4:3) keeps its place;
++// what the old texture did not cover stays black. PORT_NO_RESIZE_KEEP=1: off (debug).
++
++#include <algorithm>
++#include <cstdlib>
++
++namespace Fast {
++
++inline bool PortResizeKeepEnabled() {
++    static const bool sOff = getenv("PORT_NO_RESIZE_KEEP") != nullptr;
++    return !sOff;
++}
++
++// Where the whole old picture (ow x oh) lands in the new texture (nw x nh), in pixels from the top-left corner. The
++// rectangle can reach past the texture (a narrower window): callers clip it or let the draw clip it.
++struct PortResizeKeepRect {
++    float x0, y0, x1, y1;
++};
++
++inline PortResizeKeepRect PortResizeKeepDest(float ow, float oh, float nw, float nh) {
++    const float oldPicH = std::min(oh, ow * 3.0f / 4.0f);
++    const float newPicH = std::min(nh, nw * 3.0f / 4.0f);
++    const float s = newPicH / oldPicH;
++    const float x0 = (nw - ow * s) / 2.0f, y0 = (nh - oh * s) / 2.0f;
++    return { x0, y0, x0 + ow * s, y0 + oh * s };
++}
++
++// The part of the source (ow x oh) and destination rectangles that falls inside the new texture, for copies that do
++// not clip (blits): integer pixel rectangles, false when nothing remains.
++inline bool PortResizeKeepClipped(int ow, int oh, int nw, int nh, int src[4], int dst[4]) {
++    PortResizeKeepRect r = PortResizeKeepDest((float)ow, (float)oh, (float)nw, (float)nh);
++    const float sx = (r.x1 - r.x0) / ow, sy = (r.y1 - r.y0) / oh;
++    const float cx0 = std::max(r.x0, 0.0f), cy0 = std::max(r.y0, 0.0f);
++    const float cx1 = std::min(r.x1, (float)nw), cy1 = std::min(r.y1, (float)nh);
++    if (cx1 - cx0 < 1.0f || cy1 - cy0 < 1.0f) {
++        return false;
++    }
++    dst[0] = (int)(cx0 + 0.5f), dst[1] = (int)(cy0 + 0.5f), dst[2] = (int)(cx1 + 0.5f), dst[3] = (int)(cy1 + 0.5f);
++    src[0] = (int)((cx0 - r.x0) / sx + 0.5f), src[1] = (int)((cy0 - r.y0) / sy + 0.5f);
++    src[2] = (int)((cx1 - r.x0) / sx + 0.5f), src[3] = (int)((cy1 - r.y0) / sy + 0.5f);
++    src[2] = std::min(src[2], ow), src[3] = std::min(src[3], oh);
++    return true;
++}
++
++} // namespace Fast
 diff --git a/include/fast/interpreter.h b/include/fast/interpreter.h
-index a7334a9..5736855 100644
+index a7334a9a7613d7f688e4b8902bfcb2d200247584..0daa63abc5b25cc7b1aad3ea4b7b12b4574cf5e1 100644
 --- a/include/fast/interpreter.h
 +++ b/include/fast/interpreter.h
 @@ -190,13 +190,25 @@ struct TextureCacheKey {
@@ -930,13 +996,14 @@ index a7334a9..5736855 100644
      void EndFrame();
      void HandleWindowEvents();
      bool IsFrameReady();
-@@ -423,10 +460,14 @@ class Interpreter {
+@@ -423,10 +460,15 @@ class Interpreter {
      void SetResolutionMultiplier(float multiplier);
      void SetMsaaLevel(uint32_t level);
      void GetCurDimensions(uint32_t* width, uint32_t* height);
 +    // PORT: builds these shader programs before their first draw: on the backend's own thread when it has one
 +    // (PrebuildShadersAsync), else on the render thread, a few milliseconds' worth per frame (WarmupStep)
 +    void QueueShaderWarmup(std::vector<std::pair<uint64_t, uint64_t>> ids);
++    float ShaderWarmupProgress();
  
      // private: TODO make these private
      void Flush();
@@ -945,7 +1012,7 @@ index a7334a9..5736855 100644
      ColorCombiner* LookupOrCreateColorCombiner(const ColorCombinerKey& key);
      void ShaderCacheClear();
      void TextureCacheClear();
-@@ -491,6 +532,7 @@ class Interpreter {
+@@ -491,6 +533,7 @@ class Interpreter {
      void GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry);
      void GfxDpSetZImage(void* zBufAddr);
      void GfxDpSetColorImage(uint32_t format, uint32_t size, uint32_t width, void* address);
@@ -953,7 +1020,7 @@ index a7334a9..5736855 100644
      void GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode);
      void GfxDpSetOtherMode(uint32_t h, uint32_t l);
  
-@@ -525,6 +567,8 @@ class Interpreter {
+@@ -525,6 +568,8 @@ class Interpreter {
      std::map<ColorCombinerKey, ColorCombiner> mColorCombinerPool; // color_combiner_pool;
      std::map<ColorCombinerKey, ColorCombiner>::iterator mPrevCombiner = mColorCombinerPool.end();
      uint8_t* mTexUploadBuffer = nullptr;
@@ -963,7 +1030,7 @@ index a7334a9..5736855 100644
      GfxDimensions mGfxCurrentWindowDimensions{}; // gfx_current_window_dimensions;
      int32_t mCurWindowPosX{};
 diff --git a/include/libultraship/libultra/mbi.h b/include/libultraship/libultra/mbi.h
-index 3019a6c..ed1997f 100644
+index 3019a6ce..ed1997f7 100644
 --- a/include/libultraship/libultra/mbi.h
 +++ b/include/libultraship/libultra/mbi.h
 @@ -32,7 +32,10 @@
@@ -977,8 +1044,108 @@ index 3019a6c..ed1997f 100644
  
  #define NUM_SEGMENTS (16)
  #define SEGMENT_OFFSET(a) ((u32)(a)&0x00FFFFFF)
+diff --git a/include/ship/resource/ResourceManager.h b/include/ship/resource/ResourceManager.h
+index 62ccbdea..e63c7ae1 100644
+--- a/include/ship/resource/ResourceManager.h
++++ b/include/ship/resource/ResourceManager.h
+@@ -69,6 +69,11 @@ class ResourceManager : public Component {
+ 
+     /** @brief Returns the ArchiveManager that manages the mounted archives. */
+     std::shared_ptr<ArchiveManager> GetArchiveManager();
++    /**
++     * @brief PORT: an archive (a ZIP image) built into the executable, mounted by Init before the archives found on
++     * disk. Call before Init; the memory must outlive the ResourceManager.
++     */
++    void SetBuiltInArchive(const std::string& name, const void* data, size_t size);
+     /** @brief Returns the ResourceLoader responsible for deserializing file data. */
+     std::shared_ptr<ResourceLoader> GetResourceLoader();
+ 
+@@ -449,6 +454,9 @@ class ResourceManager : public Component {
+     std::shared_ptr<Archive> mDefaultCacheArchive = nullptr;
+     std::shared_ptr<ThreadPool> mThreadPool;
+     std::shared_ptr<Keystore> mKeystore;
++    std::string mBuiltInArchiveName; // PORT: SetBuiltInArchive
++    const void* mBuiltInArchiveData = nullptr;
++    size_t mBuiltInArchiveSize = 0;
+ 
+     std::shared_ptr<ThreadPool> GetThreadPool();
+ };
+diff --git a/include/ship/resource/archive/O2rArchive.h b/include/ship/resource/archive/O2rArchive.h
+index 563dc1aa..0ffb29f9 100644
+--- a/include/ship/resource/archive/O2rArchive.h
++++ b/include/ship/resource/archive/O2rArchive.h
+@@ -35,6 +35,12 @@ class O2rArchive final : virtual public Archive {
+      */
+     O2rArchive(const std::string& archivePath, std::shared_ptr<ResourceManager> resourceManager = nullptr,
+                std::shared_ptr<Keystore> keystore = nullptr);
++    /**
++     * @brief PORT: constructs a read-only O2rArchive over a ZIP image in memory (an archive built into the
++     * executable). The memory must stay valid for the archive's lifetime; @p name only labels it.
++     */
++    O2rArchive(const std::string& name, const void* data, size_t size,
++               std::shared_ptr<ResourceManager> resourceManager = nullptr, std::shared_ptr<Keystore> keystore = nullptr);
+     ~O2rArchive();
+ 
+     /**
+@@ -76,6 +82,10 @@ class O2rArchive final : virtual public Archive {
+     zip_t* GetZipHandle();
+     /** @brief Returns a zip_t* handle back to the pool for reuse. */
+     void ReleaseZipHandle(zip_t* handle);
++    /** @brief PORT: opens the file, or the image in memory (read-only). */
++    zip_t* OpenZip(int flags);
++    const void* mMemoryData = nullptr;
++    size_t mMemorySize = 0;
+     zip_t* mZipArchive;
+     std::mutex mPoolMutex;
+     std::vector<zip_t*> mZipArchivePool;
+diff --git a/include/ship/utils/AppDirectory.h b/include/ship/utils/AppDirectory.h
+new file mode 100644
+--- /dev/null
++++ b/include/ship/utils/AppDirectory.h
+@@ -0,0 +1,41 @@
++#pragma once
++
++#include <algorithm>
++#include <filesystem>
++#include <stdexcept>
++#include <string>
++
++namespace Ship {
++// Desktop data follows the launcher artifact, never its caller's working directory or an AppImage mount.
++// Sandboxed platforms supply their writable files directory instead of the installed library/APK directory.
++inline std::filesystem::path ResolveAppDirectory(const std::filesystem::path& executableDirectory,
++                                                const std::string& overrideDirectory,
++                                                const std::filesystem::path& userHome,
++                                                const std::filesystem::path& appImage,
++                                                const std::filesystem::path& sandboxFiles,
++                                                bool macBundle) {
++    namespace fs = std::filesystem;
++    if (!overrideDirectory.empty()) {
++        auto path = fs::u8path(overrideDirectory);
++        if ((overrideDirectory == "~" || overrideDirectory.rfind("~/", 0) == 0) && !userHome.empty()) {
++            path = overrideDirectory == "~" ? userHome : userHome / fs::u8path(overrideDirectory.substr(2));
++        }
++        return fs::absolute(path).lexically_normal();
++    }
++    if (!sandboxFiles.empty()) return fs::absolute(sandboxFiles).lexically_normal();
++    if (!appImage.empty()) return fs::absolute(appImage).lexically_normal().parent_path();
++    if (executableDirectory.empty()) throw std::runtime_error("Cannot locate the launcher folder; set SHIP_HOME.");
++    auto directory = fs::absolute(executableDirectory).lexically_normal();
++    if (macBundle) {
++        for (auto bundle = directory; !bundle.empty(); bundle = bundle.parent_path()) {
++            auto extension = bundle.extension().string();
++            std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) {
++                return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
++            });
++            if (extension == ".app") return bundle.parent_path();
++            if (bundle == bundle.parent_path()) break;
++        }
++    }
++    return directory;
++}
++} // namespace Ship
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index cfab4be..5679aa6 100644
+index cfab4be..00000000 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
 @@ -160,6 +160,8 @@ if (USE_OPENGLES)
@@ -1003,7 +1170,7 @@ index cfab4be..5679aa6 100644
      target_compile_definitions(libultraship PUBLIC ENABLE_SCRIPTING)
      if(ENABLE_TCC_COMPILER)
 diff --git a/src/fast/Fast3dGui.cpp b/src/fast/Fast3dGui.cpp
-index 893dcd5..c5f4f22 100644
+index 893dcd57..c5f4f22b 100644
 --- a/src/fast/Fast3dGui.cpp
 +++ b/src/fast/Fast3dGui.cpp
 @@ -7,6 +7,7 @@
@@ -1140,7 +1307,7 @@ index 893dcd5..c5f4f22 100644
          case WindowBackend::FAST3D_DXGI_DX11:
              ImGui_ImplDX11_RenderDrawData(data);
 diff --git a/src/fast/Fast3dWindow.cpp b/src/fast/Fast3dWindow.cpp
-index b80c990..719941e 100644
+index b80c9907..719941e1 100644
 --- a/src/fast/Fast3dWindow.cpp
 +++ b/src/fast/Fast3dWindow.cpp
 @@ -11,6 +11,7 @@
@@ -1216,7 +1383,7 @@ index b80c990..719941e 100644
          default:
              return "";
 diff --git a/src/fast/backends/gfx_direct3d11.cpp b/src/fast/backends/gfx_direct3d11.cpp
-index f747b81..3f78441 100644
+index f747b818..5d9465a1 100644
 --- a/src/fast/backends/gfx_direct3d11.cpp
 +++ b/src/fast/backends/gfx_direct3d11.cpp
 @@ -6,6 +6,7 @@
@@ -1227,7 +1394,15 @@ index f747b81..3f78441 100644
  
  #include <windows.h>
  #include <versionhelpers.h>
-@@ -499,12 +500,13 @@ struct ShaderProgram* GfxRenderingAPIDX11::CreateAndLoadNewShader(uint64_t shade
+@@ -31,6 +32,7 @@
+ #include "ship/config/ConsoleVariable.h"
+ 
+ #include "fast/backends/gfx_rendering_api.h"
++#include "fast/backends/resize_keep.h"
+ #include "fast/interpreter.h"
+ 
+ #include <prism/processor.h>
+@@ -499,12 +501,13 @@ struct ShaderProgram* GfxRenderingAPIDX11::CreateAndLoadNewShader(uint64_t shade
  
      if (cc_features.opt_alpha) {
          blend_desc.RenderTarget[0].BlendEnable = true;
@@ -1246,7 +1421,7 @@ index f747b81..3f78441 100644
          blend_desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
          blend_desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
      } else {
-@@ -860,6 +862,10 @@ int GfxRenderingAPIDX11::CreateFramebuffer() {
+@@ -860,6 +863,129 @@ int GfxRenderingAPIDX11::CreateFramebuffer() {
      return (int)index;
  }
  
@@ -1254,20 +1429,167 @@ index f747b81..3f78441 100644
 +// it to black, as an untouched N64 frame buffer would read (see gfx_metal.cpp)
 +static std::unordered_set<int> sFreshColorFbs;
 +
++// PORT: the old picture drawn into a resized framebuffer's new render target (fast/backends/resize_keep.h): a quad
++// over the destination rectangle (the viewport) samples the old texture. The device context state it changes is saved
++// and restored, so the backend's own state caches stay valid.
++static bool DrawOldPictureScaled(ID3D11Device* device, ID3D11DeviceContext* ctx, pD3DCompile compile,
++                                 ID3D11ShaderResourceView* oldSrv, uint32_t ow, uint32_t oh, ID3D11RenderTargetView* rtv,
++                                 uint32_t nw, uint32_t nh) {
++    static ComPtr<ID3D11VertexShader> sVs;
++    static ComPtr<ID3D11PixelShader> sPs;
++    static ComPtr<ID3D11SamplerState> sSampler;
++    static ComPtr<ID3D11RasterizerState> sRaster;
++    static bool sFailed = false;
++    if (sFailed || compile == nullptr) {
++        return false;
++    }
++    if (sVs.Get() == nullptr) {
++        static const char source[] = R"(
++            struct VO { float4 pos : SV_Position; float2 uv : TEXCOORD0; };
++            VO VSMain(uint id : SV_VertexID) {
++                float2 c = float2(id & 1, id >> 1);
++                VO o;
++                o.pos = float4(c.x * 2.0 - 1.0, 1.0 - c.y * 2.0, 0.0, 1.0);
++                o.uv = c;
++                return o;
++            }
++            Texture2D src : register(t0);
++            SamplerState linearSampler : register(s0);
++            float4 PSMain(VO i) : SV_Target { return src.Sample(linearSampler, i.uv); }
++        )";
++        ComPtr<ID3DBlob> vs, ps, err;
++        if (FAILED(compile(source, sizeof(source) - 1, nullptr, nullptr, nullptr, "VSMain", "vs_4_0", 0, 0,
++                           vs.GetAddressOf(), err.ReleaseAndGetAddressOf())) ||
++            FAILED(compile(source, sizeof(source) - 1, nullptr, nullptr, nullptr, "PSMain", "ps_4_0", 0, 0,
++                           ps.GetAddressOf(), err.ReleaseAndGetAddressOf())) ||
++            FAILED(device->CreateVertexShader(vs->GetBufferPointer(), vs->GetBufferSize(), nullptr, sVs.GetAddressOf())) ||
++            FAILED(device->CreatePixelShader(ps->GetBufferPointer(), ps->GetBufferSize(), nullptr, sPs.GetAddressOf()))) {
++            sFailed = true;
++            return false;
++        }
++        D3D11_SAMPLER_DESC sd = {};
++        sd.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
++        sd.AddressU = sd.AddressV = sd.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
++        sd.MaxLOD = D3D11_FLOAT32_MAX;
++        D3D11_RASTERIZER_DESC rd = {};
++        rd.FillMode = D3D11_FILL_SOLID;
++        rd.CullMode = D3D11_CULL_NONE;
++        rd.DepthClipEnable = TRUE;
++        if (FAILED(device->CreateSamplerState(&sd, sSampler.GetAddressOf())) ||
++            FAILED(device->CreateRasterizerState(&rd, sRaster.GetAddressOf()))) {
++            sFailed = true;
++            return false;
++        }
++    }
++
++    // save
++    ComPtr<ID3D11InputLayout> layout;
++    D3D11_PRIMITIVE_TOPOLOGY topology;
++    ComPtr<ID3D11VertexShader> vsOld;
++    ComPtr<ID3D11PixelShader> psOld;
++    ComPtr<ID3D11ShaderResourceView> srvOld;
++    ComPtr<ID3D11SamplerState> samplerOld;
++    ComPtr<ID3D11BlendState> blendOld;
++    FLOAT blendFactor[4];
++    UINT sampleMask;
++    ComPtr<ID3D11DepthStencilState> dssOld;
++    UINT stencilRef;
++    ComPtr<ID3D11RasterizerState> rasterOld;
++    UINT viewportCount = 1;
++    D3D11_VIEWPORT viewportOld = {};
++    ComPtr<ID3D11RenderTargetView> rtvOld;
++    ComPtr<ID3D11DepthStencilView> dsvOld;
++    ctx->IAGetInputLayout(layout.GetAddressOf());
++    ctx->IAGetPrimitiveTopology(&topology);
++    ctx->VSGetShader(vsOld.GetAddressOf(), nullptr, nullptr);
++    ctx->PSGetShader(psOld.GetAddressOf(), nullptr, nullptr);
++    ctx->PSGetShaderResources(0, 1, srvOld.GetAddressOf());
++    ctx->PSGetSamplers(0, 1, samplerOld.GetAddressOf());
++    ctx->OMGetBlendState(blendOld.GetAddressOf(), blendFactor, &sampleMask);
++    ctx->OMGetDepthStencilState(dssOld.GetAddressOf(), &stencilRef);
++    ctx->RSGetState(rasterOld.GetAddressOf());
++    ctx->RSGetViewports(&viewportCount, &viewportOld);
++    ctx->OMGetRenderTargets(1, rtvOld.GetAddressOf(), dsvOld.GetAddressOf());
++
++    // draw
++    const FLOAT black[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
++    ctx->ClearRenderTargetView(rtv, black);
++    PortResizeKeepRect r = PortResizeKeepDest((float)ow, (float)oh, (float)nw, (float)nh);
++    D3D11_VIEWPORT vp = { r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0, 0.0f, 1.0f };
++    ctx->OMSetRenderTargets(1, &rtv, nullptr);
++    ctx->IASetInputLayout(nullptr);
++    ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
++    ctx->VSSetShader(sVs.Get(), nullptr, 0);
++    ctx->PSSetShader(sPs.Get(), nullptr, 0);
++    ctx->PSSetShaderResources(0, 1, &oldSrv);
++    ctx->PSSetSamplers(0, 1, sSampler.GetAddressOf());
++    ctx->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
++    ctx->OMSetDepthStencilState(nullptr, 0);
++    ctx->RSSetState(sRaster.Get());
++    ctx->RSSetViewports(1, &vp);
++    ctx->Draw(4, 0);
++
++    // restore
++    ID3D11ShaderResourceView* noSrv = nullptr;
++    ctx->PSSetShaderResources(0, 1, &noSrv); // the old texture goes away now
++    ctx->IASetInputLayout(layout.Get());
++    ctx->IASetPrimitiveTopology(topology);
++    ctx->VSSetShader(vsOld.Get(), nullptr, 0);
++    ctx->PSSetShader(psOld.Get(), nullptr, 0);
++    ctx->PSSetShaderResources(0, 1, srvOld.GetAddressOf());
++    ctx->PSSetSamplers(0, 1, samplerOld.GetAddressOf());
++    ctx->OMSetBlendState(blendOld.Get(), blendFactor, sampleMask);
++    ctx->OMSetDepthStencilState(dssOld.Get(), stencilRef);
++    ctx->RSSetState(rasterOld.Get());
++    if (viewportCount > 0) {
++        ctx->RSSetViewports(1, &viewportOld);
++    }
++    ctx->OMSetRenderTargets(1, rtvOld.GetAddressOf(), dsvOld.Get());
++    return true;
++}
++
  void GfxRenderingAPIDX11::UpdateFramebufferParameters(int fb_id, uint32_t width, uint32_t height, uint32_t msaa_level,
                                                        bool opengl_invertY, bool render_target, bool has_depth_buffer,
                                                        bool can_extract_depth) {
-@@ -893,6 +899,9 @@ void GfxRenderingAPIDX11::UpdateFramebufferParameters(int fb_id, uint32_t width,
+@@ -892,12 +1018,37 @@ void GfxRenderingAPIDX11::UpdateFramebufferParameters(int fb_id, uint32_t width,
+             texture_desc.SampleDesc.Count = msaa_level;
              texture_desc.SampleDesc.Quality = 0;
  
++            // PORT: the old picture survives the resize (DrawOldPictureScaled): its texture and view are kept until
++            // the new render target exists (only a single-sample old texture can be sampled)
++            ComPtr<ID3D11Texture2D> oldTexture;
++            ComPtr<ID3D11ShaderResourceView> oldView;
++            const uint32_t ow = tex.width, oh = tex.height;
++            if (render_target && PortResizeKeepEnabled() && fb.render_target_view.Get() != nullptr &&
++                fb.msaa_level <= 1 && tex.resource_view.Get() != nullptr && ow > 1 && oh > 1 &&
++                (ow != width || oh != height)) {
++                oldTexture = tex.texture;
++                oldView = tex.resource_view;
++            }
++
              ThrowIfFailed(mDevice->CreateTexture2D(&texture_desc, nullptr, tex.texture.ReleaseAndGetAddressOf()));
-+            if (render_target) {
++            if (render_target && oldView.Get() == nullptr) {
 +                sFreshColorFbs.insert(fb_id);
 +            }
  
              if (msaa_level <= 1) {
                  ThrowIfFailed(mDevice->CreateShaderResourceView(tex.texture.Get(), nullptr,
-@@ -952,6 +961,21 @@ void GfxRenderingAPIDX11::StartDrawToFramebuffer(int fb_id, float noise_scale) {
+                                                                 tex.resource_view.ReleaseAndGetAddressOf()));
+             }
++            if (oldView.Get() != nullptr) {
++                ThrowIfFailed(mDevice->CreateRenderTargetView(tex.texture.Get(), nullptr,
++                                                              fb.render_target_view.ReleaseAndGetAddressOf()));
++                if (DrawOldPictureScaled(mDevice.Get(), mContext.Get(), mD3dCompile, oldView.Get(), ow, oh,
++                                         fb.render_target_view.Get(), width, height)) {
++                    sFreshColorFbs.erase(fb_id);
++                } else {
++                    sFreshColorFbs.insert(fb_id);
++                }
++            }
+         } else if (diff || (render_target && tex.texture.Get() == nullptr)) {
+             DXGI_SWAP_CHAIN_DESC1 desc1;
+             IDXGISwapChain1* swap_chain = mWindowBackend->GetSwapChain();
+@@ -952,6 +1103,21 @@ void GfxRenderingAPIDX11::StartDrawToFramebuffer(int fb_id, float noise_scale) {
      mContext->Map(mPerFrameCb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms);
      memcpy(ms.pData, &mPerFrameCbData, sizeof(PerFrameCB));
      mContext->Unmap(mPerFrameCb.Get(), 0);
@@ -1289,7 +1611,7 @@ index f747b81..3f78441 100644
  }
  
  void GfxRenderingAPIDX11::ClearFramebuffer(bool color, bool depth) {
-@@ -1051,6 +1075,9 @@ void GfxRenderingAPIDX11::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX
+@@ -1051,6 +1217,9 @@ void GfxRenderingAPIDX11::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX
      }
  }
  
@@ -1299,7 +1621,7 @@ index f747b81..3f78441 100644
  void GfxRenderingAPIDX11::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFrameBuffers.size()) {
          return;
-@@ -1097,6 +1124,22 @@ void GfxRenderingAPIDX11::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32
+@@ -1097,6 +1266,22 @@ void GfxRenderingAPIDX11::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32
          return;
      }
  
@@ -1322,7 +1644,7 @@ index f747b81..3f78441 100644
      // Convert RGBA32 → RGBA16 with nearest-neighbor scaling from actual texture
      // dimensions to requested output dimensions, respecting RowPitch for row stride
      for (uint32_t j = 0; j < height; j++) {
-@@ -1243,7 +1286,8 @@ void GfxRenderingAPIDX11::SetSrgbMode() {
+@@ -1243,7 +1428,8 @@ void GfxRenderingAPIDX11::SetSrgbMode() {
      mSrgbMode = true;
  }
  
@@ -1333,7 +1655,7 @@ index f747b81..3f78441 100644
  static const char* prism_shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
                                              bool first_cycle, bool hint_single_element) {
 diff --git a/src/fast/backends/gfx_dxgi.cpp b/src/fast/backends/gfx_dxgi.cpp
-index dd8cce5..c510610 100644
+index dd8cce5a..0dbebe43 100644
 --- a/src/fast/backends/gfx_dxgi.cpp
 +++ b/src/fast/backends/gfx_dxgi.cpp
 @@ -34,6 +34,7 @@
@@ -1344,7 +1666,18 @@ index dd8cce5..c510610 100644
  
  #define DECLARE_GFX_DXGI_FUNCTIONS
  #include "fast/backends/gfx_dxgi.h"
-@@ -1128,6 +1129,7 @@ bool GfxWindowBackendDXGI::IsFullscreen() {
+@@ -405,10 +406,6 @@ static LRESULT CALLBACK gfx_dxgi_wnd_proc(HWND h_wnd, UINT message, WPARAM w_par
+             RECT* const prcNewWindow = (RECT*)l_param;
+             SetWindowPos(h_wnd, NULL, prcNewWindow->left, prcNewWindow->top, prcNewWindow->right - prcNewWindow->left,
+                          prcNewWindow->bottom - prcNewWindow->top, SWP_NOZORDER | SWP_NOACTIVATE);
+-            self->mPosX = prcNewWindow->left;
+-            self->mPosY = prcNewWindow->top;
+-            self->current_width = prcNewWindow->right - prcNewWindow->left;
+-            self->current_height = prcNewWindow->bottom - prcNewWindow->top;
+             break;
+         }
+         case WM_ENDSESSION:
+@@ -1128,6 +1125,7 @@ bool GfxWindowBackendDXGI::IsFullscreen() {
  void ThrowIfFailed(HRESULT res) {
      if (FAILED(res)) {
          fprintf(stderr, "Error: 0x%08X\n", res);
@@ -1352,7 +1685,7 @@ index dd8cce5..c510610 100644
          throw Ship::HResultException(res);
      }
  }
-@@ -1136,6 +1138,7 @@ void ThrowIfFailed(HRESULT res, HWND h_wnd, const char* message) {
+@@ -1136,6 +1134,7 @@ void ThrowIfFailed(HRESULT res, HWND h_wnd, const char* message) {
      if (FAILED(res)) {
          char full_message[256];
          snprintf(full_message, sizeof(full_message), "%s\n\nHRESULT: 0x%08X", message, res);
@@ -1361,7 +1694,7 @@ index dd8cce5..c510610 100644
          throw Ship::HResultException(res, message);
      }
 diff --git a/src/fast/backends/gfx_metal.cpp b/src/fast/backends/gfx_metal.cpp
-index afc07db..e0f6fd8 100644
+index afc07db02aa286f4a973ba028fcb831f206c1730..8a78527f63824ef1d38a56f8293ba3683a65df63 100644
 --- a/src/fast/backends/gfx_metal.cpp
 +++ b/src/fast/backends/gfx_metal.cpp
 @@ -7,8 +7,10 @@
@@ -1375,7 +1708,15 @@ index afc07db..e0f6fd8 100644
  #include <vector>
  #include <algorithm>
  #include <unordered_map>
-@@ -42,6 +44,7 @@
+@@ -33,6 +35,7 @@
+ #include <spdlog/fmt/fmt.h>
+ 
+ #include "fast/backends/gfx_metal_shader.h"
++#include "fast/backends/resize_keep.h"
+ 
+ #include "libultraship/libultra/abi.h"
+ #include "ship/config/ConsoleVariable.h"
+@@ -42,6 +45,7 @@
  
  // MARK: - Helpers
  namespace Fast {
@@ -1383,7 +1724,7 @@ index afc07db..e0f6fd8 100644
  
  GfxRenderingAPIMetal::GfxRenderingAPIMetal(std::shared_ptr<Ship::ConsoleVariable> consoleVariable,
                                             std::shared_ptr<Ship::ResourceManager> resourceManager)
-@@ -219,16 +222,30 @@ void GfxRenderingAPIMetal::ClearShaderCache() {
+@@ -219,16 +223,30 @@ void GfxRenderingAPIMetal::ClearShaderCache() {
      }
  }
  
@@ -1418,7 +1759,7 @@ index afc07db..e0f6fd8 100644
  
      NS::Error* error = nullptr;
      MTL::Library* library =
-@@ -246,17 +263,23 @@ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(uint64_t shad
+@@ -246,17 +264,23 @@ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(uint64_t shad
      pipeline_descriptor->setFragmentFunction(fragmentFunc);
      pipeline_descriptor->setVertexDescriptor(vertex_descriptor);
  
@@ -1447,7 +1788,7 @@ index afc07db..e0f6fd8 100644
          pipeline_descriptor->colorAttachments()->object(0)->setAlphaBlendOperation(MTL::BlendOperationAdd);
          pipeline_descriptor->colorAttachments()->object(0)->setWriteMask(MTL::ColorWriteMaskAll);
      } else {
-@@ -264,6 +287,61 @@ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(uint64_t shad
+@@ -264,6 +288,61 @@ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(uint64_t shad
          pipeline_descriptor->colorAttachments()->object(0)->setWriteMask(MTL::ColorWriteMaskAll);
      }
  
@@ -1509,7 +1850,7 @@ index afc07db..e0f6fd8 100644
      struct ShaderProgramMetal* prg = &mShaderProgramPool[std::make_pair(shader_id0, shader_id1)];
      prg->shader_id0 = shader_id0;
      prg->shader_id1 = shader_id1;
-@@ -274,37 +352,93 @@ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(uint64_t shad
+@@ -274,37 +353,99 @@ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(uint64_t shad
      prg->usedTextures[4] = cc_features.used_blend[0];
      prg->usedTextures[5] = cc_features.used_blend[1];
      prg->numInputs = cc_features.numInputs;
@@ -1570,6 +1911,17 @@ index afc07db..e0f6fd8 100644
 +}
  
 -    LoadShader((struct ShaderProgram*)prg);
++float GfxRenderingAPIMetal::ShaderPrebuildProgress() {
++    std::lock_guard<std::mutex> lock(mPrebuildMutex);
++    if (mPrebuildQueue.empty()) return 1.0f;
++    return float(mPrebuildNext - mPrebuilding.size()) / float(mPrebuildQueue.size());
++}
+ 
+-    vertexFunc->release();
+-    fragmentFunc->release();
+-    library->release();
+-    pipeline_descriptor->release();
+-    autorelease_pool->release();
 +void GfxRenderingAPIMetal::PrebuildWorker() {
 +    static const bool sTrace = getenv("PORT_TRACE_PACING") != nullptr || getenv("PORT_TRACE_SHADERS") != nullptr;
 +    std::unique_lock<std::mutex> lock(mPrebuildMutex);
@@ -1596,19 +1948,14 @@ index afc07db..e0f6fd8 100644
 +    }
 +}
  
--    vertexFunc->release();
--    fragmentFunc->release();
--    library->release();
--    pipeline_descriptor->release();
--    autorelease_pool->release();
+-    return (struct ShaderProgram*)prg;
 +GfxRenderingAPIMetal::~GfxRenderingAPIMetal() {
 +    mPrebuildStop = true;
 +    for (auto& t : mPrebuildThreads) {
 +        t.join();
 +    }
 +}
- 
--    return (struct ShaderProgram*)prg;
++
 +// PORT: the program's pipeline for an msaa level, built on first use
 +MTL::RenderPipelineState* GfxRenderingAPIMetal::PipelineFor(ShaderProgramMetal* prg, int msaa_level) {
 +    if (msaa_level < 1 || msaa_level > 8) {
@@ -1628,7 +1975,7 @@ index afc07db..e0f6fd8 100644
  }
  
  struct ShaderProgram* GfxRenderingAPIMetal::LookupShader(uint64_t shader_id0, uint64_t shader_id1) {
-@@ -546,8 +680,7 @@ void GfxRenderingAPIMetal::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, si
+@@ -546,8 +687,7 @@ void GfxRenderingAPIMetal::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, si
      if (current_framebuffer.mLastShaderProgram != mShaderProgram) {
          current_framebuffer.mLastShaderProgram = mShaderProgram;
  
@@ -1638,7 +1985,7 @@ index afc07db..e0f6fd8 100644
          current_framebuffer.mCommandEncoder->setRenderPipelineState(pipeline_state);
      }
  
-@@ -601,7 +734,7 @@ void GfxRenderingAPIMetal::EndFrame() {
+@@ -601,7 +741,7 @@ void GfxRenderingAPIMetal::EndFrame() {
      // MTLBuffer using a blit encoder (cheap DMA — no render pass boundary,
      // no TBDR tile flush/reload).  The CPU reads this buffer next frame in
      // ReadFramebufferToCPU and converts BGRA8 → RGBA5551 on the CPU side.
@@ -1647,7 +1994,7 @@ index afc07db..e0f6fd8 100644
          MTL::Texture* screenTex = mTextures[screen_framebuffer.mTextureId].texture;
          uint32_t w = mScreenReadbackWidth;
          uint32_t h = mScreenReadbackHeight;
-@@ -631,7 +764,9 @@ void GfxRenderingAPIMetal::EndFrame() {
+@@ -631,7 +771,9 @@ void GfxRenderingAPIMetal::EndFrame() {
  
      // Now that commit has been called, retain the command buffer for GPU sync
      // in ReadFramebufferToCPU next frame (waitUntilCompleted before reading).
@@ -1658,7 +2005,7 @@ index afc07db..e0f6fd8 100644
          mScreenReadbackCmdBuf = screen_framebuffer.mCommandBuffer->retain();
          mScreenReadbackDataReady = true;
      } else if (mScreenReadbackDataReady && mScreenReadbackCmdBuf) {
-@@ -751,6 +886,11 @@ void GfxRenderingAPIMetal::SetupScreenFramebuffer(uint32_t width, uint32_t heigh
+@@ -751,6 +893,101 @@ void GfxRenderingAPIMetal::SetupScreenFramebuffer(uint32_t width, uint32_t heigh
      autorelease_pool->release();
  }
  
@@ -1667,20 +2014,136 @@ index afc07db..e0f6fd8 100644
 +// the first pass into such a texture clears it to black, as an untouched N64 frame buffer would read.
 +static std::unordered_set<int> sFreshColorFbs;
 +
++// PORT: the old picture drawn into a resized framebuffer's new texture (fast/backends/resize_keep.h)
++static MTL::RenderPipelineState* ResizeCopyPipeline(MTL::Device* device, MTL::PixelFormat format, uint32_t samples) {
++    static std::unordered_map<uint64_t, MTL::RenderPipelineState*> sPipelines;
++    static MTL::Function* sVertex = nullptr;
++    static MTL::Function* sFragment = nullptr;
++    uint64_t key = ((uint64_t)format << 8) | samples;
++    if (auto it = sPipelines.find(key); it != sPipelines.end()) {
++        return it->second;
++    }
++    if (sVertex == nullptr) {
++        static const char* source = R"(
++            #include <metal_stdlib>
++            using namespace metal;
++            struct CopyOut { float4 pos [[position]]; float2 uv; };
++            vertex CopyOut resizeCopyVertex(uint vid [[vertex_id]], constant float4& rect [[buffer(0)]]) {
++                float2 corner = float2(vid & 1, vid >> 1); // triangle strip over the destination rectangle
++                CopyOut out;
++                out.pos = float4(mix(rect.xy, rect.zw, corner), 0.0, 1.0);
++                out.uv = corner;
++                return out;
++            }
++            fragment float4 resizeCopyFragment(CopyOut in [[stage_in]], texture2d<float> src [[texture(0)]]) {
++                constexpr sampler linearSampler(filter::linear, address::clamp_to_edge);
++                return src.sample(linearSampler, in.uv);
++            }
++        )";
++        NS::Error* error = nullptr;
++        MTL::Library* library = device->newLibrary(NS::String::string(source, NS::UTF8StringEncoding), nullptr, &error);
++        if (library == nullptr) {
++            SPDLOG_ERROR("Failed to compile the resize copy shader: {}",
++                         error ? error->localizedDescription()->cString(NS::UTF8StringEncoding) : "?");
++            return nullptr;
++        }
++        sVertex = library->newFunction(NS::String::string("resizeCopyVertex", NS::UTF8StringEncoding));
++        sFragment = library->newFunction(NS::String::string("resizeCopyFragment", NS::UTF8StringEncoding));
++        library->release();
++    }
++    MTL::RenderPipelineDescriptor* desc = MTL::RenderPipelineDescriptor::alloc()->init();
++    desc->setVertexFunction(sVertex);
++    desc->setFragmentFunction(sFragment);
++    desc->colorAttachments()->object(0)->setPixelFormat(format);
++    desc->setSampleCount(samples);
++    NS::Error* error = nullptr;
++    MTL::RenderPipelineState* pipeline = device->newRenderPipelineState(desc, &error);
++    desc->release();
++    if (pipeline == nullptr) {
++        SPDLOG_ERROR("Failed to create the resize copy pipeline: {}",
++                     error ? error->localizedDescription()->cString(NS::UTF8StringEncoding) : "?");
++    }
++    sPipelines[key] = pipeline;
++    return pipeline;
++}
++
++static bool DrawOldPictureScaled(MTL::Device* device, MTL::CommandQueue* queue, MTL::Texture* oldTex,
++                                 MTL::Texture* newTex, MTL::Texture* newMsaaTex, uint32_t msaa) {
++    MTL::RenderPipelineState* pipeline = ResizeCopyPipeline(device, newTex->pixelFormat(), msaa > 1 ? msaa : 1);
++    if (pipeline == nullptr) {
++        return false;
++    }
++    const float nw = (float)newTex->width(), nh = (float)newTex->height();
++    PortResizeKeepRect r = PortResizeKeepDest((float)oldTex->width(), (float)oldTex->height(), nw, nh);
++    // destination rectangle in clip space (y up; texture rows run down)
++    float rect[4] = { r.x0 / nw * 2.0f - 1.0f, 1.0f - r.y0 / nh * 2.0f, r.x1 / nw * 2.0f - 1.0f, 1.0f - r.y1 / nh * 2.0f };
++
++    MTL::RenderPassDescriptor* pass = MTL::RenderPassDescriptor::renderPassDescriptor();
++    auto* color = pass->colorAttachments()->object(0);
++    if (msaa > 1 && newMsaaTex != nullptr) {
++        color->setTexture(newMsaaTex);
++        color->setResolveTexture(newTex);
++        color->setStoreAction(MTL::StoreActionStoreAndMultisampleResolve);
++    } else {
++        color->setTexture(newTex);
++        color->setStoreAction(MTL::StoreActionStore);
++    }
++    color->setLoadAction(MTL::LoadActionClear);
++    color->setClearColor(MTL::ClearColor::Make(0.0, 0.0, 0.0, 1.0));
++
++    MTL::CommandBuffer* cb = queue->commandBuffer();
++    MTL::RenderCommandEncoder* enc = cb->renderCommandEncoder(pass);
++    enc->setRenderPipelineState(pipeline);
++    enc->setVertexBytes(rect, sizeof(rect), 0);
++    enc->setFragmentTexture(oldTex, 0);
++    enc->drawPrimitives(MTL::PrimitiveTypeTriangleStrip, NS::UInteger(0), NS::UInteger(4));
++    enc->endEncoding();
++    cb->commit();
++    // resizes are rare: wait, so the old texture can go and no later pass (on either queue) runs before the copy
++    cb->waitUntilCompleted();
++    return true;
++}
++
  void GfxRenderingAPIMetal::UpdateFramebufferParameters(int fb_id, uint32_t width, uint32_t height, uint32_t msaa_level,
                                                         bool opengl_invertY, bool render_target, bool has_depth_buffer,
                                                         bool can_extract_depth) {
-@@ -791,6 +931,9 @@ void GfxRenderingAPIMetal::UpdateFramebufferParameters(int fb_id, uint32_t width
-             tex.texture->release();
+@@ -787,8 +1024,15 @@ void GfxRenderingAPIMetal::UpdateFramebufferParameters(int fb_id, uint32_t width
+         tex_descriptor->setPixelFormat(mSrgbMode ? MTL::PixelFormatBGRA8Unorm_sRGB : MTL::PixelFormatBGRA8Unorm);
+         tex_descriptor->setUsage((render_target ? MTL::TextureUsageRenderTarget : 0) | MTL::TextureUsageShaderRead);
  
-         tex.texture = mDevice->newTexture(tex_descriptor);
-+        if (render_target) {
-+            sFreshColorFbs.insert(fb_id);
+-        if (tex.texture != nullptr)
++        // PORT: a rendered picture of another size is drawn into the new texture (DrawOldPictureScaled)
++        MTL::Texture* old_texture = nullptr;
++        if (render_target && fb.mRenderPassDescriptor != nullptr && tex.texture != nullptr && PortResizeKeepEnabled() &&
++            (tex.width != width || tex.height != height) && tex.width > 1 && tex.height > 1 &&
++            tex.texture->pixelFormat() == tex_descriptor->pixelFormat()) {
++            old_texture = tex.texture;
++        } else if (tex.texture != nullptr) {
+             tex.texture->release();
 +        }
  
-         if (msaa_level > 1) {
-             tex_descriptor->setTextureType(MTL::TextureType2DMultisample);
-@@ -905,7 +1048,18 @@ void GfxRenderingAPIMetal::StartDrawToFramebuffer(int fb_id, float noise_scale)
+         tex.texture = mDevice->newTexture(tex_descriptor);
+ 
+@@ -803,6 +1047,18 @@ void GfxRenderingAPIMetal::UpdateFramebufferParameters(int fb_id, uint32_t width
+             tex.msaaTexture = mDevice->newTexture(tex_descriptor);
+         }
+ 
++        bool kept = old_texture != nullptr && DrawOldPictureScaled(mDevice, mCommandQueue, old_texture, tex.texture,
++                                                                   msaa_level > 1 ? tex.msaaTexture : nullptr,
++                                                                   msaa_level);
++        if (old_texture != nullptr) {
++            old_texture->release();
++        }
++        if (render_target && !kept) {
++            sFreshColorFbs.insert(fb_id);
++        } else if (kept) {
++            sFreshColorFbs.erase(fb_id);
++        }
++
+         if (render_target) {
+             MTL::RenderPassDescriptor* render_pass_descriptor = MTL::RenderPassDescriptor::renderPassDescriptor();
+ 
+@@ -905,7 +1161,18 @@ void GfxRenderingAPIMetal::StartDrawToFramebuffer(int fb_id, float noise_scale)
              fb.mCommandBuffer->enqueue();
          }
  
@@ -1699,7 +2162,7 @@ index afc07db..e0f6fd8 100644
          std::string fbce_label = fmt::format("FrameBuffer {} Command Encoder", fb_id);
          fb.mCommandEncoder->setLabel(NS::String::string(fbce_label.c_str(), NS::UTF8StringEncoding));
          fb.mCommandEncoder->setDepthClipMode(MTL::DepthClipModeClamp);
-@@ -971,6 +1125,19 @@ void GfxRenderingAPIMetal::ClearFramebuffer(bool color, bool depth) {
+@@ -971,6 +1238,19 @@ void GfxRenderingAPIMetal::ClearFramebuffer(bool color, bool depth) {
      framebuffer.mLastZmodeDecal = -1;
  }
  
@@ -1719,7 +2182,7 @@ index afc07db..e0f6fd8 100644
  void GfxRenderingAPIMetal::ResolveMSAAColorBuffer(int fb_id_target, int fb_id_source) {
      int source_texture_id = mFramebuffers[fb_id_source].mTextureId;
      MTL::Texture* source_texture = mTextures[source_texture_id].texture;
-@@ -1182,6 +1349,9 @@ void GfxRenderingAPIMetal::CopyFramebuffer(int fb_dst_id, int fb_src_id, int src
+@@ -1182,6 +1462,9 @@ void GfxRenderingAPIMetal::CopyFramebuffer(int fb_dst_id, int fb_src_id, int src
      source_framebuffer.mLastZmodeDecal = -1;
  }
  
@@ -1729,7 +2192,7 @@ index afc07db..e0f6fd8 100644
  void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFramebuffers.size()) {
          return;
-@@ -1202,6 +1372,10 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1202,6 +1485,10 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
  
              uint8_t* bgra = (uint8_t*)mScreenReadbackBuffer->contents();
              uint32_t count = mScreenReadbackWidth * mScreenReadbackHeight;
@@ -1740,7 +2203,7 @@ index afc07db..e0f6fd8 100644
              for (uint32_t i = 0; i < count; i++) {
                  uint8_t b = bgra[i * 4 + 0];
                  uint8_t g = bgra[i * 4 + 1];
-@@ -1217,6 +1391,9 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1217,6 +1504,9 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
          mScreenReadbackHeight = height;
      } else {
          // Custom Framebuffer: synchronous readback via readback queue
@@ -1750,7 +2213,7 @@ index afc07db..e0f6fd8 100644
          if (framebuffer.mCommandEncoder && !framebuffer.mHasEndedEncoding) {
              framebuffer.mCommandEncoder->endEncoding();
          }
-@@ -1267,6 +1444,16 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1267,6 +1557,16 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
      }
  }
  
@@ -1768,7 +2231,7 @@ index afc07db..e0f6fd8 100644
      mCurrentFilterMode = mode;
      gfx_texture_cache_clear();
 diff --git a/src/fast/backends/gfx_metal_shader.cpp b/src/fast/backends/gfx_metal_shader.cpp
-index 39b5d34..d3d7810 100644
+index 39b5d344..d3d7810d 100644
 --- a/src/fast/backends/gfx_metal_shader.cpp
 +++ b/src/fast/backends/gfx_metal_shader.cpp
 @@ -29,9 +29,8 @@ void gfx_metal_shader_set_resource_manager(std::shared_ptr<Ship::ResourceManager
@@ -1784,7 +2247,7 @@ index 39b5d34..d3d7810 100644
  static const char* p_shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
                                          bool first_cycle, bool hint_single_element) {
 diff --git a/src/fast/backends/gfx_opengl.cpp b/src/fast/backends/gfx_opengl.cpp
-index 6c4dfc8..caee3cd 100644
+index 6c4dfc86..7e739df9 100644
 --- a/src/fast/backends/gfx_opengl.cpp
 +++ b/src/fast/backends/gfx_opengl.cpp
 @@ -1,9 +1,11 @@
@@ -1799,7 +2262,15 @@ index 6c4dfc8..caee3cd 100644
  
  #include <map>
  #include <unordered_map>
-@@ -107,7 +109,8 @@ void GfxRenderingAPIOGL::LoadShader(ShaderProgram* new_prg) {
+@@ -19,6 +21,7 @@
+ #endif
+ 
+ #include "fast/backends/gfx_opengl.h"
++#include "fast/backends/resize_keep.h"
+ #include "ship/window/gui/Gui.h"
+ #include <prism/processor.h>
+ #include <fstream>
+@@ -107,7 +110,8 @@ void GfxRenderingAPIOGL::LoadShader(ShaderProgram* new_prg) {
      SetUniforms(new_prg);
  }
  
@@ -1809,7 +2280,7 @@ index 6c4dfc8..caee3cd 100644
  
  static const char* shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
                                        bool first_cycle, bool hint_single_element) {
-@@ -244,6 +247,33 @@ std::optional<std::string> opengl_include_fs(const std::string& path) {
+@@ -244,6 +248,33 @@ std::optional<std::string> opengl_include_fs(const std::string& path) {
      return *inc;
  }
  
@@ -1843,7 +2314,7 @@ index 6c4dfc8..caee3cd 100644
  std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
      prism::Processor processor;
      prism::ContextItems mContext = {
-@@ -289,6 +319,7 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
+@@ -289,6 +320,7 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
          { "o_three_point_filtering", mCurrentFilterMode == FILTER_THREE_POINT },
          { "append_formula", (InvokeFunc)append_formula },
  #ifdef __APPLE__
@@ -1851,7 +2322,7 @@ index 6c4dfc8..caee3cd 100644
          { "GLSL_VERSION", "#version 410 core" },
          { "attr", "in" },
          { "opengles", false },
-@@ -296,21 +327,42 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
+@@ -296,21 +328,42 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features) {
          { "texture", "texture" },
          { "vOutColor", "vOutColor" },
  #elif defined(USE_OPENGLES)
@@ -1896,7 +2367,7 @@ index 6c4dfc8..caee3cd 100644
      processor.populate(mContext);
      auto init = std::make_shared<Ship::ResourceInitData>();
      init->Type = (uint32_t)Ship::ResourceType::Shader;
-@@ -414,6 +466,15 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
+@@ -414,6 +467,15 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
      gfx_cc_get_features(shader_id0, shader_id1, &cc_features);
      const auto fs_buf = BuildFsShader(cc_features);
      const auto vs_buf = BuildVsShader(cc_features);
@@ -1912,7 +2383,7 @@ index 6c4dfc8..caee3cd 100644
      const GLchar* sources[2] = { vs_buf.data(), fs_buf.data() };
      const GLint lengths[2] = { (GLint)vs_buf.size(), (GLint)fs_buf.size() };
      GLint success;
-@@ -449,7 +510,21 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
+@@ -449,7 +511,21 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
      GLuint shader_program = glCreateProgram();
      glAttachShader(shader_program, vertex_shader);
      glAttachShader(shader_program, fragment_shader);
@@ -1934,7 +2405,7 @@ index 6c4dfc8..caee3cd 100644
  
      size_t cnt = 0;
  
-@@ -560,6 +635,7 @@ GLuint GfxRenderingAPIOGL::NewTexture() {
+@@ -560,6 +636,7 @@ GLuint GfxRenderingAPIOGL::NewTexture() {
      GLuint ret;
      glGenTextures(1, &ret);
      textures.resize(std::max(textures.size(), (size_t)ret + 1));
@@ -1942,7 +2413,7 @@ index 6c4dfc8..caee3cd 100644
      return ret;
  }
  
-@@ -584,9 +660,17 @@ void GfxRenderingAPIOGL::UploadTexture(const uint8_t* rgba32_buf, uint32_t width
+@@ -584,9 +661,17 @@ void GfxRenderingAPIOGL::UploadTexture(const uint8_t* rgba32_buf, uint32_t width
      if (width == 0 || height == 0) {
          return;
      }
@@ -1962,7 +2433,7 @@ index 6c4dfc8..caee3cd 100644
  }
  
  #ifdef USE_OPENGLES
-@@ -730,7 +814,17 @@ void GfxRenderingAPIOGL::Init() {
+@@ -730,7 +815,17 @@ void GfxRenderingAPIOGL::Init() {
      glEnable(GL_DEPTH_CLAMP);
  #endif
      glDepthFunc(GL_LEQUAL);
@@ -1981,7 +2452,7 @@ index 6c4dfc8..caee3cd 100644
  
      mFrameBuffers.resize(1); // for the default screen buffer
  
-@@ -759,6 +853,15 @@ void GfxRenderingAPIOGL::StartFrame() {
+@@ -759,6 +854,15 @@ void GfxRenderingAPIOGL::StartFrame() {
  }
  
  void GfxRenderingAPIOGL::EndFrame() {
@@ -1997,7 +2468,7 @@ index 6c4dfc8..caee3cd 100644
      glFlush();
  }
  
-@@ -797,10 +900,19 @@ int GfxRenderingAPIOGL::CreateFramebuffer() {
+@@ -797,10 +901,19 @@ int GfxRenderingAPIOGL::CreateFramebuffer() {
      return i;
  }
  
@@ -2017,16 +2488,45 @@ index 6c4dfc8..caee3cd 100644
  
      width = std::max(width, 1U);
      height = std::max(height, 1U);
-@@ -812,12 +924,16 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
+@@ -808,16 +921,45 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
+ 
+     glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo);
+ 
++    // PORT: the old picture survives the resize (fast/backends/resize_keep.h): copied aside at its size, then blitted
++    // back scaled once every attachment has its new size (a framebuffer draws only where all its attachments reach).
++    // MSAA renderbuffers cannot be scaled by a blit: they still start cleared.
++    GLuint keepTex = 0, keepFbo = 0;
++    const int ow = (int)fb.width, oh = (int)fb.height;
++    GLboolean scissorWasEnabled = GL_FALSE;
++
+     if (fb_id != 0) {
          if (fb.width != width || fb.height != height || fb.msaa_level != msaa_level) {
              if (msaa_level <= 1) {
++                if (render_target && PortResizeKeepEnabled() && fb.msaa_level <= 1 && ow > 1 && oh > 1 &&
++                    (fb.width != width || fb.height != height)) {
++                    // blits and clears obey the scissor test (the game's last scissor): off meanwhile, then as it was
++                    scissorWasEnabled = glIsEnabled(GL_SCISSOR_TEST);
++                    glDisable(GL_SCISSOR_TEST);
++                    glGenTextures(1, &keepTex);
++                    glBindTexture(GL_TEXTURE_2D, keepTex);
++                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ow, oh, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
++                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
++                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
++                    glGenFramebuffers(1, &keepFbo);
++                    glBindFramebuffer(GL_FRAMEBUFFER, keepFbo);
++                    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, keepTex, 0);
++                    glBindFramebuffer(GL_READ_FRAMEBUFFER, fb.fbo);
++                    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, keepFbo);
++                    glBlitFramebuffer(0, 0, ow, oh, 0, 0, ow, oh, GL_COLOR_BUFFER_BIT, GL_NEAREST);
++                    glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo);
++                }
                  glBindTexture(GL_TEXTURE_2D, fb.clrbuf);
 -                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 +                // PORT: RGBA (was RGB8): the alpha channel holds the N64 colour image's coverage bit
 +                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
                  glBindTexture(GL_TEXTURE_2D, 0);
                  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.clrbuf, 0);
-+                if (render_target) {
++                if (render_target && keepFbo == 0) {
 +                    sFreshColorFbs.insert(fb_id);
 +                }
              } else {
@@ -2036,7 +2536,43 @@ index 6c4dfc8..caee3cd 100644
                  glBindRenderbuffer(GL_RENDERBUFFER, 0);
                  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, fb.clrbufMsaa);
              }
-@@ -856,6 +972,27 @@ void GfxRenderingAPIOGL::StartDrawToFramebuffer(int fb_id, float noise_scale) {
+@@ -841,6 +983,35 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
+         }
+     }
+ 
++    bool kept = false;
++    if (keepFbo != 0) {
++        int src[4], dst[4];
++        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++        glClear(GL_COLOR_BUFFER_BIT);
++        if (PortResizeKeepClipped(ow, oh, (int)width, (int)height, src, dst)) {
++            // GL rows run up: the rectangles from the top-left corner are mirrored vertically (the
++            // texture's own orientation is the same before and after)
++            glBindFramebuffer(GL_READ_FRAMEBUFFER, keepFbo);
++            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fb.fbo);
++            glBlitFramebuffer(src[0], oh - src[3], src[2], oh - src[1], dst[0], (int)height - dst[3],
++                              dst[2], (int)height - dst[1], GL_COLOR_BUFFER_BIT, GL_LINEAR);
++            glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo);
++        }
++        if (sFbLog) {
++            fprintf(stderr, "[glfb] %d kept %dx%d -> %ux%u src %d,%d,%d,%d dst %d,%d,%d,%d\n", fb_id, ow, oh, width,
++                    height, src[0], src[1], src[2], src[3], dst[0], dst[1], dst[2], dst[3]);
++        }
++        glDeleteFramebuffers(1, &keepFbo);
++        glDeleteTextures(1, &keepTex);
++        if (scissorWasEnabled) {
++            glEnable(GL_SCISSOR_TEST);
++        }
++        kept = true;
++    }
++    if (kept) {
++        sFreshColorFbs.erase(fb_id);
++    }
++
+     fb.width = width;
+     fb.height = height;
+     fb.has_depth_buffer = has_depth_buffer;
+@@ -856,6 +1027,27 @@ void GfxRenderingAPIOGL::StartDrawToFramebuffer(int fb_id, float noise_scale) {
      }
      glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo);
      mCurrentFrameBuffer = fb_id;
@@ -2064,7 +2600,7 @@ index 6c4dfc8..caee3cd 100644
  }
  
  void GfxRenderingAPIOGL::ClearFramebuffer(bool color, bool depth) {
-@@ -928,6 +1065,10 @@ void GfxRenderingAPIOGL::SelectTextureFb(int fb_id) {
+@@ -928,6 +1120,10 @@ void GfxRenderingAPIOGL::SelectTextureFb(int fb_id) {
      if (texId >= textures.size()) {
          textures.resize((size_t)texId + 1);
      }
@@ -2075,7 +2611,7 @@ index 6c4dfc8..caee3cd 100644
      SelectTexture(tile, texId);
  }
  
-@@ -1003,6 +1144,9 @@ void GfxRenderingAPIOGL::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0
+@@ -1003,6 +1199,9 @@ void GfxRenderingAPIOGL::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0
      }
  }
  
@@ -2085,7 +2621,7 @@ index 6c4dfc8..caee3cd 100644
  void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFrameBuffers.size()) {
          return;
-@@ -1016,7 +1160,30 @@ void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_
+@@ -1016,7 +1215,30 @@ void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_
  
      std::vector<uint8_t> rgba8(width * height * 4);
      glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba8.data());
@@ -2117,7 +2653,7 @@ index 6c4dfc8..caee3cd 100644
          uint8_t r = (rgba8[i * 4 + 0] >> 3) & 0x1F;
          uint8_t g = (rgba8[i * 4 + 1] >> 3) & 0x1F;
 diff --git a/src/fast/backends/gfx_sdl.cpp b/src/fast/backends/gfx_sdl.cpp
-index c8bc6cd..fde9744 100644
+index c8bc6cd..00000000 100644
 --- a/src/fast/backends/gfx_sdl.cpp
 +++ b/src/fast/backends/gfx_sdl.cpp
 @@ -36,10 +36,11 @@
@@ -2267,10 +2803,10 @@ index c8bc6cd..fde9744 100644
      const int64_t next = previous_time + 10 * FRAME_INTERVAL_US_NUMERATOR / FRAME_INTERVAL_US_DENOMINATOR;
 diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
 new file mode 100644
-index 0000000..8568fab
+index 0000000000000000000000000000000000000000..68b9c36f5c9e755e79e8cdc499a94cea4fc2f9e8
 --- /dev/null
 +++ b/src/fast/backends/gfx_vulkan.cpp
-@@ -0,0 +1,2718 @@
+@@ -0,0 +1,2808 @@
 +//
 +//  gfx_vulkan.cpp
 +//  libultraship
@@ -2291,6 +2827,7 @@ index 0000000..8568fab
 +#ifdef ENABLE_VULKAN
 +
 +#include "fast/backends/gfx_vulkan.h"
++#include "fast/backends/resize_keep.h"
 +
 +#include <vector>
 +#include <algorithm>
@@ -2856,19 +3393,36 @@ index 0000000..8568fab
 +    mSwapchainViews.clear();
 +}
 +
++static void CheckSwapchainResult(VkResult result, const char* operation) {
++    if (result != VK_SUCCESS) {
++        const std::string message = std::string(operation) + " failed (Vulkan error " + std::to_string(result) + ").";
++        SPDLOG_ERROR("{}", message);
++        throw VulkanSwapchainError(message);
++    }
++}
++
 +void GfxRenderingAPIVK::CreateSwapchain(uint32_t width, uint32_t height) {
-+    vkDeviceWaitIdle(mDevice);
++    CheckSwapchainResult(vkDeviceWaitIdle(mDevice), "vkDeviceWaitIdle");
 +    DestroySwapchainViews();
 +
-+    VkSurfaceCapabilitiesKHR caps;
-+    VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, mSurface, &caps));
++    VkSurfaceCapabilitiesKHR caps = {};
++    CheckSwapchainResult(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, mSurface, &caps),
++                         "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
 +
 +    uint32_t formatCount = 0;
-+    vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &formatCount, nullptr);
++    CheckSwapchainResult(vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &formatCount, nullptr),
++                         "vkGetPhysicalDeviceSurfaceFormatsKHR");
 +    std::vector<VkSurfaceFormatKHR> formats(formatCount);
-+    vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &formatCount, formats.data());
++    CheckSwapchainResult(vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &formatCount, formats.data()),
++                         "vkGetPhysicalDeviceSurfaceFormatsKHR");
 +
++    if (formats.empty()) {
++        throw VulkanSwapchainError("The Vulkan driver reported no surface formats.");
++    }
 +    VkSurfaceFormatKHR chosen = formats[0];
++    if (chosen.format == VK_FORMAT_UNDEFINED) {
++        chosen.format = VK_FORMAT_B8G8R8A8_UNORM;
++    }
 +    for (const auto& f : formats) {
 +        if ((f.format == VK_FORMAT_B8G8R8A8_UNORM || f.format == VK_FORMAT_R8G8B8A8_UNORM) &&
 +            f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -2898,9 +3452,11 @@ index 0000000..8568fab
 +    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
 +    if (!mVsync) {
 +        uint32_t modeCount = 0;
-+        vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &modeCount, nullptr);
++        CheckSwapchainResult(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &modeCount, nullptr),
++                             "vkGetPhysicalDeviceSurfacePresentModesKHR");
 +        std::vector<VkPresentModeKHR> modes(modeCount);
-+        vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &modeCount, modes.data());
++        CheckSwapchainResult(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &modeCount, modes.data()),
++                             "vkGetPhysicalDeviceSurfacePresentModesKHR");
 +        for (VkPresentModeKHR want : { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR }) {
 +            if (std::find(modes.begin(), modes.end(), want) != modes.end()) {
 +                presentMode = want;
@@ -2916,16 +3472,21 @@ index 0000000..8568fab
 +    sci.imageColorSpace = chosen.colorSpace;
 +    sci.imageExtent = extent;
 +    sci.imageArrayLayers = 1;
-+    sci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-+                     VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
++    const VkImageUsageFlags requiredUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
++                                            VK_IMAGE_USAGE_TRANSFER_DST_BIT;
++    if ((caps.supportedUsageFlags & requiredUsage) != requiredUsage) {
++        throw VulkanSwapchainError("The Vulkan surface does not support the required render/copy image usage.");
++    }
++    // Sampling a swapchain image is optional; do not request a usage the surface does not support.
++    sci.imageUsage = requiredUsage | (caps.supportedUsageFlags & VK_IMAGE_USAGE_SAMPLED_BIT);
 +    sci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 +    sci.preTransform = caps.currentTransform;
-+    sci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-+    if (!(caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)) {
-+        sci.compositeAlpha = (caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR)
-+                                 ? VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR
-+                                 : VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR;
++    if (caps.supportedCompositeAlpha == 0) {
++        throw VulkanSwapchainError("The Vulkan surface reported no supported composite alpha mode.");
 +    }
++    // Pick a mode actually advertised by this surface (OPAQUE first when available).
++    sci.compositeAlpha = static_cast<VkCompositeAlphaFlagBitsKHR>(caps.supportedCompositeAlpha &
++                                                                 (~caps.supportedCompositeAlpha + 1u));
 +    sci.presentMode = presentMode;
 +    if (sStats) {
 +        fprintf(stderr, "[vkstats] swapchain %ux%u, present mode %d (vsync %s)\n", extent.width, extent.height,
@@ -2935,20 +3496,36 @@ index 0000000..8568fab
 +    sci.oldSwapchain = mSwapchain;
 +
 +    VkSwapchainKHR newSwapchain = VK_NULL_HANDLE;
-+    VK_CHECK(vkCreateSwapchainKHR(mDevice, &sci, nullptr, &newSwapchain));
++    // PORT debug: fail a chosen creation (1 = startup, 2 = first resize) to test the driver's error path.
++    static unsigned int creations = 0;
++    const char* failAt = getenv("PORT_VK_FAIL_SWAPCHAIN_AT");
++    const bool injectFailure = failAt != nullptr && ++creations == strtoul(failAt, nullptr, 10);
++    CheckSwapchainResult(injectFailure ? VK_ERROR_OUT_OF_HOST_MEMORY
++                                      : vkCreateSwapchainKHR(mDevice, &sci, nullptr, &newSwapchain),
++                         "vkCreateSwapchainKHR");
 +    if (mSwapchain != VK_NULL_HANDLE) {
 +        vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
 +    }
 +    mSwapchain = newSwapchain;
 +
 +    uint32_t count = 0;
-+    vkGetSwapchainImagesKHR(mDevice, mSwapchain, &count, nullptr);
++    CheckSwapchainResult(vkGetSwapchainImagesKHR(mDevice, mSwapchain, &count, nullptr),
++                         "vkGetSwapchainImagesKHR");
 +    mSwapchainImages.resize(count);
-+    vkGetSwapchainImagesKHR(mDevice, mSwapchain, &count, mSwapchainImages.data());
++    CheckSwapchainResult(vkGetSwapchainImagesKHR(mDevice, mSwapchain, &count, mSwapchainImages.data()),
++                         "vkGetSwapchainImagesKHR");
 +
++    if (count == 0) {
++        throw VulkanSwapchainError("The Vulkan driver returned an empty swapchain.");
++    }
 +    mSwapchainViews.resize(count);
 +    for (uint32_t i = 0; i < count; i++) {
-+        mSwapchainViews[i] = CreateImageView(mSwapchainImages[i], mSwapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT);
++        VkImageViewCreateInfo view = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
++        view.image = mSwapchainImages[i];
++        view.viewType = VK_IMAGE_VIEW_TYPE_2D;
++        view.format = mSwapchainFormat;
++        view.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
++        CheckSwapchainResult(vkCreateImageView(mDevice, &view, nullptr, &mSwapchainViews[i]), "vkCreateImageView");
 +    }
 +    mSwapchainImageUsed.assign(count, false);
 +
@@ -3429,6 +4006,12 @@ index 0000000..8568fab
 +        }
 +    }
 +    return true;
++}
++
++float GfxRenderingAPIVK::ShaderPrebuildProgress() {
++    std::lock_guard<std::mutex> lock(mPrebuildMutex);
++    if (mPrebuildQueue.empty()) return 1.0f;
++    return float(mPrebuildNext - mPrebuilding.size()) / float(mPrebuildQueue.size());
 +}
 +
 +void GfxRenderingAPIVK::PrebuildWorker() {
@@ -4419,6 +5002,24 @@ index 0000000..8568fab
 +
 +    vkDeviceWaitIdle(mDevice);
 +
++    // PORT: the old picture survives the resize (fast/backends/resize_keep.h): the old colour image is kept until it
++    // has been blitted, scaled, into the new one (both GENERAL, both created with the transfer usages)
++    const int ow = (int)fb.mWidth, oh = (int)fb.mHeight;
++    TextureDataVK oldTex = {};
++    bool keep = render_target && fb.mRenderTarget && PortResizeKeepEnabled() && tex.image != VK_NULL_HANDLE &&
++                !tex.isSwapchainAlias && ow > 1 && oh > 1 && (fb.mWidth != width || fb.mHeight != height);
++    if (keep) {
++        oldTex = tex;
++        oldTex.imguiSet = VK_NULL_HANDLE;
++        if (tex.imguiSet != VK_NULL_HANDLE) {
++            ImGui_ImplVulkan_RemoveTexture(tex.imguiSet);
++            tex.imguiSet = VK_NULL_HANDLE;
++        }
++        tex.view = VK_NULL_HANDLE;
++        tex.image = VK_NULL_HANDLE;
++        tex.memory = VK_NULL_HANDLE;
++    }
++
 +    // Color texture (sampled + render target + blit source/destination)
 +    DestroyTextureData(tex, false);
 +    CreateImage(width, height, VK_SAMPLE_COUNT_1_BIT, mSwapchainFormat,
@@ -4428,12 +5029,34 @@ index 0000000..8568fab
 +    tex.view = CreateImageView(tex.image, mSwapchainFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 +    tex.width = width;
 +    tex.height = height;
-+    if (render_target) {
++    if (render_target && !keep) {
 +        sFreshColorFbs.insert(fbId);
++    } else if (keep) {
++        sFreshColorFbs.erase(fbId);
 +    }
 +
 +    VkCommandBuffer cmd = BeginOneShot();
 +    TransitionToGeneral(cmd, tex.image, VK_IMAGE_ASPECT_COLOR_BIT);
++    if (keep) {
++        FullBarrier(cmd);
++        VkClearColorValue black = { { 0.0f, 0.0f, 0.0f, 1.0f } };
++        VkImageSubresourceRange range = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
++        vkCmdClearColorImage(cmd, tex.image, VK_IMAGE_LAYOUT_GENERAL, &black, 1, &range);
++        FullBarrier(cmd);
++        int src[4], dst[4];
++        if (PortResizeKeepClipped(ow, oh, (int)width, (int)height, src, dst)) {
++            VkImageBlit blit = {};
++            blit.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
++            blit.srcOffsets[0] = { src[0], src[1], 0 };
++            blit.srcOffsets[1] = { src[2], src[3], 1 };
++            blit.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
++            blit.dstOffsets[0] = { dst[0], dst[1], 0 };
++            blit.dstOffsets[1] = { dst[2], dst[3], 1 };
++            vkCmdBlitImage(cmd, oldTex.image, VK_IMAGE_LAYOUT_GENERAL, tex.image, VK_IMAGE_LAYOUT_GENERAL, 1, &blit,
++                           VK_FILTER_LINEAR);
++        }
++        FullBarrier(cmd);
++    }
 +
 +    auto destroyTarget = [&](VkImage& img, VkDeviceMemory& mem, VkImageView& view) {
 +        if (view != VK_NULL_HANDLE) {
@@ -4471,6 +5094,9 @@ index 0000000..8568fab
 +        }
 +    }
 +    EndOneShot(cmd);
++    if (keep) {
++        DestroyTextureData(oldTex, false); // EndOneShot waited for the queue
++    }
 +
 +    fb.mWidth = width;
 +    fb.mHeight = height;
@@ -4990,7 +5616,7 @@ index 0000000..8568fab
 +
 +#endif
 diff --git a/src/fast/interpreter.cpp b/src/fast/interpreter.cpp
-index a1907a1..2b34a9a 100644
+index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b00c692cfc 100644
 --- a/src/fast/interpreter.cpp
 +++ b/src/fast/interpreter.cpp
 @@ -11,6 +11,7 @@
@@ -5324,7 +5950,56 @@ index a1907a1..2b34a9a 100644
  
  static UcodeHandlers ucode_handler_index = ucode_f3dex2;
  
-@@ -144,16 +447,60 @@ void Interpreter::Flush() {
+@@ -135,25 +438,114 @@ void GfxSetInstance(std::shared_ptr<Interpreter> gfx) {
+ // N64 prim_depth is 15-bit (0 near, 0x7FFF far).
+ static constexpr float N64_PRIM_DEPTH_MAX = 32767.0f;
+ 
++extern "C" uint64_t Port_ViTick();
++
++namespace {
++using RenderClock = std::chrono::steady_clock;
++struct RenderTiming {
++    double ms = 0;
++    unsigned calls = 0;
++};
++
++bool TraceRenderTiming() {
++    static const bool enabled = getenv("PORT_TRACE_RENDER_TIMING") != nullptr;
++    return enabled;
++}
++
++struct TimeRenderCall {
++    RenderTiming& timing;
++    RenderClock::time_point start;
++
++    explicit TimeRenderCall(RenderTiming& result)
++        : timing(result), start(TraceRenderTiming() ? RenderClock::now() : RenderClock::time_point{}) {}
++    ~TimeRenderCall() {
++        if (TraceRenderTiming()) {
++            timing.ms += std::chrono::duration<double, std::milli>(RenderClock::now() - start).count();
++            ++timing.calls;
++        }
++    }
++};
++
++RenderTiming sUploadTiming, sDrawTiming, sShaderTiming;
++
++void UploadTimed(Fast::GfxRenderingAPI* api, const uint8_t* pixels, uint32_t width, uint32_t height) {
++    TimeRenderCall timer(sUploadTiming);
++    api->UploadTexture(pixels, width, height);
++}
++} // namespace
++
+ void Interpreter::Flush() {
+     if (mBufVboLen > 0) {
+         mRapi->SetCurrentPrimDepth((float)mRdp->prim_depth / N64_PRIM_DEPTH_MAX);
+-        mRapi->DrawTriangles(mBufVbo, mBufVboLen, mBufVboNumTris);
++        {
++            TimeRenderCall timer(sDrawTiming);
++            mRapi->DrawTriangles(mBufVbo, mBufVboLen, mBufVboNumTris);
++        }
+         mBufVboLen = 0;
+         mBufVboNumTris = 0;
      }
  }
  
@@ -5333,6 +6008,7 @@ index a1907a1..2b34a9a 100644
  ShaderProgram* Interpreter::LookupOrCreateShaderProgram(uint64_t id0, uint64_t id1) {
      ShaderProgram* prg = mRapi->LookupShader(id0, id1);
      if (prg == nullptr) {
++        TimeRenderCall timer(sShaderTiming);
          mRapi->UnloadShader(mRenderingState.mShaderProgram);
          prg = mRapi->CreateAndLoadNewShader(id0, id1);
          mRenderingState.mShaderProgram = prg;
@@ -5345,13 +6021,18 @@ index a1907a1..2b34a9a 100644
  
 +// PORT: shader warm-up. A program built the first time it is drawn stalls that draw: 1-4 ms with a warm driver cache,
 +// 100+ ms on a fresh install or after an update (the Metal cache is per binary). The port queues the programs earlier
-+// runs used while the launcher shows (src/port/shader_warmup.cpp).
++// runs used before starting the intro (src/port/shader_warmup.cpp).
 +void Interpreter::QueueShaderWarmup(std::vector<std::pair<uint64_t, uint64_t>> ids) {
 +    if (mRapi->PrebuildShadersAsync(ids)) {
 +        return;
 +    }
 +    mWarmupQueue = std::move(ids);
 +    mWarmupNext = 0;
++}
++
++float Interpreter::ShaderWarmupProgress() {
++    if (mWarmupQueue.empty()) return mRapi->ShaderPrebuildProgress();
++    return float(mWarmupNext) / float(mWarmupQueue.size());
 +}
 +
 +// The backends without a builder thread (OpenGL, DX11): before a frame's first draw, build queued programs for up to
@@ -5385,7 +6066,7 @@ index a1907a1..2b34a9a 100644
  const char* Interpreter::CCMUXtoStr(uint32_t ccmux) {
      static constexpr std::array tbl = {
          "G_CCMUX_COMBINED",
-@@ -547,26 +894,20 @@ std::string_view Interpreter::GetBaseTexturePath(std::string_view path) {
+@@ -547,26 +939,20 @@ std::string_view Interpreter::GetBaseTexturePath(std::string_view path) {
  }
  
  void Interpreter::TextureCacheDelete(const uint8_t* origAddr) {
@@ -5424,7 +6105,7 @@ index a1907a1..2b34a9a 100644
      }
  }
  
-@@ -591,6 +932,49 @@ static uint32_t GetTileSizeFromCoordinates(float low, float high) {
+@@ -591,6 +977,49 @@ static uint32_t GetTileSizeFromCoordinates(float low, float high) {
      return static_cast<uint32_t>(lroundf((high - low + 4.0f) / 4.0f));
  }
  
@@ -5474,28 +6155,54 @@ index a1907a1..2b34a9a 100644
  void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
      const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
      const uint8_t* addr =
-@@ -669,6 +1053,9 @@ void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
+@@ -669,7 +1098,10 @@ void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
          }
      }
  
+-    mRapi->UploadTexture(mTexUploadBuffer, width, height);
 +    if ((mRdp->other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) { // see BleedTransparentTexels
 +        BleedTransparentTexels(mTexUploadBuffer, width, height);
 +    }
-     mRapi->UploadTexture(mTexUploadBuffer, width, height);
++    UploadTimed(mRapi, mTexUploadBuffer, width, height);
  }
  
-@@ -741,6 +1128,9 @@ void Interpreter::ImportTextureRgba32(int tile, bool importReplacement) {
+ void Interpreter::ImportTextureRgba32(int tile, bool importReplacement) {
+@@ -741,7 +1173,10 @@ void Interpreter::ImportTextureRgba32(int tile, bool importReplacement) {
              i++;
          }
      }
+-    mRapi->UploadTexture(mTexUploadBuffer, width, height);
 +    if ((mRdp->other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) { // see BleedTransparentTexels
 +        BleedTransparentTexels(mTexUploadBuffer, width, height);
 +    }
-     mRapi->UploadTexture(mTexUploadBuffer, width, height);
++    UploadTimed(mRapi, mTexUploadBuffer, width, height);
  }
  
-@@ -884,6 +1274,8 @@ void Interpreter::ImportTextureIA16(int tile, bool importReplacement) {
-     mRapi->UploadTexture(mTexUploadBuffer, width, height);
+ void Interpreter::ImportTextureIA4(int tile, bool importReplacement) {
+@@ -787,7 +1222,7 @@ void Interpreter::ImportTextureIA4(int tile, bool importReplacement) {
+         }
+     }
+ 
+-    mRapi->UploadTexture(mTexUploadBuffer, width, height);
++    UploadTimed(mRapi, mTexUploadBuffer, width, height);
+ }
+ 
+ void Interpreter::ImportTextureIA8(int tile, bool importReplacement) {
+@@ -830,7 +1265,7 @@ void Interpreter::ImportTextureIA8(int tile, bool importReplacement) {
+         }
+     }
+ 
+-    mRapi->UploadTexture(mTexUploadBuffer, width, height);
++    UploadTimed(mRapi, mTexUploadBuffer, width, height);
+ }
+ 
+ void Interpreter::ImportTextureIA16(int tile, bool importReplacement) {
+@@ -881,9 +1316,11 @@ void Interpreter::ImportTextureIA16(int tile, bool importReplacement) {
+         }
+     }
+ 
+-    mRapi->UploadTexture(mTexUploadBuffer, width, height);
++    UploadTimed(mRapi, mTexUploadBuffer, width, height);
  }
  
 +static int sCi4RawPalette = -1; // PORT: >= 0 while a CI4 texture without TLUT is decoded by ImportTextureI4
@@ -5503,7 +6210,7 @@ index a1907a1..2b34a9a 100644
  void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
      const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
      const uint8_t* addr =
-@@ -920,15 +1312,11 @@ void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
+@@ -920,21 +1357,17 @@ void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
  
              uint8_t byte = addr[clrIdx / 2];
              uint8_t part = (byte >> (4 - (clrIdx % 2) * 4)) & 0xf;
@@ -5524,27 +6231,70 @@ index a1907a1..2b34a9a 100644
  
              i++;
          }
-@@ -1069,6 +1457,9 @@ void Interpreter::ImportTextureCi4(int tile, bool importReplacement) {
+     }
+ 
+-    mRapi->UploadTexture(mTexUploadBuffer, width, height);
++    UploadTimed(mRapi, mTexUploadBuffer, width, height);
+ }
+ 
+ void Interpreter::ImportTextureI8(int tile, bool importReplacement) {
+@@ -975,7 +1408,7 @@ void Interpreter::ImportTextureI8(int tile, bool importReplacement) {
          }
      }
  
+-    mRapi->UploadTexture(mTexUploadBuffer, width, height);
++    UploadTimed(mRapi, mTexUploadBuffer, width, height);
+ }
+ 
+ void Interpreter::ImportTextureCi4(int tile, bool importReplacement) {
+@@ -1069,7 +1502,10 @@ void Interpreter::ImportTextureCi4(int tile, bool importReplacement) {
+         }
+     }
+ 
+-    mRapi->UploadTexture(mTexUploadBuffer, width, height);
 +    if ((mRdp->other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) { // see BleedTransparentTexels
 +        BleedTransparentTexels(mTexUploadBuffer, width, height);
 +    }
-     mRapi->UploadTexture(mTexUploadBuffer, width, height);
++    UploadTimed(mRapi, mTexUploadBuffer, width, height);
  }
  
-@@ -1151,6 +1542,9 @@ void Interpreter::ImportTextureCi8(int tile, bool importReplacement) {
+ void Interpreter::ImportTextureCi8(int tile, bool importReplacement) {
+@@ -1151,7 +1587,10 @@ void Interpreter::ImportTextureCi8(int tile, bool importReplacement) {
          height = tile_h;
      }
  
+-    mRapi->UploadTexture(mTexUploadBuffer, width, height);
 +    if ((mRdp->other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) { // see BleedTransparentTexels
 +        BleedTransparentTexels(mTexUploadBuffer, width, height);
 +    }
-     mRapi->UploadTexture(mTexUploadBuffer, width, height);
++    UploadTimed(mRapi, mTexUploadBuffer, width, height);
  }
  
-@@ -1269,12 +1663,42 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
+ void Interpreter::ImportTextureImg(int tile, bool importReplacement) {
+@@ -1169,7 +1608,7 @@ void Interpreter::ImportTextureImg(int tile, bool importReplacement) {
+ 
+     uint16_t width = metadata->width;
+     uint16_t height = metadata->height;
+-    mRapi->UploadTexture(addr, width, height);
++    UploadTimed(mRapi, addr, width, height);
+ }
+ 
+ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
+@@ -1217,7 +1656,7 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
+ 
+     if (resultNewLineSize == 4 * width && resultNewHeight == height) {
+         // Can use the texture directly since it has the correct dimensions
+-        mRapi->UploadTexture(addr, width, height);
++        UploadTimed(mRapi, addr, width, height);
+         return;
+     }
+ 
+@@ -1265,16 +1704,46 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
+             uploadHeight = resultNewHeight;
+         }
+     }
+-    mRapi->UploadTexture(mTexUploadBuffer, uploadWidth, uploadHeight);
++    UploadTimed(mRapi, mTexUploadBuffer, uploadWidth, uploadHeight);
  }
  
  void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {
@@ -5587,7 +6337,7 @@ index a1907a1..2b34a9a 100644
  
      const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
      const uint8_t* origAddr =
-@@ -1332,6 +1756,56 @@ void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {
+@@ -1332,6 +1801,56 @@ void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {
      } else {
          key = { origAddr, {}, fmt, siz, paletteIndex, origSizeBytes };
      }
@@ -5644,7 +6394,16 @@ index a1907a1..2b34a9a 100644
  
      if (TextureCacheLookup(i, key)) {
          return;
-@@ -1505,9 +1979,13 @@ void Interpreter::CalculateNormalDir(const F3DLight_t* light, float coeffs[3]) {
+@@ -1470,7 +1989,7 @@ void Interpreter::ImportTextureMask(int i, int tile) {
+         }
+     }
+ 
+-    mRapi->UploadTexture(mTexUploadBuffer, width, height);
++    UploadTimed(mRapi, mTexUploadBuffer, width, height);
+ }
+ 
+ void Interpreter::NormalizeVector(float v[3]) {
+@@ -1505,9 +2024,13 @@ void Interpreter::CalculateNormalDir(const F3DLight_t* light, float coeffs[3]) {
  }
  
  void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
@@ -5659,7 +6418,7 @@ index a1907a1..2b34a9a 100644
          for (int i = 0; i < 4; i++) {
              for (int j = 0; j < 4; j++) {
                  float v = it->second.mf[i][j];
-@@ -1532,6 +2010,20 @@ void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
+@@ -1532,6 +2055,20 @@ void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
  #endif
      }
  
@@ -5680,7 +6439,7 @@ index a1907a1..2b34a9a 100644
      const int8_t mtx_projection = get_attr(MTX_PROJECTION);
      const int8_t mtx_load = get_attr(MTX_LOAD);
      const int8_t mtx_push = get_attr(MTX_PUSH);
-@@ -1600,6 +2092,8 @@ void Interpreter::AdjustWidthHeightForScale(uint32_t& width, uint32_t& height, u
+@@ -1600,6 +2137,8 @@ void Interpreter::AdjustWidthHeightForScale(uint32_t& width, uint32_t& height, u
  }
  
  void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx* vertices) {
@@ -5689,7 +6448,7 @@ index a1907a1..2b34a9a 100644
      for (size_t i = 0; i < n_vertices; i++, dest_index++) {
          const F3DVtx_t* v = &vertices[i].v;
          const F3DVtx_tn* vn = &vertices[i].n;
-@@ -1626,6 +2120,11 @@ void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx
+@@ -1626,6 +2165,11 @@ void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx
              world_pos[2] = v->ob[0] * mtx[0][2] + v->ob[1] * mtx[1][2] + v->ob[2] * mtx[2][2] + mtx[3][2];
          }
  
@@ -5701,7 +6460,7 @@ index a1907a1..2b34a9a 100644
          x = AdjXForAspectRatio(x);
  
          short U = v->tc[0] * mRsp->texture_scaling_factor.s >> 16;
-@@ -1640,6 +2139,16 @@ void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx
+@@ -1640,6 +2184,16 @@ void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx
                  static const Light_t lookat_y = {{0, 0, 0}, 0, {0, 0, 0}, 0, {0, 127, 0}, 0};*/
                  CalculateNormalDir(&mRsp->lookat[0], mRsp->current_lookat_coeffs[0]);
                  CalculateNormalDir(&mRsp->lookat[1], mRsp->current_lookat_coeffs[1]);
@@ -5718,7 +6477,7 @@ index a1907a1..2b34a9a 100644
                  mRsp->lights_changed = false;
              }
  
-@@ -1798,6 +2307,27 @@ void Interpreter::GfxSpModifyVertex(uint16_t vtx_idx, uint8_t where, uint32_t va
+@@ -1798,6 +2352,27 @@ void Interpreter::GfxSpModifyVertex(uint16_t vtx_idx, uint8_t where, uint32_t va
      v->v = t;
  }
  
@@ -5746,7 +6505,7 @@ index a1907a1..2b34a9a 100644
  void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bool is_rect) {
      struct LoadedVertex* v1 = &mRsp->loaded_vertices[vtx1_idx];
      struct LoadedVertex* v2 = &mRsp->loaded_vertices[vtx2_idx];
-@@ -1805,11 +2335,86 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1805,11 +2380,86 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
      struct LoadedVertex* v_arr[3] = { v1, v2, v3 };
  
      // if (rand()%2) return;
@@ -5833,7 +6592,7 @@ index a1907a1..2b34a9a 100644
  
      const uint32_t cull_both = get_attr(CULL_BOTH);
      const uint32_t cull_front = get_attr(CULL_FRONT);
-@@ -1876,10 +2481,25 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1876,10 +2526,25 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
              mRapi->SetViewport(mRdp->viewport.x, mRdp->viewport.y, mRdp->viewport.width, mRdp->viewport.height);
              mRenderingState.viewport = mRdp->viewport;
          }
@@ -5862,7 +6621,7 @@ index a1907a1..2b34a9a 100644
          }
          mRdp->viewport_or_scissor_changed = false;
      }
-@@ -1893,12 +2513,86 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1893,12 +2558,86 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
      uint8_t blend_src = mRdp->other_mode_l >> 30;
      bool use_blend_color = blend_src == G_BL_CLR_BL;
      bool use_fog = blend_src == G_BL_CLR_FOG || use_blend_color;
@@ -5949,7 +6708,7 @@ index a1907a1..2b34a9a 100644
      bool use_grayscale = mRdp->grayscale;
      bool use_prim_depth = (mRdp->other_mode_l & G_ZS_PRIM) != 0;
  
-@@ -1965,6 +2659,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1965,6 +2704,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
  
      uint32_t tm = 0;
      uint32_t tex_width[2], tex_height[2], tex_width2[2], tex_height2[2];
@@ -5958,7 +6717,7 @@ index a1907a1..2b34a9a 100644
      uint32_t effective_tile[2];
  
      for (int i = 0; i < 2; i++) {
-@@ -1977,9 +2673,39 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1977,9 +2718,39 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
          effective_tile[i] = tile;
  
          if (comb->usedTextures[i]) {
@@ -5999,7 +6758,7 @@ index a1907a1..2b34a9a 100644
                  if (mRdp->loaded_texture[i].masked) {
                      ImportTextureMask(SHADER_FIRST_MASK_TEXTURE + i, tile);
                  }
-@@ -2058,6 +2784,18 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2058,6 +2829,18 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
                  tex_height[i] = tex_height2[i];
              }
  
@@ -6018,7 +6777,7 @@ index a1907a1..2b34a9a 100644
              uint32_t tex_width1 = tex_width[i] << (cms & G_TX_MIRROR);
              uint32_t tex_height1 = tex_height[i] << (cmt & G_TX_MIRROR);
  
-@@ -2153,6 +2891,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2153,6 +2936,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
  
              u -= mRdp->texture_tile[uv_tile].uls / 4.0f;
              v -= mRdp->texture_tile[uv_tile].ult / 4.0f;
@@ -6027,7 +6786,7 @@ index a1907a1..2b34a9a 100644
  
              if ((mRdp->other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) {
                  // Linear filter adds 0.5f to the coordinates
-@@ -2169,11 +2909,11 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2169,11 +2954,11 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
              bool clampT = tm & (1 << 2 * t + 1);
  
              if (clampS) {
@@ -6041,7 +6800,7 @@ index a1907a1..2b34a9a 100644
              }
          }
  
-@@ -2188,7 +2928,17 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2188,7 +2973,17 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
                  mBufVbo[mBufVboLen++] = mRdp->fog_color.r / 255.0f;
                  mBufVbo[mBufVboLen++] = mRdp->fog_color.g / 255.0f;
                  mBufVbo[mBufVboLen++] = mRdp->fog_color.b / 255.0f;
@@ -6060,7 +6819,7 @@ index a1907a1..2b34a9a 100644
              }
          }
  
-@@ -2371,11 +3121,16 @@ void Interpreter::CalcAndSetViewport(const F3DVp_t* viewport) {
+@@ -2371,11 +3166,16 @@ void Interpreter::CalcAndSetViewport(const F3DVp_t* viewport) {
      mRdp->viewport.height = height;
  
      AdjustVIewportOrScissor(&mRdp->viewport);
@@ -6077,7 +6836,7 @@ index a1907a1..2b34a9a 100644
      switch (index) {
          case F3DEX2_G_MV_VIEWPORT:
              CalcAndSetViewport((const F3DVp_t*)data);
-@@ -2428,6 +3183,7 @@ void Interpreter::GfxSpMovewordF3dex2(uint8_t index, uint16_t offset, uintptr_t
+@@ -2428,6 +3228,7 @@ void Interpreter::GfxSpMovewordF3dex2(uint8_t index, uint16_t offset, uintptr_t
              break;
          case G_MW_SEGMENT: {
              int segNumber = offset / 4;
@@ -6085,7 +6844,7 @@ index a1907a1..2b34a9a 100644
              mSegmentPointers[segNumber] = data;
          } break;
          case G_MW_SEGMENT_INTERP: {
-@@ -2467,6 +3223,7 @@ void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t dat
+@@ -2467,6 +3268,7 @@ void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t dat
  }
  
  void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t tile, uint8_t on) {
@@ -6093,7 +6852,7 @@ index a1907a1..2b34a9a 100644
      mRsp->texture_scaling_factor.s = sc;
      mRsp->texture_scaling_factor.t = tc;
      if (mRdp->first_tile_index != tile) {
-@@ -2478,6 +3235,27 @@ void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t
+@@ -2478,6 +3280,27 @@ void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t
  }
  
  void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uint32_t lrx, uint32_t lry) {
@@ -6121,7 +6880,7 @@ index a1907a1..2b34a9a 100644
      float x = ulx / 4.0f;
      float y = lry / 4.0f;
      float width = (lrx - ulx) / 4.0f;
-@@ -2495,6 +3273,7 @@ void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uin
+@@ -2495,6 +3318,7 @@ void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uin
  
  void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t width, const char* texPath,
                                         uint32_t texFlags, RawTexMetadata rawTexMetdata, const void* addr) {
@@ -6129,7 +6888,7 @@ index a1907a1..2b34a9a 100644
      // fprintf(stderr, "GfxDpSetTextureImage: %s (width=%d; size=0x%X)\n",
      //         rawTexMetdata.resource ? rawTexMetdata.resource->GetInitData()->Identifier.GetPath().c_str() : nullptr,
      //         width, size);
-@@ -2508,6 +3287,9 @@ void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t
+@@ -2508,6 +3332,9 @@ void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t
  void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_t tmem, uint8_t tile, uint32_t palette,
                                 uint32_t cmt, uint32_t maskt, uint32_t shiftt, uint32_t cms, uint32_t masks,
                                 uint32_t shifts) {
@@ -6139,7 +6898,7 @@ index a1907a1..2b34a9a 100644
      // OTRTODO:
      // SUPPORT_CHECK(tmem == 0 || tmem == 256);
  
-@@ -2530,6 +3312,12 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
+@@ -2530,6 +3357,12 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
      mRdp->texture_tile[tile].line_size_bytes = line * 8;
  
      mRdp->texture_tile[tile].tmem = tmem;
@@ -6152,7 +6911,7 @@ index a1907a1..2b34a9a 100644
      // mRdp->texture_tile[tile].tmem_index = tmem / 256; // tmem is the 64-bit word offset, so 256 words means 2 kB
  
      mRdp->texture_tile[tile].tmem_index =
-@@ -2540,6 +3328,7 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
+@@ -2540,6 +3373,7 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
  }
  
  void Interpreter::GfxDpSetTileSize(uint8_t tile, uint16_t uls, uint16_t ult, uint16_t lrs, uint16_t lrt) {
@@ -6160,7 +6919,7 @@ index a1907a1..2b34a9a 100644
      mRdp->texture_tile[tile].uls = uls;
      mRdp->texture_tile[tile].ult = ult;
      mRdp->texture_tile[tile].lrs = lrs;
-@@ -2555,6 +3344,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
+@@ -2555,6 +3389,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
      const uint8_t* src = mRdp->texture_to_load.addr;
      uint32_t entryCount = high_index + 1;
      uint32_t byteCount = entryCount * 2;
@@ -6179,7 +6938,7 @@ index a1907a1..2b34a9a 100644
  
      if (tmem >= 256) {
          // N64 TMEM palette area starts at tmem word 256. Each CI4 palette = 16 entries = 16 tmem words.
-@@ -2589,7 +3390,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
+@@ -2589,7 +3435,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
      }
  }
  
@@ -6198,7 +6957,7 @@ index a1907a1..2b34a9a 100644
      SUPPORT_CHECK(uls == 0);
      SUPPORT_CHECK(ult == 0);
  
-@@ -2658,6 +3470,11 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
+@@ -2658,6 +3515,11 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata = mRdp->texture_to_load.raw_tex_metadata;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].addr = mRdp->texture_to_load.addr;
@@ -6210,7 +6969,7 @@ index a1907a1..2b34a9a 100644
      // fprintf(stderr, "GfxDpLoadBlock: line_size = 0x%x; orig = 0x%x; bpp=%d; lrs=%d\n", size_bytes,
      // orig_size_bytes,
      //         mRdp->texture_to_load.siz, lrs);
-@@ -2680,6 +3497,7 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
+@@ -2680,6 +3542,7 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
  }
  
  void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t lrs, uint32_t lrt) {
@@ -6218,7 +6977,7 @@ index a1907a1..2b34a9a 100644
      SUPPORT_CHECK(tile == G_TX_LOADTILE);
  
      uint32_t word_size_shift = 0;
-@@ -2731,6 +3549,15 @@ void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32
+@@ -2731,6 +3594,15 @@ void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata = mRdp->texture_to_load.raw_tex_metadata;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].addr = mRdp->texture_to_load.addr + start_offset_bytes;
@@ -6234,7 +6993,7 @@ index a1907a1..2b34a9a 100644
  
      const std::string_view texPath =
          mRdp->texture_to_load.raw_tex_metadata.resource != nullptr
-@@ -2870,8 +3697,10 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
+@@ -2870,8 +3742,10 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
      lrxf = lrxf / (4.0f * HALF_SCREEN_WIDTH(mActiveFrameBuffer)) - 1.0f;
      lryf = -(lryf / (4.0f * HALF_SCREEN_HEIGHT(mActiveFrameBuffer))) + 1.0f;
  
@@ -6247,7 +7006,7 @@ index a1907a1..2b34a9a 100644
  
      struct LoadedVertex* ul = &mRsp->loaded_vertices[MAX_VERTICES + 0];
      struct LoadedVertex* ll = &mRsp->loaded_vertices[MAX_VERTICES + 1];
-@@ -2930,7 +3759,19 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
+@@ -2930,7 +3804,19 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
  
  void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry, uint8_t tile, int16_t uls,
                                          int16_t ult, int16_t dsdx, int16_t dtdy, bool flip) {
@@ -6268,7 +7027,7 @@ index a1907a1..2b34a9a 100644
      uint64_t saved_combine_mode = mRdp->combine_mode;
      if ((mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE)) == G_CYC_COPY) {
          // Per RDP Command Summary Set Tile's shift s and this dsdx should be set to 4 texels
-@@ -2953,6 +3794,85 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
+@@ -2953,6 +3839,85 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
          dsdx = -dsdx;
          dtdy = -dtdy;
      }
@@ -6354,7 +7113,7 @@ index a1907a1..2b34a9a 100644
      int16_t width = !flip ? lrx - ulx : lry - uly;
      int16_t height = !flip ? lry - uly : lrx - ulx;
      float lrs = ((uls << 7) + dsdx * width) >> 7;
-@@ -2985,7 +3905,34 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
+@@ -2985,7 +3950,34 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
      }
      mRdp->first_tile_index = tile;
  
@@ -6389,7 +7148,7 @@ index a1907a1..2b34a9a 100644
      if (saved_tile != tile) {
          mRdp->textures_changed[0] = true;
          mRdp->textures_changed[1] = true;
-@@ -3043,6 +3990,11 @@ void Interpreter::GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_
+@@ -3043,6 +4035,11 @@ void Interpreter::GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_
  }
  
  void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry) {
@@ -6401,7 +7160,7 @@ index a1907a1..2b34a9a 100644
      if (mRdp->color_image_address == mRdp->z_buf_address) {
          // Fullscreen Z clears are redundant — already done by glClear at frame start.
          bool isFullScreen = (ulx <= 0 && uly <= 0 && lrx >= (int32_t)(mNativeDimensions.width - 1) * 4 &&
-@@ -3078,6 +4030,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
+@@ -3078,6 +4075,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
      }
      uint32_t mode = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE));
  
@@ -6425,7 +7184,7 @@ index a1907a1..2b34a9a 100644
      // Expand fullscreen fill rects to cover widescreen viewports.
      // Without this, screen clears and fades only cover the native 4:3 area.
      if (ulx == 0 && uly == 0) {
-@@ -3116,8 +4085,185 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
+@@ -3116,8 +4130,185 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
      mRdp->z_buf_address = zBufAddr;
  }
  
@@ -6611,7 +7370,7 @@ index a1907a1..2b34a9a 100644
  }
  
  void Interpreter::GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode) {
-@@ -3252,7 +4398,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
+@@ -3252,7 +4443,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
                            (float)(1 << 10) * realSW, (float)(1 << 10) * realSH, false);
  }
  
@@ -6635,7 +7394,7 @@ index a1907a1..2b34a9a 100644
      // Segmented?
      if (w1 & 1) {
          uint32_t segNum = (uint32_t)(w1 >> 24);
-@@ -3377,6 +4539,10 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3377,6 +4584,10 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      const char* filename = (const char*)(cmd)->words.w1;
      uint32_t p = C0(16, 8);
      uint32_t l = C0(0, 16);
@@ -6646,7 +7405,7 @@ index a1907a1..2b34a9a 100644
      if (p == 7) {
          g_exec_stack.openDisp(filename, l);
      } else if (p == 8) {
-@@ -3389,10 +4555,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3389,10 +4600,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      return false;
  }
  
@@ -6671,7 +7430,7 @@ index a1907a1..2b34a9a 100644
  
      gfx->GfxSpMatrix(C0(0, 8) ^ F3DEX2_G_MTX_PUSH, (const int32_t*)gfx->SegAddr(mtxAddr));
      return false;
-@@ -3632,7 +4812,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3632,7 +4857,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
  
@@ -6693,7 +7452,7 @@ index a1907a1..2b34a9a 100644
  
      return false;
  }
-@@ -3736,16 +4929,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3736,16 +4974,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
  }
  
  // F3D, F3DEX, and F3DEX2 do the same thing but F3DEX2 has its own opcode number
@@ -6720,7 +7479,7 @@ index a1907a1..2b34a9a 100644
          (*cmd0) = subGFX;
          g_exec_stack.branch(cmd);
          return true; // shortcut cmd increment
-@@ -4018,7 +5221,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
+@@ -4018,7 +5266,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
      uintptr_t i = (uintptr_t)gfx->SegAddr(cmd->words.w1);
@@ -6792,7 +7551,7 @@ index a1907a1..2b34a9a 100644
      char* imgData = (char*)i;
      uint32_t texFlags = 0;
      RawTexMetadata rawTexMetdata = {};
-@@ -4947,6 +6214,19 @@ static void gfx_step() {
+@@ -4947,6 +6259,19 @@ static void gfx_step() {
          } else {
              SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, for loaded ucode: {}", (uint8_t)opcode,
                              (uint32_t)ucode_handler_index);
@@ -6812,7 +7571,7 @@ index a1907a1..2b34a9a 100644
          }
      } else {
          SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, invalid ucode: {}", (uint8_t)opcode, (uint32_t)ucode_handler_index);
-@@ -5005,8 +6285,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
+@@ -5005,8 +6330,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
      mGameFb = mRapi->CreateFramebuffer();
      mGameFbMsaaResolved = mRapi->CreateFramebuffer();
  
@@ -6823,7 +7582,7 @@ index a1907a1..2b34a9a 100644
  
      for (int i = 0; i < MAX_SEGMENT_POINTERS; i++) {
          mSegmentPointers[i] = 0;
-@@ -5109,16 +6389,28 @@ void Interpreter::StartFrame() {
+@@ -5109,16 +6434,28 @@ void Interpreter::StartFrame() {
  
      mPrvDimensions = mCurDimensions;
      mPrevNativeDimensions = mNativeDimensions;
@@ -6861,7 +7620,7 @@ index a1907a1..2b34a9a 100644
          }
          if (mMsaaLevel > 1 && !ViewportMatchesRendererResolution()) {
              mRapi->UpdateFramebufferParameters(mGameFbMsaaResolved, mCurDimensions.width, mCurDimensions.height, 1,
-@@ -5173,7 +6465,278 @@ void Interpreter::RunGuiOnly() {
+@@ -5173,7 +6510,285 @@ void Interpreter::RunGuiOnly() {
      }
  }
  
@@ -7130,6 +7889,13 @@ index a1907a1..2b34a9a 100644
 +}
 +
  void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_replacements) {
++    const bool traceTiming = TraceRenderTiming();
++    const auto runStart = traceTiming ? RenderClock::now() : RenderClock::time_point{};
++    if (traceTiming) {
++        sUploadTiming = {};
++        sDrawTiming = {};
++        sShaderTiming = {};
++    }
 +    sMarginsClearedThisRun = false;
 +    s2DRectArea = 0.0f;
 +    sWideRects = false;
@@ -7140,7 +7906,7 @@ index a1907a1..2b34a9a 100644
      SpReset();
  
      mGetPixelDepthPending.clear();
-@@ -5184,8 +6747,12 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5184,17 +6799,38 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
      mRapi->UpdateFramebufferParameters(0, mGfxCurrentWindowDimensions.width, mGfxCurrentWindowDimensions.height, 1,
                                         false, true, true, !mRendersToFb);
      mRapi->StartFrame();
@@ -7154,7 +7920,9 @@ index a1907a1..2b34a9a 100644
      mRdp->viewport_or_scissor_changed = true;
      mRenderingState.viewport = {};
      mRenderingState.scissor = {};
-@@ -5194,7 +6761,23 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+ 
++    const auto listStart = traceTiming ? RenderClock::now() : RenderClock::time_point{};
+     auto dbg = mGfxDebugger;
      g_exec_stack.start((F3DGfx*)commands);
      while (!g_exec_stack.cmd_stack.empty()) {
          auto cmd = g_exec_stack.cmd_stack.top();
@@ -7178,7 +7946,7 @@ index a1907a1..2b34a9a 100644
          if (dbg->IsDebugging()) {
              g_exec_stack.gfx_path.push_back(cmd);
              if (dbg->HasBreakPoint(g_exec_stack.gfx_path)) {
-@@ -5209,8 +6792,15 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5209,10 +6845,24 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
              }
              g_exec_stack.gfx_path.pop_back();
          }
@@ -7193,17 +7961,38 @@ index a1907a1..2b34a9a 100644
 +    }
  
      Flush();
++    if (traceTiming) {
++        const auto setupMs = std::chrono::duration<double, std::milli>(listStart - runStart).count();
++        const auto listMs = std::chrono::duration<double, std::milli>(RenderClock::now() - listStart).count();
++        fprintf(stderr, "[render] frame %llu setup=%.2f list=%.2f upload=%.2f/%u draw=%.2f/%u shader=%.2f/%u\n",
++                (unsigned long long)Port_ViTick(), setupMs, listMs, sUploadTiming.ms, sUploadTiming.calls, sDrawTiming.ms,
++                sDrawTiming.calls, sShaderTiming.ms, sShaderTiming.calls);
++    }
      mGfxFrameBuffer = 0;
-@@ -5239,6 +6829,7 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+     currentDir = std::stack<std::string>();
+ 
+@@ -5239,10 +6889,19 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
  }
  
  void Interpreter::EndFrame() {
++    const bool traceTiming = TraceRenderTiming();
++    const auto start = traceTiming ? RenderClock::now() : RenderClock::time_point{};
 +    gPortReplayFrame = mReplayPass && !mReplayReadback;
      mRapi->EndFrame();
++    const auto submitEnd = traceTiming ? RenderClock::now() : RenderClock::time_point{};
      mWapi->SwapBuffersBegin();
      mRapi->FinishRender();
+     mWapi->SwapBuffersEnd();
++    if (traceTiming) {
++        const auto submitMs = std::chrono::duration<double, std::milli>(submitEnd - start).count();
++        const auto presentMs = std::chrono::duration<double, std::milli>(RenderClock::now() - submitEnd).count();
++        fprintf(stderr, "[render-end] frame %llu submit=%.2f present=%.2f\n", (unsigned long long)Port_ViTick(), submitMs, presentMs);
++    }
+ }
+ 
+ void gfx_set_target_ucode(UcodeHandlers ucode) {
 diff --git a/src/fast/resource/type/DisplayList.cpp b/src/fast/resource/type/DisplayList.cpp
-index bf0e76e..5ae57f9 100644
+index bf0e76e8..5ae57f91 100644
 --- a/src/fast/resource/type/DisplayList.cpp
 +++ b/src/fast/resource/type/DisplayList.cpp
 @@ -1,3 +1,4 @@
@@ -7212,7 +8001,7 @@ index bf0e76e..5ae57f9 100644
  #include <memory>
  
 diff --git a/src/fast/shaders/directx/default.shader.hlsl b/src/fast/shaders/directx/default.shader.hlsl
-index 3025a11..424c822 100644
+index 3025a112..424c8223 100644
 --- a/src/fast/shaders/directx/default.shader.hlsl
 +++ b/src/fast/shaders/directx/default.shader.hlsl
 @@ -189,6 +189,10 @@ PSInput VSMain(
@@ -7242,7 +8031,7 @@ index 3025a11..424c822 100644
              output.color = fromLinear(texel);
          @else
 diff --git a/src/fast/shaders/metal/default.shader.metal b/src/fast/shaders/metal/default.shader.metal
-index bf87639..babfa5f 100644
+index bf876398..babfa5f6 100644
 --- a/src/fast/shaders/metal/default.shader.metal
 +++ b/src/fast/shaders/metal/default.shader.metal
 @@ -18,6 +18,10 @@ struct DrawUniforms {
@@ -7275,10 +8064,10 @@ index bf87639..babfa5f 100644
          out.color = float4(texel, 1.0);
      @end
 diff --git a/src/fast/shaders/opengl/default.shader.glsl b/src/fast/shaders/opengl/default.shader.glsl
-index 3693c79..7903afd 100644
+index 3693c798..c806ca46 100644
 --- a/src/fast/shaders/opengl/default.shader.glsl
 +++ b/src/fast/shaders/opengl/default.shader.glsl
-@@ -1,297 +1,318 @@
+@@ -1,297 +1,319 @@
 -@prism(type='fragment', name='Fast3D Fragment Shader', version='1.0.0', description='Ported shader to prism', author='Emill & Prism Team')
 -
 -@{GLSL_VERSION}
@@ -7865,6 +8654,10 @@ index 3693c79..7903afd 100644
 +            @if(o_alpha_threshold)
 +                if (texel.a < 8.0 / 256.0) discard;
 +            @end
++            // Depth-only masks preserve colour and coverage. The second output's alpha drives RGB blending.
++            @if(o_invisible)
++                texel.a = 0.0;
++            @end
 +            @if(dual_source)
 +                // PORT: the alpha written is the N64 coverage bit: 1 for every drawn pixel, kept (0) for o_invisible
 +                // draws; the blend alpha goes to the second output (as default.shader.metal)
@@ -7875,9 +8668,6 @@ index 3693c79..7903afd 100644
 +                @end
 +                vOutColor1 = vec4(0.0, 0.0, 0.0, texel.a);
 +            @else
-+                @if(o_invisible)
-+                    texel.a = 0.0;
-+                @end
 +                @{vOutColor} = texel;
 +            @end
 +        @else
@@ -7896,10 +8686,10 @@ index 3693c79..7903afd 100644
 \ No newline at end of file
 diff --git a/src/fast/shaders/vulkan/default.shader.glsl b/src/fast/shaders/vulkan/default.shader.glsl
 new file mode 100644
-index 0000000..134caef
+index 00000000..ab499ae8
 --- /dev/null
 +++ b/src/fast/shaders/vulkan/default.shader.glsl
-@@ -0,0 +1,320 @@
+@@ -0,0 +1,321 @@
 +@prism(type='fragment', name='Fast3D Vulkan Shader', version='1.0.0', description='Ported shader to prism', author='Emill & Prism Team')
 +
 +#version 450
@@ -8192,6 +8982,10 @@ index 0000000..134caef
 +            @if(o_alpha_threshold)
 +                if (texel.a < 8.0 / 256.0) discard;
 +            @end
++            // Depth-only masks preserve colour and coverage. The second output's alpha drives RGB blending.
++            @if(o_invisible)
++                texel.a = 0.0;
++            @end
 +            @if(dual_out)
 +                // PORT: the alpha written is the N64 coverage bit: 1 for every drawn pixel, kept (0) for o_invisible
 +                // draws; the blend alpha goes to the second output (as default.shader.metal)
@@ -8202,9 +8996,6 @@ index 0000000..134caef
 +                @end
 +                vOutColor1 = vec4(0.0, 0.0, 0.0, texel.a);
 +            @else
-+                @if(o_invisible)
-+                    texel.a = 0.0;
-+                @end
 +                vOutColor = texel;
 +            @end
 +        @else
@@ -8220,8 +9011,119 @@ index 0000000..134caef
 +        @end
 +    }
 +@end
+diff --git a/src/ship/config/Config.cpp b/src/ship/config/Config.cpp
+index 8f18a3db..f140d370 100644
+--- a/src/ship/config/Config.cpp
++++ b/src/ship/config/Config.cpp
+@@ -200,12 +200,12 @@ void Config::Copy(const std::string& fromKey, const std::string& toKey) {
+ }
+ 
+ void Config::Reload() {
+-    if (mPath == "None" || !fs::exists(mPath) || !fs::is_regular_file(mPath)) {
++    if (mPath == "None" || !fs::exists(fs::u8path(mPath)) || !fs::is_regular_file(fs::u8path(mPath))) {
+         mIsNewInstance = true;
+         mFlattenedJson = nlohmann::json::object();
+         return;
+     }
+-    std::ifstream ifs(mPath);
++    std::ifstream ifs(fs::u8path(mPath));
+ 
+     mNestedJson = nlohmann::json::object();
+     mFlattenedJson = nlohmann::json::object();
+@@ -218,7 +218,7 @@ void Config::Reload() {
+ }
+ 
+ void Config::Save() {
+-    std::ofstream file(mPath);
++    std::ofstream file(fs::u8path(mPath));
+     mNestedJson = mFlattenedJson.unflatten();
+     file << mNestedJson.dump(4);
+ }
+diff --git a/src/ship/core/Context.cpp b/src/ship/core/Context.cpp
+index ea34621d..76252f8c 100644
+--- a/src/ship/core/Context.cpp
++++ b/src/ship/core/Context.cpp
+@@ -15,6 +15,7 @@
+ #include "ship/debug/CrashHandler.h"
+ #include "ship/resource/ResourceManager.h"
+ #include "ship/utils/AppleFolderManager.h"
++#include "ship/utils/AppDirectory.h"
+ #include "ship/window/FileDrop.h"
+ #include "ship/log/Logger.h"
+ #include "ship/thread/ThreadPool.h"
+@@ -316,51 +317,27 @@ std::string Context::GetAppBundlePath() {
+ }
+ 
+ std::string Context::GetAppDirectoryPath(const std::string& appName) {
++    auto env = [](const char* name) {
++        const char* value = SDL_GetEnvironmentVariable(SDL_GetEnvironment(), name);
++        return value != nullptr ? std::string(value) : std::string();
++    };
++    const char* base = SDL_GetBasePath();
++    std::filesystem::path sandbox, image;
++    bool macBundle = false;
+ #if defined(__ANDROID__)
+-    const char* externaldir = SDL_GetAndroidExternalStoragePath();
+-    if (externaldir != NULL) {
+-        return externaldir;
+-    }
+-#endif
+-
+-#ifdef __IOS__
+-    const char* home = getenv("HOME");
+-    return std::string(home) + "/Documents";
+-#endif
+-
+-#if defined(__APPLE__)
+-    FolderManager foldermanager;
+-    if (char* fpath = std::getenv("SHIP_HOME")) {
+-        const char* appBundleID = strrchr(fpath, '/');
+-        if (appBundleID != nullptr) {
+-            foldermanager.CreateAppSupportDirectory(appBundleID + 1);
+-        }
+-        if (fpath[0] == '~') {
+-            const char* home = getenv("HOME") ? getenv("HOME") : getpwuid(getuid())->pw_dir;
+-            return std::string(home) + std::string(fpath).substr(1);
+-        }
+-        return std::string(fpath);
+-    }
+-#endif
+-
+-#if defined(__linux__)
+-    char* fpath = std::getenv("SHIP_HOME");
+-    if (fpath != NULL) {
+-        return std::string(fpath);
+-    }
++    if (const char* files = SDL_GetAndroidExternalStoragePath()) sandbox = std::filesystem::u8path(files);
++    else if (const char* files = SDL_GetAndroidInternalStoragePath()) sandbox = std::filesystem::u8path(files);
++#elif defined(__IOS__)
++    sandbox = std::filesystem::u8path(env("HOME")) / "Documents";
++#elif defined(__APPLE__)
++    macBundle = true;
++#elif defined(__linux__)
++    image = std::filesystem::u8path(env("APPIMAGE"));
+ #endif
+-
+-#ifdef NON_PORTABLE
+-    const std::string effectiveAppName = appName.empty() ? "libultraship" : appName;
+-    char* prefpath = SDL_GetPrefPath(NULL, effectiveAppName.c_str());
+-    if (prefpath != NULL) {
+-        std::string ret(prefpath);
+-        SDL_free(prefpath);
+-        return ret;
+-    }
+-#endif
+-
+-    return ".";
++    const auto home = std::filesystem::u8path(env("HOME").empty() ? env("USERPROFILE") : env("HOME"));
++    const auto directory = ResolveAppDirectory(base ? std::filesystem::u8path(base) : std::filesystem::path(),
++                                               env("SHIP_HOME"), home, image, sandbox, macBundle).u8string();
++    return {directory.begin(), directory.end()};
+ }
+ 
+ std::string Context::GetPathRelativeToAppBundle(const std::string& path) {
 diff --git a/src/ship/debug/CrashHandler.cpp b/src/ship/debug/CrashHandler.cpp
-index 63d5b07..a83bce7 100644
+index 63d5b071..a83bce7a 100644
 --- a/src/ship/debug/CrashHandler.cpp
 +++ b/src/ship/debug/CrashHandler.cpp
 @@ -6,7 +6,7 @@
@@ -8233,8 +9135,98 @@ index 63d5b07..a83bce7 100644
  #include <errhandlingapi.h>
  #include <inttypes.h>
  #include <excpt.h>
+diff --git a/src/ship/resource/ResourceManager.cpp b/src/ship/resource/ResourceManager.cpp
+index 4630654f..f95997eb 100644
+--- a/src/ship/resource/ResourceManager.cpp
++++ b/src/ship/resource/ResourceManager.cpp
+@@ -3,6 +3,7 @@
+ #include <nlohmann/json.hpp>
+ #include "ship/resource/File.h"
+ #include "ship/resource/archive/Archive.h"
++#include "ship/resource/archive/O2rArchive.h"
+ #include <algorithm>
+ #include <thread>
+ #include <stdexcept>
+@@ -32,6 +33,13 @@ void ResourceManager::OnInit(const nlohmann::json& initArgs) {
+         std::make_shared<ResourceLoader>(std::dynamic_pointer_cast<ResourceManager>(GetSharedComponent()));
+     mArchiveManager =
+         std::make_shared<ArchiveManager>(std::dynamic_pointer_cast<ResourceManager>(GetSharedComponent()), mKeystore);
++    if (mBuiltInArchiveData != nullptr) { // PORT: first, so archives on disk come after it
++        auto builtIn = std::make_shared<O2rArchive>(mBuiltInArchiveName, mBuiltInArchiveData, mBuiltInArchiveSize,
++                                                    std::dynamic_pointer_cast<ResourceManager>(GetSharedComponent()),
++                                                    mKeystore);
++        builtIn->Load();
++        mArchiveManager->AddArchive(builtIn);
++    }
+     GetArchiveManager()->Init(archivePaths, validHashes);
+ 
+     if (!mArchiveManager->IsInitialized()) {
+@@ -44,6 +52,12 @@ void ResourceManager::OnInit(const nlohmann::json& initArgs) {
+     }
+ }
+ 
++void ResourceManager::SetBuiltInArchive(const std::string& name, const void* data, size_t size) {
++    mBuiltInArchiveName = name;
++    mBuiltInArchiveData = data;
++    mBuiltInArchiveSize = size;
++}
++
+ ResourceManager::~ResourceManager() {
+     // Guard against logging after the Logger component (and spdlog) has shut down
+     // during Context teardown.
+diff --git a/src/ship/resource/archive/O2rArchive.cpp b/src/ship/resource/archive/O2rArchive.cpp
+index 989968fb..7d5b76ca 100644
+--- a/src/ship/resource/archive/O2rArchive.cpp
++++ b/src/ship/resource/archive/O2rArchive.cpp
+@@ -11,6 +11,28 @@ O2rArchive::O2rArchive(const std::string& archivePath, std::shared_ptr<ResourceM
+     mZipArchive = nullptr;
+ }
+ 
++O2rArchive::O2rArchive(const std::string& name, const void* data, size_t size,
++                       std::shared_ptr<ResourceManager> resourceManager, std::shared_ptr<Keystore> keystore)
++    : Archive(name, std::move(resourceManager), std::move(keystore)), mMemoryData(data), mMemorySize(size) {
++    mZipArchive = nullptr;
++}
++
++// PORT: every handle of a memory archive reads the same image (a zip source that does not own the data)
++zip_t* O2rArchive::OpenZip(int flags) {
++    if (mMemoryData == nullptr) {
++        return zip_open(GetPath().c_str(), flags, nullptr);
++    }
++    zip_error_t error;
++    zip_error_init(&error);
++    zip_source_t* source = zip_source_buffer_create(mMemoryData, mMemorySize, 0, &error);
++    zip_t* zip = source != nullptr ? zip_open_from_source(source, ZIP_RDONLY, &error) : nullptr;
++    if (zip == nullptr && source != nullptr) {
++        zip_source_free(source);
++    }
++    zip_error_fini(&error);
++    return zip;
++}
++
+ O2rArchive::~O2rArchive() {
+     SPDLOG_TRACE("destruct o2rarchive: {}", GetPath());
+     Close();
+@@ -23,7 +45,7 @@ zip_t* O2rArchive::GetZipHandle() {
+         mZipArchivePool.pop_back();
+         return handle;
+     }
+-    return zip_open(GetPath().c_str(), ZIP_RDONLY, nullptr);
++    return OpenZip(ZIP_RDONLY);
+ }
+ 
+ void O2rArchive::ReleaseZipHandle(zip_t* handle) {
+@@ -95,7 +117,7 @@ std::shared_ptr<File> O2rArchive::LoadFile(const std::string& filePath) {
+ }
+ 
+ bool O2rArchive::Open() {
+-    mZipArchive = zip_open(GetPath().c_str(), ZIP_CREATE, nullptr);
++    mZipArchive = OpenZip(ZIP_CREATE);
+     if (mZipArchive == nullptr) {
+         SPDLOG_ERROR("Failed to load zip file \"{}\"", GetPath());
+         return false;
 diff --git a/src/ship/utils/StringHelper.cpp b/src/ship/utils/StringHelper.cpp
-index 977f234..7e7ceb5 100644
+index 977f2340..7e7ceb5d 100644
 --- a/src/ship/utils/StringHelper.cpp
 +++ b/src/ship/utils/StringHelper.cpp
 @@ -1,3 +1,4 @@
@@ -8243,7 +9235,7 @@ index 977f234..7e7ceb5 100644
  
  #if (_MSC_VER)
 diff --git a/src/ship/window/FileDrop.cpp b/src/ship/window/FileDrop.cpp
-index 78ed604..621babc 100644
+index 78ed604a..621babc4 100644
 --- a/src/ship/window/FileDrop.cpp
 +++ b/src/ship/window/FileDrop.cpp
 @@ -6,7 +6,7 @@

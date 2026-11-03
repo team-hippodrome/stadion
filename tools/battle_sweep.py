@@ -7,8 +7,9 @@ Usage:
   tools/battle_sweep.py run [--move N|NAME | --case ID] [--path P | --all-paths] [--user SPECIES] [--jobs 2] [--force]
                             [--open] [--port-bin build-xcheck/pokestadium]
   tools/battle_sweep.py report [--all-paths]             build-xcheck-sweep/report.md from the cached cases
-By default each move runs once, on its base path, with its sound compared (the battle music is switched off on
-both sides, so the move's sound effects are what is heard); --all-paths runs every path of the catalog.
+By default each move runs on its base path, with additional injured-user healing cases and its sound compared
+(the battle music is switched off on both sides, so the move's sound effects are what is heard); --all-paths runs
+every path of the catalog.
 
 Work and results go to build-xcheck-sweep/ (XCHECK_SWEEP_DIR overrides): cases/<id>/result.json (+ sheets of
 mismatching animations). Finished cases are cached: a rerun only runs cases that are missing or whose spec changed
@@ -27,13 +28,16 @@ The player's lead knows up to four test moves with 1 PP each: the game's time-li
 them on consecutive turns. The opponent is a sturdy target (999 HP) that only knows Splash unless the path needs it
 to act (Substitute, Mirror Move, Counter, invulnerable turn).
 """
-import hashlib, json, os, re, shutil, struct, subprocess, sys, time
+import hashlib, json, os, re, shutil, struct, subprocess, sys, tempfile, time, zipfile
+from pathlib import Path
+from functools import lru_cache
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import battle_xcheck as bx  # noqa: E402
+from runner_platform import BACKENDS, actual_backend
 
 WORK = os.path.abspath(os.environ.get("XCHECK_SWEEP_DIR", os.path.join(ROOT, "build-xcheck-sweep")))
 SEED = "1"
@@ -83,7 +87,7 @@ TARGET_POOL = [113, 143, 80, 76, 112, 131, 91, 130, 149, 94, 59, 103, 45, 34, 26
 
 # ---- decomp tables ----
 def decomp_tables():
-    src = open(os.path.join(ROOT, "game", "src", "gb_data.c")).read()
+    src = Path(ROOT, "game", "src", "gb_data.c").read_text(encoding="utf-8")
     body = src[src.index("gMoveDataWithZeroth[166] = {"):]
     body = body[:body.index("};")]
     moves = {}
@@ -98,7 +102,7 @@ def decomp_tables():
         g = [int(x, 0) for x in m.groups()[:8]]
         species[g[0]] = {"id": g[0], "hp": g[1], "atk": g[2], "def": g[3], "spd": g[4], "spc": g[5], "types": (g[6], g[7]),
                          "start": [int(x, 0) for x in m.group(9).split(",")]}
-    be = open(os.path.join(ROOT, "game", "src", "fragments", "battle_engine", "battle_engine_359F90.c")).read()
+    be = Path(ROOT, "game", "src", "fragments", "battle_engine", "battle_engine_359F90.c").read_text(encoding="utf-8")
     body = be[be.index("u8 gTypeEffects[] = {"):]
     nums = [int(x, 0) for x in re.findall(r"0x[0-9A-Fa-f]+|\d+", body[body.index("{"):body.index("};")])]
     chart = {}
@@ -265,9 +269,14 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
                 tgt["status"] = 7 if e == 0x20 else STATUS_ON_TARGET[e][1]  # asleep for the whole case
             if path == "target_asleep":
                 tgt["status"] = 3
+            if path == "base" and e == 0x08:
+                tgt["status"] = 3  # Dream Eater needs a sleeping target to play its animation.
             if path in ("invulnerable", "mirrors_tackle", "after_tackle"):
                 tgt["moves"] = [TACKLE]
                 tgt["spd"] = 300 if path != "invulnerable" else 20
+            if path == "base" and e == 0x09:
+                tgt["moves"] = [TACKLE]
+                tgt["spd"] = 300
             if e == 0x1A:  # Bide needs damage to store
                 tgt["moves"] = [TACKLE]
             if path == "target_faster":
@@ -282,6 +291,8 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
                 turns = max(turns, 1)
             if path.startswith("calls_"):
                 rules["Battle_Random@Battle_Effect_Metronome"] = [int(path[6:])]
+            if path == "base" and e == 0x53:
+                rules["Battle_Random@Battle_Effect_Metronome"] = [0x55]
             if e == 0x1B:
                 rules["Battle_Random@Battle_Effect_Thrash"] = [0]
             if e == 0x2A:
@@ -295,9 +306,22 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
                 c = open_group[key] = {"path": path, "target": tgt, "user": usr, "rules": rules, "uses": [], "turns": 0}
                 groups["%s#%d" % (key, len(groups))] = c
             c["uses"].append({"move": mid, "path": path, "why": why, "user": user, "user_why": user_why})
+            if path == "base" and e in (0x1A, 0x08, 0x09, 0x53):
+                c["uses"][-1]["require_animation"] = True
+            if e == 0x09 and path in ("base", "mirrors_tackle"):
+                c["uses"][-1]["animation_move"] = TACKLE
+            if e == 0x53 and path == "base":
+                c["uses"][-1]["animation_move"] = 0x55
+            if e == 0x1A:
+                # The automatic move picker must keep Bide selected while energy is stored and released.
+                c["pp"] = turns
             c["turns"] += turns
     for gp, mid, why in GENERIC:
-        if (only_move and mid != only_move) or (only_path and gp != only_path):
+        move_id = 0xA5 if gp == "struggle" else mid
+        # Struggle has no ordinary move-slot setup; its zero-PP case is its base
+        # path and must be included when the default sweep checks every move.
+        if (only_move and move_id != only_move) or (only_path and gp != only_path and
+                                                not (gp == "struggle" and only_path == "base")):
             continue
         usr = {"species": 113, "hp": 300, "status": {"user_paralyzed": 0x40, "user_asleep": 3, "user_frozen": 0x20,
                                                       "struggle": 0}[gp]}
@@ -307,13 +331,28 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
                       "user": usr, "rules": rules, "turns": 3 if gp != "struggle" else 2,
                       "uses": [{"move": mid if gp != "struggle" else 0xA5, "path": gp, "why": why, "user": 113,
                                 "user_why": "generic case"}], "pp0": gp == "struggle"}
+    # Keep the original batches stable for cached comparisons. Healing at full HP takes the failure path, so
+    # additionally exercise each healing move alone with missing HP; batching healers would refill the next user's HP.
+    if only_path in (None, "base", "injured"):
+        for mid, mv in moves.items():
+            if mv["effect"] != 0x38 or (only_move and mid != only_move):
+                continue
+            user, user_why = (user_override, "--user") if user_override else pick_user(mv, species)
+            groups["injured:%d" % mid] = {
+                "path": "injured", "target": {"species": 113, "moves": [SPLASH], "spd": 20, "hp": 999, "status": 0},
+                "user": {"species": user, "hp": 150, "status": 0},
+                "rules": {"Battle_RandomAccuracy@func_843708CC": [0], "Battle_Random@Battle_CheckCriticalHit": [255]},
+                "turns": 1, "uses": [{"move": mid, "path": "injured", "why": "healing succeeds with missing HP",
+                                      "user": user, "user_why": user_why, "require_animation": True}]}
     cases = []
     for c in groups.values():
         u = c["uses"]
         # the user of the case: the first use's learner (animations follow the user's model)
         c["user"]["species"] = u[0]["user"]
         spec = json.dumps({k: c[k] for k in ("path", "target", "user", "rules", "turns")} |
-                          {"moves": [x["move"] for x in u]}, sort_keys=True)
+                          {"moves": [x["move"] for x in u]} | ({"pp": c["pp"]} if "pp" in c else {}) |
+                          ({"animation_moves": [x.get("animation_move", x["move"]) for x in u]}
+                           if any("animation_move" in x for x in u) else {}), sort_keys=True)
         c["id"] = "%s_%s_%s" % ("-".join("%03d" % x["move"] for x in u), c["path"],
                                 hashlib.sha1(spec.encode()).hexdigest()[:8])
         c["spec"] = spec
@@ -324,7 +363,7 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
 def case_file(c, species):
     us, ts = species[c["user"]["species"]], species[c["target"]["species"]]
     mv = [x["move"] for x in c["uses"]] + [0] * (4 - len(c["uses"]))
-    pp = [0 if c.get("pp0") else (1 if m else 0) for m in mv]
+    pp = [0 if c.get("pp0") else (c.get("pp", 1) if m else 0) for m in mv]
     lines = ["# %s" % c["id"]]
     lines.append("mon 0 * species=%d type1=%d type2=%d m1=%d m2=%d m3=%d m4=%d p1=%d p2=%d p3=%d p4=%d hp=%d maxhp=300 "
                  "level=50 status=%d atk=150 def=150 spd=150 spc=150" % (
@@ -346,7 +385,7 @@ def ares_paths():
     build = os.environ.get("ARES_REF_BUILD", os.path.join(ROOT, "build-ares", "build"))
     fw = os.environ.get("ARES_REF_FIRMWARE") or os.path.join(
         os.environ.get("ARES_REF_SRC", os.path.join(ROOT, "build-ares", "ares")), "mia", "Firmware", "Nintendo 64")
-    return os.path.join(build, "ares_ref"), fw
+    return bx.reference_exe(build), fw
 
 
 def ares_env(fw, extra):
@@ -356,7 +395,7 @@ def ares_env(fw, extra):
 def rom_link():
     link = os.path.join(WORK, "rom.z64")  # nall rewrites path arguments with spaces
     if not os.path.lexists(link):
-        os.symlink(bx.ROM, link)
+        bx.reference_rom(bx.ROM, link)
     return link
 
 
@@ -373,8 +412,10 @@ def start_state():
     script += ["save %d %s\n" % (STATE_FRAME, st), "end %d\n" % STATE_FRAME]
     open(os.path.join(tmp, "s.txt"), "w").writelines(script)
     shutil.copyfile(os.path.join(ROOT, "replays", "default.flash"), os.path.join(tmp, "f.flash"))
-    subprocess.run([exe, rom_link(), os.path.join(tmp, "s.txt")], env=ares_env(fw, {"ARES_REF_FLASH": os.path.join(tmp, "f.flash")}),
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, preexec_fn=bx.low_priority, check=True)
+    with open(os.path.join(tmp, "ares.log"), "w") as log:
+        subprocess.run([exe, rom_link(), os.path.join(tmp, "s.txt")],
+                       env=ares_env(fw, {"ARES_REF_FLASH": os.path.join(tmp, "f.flash")}),
+                       stdout=log, stderr=subprocess.STDOUT, **bx.process_options(), check=True, timeout=900)
     shutil.rmtree(tmp)
     return st
 
@@ -401,9 +442,102 @@ def load_waits(d):
     return wait
 
 
+def reference_vi_schedule(directory):
+    """Replay observed retrace gaps while retaining the mixer's original sample clock."""
+    if os.environ.get("XCHECK_REFERENCE_TIMING") == "0":
+        return None
+    rows = []
+    with open(os.path.join(directory, "ares.trace")) as source:
+        for line in source:
+            if line.startswith("V "):
+                frame, retrace = map(int, line.split()[1:])
+                if frame != len(rows) + 1 or retrace < 0 or (rows and retrace < rows[-1][1]):
+                    raise ValueError("non-contiguous reference battle-frame timing")
+                rows.append((frame, retrace))
+    if not rows:
+        raise ValueError("reference has no battle-frame timing")
+    path = os.path.join(directory, "reference-vi.txt")
+    with open(path, "w") as output:
+        output.writelines("%d %d\n" % row for row in rows)
+    return path
+
+
+def reference_archive(d, exe, max_frames):
+    """Optional shared oracle captures, keyed by every input and the reference executable."""
+    cache = os.environ.get("XCHECK_REFERENCE_CACHE")
+    if not cache:
+        return None
+    key = hashlib.sha256()
+    _, firmware = ares_paths()
+    paths = [bx.ROM, exe, symbols_file(), start_state(), os.path.join(ROOT, "replays", "default.flash"),
+             os.path.join(d, "case.txt"), os.path.join(d, "ares.txt")]
+    paths += sorted(str(p) for p in Path(firmware).rglob("*") if p.is_file())
+    for path in paths:
+        with open(path, "rb") as f:
+            for block in iter(lambda: f.read(1024 * 1024), b""):
+                key.update(block)
+    key.update(repr((max_frames, STATE_FRAME, ANIM_FRAMES, SEED,
+                     sorted((k, v) for k, v in os.environ.items() if k.startswith("ARES_REF_")))).encode())
+    os.makedirs(cache, exist_ok=True)
+    return os.path.join(cache, key.hexdigest() + ".zip")
+
+
+def publish_reference_archive(archive, directory):
+    # Renderer workers can finish the same oracle case together. Each writer needs
+    # its own staging file; readers must only see a complete archive.
+    descriptor, temporary = tempfile.mkstemp(prefix=Path(archive).name + ".", suffix=".tmp",
+                                            dir=os.path.dirname(archive))
+    os.close(descriptor)
+    try:
+        with zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED, compresslevel=1) as z:
+            files = list(Path(directory, "ares_anim").rglob("*.ppm"))
+            files += [Path(directory, name) for name in ("ares.trace", "ares.log", "ares.pcm", "ares.pcm.frames")]
+            for path in files:
+                if path.is_file():
+                    z.write(path, path.relative_to(directory).as_posix())
+        try:
+            # A hard link publishes once without replacing a capture another
+            # worker may already have open (replacement is denied on Windows).
+            os.link(temporary, archive)
+        except FileExistsError:
+            try:
+                with zipfile.ZipFile(archive) as existing:
+                    if "ares.trace" not in existing.namelist() or existing.testzip() is not None:
+                        raise ValueError("incomplete reference archive")
+            except (ValueError, zipfile.BadZipFile):
+                os.replace(temporary, archive)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+@lru_cache(maxsize=8)
+def binary_fingerprint(path):
+    with open(path, "rb") as f:
+        return hashlib.file_digest(f, "sha256").hexdigest()
+
+
+def clear_port_outputs(directory):
+    for name in ("coverage.profraw", "calls.txt", "seq.txt", "port.trace", "port.pcm", "port.pcm.frames"):
+        path = os.path.join(directory, name)
+        if os.path.isfile(path):
+            os.unlink(path)
+
+
+def wait_case_process(process):
+    try:
+        process.wait(timeout=900)
+        return False
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+        return True
+
+
 def run_case(c, species, port_bin, max_frames):
     d = os.path.join(WORK, "cases", c["id"])
     os.makedirs(d, exist_ok=True)
+    clear_port_outputs(d)
     open(os.path.join(d, "case.txt"), "w").write(case_file(c, species))
     for sub in ("port_anim", "ares_anim"):
         shutil.rmtree(os.path.join(d, sub), ignore_errors=True)
@@ -432,40 +566,80 @@ def run_case(c, species, port_bin, max_frames):
                          "ARES_REF_XCHECK_CASE": os.path.join(d, "case.txt"), "ARES_REF_XCHECK_SYMS": symbols_file(),
                          "ARES_REF_XCHECK_ANIM": os.path.join(d, "ares_anim"), "ARES_REF_XCHECK_ANIM_FRAMES": str(ANIM_FRAMES),
                          "ARES_REF_WAV": os.path.join(d, "ares.pcm")})
-    t0 = time.time()
-    with open(os.path.join(d, "port.log"), "w") as pl, open(os.path.join(d, "ares.log"), "w") as al:
-        pp = subprocess.Popen([port_bin, bx.ROM], cwd=os.path.dirname(port_bin), env=penv, stdout=pl,
-                              stderr=subprocess.STDOUT, preexec_fn=bx.low_priority)
-        ap = subprocess.Popen([exe, rom_link(), os.path.join(d, "ares.txt"), "--load", start_state()], env=aenv,
-                              stdout=al, stderr=subprocess.STDOUT, preexec_fn=bx.low_priority)
+    bx.backend_home(penv, os.path.join(d, "home"))
+    if os.environ.get("XCHECK_EVIDENCE"):
+        penv.update(PORT_EVID=os.path.join(d, "calls.txt"), PORT_EVID_SEQ=os.path.join(d, "seq.txt"),
+                    PORT_EVID_SEQ_MAX="2", PORT_EVID_DUMP_EVERY="300",
+                    LLVM_PROFILE_FILE=os.path.join(d, "coverage.profraw"))
+    archive = reference_archive(d, exe, max_frames)
+    cached_reference = bool(archive and os.path.exists(archive))
+    if cached_reference:
         try:
-            pp.wait(timeout=900)
-            ap.wait(timeout=900)
-        except subprocess.TimeoutExpired:
-            pp.kill()
-            ap.kill()
+            with zipfile.ZipFile(archive) as z:
+                if "ares.trace" not in z.namelist() or z.testzip() is not None:
+                    raise ValueError("incomplete reference archive")
+                for member in z.namelist():
+                    target = os.path.abspath(os.path.join(d, member))
+                    if os.path.commonpath([target, os.path.abspath(d)]) != os.path.abspath(d):
+                        raise ValueError("reference archive contains an unsafe path")
+                z.extractall(d)
+        except (OSError, ValueError, zipfile.BadZipFile) as error:
+            print("reference cache miss: %s" % error, flush=True)
+            cached_reference = False
+    t0 = time.time()
+    with open(os.path.join(d, "port.log"), "w") as pl, open(os.devnull if cached_reference else os.path.join(d, "ares.log"), "w") as al:
+        pp = subprocess.Popen([port_bin, bx.ROM], cwd=os.path.dirname(port_bin), env=penv, stdout=pl,
+                              stderr=subprocess.STDOUT, **bx.process_options())
+        ap = None if cached_reference else subprocess.Popen(
+            [exe, rom_link(), os.path.join(d, "ares.txt"), "--load", start_state()], env=aenv,
+            stdout=al, stderr=subprocess.STDOUT, **bx.process_options())
+        port_timed_out = wait_case_process(pp)
+        reference_timed_out = wait_case_process(ap) if ap is not None else False
+    if (archive and not cached_reference and ap.returncode == 0
+            and os.path.isfile(os.path.join(d, "ares.trace")) and os.path.getsize(os.path.join(d, "ares.trace"))):
+        publish_reference_archive(archive, d)
     # the N64 can take game frames longer to load a move's effect assets (DMA) and starts the animation later; what
     # runs on meanwhile (Moltres' simulated flames, idle motions) then enters the animation in another state. The
     # port runs again and waits as long before each such animation (PORT_XCHECK_LOAD_WAIT, src/port/xcheck.cpp).
     wait = load_waits(d)
-    if any(wait):
+    timing = reference_vi_schedule(d) if not reference_timed_out and (ap is None or ap.returncode == 0) else None
+    if any(wait) or timing:
         shutil.rmtree(os.path.join(d, "port_anim"), ignore_errors=True)
         os.makedirs(os.path.join(d, "port_anim"))
         shutil.copyfile(os.path.join(ROOT, "replays", "default.flash"), os.path.join(d, "port.flash"))
+        clear_port_outputs(d)
         penv["PORT_XCHECK_LOAD_WAIT"] = ",".join(map(str, wait))
+        if timing:
+            penv["PORT_XCHECK_VI_TIMING"] = timing
         with open(os.path.join(d, "port.log"), "w") as pl:
             pp = subprocess.Popen([port_bin, bx.ROM], cwd=os.path.dirname(port_bin), env=penv, stdout=pl,
-                                  stderr=subprocess.STDOUT, preexec_fn=bx.low_priority)
-            try:
-                pp.wait(timeout=900)
-            except subprocess.TimeoutExpired:
-                pp.kill()
+                                  stderr=subprocess.STDOUT, **bx.process_options())
+            port_timed_out = wait_case_process(pp)
     secs = time.time() - t0
     try:
         res = evaluate(c, d)
     except Exception as ex:  # a broken run is a result too
         res = {"error": "%s: %s" % (type(ex).__name__, ex), "uses": []}
+    res["port_exit_code"] = pp.returncode
+    res["reference_exit_code"] = ap.returncode if ap is not None else 0
+    if port_timed_out or reference_timed_out:
+        res["error"] = "port or reference timed out"
+    elif pp.returncode != 0 or res["reference_exit_code"] != 0:
+        res["error"] = "port exit %s, reference exit %s" % (pp.returncode, res["reference_exit_code"])
     res["seconds"] = round(secs, 1)
+    res["timing_mode"] = "reference-vi-v1" if timing else "native"
+    if timing:
+        with open(timing, "rb") as source:
+            res["reference_vi_sha256"] = hashlib.file_digest(source, "sha256").hexdigest()
+    res["reference_cached"] = cached_reference
+    res["port_binary_sha256"] = binary_fingerprint(port_bin)
+    res["evidence_profile"] = os.path.isfile(os.path.join(d, "coverage.profraw")) if os.environ.get("XCHECK_EVIDENCE") else False
+    backend = os.environ.get("PORT_TEST_BACKEND")
+    if backend:
+        res["requested_backend"] = backend
+        res["actual_backend"] = actual_backend(os.path.join(d, "home"))
+        if res["actual_backend"] != BACKENDS[backend][0]:
+            res["error"] = "requested %s, actual backend id %s" % (backend, res["actual_backend"])
     if any(wait):
         res["load_wait"] = wait
     res["spec"] = c["spec"]
@@ -543,13 +717,17 @@ def evaluate(c, d):
     taken = {"port": set(), "ares": set()}
     for u in c["uses"]:
         r = {"move": u["move"], "path": u["path"], "why": u["why"], "user": u["user"], "user_why": u["user_why"]}
+        if u.get("require_animation"):
+            r["require_animation"] = True
         act = next((a for a in actions["port"] if a["side"] == 0 and a["move"] == u["move"]), None)
         r["used"] = act is not None
         r["msgs"] = act["msgs"] if act else ""
         aa = next((a for a in actions["ares"] if a["side"] == 0 and a["move"] == u["move"]), None)
         r["msgs_ares"] = aa["msgs"] if aa else ""
         # its animation on each side (Metronome: the called move's)
-        target_move = int(u["path"][6:]) if u["path"].startswith("calls_") else u["move"]
+        target_move = int(u["path"][6:]) if u["path"].startswith("calls_") else u.get("animation_move", u["move"])
+        if target_move != u["move"]:
+            r["animation_move"] = target_move
         got = {}
         for s in ("port", "ares"):
             a = next((x for x in anims[s] if x["side"] == 0 and x["move"] == target_move and x["k"] not in taken[s]), None)
@@ -871,10 +1049,15 @@ def classify(u, common_offset, floor=None):
     if not u.get("used"):
         return "not reached"
     if "port" not in a and "ares" not in a:
+        if u.get("require_animation"):
+            return "animation mismatch (required animation absent)"
         return "match (no animation)"
     if ("port" in a) != ("ares" in a):
         return "animation mismatch (only on %s)" % ("port" if "port" in a else "ares")
     s = u.get("score", {})
+    if u.get("require_animation") and (len(s.get("frames", [])) != 2 or not all(s["frames"]) or
+                                       not all(k in s for k in ("offset", "ssim", "effect_p90"))):
+        return "animation mismatch (required capture or comparison absent)"
     notes = []
     if "effect_p90" in s and s["effect_p90"] > (EFFECT_LIMIT if floor is None else floor):
         notes.append("effects differ: %.0f (worst frame %d: %.0f)" % (s["effect_p90"], s["worst_frame"], s["effect_max"]))
@@ -949,12 +1132,13 @@ def main():
     if cmd == "run":
         port_bin = os.path.abspath(args.get("--port-bin", os.path.join(ROOT, "build", "pokestadium")))
         frames = int(args.get("--frames", "12000"))
-        todo = open_cases(cases) if args.get("--open") else []
+        todo = open_cases(cases, port_bin) if args.get("--open") else []
         for c in ([] if args.get("--open") else cases):
             rp = os.path.join(WORK, "cases", c["id"], "result.json")
             if os.path.exists(rp) and not args.get("--force"):
                 try:
-                    if json.load(open(rp)).get("spec") == c["spec"]:
+                    cached = json.load(open(rp))
+                    if result_matches_build(cached, c, port_bin, os.path.dirname(rp)):
                         continue
                 except ValueError:
                     pass
@@ -975,8 +1159,8 @@ def main():
         print("ran %d cases in %.0f s" % (len(todo), time.time() - t0))
         cmd = "report"
     if cmd == "report":
-        report(cases, skipped, moves, mvn, spn)
-        print("(report of %s)" % ("every path" if args.get("--all-paths") else "the base path: each move once"))
+        report(cases, skipped, moves, mvn, spn, args.get("--port-bin"))
+        print("(report of %s)" % ("every path" if args.get("--all-paths") else "the base paths and successful healing"))
 
 
 def run_limits(rows):
@@ -989,14 +1173,22 @@ def run_limits(rows):
     return common, median, floor
 
 
-def open_cases(cases):
+def result_matches_build(result, case, port_bin, directory):
+    return (result is not None and result.get("spec") == case["spec"] and
+            result.get("timing_mode") == ("native" if os.environ.get("XCHECK_REFERENCE_TIMING") == "0" else "reference-vi-v1") and
+            (not port_bin or result.get("port_binary_sha256") == binary_fingerprint(os.path.abspath(port_bin))) and
+            (not os.environ.get("XCHECK_EVIDENCE") or os.path.isfile(os.path.join(directory, "coverage.profraw"))))
+
+
+def open_cases(cases, port_bin):
     """the cases --open reruns: not run yet, spec changed, an error, or a use whose verdict (as in the report) or sound
     is not a match"""
     results = {}
     for c in cases:
         rp = os.path.join(WORK, "cases", c["id"], "result.json")
         try:
-            results[c["id"]] = json.load(open(rp)) if os.path.exists(rp) else None
+            r = json.load(open(rp)) if os.path.exists(rp) else None
+            results[c["id"]] = r if result_matches_build(r, c, port_bin, os.path.dirname(rp)) else None
         except ValueError:
             results[c["id"]] = None
     rows = [(u, r, c) for c in cases for r in [results[c["id"]]] if r for u in r.get("uses", [])]
@@ -1011,7 +1203,7 @@ def open_cases(cases):
     return todo
 
 
-def report(cases, skipped, moves, mvn, spn):
+def report(cases, skipped, moves, mvn, spn, port_bin=None):
     rows, missing = [], 0
     secs = 0.0
     for c in cases:
@@ -1021,9 +1213,16 @@ def report(cases, skipped, moves, mvn, spn):
             for u in c["uses"]:
                 rows.append((u, None, c))
             continue
-        r = json.load(open(rp))
+        try:
+            r = json.load(open(rp))
+        except ValueError:
+            r = None
+        if not result_matches_build(r, c, port_bin, os.path.dirname(rp)):
+            missing += 1
+            rows.extend((u, None, c) for u in c["uses"])
+            continue
         secs += r.get("seconds", 0)
-        for u in r.get("uses", []):
+        for u in r.get("uses") or c["uses"]:
             rows.append((u, r, c))
     common, median, floor = run_limits(rows)
     out = ["# Move sweep: port vs ares", ""]

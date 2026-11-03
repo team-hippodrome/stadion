@@ -136,12 +136,14 @@ int _Printf(_PrintfOutFun* prout, char* arg, const char* fmt, va_list args);
 // libultraship's versions take its union OSMesg; the game passes plain integers/pointers.
 void port_osViSetEvent(OSMesgQueue* mq, OSMesg msg, u32 retraceCount);
 void port_osViSwapBuffer(void* fb);
+void* port_osViGetCurrentFramebuffer(void);
 void port_osViBlack(u8 black);
 void port_osViSetXScale(f32 scale);
 void port_osViSetMode(void* mode); // OSViMode*
 s32 port_osSetTimer(OSTimer* t, OSTime countdown, OSTime interval, OSMesgQueue* mq, OSMesg msg);
 #define osViSetEvent port_osViSetEvent
 #define osViSwapBuffer port_osViSwapBuffer
+#define osViGetCurrentFramebuffer port_osViGetCurrentFramebuffer
 #define osViBlack port_osViBlack
 #define osViSetXScale port_osViSetXScale
 #define osViSetMode port_osViSetMode
@@ -182,6 +184,10 @@ OSTime port_osGetTime(void);
 u32 port_osGetCount(void);
 #define osGetTime port_osGetTime
 #define osGetCount port_osGetCount
+
+// Controller setup touches SDL and the mapping CVars; serialize it with polling on the window thread.
+s32 port_osContInit(OSMesgQueue* mq, u8* bits, OSContStatus* status);
+#define osContInit port_osContInit
 
 // libultraship's controller read posts its completion with its own non-blocking queue code, which does not wake a
 // game thread blocked in osRecvMesg; the wrapper posts then wakes.

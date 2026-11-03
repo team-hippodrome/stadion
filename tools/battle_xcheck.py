@@ -28,6 +28,9 @@ tools/ares_ref/build.sh (ARES_REF_BUILD: its build directory; ARES_REF_FIRMWARE 
 Frame dumps are large: `anim` deletes the raw frames after making the sheets unless --keep-frames.
 """
 import os, shutil, struct, subprocess, sys, zlib
+from pathlib import Path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from runner_platform import process_options, backend_home, reference_rom, reference_exe
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -97,9 +100,10 @@ def cmd_run(out, args):
             env["PORT_XCHECK_ANIM_FRAMES"] = args.get("--anim-frames", "200")
         else:
             env["PORT_HEADLESS"] = "1"  # nothing to draw
+        backend_home(env, os.path.join(out, "home"))
         log = open(os.path.join(out, "port.log"), "w")
         procs.append(("port", subprocess.Popen([port, ROM], cwd=os.path.dirname(port), env=env, stdout=log,
-                                               stderr=subprocess.STDOUT, preexec_fn=low_priority)))
+                                               stderr=subprocess.STDOUT, **process_options())))
     if "--port-only" not in args:
         build = os.environ.get("ARES_REF_BUILD", os.path.join(ROOT, "build-ares", "build"))
         fw = os.environ.get("ARES_REF_FIRMWARE") or os.path.join(
@@ -108,7 +112,7 @@ def cmd_run(out, args):
         link = os.path.join(out, "rom.z64")  # nall rewrites path arguments with spaces
         if os.path.lexists(link):
             os.remove(link)
-        os.symlink(ROM, link)
+        reference_rom(ROM, link)
         env = dict(os.environ, ARES_REF_FIRMWARE=fw, DYLD_LIBRARY_PATH="/Applications/ares.app/Contents/Frameworks",
                    ARES_REF_FLASH=os.path.join(out, "ares.flash"), ARES_REF_XCHECK=os.path.join(out, "ares.trace"),
                    ARES_REF_XCHECK_RNG=seed, ARES_REF_XCHECK_COM="1")
@@ -117,9 +121,9 @@ def cmd_run(out, args):
             env["ARES_REF_XCHECK_ANIM"] = os.path.join(out, "ares_anim")
             env["ARES_REF_XCHECK_ANIM_FRAMES"] = args.get("--anim-frames", "200")
         log = open(os.path.join(out, "ares.log"), "w")
-        procs.append(("ares", subprocess.Popen([os.path.join(build, "ares_ref"), link, os.path.join(out, "ares.txt")],
+        procs.append(("ares", subprocess.Popen([reference_exe(build), link, os.path.join(out, "ares.txt")],
                                                env=env, stdout=log, stderr=subprocess.STDOUT,
-                                               preexec_fn=low_priority)))
+                                               **process_options())))
     for name, p in procs:
         print("%s: exit %d" % (name, p.wait()))
 
@@ -226,11 +230,11 @@ SIDE_ENDIAN = {"port": "<", "ares": ">"}
 def names():
     species, moves = {}, {}
     import re
-    for line in open(os.path.join(ROOT, "game", "include", "pokemon.h")):
+    for line in Path(ROOT, "game", "include", "pokemon.h").read_text(encoding="utf-8").splitlines():
         m = re.match(r"#define (\w+)\s+(\d+)\s*$", line)
         if m and 1 <= int(m.group(2)) <= 151:
             species.setdefault(int(m.group(2)), m.group(1).replace("_", " ").title())
-    for line in open(os.path.join(ROOT, "game", "include", "moves.h")):
+    for line in Path(ROOT, "game", "include", "moves.h").read_text(encoding="utf-8").splitlines():
         m = re.match(r"#define (\w+)\s+(0x[0-9A-Fa-f]+|\d+)", line)
         if m:
             moves.setdefault(int(m.group(2), 0), m.group(1).replace("_", " ").title())

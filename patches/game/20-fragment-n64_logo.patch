@@ -1,12 +1,47 @@
 diff --git a/src/fragments/n64_logo/n64_logo.c b/src/fragments/n64_logo/n64_logo.c
-index ba1657518126a5acd381e5111966cb7652cbf3f2..f7ee6548fbcd243ecf0ee4fb8eb11917d84aa413 100644
+index ba1657518126a5acd381e5111966cb7652cbf3f2..325c54262736a0031f56d6efe759e0277b71ac44 100644
 --- a/src/fragments/n64_logo/n64_logo.c
 +++ b/src/fragments/n64_logo/n64_logo.c
-@@ -11,6 +11,7 @@
+@@ -11,6 +11,12 @@
  #include "src/gfx_rect.h"
  #include "src/memory.h"
  #include "src/stage_loader.h"
 +#include "src/pokemon_stats.h"
++#include <stdio.h>
++#include <stdlib.h>
++
++extern int Port_PacedLogoHold(void);
++extern unsigned long long Port_ViTick(void);
  
  void N64Logo_DrawLogoTexture(void) {
      s32 var_t4;
+@@ -99,8 +105,28 @@ s32 N64Logo_Main(UNUSED s32 arg0, UNUSED s32 arg1) {
+ 
+     Audio_PlaySoundEffectById(SFX_N64_LOGO);
+     sp30 = osGetTime();
++    u64 holdStart = Port_ViTick();
+     N64Logo_ScanGbSavePorts();
+-    N64Logo_WaitForElapsed(sp30);
++    u64 scanEnd = osGetTime();
++    int paced = Port_PacedLogoHold();
++    int trace = getenv("PORT_TRACE_PACING") != NULL;
++    if (trace) fprintf(stderr, "[intro] logo hold begin\n");
++    if (paced) {
++        // The NTSC logo stays up for 60 retraces. Present through the normal
++        // frame queue so the scheduler and audio keep running during the hold.
++        while (Port_ViTick() - holdStart < 60) {
++            N64Logo_DrawFrame(0);
++            BgStage_AdvanceFrame();
++        }
++    } else {
++        N64Logo_WaitForElapsed(sp30);
++    }
++    if (trace) {
++        fprintf(stderr, "[intro] Game Boy save scan: %llu us; logo hold after scan: %llu us (%llu retraces)\n",
++                (unsigned long long)OS_CYCLES_TO_USEC(scanEnd - sp30),
++                (unsigned long long)OS_CYCLES_TO_USEC(osGetTime() - scanEnd),
++                (unsigned long long)(Port_ViTick() - holdStart));
++    }
+     StageFade_Start(0x10);
+     BgStage_RunUntilCondition(0x10, N64Logo_DrawFrame);
+     StageContext_Deactivate();

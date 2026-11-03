@@ -1,0 +1,52 @@
+diff --git a/src/fragments/free_battle_rules/free_battle_rules.c b/src/fragments/free_battle_rules/free_battle_rules.c
+index 7378fc7b435404596fa7a8b889e40a1a4a99acd7..df059932ddf62b681488b7f317e977951eaec663 100644
+--- a/src/fragments/free_battle_rules/free_battle_rules.c
++++ b/src/fragments/free_battle_rules/free_battle_rules.c
+@@ -723,7 +723,7 @@ void FreeBattle_SlideInPanel(void) {
+     }
+ }
+ 
+-void FreeBattle_SlideOutPanel(void) {
++void FreeBattle_SlideOutPanel(s32 keepTitle) {
+     s32 i;
+ 
+     for (i = 9; i >= 0; i--) {
+@@ -738,6 +738,9 @@ void FreeBattle_SlideOutPanel(void) {
+     for (i = 0; i < 2; i++) {
+         BgStage_DrawFrame();
+         Gfx_DrawTiledRgba16Image(D_84002D0C);
++        if (keepTitle) {
++            FreeBattle_DrawTitleBar();
++        }
+         BgStage_AdvanceFrame();
+     }
+ }
+@@ -826,13 +829,13 @@ s32 FreeBattle_RuleSelectLoop(void) {
+     }
+ 
+     if (D_84002D16 == 8) {
+-        FreeBattle_SlideOutPanel();
++        FreeBattle_SlideOutPanel(0);
+         FreeBattle_FadeOut();
+         return 0;
+     }
+ 
+     FreeBattle_ApplyRuleSelection();
+-    FreeBattle_SlideOutPanel();
++    FreeBattle_SlideOutPanel(1);
+     return 1;
+ }
+ 
+diff --git a/src/fragments/free_battle_rules/free_battle_rules.h b/src/fragments/free_battle_rules/free_battle_rules.h
+index 41d27e5d556dd42d016a1b8f85a4130e0d46736d..827a870bfb2759e7b95717187d5038852b2c9fb9 100644
+--- a/src/fragments/free_battle_rules/free_battle_rules.h
++++ b/src/fragments/free_battle_rules/free_battle_rules.h
+@@ -33,7 +33,7 @@ void FreeBattle_DrawFrame(void);
+ void FreeBattle_FadeIn(void);
+ void FreeBattle_FadeOut(void);
+ void FreeBattle_SlideInPanel(void);
+-void FreeBattle_SlideOutPanel(void);
++void FreeBattle_SlideOutPanel(s32 keepTitle);
+ void FreeBattle_ApplyRuleSelection(void);
+ s32 FreeBattle_RuleSelectLoop(void);
+ s32 FreeBattle_RuleSelectMain(s32 arg0, s32 arg1);

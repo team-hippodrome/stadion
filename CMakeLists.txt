@@ -6,6 +6,8 @@ set(PORT_VERSION "${PROJECT_VERSION}" CACHE STRING "Version of this build")
 if(NOT PORT_VERSION)
   set(PORT_VERSION "${PROJECT_VERSION}")
 endif()
+# Redact builder paths in every build, including ordinary local and CI builds.
+include(cmake/BuildPaths.cmake)
 
 if(APPLE)
   enable_language(OBJCXX)
@@ -61,6 +63,8 @@ set(PORT_MAIN_SOURCES
   src/port/pacing.cpp
   src/port/interp.cpp
   src/port/launcher.cpp
+  src/port/launcher_files.cpp
+  src/port/launcher_reliability.cpp
   src/port/rom_check.cpp
   src/port/shader_warmup.cpp
   src/port/touch_controls.cpp
@@ -112,6 +116,19 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_S
 # C arrays of 16/32-bit words in the game sources (textures among them need N64 byte order): their files are compiled
 # through generated wrappers that register the arrays with the renderer (see tools/gen_word_arrays.py)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+if(WIN32)
+  # Windows has no dladdr: cross-check caller rules use the same named game functions as the ROM callback table.
+  execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_xcheck_symbols.py
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_func_table.c
+      ${CMAKE_BINARY_DIR}/generated/xcheck_symbols.c RESULT_VARIABLE PORT_XCHECK_SYMBOL_RESULT)
+  if(NOT PORT_XCHECK_SYMBOL_RESULT EQUAL 0)
+    message(FATAL_ERROR "Could not generate Windows cross-check caller symbols")
+  endif()
+  target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/xcheck_symbols.c)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+      ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_xcheck_symbols.py
+      ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_func_table.c)
+endif()
 execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_word_arrays.py
                         ${CMAKE_CURRENT_SOURCE_DIR}/game/src ${CMAKE_BINARY_DIR}/generated)
 include(${CMAKE_BINARY_DIR}/generated/word_wrappers.cmake)
@@ -203,6 +220,11 @@ target_include_directories(port_os PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/game/lib/ultralib/include
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include/libultraship)
+set(PORT_BUILD_DESCRIPTION "${PORT_VERSION} (${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}, ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION})")
+if(DEFINED ENV{GITHUB_SHA})
+  string(APPEND PORT_BUILD_DESCRIPTION " revision $ENV{GITHUB_SHA}")
+endif()
+target_compile_definitions(pokestadium PRIVATE PORT_BUILD_VERSION="${PORT_BUILD_DESCRIPTION}")
 target_compile_definitions(port_os PRIVATE LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 NDEBUG _FINALROM N_MICRO VERSION_US BUILD_VERSION=VERSION_I_P)
 target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/port_compat.h
   ${PORT_NO_WARNINGS})
@@ -224,6 +246,8 @@ if(WIN32)
   list(JOIN _v "," PORT_VERSION_RC)
   set(PORT_ICON ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/pokestadium.ico)
   configure_file(src/port/pokestadium.rc.in ${CMAKE_BINARY_DIR}/generated/pokestadium.rc @ONLY)
+  set_source_files_properties("${CMAKE_BINARY_DIR}/generated/pokestadium.rc" PROPERTIES
+    OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/port/pokestadium.manifest")
   target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/pokestadium.rc)
 endif()
 if(WIN32 AND NOT MSVC) # mingw (gcc or clang)
@@ -287,19 +311,33 @@ if(EMSCRIPTEN)
     "-Wl,--Map=${CMAKE_BINARY_DIR}/pokestadium.map"
     -sENVIRONMENT=web,worker ${PORT_WEB_EXTRA_LINK}
     --profiling-funcs) # function names in the browser's stack traces
-endif()
-
-# Runtime resources (shaders, fonts) packed into an archive next to the executable.
-# (the shader warm-up list goes into it too: a new list rebuilds shader_warmup.cpp, so the archive is packed again)
-# and so do the shader templates: an edited template is packed again without a code change
-file(GLOB_RECURSE PORT_SHADER_TEMPLATES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*)
-set_property(SOURCE src/port/shader_warmup.cpp APPEND PROPERTY OBJECT_DEPENDS
-             ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt ${PORT_SHADER_TEMPLATES})
-if(NOT ANDROID)  # Android: the Gradle build packs it into the app's assets (android/app/build.gradle)
-add_custom_command(TARGET pokestadium POST_BUILD
-  COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py $<TARGET_FILE_DIR:pokestadium>/pokestadium.o2r
-          ${PORT_O2R_EXTRA}
+  file(GLOB_RECURSE PORT_WEB_RESOURCE_INPUTS CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*
+       ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png
+       ${CMAKE_CURRENT_SOURCE_DIR}/ghostship-ref/port/fonts/*)
+  set_property(TARGET pokestadium APPEND PROPERTY LINK_DEPENDS
+               ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
+               ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt ${PORT_WEB_RESOURCE_INPUTS})
+  add_custom_command(TARGET pokestadium POST_BUILD
+    COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
+            $<TARGET_FILE_DIR:pokestadium>/pokestadium.o2r ${PORT_O2R_EXTRA}
+    COMMENT "Packing web resources")
+else()
+# Runtime resources (shaders, fonts, the shader warm-up list, launcher pictures) packed into pokestadium.o2r and built
+# into the executable as a C array (tools/make_o2r.py --c): no separate file to lose or damage. The archive itself is
+# left in generated/ for inspection.
+file(GLOB_RECURSE PORT_O2R_INPUTS CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*
+     ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png
+     ${CMAKE_CURRENT_SOURCE_DIR}/ghostship-ref/port/fonts/*)
+add_custom_command(
+  OUTPUT ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c
+  COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
+          ${CMAKE_BINARY_DIR}/generated/pokestadium.o2r --c ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt
+          ${PORT_O2R_INPUTS}
   COMMENT "Packing pokestadium.o2r")
+target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c)
 endif()
 
 # Debug aid: cmake -DPORT_ASAN=ON builds the game code and the port layer with AddressSanitizer (finds the

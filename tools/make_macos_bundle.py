@@ -4,11 +4,9 @@
 Usage: tools/make_macos_bundle.py <build dir> <output .app> [version] [icon .png]
 
 - Contents/MacOS/pokestadium: the game; started without arguments it shows the launcher (src/port/launcher.cpp)
-- Contents/Resources/pokestadium.o2r: found there through libultraship's bundle path (NSBundle resourcePath)
 - Contents/Frameworks: the non-system dylibs (Homebrew's SDL3, GLEW, libzip, ...) and theirs, with every reference
   rewritten to @rpath, so the app runs without Homebrew
-- Info.plist: LSEnvironment sets SHIP_HOME to ~/Library/Application Support/<bundle id> (config, logs and default saves
-  go there; libultraship creates the folder), as Lighthouse does
+- Config, logs and saves live beside the .app, outside the signed bundle; a missing config is generated on first start.
 - an icon: tools/macos/AppIcon.png ("POKéMON STADIUM" lettering, drawn by tools/macos_icon.swift) or the given
   picture; and an ad-hoc signature (needed after install_name_tool; not notarized: the first
   start of a downloaded copy needs "Open Anyway" or `xattr -dr com.apple.quarantine`)
@@ -106,10 +104,6 @@ PLIST = """<?xml version="1.0" encoding="UTF-8"?>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>NSHighResolutionCapable</key><true/>
-    <key>LSEnvironment</key>
-    <dict>
-        <key>SHIP_HOME</key><string>~/Library/Application Support/{bid}</string>
-    </dict>
 </dict>
 </plist>
 """
@@ -126,7 +120,6 @@ def main():
         os.makedirs(d)
     exe = os.path.join(macos, "pokestadium")
     shutil.copy2(os.path.join(build, "pokestadium"), exe)
-    shutil.copy2(os.path.join(build, "pokestadium.o2r"), os.path.join(res, "pokestadium.o2r"))
     with open(os.path.join(app, "Contents", "Info.plist"), "w") as f:
         f.write(PLIST.format(bid=BUNDLE_ID, ver=version))
     icon = os.path.abspath(sys.argv[4]) if len(sys.argv) > 4 else os.path.join(root, "tools/macos/AppIcon.png")
@@ -139,6 +132,7 @@ def main():
     if left:
         print("still outside the bundle:", ", ".join(sorted(set(left))))
         sys.exit(1)
+    subprocess.run([sys.executable, "-I", os.path.join(root, "tools", "check_build_paths.py"), app], check=True)
     print("wrote", app)
 
 

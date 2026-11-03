@@ -1,3 +1,5 @@
+#include "launcher_reliability.h"
+#include "launcher_files.h"
 #include <unordered_set>
 #include "port_platform.h"
 // Host stand-ins for the N64 hardware the game talks to through libultra: cartridge ROM (PI DMA),
@@ -6,6 +8,7 @@
 #include <port_compat.h>
 
 #include "Engine.h"
+#include "file_io.h"
 #include "interp.h"
 #include "pacing.h"
 
@@ -21,6 +24,8 @@
 #include <cstring>
 #include <string>
 #include <deque>
+#include <future>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -56,7 +61,7 @@ OSPiHandle gCartHandle, gDriveHandle;
 } // namespace
 
 bool Port::LoadRom(const char* path) {
-    FILE* f = fopen(path, "rb");
+    FILE* f = OpenFileUtf8(path, "rb");
     if (!f) {
         return false;
     }
@@ -117,6 +122,8 @@ u32 gFlashStatus = 0;
 size_t gFlashEraseFirstPage = 0;
 bool gFlashEraseChip = false;
 bool gFlashLoaded = false;
+bool gFlashBankWrite = false;
+bool gFlashBankWriteDirty = false;
 
 std::string FlashPath() {
     const char* p = getenv("PORT_FLASH_FILE");
@@ -126,23 +133,39 @@ std::string FlashPath() {
 void FlashLoad() {
     if (gFlashLoaded) return;
     gFlashLoaded = true;
-    if (FILE* f = fopen(FlashPath().c_str(), "rb")) {
+    if (FILE* f = Port::OpenFileUtf8(FlashPath().c_str(), "rb")) {
         size_t n = fread(gFlash.data(), 1, gFlash.size(), f);
-        (void)n;
+        if (getenv("PORT_TRACE_FLASH")) fprintf(stderr, "[flash] loaded %zu bytes from %s\n", n, FlashPath().c_str());
         fclose(f);
     }
 }
 
 void FlashSave() {
-    if (FILE* f = fopen(FlashPath().c_str(), "wb")) {
-        fwrite(gFlash.data(), 1, gFlash.size(), f);
-        fclose(f);
+    if (gFlashBankWrite) {
+        gFlashBankWriteDirty = true;
+        return;
+    }
+    std::string error;
+    if (!Port::WriteProtectedSave(std::filesystem::u8path(FlashPath()), gFlash.data(), gFlash.size(), error)) {
+        Port::ReportSaveFailure(error);
+        fprintf(stderr, "[flash] SAVE FAILED: %s\n", error.c_str());
+    } else {
         Port_SaveWritten();
     }
 }
 
 bool IsFlash(OSPiHandle* h) { return h->type == DEVICE_TYPE_FLASH; }
 } // namespace
+
+extern "C" void Port_BeginFlashBankWrite() {
+    gFlashBankWrite = true;
+    gFlashBankWriteDirty = false;
+}
+
+extern "C" void Port_EndFlashBankWrite() {
+    gFlashBankWrite = false;
+    if (gFlashBankWriteDirty) FlashSave();
+}
 
 s32 osEPiWriteIo(OSPiHandle* h, u32 devAddr, u32 data) {
     if (!IsFlash(h)) return 0;
@@ -296,13 +319,15 @@ u32 osDpGetCounters(u32* buf) {
 extern "C" uint64_t Port_GpuDrawStamp(const void* address);
 static std::mutex gSwapLock;
 static void* gViPending = nullptr;
+static void* gViCurrent = nullptr;
 static std::unordered_map<const void*, uint64_t> gViStampAtLastSwap; // per frame buffer
 static bool gViBlack = false;
 static float gViXScale = 1.0f;
 
 static std::condition_variable gSwapDone;
-// PORT: every address the game has shown with osViSwapBuffer; the renderer uses it to tell full-screen-sized
-// pictures drawn for use as textures (Gallery enlarge: a 640x480 photo) from frame buffers
+// PORT: every address the game has shown with osViSwapBuffer, or submitted a frame's display task for; the renderer
+// uses it to tell full-screen-sized pictures drawn for use as textures (Gallery enlarge: a 640x480 photo) from frame
+// buffers
 static std::mutex gViFbLock;
 static std::unordered_set<uintptr_t> gViFbs;
 extern "C" int Port_ViFrameBufferState(const void* addr) { // -1: none shown yet, 1: shown, 0: never shown
@@ -310,7 +335,20 @@ extern "C" int Port_ViFrameBufferState(const void* addr) { // -1: none shown yet
     if (gViFbs.size() < 2) return -1;
     return gViFbs.count((uintptr_t)addr) ? 1 : 0;
 }
+// The display worker's frame buffer for the task it submits (dp_intro.c DisplayTask_Submit). A scene's new frame
+// buffers were only known after their first swap, so their first frame was rendered as an off-screen picture and the
+// swap presented the buffer's RAM instead: one black frame after the title (Game Pak check, first time after boot).
+extern "C" void Port_NoteFrameBuffer(const void* fb) {
+    if (fb == nullptr) return;
+    std::lock_guard<std::mutex> g(gViFbLock);
+    gViFbs.insert((uintptr_t)fb);
+}
 extern "C" bool Port_Lockstep();
+void* port_osViGetCurrentFramebuffer(void) {
+    std::lock_guard<std::mutex> g(gSwapLock);
+    return gViCurrent;
+}
+
 void port_osViSwapBuffer(void* fb) {
     {
         std::lock_guard<std::mutex> v(gViFbLock);
@@ -350,11 +388,52 @@ void port_osViSetXScale(f32 scale) {
 // The libultraship implementation, reached through its real symbol name (the macro in port_compat.h renames the
 // game's calls to the wrapper below).
 #if defined(__APPLE__)
+extern "C" int32_t LUS_osContInit(OSMesgQueue* mq, uint8_t* bits, OSContStatus* status) __asm__("_osContInit");
 extern "C" int32_t LUS_osContStartReadData(OSMesgQueue* mq) __asm__("_osContStartReadData");
 #else
+extern "C" int32_t LUS_osContInit(OSMesgQueue* mq, uint8_t* bits, OSContStatus* status) __asm__("osContInit");
 extern "C" int32_t LUS_osContStartReadData(OSMesgQueue* mq) __asm__("osContStartReadData");
 #endif
 extern "C" void port_WakeQueue(OSMesgQueue* mq);
+
+struct ControllerInitRequest {
+    OSMesgQueue* mq;
+    uint8_t* bits;
+    OSContStatus* status;
+    std::promise<s32> completion;
+};
+static std::mutex gControllerInitLock;
+static std::deque<std::shared_ptr<ControllerInitRequest>> gControllerInitRequests;
+
+extern "C" s32 port_osContInit(OSMesgQueue* mq, u8* bits, OSContStatus* status) {
+    auto request = std::make_shared<ControllerInitRequest>();
+    request->mq = mq;
+    request->bits = bits;
+    request->status = status;
+    auto completion = request->completion.get_future();
+    {
+        std::lock_guard<std::mutex> lock(gControllerInitLock);
+        gControllerInitRequests.push_back(request);
+    }
+    // Keep the virtual game thread runnable while the host waits. Releasing its scheduler token would let
+    // retraces advance during initialization and change the replay's initial clock and RNG seed.
+    return completion.get();
+}
+
+extern "C" void Port_ProcessControllerInitRequests(void) {
+    for (;;) {
+        std::shared_ptr<ControllerInitRequest> request;
+        {
+            std::lock_guard<std::mutex> lock(gControllerInitLock);
+            if (gControllerInitRequests.empty()) return;
+            request = gControllerInitRequests.front();
+            gControllerInitRequests.pop_front();
+        }
+        // Both initialization and polling run on the window thread: the CVar map and partially installed
+        // controller mappings must never be read by polling while initialization is changing them.
+        request->completion.set_value(LUS_osContInit(request->mq, request->bits, request->status));
+    }
+}
 
 extern "C" s32 port_osContStartReadData(OSMesgQueue* mq) {
     // libultraship reads the pads synchronously in osContGetReadData and never posts the SI completion the game
@@ -549,6 +628,11 @@ extern "C" int Port_LoadWaits(void) {
     return on;
 }
 
+extern "C" int Port_PacedLogoHold(void) {
+    static const int on = Switch("PORT_PACED_LOGO_HOLD", "# paced logo hold", "paced logo hold");
+    return on;
+}
+
 // The controllers plugged into the N64, as the game's controller bits (bit 0 = controller 1). libultraship's
 // ControlDeck::Init reports only controller 1, which greys out every multiplayer choice (Free Battle with 2-4
 // players, team battles, minigames for several players). Controller 1 is always plugged in; controllers 2-4 when the
@@ -657,6 +741,9 @@ void InputInit() {
         }
         if (Port_LoadWaits()) {
             fprintf(gRecord, "# load waits\n"); // (see Port_LoadWaits)
+        }
+        if (Port_PacedLogoHold()) {
+            fprintf(gRecord, "# paced logo hold\n");
         }
         if (Port_ControllerBits() != 1) { // the controllers plugged in (see Port_ControllerBits)
             fprintf(gRecord, "# controllers");
@@ -1043,6 +1130,16 @@ void port_osCreateViManager(OSPri) {
 
 } // extern "C"
 
+// The comparison runner supplies an observed N64 retrace schedule for battle frames.
+extern "C" void Port_XcheckWaitRetraces(uint64_t retraces) {
+    OSMesgQueue queue;
+    OSMesg message;
+    OSTimer timer;
+    osCreateMesgQueue(&queue, &message, 1);
+    osSetTimer(&timer, retraces * (46875000 / 60), 0, &queue, nullptr);
+    osRecvMesg(&queue, nullptr, OS_MESG_BLOCK);
+}
+
 // ---- RSP / RDP tasks --------------------------------------------------------------------------------
 
 extern "C" void Port_RunJpegTask(void* data);
@@ -1223,6 +1320,7 @@ static void TryPresentCpuFrame() {
         }
         if (gViPending != nullptr && !gfxQueued) {
             fb = gViPending;
+            gViCurrent = fb;
             gViPending = nullptr;
             gSwapDone.notify_all();
         }
