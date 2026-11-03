@@ -58,6 +58,7 @@ set(PORT_MAIN_SOURCES
   src/port/pacing.cpp
   src/port/interp.cpp
   src/port/launcher.cpp
+  src/port/launcher_files.cpp
   src/port/rom_check.cpp
   src/port/shader_warmup.cpp
   src/port/touch_controls.cpp

@@ -129,6 +129,21 @@ and Debug adds a save-editor button (needs python3). Screen picks the picture's 
 overrides it). Renderer cycles through the graphics APIs the build has (DX11, OpenGL, Metal, Vulkan); the choice
 applies the next time the game starts. With a ROM path as argument the game starts right away:
 `cd build && ./pokestadium "/path/to/Pokemon Stadium (USA).z64"`.
+
+On desktop systems, `pokestadium.cfg.json`, logs and the default `saves/` folder follow the launcher rather than the
+working directory: beside the executable on Windows and bare Linux/macOS builds, beside the `.app` on macOS, and
+beside the original `.AppImage` on Linux (outside its read-only mount). The macOS `.command` helper keeps them beside
+the script. Android uses its writable app-files directory, since installed APKs and native libraries are read-only.
+A missing config is generated on first start; an existing one in that data folder is reused. Move the config and
+`saves/` with the launcher to keep settings and progress. Paths to ROMs and saves inside that folder are stored
+relatively. `SHIP_HOME` explicitly overrides the data folder on every platform, including relative paths and `~/`.
+The legacy macOS AppKit frontend uses the same JSON schema and migrates its known UserDefaults choices when creating
+its first config; it preserves window/controller settings written by the game.
+
+**Import save** loads an existing raw 128 KiB Pokémon Stadium (USA) N64 cartridge save (`.flash`, `.fla`, `.sra`, `.sav`
+or `.bin`). Native and common byte-swapped emulator dumps are recognized by their record checksums. A working copy
+is created in `saves/`; the original and earlier imports are left untouched. Save states, Controller Pak files and
+saves for other games are not Stadium cartridge saves. With no imported save, the game creates a fresh default save.
 Useful environment variables (all in PORTING_NOTES.md): `PORT_FLASH_FILE` (Stadium save), `PORT_GB_ROM` /
 `PORT_GB_SAVE` (Transfer Pak cartridge of player 1; `PORT_GB_ROM2..4` for the others), `PORT_SOUND=0` (no sound
 output; it is on by default at normal speed).

@@ -488,7 +488,7 @@ static void MaybeScreenshot() {
 
 // Saves the picture just drawn as an 8-bit PPM (interp.cpp: in-between frames).
 void SaveScreen(const char* path) {
-    int w = 0, h = 0;
+    int w = static_cast<int>(sWindow->GetWidth()), h = static_cast<int>(sWindow->GetHeight());
     int count = 0;
     if (SDL_Window** ws = SDL_GetWindows(&count)) {
         if (count > 0) SDL_GetWindowSizeInPixels(ws[0], &w, &h);

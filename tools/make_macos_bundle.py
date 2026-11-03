@@ -6,8 +6,7 @@ Usage: tools/make_macos_bundle.py <build dir> <output .app> [version] [icon .png
 - Contents/MacOS/pokestadium: the game; started without arguments it shows the launcher (src/port/launcher.cpp)
 - Contents/Frameworks: the non-system dylibs (Homebrew's SDL3, GLEW, libzip, ...) and theirs, with every reference
   rewritten to @rpath, so the app runs without Homebrew
-- Info.plist: LSEnvironment sets SHIP_HOME to ~/Library/Application Support/<bundle id> (config, logs and default saves
-  go there; libultraship creates the folder), as Lighthouse does
+- Config, logs and saves live beside the .app, outside the signed bundle; a missing config is generated on first start.
 - an icon: tools/macos/AppIcon.png ("POKéMON STADIUM" lettering, drawn by tools/macos_icon.swift) or the given
   picture; and an ad-hoc signature (needed after install_name_tool; not notarized: the first
   start of a downloaded copy needs "Open Anyway" or `xattr -dr com.apple.quarantine`)
@@ -105,10 +104,6 @@ PLIST = """<?xml version="1.0" encoding="UTF-8"?>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>NSHighResolutionCapable</key><true/>
-    <key>LSEnvironment</key>
-    <dict>
-        <key>SHIP_HOME</key><string>~/Library/Application Support/{bid}</string>
-    </dict>
 </dict>
 </plist>
 """

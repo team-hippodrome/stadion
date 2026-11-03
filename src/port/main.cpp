@@ -3,6 +3,7 @@
 #include "interp.h"
 #include "port_platform.h"
 #include "launcher.h"
+#include "launcher_files.h"
 #ifdef ENABLE_VULKAN
 #include <fast/backends/gfx_vulkan.h>
 #endif
@@ -205,6 +206,7 @@ static void LoadEnvFile() {
             continue;
         }
         setenv(line.substr(0, eq).c_str(), line.substr(eq + 1).c_str(), 1);
+        SDL_SetEnvironmentVariable(SDL_GetEnvironment(), line.substr(0, eq).c_str(), line.substr(eq + 1).c_str(), true);
         fprintf(stderr, "port_env.txt: %s\n", line.c_str());
     }
 }
@@ -236,6 +238,21 @@ static int RunGame(int argc, char** argv) {
     ForwardStdioToLogcat();
     LoadEnvFile();
 #endif
+    // The legacy macOS frontend shares the native cartridge-save importer instead of maintaining another format reader.
+    if (argc > 1 && strcmp(argv[1], "--import-stadium-save") == 0) {
+        if (argc != 3) {
+            fprintf(stderr, "Usage: pokestadium --import-stadium-save <raw cartridge save>\n");
+            return 1;
+        }
+        std::string imported, error;
+        if (!Port::ImportStadiumSave(std::filesystem::u8path(argv[2]), std::filesystem::u8path(Port::AppPath("")),
+                                     imported, error)) {
+            fprintf(stderr, "%s\n", error.c_str());
+            return 1;
+        }
+        printf("%s\n", imported.c_str());
+        return 0;
+    }
     // The port tells N64 addresses (below 4 GB) from host pointers; keep host allocations above 4 GB (Windows).
     Port_ReserveLowAddressSpace();
     Port_AltSignalStack();

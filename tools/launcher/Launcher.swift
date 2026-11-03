@@ -1,6 +1,6 @@
 // Pokémon Stadium launcher (macOS port): pick the Stadium ROM + save and up to four Game Boy cartridges + saves for
-// the players' Transfer Paks, then PLAY starts build/pokestadium. Everything is preselected (Stadium ROM, saves, German
-// Pokémon Yellow on player 1) and remembered between runs. Styled after the PokemonStadiumRecomp launcher.
+// the players' Transfer Paks, then PLAY starts build/pokestadium. Choices use the shared portable JSON config.
+// Styled after the PokemonStadiumRecomp launcher.
 // Plain AppKit (the command-line tools lack SwiftUI's macro plugins). Built into "Pokemon Stadium.app" by
 // tools/make_app.sh. Debug option (checkbox, off by default): a "Save editor" button opens tools/save_editor's web UI on
 // the Stadium save. Test hooks: LAUNCHER_SNAPSHOT=<png> (save the window picture and quit), LAUNCHER_AUTOPLAY=1,
@@ -23,15 +23,18 @@ let projectDir: String = {
 }()
 
 enum Defaults {
-    static let rom = "/Users/michael/Downloads/romis/Pokemon Stadium (USA).z64"
-    static let yellowRom = "/Users/michael/Downloads/Pokemon - Gelbe Edition - Special Pikachu Edition (Germany) (GBC,SGB Enhanced).gb"
-    static var saves: String { projectDir + "/saves" }
+    static let rom = ""
+    static let yellowRom = ""
+    static var saves: String { launcherDirectory.path + "/saves" }
     static var stadiumSave: String { saves + "/stadium.flash" }
     static var yellowSave: String { saves + "/yellow.sav" }
     static let stadiumSha1 = "ed7bef5a306f88c0a6e96b15e71fee2ef32058f3" // Pokémon Stadium (USA) v1.0
 }
 
-let store = UserDefaults.standard
+let launcherDirectory = portableLauncherDirectory(bundle: Bundle.main.bundleURL,
+                                                  executable: Bundle.main.executableURL,
+                                                  environment: ProcessInfo.processInfo.environment)
+let store = PortableLauncherStore(directory: launcherDirectory, legacy: UserDefaults.standard.dictionaryRepresentation())
 
 func asset(_ name: String) -> NSImage? {
     if let p = Bundle.main.path(forResource: name, ofType: "png") { return NSImage(contentsOfFile: p) }
@@ -210,7 +213,7 @@ final class PlayerCard: NSObject {
         self.index = index
         rom = store.string(forKey: "p\(index)_rom") ?? (index == 0 ? Defaults.yellowRom : "")
         save = store.string(forKey: "p\(index)_save") ?? (index == 0 ? Defaults.yellowSave : "")
-        isOn = store.object(forKey: "p\(index)_on") as? Bool ?? (index == 0)
+        isOn = store.object(forKey: "p\(index)_on") as? Bool ?? false
         view = makeCard(frame)
         super.init()
 
@@ -613,6 +616,8 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenu()
+        if let error = store.lastError { fail(error); NSApp.terminate(nil); return }
+        store.onError = { [weak self] message in self?.fail(message) }
         let env = ProcessInfo.processInfo.environment
         // Auto-play: start right away (hold ⌥ Option while opening the app to get the launcher)
         if store.bool(forKey: "autoplay") && !NSEvent.modifierFlags.contains(.option) && env["LAUNCHER_SNAPSHOT"] == nil {
@@ -665,7 +670,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         bar.addSubview(changeRom)
         saveLabel.frame = NSRect(x: 246, y: 61, width: 200, height: 16)
         bar.addSubview(saveLabel)
-        let changeSave = button("Change save", self, #selector(pickSave))
+        let changeSave = button("Import save", self, #selector(pickSave))
         changeSave.frame = NSRect(x: 450, y: 56, width: 100, height: 26)
         bar.addSubview(changeSave)
         editorButton = button("Save editor", self, #selector(openEditorButton))
@@ -789,10 +794,13 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @objc func pickSave() {
-        if let p = choosePath(save: true, current: save, types: ["flash", "fla"],
-                              message: "Stadium FlashRAM save (existing or new)") {
-            save = p
-            refreshRom()
+        if let p = choosePath(save: false, current: save, types: ["flash", "fla", "sra", "sav", "bin"],
+                              message: "Import a raw 128 KiB Stadium cartridge save; the original is kept") {
+            do {
+                save = try importStadiumSave(executable: URL(fileURLWithPath: projectDir + "/build/pokestadium"),
+                                            source: URL(fileURLWithPath: p), directory: launcherDirectory)
+                refreshRom()
+            } catch { fail(error.localizedDescription) }
         }
     }
 
@@ -859,13 +867,14 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         var env = ProcessInfo.processInfo.environment
         try? fm.createDirectory(atPath: Defaults.saves, withIntermediateDirectories: true)
         try? fm.createDirectory(atPath: (save as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
+        env["SHIP_HOME"] = launcherDirectory.path
         env["PORT_FLASH_FILE"] = save
         let romVars = ["PORT_GB_ROM", "PORT_GB_ROM2", "PORT_GB_ROM3", "PORT_GB_ROM4"]
         let saveVars = ["PORT_GB_SAVE", "PORT_GB_SAVE2", "PORT_GB_SAVE3", "PORT_GB_SAVE4"]
         // the cards exist only when the window was shown; with auto-play the stored choices are used
         let slots: [(on: Bool, rom: String, save: String)] = (0..<4).map { i in
             if i < cards.count { return (cards[i].isOn, cards[i].rom, cards[i].save) }
-            return (store.object(forKey: "p\(i)_on") as? Bool ?? (i == 0),
+            return (store.object(forKey: "p\(i)_on") as? Bool ?? false,
                     store.string(forKey: "p\(i)_rom") ?? (i == 0 ? Defaults.yellowRom : ""),
                     store.string(forKey: "p\(i)_save") ?? (i == 0 ? Defaults.yellowSave : ""))
         }
@@ -920,8 +929,14 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 }
 
-let app = NSApplication.shared
-let delegate = Launcher()
-app.delegate = delegate
-app.setActivationPolicy(.regular)
-app.run()
+@main
+@MainActor
+struct LauncherApp {
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = Launcher()
+        app.delegate = delegate
+        app.setActivationPolicy(.regular)
+        withExtendedLifetime(delegate) { app.run() }
+    }
+}
