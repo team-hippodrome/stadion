@@ -221,9 +221,34 @@ target_include_directories(port_os PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include/libultraship)
 set(PORT_BUILD_DESCRIPTION "${PORT_VERSION} (${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}, ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION})")
-if(DEFINED ENV{GITHUB_SHA})
-  string(APPEND PORT_BUILD_DESCRIPTION " revision $ENV{GITHUB_SHA}")
+set(PORT_SOURCE_REVISION "" CACHE STRING "Source commit for this build (auto-detected in Git checkouts)")
+if(NOT PORT_SOURCE_REVISION)
+  find_package(Git QUIET)
+  if(Git_FOUND)
+    execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --verify HEAD
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                    OUTPUT_VARIABLE PORT_SOURCE_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if(PORT_SOURCE_REVISION)
+      execute_process(COMMAND ${GIT_EXECUTABLE} symbolic-ref -q HEAD
+                      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                      OUTPUT_VARIABLE PORT_GIT_REF OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+      foreach(PORT_GIT_FILE HEAD "${PORT_GIT_REF}" packed-refs)
+        if(PORT_GIT_FILE)
+          execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --path-format=absolute --git-path "${PORT_GIT_FILE}"
+                          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                          OUTPUT_VARIABLE PORT_GIT_PATH OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+          if(EXISTS "${PORT_GIT_PATH}")
+            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PORT_GIT_PATH}")
+          endif()
+        endif()
+      endforeach()
+    endif()
+  endif()
 endif()
+if(NOT PORT_SOURCE_REVISION)
+  set(PORT_SOURCE_REVISION "unknown")
+endif()
+string(APPEND PORT_BUILD_DESCRIPTION " revision ${PORT_SOURCE_REVISION}")
 target_compile_definitions(pokestadium PRIVATE PORT_BUILD_VERSION="${PORT_BUILD_DESCRIPTION}")
 target_compile_definitions(port_os PRIVATE LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 NDEBUG _FINALROM N_MICRO VERSION_US BUILD_VERSION=VERSION_I_P)
 target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/port_compat.h

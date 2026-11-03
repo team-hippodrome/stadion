@@ -1,5 +1,14 @@
 # Native Windows validation
 
+For a visible window smoke test, run this on an interactive Windows desktop
+with Pillow installed. It uses F11 and Alt-Tab, resizes the game, and moves the
+window to another display when one is available. Keep the desktop idle while
+the test runs. Captures and results are written to the output directory.
+
+```powershell
+python tools/windows_window_smoke.py --bin build-win/pokestadium.exe --rom 'C:/path/to/Pokemon Stadium (USA).z64' --out build-win/validation/window-smoke
+```
+
 `run_replays.py` accepts `--port-bin`, `--backend directx|opengl|vulkan`, `--out`, and
 `--reference-dir` in addition to its existing arguments. Each case uses a fresh save
 copy, isolated settings, and a hidden rendered window. Missing Game Boy inputs are

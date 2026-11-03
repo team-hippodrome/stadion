@@ -127,7 +127,9 @@ remembered (`pokestadium.cfg.json`); Auto-play skips the launcher next time (hol
 and Debug adds a save-editor button (needs python3). Screen picks the picture's shape, 4:3 (the N64's) or 16:9
 (widescreen: 3D scenes show more at the sides); a window of another shape gets black bars (`PORT_ASPECT=4:3|16:9`
 overrides it). Renderer cycles through the graphics APIs the build has (DX11, OpenGL, Metal, Vulkan); the choice
-applies the next time the game starts. With a ROM path as argument the game starts right away:
+applies the next time the game starts. On Windows, **Restart and apply** reopens the launcher with the selected
+renderer. If the renderer falls back, the launcher shows the active renderer next to the selection.
+With a ROM path as argument the game starts right away:
 `cd build && ./pokestadium "/path/to/Pokemon Stadium (USA).z64"`.
 
 On desktop systems, `pokestadium.cfg.json`, logs and the default `saves/` folder follow the launcher rather than the
