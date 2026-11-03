@@ -51,7 +51,7 @@ bool ListFromEnvironment();
 // The program's arguments, for Restart (main.cpp)
 void SetCommandLine(int argc, char** argv);
 // Starts the program again with the same arguments (mods are only mounted at start). false where that is not
-// possible (Android): the player restarts the app.
+// possible (Android, web): the player restarts the app.
 bool Restart();
 
 } // namespace Port::Mods

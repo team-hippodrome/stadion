@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pokémon Stadium</title>
+<style>
+  :root { color-scheme: dark; --bg: #101014; --panel: #1c1c24; --text: #e8e8ee; --muted: #9a9aa8; --accent: #e3350d; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  canvas#canvas { display: block; width: 100vw; height: 100vh; background: #000; outline: none; }
+  #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px;
+    background: var(--bg); }
+  #overlay[hidden] { display: none; }
+  .panel { max-width: 30rem; width: 100%; background: var(--panel); border-radius: 12px; padding: 24px; }
+  h1 { margin: 0 0 8px; font-size: 1.4rem; }
+  p { margin: 8px 0; }
+  .muted { color: var(--muted); font-size: 0.9rem; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  button, label.button { appearance: none; border: 0; border-radius: 8px; padding: 10px 16px; font: inherit;
+    cursor: pointer; background: #2c2c38; color: var(--text); }
+  button.primary, label.primary { background: var(--accent); color: #fff; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  input[type=file] { display: none; }
+  #status { min-height: 1.5em; }
+  label.check { display: flex; gap: 8px; align-items: center; margin-top: 16px; cursor: pointer; }
+  #fullscreen { position: fixed; top: 12px; right: 12px; z-index: 2; padding: 8px 12px; background: rgba(28, 28, 36, 0.8); }
+  #fullscreen[hidden] { display: none; }
+  /* touch screens: the on-screen controller has R in the top right corner */
+  @media (pointer: coarse) { #fullscreen { right: auto; left: 50%; transform: translateX(-50%); } }
+  #status.error { color: #ff7a6b; }
+  details { margin-top: 16px; }
+  summary { cursor: pointer; color: var(--muted); }
+</style>
+</head>
+<body>
+<canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+<button id="fullscreen" hidden title="Fullscreen">⛶ Fullscreen</button>
+<div id="overlay">
+  <div class="panel">
+    <h1>Pokémon Stadium</h1>
+    <p id="status">Loading…</p>
+    <div id="pick" hidden>
+      <p>Choose your own ROM of <i>Pokémon Stadium (USA)</i> (.z64). It stays in this browser: nothing is uploaded.</p>
+      <div class="row"><label class="button primary">Choose ROM…<input id="romFile" type="file" accept=".z64,.n64,.v64,.bin"></label></div>
+    </div>
+    <div id="ready" hidden>
+      <p class="muted">Your ROM is stored in this browser. Saves are kept here too.</p>
+      <div class="row">
+        <button id="play" class="primary">Play</button>
+        <button id="forget">Forget ROM</button>
+      </div>
+      <label class="check"><input id="smooth" type="checkbox" checked> Smoother motion (in-between frames, 60 FPS)</label>
+      <details>
+        <summary>Saves and Transfer Pak</summary>
+        <p class="muted">Stadium save: export it as a file, or replace it with one from the desktop version
+          (<code>stadium.flash</code>).</p>
+        <div class="row">
+          <button id="exportSave">Export save</button>
+          <label class="button">Import save…<input id="saveFile" type="file"></label>
+        </div>
+        <p class="muted">Transfer Pak (player 1): a Game Boy cartridge and its save (.gb/.gbc and .sav).</p>
+        <div class="row">
+          <label class="button">Game Boy ROM…<input id="gbRomFile" type="file" accept=".gb,.gbc"></label>
+          <label class="button">Game Boy save…<input id="gbSaveFile" type="file" accept=".sav"></label>
+          <button id="gbClear">Remove</button>
+        </div>
+        <p id="gbInfo" class="muted"></p>
+      </details>
+      <p class="muted">Keys: X = A, Z = B, Enter = Start, arrows = control pad, Q/E = L/R, Shift or Space = Z,
+        I/J/K/L = C buttons, W/A/S/D = stick; gamepads work too, and touch screens get on-screen buttons.
+        Hold Tab to fast-forward.</p>
+    </div>
+  </div>
+</div>
+<script src="port.js"></script>
+</body>
+</html>

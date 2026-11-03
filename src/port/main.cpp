@@ -35,6 +35,10 @@
 #include <android/log.h>
 #include <fstream>
 #endif
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#include <fast/Fast3dWindow.h>
+#endif
 
 extern "C" void Main(void);
 extern "C" uint64_t Port_ViTick();
@@ -234,7 +238,60 @@ static bool RomIsOriginal(const std::string& path) {
     return false;
 }
 
+#if defined(__EMSCRIPTEN__)
+// Web build: the browser's main thread must return to its event loop for the canvas to show a frame, so the window loop
+// below runs one pass per animation frame (requestAnimationFrame): events, then display lists until a frame was drawn
+// or the time for this pass is up. The game threads (Web Workers) run on meanwhile, and so do the audio and JPEG tasks
+// (os_devices.cpp).
+static void WebLoopPass() {
+    static bool started = false;
+    if (!started) {
+        if (Port::PumpShaderWarmup()) return;
+        if (!Port::GetWindow()->IsRunning()) {
+            emscripten_cancel_main_loop();
+            return;
+        }
+        Main();
+        started = true;
+    }
+    if (!Port::PumpFrame()) {
+        Port::StopDevices();
+        Port_InputFinish();
+        emscripten_cancel_main_loop();
+        return;
+    }
+    const auto start = std::chrono::steady_clock::now();
+    const uint64_t drawn = Port::FramesDrawn();
+    do {
+        Port::PumpRspTasks();
+        Port::PumpInterpolation();
+        if (Port::FramesDrawn() != drawn) {
+            break;
+        }
+        Port::WaitForRspTasks(std::chrono::milliseconds(1));
+        // (not much longer: the browser's main thread spins while it waits, and the frame must reach the screen in time)
+    } while (std::chrono::steady_clock::now() - start < std::chrono::milliseconds(6));
+}
+
+// The absolute symbols of the web build (tools/gen_wasm_abs_syms.py) only come out right when their object is placed
+// first in memory; a wrong placement shows here instead of as wrong N64 addresses everywhere.
+extern "C" char port_abs_check[];
+static bool CheckAbsSymbols() {
+    if ((uintptr_t)port_abs_check != 0x12345670u) {
+        fprintf(stderr, "web build: absolute symbols are off (port_abs_check = %p); see tools/gen_wasm_abs_syms.py\n",
+                (void*)port_abs_check);
+        return false;
+    }
+    return true;
+}
+#endif
+
 static int RunGame(int argc, char** argv) {
+#if defined(__EMSCRIPTEN__)
+    if (!CheckAbsSymbols()) {
+        return 1;
+    }
+#endif
 #if defined(_WIN32)
     AttachToConsole();
 #endif
@@ -377,7 +434,17 @@ static int RunGame(int argc, char** argv) {
             return 1;
         }
     }
+#if defined(__EMSCRIPTEN__)
+    Port::BeginShaderWarmup();
+    emscripten_set_main_loop(WebLoopPass, 0, true); // does not return
+#else
+    if (!Port::RunShaderWarmup()) {
+        clearRecovery();
+        fflush(nullptr);
+        _exit(0);
+    }
     Main();
+#endif
     // The window must be driven from the process's main thread; game threads run on host threads.
     while (Port::PumpFrame()) {
         Port::PumpRspTasks();

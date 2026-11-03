@@ -10,6 +10,8 @@ if "--c" in args:
     i = args.index("--c")
     c_out = pathlib.Path(args[i + 1])
     del args[i:i + 2]
+# --add <archive name>=<file>: include generated web fragment ranges.
+extra = [value.split("=", 1) for flag, value in zip(args[1:], args[2:]) if flag == "--add"]
 out = pathlib.Path(args[0]) if args else root / "build/pokestadium.o2r"
 out.parent.mkdir(parents=True, exist_ok=True)
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
@@ -38,6 +40,8 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for p in sorted(fonts.rglob("*")):
             if p.is_file():
                 z.write(p, "fonts/" + p.relative_to(fonts).as_posix())
+    for name, path in extra:
+        z.write(path, name)
 print("wrote", out)
 if c_out is not None:
     data = out.read_bytes()

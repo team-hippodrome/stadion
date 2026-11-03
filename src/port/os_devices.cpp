@@ -122,6 +122,8 @@ u32 gFlashStatus = 0;
 size_t gFlashEraseFirstPage = 0;
 bool gFlashEraseChip = false;
 bool gFlashLoaded = false;
+bool gFlashBankWrite = false;
+bool gFlashBankWriteDirty = false;
 
 std::string FlashPath() {
     const char* p = getenv("PORT_FLASH_FILE");
@@ -139,15 +141,31 @@ void FlashLoad() {
 }
 
 void FlashSave() {
+    if (gFlashBankWrite) {
+        gFlashBankWriteDirty = true;
+        return;
+    }
     std::string error;
     if (!Port::WriteProtectedSave(std::filesystem::u8path(FlashPath()), gFlash.data(), gFlash.size(), error)) {
         Port::ReportSaveFailure(error);
         fprintf(stderr, "[flash] SAVE FAILED: %s\n", error.c_str());
+    } else {
+        Port_SaveWritten();
     }
 }
 
 bool IsFlash(OSPiHandle* h) { return h->type == DEVICE_TYPE_FLASH; }
 } // namespace
+
+extern "C" void Port_BeginFlashBankWrite() {
+    gFlashBankWrite = true;
+    gFlashBankWriteDirty = false;
+}
+
+extern "C" void Port_EndFlashBankWrite() {
+    gFlashBankWrite = false;
+    if (gFlashBankWriteDirty) FlashSave();
+}
 
 s32 osEPiWriteIo(OSPiHandle* h, u32 devAddr, u32 data) {
     if (!IsFlash(h)) return 0;
@@ -611,6 +629,11 @@ extern "C" int Port_LoadWaits(void) {
     return on;
 }
 
+extern "C" int Port_PacedLogoHold(void) {
+    static const int on = Switch("PORT_PACED_LOGO_HOLD", "# paced logo hold", "paced logo hold");
+    return on;
+}
+
 // The controllers plugged into the N64, as the game's controller bits (bit 0 = controller 1). libultraship's
 // ControlDeck::Init reports only controller 1, which greys out every multiplayer choice (Free Battle with 2-4
 // players, team battles, minigames for several players). Controller 1 is always plugged in; controllers 2-4 when the
@@ -732,6 +755,9 @@ void InputInit() {
         if (Port_LoadWaits()) {
             fprintf(gRecord, "# load waits\n"); // (see Port_LoadWaits)
         }
+        if (Port_PacedLogoHold()) {
+            fprintf(gRecord, "# paced logo hold\n");
+        }
         if (Port_ControllerBits() != 1) { // the controllers plugged in (see Port_ControllerBits)
             fprintf(gRecord, "# controllers");
             for (int i = 0; i < 4; i++) {
@@ -827,8 +853,22 @@ std::condition_variable gTaskQueuedCv; // the window loop waits on it (Port::Wai
 std::deque<OSTask*> gTasks;
 OSTask* gLoaded = nullptr;
 
+#if defined(__EMSCRIPTEN__)
+// Web build: the window loop runs once per animation frame (main.cpp), and the thread that submits a task waits for it,
+// so every task the window thread ran cost up to a frame of waiting (the lockstep clock waits too). Only display lists
+// need the window thread (WebGL); the tasks the host emulates on the CPU (audio, JPEG) run on a thread of their own.
+// The game has at most one task in flight, so their order stays as it was.
+std::deque<OSTask*> gCpuTasks;
+std::condition_variable gCpuTaskCv;
+#endif
+
 bool TasksDrained() {
     std::lock_guard<std::mutex> g(gTaskLock);
+#if defined(__EMSCRIPTEN__)
+    if (!gCpuTasks.empty()) {
+        return false;
+    }
+#endif
     return gTasks.empty() && gTasksProcessed == gTasksSubmitted;
 }
 
@@ -1118,6 +1158,39 @@ extern "C" void Port_XcheckWaitRetraces(uint64_t retraces) {
 
 // ---- RSP / RDP tasks --------------------------------------------------------------------------------
 
+extern "C" void Port_RunJpegTask(void* data);
+extern "C" void Port_RunAudioTask(const void* data, uint32_t size);
+
+#if defined(__EMSCRIPTEN__)
+// Runs the CPU-emulated tasks (gCpuTasks), as Port::PumpRspTasks does on the other platforms.
+static void Port_CpuTaskThread() {
+    for (;;) {
+        OSTask* t;
+        {
+            std::unique_lock<std::mutex> g(gTaskLock);
+            gCpuTaskCv.wait(g, [] { return !gCpuTasks.empty() || gStop; });
+            if (gStop) {
+                return;
+            }
+            t = gCpuTasks.front();
+        }
+        if (t->t.type == 4) { // M_NJPEGTASK
+            Port_RunJpegTask(t->t.data_ptr);
+        }
+        if (t->t.type == M_AUDTASK) {
+            Port_RunAudioTask(t->t.data_ptr, (uint32_t)t->t.data_size);
+        }
+        port_PostEvent(OS_EVENT_SP);
+        {
+            std::lock_guard<std::mutex> g(gTaskLock);
+            gCpuTasks.pop_front(); // (only now: TasksDrained must not see the task gone before its completion)
+            gTasksProcessed++;
+        }
+        gTaskDoneCv.notify_all();
+    }
+}
+#endif
+
 extern "C" {
 
 void osSpTaskLoad(OSTask* t) { gLoaded = t; }
@@ -1127,6 +1200,14 @@ void osSpTaskStartGo(OSTask* t) {
     static const bool asyncTasks = getenv("PORT_ASYNC_TASKS") != nullptr;
     if (trace) fprintf(stderr, "[sp] task type=%u flags=0x%x data=%p\n", (t ? t : gLoaded)->t.type, (t ? t : gLoaded)->t.flags, (void*)(t ? t : gLoaded)->t.data_ptr);
     std::unique_lock<std::mutex> g(gTaskLock);
+#if defined(__EMSCRIPTEN__)
+    if ((t ? t : gLoaded)->t.type != M_GFXTASK) {
+        static std::once_flag started;
+        std::call_once(started, [] { std::thread(Port_CpuTaskThread).detach(); });
+        gCpuTasks.push_back(t ? t : gLoaded);
+        gCpuTaskCv.notify_one();
+    } else
+#endif
     gTasks.push_back(t ? t : gLoaded);
     uint64_t mine = ++gTasksSubmitted;
     gTaskQueuedCv.notify_one();
@@ -1147,8 +1228,6 @@ void osSpTaskYield(void) {}
 
 } // extern "C"
 
-extern "C" void Port_RunJpegTask(void* data);
-extern "C" void Port_RunAudioTask(const void* data, uint32_t size);
 extern "C" void Port_RequestCapture(uint64_t frame);
 
 // PORT_STOP_AT / PORT_SHOT_AT=f1,f2,...: whether the frame drawn now is to be saved (and the run ended at the stop frame)

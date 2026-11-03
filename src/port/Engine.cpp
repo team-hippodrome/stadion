@@ -27,6 +27,7 @@
 #include <libultraship/bridge/gfxbridge.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -35,10 +36,16 @@
 #include <SDL3/SDL.h>
 #include <thread>
 #include <vector>
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
 
 namespace Fast {
 extern void* (*gPortAddressResolver)(uintptr_t);
 }
+#if defined(__EMSCRIPTEN__)
+extern "C" void Port_FragmentLoadRanges(const char* text);
+#endif
 extern "C" void* Port_ResolveN64Address(uintptr_t addr);
 
 extern "C" double Port_Speed();
@@ -158,8 +165,10 @@ static void EnsureControllerDb() {
     }
 }
 
+#if !defined(__EMSCRIPTEN__)
 extern "C" const unsigned char gPortO2r[]; // generated/pokestadium_o2r.c
 extern "C" const size_t gPortO2rSize;
+#endif
 
 bool Init() {
     Fast::gPortAddressResolver = Port_ResolveN64Address;
@@ -210,6 +219,14 @@ bool Init() {
         cvars->Save();
     }
 
+#if defined(__EMSCRIPTEN__)
+    // Web build: the canvas has devicePixelRatio pixels per point (HiDPI); the game is drawn at that resolution (at most
+    // twice the window's size in points) unless the player chose another one in the settings
+    if (CVarGetFloat("gInternalResolution", 0.0f) == 0.0f) {
+        cvars->SetFloat("gInternalResolution",
+                        (float)EM_ASM_DOUBLE({ return Math.min(Math.max(window.devicePixelRatio || 1, 1), 2); }));
+    }
+#endif
     // ImGui windows (tooltips, menus) stay inside the game window: with multi-viewports on, one that reached past its
     // edge became an OS window of its own, and the Metal backend crashed creating it (the launcher's wide tooltips)
     cvars->SetInteger("gEnableMultiViewports", 0);
@@ -260,19 +277,23 @@ bool Init() {
     // (an uncaught exception on Windows). A pokestadium.o2r left over from an older version is not read.
     std::string archiveError;
     try {
-        resourceManager->SetBuiltInArchive("pokestadium.o2r (built in)", gPortO2r, gPortO2rSize);
         nlohmann::json rmArgs;
+#if defined(__EMSCRIPTEN__)
+        rmArgs["archivePaths"] = std::vector<std::string>{ AppPath("pokestadium.o2r") };
+#else
+        resourceManager->SetBuiltInArchive("pokestadium.o2r (built in)", gPortO2r, gPortO2rSize);
         rmArgs["archivePaths"] = std::vector<std::string>{};
+#endif
         rmArgs["validHashes"] = std::vector<uint32_t>{};
         resourceManager->Init(rmArgs);
         if (!resourceManager->GetArchiveManager()->HasFile("port/shader_warmup.txt")) {
-            archiveError = "the built-in archive has no shader list";
+            archiveError = "the resource archive has no shader list";
         }
     } catch (const std::exception& e) {
         archiveError = e.what();
     }
     if (!archiveError.empty()) { // a broken build: the renderers would fail on the missing shaders
-        std::string message = "The game's built-in resources could not be loaded (" + archiveError + ").";
+        std::string message = "The game's resources could not be loaded (" + archiveError + ").";
         SPDLOG_CRITICAL("{}", message);
         fprintf(stderr, "%s\n", message.c_str());
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pokémon Stadium", message.c_str(), nullptr);
@@ -280,6 +301,17 @@ bool Init() {
     }
     // mods in <app dir>/mods, on top of pokestadium.o2r (mods.cpp)
     Mods::Mount();
+
+#if defined(__EMSCRIPTEN__)
+    // Web build: where each fragment's static data lies (tools/gen_frag_ranges.py), copied now, before the game runs, so
+    // that loading a fragment starts it fresh as on the N64 (Port_FragmentResetData in the generated frag_sections.c)
+    if (auto file = resourceManager->GetArchiveManager()->LoadFile("port/frag_ranges.txt"); file && file->Buffer) {
+        std::string text(file->Buffer->begin(), file->Buffer->end());
+        Port_FragmentLoadRanges(text.c_str());
+    } else {
+        SPDLOG_WARN("port/frag_ranges.txt missing: fragments keep their data between visits");
+    }
+#endif
 
     auto console = std::make_shared<Ship::Console>();
     sContext->GetChildren().Add(console);
@@ -317,7 +349,6 @@ bool Init() {
     sContext->GetChildren().Add(events);
     EventSystemSetEvents(events);
 
-    StartShaderWarmup();
     return true;
 }
 
@@ -565,6 +596,11 @@ bool TrackFrame(void* gfxCommands) {
     return false;
 }
 
+static std::atomic<uint64_t> sFramesDrawn{ 0 };
+uint64_t FramesDrawn() {
+    return sFramesDrawn.load(std::memory_order_relaxed);
+}
+
 bool RunFrame(void* gfxCommands) {
     return RunFrameWith(gfxCommands, nullptr, false);
 }
@@ -584,6 +620,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         interp->mReplayPass = true;
         interp->mReplayReadback = readBack; // (Metal reads the screen back at the end of the next frame)
         sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), replacements);
+        sFramesDrawn.fetch_add(1, std::memory_order_relaxed);
         interp->mReplayPass = false;
         interp->mReplayReadback = false;
         Port_PacingNote(PORT_PACE_DRAWN, Port_SteadyNs());
@@ -640,6 +677,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
     auto drawStart = std::chrono::steady_clock::now();
     Port_BeforePresent();
     sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), replacements);
+    sFramesDrawn.fetch_add(1, std::memory_order_relaxed);
     Port_PacingNote(PORT_PACE_DRAWN, Port_SteadyNs());
     if (tracePacing) { // PORT_TRACE_PACING=1: presented frames more than 40 ms apart, and slow draws (os_devices.cpp)
         static auto lastPresent = drawStart;

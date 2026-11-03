@@ -1,11 +1,15 @@
-// On-screen N64 controller for touch screens: shown on Android while no gamepad is connected (PORT_TOUCH_CONTROLS=1
-// shows it always, also on desktop for testing; =0 never). Analog stick bottom left with the D-pad above it, A, B and
-// the C buttons on the right, L and Z top left, R top right, Start at the bottom centre. Fingers are read from SDL's
-// touch state every frame (several at once: the stick and a button together) and act as controller 1, on top of
-// whatever the ControlDeck read; the overlay is drawn translucent over the game with ImGui.
+// On-screen N64 controller for touch screens: shown on Android and in the web build on touch screens while no gamepad
+// is connected (PORT_TOUCH_CONTROLS=1 shows it always, also on desktop for testing; =0 never). Analog stick bottom left
+// with the D-pad above it, A, B and the C buttons on the right, L and Z top left, R top right, Start at the bottom
+// centre. Fingers are read from SDL's touch state every frame (several at once: the stick and a button together) and
+// act as controller 1, on top of whatever the ControlDeck read; the overlay is drawn translucent over the game with
+// ImGui.
 #include "touch_controls.h"
 
 #include <SDL3/SDL.h>
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
 #include <imgui.h>
 #include <libultraship/libultraship.h>
 #include <ship/window/gui/Gui.h>
@@ -63,7 +67,14 @@ bool Enabled() {
     if (forced >= 0) {
         return forced != 0;
     }
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
+#if defined(__EMSCRIPTEN__)
+    // web build: on touch-first devices (phones, tablets: the primary pointer is coarse), as on Android
+    static const bool touchScreen = EM_ASM_INT({ return matchMedia("(pointer: coarse)").matches ? 1 : 0; }) != 0;
+    if (!touchScreen) {
+        return false;
+    }
+#endif
     int n = 0;
     SDL_JoystickID* pads = SDL_GetGamepads(&n);
     SDL_free(pads);

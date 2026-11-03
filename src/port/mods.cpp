@@ -496,7 +496,7 @@ void SetCommandLine(int argc, char** argv) {
 }
 
 bool Restart() {
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
     return false;
 #else
     std::string exe;
