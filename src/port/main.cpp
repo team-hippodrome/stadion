@@ -374,6 +374,11 @@ static int RunGame(int argc, char** argv) {
             return 1;
         }
     }
+    if (!Port::RunShaderWarmup()) {
+        clearRecovery();
+        fflush(nullptr);
+        _exit(0);
+    }
     Main();
     // The window must be driven from the process's main thread; game threads run on host threads.
     while (Port::PumpFrame()) {

@@ -314,7 +314,6 @@ bool Init() {
     sContext->GetChildren().Add(events);
     EventSystemSetEvents(events);
 
-    StartShaderWarmup();
     return true;
 }
 

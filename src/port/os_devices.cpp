@@ -122,6 +122,8 @@ u32 gFlashStatus = 0;
 size_t gFlashEraseFirstPage = 0;
 bool gFlashEraseChip = false;
 bool gFlashLoaded = false;
+bool gFlashBankWrite = false;
+bool gFlashBankWriteDirty = false;
 
 std::string FlashPath() {
     const char* p = getenv("PORT_FLASH_FILE");
@@ -139,6 +141,10 @@ void FlashLoad() {
 }
 
 void FlashSave() {
+    if (gFlashBankWrite) {
+        gFlashBankWriteDirty = true;
+        return;
+    }
     std::string error;
     if (!Port::WriteProtectedSave(std::filesystem::u8path(FlashPath()), gFlash.data(), gFlash.size(), error)) {
         Port::ReportSaveFailure(error);
@@ -148,6 +154,16 @@ void FlashSave() {
 
 bool IsFlash(OSPiHandle* h) { return h->type == DEVICE_TYPE_FLASH; }
 } // namespace
+
+extern "C" void Port_BeginFlashBankWrite() {
+    gFlashBankWrite = true;
+    gFlashBankWriteDirty = false;
+}
+
+extern "C" void Port_EndFlashBankWrite() {
+    gFlashBankWrite = false;
+    if (gFlashBankWriteDirty) FlashSave();
+}
 
 s32 osEPiWriteIo(OSPiHandle* h, u32 devAddr, u32 data) {
     if (!IsFlash(h)) return 0;
@@ -610,6 +626,11 @@ extern "C" int Port_LoadWaits(void) {
     return on;
 }
 
+extern "C" int Port_PacedLogoHold(void) {
+    static const int on = Switch("PORT_PACED_LOGO_HOLD", "# paced logo hold", "paced logo hold");
+    return on;
+}
+
 // The controllers plugged into the N64, as the game's controller bits (bit 0 = controller 1). libultraship's
 // ControlDeck::Init reports only controller 1, which greys out every multiplayer choice (Free Battle with 2-4
 // players, team battles, minigames for several players). Controller 1 is always plugged in; controllers 2-4 when the
@@ -718,6 +739,9 @@ void InputInit() {
         }
         if (Port_LoadWaits()) {
             fprintf(gRecord, "# load waits\n"); // (see Port_LoadWaits)
+        }
+        if (Port_PacedLogoHold()) {
+            fprintf(gRecord, "# paced logo hold\n");
         }
         if (Port_ControllerBits() != 1) { // the controllers plugged in (see Port_ControllerBits)
             fprintf(gRecord, "# controllers");

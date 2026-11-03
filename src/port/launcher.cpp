@@ -1728,7 +1728,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
         gSPEndDisplayList(&empty[0]);
         // test hook: PORT_LAUNCHER_PLAY_AFTER=<frames> presses PLAY after that many frames (when the ROM is valid)
         const char* playAfter = getenv("PORT_LAUNCHER_PLAY_AFTER");
-        // PORT_TRACE_PACING=1: launcher frames more than 40 ms apart (the shader warm-up runs meanwhile)
+        // PORT_TRACE_PACING=1: launcher frames more than 40 ms apart
         static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
         auto lastFrame = std::chrono::steady_clock::now();
         for (int frame = 0; !play && !quit && window->IsRunning(); frame++) {
