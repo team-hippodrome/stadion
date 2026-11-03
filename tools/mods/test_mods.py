@@ -46,7 +46,8 @@ def run(exe, home, mods_env=None, enabled=None, disabled=None):
                                                                      "Disabled": "|".join(disabled or [])}}}}))
     elif cfg.exists():
         cfg.unlink()
-    env = {k: v for k, v in os.environ.items() if not k.startswith("PORT_") and k != "SHIP_HOME"}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("PORT_")}
+    env["SHIP_HOME"] = str(home)  # the app folder (config, mods/); otherwise it is the executable's folder
     env["PORT_MODS_CHECK"] = "1"
     if mods_env is not None:
         env["PORT_MODS"] = mods_env
@@ -79,7 +80,7 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmp:
         home = pathlib.Path(tmp)
-        # the base archive is found next to the executable; the app folder (config, mods/) is the working directory
+        # the base archive is found next to the executable; the app folder (config, mods/) is SHIP_HOME
         mods = home / "mods"
         mods.mkdir()
         make_o2r(mods / "a.o2r", {"manifest.json": manifest("A"), PROBE: "a", BASE_FILE: b"a"})

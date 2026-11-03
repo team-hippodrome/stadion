@@ -11,6 +11,9 @@
 // Transfer Pak cards and the controls on pages of their own, everything reachable with the gamepad (D-pad or stick
 // moves the focus, A presses, B goes back) as well as by touch.
 #include "launcher.h"
+#include "launcher_files.h"
+#include "launcher_reliability.h"
+#include "port_platform.h"
 #include "Engine.h"
 #include "mods.h"
 #include "rom_check.h"
@@ -89,6 +92,55 @@ std::string GbSave(const GbSlot& g) {
     return fs::path(g.rom).replace_extension(".sav").string();
 }
 
+std::array<Port::LauncherSlot, 4> PreflightSlots(const State& s) {
+    std::array<Port::LauncherSlot, 4> slots;
+    for (size_t i = 0; i < slots.size(); i++) slots[i] = {s.gb[i].enabled, s.gb[i].rom, GbSave(s.gb[i])};
+    return slots;
+}
+std::string CheckText(const Port::LauncherCheck& check) {
+    std::string text;
+    for (const auto& e : check.errors) text += "Error: " + e + "\n\n";
+    for (const auto& w : check.warnings) text += "Notice: " + w + "\n\n";
+    return text.empty() ? "All selected files and save locations are ready." : text;
+}
+bool ReadyToPlay(const State& s) {
+    const auto check = Port::CheckLauncherFiles(fs::u8path(Ship::Context::GetAppDirectoryPath()), s.save, PreflightSlots(s));
+    if (check.errors.empty() && check.warnings.empty()) return true;
+    const auto text = CheckText(check);
+    if (!check.errors.empty()) {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Check launcher settings", text.c_str(), nullptr);
+        return false;
+    }
+    const SDL_MessageBoxButtonData buttons[] = {{SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Back"},
+                                               {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Play anyway"}};
+    SDL_MessageBoxData box{}; box.flags = SDL_MESSAGEBOX_WARNING; box.title = "Check cartridge saves";
+    box.message = text.c_str(); box.numbuttons = 2; box.buttons = buttons;
+    int selected = 0;
+    return SDL_ShowMessageBox(&box, &selected) && selected == 1;
+}
+void OpenFolder(const fs::path& path) {
+    std::error_code ec; fs::create_directories(path, ec);
+#if !defined(__ANDROID__)
+    if (!ec) {
+        std::string url = "file://";
+        const auto value = Port::PathUtf8(fs::absolute(path));
+#ifdef _WIN32
+        url += "/";
+#endif
+        const char hex[] = "0123456789ABCDEF";
+        for (unsigned char c : value) {
+            if (c == '\\') url += '/';
+            else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+                      c == '/' || c == ':' || c == '-' || c == '_' || c == '.' || c == '~') url += c;
+            else { url += '%'; url += hex[c >> 4]; url += hex[c & 15]; }
+        }
+        if (SDL_OpenURL(url.c_str())) return;
+    }
+#endif
+    const auto text = "Folder: " + Port::PathUtf8(path) + "\nOpen this location in your system's file browser. On Android, use your file manager's app-files view.";
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Launcher files", text.c_str(), nullptr);
+}
+
 // ---- the renderer: libultraship's window backends ------------------------------------------------------------------
 
 // short (the launcher's button); config: libultraship's own name, as Fast3dWindow::GetWindowBackendName writes it
@@ -127,12 +179,13 @@ int ActiveRenderer() {
 
 State Load() {
     State s;
-    s.rom = CVarGetString(Key("Rom").c_str(), "");
-    s.save = CVarGetString(Key("Save").c_str(), DefaultSave().c_str());
+    const auto directory = fs::u8path(Ship::Context::GetAppDirectoryPath());
+    s.rom = Port::ResolveLauncherPath(CVarGetString(Key("Rom").c_str(), ""), directory);
+    s.save = Port::ResolveLauncherPath(CVarGetString(Key("Save").c_str(), DefaultSave().c_str()), directory);
     for (int i = 0; i < 4; i++) {
         s.gb[i].enabled = CVarGetInteger(GbKey(i, "Enabled").c_str(), 0) != 0;
-        s.gb[i].rom = CVarGetString(GbKey(i, "Rom").c_str(), "");
-        s.gb[i].save = CVarGetString(GbKey(i, "Save").c_str(), "");
+        s.gb[i].rom = Port::ResolveLauncherPath(CVarGetString(GbKey(i, "Rom").c_str(), ""), directory);
+        s.gb[i].save = Port::ResolveLauncherPath(CVarGetString(GbKey(i, "Save").c_str(), ""), directory);
     }
     s.autoPlay = CVarGetInteger(Key("AutoPlay").c_str(), 0) != 0;
     s.debug = CVarGetInteger(Key("Debug").c_str(), 0) != 0;
@@ -147,12 +200,13 @@ State Load() {
 }
 
 void Store(const State& s) {
-    CVarSetString(Key("Rom").c_str(), s.rom.c_str());
-    CVarSetString(Key("Save").c_str(), s.save.c_str());
+    const auto directory = fs::u8path(Ship::Context::GetAppDirectoryPath());
+    CVarSetString(Key("Rom").c_str(), Port::StoreLauncherPath(s.rom, directory).c_str());
+    CVarSetString(Key("Save").c_str(), Port::StoreLauncherPath(s.save, directory).c_str());
     for (int i = 0; i < 4; i++) {
         CVarSetInteger(GbKey(i, "Enabled").c_str(), s.gb[i].enabled ? 1 : 0);
-        CVarSetString(GbKey(i, "Rom").c_str(), s.gb[i].rom.c_str());
-        CVarSetString(GbKey(i, "Save").c_str(), s.gb[i].save.c_str());
+        CVarSetString(GbKey(i, "Rom").c_str(), Port::StoreLauncherPath(s.gb[i].rom, directory).c_str());
+        CVarSetString(GbKey(i, "Save").c_str(), Port::StoreLauncherPath(s.gb[i].save, directory).c_str());
     }
     CVarSetInteger(Key("AutoPlay").c_str(), s.autoPlay ? 1 : 0);
     CVarSetInteger(Key("Debug").c_str(), s.debug ? 1 : 0);
@@ -312,14 +366,16 @@ std::string FileName(const std::string& path) {
 
 std::mutex gPickLock;
 std::string* gPickTarget = nullptr;
-std::string gPickResult;
+std::string gPickResult, gPickError;
 bool gPickDone = false;
+bool gPickStadiumSave = false;
+std::string gPickExportSource;
 
 #if defined(__ANDROID__)
 // Android's file picker returns content:// URIs, which the game's file functions cannot open: copy the picked file into
-// the app's files (imported/<name>) and use that. The name comes from the URI's last part, e.g.
+// the app's files (a separate imported/pick-N/<name> for each selection) and use that. The name comes from the URI's last part, e.g.
 // ".../document/primary%3ADownload%2FPokemon%20Stadium.z64" -> "Pokemon Stadium.z64".
-std::string ImportPicked(const std::string& uri) {
+std::string ImportPicked(const std::string& uri, std::string& error) {
     if (uri.rfind("content://", 0) != 0) {
         return uri;
     }
@@ -333,39 +389,52 @@ std::string ImportPicked(const std::string& uri) {
         }
     }
     std::string name = decoded.substr(decoded.find_last_of("/:") + 1);
-    if (name.empty()) {
-        name = "picked";
-    }
+    if (name.empty() || name == "." || name == "..") name = "picked";
     std::error_code ec;
-    fs::path dir = fs::u8path(Ship::Context::GetPathRelativeToAppDirectory("imported"));
-    fs::create_directories(dir, ec);
-    std::string dst = (dir / fs::u8path(name)).string();
-    SDL_IOStream* in = SDL_IOFromFile(uri.c_str(), "rb");
-    if (in == nullptr) {
-        SPDLOG_WARN("could not open {}: {}", uri, SDL_GetError());
-        return "";
+    const auto root = fs::u8path(Ship::Context::GetPathRelativeToAppDirectory("imported"));
+    fs::create_directories(root, ec);
+    if (ec) { error = "Cannot create the app's imported-files folder."; return ""; }
+    fs::path dir;
+    for (int n = 1; n <= 10000; n++) {
+        const auto candidate = root / ("pick-" + std::to_string(n));
+        if (fs::create_directory(candidate, ec)) { dir = candidate; break; }
+        if (ec) break;
     }
-    SDL_IOStream* out = SDL_IOFromFile(dst.c_str(), "wb");
-    if (out != nullptr) {
+    if (dir.empty()) { error = "Cannot create a separate copy of the selected file."; return ""; }
+    const auto destination = dir / fs::u8path(name);
+    const std::string dst = Port::PathUtf8(destination);
+    SDL_IOStream* in = SDL_IOFromFile(uri.c_str(), "rb");
+    SDL_IOStream* out = in != nullptr ? SDL_IOFromFile(dst.c_str(), "wb") : nullptr;
+    bool copied = in != nullptr && out != nullptr;
+    if (copied) {
         char chunk[65536];
         size_t n;
         while ((n = SDL_ReadIO(in, chunk, sizeof chunk)) > 0) {
-            SDL_WriteIO(out, chunk, n);
+            if (SDL_WriteIO(out, chunk, n) != n) { copied = false; break; }
         }
-        SDL_CloseIO(out);
+        copied = copied && SDL_GetIOStatus(in) == SDL_IO_STATUS_EOF;
     }
-    SDL_CloseIO(in);
-    return out != nullptr ? dst : "";
+    if (out != nullptr && !SDL_CloseIO(out)) copied = false;
+    if (in != nullptr) SDL_CloseIO(in);
+    if (!copied) {
+        fs::remove(destination, ec);
+        fs::remove(dir, ec);
+        error = "Could not copy the complete selected file into the app's files.";
+        return "";
+    }
+    return dst;
 }
 #endif
 
 void PickCallback(void*, const char* const* files, int) {
     std::string picked = files != nullptr && files[0] != nullptr ? files[0] : "";
+    std::string error;
 #if defined(__ANDROID__)
-    picked = ImportPicked(picked);
+    picked = ImportPicked(picked, error);
 #endif
     std::lock_guard<std::mutex> g(gPickLock);
     gPickResult = picked;
+    gPickError = error;
     gPickDone = true;
 }
 
@@ -382,14 +451,16 @@ SDL_Window* MainWindow() {
 }
 
 void Pick(std::string* target, bool save, const SDL_DialogFileFilter* filters, int nfilters,
-          const std::string& suggested = "") {
+          const std::string& suggested = "", bool stadiumSave = false) {
     {
         std::lock_guard<std::mutex> g(gPickLock);
-        if (gPickTarget != nullptr) {
+        if (gPickTarget != nullptr || !gPickExportSource.empty()) {
             return; // one dialog at a time
         }
         gPickTarget = target;
         gPickDone = false;
+        gPickError.clear();
+        gPickStadiumSave = stadiumSave;
     }
     std::string start = !target->empty() ? *target : suggested;
 #if defined(__ANDROID__)
@@ -407,20 +478,89 @@ void Pick(std::string* target, bool save, const SDL_DialogFileFilter* filters, i
 // a dialog that finished since the last frame: store its file
 bool ApplyPick() {
     std::lock_guard<std::mutex> g(gPickLock);
+    if (!gPickExportSource.empty() && gPickDone) {
+        if (!gPickError.empty())
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not export document", gPickError.c_str(), MainWindow());
+        else if (!gPickResult.empty())
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Export complete", "The document was saved to the selected location. The local copy and active save were kept.", MainWindow());
+        gPickExportSource.clear();
+        return false;
+    }
     if (gPickTarget == nullptr || !gPickDone) {
         return false;
     }
-    if (!gPickResult.empty()) {
-        *gPickTarget = gPickResult;
+    if (!gPickError.empty()) {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not import selected file", gPickError.c_str(), MainWindow());
+    } else if (!gPickResult.empty()) {
+        if (gPickStadiumSave) {
+            std::string imported, error;
+            if (Port::ImportStadiumSave(fs::u8path(gPickResult), fs::u8path(Ship::Context::GetAppDirectoryPath()),
+                                       imported, error)) {
+                *gPickTarget = imported;
+            } else {
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not import Stadium save", error.c_str(), MainWindow());
+            }
+        } else {
+            *gPickTarget = gPickResult;
+        }
     }
     gPickTarget = nullptr;
     return true;
 }
 
 const SDL_DialogFileFilter kRomFilter[] = { { "N64 ROM (.z64)", "z64" }, { "All files", "*" } };
-const SDL_DialogFileFilter kSaveFilter[] = { { "Stadium save (.flash)", "flash;fla" }, { "All files", "*" } };
+const SDL_DialogFileFilter kSaveFilter[] = { { "N64 cartridge save", "flash;fla;sra;sav;bin" }, { "All files", "*" } };
 const SDL_DialogFileFilter kGbRomFilter[] = { { "Game Boy ROM", "gb;gbc" }, { "All files", "*" } };
 const SDL_DialogFileFilter kGbSaveFilter[] = { { "Game Boy save (.sav)", "sav" }, { "All files", "*" } };
+
+// Android's app-files directory is restricted in system file browsers. Export through the
+// Storage Access Framework rather than requiring broad storage permissions or a share provider.
+#if defined(__ANDROID__)
+void ExportPicked(void*, const char* const* files, int) {
+    std::string source;
+    { std::lock_guard<std::mutex> guard(gPickLock); source = gPickExportSource; }
+    std::string result, error;
+    if (files == nullptr) {
+        error = "Could not open the system Save as picker. The local export was kept.";
+    } else if (files[0] != nullptr) {
+        std::ifstream input(fs::u8path(source), std::ios::binary | std::ios::ate);
+        const auto length = input ? input.tellg() : std::streampos(-1);
+        std::vector<uint8_t> data;
+        bool readable = length > 0 && length <= 1024 * 1024;
+        if (readable) {
+            data.resize(static_cast<size_t>(length)); input.seekg(0);
+            readable = bool(input.read(reinterpret_cast<char*>(data.data()), data.size()));
+        }
+        SDL_IOStream* output = readable ? SDL_IOFromFile(files[0], "wb") : nullptr;
+        bool ok = output != nullptr && SDL_WriteIO(output, data.data(), data.size()) == data.size();
+        if (output != nullptr && !SDL_CloseIO(output)) ok = false;
+        if (ok) result = files[0];
+        else error = "The selected document could not be completely written; it may be incomplete. The local export and active save were kept. Try another location.";
+    }
+    std::lock_guard<std::mutex> guard(gPickLock);
+    gPickError = error; gPickResult = result; gPickDone = true;
+}
+#endif
+void OfferExport(const std::string& path) {
+#if defined(__ANDROID__)
+    bool busy;
+    {
+        std::lock_guard<std::mutex> guard(gPickLock);
+        busy = gPickTarget != nullptr || !gPickExportSource.empty();
+        if (!busy) { gPickExportSource = path; gPickResult.clear(); gPickError.clear(); gPickDone = false; }
+    }
+    if (busy) {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Export saved locally", "Close the existing file picker before exporting another document. The local export was kept.", MainWindow());
+        return;
+    }
+    static const SDL_DialogFileFilter saveFilter[] = {{"N64 save (.fla)", "fla"}};
+    static const SDL_DialogFileFilter reportFilter[] = {{"Diagnostic report (.txt)", "txt"}};
+    const bool report = fs::u8path(path).extension() == ".txt";
+    SDL_ShowSaveFileDialog(ExportPicked, nullptr, MainWindow(), report ? reportFilter : saveFilter, 1, path.c_str());
+#else
+    (void)path;
+#endif
+}
 
 // ---- save editor (debug option) --------------------------------------------------------------------------------------
 
@@ -494,10 +634,13 @@ struct Fonts {
     ImFont* title = nullptr; // 20
     ImFont* play = nullptr;  // 32
 } gFonts;
-// Pixels per point of the window (2 on a Retina display). The fonts are rasterized at this many times their size and
-// drawn at 1/this scale (io.FontGlobalScale while the launcher shows): ImGui 1.91 rasterizes a font once, and fonts
-// made at point size were stretched on HiDPI screens (blurry text).
-float gFontDensity = 1.0f;
+// ImGui 1.91 rasterizes its atlas once. Keep a small bank of native pixel
+// sizes so a resized window can switch fonts without rebuilding GPU textures.
+struct FontSet {
+    float rasterScale;
+    Fonts fonts;
+};
+std::vector<FontSet> gFontSets;
 
 void LoadFonts() {
     auto rm = ResourceGetResourceManager();
@@ -511,22 +654,21 @@ void LoadFonts() {
     static std::vector<char> ttf; // ImGui keeps pointing at the data
     ttf.assign(file->Buffer->begin() + (std::ptrdiff_t)file->BufferOffset, file->Buffer->end());
     ImGuiIO& io = ImGui::GetIO();
-    SDL_Window* sdl = MainWindow();
-    gFontDensity = sdl != nullptr ? std::max(1.0f, SDL_GetWindowPixelDensity(sdl)) : 1.0f;
-    auto add = [&](float size) {
+    auto add = [&](float size, float rasterScale) {
         ImFontConfig cfg;
         cfg.FontDataOwnedByAtlas = false;
         cfg.OversampleH = 2;
-        size *= gFontDensity;
         static const ImWchar ranges[] = { 0x0020, 0x00FF, 0x2013, 0x2014, 0x2026, 0x2026, 0x2713, 0x2713, 0 };
-        return io.Fonts->AddFontFromMemoryTTF(ttf.data(), (int)ttf.size(), size, &cfg, ranges);
+        ImFont* font = io.Fonts->AddFontFromMemoryTTF(ttf.data(), (int)ttf.size(), size * rasterScale, &cfg, ranges);
+        font->Scale = 1.0f / rasterScale;
+        return font;
     };
-    gFonts.body = add(13.0f);
-    gFonts.small = add(11.0f);
-    gFonts.game = add(16.0f);
-    gFonts.title = add(20.0f);
-    gFonts.play = add(32.0f);
+    for (float scale : {0.625f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f}) {
+        gFontSets.push_back({scale, {add(13, scale), add(11, scale), add(16, scale),
+                                    add(20, scale), add(32, scale)}});
+    }
 }
+
 
 // cartridge and N64 pictures (tools/launcher/assets, packed into pokestadium.o2r)
 ImTextureID Picture(Fast::Fast3dGui* gui, const char* name) {
@@ -768,6 +910,18 @@ class LauncherWindow : public Ship::GuiWindow {
         const float designH = Handheld() ? kHandheldH : kH;
         mScale = std::min(vp->Size.x / kW, vp->Size.y / designH);
         mOrigin = ImVec2(vp->Pos.x + (vp->Size.x - kW * mScale) / 2, vp->Pos.y + (vp->Size.y - designH * mScale) / 2);
+        mPixelDensity = 1.0f;
+        if (SDL_Window* sdl = MainWindow()) {
+            mPixelDensity = std::max(1.0f, SDL_GetWindowPixelDensity(sdl));
+        }
+        const float target = std::max(0.01f, mScale * mPixelDensity);
+        if (!gFontSets.empty()) {
+            const auto nearest = std::min_element(gFontSets.begin(), gFontSets.end(), [target](const FontSet& a, const FontSet& b) {
+                return std::abs(std::log(a.rasterScale / target)) < std::abs(std::log(b.rasterScale / target));
+            });
+            gFonts = nearest->fonts;
+        }
+        if (gFonts.body) ImGui::PushFont(gFonts.body);
         ImGui::PushStyleColor(ImGuiCol_Text, HexV(Theme::text));
         ImGui::PushStyleColor(ImGuiCol_Button, HexV(Theme::button));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, HexV(Theme::buttonHover));
@@ -779,6 +933,7 @@ class LauncherWindow : public Ship::GuiWindow {
         DrawElement();
         ImGui::PopStyleVar();
         ImGui::PopStyleColor(7);
+        if (gFonts.body) ImGui::PopFont();
         ImGui::End();
         ImGui::PopStyleColor();
         ImGui::PopStyleVar(2);
@@ -812,12 +967,15 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(16, 10, "Pokémon Stadium", gFonts.title);
         Text(190, 11, "|", gFonts.title, Theme::cardBorder);
         Text(206, 14, "PC port · Transfer Pak", gFonts.body, Theme::dim);
-        if (Button(mMods ? "Players##mods" : ModsButtonLabel().c_str(), kW - 16 - 130, 10, 130, 26)) {
+        if (Button(mMods ? "Players##mods" : ModsButtonLabel().c_str(), 800 - 8 - 130, 10, 130, 26)) {
             OpenMods(!mMods);
         }
         dl->AddRectFilled(P(0, 44), P(kW, 45), Hex(Theme::cardBorder));
+        Tools();
 
-        if (mMods) {
+        if (mTools) {
+            ToolsPanel(16, 58, kW - 32, 366);
+        } else if (mMods) {
             ModsPanel(16, 58, kW - 32, 366);
         } else if (mControls) {
             ControlsPanel(16, 58, kW - 32, 366);
@@ -835,16 +993,85 @@ class LauncherWindow : public Ship::GuiWindow {
     }
 
   private:
+    std::string mToolsStatus;
+    bool mToolsTestOpened = false, mTools = false;
+    void Tools() {
+        const bool testOpen = getenv("PORT_LAUNCHER_OPEN_TOOLS") != nullptr && !mToolsTestOpened;
+        ImGui::BeginDisabled(mCapture >= 0);
+        const bool opened = Button("Files & help", 800, 8, 144, 30);
+        ImGui::EndDisabled();
+        if ((opened && mCapture < 0) || testOpen) {
+            mToolsTestOpened = true;
+            mTools = !mTools;
+            if (mTools) mMods = false;
+            if (Handheld()) GoToPage(mTools ? kPageTools : kPageHome);
+        }
+    }
+    bool ToolAction(const char* label) {
+        const bool clicked = ImGui::Button(label, ImVec2(std::min(280.0f * mScale, ImGui::GetContentRegionAvail().x),
+                                                       (Handheld() ? 44.0f : 26.0f) * mScale));
+        return NavItem() || clicked;
+    }
+    void ToolsPanel(float x, float y, float w, float h) {
+        const auto directory = fs::u8path(Ship::Context::GetAppDirectoryPath());
+        ImGui::SetCursorScreenPos(P(x, y));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, HexV(Theme::card));
+        ImGui::BeginChild("launcher-files", ImVec2(w * mScale, h * mScale), true);
+        ImGui::SetWindowFontScale(mScale);
+            ImGui::TextWrapped("Settings folder: %s", Port::PathUtf8(directory).c_str());
+            ImGui::TextWrapped("Active Stadium save: %s", mState->save.c_str());
+            if (ToolAction("Check setup")) {
+                auto check = Port::CheckLauncherFiles(directory, mState->save, PreflightSlots(*mState));
+                const auto romError = CheckRom(mState->rom);
+                if (!romError.empty()) check.errors.insert(check.errors.begin(), "Stadium ROM: " + romError);
+                mToolsStatus = CheckText(check);
+            }
+            if (ToolAction("Open settings folder")) OpenFolder(directory);
+            if (ToolAction("Open saves folder")) OpenFolder(fs::u8path(mState->save).parent_path());
+            if (ToolAction("Export N64 save")) {
+                std::string path, error;
+                if (Port::ExportStadiumSave(fs::u8path(mState->save), directory, path, error)) {
+                    mToolsStatus = "Exported: " + path + "\nThe active save was kept unchanged.";
+                    OfferExport(path);
+                } else mToolsStatus = error;
+            }
+            if (ToolAction("Export diagnostics")) {
+                std::string path, error;
+                if (Port::ExportLauncherDiagnostics(directory, PORT_BUILD_VERSION,
+                    RendererName(mState->renderer), RendererName(ActiveRenderer()), path, error)) {
+                    mToolsStatus = "Exported: " + path + "\nReview the report before sharing it.";
+                    OfferExport(path);
+                } else mToolsStatus = error;
+            }
+            if (ToolAction("Disable Auto-play")) { mState->autoPlay = false; mChanged = true; mToolsStatus = "Auto-play disabled."; }
+            if (ToolAction("Use safe renderer next start")) {
+#ifdef __APPLE__
+                mState->renderer = Fast::FAST3D_SDL_METAL;
+#else
+                mState->renderer = Fast::FAST3D_SDL_OPENGL;
+#endif
+                mState->autoPlay = false; mChanged = true;
+                mToolsStatus = "Auto-play disabled and safe renderer selected. Restart to apply.";
+            }
+            ImGui::TextWrapped("Recovery: start with --launcher to bypass Auto-play, or --safe-mode to reset the renderer. Saves and controller mappings are kept.");
+            ImGui::TextWrapped("Five previous session saves are kept in <save>.backups. Exports are under exports/; reports under diagnostics/.");
+            if (!mToolsStatus.empty()) ImGui::TextWrapped("%s", mToolsStatus.c_str());
+            if (ToolAction("Back to players")) { mTools = false; if (Handheld()) GoToPage(kPageHome); }
+
+        ImGui::SetWindowFontScale(1.0f);
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
+    }
     int mRendererFailed = 0; // the requested renderer, when the game started with another (it could not start)
     // design coordinates -> screen
     ImVec2 P(float x, float y) const {
-        return ImVec2(mOrigin.x + x * mScale, mOrigin.y + y * mScale);
+        return ImVec2(std::round((mOrigin.x + x * mScale) * mPixelDensity) / mPixelDensity,
+                      std::round((mOrigin.y + y * mScale) * mPixelDensity) / mPixelDensity);
     }
 
     void Text(float x, float y, const std::string& t, ImFont* font = nullptr, uint32_t color = Theme::text) {
         ImFont* f = font != nullptr ? font : ImGui::GetFont();
-        // (a launcher font's FontSize is in pixels: gFontDensity times its point size; GetFontSize includes the scale)
-        float size = (font != nullptr ? font->FontSize / gFontDensity : ImGui::GetFontSize()) * mScale;
+        float size = (font != nullptr ? font->FontSize * font->Scale : ImGui::GetFontSize()) * mScale;
         ImGui::GetWindowDrawList()->AddText(f, size, P(x, y), Hex(color), t.c_str());
     }
 
@@ -1051,6 +1278,7 @@ class LauncherWindow : public Ship::GuiWindow {
             return;
         }
         mControls = false;
+        mTools = false;
         mModList = Port::Mods::Scan();
         for (auto& m : mModList) {
             for (const auto& r : Port::Mods::Mounted()) {
@@ -1090,6 +1318,9 @@ class LauncherWindow : public Ship::GuiWindow {
         }
         Port::Mods::StoreLists(enabled, disabled);
         Store(*mState);
+        // a restart is a normal end of this launch: without the marker (main.cpp) the next start is not a recovery
+        std::error_code ec;
+        fs::remove(fs::u8path(Port::AppPath("launcher-session.txt")), ec);
         if (!Port::Mods::Restart()) {
             mModsStatus = "Saved. Restart the game to use the new list.";
         }
@@ -1274,9 +1505,10 @@ class LauncherWindow : public Ship::GuiWindow {
         std::string saveName = "Save: " + FileName(s.save);
         if (saveName.size() > 30) saveName = saveName.substr(0, 29) + "…";
         Text(x + 250, y + 61, saveName, gFonts.small, Theme::dim);
-        if (Button("Change save", x + 450, y + 56, 100, 26)) {
-            Pick(&s.save, true, kSaveFilter, 2, s.save);
+        if (Button("Import save", x + 450, y + 56, 100, 26)) {
+            Pick(&s.save, false, kSaveFilter, 2, s.save, true);
         }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Import a raw N64 Stadium cartridge save. A working copy is saved beside the launcher; the original is kept.");
         if (s.debug) {
             if (Button("Save editor", x + 556, y + 56, 96, 26)) {
                 OpenSaveEditor(s.save);
@@ -1347,7 +1579,7 @@ class LauncherWindow : public Ship::GuiWindow {
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2 * mScale);
         ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1, 1, 1, 0.85f));
         if (Button("PLAY", x + w - 206, y + 12, 182, 66, gFonts.play)) {
-            *mPlay = true;
+            *mPlay = ReadyToPlay(s);
         }
         ImGui::PopStyleColor(5);
         ImGui::PopStyleVar(2);
@@ -1356,8 +1588,8 @@ class LauncherWindow : public Ship::GuiWindow {
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Start the game directly next time (hold Shift while starting to see this launcher)");
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mMods) {
-            *mPlay = true;
+        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mTools && !mMods) {
+            *mPlay = ReadyToPlay(s);
         }
         (void)mQuit;
     }
@@ -1374,6 +1606,8 @@ class LauncherWindow : public Ship::GuiWindow {
         if (index != mFocus || mCapture >= 0) {
             return false;
         }
+        if ((ImGui::GetCurrentWindow()->Flags & ImGuiWindowFlags_ChildWindow) && !ImGui::IsItemVisible())
+            ImGui::SetScrollHereY(0.5f);
         const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
         const float pad = 3 * mScale;
         ImGui::GetWindowDrawList()->AddRect(ImVec2(a.x - pad, a.y - pad), ImVec2(b.x + pad, b.y + pad),
@@ -1455,7 +1689,9 @@ class LauncherWindow : public Ship::GuiWindow {
 
     void DrawHandheld() {
         NavBeginFrame();
+        Tools();
         if (mNavBack && mPage != kPageHome) {
+            mTools = false;
             GoToPage(kPageHome);
             mNavBack = false;
         }
@@ -1466,12 +1702,16 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(24, 14, "Pokémon Stadium", gFonts.title);
         const char* pageName = mPage == kPageTransferPak ? "Transfer Pak"
                                : mPage == kPageControls ? "Controls"
+                               : mPage == kPageTools    ? "Files & help"
                                : mPage == kPageMods     ? "Mods"
                                                         : "";
         Text(220, 17, pageName, gFonts.body, Theme::dim);
         dl->AddRectFilled(P(0, 50), P(kW, 51), Hex(Theme::cardBorder));
 
-        if (mPage == kPageTransferPak) {
+        if (mPage == kPageTools) {
+            ToolsPanel(16, 62, kW - 32, 430);
+            mDefaultFocus = 0;
+        } else if (mPage == kPageTransferPak) {
             for (int i = 0; i < 4; i++) {
                 PlayerCard(i, 16 + i * (222 + 14), 62, 222, 366);
             }
@@ -1521,8 +1761,8 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button(s.rom.empty() ? "Load ROM" : "Change ROM", cx + 24, cy + 340, 190, 56, gFonts.game)) {
             Pick(&s.rom, false, kRomFilter, 2);
         }
-        if (Button("Change save", cx + cw - 214, cy + 340, 190, 56, gFonts.game)) {
-            Pick(&s.save, true, kSaveFilter, 2, s.save);
+        if (Button("Import save", cx + cw - 214, cy + 340, 190, 56, gFonts.game)) {
+            Pick(&s.save, false, kSaveFilter, 2, s.save, true);
         }
 
         // PLAY (the default focus: A starts the game right away)
@@ -1537,7 +1777,7 @@ class LauncherWindow : public Ship::GuiWindow {
         ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1, 1, 1, 0.85f));
         mDefaultFocus = (int)mNavItems.size();
         if (Button("PLAY", rx, cy, rw, 150, gFonts.play) && romError.empty()) {
-            *mPlay = true;
+            *mPlay = ReadyToPlay(s);
         }
         ImGui::PopStyleColor(5);
         ImGui::PopStyleVar(2);
@@ -1583,7 +1823,7 @@ class LauncherWindow : public Ship::GuiWindow {
     struct NavRect {
         ImVec2 min, max;
     };
-    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2, kPageMods = 3;
+    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2, kPageTools = 3, kPageMods = 4;
     int mPage = kPageHome;
     std::vector<NavRect> mNavItems, mNavPrev; // this frame's and last frame's focus targets, in drawing order
     int mFocus = -1, mDefaultFocus = 0;
@@ -1605,7 +1845,7 @@ class LauncherWindow : public Ship::GuiWindow {
     int mCapture = -1;      // the input (kInputs) waiting for a key or controller input, -1: none
     std::string mCaptureId; // the binding it replaces ("": adds one)
     bool mArmed = false;    // the inputs held when the capture started were released
-    float mScale = 1.0f;
+    float mScale = 1.0f, mPixelDensity = 1.0f;
     ImVec2 mOrigin;
     bool mChanged = false;
 };
@@ -1621,22 +1861,64 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
     // start directly: the stored ROM, unless Shift is held (or it is no longer valid)
     window->HandleEvents();
     bool shift = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
+#if defined(_WIN32)
+    // DirectX uses a native Win32 window, so SDL does not receive its keyboard events.
+    shift = shift || (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+#endif
     // (the handheld layout has no Auto-play: without a Shift key there would be no way back to the launcher)
-    if (!(state.autoPlay && !shift && !Handheld() && CheckRom(state.rom).empty())) {
-        LoadFonts(); // before the first frame: ImGui builds its font atlas then
-        if (gFonts.body != nullptr) {
-            ImGui::GetIO().FontDefault = gFonts.body;
-            ImGui::GetIO().FontGlobalScale = 1.0f / gFontDensity;
-        }
-        // the launcher's own window size while it shows; the game's size comes back for PLAY
+    if (!(state.autoPlay && !shift && getenv("PORT_FORCE_LAUNCHER") == nullptr && !Handheld() && CheckRom(state.rom).empty() &&
+          [&] { const auto c = CheckLauncherFiles(fs::u8path(Ship::Context::GetAppDirectoryPath()), state.save, PreflightSlots(state));
+                return c.errors.empty() && c.warnings.empty(); }())) {
+        // Give the launcher its own readable window and restore the game size on Play.
         SDL_Window* sdl = MainWindow();
         int gameW = 0, gameH = 0;
-        if (sdl != nullptr) {
+        const float launcherHeight = Handheld() ? kHandheldH : kH;
+        if (sdl != nullptr && !window->IsFullscreen()) {
             SDL_GetWindowSize(sdl, &gameW, &gameH);
-            SDL_SetWindowSize(sdl, (int)kW, (int)kH);
-            SDL_SetWindowPosition(sdl, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+            float scale = SDL_GetWindowDisplayScale(sdl) / std::max(1.0f, SDL_GetWindowPixelDensity(sdl));
+            SDL_Rect usable{};
+            if (SDL_GetDisplayUsableBounds(SDL_GetDisplayForWindow(sdl), &usable)) {
+                scale = std::min({scale, (usable.w - 32) / kW, (usable.h - 80) / launcherHeight});
+            }
+            if (scale > 0) {
+                SDL_SetWindowSize(sdl, int(std::round(kW * scale)), int(std::round(launcherHeight * scale)));
+                SDL_SetWindowPosition(sdl, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+            }
             SDL_SetWindowTitle(sdl, "Pokémon Stadium — Launcher");
         }
+#ifdef _WIN32
+        HWND nativeWindow = nullptr;
+        RECT gameRect{};
+        if (sdl == nullptr && !window->IsFullscreen()) {
+            nativeWindow = static_cast<HWND>(ImGui::GetMainViewport()->PlatformHandleRaw);
+            MONITORINFO monitor{sizeof(monitor)};
+            if (nativeWindow && GetWindowRect(nativeWindow, &gameRect) &&
+                GetMonitorInfoW(MonitorFromWindow(nativeWindow, MONITOR_DEFAULTTONEAREST), &monitor)) {
+                using GetWindowDpi = UINT (WINAPI*)(HWND);
+                const auto getWindowDpi = reinterpret_cast<GetWindowDpi>(
+                    GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetDpiForWindow"));
+                const UINT dpi = getWindowDpi ? getWindowDpi(nativeWindow) : 96;
+                RECT client{};
+                GetClientRect(nativeWindow, &client);
+                const int frameWidth = (gameRect.right - gameRect.left) - client.right;
+                const int frameHeight = (gameRect.bottom - gameRect.top) - client.bottom;
+                const RECT& work = monitor.rcWork;
+                const float scale = std::min({dpi / 96.0f,
+                    (work.right - work.left - frameWidth) / kW,
+                    (work.bottom - work.top - frameHeight) / launcherHeight});
+                if (scale > 0) {
+                    const int width = int(std::round(kW * scale)) + frameWidth;
+                    const int height = int(std::round(launcherHeight * scale)) + frameHeight;
+                    SetWindowPos(nativeWindow, nullptr, work.left + (work.right - work.left - width) / 2,
+                                 work.top + (work.bottom - work.top - height) / 2, width, height,
+                                 SWP_NOZORDER | SWP_NOACTIVATE);
+                }
+            } else {
+                nativeWindow = nullptr;
+            }
+        }
+#endif
+        LoadFonts(); // add the launcher fonts before the first frame builds the atlas
         auto gui = std::dynamic_pointer_cast<Fast::Fast3dGui>(window->GetGui());
         // the controller deck, for the controls panel (the game's osContInit sets it up again, which is harmless)
         static uint8_t controllerBits;
@@ -1666,7 +1948,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
                         std::chrono::duration<double, std::milli>(now - lastFrame).count());
             }
             lastFrame = now;
-            if (playAfter != nullptr && frame >= atoi(playAfter) && CheckRom(state.rom).empty()) {
+            if (playAfter != nullptr && frame >= atoi(playAfter) && CheckRom(state.rom).empty() && ReadyToPlay(state)) {
                 play = true;
             }
             // test hook: PORT_LAUNCHER_SHOT=<file.ppm> saves the launcher's picture at frame 60 and closes it
@@ -1677,12 +1959,17 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
             }
         }
         window->GetGui()->RemoveGuiWindow(launcher->GetName());
-        ImGui::GetIO().FontDefault = nullptr;
-        ImGui::GetIO().FontGlobalScale = 1.0f;
         Store(state);
         if (!play) {
             return "";
         }
+#ifdef _WIN32
+        if (nativeWindow && !window->IsFullscreen()) {
+            SetWindowPos(nativeWindow, nullptr, gameRect.left, gameRect.top,
+                         gameRect.right - gameRect.left, gameRect.bottom - gameRect.top,
+                         SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+#endif
         if (sdl != nullptr && gameW > 0) {
             // a window of the chosen shape (other shapes still work, with black bars)
             if (gameH > 0) {
@@ -1713,9 +2000,6 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
 }
 
 void UseShipHomeDefaults() {
-    if (getenv("SHIP_HOME") == nullptr) {
-        return;
-    }
     if (getenv("PORT_RECORD") == nullptr) {
         SetEnv("PORT_RECORD", Ship::Context::GetPathRelativeToAppDirectory("last_input.rec"));
     }

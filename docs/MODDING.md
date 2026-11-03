@@ -23,7 +23,7 @@ the manifest and the load order below stay the same.
 | developer build | `build/mods` (next to `pokestadium.cfg.json`) |
 | macOS app | `~/Library/Application Support/<bundle id>/mods` |
 | Linux AppImage | `$SHIP_HOME/mods` |
-| Windows | `mods` in the folder the game is started from (normally next to `pokestadium.exe`) |
+| Windows | `mods` next to `pokestadium.exe` |
 | Android | `/sdcard/Android/data/com.teamhippodrome.pokestadium/files/mods` |
 
 The port creates the folder at start. The launcher's **Mods** button (top right, or on the home page of the handheld

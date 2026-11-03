@@ -1,3 +1,5 @@
+#include "launcher_reliability.h"
+#include "launcher_files.h"
 #include <unordered_set>
 #include "port_platform.h"
 // Host stand-ins for the N64 hardware the game talks to through libultra: cartridge ROM (PI DMA),
@@ -129,17 +131,18 @@ std::string FlashPath() {
 void FlashLoad() {
     if (gFlashLoaded) return;
     gFlashLoaded = true;
-    if (FILE* f = fopen(FlashPath().c_str(), "rb")) {
+    if (FILE* f = Port::OpenFileUtf8(FlashPath().c_str(), "rb")) {
         size_t n = fread(gFlash.data(), 1, gFlash.size(), f);
-        (void)n;
+        if (getenv("PORT_TRACE_FLASH")) fprintf(stderr, "[flash] loaded %zu bytes from %s\n", n, FlashPath().c_str());
         fclose(f);
     }
 }
 
 void FlashSave() {
-    if (FILE* f = fopen(FlashPath().c_str(), "wb")) {
-        fwrite(gFlash.data(), 1, gFlash.size(), f);
-        fclose(f);
+    std::string error;
+    if (!Port::WriteProtectedSave(std::filesystem::u8path(FlashPath()), gFlash.data(), gFlash.size(), error)) {
+        Port::ReportSaveFailure(error);
+        fprintf(stderr, "[flash] SAVE FAILED: %s\n", error.c_str());
     }
 }
 

@@ -4,8 +4,7 @@
 Usage: tools/make_appimage.py <build dir> <output .AppImage> [version] [appimagetool]
 
 - usr/bin/pokestadium (its resources are built in); started without arguments the game shows the launcher
-- AppRun sets SHIP_HOME to ${XDG_DATA_HOME:-~/.local/share}/pokestadium unless it is set already: config, logs and
-  default saves go there (the AppImage itself is read-only; without SHIP_HOME libultraship uses the current directory)
+- AppRun keeps config, logs and saves beside the original .AppImage, outside its read-only mount. SHIP_HOME overrides it.
 - a .desktop file and the icon from tools/launcher/assets
 - no bundled libraries: the release build links SDL3, libzip, spdlog, tinyxml2 and the C++ runtime statically
   (build.yml), so the executable needs only glibc and the system's OpenGL (libOpenGL/libGLX, from the GPU driver,
@@ -19,11 +18,14 @@ SYSTEM_LIBS = re.compile(r"^(linux-vdso|linux-gate|ld-linux.*|libc|libm|libdl|li
                          r"libOpenGL|libGL|libGLX|libEGL|libGLdispatch)\.so")
 
 APPRUN = """#!/bin/sh
-# Pokémon Stadium AppImage entry point. Config, logs and saves go to a per-user folder (libultraship's SHIP_HOME): the
-# AppImage itself is read-only.
+# Pokémon Stadium AppImage entry point. Keep data beside the original artifact, outside its read-only mount.
 HERE="$(dirname "$(readlink -f "$0")")"
 if [ -z "$SHIP_HOME" ]; then
-    SHIP_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/pokestadium"
+    if [ -n "$APPIMAGE" ]; then
+        SHIP_HOME="$(dirname "$(readlink -f "$APPIMAGE")")"
+    else
+        SHIP_HOME="$HERE"
+    fi
     export SHIP_HOME
 fi
 mkdir -p "$SHIP_HOME"

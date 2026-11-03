@@ -1,0 +1,54 @@
+name: Launcher portability
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize patched launcher path policy
+        run: |
+          git submodule update --init libultraship
+          git -C libultraship apply "$PWD/patches/libultraship.patch"
+      - name: Native save-import, directory and package tests
+        run: python3 -m unittest discover -s tools -p 'test_launcher_*.py'
+      - name: Compile legacy macOS frontend and test shared JSON settings
+        if: runner.os == 'macOS'
+        run: |
+          xcrun swiftc -parse-as-library -typecheck tools/launcher/PortableLauncherStore.swift tools/launcher/Launcher.swift
+          xcrun swiftc tools/launcher/PortableLauncherStore.swift tools/launcher/tests/main.swift -o "$RUNNER_TEMP/launcher-config-tests"
+          "$RUNNER_TEMP/launcher-config-tests" "$RUNNER_TEMP/launcher-config-fixture"
+          xcrun swiftc -parse-as-library tools/launcher/PortableLauncherStore.swift tools/launcher/Launcher.swift -o "$RUNNER_TEMP/macos-launcher"
+          python3 tools/macos_launcher_regressions.py --bin "$RUNNER_TEMP/macos-launcher" --out "$RUNNER_TEMP/macos-launcher-evidence"
+
+  android-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Apply port patches
+        run: |
+          git -C libultraship apply "$PWD/patches/libultraship.patch"
+          python3 tools/game_patches.py apply
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - name: Android toolchain
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;29.0.14206865' 'cmake;3.31.6'
+      - name: Build Android launcher
+        working-directory: android
+        run: sh gradlew --no-daemon assembleDebug

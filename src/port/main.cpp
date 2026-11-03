@@ -4,6 +4,10 @@
 #include "port_platform.h"
 #include "launcher.h"
 #include "mods.h"
+#include "launcher_files.h"
+#include "launcher_reliability.h"
+#include <fstream>
+#include <nlohmann/json.hpp>
 #ifdef ENABLE_VULKAN
 #include <fast/backends/gfx_vulkan.h>
 #endif
@@ -206,6 +210,7 @@ static void LoadEnvFile() {
             continue;
         }
         setenv(line.substr(0, eq).c_str(), line.substr(eq + 1).c_str(), 1);
+        SDL_SetEnvironmentVariable(SDL_GetEnvironment(), line.substr(0, eq).c_str(), line.substr(eq + 1).c_str(), true);
         fprintf(stderr, "port_env.txt: %s\n", line.c_str());
     }
 }
@@ -237,6 +242,70 @@ static int RunGame(int argc, char** argv) {
     ForwardStdioToLogcat();
     LoadEnvFile();
 #endif
+    auto setOption = [](const char* key) {
+#ifdef _WIN32
+        _putenv_s(key, "1");
+#else
+        setenv(key, "1", 1);
+#endif
+    };
+    const bool forceLauncher = argc > 1 && (strcmp(argv[1], "--launcher") == 0 || strcmp(argv[1], "--safe-mode") == 0);
+    if (forceLauncher) {
+        setOption("PORT_FORCE_LAUNCHER");
+        if (strcmp(argv[1], "--safe-mode") == 0) setOption("PORT_SAFE_MODE");
+        argc = 1;
+    }
+    if (argc > 1 && strcmp(argv[1], "--check-launcher") == 0) {
+        if (argc != 12) { fprintf(stderr, "Usage: --check-launcher <rom> <save> <rom1> <save1> ... <rom4> <save4>\n"); return 1; }
+        std::array<Port::LauncherSlot, 4> slots;
+        for (int i = 0; i < 4; ++i) slots[i] = {*argv[4 + i * 2] != 0, argv[4 + i * 2], argv[5 + i * 2]};
+        auto result = Port::CheckLauncherFiles(std::filesystem::u8path(Port::AppPath("")), argv[3], slots);
+        auto romError = Port::CheckRomDumpFile(argv[2]);
+        if (!romError.empty()) result.errors.insert(result.errors.begin(), "Stadium ROM: " + romError);
+        for (const auto& error : result.errors) printf("Error: %s\n", error.c_str());
+        for (const auto& warning : result.warnings) printf("Notice: %s\n", warning.c_str());
+        return result.errors.empty() ? 0 : 1;
+    }
+    if (argc > 1 && (strcmp(argv[1], "--export-stadium-save") == 0 || strcmp(argv[1], "--launcher-diagnostics") == 0)) {
+        const bool diagnostics = strcmp(argv[1], "--launcher-diagnostics") == 0;
+        if ((!diagnostics && argc != 3) || (diagnostics && argc != 2)) return 1;
+        std::string path, error;
+        const auto directory = std::filesystem::u8path(Port::AppPath(""));
+        std::string requested = "Unknown";
+        if (diagnostics) {
+            try {
+                std::ifstream config(directory / "pokestadium.cfg.json");
+                const auto json = nlohmann::json::parse(config);
+                const auto windowId = json.value("Window", nlohmann::json::object()).value("Backend", nlohmann::json::object()).value("Id", 0);
+                const auto id = json.value("CVars", nlohmann::json::object()).value("gLauncher", nlohmann::json::object()).value("Renderer", windowId);
+                requested = id == 1 ? "DirectX 11" : id == 2 ? "OpenGL" : id == 3 ? "Metal" : id == 4 ? "Vulkan" : "Unknown";
+            } catch (...) { /* A broken config can still produce a diagnostic report. */ }
+        }
+        const bool ok = diagnostics ? Port::ExportLauncherDiagnostics(directory, PORT_BUILD_VERSION,
+            requested, "Not running (frontend export; see recent log)", path, error) :
+            Port::ExportStadiumSave(std::filesystem::u8path(argv[2]), directory, path, error);
+        if (!ok) { fprintf(stderr, "%s\n", error.c_str()); return 1; }
+        printf("%s\n", path.c_str()); return 0;
+    }
+    if (argc > 1 && strcmp(argv[1], "--help") == 0) {
+        printf("Pokemon Stadium [ROM.z64]\n--launcher: bypass Auto-play\n--safe-mode: bypass Auto-play and select OpenGL (Metal on macOS)\nLauncher Files & help: check setup, open folders, export saves and diagnostics.\n");
+        return 0;
+    }
+    // The legacy macOS frontend shares the native cartridge-save importer instead of maintaining another format reader.
+    if (argc > 1 && strcmp(argv[1], "--import-stadium-save") == 0) {
+        if (argc != 3) {
+            fprintf(stderr, "Usage: pokestadium --import-stadium-save <raw cartridge save>\n");
+            return 1;
+        }
+        std::string imported, error;
+        if (!Port::ImportStadiumSave(std::filesystem::u8path(argv[2]), std::filesystem::u8path(Port::AppPath("")),
+                                     imported, error)) {
+            fprintf(stderr, "%s\n", error.c_str());
+            return 1;
+        }
+        printf("%s\n", imported.c_str());
+        return 0;
+    }
     // The port tells N64 addresses (below 4 GB) from host pointers; keep host allocations above 4 GB (Windows).
     Port_ReserveLowAddressSpace();
     Port_AltSignalStack();
@@ -253,13 +322,50 @@ static int RunGame(int argc, char** argv) {
     if (!romPath.empty() && !RomIsOriginal(romPath)) {
         return 1;
     }
-    if (!Port::Init()) {
-        return 1;
+    // An interrupted interactive launch comes back to settings. Only a failure while creating the
+    // graphics window selects a safe renderer; an interrupted game merely bypasses Auto-play.
+    const auto recovery = std::filesystem::u8path(Port::AppPath("launcher-session.txt"));
+    // (PORT_MODS_CHECK prints the mod report and exits inside Port::Init: not a launch)
+    const bool interactive = romPath.empty() && getenv("PORT_MODS_CHECK") == nullptr;
+    auto clearRecovery = [&] { if (interactive) { std::error_code ec; std::filesystem::remove(recovery, ec); } };
+    if (interactive) {
+        std::ifstream previous(recovery); std::string stage; std::getline(previous, stage);
+        if (!stage.empty()) {
+            setOption("PORT_FORCE_LAUNCHER");
+            if (stage == "graphics") setOption("PORT_SAFE_MODE");
+            fprintf(stderr, "[launcher] Previous launch did not close normally; reopening settings.\n");
+        }
+        std::ofstream marker(recovery); marker << "graphics\n";
     }
+    const auto configPath = std::filesystem::u8path(Port::AppPath("pokestadium.cfg.json"));
+    if (std::filesystem::is_regular_file(configPath)) {
+        if (getenv("PORT_SAFE_MODE") != nullptr) {
+            // Recovery changes only graphics/Auto-play, and keeps an untouched copy of the original JSON.
+            std::error_code ec; bool copied = false;
+            for (int i = 1; i <= 10000; ++i) {
+                const auto copy = std::filesystem::u8path(Port::PathUtf8(configPath) + ".before-recovery-" + std::to_string(i));
+                if (std::filesystem::exists(copy)) continue;
+                copied = std::filesystem::copy_file(configPath, copy, std::filesystem::copy_options::none, ec); break;
+            }
+            if (!copied) { fprintf(stderr, "Cannot preserve config before recovery. No settings changed.\n"); clearRecovery(); return 1; }
+        } else {
+            try {
+                std::ifstream input(configPath);
+                if (!nlohmann::json::parse(input).is_object()) throw std::runtime_error("Config must be an object");
+            } catch (const std::exception&) {
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Cannot read launcher settings",
+                    "The config JSON is invalid and has been preserved. Start with --safe-mode to create working settings and keep a recovery copy.", nullptr);
+                clearRecovery(); return 1;
+            }
+        }
+    }
+    if (!Port::Init()) { return 1; }
+    if (interactive) { std::ofstream marker(recovery); marker << "game\n"; }
     InstallSignalHandlers();
     if (romPath.empty()) {
         romPath = Port::RunLauncher(Port::GetWindow());
         if (romPath.empty()) {
+            clearRecovery();
             fflush(nullptr);
             _exit(0);
         }
@@ -285,6 +391,7 @@ static int RunGame(int argc, char** argv) {
     // game threads were still running, and one of them then locked a destroyed mutex ("mutex lock failed: Invalid
     // argument", abort). Saves are already on disk (flash and Transfer Pak writes are written through).
     Port_InputFinish();
+    clearRecovery();
     fflush(nullptr);
     _exit(0);
 }

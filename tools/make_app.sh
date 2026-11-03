@@ -2,9 +2,9 @@
 # Builds "Pokemon Stadium.app" (a double-clickable macOS launcher for the port) in the project folder.
 # Usage: tools/make_app.sh [title screenshot .png for the icon]
 # The app opens a launcher (styled after PokemonStadiumRecomp's): the Stadium ROM + save and a Game Boy cartridge + save
-# per player's Transfer Pak, preselected (German Pokémon Yellow on player 1) and remembered; PLAY starts
+# per player's Transfer Pak, remembered in the shared JSON config; PLAY starts
 # build/pokestadium. Auto-play skips the launcher next time (hold Option while opening the app to see it again).
-# Default saves live in <project>/saves (stadium.flash, yellow.sav); the last run's log is saves/last_run.log.
+# Config and saves live beside the .app (or in SHIP_HOME); the last run's log is saves/last_run.log.
 set -e
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$HERE/Pokemon Stadium.app"
@@ -35,8 +35,8 @@ EOF
 # launcher window (tools/launcher/Launcher.swift): pick ROM, save, GB cartridge and GB save, then Play
 printf '%s\n' "$HERE" > "$APP/Contents/Resources/project-path.txt"
 cp "$HERE"/tools/launcher/assets/*.png "$APP/Contents/Resources/"  # cartridge pictures (from PokemonStadiumRecomp)
-xcrun swiftc -O -target arm64-apple-macos13 -o "$APP/Contents/MacOS/launcher" \
-    "$HERE/tools/launcher/Launcher.swift"
+xcrun swiftc -parse-as-library -O -target arm64-apple-macos13 -o "$APP/Contents/MacOS/launcher" \
+    "$HERE/tools/launcher/PortableLauncherStore.swift" "$HERE/tools/launcher/Launcher.swift"
 
 # icon: the title screen, cropped square
 if [ -f "$ICON_SRC" ]; then

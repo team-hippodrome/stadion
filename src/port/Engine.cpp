@@ -1,5 +1,6 @@
 #include "Engine.h"
 #include "mods.h"
+#include "launcher_reliability.h"
 #include "touch_controls.h"
 #include "pacing.h"
 
@@ -178,6 +179,20 @@ bool Init() {
     auto cvars = std::make_shared<Ship::ConsoleVariable>(config);
     sContext->GetChildren().Add(cvars);
     CVarSetConsoleVariable(cvars);
+    if (getenv("PORT_SAFE_MODE") != nullptr) {
+#ifdef __APPLE__
+        config->SetInt("Window.Backend.Id", Fast::FAST3D_SDL_METAL);
+        config->SetString("Window.Backend.Name", "Metal");
+        cvars->SetInteger("gLauncher.Renderer", Fast::FAST3D_SDL_METAL);
+#else
+        config->SetInt("Window.Backend.Id", Fast::FAST3D_SDL_OPENGL);
+        config->SetString("Window.Backend.Name", "OpenGL");
+        cvars->SetInteger("gLauncher.Renderer", Fast::FAST3D_SDL_OPENGL);
+#endif
+        cvars->SetInteger("gLauncher.AutoPlay", 0);
+        cvars->Save();
+    }
+
     // Vsync would cap the speed-up at the display rate: PORT_SPEED > 1 turns it off for that run. The config is saved
     // with it (on the first run, from the settings menu), and later runs at normal speed then presented without vsync
     // (frames shown whenever they were done, out of step with the display); the player's own value is therefore kept
@@ -491,7 +506,7 @@ static void MaybeScreenshot() {
 
 // Saves the picture just drawn as an 8-bit PPM (interp.cpp: in-between frames).
 void SaveScreen(const char* path) {
-    int w = 0, h = 0;
+    int w = static_cast<int>(sWindow->GetWidth()), h = static_cast<int>(sWindow->GetHeight());
     int count = 0;
     if (SDL_Window** ws = SDL_GetWindows(&count)) {
         if (count > 0) SDL_GetWindowSizeInPixels(ws[0], &w, &h);
@@ -647,6 +662,15 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
 extern "C" void Port_ProcessControllerInitRequests(void);
 
 bool PumpFrame() {
+    static bool saveFailureShown = false;
+    if (!saveFailureShown) {
+        const auto error = TakeSaveFailure();
+        if (!error.empty()) {
+            saveFailureShown = true;
+            const auto text = error + "\n\nProgress could not be saved. Free disk space or restore write access before continuing. The previous on-disk save was preserved.";
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Save failed", text.c_str(), nullptr);
+        }
+    }
     if (!WindowIsRunning()) {
         return false;
     }

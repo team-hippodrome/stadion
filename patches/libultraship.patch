@@ -1080,6 +1080,52 @@ index 563dc1aa..0ffb29f9 100644
      zip_t* mZipArchive;
      std::mutex mPoolMutex;
      std::vector<zip_t*> mZipArchivePool;
+diff --git a/include/ship/utils/AppDirectory.h b/include/ship/utils/AppDirectory.h
+new file mode 100644
+--- /dev/null
++++ b/include/ship/utils/AppDirectory.h
+@@ -0,0 +1,41 @@
++#pragma once
++
++#include <algorithm>
++#include <filesystem>
++#include <stdexcept>
++#include <string>
++
++namespace Ship {
++// Desktop data follows the launcher artifact, never its caller's working directory or an AppImage mount.
++// Sandboxed platforms supply their writable files directory instead of the installed library/APK directory.
++inline std::filesystem::path ResolveAppDirectory(const std::filesystem::path& executableDirectory,
++                                                const std::string& overrideDirectory,
++                                                const std::filesystem::path& userHome,
++                                                const std::filesystem::path& appImage,
++                                                const std::filesystem::path& sandboxFiles,
++                                                bool macBundle) {
++    namespace fs = std::filesystem;
++    if (!overrideDirectory.empty()) {
++        auto path = fs::u8path(overrideDirectory);
++        if ((overrideDirectory == "~" || overrideDirectory.rfind("~/", 0) == 0) && !userHome.empty()) {
++            path = overrideDirectory == "~" ? userHome : userHome / fs::u8path(overrideDirectory.substr(2));
++        }
++        return fs::absolute(path).lexically_normal();
++    }
++    if (!sandboxFiles.empty()) return fs::absolute(sandboxFiles).lexically_normal();
++    if (!appImage.empty()) return fs::absolute(appImage).lexically_normal().parent_path();
++    if (executableDirectory.empty()) throw std::runtime_error("Cannot locate the launcher folder; set SHIP_HOME.");
++    auto directory = fs::absolute(executableDirectory).lexically_normal();
++    if (macBundle) {
++        for (auto bundle = directory; !bundle.empty(); bundle = bundle.parent_path()) {
++            auto extension = bundle.extension().string();
++            std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) {
++                return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
++            });
++            if (extension == ".app") return bundle.parent_path();
++            if (bundle == bundle.parent_path()) break;
++        }
++    }
++    return directory;
++}
++} // namespace Ship
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index cfab4bec..11c73dab 100644
 --- a/src/CMakeLists.txt
@@ -1582,7 +1628,7 @@ index f747b818..5d9465a1 100644
  static const char* prism_shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
                                              bool first_cycle, bool hint_single_element) {
 diff --git a/src/fast/backends/gfx_dxgi.cpp b/src/fast/backends/gfx_dxgi.cpp
-index dd8cce5a..c5106109 100644
+index dd8cce5a..0dbebe43 100644
 --- a/src/fast/backends/gfx_dxgi.cpp
 +++ b/src/fast/backends/gfx_dxgi.cpp
 @@ -34,6 +34,7 @@
@@ -1593,7 +1639,18 @@ index dd8cce5a..c5106109 100644
  
  #define DECLARE_GFX_DXGI_FUNCTIONS
  #include "fast/backends/gfx_dxgi.h"
-@@ -1128,6 +1129,7 @@ bool GfxWindowBackendDXGI::IsFullscreen() {
+@@ -405,10 +406,6 @@ static LRESULT CALLBACK gfx_dxgi_wnd_proc(HWND h_wnd, UINT message, WPARAM w_par
+             RECT* const prcNewWindow = (RECT*)l_param;
+             SetWindowPos(h_wnd, NULL, prcNewWindow->left, prcNewWindow->top, prcNewWindow->right - prcNewWindow->left,
+                          prcNewWindow->bottom - prcNewWindow->top, SWP_NOZORDER | SWP_NOACTIVATE);
+-            self->mPosX = prcNewWindow->left;
+-            self->mPosY = prcNewWindow->top;
+-            self->current_width = prcNewWindow->right - prcNewWindow->left;
+-            self->current_height = prcNewWindow->bottom - prcNewWindow->top;
+             break;
+         }
+         case WM_ENDSESSION:
+@@ -1128,6 +1125,7 @@ bool GfxWindowBackendDXGI::IsFullscreen() {
  void ThrowIfFailed(HRESULT res) {
      if (FAILED(res)) {
          fprintf(stderr, "Error: 0x%08X\n", res);
@@ -1601,7 +1658,7 @@ index dd8cce5a..c5106109 100644
          throw Ship::HResultException(res);
      }
  }
-@@ -1136,6 +1138,7 @@ void ThrowIfFailed(HRESULT res, HWND h_wnd, const char* message) {
+@@ -1136,6 +1134,7 @@ void ThrowIfFailed(HRESULT res, HWND h_wnd, const char* message) {
      if (FAILED(res)) {
          char full_message[256];
          snprintf(full_message, sizeof(full_message), "%s\n\nHRESULT: 0x%08X", message, res);
@@ -8685,6 +8742,117 @@ index 00000000..ab499ae8
 +        @end
 +    }
 +@end
+diff --git a/src/ship/config/Config.cpp b/src/ship/config/Config.cpp
+index 8f18a3db..f140d370 100644
+--- a/src/ship/config/Config.cpp
++++ b/src/ship/config/Config.cpp
+@@ -200,12 +200,12 @@ void Config::Copy(const std::string& fromKey, const std::string& toKey) {
+ }
+ 
+ void Config::Reload() {
+-    if (mPath == "None" || !fs::exists(mPath) || !fs::is_regular_file(mPath)) {
++    if (mPath == "None" || !fs::exists(fs::u8path(mPath)) || !fs::is_regular_file(fs::u8path(mPath))) {
+         mIsNewInstance = true;
+         mFlattenedJson = nlohmann::json::object();
+         return;
+     }
+-    std::ifstream ifs(mPath);
++    std::ifstream ifs(fs::u8path(mPath));
+ 
+     mNestedJson = nlohmann::json::object();
+     mFlattenedJson = nlohmann::json::object();
+@@ -218,7 +218,7 @@ void Config::Reload() {
+ }
+ 
+ void Config::Save() {
+-    std::ofstream file(mPath);
++    std::ofstream file(fs::u8path(mPath));
+     mNestedJson = mFlattenedJson.unflatten();
+     file << mNestedJson.dump(4);
+ }
+diff --git a/src/ship/core/Context.cpp b/src/ship/core/Context.cpp
+index ea34621d..76252f8c 100644
+--- a/src/ship/core/Context.cpp
++++ b/src/ship/core/Context.cpp
+@@ -15,6 +15,7 @@
+ #include "ship/debug/CrashHandler.h"
+ #include "ship/resource/ResourceManager.h"
+ #include "ship/utils/AppleFolderManager.h"
++#include "ship/utils/AppDirectory.h"
+ #include "ship/window/FileDrop.h"
+ #include "ship/log/Logger.h"
+ #include "ship/thread/ThreadPool.h"
+@@ -316,51 +317,27 @@ std::string Context::GetAppBundlePath() {
+ }
+ 
+ std::string Context::GetAppDirectoryPath(const std::string& appName) {
++    auto env = [](const char* name) {
++        const char* value = SDL_GetEnvironmentVariable(SDL_GetEnvironment(), name);
++        return value != nullptr ? std::string(value) : std::string();
++    };
++    const char* base = SDL_GetBasePath();
++    std::filesystem::path sandbox, image;
++    bool macBundle = false;
+ #if defined(__ANDROID__)
+-    const char* externaldir = SDL_GetAndroidExternalStoragePath();
+-    if (externaldir != NULL) {
+-        return externaldir;
+-    }
+-#endif
+-
+-#ifdef __IOS__
+-    const char* home = getenv("HOME");
+-    return std::string(home) + "/Documents";
+-#endif
+-
+-#if defined(__APPLE__)
+-    FolderManager foldermanager;
+-    if (char* fpath = std::getenv("SHIP_HOME")) {
+-        const char* appBundleID = strrchr(fpath, '/');
+-        if (appBundleID != nullptr) {
+-            foldermanager.CreateAppSupportDirectory(appBundleID + 1);
+-        }
+-        if (fpath[0] == '~') {
+-            const char* home = getenv("HOME") ? getenv("HOME") : getpwuid(getuid())->pw_dir;
+-            return std::string(home) + std::string(fpath).substr(1);
+-        }
+-        return std::string(fpath);
+-    }
+-#endif
+-
+-#if defined(__linux__)
+-    char* fpath = std::getenv("SHIP_HOME");
+-    if (fpath != NULL) {
+-        return std::string(fpath);
+-    }
++    if (const char* files = SDL_GetAndroidExternalStoragePath()) sandbox = std::filesystem::u8path(files);
++    else if (const char* files = SDL_GetAndroidInternalStoragePath()) sandbox = std::filesystem::u8path(files);
++#elif defined(__IOS__)
++    sandbox = std::filesystem::u8path(env("HOME")) / "Documents";
++#elif defined(__APPLE__)
++    macBundle = true;
++#elif defined(__linux__)
++    image = std::filesystem::u8path(env("APPIMAGE"));
+ #endif
+-
+-#ifdef NON_PORTABLE
+-    const std::string effectiveAppName = appName.empty() ? "libultraship" : appName;
+-    char* prefpath = SDL_GetPrefPath(NULL, effectiveAppName.c_str());
+-    if (prefpath != NULL) {
+-        std::string ret(prefpath);
+-        SDL_free(prefpath);
+-        return ret;
+-    }
+-#endif
+-
+-    return ".";
++    const auto home = std::filesystem::u8path(env("HOME").empty() ? env("USERPROFILE") : env("HOME"));
++    const auto directory = ResolveAppDirectory(base ? std::filesystem::u8path(base) : std::filesystem::path(),
++                                               env("SHIP_HOME"), home, image, sandbox, macBundle).u8string();
++    return {directory.begin(), directory.end()};
+ }
+ 
+ std::string Context::GetPathRelativeToAppBundle(const std::string& path) {
 diff --git a/src/ship/debug/CrashHandler.cpp b/src/ship/debug/CrashHandler.cpp
 index 63d5b071..a83bce7a 100644
 --- a/src/ship/debug/CrashHandler.cpp
