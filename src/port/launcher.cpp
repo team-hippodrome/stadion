@@ -314,15 +314,15 @@ std::string FileName(const std::string& path) {
 
 std::mutex gPickLock;
 std::string* gPickTarget = nullptr;
-std::string gPickResult;
+std::string gPickResult, gPickError;
 bool gPickDone = false;
 bool gPickStadiumSave = false;
 
 #if defined(__ANDROID__)
 // Android's file picker returns content:// URIs, which the game's file functions cannot open: copy the picked file into
-// the app's files (imported/<name>) and use that. The name comes from the URI's last part, e.g.
+// the app's files (a separate imported/pick-N/<name> for each selection) and use that. The name comes from the URI's last part, e.g.
 // ".../document/primary%3ADownload%2FPokemon%20Stadium.z64" -> "Pokemon Stadium.z64".
-std::string ImportPicked(const std::string& uri) {
+std::string ImportPicked(const std::string& uri, std::string& error) {
     if (uri.rfind("content://", 0) != 0) {
         return uri;
     }
@@ -336,39 +336,52 @@ std::string ImportPicked(const std::string& uri) {
         }
     }
     std::string name = decoded.substr(decoded.find_last_of("/:") + 1);
-    if (name.empty()) {
-        name = "picked";
-    }
+    if (name.empty() || name == "." || name == "..") name = "picked";
     std::error_code ec;
-    fs::path dir = fs::u8path(Ship::Context::GetPathRelativeToAppDirectory("imported"));
-    fs::create_directories(dir, ec);
-    std::string dst = (dir / fs::u8path(name)).string();
-    SDL_IOStream* in = SDL_IOFromFile(uri.c_str(), "rb");
-    if (in == nullptr) {
-        SPDLOG_WARN("could not open {}: {}", uri, SDL_GetError());
-        return "";
+    const auto root = fs::u8path(Ship::Context::GetPathRelativeToAppDirectory("imported"));
+    fs::create_directories(root, ec);
+    if (ec) { error = "Cannot create the app's imported-files folder."; return ""; }
+    fs::path dir;
+    for (int n = 1; n <= 10000; n++) {
+        const auto candidate = root / ("pick-" + std::to_string(n));
+        if (fs::create_directory(candidate, ec)) { dir = candidate; break; }
+        if (ec) break;
     }
-    SDL_IOStream* out = SDL_IOFromFile(dst.c_str(), "wb");
-    if (out != nullptr) {
+    if (dir.empty()) { error = "Cannot create a separate copy of the selected file."; return ""; }
+    const auto destination = dir / fs::u8path(name);
+    const std::string dst = Port::PathUtf8(destination);
+    SDL_IOStream* in = SDL_IOFromFile(uri.c_str(), "rb");
+    SDL_IOStream* out = in != nullptr ? SDL_IOFromFile(dst.c_str(), "wb") : nullptr;
+    bool copied = in != nullptr && out != nullptr;
+    if (copied) {
         char chunk[65536];
         size_t n;
         while ((n = SDL_ReadIO(in, chunk, sizeof chunk)) > 0) {
-            SDL_WriteIO(out, chunk, n);
+            if (SDL_WriteIO(out, chunk, n) != n) { copied = false; break; }
         }
-        SDL_CloseIO(out);
+        copied = copied && SDL_GetIOStatus(in) == SDL_IO_STATUS_EOF;
     }
-    SDL_CloseIO(in);
-    return out != nullptr ? dst : "";
+    if (out != nullptr && !SDL_CloseIO(out)) copied = false;
+    if (in != nullptr) SDL_CloseIO(in);
+    if (!copied) {
+        fs::remove(destination, ec);
+        fs::remove(dir, ec);
+        error = "Could not copy the complete selected file into the app's files.";
+        return "";
+    }
+    return dst;
 }
 #endif
 
 void PickCallback(void*, const char* const* files, int) {
     std::string picked = files != nullptr && files[0] != nullptr ? files[0] : "";
+    std::string error;
 #if defined(__ANDROID__)
-    picked = ImportPicked(picked);
+    picked = ImportPicked(picked, error);
 #endif
     std::lock_guard<std::mutex> g(gPickLock);
     gPickResult = picked;
+    gPickError = error;
     gPickDone = true;
 }
 
@@ -393,6 +406,7 @@ void Pick(std::string* target, bool save, const SDL_DialogFileFilter* filters, i
         }
         gPickTarget = target;
         gPickDone = false;
+        gPickError.clear();
         gPickStadiumSave = stadiumSave;
     }
     std::string start = !target->empty() ? *target : suggested;
@@ -414,7 +428,9 @@ bool ApplyPick() {
     if (gPickTarget == nullptr || !gPickDone) {
         return false;
     }
-    if (!gPickResult.empty()) {
+    if (!gPickError.empty()) {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not import selected file", gPickError.c_str(), MainWindow());
+    } else if (!gPickResult.empty()) {
         if (gPickStadiumSave) {
             std::string imported, error;
             if (Port::ImportStadiumSave(fs::u8path(gPickResult), fs::u8path(Ship::Context::GetAppDirectoryPath()),
@@ -1532,11 +1548,6 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
 }
 
 void UseShipHomeDefaults() {
-#if !defined(_WIN32)
-    if (getenv("SHIP_HOME") == nullptr) {
-        return;
-    }
-#endif
     if (getenv("PORT_RECORD") == nullptr) {
         SetEnv("PORT_RECORD", Ship::Context::GetPathRelativeToAppDirectory("last_input.rec"));
     }

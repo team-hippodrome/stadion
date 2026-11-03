@@ -25,7 +25,10 @@ std::string StoreLauncherPath(const std::string& path, const fs::path& directory
     if (path.empty()) return "";
     const auto value = fs::u8path(path).lexically_normal();
     const auto relative = value.lexically_relative(directory.lexically_normal());
-    if (!relative.empty() && *relative.begin() != "..") return PathUtf8(relative);
+    if (!relative.empty() && *relative.begin() != "..") {
+        const auto stored = relative.generic_u8string();
+        return {stored.begin(), stored.end()};
+    }
     return PathUtf8(value);
 }
 

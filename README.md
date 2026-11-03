@@ -130,10 +130,15 @@ overrides it). Renderer cycles through the graphics APIs the build has (DX11, Op
 applies the next time the game starts. With a ROM path as argument the game starts right away:
 `cd build && ./pokestadium "/path/to/Pokemon Stadium (USA).z64"`.
 
-On Windows, `pokestadium.cfg.json`, logs and the default `saves/` folder live beside `pokestadium.exe`, including when
-started from a shortcut or another working directory. A missing config is generated on first start; an existing one
-beside the executable is reused. Move the config and `saves/` with the executable to keep settings and progress.
-Paths to ROMs and saves inside that folder are stored relatively. `SHIP_HOME` explicitly overrides the data folder.
+On desktop systems, `pokestadium.cfg.json`, logs and the default `saves/` folder follow the launcher rather than the
+working directory: beside the executable on Windows and bare Linux/macOS builds, beside the `.app` on macOS, and
+beside the original `.AppImage` on Linux (outside its read-only mount). The macOS `.command` helper keeps them beside
+the script. Android uses its writable app-files directory, since installed APKs and native libraries are read-only.
+A missing config is generated on first start; an existing one in that data folder is reused. Move the config and
+`saves/` with the launcher to keep settings and progress. Paths to ROMs and saves inside that folder are stored
+relatively. `SHIP_HOME` explicitly overrides the data folder on every platform, including relative paths and `~/`.
+The legacy macOS AppKit frontend uses the same JSON schema and migrates its known UserDefaults choices when creating
+its first config; it preserves window/controller settings written by the game.
 
 **Import save** loads an existing raw 128 KiB Pokémon Stadium (USA) N64 cartridge save (`.flash`, `.fla`, `.sra`, `.sav`
 or `.bin`). Native and common byte-swapped emulator dumps are recognized by their record checksums. A working copy

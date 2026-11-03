@@ -130,6 +130,7 @@ int main(int argc, char** argv) {
             moved = root / 'moved'
             local = old / 'saves/stadium.flash'
             stored = self.invoke(local, old, 'paths').stdout.splitlines()[1]
+            self.assertEqual(stored, 'saves/stadium.flash')
             self.assertFalse(Path(stored).is_absolute())
             resolved = self.invoke(stored, moved, 'paths').stdout.splitlines()[0]
             self.assertEqual(Path(resolved), moved / 'saves/stadium.flash')
