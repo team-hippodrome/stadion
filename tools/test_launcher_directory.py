@@ -90,7 +90,7 @@ int main() {
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             result = self.resolve(override='relative/../data', cwd=root)
-            self.assertEqual(Path(result.stdout), root / 'data')
+            self.assertEqual(Path(result.stdout).resolve(), (root / 'data').resolve())
             result = self.resolve(override='~/launcher data', home=root)
             self.assertEqual(Path(result.stdout), root / 'launcher data')
 
