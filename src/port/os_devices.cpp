@@ -878,9 +878,11 @@ class RetraceSchedule {
         int64_t target = Port_Speed() == 1.0 ? DisplayTarget(now) : 0;
         if (target == 0) { // the free-running clock
             if (wasPaced) mNext = std::chrono::steady_clock::now();
-            mNext += std::chrono::microseconds((long long)periodUs);
+            const auto period = std::chrono::microseconds((long long)periodUs);
+            mNext += period;
             auto wallNow = std::chrono::steady_clock::now();
-            if (mNext < wallNow - std::chrono::milliseconds(100)) mNext = wallNow; // do not race to catch up after a stall
+            // Allow a late retrace, but do not burst several game frames into the audio queue after a stall.
+            if (mNext < wallNow - period) mNext = wallNow;
             std::this_thread::sleep_until(mNext);
             return;
         }
@@ -922,7 +924,7 @@ class RetraceSchedule {
         }
         int64_t base = vblank + sLeadNs;
         double k;
-        if (mTarget == 0 || mTarget + n * refresh < now - 100000000) {
+        if (mTarget == 0 || mTarget + n * refresh < now - n * refresh) {
             // the first retrace, or one after a stall: the next grid point (no racing to catch up)
             k = std::ceil((double)(now - base) / refresh);
         } else {
