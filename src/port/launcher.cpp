@@ -887,7 +887,9 @@ class LauncherWindow : public Ship::GuiWindow {
         dl->AddRectFilled(P(0, 44), P(kW, 45), Hex(Theme::cardBorder));
         Tools();
 
-        if (mControls) {
+        if (mTools) {
+            ToolsPanel(16, 58, kW - 32, 366);
+        } else if (mControls) {
             ControlsPanel(16, 58, kW - 32, 366);
         } else {
             for (int i = 0; i < 4; i++) {
@@ -904,10 +906,21 @@ class LauncherWindow : public Ship::GuiWindow {
 
   private:
     std::string mToolsStatus;
+    bool mToolsTestOpened = false, mTools = false;
     void Tools() {
+        const bool testOpen = getenv("PORT_LAUNCHER_OPEN_TOOLS") != nullptr && !mToolsTestOpened;
+        if (Button("Files & help", 800, 8, 144, 30) || testOpen) {
+            mToolsTestOpened = true;
+            mTools = !mTools;
+            if (Handheld()) GoToPage(mTools ? kPageTools : kPageHome);
+        }
+    }
+    void ToolsPanel(float x, float y, float w, float h) {
         const auto directory = fs::u8path(Ship::Context::GetAppDirectoryPath());
-        if (Button("Files & help", 800, 8, 144, 30)) ImGui::OpenPopup("Launcher files and recovery");
-        if (ImGui::BeginPopup("Launcher files and recovery")) {
+        ImGui::SetCursorScreenPos(P(x, y));
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, HexV(Theme::card));
+        ImGui::BeginChild("launcher-files", ImVec2(w * mScale, h * mScale), true);
+        ImGui::SetWindowFontScale(mScale);
             ImGui::TextWrapped("Settings folder: %s", Port::PathUtf8(directory).c_str());
             ImGui::TextWrapped("Active Stadium save: %s", mState->save.c_str());
             if (ImGui::Button("Check setup") || NavItem()) {
@@ -942,9 +955,11 @@ class LauncherWindow : public Ship::GuiWindow {
             ImGui::TextWrapped("Recovery: start with --launcher to bypass Auto-play, or --safe-mode to reset the renderer. Saves and controller mappings are kept.");
             ImGui::TextWrapped("Five previous session saves are kept in <save>.backups. Exports are under exports/; reports under diagnostics/.");
             if (!mToolsStatus.empty()) ImGui::TextWrapped("%s", mToolsStatus.c_str());
-            if (ImGui::Button("Close") || NavItem()) ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
-        }
+            if (ImGui::Button("Back to players") || NavItem()) { mTools = false; if (Handheld()) GoToPage(kPageHome); }
+
+        ImGui::SetWindowFontScale(1.0f);
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
     }
     int mRendererFailed = 0; // the requested renderer, when the game started with another (it could not start)
     // design coordinates -> screen
@@ -1403,6 +1418,7 @@ class LauncherWindow : public Ship::GuiWindow {
         NavBeginFrame();
         Tools();
         if (mNavBack && mPage != kPageHome) {
+            mTools = false;
             GoToPage(kPageHome);
             mNavBack = false;
         }
@@ -1411,11 +1427,14 @@ class LauncherWindow : public Ship::GuiWindow {
         }
         ImDrawList* dl = ImGui::GetWindowDrawList();
         Text(24, 14, "Pokémon Stadium", gFonts.title);
-        const char* pageName = mPage == kPageTransferPak ? "Transfer Pak" : mPage == kPageControls ? "Controls" : "";
+        const char* pageName = mPage == kPageTransferPak ? "Transfer Pak" : mPage == kPageControls ? "Controls" : mPage == kPageTools ? "Files & help" : "";
         Text(220, 17, pageName, gFonts.body, Theme::dim);
         dl->AddRectFilled(P(0, 50), P(kW, 51), Hex(Theme::cardBorder));
 
-        if (mPage == kPageTransferPak) {
+        if (mPage == kPageTools) {
+            ToolsPanel(16, 62, kW - 32, 430);
+            mDefaultFocus = 0;
+        } else if (mPage == kPageTransferPak) {
             for (int i = 0; i < 4; i++) {
                 PlayerCard(i, 16 + i * (222 + 14), 62, 222, 366);
             }
@@ -1517,7 +1536,7 @@ class LauncherWindow : public Ship::GuiWindow {
     struct NavRect {
         ImVec2 min, max;
     };
-    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2;
+    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2, kPageTools = 3;
     int mPage = kPageHome;
     std::vector<NavRect> mNavItems, mNavPrev; // this frame's and last frame's focus targets, in drawing order
     int mFocus = -1, mDefaultFocus = 0;
