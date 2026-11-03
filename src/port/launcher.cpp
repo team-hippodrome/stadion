@@ -909,11 +909,19 @@ class LauncherWindow : public Ship::GuiWindow {
     bool mToolsTestOpened = false, mTools = false;
     void Tools() {
         const bool testOpen = getenv("PORT_LAUNCHER_OPEN_TOOLS") != nullptr && !mToolsTestOpened;
-        if (Button("Files & help", 800, 8, 144, 30) || testOpen) {
+        ImGui::BeginDisabled(mCapture >= 0);
+        const bool opened = Button("Files & help", 800, 8, 144, 30);
+        ImGui::EndDisabled();
+        if ((opened && mCapture < 0) || testOpen) {
             mToolsTestOpened = true;
             mTools = !mTools;
             if (Handheld()) GoToPage(mTools ? kPageTools : kPageHome);
         }
+    }
+    bool ToolAction(const char* label) {
+        const bool clicked = ImGui::Button(label, ImVec2(std::min(280.0f * mScale, ImGui::GetContentRegionAvail().x),
+                                                       (Handheld() ? 44.0f : 26.0f) * mScale));
+        return NavItem() || clicked;
     }
     void ToolsPanel(float x, float y, float w, float h) {
         const auto directory = fs::u8path(Ship::Context::GetAppDirectoryPath());
@@ -923,27 +931,27 @@ class LauncherWindow : public Ship::GuiWindow {
         ImGui::SetWindowFontScale(mScale);
             ImGui::TextWrapped("Settings folder: %s", Port::PathUtf8(directory).c_str());
             ImGui::TextWrapped("Active Stadium save: %s", mState->save.c_str());
-            if (ImGui::Button("Check setup") || NavItem()) {
+            if (ToolAction("Check setup")) {
                 auto check = Port::CheckLauncherFiles(directory, mState->save, PreflightSlots(*mState));
                 const auto romError = CheckRom(mState->rom);
                 if (!romError.empty()) check.errors.insert(check.errors.begin(), "Stadium ROM: " + romError);
                 mToolsStatus = CheckText(check);
             }
-            if (ImGui::Button("Open settings folder") || NavItem()) OpenFolder(directory);
-            if (ImGui::Button("Open saves folder") || NavItem()) OpenFolder(fs::u8path(mState->save).parent_path());
-            if (ImGui::Button("Export N64 save") || NavItem()) {
+            if (ToolAction("Open settings folder")) OpenFolder(directory);
+            if (ToolAction("Open saves folder")) OpenFolder(fs::u8path(mState->save).parent_path());
+            if (ToolAction("Export N64 save")) {
                 std::string path, error;
                 mToolsStatus = Port::ExportStadiumSave(fs::u8path(mState->save), directory, path, error)
                     ? "Exported: " + path + "\nThe active save was kept unchanged." : error;
             }
-            if (ImGui::Button("Export diagnostics") || NavItem()) {
+            if (ToolAction("Export diagnostics")) {
                 std::string path, error;
                 mToolsStatus = Port::ExportLauncherDiagnostics(directory, PORT_BUILD_VERSION,
                     RendererName(mState->renderer), RendererName(ActiveRenderer()), path, error)
                     ? "Exported: " + path + "\nReview the report before sharing it." : error;
             }
-            if (ImGui::Button("Disable Auto-play") || NavItem()) { mState->autoPlay = false; mChanged = true; mToolsStatus = "Auto-play disabled."; }
-            if (ImGui::Button("Use safe renderer next start") || NavItem()) {
+            if (ToolAction("Disable Auto-play")) { mState->autoPlay = false; mChanged = true; mToolsStatus = "Auto-play disabled."; }
+            if (ToolAction("Use safe renderer next start")) {
 #ifdef __APPLE__
                 mState->renderer = Fast::FAST3D_SDL_METAL;
 #else
@@ -955,7 +963,7 @@ class LauncherWindow : public Ship::GuiWindow {
             ImGui::TextWrapped("Recovery: start with --launcher to bypass Auto-play, or --safe-mode to reset the renderer. Saves and controller mappings are kept.");
             ImGui::TextWrapped("Five previous session saves are kept in <save>.backups. Exports are under exports/; reports under diagnostics/.");
             if (!mToolsStatus.empty()) ImGui::TextWrapped("%s", mToolsStatus.c_str());
-            if (ImGui::Button("Back to players") || NavItem()) { mTools = false; if (Handheld()) GoToPage(kPageHome); }
+            if (ToolAction("Back to players")) { mTools = false; if (Handheld()) GoToPage(kPageHome); }
 
         ImGui::SetWindowFontScale(1.0f);
         ImGui::EndChild();
@@ -1338,6 +1346,8 @@ class LauncherWindow : public Ship::GuiWindow {
         if (index != mFocus || mCapture >= 0) {
             return false;
         }
+        if ((ImGui::GetCurrentWindow()->Flags & ImGuiWindowFlags_ChildWindow) && !ImGui::IsItemVisible())
+            ImGui::SetScrollHereY(0.5f);
         const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
         const float pad = 3 * mScale;
         ImGui::GetWindowDrawList()->AddRect(ImVec2(a.x - pad, a.y - pad), ImVec2(b.x + pad, b.y + pad),

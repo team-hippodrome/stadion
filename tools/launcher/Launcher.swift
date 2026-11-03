@@ -827,6 +827,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let on = i < cards.count ? cards[i].isOn : store.bool(forKey: "p\(i)_on")
             let path = i < cards.count ? cards[i].rom : store.string(forKey: "p\(i)_rom") ?? ""
             let selected = i < cards.count ? cards[i].save : store.string(forKey: "p\(i)_save") ?? ""
+            if on && path.isEmpty { return (1, "Error: Player \(i + 1): Choose a Game Boy ROM or turn this Transfer Pak off.") }
             let battery = selected.isEmpty ? URL(fileURLWithPath: path).deletingPathExtension().appendingPathExtension("sav").path : selected
             arguments += [on ? path : "", on ? battery : ""]
         }

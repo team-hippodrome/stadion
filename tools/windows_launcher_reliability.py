@@ -27,7 +27,7 @@ def main():
     results=[]
     base={k:v for k,v in os.environ.items() if k!='SHIP_HOME' and not k.startswith(('PORT_','ARES_REF_','XCHECK_'))}
 
-    def run_case(name,backend,arguments,marker=None,tools=False):
+    def run_case(name,backend,arguments,marker=None,tools=False,handheld=False):
         folder=args.out/name; home=folder/'Pokémon 런처'; home.mkdir(parents=True)
         exe=home/'pokestadium.exe'; shutil.copy2(args.bin,exe)
         cwd=folder/'unrelated'; cwd.mkdir()
@@ -40,6 +40,7 @@ def main():
         if marker: (home/'launcher-session.txt').write_text(marker+'\n')
         env=base|{'PORT_LAUNCHER_SHOT':str(folder/'launcher.ppm'),'PORT_HIDDEN_WINDOW':'1'}
         if tools: env['PORT_LAUNCHER_OPEN_TOOLS']='1'
+        if handheld: env['PORT_LAUNCHER_HANDHELD']='1'
         with (folder/'run.log').open('w',encoding='utf-8') as log:
             process=subprocess.run([str(exe)]+arguments,cwd=cwd,env=env,stdout=log,stderr=subprocess.STDOUT,
                                    timeout=120,**process_options())
@@ -71,6 +72,7 @@ def main():
         run_case(backend+'-force-launcher',backend,['--launcher'])
     for backend in ('opengl','vulkan','directx'):
         run_case(backend+'-tools-panel',backend,['--launcher'],tools=True)
+    run_case('handheld-tools-panel','opengl',['--launcher'],tools=True,handheld=True)
     run_case('explicit-safe-mode','directx',['--safe-mode'])
     run_case('interrupted-graphics','vulkan',[],marker='graphics')
     run_case('interrupted-game','directx',[],marker='game')

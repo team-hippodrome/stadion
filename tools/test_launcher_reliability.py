@@ -23,8 +23,8 @@ int main(int argc, char** argv) {
     std::string path, directory, second; std::getline(std::cin, path); std::getline(std::cin, directory);
     auto home = std::filesystem::u8path(directory), file = std::filesystem::u8path(path);
     std::string mode = argv[1], output, error;
-    if (mode == "write" || mode == "twice") {
-        std::vector<uint8_t> data(131072, uint8_t(argc > 2 ? atoi(argv[2]) : 7));
+    if (mode == "write" || mode == "twice" || mode == "gbwrite") {
+        std::vector<uint8_t> data(mode == "gbwrite" ? 32768 : 131072, uint8_t(argc > 2 ? atoi(argv[2]) : 7));
         bool ok = Port::WriteProtectedSave(file, data.data(), data.size(), error);
         if (ok && mode == "twice") { data[0] = 42; ok = Port::WriteProtectedSave(file, data.data(), data.size(), error); }
         if (!ok) { std::cerr << error; return 1; } return 0;
@@ -110,6 +110,17 @@ int main(int argc, char** argv) {
             self.assertEqual(backups[0].read_bytes(), self.fixture)
             self.assertEqual(save.read_bytes()[0], 42)
             self.assertFalse(list(home.glob('.stadium-save-*')))
+
+    def test_game_boy_battery_ram_keeps_its_original_size_and_backup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp); save = home/'battery.sav'; original = bytes([3])*32768
+            save.write_bytes(original)
+            result = self.invoke('gbwrite', save, home)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(save.read_bytes(), bytes([7])*32768)
+            backups = list(Path(str(save)+'.backups').glob('*.bak'))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(backups[0].read_bytes(), original)
 
     def test_rotates_five_previous_sessions_and_handles_new_saves(self):
         with tempfile.TemporaryDirectory() as tmp:
