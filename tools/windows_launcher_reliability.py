@@ -50,7 +50,8 @@ def main():
         image=Image.open(folder/'launcher.ppm'); assert max(ImageStat.Stat(image).stddev)>5
         if tools:
             from PIL import ImageChops
-            baseline=Image.open(args.out/(backend+'-force-launcher')/'launcher.ppm')
+            baseline_case = 'handheld-launcher' if handheld else backend + '-force-launcher'
+            baseline=Image.open(args.out/baseline_case/'launcher.ppm')
             assert image.size==baseline.size
             assert max(ImageStat.Stat(ImageChops.difference(image,baseline)).mean)>8, 'Files/help panel did not become visible'
             image.save(folder/'tools.png')
@@ -72,6 +73,7 @@ def main():
         run_case(backend+'-force-launcher',backend,['--launcher'])
     for backend in ('opengl','vulkan','directx'):
         run_case(backend+'-tools-panel',backend,['--launcher'],tools=True)
+    run_case('handheld-launcher','opengl',['--launcher'],handheld=True)
     run_case('handheld-tools-panel','opengl',['--launcher'],tools=True,handheld=True)
     run_case('explicit-safe-mode','directx',['--safe-mode'])
     run_case('interrupted-graphics','vulkan',[],marker='graphics')

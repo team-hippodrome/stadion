@@ -1628,7 +1628,7 @@ index f747b818..5d9465a1 100644
  static const char* prism_shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
                                              bool first_cycle, bool hint_single_element) {
 diff --git a/src/fast/backends/gfx_dxgi.cpp b/src/fast/backends/gfx_dxgi.cpp
-index dd8cce5a..c5106109 100644
+index dd8cce5a..0dbebe43 100644
 --- a/src/fast/backends/gfx_dxgi.cpp
 +++ b/src/fast/backends/gfx_dxgi.cpp
 @@ -34,6 +34,7 @@
@@ -1639,7 +1639,18 @@ index dd8cce5a..c5106109 100644
  
  #define DECLARE_GFX_DXGI_FUNCTIONS
  #include "fast/backends/gfx_dxgi.h"
-@@ -1128,6 +1129,7 @@ bool GfxWindowBackendDXGI::IsFullscreen() {
+@@ -405,10 +406,6 @@ static LRESULT CALLBACK gfx_dxgi_wnd_proc(HWND h_wnd, UINT message, WPARAM w_par
+             RECT* const prcNewWindow = (RECT*)l_param;
+             SetWindowPos(h_wnd, NULL, prcNewWindow->left, prcNewWindow->top, prcNewWindow->right - prcNewWindow->left,
+                          prcNewWindow->bottom - prcNewWindow->top, SWP_NOZORDER | SWP_NOACTIVATE);
+-            self->mPosX = prcNewWindow->left;
+-            self->mPosY = prcNewWindow->top;
+-            self->current_width = prcNewWindow->right - prcNewWindow->left;
+-            self->current_height = prcNewWindow->bottom - prcNewWindow->top;
+             break;
+         }
+         case WM_ENDSESSION:
+@@ -1128,6 +1125,7 @@ bool GfxWindowBackendDXGI::IsFullscreen() {
  void ThrowIfFailed(HRESULT res) {
      if (FAILED(res)) {
          fprintf(stderr, "Error: 0x%08X\n", res);
@@ -1647,7 +1658,7 @@ index dd8cce5a..c5106109 100644
          throw Ship::HResultException(res);
      }
  }
-@@ -1136,6 +1138,7 @@ void ThrowIfFailed(HRESULT res, HWND h_wnd, const char* message) {
+@@ -1136,6 +1134,7 @@ void ThrowIfFailed(HRESULT res, HWND h_wnd, const char* message) {
      if (FAILED(res)) {
          char full_message[256];
          snprintf(full_message, sizeof(full_message), "%s\n\nHRESULT: 0x%08X", message, res);

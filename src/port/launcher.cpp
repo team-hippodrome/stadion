@@ -632,10 +632,13 @@ struct Fonts {
     ImFont* title = nullptr; // 20
     ImFont* play = nullptr;  // 32
 } gFonts;
-// Pixels per point of the window (2 on a Retina display). The fonts are rasterized at this many times their size and
-// drawn at 1/this scale (io.FontGlobalScale while the launcher shows): ImGui 1.91 rasterizes a font once, and fonts
-// made at point size were stretched on HiDPI screens (blurry text).
-float gFontDensity = 1.0f;
+// ImGui 1.91 rasterizes its atlas once. Keep a small bank of native pixel
+// sizes so a resized window can switch fonts without rebuilding GPU textures.
+struct FontSet {
+    float rasterScale;
+    Fonts fonts;
+};
+std::vector<FontSet> gFontSets;
 
 void LoadFonts() {
     auto rm = ResourceGetResourceManager();
@@ -649,22 +652,21 @@ void LoadFonts() {
     static std::vector<char> ttf; // ImGui keeps pointing at the data
     ttf.assign(file->Buffer->begin() + (std::ptrdiff_t)file->BufferOffset, file->Buffer->end());
     ImGuiIO& io = ImGui::GetIO();
-    SDL_Window* sdl = MainWindow();
-    gFontDensity = sdl != nullptr ? std::max(1.0f, SDL_GetWindowPixelDensity(sdl)) : 1.0f;
-    auto add = [&](float size) {
+    auto add = [&](float size, float rasterScale) {
         ImFontConfig cfg;
         cfg.FontDataOwnedByAtlas = false;
         cfg.OversampleH = 2;
-        size *= gFontDensity;
         static const ImWchar ranges[] = { 0x0020, 0x00FF, 0x2013, 0x2014, 0x2026, 0x2026, 0x2713, 0x2713, 0 };
-        return io.Fonts->AddFontFromMemoryTTF(ttf.data(), (int)ttf.size(), size, &cfg, ranges);
+        ImFont* font = io.Fonts->AddFontFromMemoryTTF(ttf.data(), (int)ttf.size(), size * rasterScale, &cfg, ranges);
+        font->Scale = 1.0f / rasterScale;
+        return font;
     };
-    gFonts.body = add(13.0f);
-    gFonts.small = add(11.0f);
-    gFonts.game = add(16.0f);
-    gFonts.title = add(20.0f);
-    gFonts.play = add(32.0f);
+    for (float scale : {0.625f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f}) {
+        gFontSets.push_back({scale, {add(13, scale), add(11, scale), add(16, scale),
+                                    add(20, scale), add(32, scale)}});
+    }
 }
+
 
 // cartridge and N64 pictures (tools/launcher/assets, packed into pokestadium.o2r)
 ImTextureID Picture(Fast::Fast3dGui* gui, const char* name) {
@@ -906,6 +908,18 @@ class LauncherWindow : public Ship::GuiWindow {
         const float designH = Handheld() ? kHandheldH : kH;
         mScale = std::min(vp->Size.x / kW, vp->Size.y / designH);
         mOrigin = ImVec2(vp->Pos.x + (vp->Size.x - kW * mScale) / 2, vp->Pos.y + (vp->Size.y - designH * mScale) / 2);
+        mPixelDensity = 1.0f;
+        if (SDL_Window* sdl = MainWindow()) {
+            mPixelDensity = std::max(1.0f, SDL_GetWindowPixelDensity(sdl));
+        }
+        const float target = std::max(0.01f, mScale * mPixelDensity);
+        if (!gFontSets.empty()) {
+            const auto nearest = std::min_element(gFontSets.begin(), gFontSets.end(), [target](const FontSet& a, const FontSet& b) {
+                return std::abs(std::log(a.rasterScale / target)) < std::abs(std::log(b.rasterScale / target));
+            });
+            gFonts = nearest->fonts;
+        }
+        if (gFonts.body) ImGui::PushFont(gFonts.body);
         ImGui::PushStyleColor(ImGuiCol_Text, HexV(Theme::text));
         ImGui::PushStyleColor(ImGuiCol_Button, HexV(Theme::button));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, HexV(Theme::buttonHover));
@@ -917,6 +931,7 @@ class LauncherWindow : public Ship::GuiWindow {
         DrawElement();
         ImGui::PopStyleVar();
         ImGui::PopStyleColor(7);
+        if (gFonts.body) ImGui::PopFont();
         ImGui::End();
         ImGui::PopStyleColor();
         ImGui::PopStyleVar(2);
@@ -1034,13 +1049,13 @@ class LauncherWindow : public Ship::GuiWindow {
     int mRendererFailed = 0; // the requested renderer, when the game started with another (it could not start)
     // design coordinates -> screen
     ImVec2 P(float x, float y) const {
-        return ImVec2(mOrigin.x + x * mScale, mOrigin.y + y * mScale);
+        return ImVec2(std::round((mOrigin.x + x * mScale) * mPixelDensity) / mPixelDensity,
+                      std::round((mOrigin.y + y * mScale) * mPixelDensity) / mPixelDensity);
     }
 
     void Text(float x, float y, const std::string& t, ImFont* font = nullptr, uint32_t color = Theme::text) {
         ImFont* f = font != nullptr ? font : ImGui::GetFont();
-        // (a launcher font's FontSize is in pixels: gFontDensity times its point size; GetFontSize includes the scale)
-        float size = (font != nullptr ? font->FontSize / gFontDensity : ImGui::GetFontSize()) * mScale;
+        float size = (font != nullptr ? font->FontSize * font->Scale : ImGui::GetFontSize()) * mScale;
         ImGui::GetWindowDrawList()->AddText(f, size, P(x, y), Hex(color), t.c_str());
     }
 
@@ -1626,7 +1641,7 @@ class LauncherWindow : public Ship::GuiWindow {
     int mCapture = -1;      // the input (kInputs) waiting for a key or controller input, -1: none
     std::string mCaptureId; // the binding it replaces ("": adds one)
     bool mArmed = false;    // the inputs held when the capture started were released
-    float mScale = 1.0f;
+    float mScale = 1.0f, mPixelDensity = 1.0f;
     ImVec2 mOrigin;
     bool mChanged = false;
 };
@@ -1650,20 +1665,56 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
     if (!(state.autoPlay && !shift && getenv("PORT_FORCE_LAUNCHER") == nullptr && !Handheld() && CheckRom(state.rom).empty() &&
           [&] { const auto c = CheckLauncherFiles(fs::u8path(Ship::Context::GetAppDirectoryPath()), state.save, PreflightSlots(state));
                 return c.errors.empty() && c.warnings.empty(); }())) {
-        LoadFonts(); // before the first frame: ImGui builds its font atlas then
-        if (gFonts.body != nullptr) {
-            ImGui::GetIO().FontDefault = gFonts.body;
-            ImGui::GetIO().FontGlobalScale = 1.0f / gFontDensity;
-        }
-        // the launcher's own window size while it shows; the game's size comes back for PLAY
+        // Give the launcher its own readable window and restore the game size on Play.
         SDL_Window* sdl = MainWindow();
         int gameW = 0, gameH = 0;
-        if (sdl != nullptr) {
+        const float launcherHeight = Handheld() ? kHandheldH : kH;
+        if (sdl != nullptr && !window->IsFullscreen()) {
             SDL_GetWindowSize(sdl, &gameW, &gameH);
-            SDL_SetWindowSize(sdl, (int)kW, (int)kH);
-            SDL_SetWindowPosition(sdl, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+            float scale = SDL_GetWindowDisplayScale(sdl) / std::max(1.0f, SDL_GetWindowPixelDensity(sdl));
+            SDL_Rect usable{};
+            if (SDL_GetDisplayUsableBounds(SDL_GetDisplayForWindow(sdl), &usable)) {
+                scale = std::min({scale, (usable.w - 32) / kW, (usable.h - 80) / launcherHeight});
+            }
+            if (scale > 0) {
+                SDL_SetWindowSize(sdl, int(std::round(kW * scale)), int(std::round(launcherHeight * scale)));
+                SDL_SetWindowPosition(sdl, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+            }
             SDL_SetWindowTitle(sdl, "Pokémon Stadium — Launcher");
         }
+#ifdef _WIN32
+        HWND nativeWindow = nullptr;
+        RECT gameRect{};
+        if (sdl == nullptr && !window->IsFullscreen()) {
+            nativeWindow = static_cast<HWND>(ImGui::GetMainViewport()->PlatformHandleRaw);
+            MONITORINFO monitor{sizeof(monitor)};
+            if (nativeWindow && GetWindowRect(nativeWindow, &gameRect) &&
+                GetMonitorInfoW(MonitorFromWindow(nativeWindow, MONITOR_DEFAULTTONEAREST), &monitor)) {
+                using GetWindowDpi = UINT (WINAPI*)(HWND);
+                const auto getWindowDpi = reinterpret_cast<GetWindowDpi>(
+                    GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetDpiForWindow"));
+                const UINT dpi = getWindowDpi ? getWindowDpi(nativeWindow) : 96;
+                RECT client{};
+                GetClientRect(nativeWindow, &client);
+                const int frameWidth = (gameRect.right - gameRect.left) - client.right;
+                const int frameHeight = (gameRect.bottom - gameRect.top) - client.bottom;
+                const RECT& work = monitor.rcWork;
+                const float scale = std::min({dpi / 96.0f,
+                    (work.right - work.left - frameWidth) / kW,
+                    (work.bottom - work.top - frameHeight) / launcherHeight});
+                if (scale > 0) {
+                    const int width = int(std::round(kW * scale)) + frameWidth;
+                    const int height = int(std::round(launcherHeight * scale)) + frameHeight;
+                    SetWindowPos(nativeWindow, nullptr, work.left + (work.right - work.left - width) / 2,
+                                 work.top + (work.bottom - work.top - height) / 2, width, height,
+                                 SWP_NOZORDER | SWP_NOACTIVATE);
+                }
+            } else {
+                nativeWindow = nullptr;
+            }
+        }
+#endif
+        LoadFonts(); // add the launcher fonts before the first frame builds the atlas
         auto gui = std::dynamic_pointer_cast<Fast::Fast3dGui>(window->GetGui());
         // the controller deck, for the controls panel (the game's osContInit sets it up again, which is harmless)
         static uint8_t controllerBits;
@@ -1700,12 +1751,17 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
             }
         }
         window->GetGui()->RemoveGuiWindow(launcher->GetName());
-        ImGui::GetIO().FontDefault = nullptr;
-        ImGui::GetIO().FontGlobalScale = 1.0f;
         Store(state);
         if (!play) {
             return "";
         }
+#ifdef _WIN32
+        if (nativeWindow && !window->IsFullscreen()) {
+            SetWindowPos(nativeWindow, nullptr, gameRect.left, gameRect.top,
+                         gameRect.right - gameRect.left, gameRect.bottom - gameRect.top,
+                         SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+#endif
         if (sdl != nullptr && gameW > 0) {
             // a window of the chosen shape (other shapes still work, with black bars)
             if (gameH > 0) {

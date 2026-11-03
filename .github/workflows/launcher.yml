@@ -1,16 +1,6 @@
 name: Launcher portability
 
 on:
-  pull_request:
-    paths:
-      - 'src/port/**'
-      - 'patches/libultraship.patch'
-      - 'tools/launcher/**'
-      - 'tools/test_launcher*'
-      - 'tools/macos_launcher_regressions.py'
-      - 'tools/make_*'
-      - 'android/**'
-      - '.github/workflows/launcher.yml'
   workflow_dispatch:
 
 permissions:
