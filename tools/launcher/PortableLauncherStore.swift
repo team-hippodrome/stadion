@@ -110,6 +110,19 @@ final class PortableLauncherStore {
         root["CVars"] = cvars
     }
 
+    func useSafeRenderer() {
+        guard lastError == nil else { return }
+        do {
+            root = try read()
+            var window = root["Window"] as? [String: Any] ?? [:]
+            window["Backend"] = ["Id": 3, "Name": "Metal"]
+            root["Window"] = window
+            apply(3, key: Key(components: ["Renderer"], path: false, flag: false))
+            apply(false, key: Self.keys["autoplay"]!)
+            try write()
+        } catch { failed(error) }
+    }
+
     func set(_ value: Any, forKey name: String) {
         guard lastError == nil, let key = Self.keys[name] else { return }
         do {

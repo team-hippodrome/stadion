@@ -59,6 +59,7 @@ set(PORT_MAIN_SOURCES
   src/port/interp.cpp
   src/port/launcher.cpp
   src/port/launcher_files.cpp
+  src/port/launcher_reliability.cpp
   src/port/rom_check.cpp
   src/port/shader_warmup.cpp
   src/port/touch_controls.cpp
@@ -201,6 +202,11 @@ target_include_directories(port_os PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/game/lib/ultralib/include
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include/libultraship)
+set(PORT_BUILD_DESCRIPTION "${PORT_VERSION} (${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}, ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION})")
+if(DEFINED ENV{GITHUB_SHA})
+  string(APPEND PORT_BUILD_DESCRIPTION " revision $ENV{GITHUB_SHA}")
+endif()
+target_compile_definitions(pokestadium PRIVATE PORT_BUILD_VERSION="${PORT_BUILD_DESCRIPTION}")
 target_compile_definitions(port_os PRIVATE LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 NDEBUG _FINALROM N_MICRO VERSION_US BUILD_VERSION=VERSION_I_P)
 target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/port_compat.h
   ${PORT_NO_WARNINGS})
