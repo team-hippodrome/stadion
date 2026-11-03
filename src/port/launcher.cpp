@@ -11,6 +11,7 @@
 // moves the focus, A presses, B goes back) as well as by touch.
 #include "launcher.h"
 #include "launcher_files.h"
+#include "launcher_reliability.h"
 #include "port_platform.h"
 #include "Engine.h"
 #include "rom_check.h"
@@ -87,6 +88,55 @@ std::string GbSave(const GbSlot& g) {
         return g.save;
     }
     return fs::path(g.rom).replace_extension(".sav").string();
+}
+
+std::array<Port::LauncherSlot, 4> PreflightSlots(const State& s) {
+    std::array<Port::LauncherSlot, 4> slots;
+    for (size_t i = 0; i < slots.size(); i++) slots[i] = {s.gb[i].enabled, s.gb[i].rom, GbSave(s.gb[i])};
+    return slots;
+}
+std::string CheckText(const Port::LauncherCheck& check) {
+    std::string text;
+    for (const auto& e : check.errors) text += "Error: " + e + "\n\n";
+    for (const auto& w : check.warnings) text += "Notice: " + w + "\n\n";
+    return text.empty() ? "All selected files and save locations are ready." : text;
+}
+bool ReadyToPlay(const State& s) {
+    const auto check = Port::CheckLauncherFiles(fs::u8path(Ship::Context::GetAppDirectoryPath()), s.save, PreflightSlots(s));
+    if (check.errors.empty() && check.warnings.empty()) return true;
+    const auto text = CheckText(check);
+    if (!check.errors.empty()) {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Check launcher settings", text.c_str(), nullptr);
+        return false;
+    }
+    const SDL_MessageBoxButtonData buttons[] = {{SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Back"},
+                                               {SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Play anyway"}};
+    SDL_MessageBoxData box{}; box.flags = SDL_MESSAGEBOX_WARNING; box.title = "Check cartridge saves";
+    box.message = text.c_str(); box.numbuttons = 2; box.buttons = buttons;
+    int selected = 0;
+    return SDL_ShowMessageBox(&box, &selected) && selected == 1;
+}
+void OpenFolder(const fs::path& path) {
+    std::error_code ec; fs::create_directories(path, ec);
+#if !defined(__ANDROID__)
+    if (!ec) {
+        std::string url = "file://";
+        const auto value = Port::PathUtf8(fs::absolute(path));
+#ifdef _WIN32
+        url += "/";
+#endif
+        const char hex[] = "0123456789ABCDEF";
+        for (unsigned char c : value) {
+            if (c == '\\') url += '/';
+            else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+                      c == '/' || c == ':' || c == '-' || c == '_' || c == '.' || c == '~') url += c;
+            else { url += '%'; url += hex[c >> 4]; url += hex[c & 15]; }
+        }
+        if (SDL_OpenURL(url.c_str())) return;
+    }
+#endif
+    const auto text = "Folder: " + Port::PathUtf8(path) + "\nOpen this location in your system's file browser. On Android, use your file manager's app-files view.";
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Launcher files", text.c_str(), nullptr);
 }
 
 // ---- the renderer: libultraship's window backends ------------------------------------------------------------------
@@ -835,6 +885,7 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(190, 11, "|", gFonts.title, Theme::cardBorder);
         Text(206, 14, "PC port · Transfer Pak", gFonts.body, Theme::dim);
         dl->AddRectFilled(P(0, 44), P(kW, 45), Hex(Theme::cardBorder));
+        Tools();
 
         if (mControls) {
             ControlsPanel(16, 58, kW - 32, 366);
@@ -852,6 +903,49 @@ class LauncherWindow : public Ship::GuiWindow {
     }
 
   private:
+    std::string mToolsStatus;
+    void Tools() {
+        const auto directory = fs::u8path(Ship::Context::GetAppDirectoryPath());
+        if (Button("Files & help", 800, 8, 144, 30)) ImGui::OpenPopup("Launcher files and recovery");
+        if (ImGui::BeginPopup("Launcher files and recovery")) {
+            ImGui::TextWrapped("Settings folder: %s", Port::PathUtf8(directory).c_str());
+            ImGui::TextWrapped("Active Stadium save: %s", mState->save.c_str());
+            if (ImGui::Button("Check setup") || NavItem()) {
+                auto check = Port::CheckLauncherFiles(directory, mState->save, PreflightSlots(*mState));
+                const auto romError = CheckRom(mState->rom);
+                if (!romError.empty()) check.errors.insert(check.errors.begin(), "Stadium ROM: " + romError);
+                mToolsStatus = CheckText(check);
+            }
+            if (ImGui::Button("Open settings folder") || NavItem()) OpenFolder(directory);
+            if (ImGui::Button("Open saves folder") || NavItem()) OpenFolder(fs::u8path(mState->save).parent_path());
+            if (ImGui::Button("Export N64 save") || NavItem()) {
+                std::string path, error;
+                mToolsStatus = Port::ExportStadiumSave(fs::u8path(mState->save), directory, path, error)
+                    ? "Exported: " + path + "\nThe active save was kept unchanged." : error;
+            }
+            if (ImGui::Button("Export diagnostics") || NavItem()) {
+                std::string path, error;
+                mToolsStatus = Port::ExportLauncherDiagnostics(directory, PORT_BUILD_VERSION,
+                    RendererName(mState->renderer), RendererName(ActiveRenderer()), path, error)
+                    ? "Exported: " + path + "\nReview the report before sharing it." : error;
+            }
+            if (ImGui::Button("Disable Auto-play") || NavItem()) { mState->autoPlay = false; mChanged = true; mToolsStatus = "Auto-play disabled."; }
+            if (ImGui::Button("Use safe renderer next start") || NavItem()) {
+#ifdef __APPLE__
+                mState->renderer = Fast::FAST3D_SDL_METAL;
+#else
+                mState->renderer = Fast::FAST3D_SDL_OPENGL;
+#endif
+                mState->autoPlay = false; mChanged = true;
+                mToolsStatus = "Auto-play disabled and safe renderer selected. Restart to apply.";
+            }
+            ImGui::TextWrapped("Recovery: start with --launcher to bypass Auto-play, or --safe-mode to reset the renderer. Saves and controller mappings are kept.");
+            ImGui::TextWrapped("Five previous session saves are kept in <save>.backups. Exports are under exports/; reports under diagnostics/.");
+            if (!mToolsStatus.empty()) ImGui::TextWrapped("%s", mToolsStatus.c_str());
+            if (ImGui::Button("Close") || NavItem()) ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
+    }
     int mRendererFailed = 0; // the requested renderer, when the game started with another (it could not start)
     // design coordinates -> screen
     ImVec2 P(float x, float y) const {
@@ -1202,7 +1296,7 @@ class LauncherWindow : public Ship::GuiWindow {
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2 * mScale);
         ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1, 1, 1, 0.85f));
         if (Button("PLAY", x + w - 206, y + 12, 182, 66, gFonts.play)) {
-            *mPlay = true;
+            *mPlay = ReadyToPlay(s);
         }
         ImGui::PopStyleColor(5);
         ImGui::PopStyleVar(2);
@@ -1212,7 +1306,7 @@ class LauncherWindow : public Ship::GuiWindow {
             ImGui::SetTooltip("Start the game directly next time (hold Shift while starting to see this launcher)");
         }
         if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls) {
-            *mPlay = true;
+            *mPlay = ReadyToPlay(s);
         }
         (void)mQuit;
     }
@@ -1307,6 +1401,7 @@ class LauncherWindow : public Ship::GuiWindow {
 
     void DrawHandheld() {
         NavBeginFrame();
+        Tools();
         if (mNavBack && mPage != kPageHome) {
             GoToPage(kPageHome);
             mNavBack = false;
@@ -1380,7 +1475,7 @@ class LauncherWindow : public Ship::GuiWindow {
         ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1, 1, 1, 0.85f));
         mDefaultFocus = (int)mNavItems.size();
         if (Button("PLAY", rx, cy, rw, 150, gFonts.play) && romError.empty()) {
-            *mPlay = true;
+            *mPlay = ReadyToPlay(s);
         }
         ImGui::PopStyleColor(5);
         ImGui::PopStyleVar(2);
@@ -1461,7 +1556,9 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
     shift = shift || (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
 #endif
     // (the handheld layout has no Auto-play: without a Shift key there would be no way back to the launcher)
-    if (!(state.autoPlay && !shift && !Handheld() && CheckRom(state.rom).empty())) {
+    if (!(state.autoPlay && !shift && getenv("PORT_FORCE_LAUNCHER") == nullptr && !Handheld() && CheckRom(state.rom).empty() &&
+          [&] { const auto c = CheckLauncherFiles(fs::u8path(Ship::Context::GetAppDirectoryPath()), state.save, PreflightSlots(state));
+                return c.errors.empty() && c.warnings.empty(); }())) {
         LoadFonts(); // before the first frame: ImGui builds its font atlas then
         if (gFonts.body != nullptr) {
             ImGui::GetIO().FontDefault = gFonts.body;
@@ -1501,7 +1598,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
                         std::chrono::duration<double, std::milli>(now - lastFrame).count());
             }
             lastFrame = now;
-            if (playAfter != nullptr && frame >= atoi(playAfter) && CheckRom(state.rom).empty()) {
+            if (playAfter != nullptr && frame >= atoi(playAfter) && CheckRom(state.rom).empty() && ReadyToPlay(state)) {
                 play = true;
             }
             // test hook: PORT_LAUNCHER_SHOT=<file.ppm> saves the launcher's picture at frame 60 and closes it

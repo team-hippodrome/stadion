@@ -198,3 +198,17 @@ submodule pointer together with `patches/game`. Then regenerate the tables in `s
 `tools/gen_func_table.py`, `tools/gen_fragment_entries.py` and `tools/gen_abs_syms.py`: they read the map of an
 unmodified decomp build of that same commit (`build/pokestadium-us.map`) in `$PORT_DECOMP_DIR`, by default
 `../pokestadium`.
+
+### Launcher checks, save protection and recovery
+
+**Files & help** in the shared launcher (or **Files & Help** in the developer macOS frontend) provides:
+
+- **Check setup**: verify the Stadium ROM, readable Game Boy ROM headers/sizes, expected cartridge RAM save sizes, separate save files per player, and writable settings/save locations. Errors block Play; missing GB progress or questionable trainer checksums are notices you can review before continuing. A checksum cannot prove that a battery save belongs to a particular cartridge.
+- **Open settings folder / Open saves folder**: show the actual data location and the full active Stadium save path. Android file browsers may restrict direct folder access; the launcher also displays the location.
+- **Export N64 save**: create a unique raw 128 KiB, N64 byte-order `.fla` in `exports/`. Existing exports and the active save are preserved. This exports cartridge FlashRAM, not emulator save states or Controller Pak data.
+- **Export diagnostics**: create a text report in `diagnostics/` with build/renderer details and bounded recent logs. Absolute paths and game-file log lines are redacted; ROMs, saves, config contents and environment variables are excluded. Review the report before sharing.
+- **Disable Auto-play / Use safe renderer next start**: reopen settings and select OpenGL (Metal on macOS) while keeping save selection and controller mappings. Restart to change the active renderer.
+
+Every N64 and Game Boy save write stages a complete file and atomically replaces the active save. Before the first overwrite in each game process, the previous on-disk save is copied to `<save filename>.backups/`; the five newest session snapshots are retained. If staging or backup fails, the existing active file is preserved and a save-error message is shown. To restore a snapshot, close the game, keep a copy of the current save, then copy the chosen `.bak` over the active save path. These snapshots protect previous sessions; they are not per-frame history or a substitute for external backups.
+
+Start `pokestadium --launcher` to bypass Auto-play, or `pokestadium --safe-mode` to also select the safe renderer. `PORT_FORCE_LAUNCHER=1` and `PORT_SAFE_MODE=1` provide the same recovery controls on platforms where command-line arguments are inconvenient. Native safe mode preserves the original config in a separate `.before-recovery-N` copy before changing settings. A malformed config is preserved during ordinary startup and can be recovered with safe mode. An interrupted interactive native session reopens settings on the next launch; only interruption during graphics initialization automatically selects the safe renderer. The developer macOS frontend disables Auto-play and reopens its window after a failed child process.

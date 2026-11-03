@@ -48,6 +48,16 @@ require(((merged["CVars"] as? [String: Any])?["gControllers"] as? [String: Any])
         "Game-written controls were overwritten")
 require(!relocated.bool(forKey: "debug"), "Boolean setting not persisted")
 
+relocated.useSafeRenderer()
+let safe = try JSONSerialization.jsonObject(with: Data(contentsOf: relocated.file)) as! [String: Any]
+require(((safe["Window"] as? [String: Any])?["Backend"] as? [String: Any])?["Id"] as? Int == 3,
+        "Safe recovery did not select Metal")
+require(!relocated.bool(forKey: "autoplay"), "Safe recovery kept Auto-play enabled")
+require(((safe["CVars"] as? [String: Any])?["gControllers"] as? [String: Any]) != nil,
+        "Recovery erased controller mappings")
+require(relocated.string(forKey: "save") == moved.appendingPathComponent("saves/포켓몬.flash").path,
+        "Recovery changed selected save")
+
 let broken = root.appendingPathComponent("broken", isDirectory: true)
 try fm.createDirectory(at: broken, withIntermediateDirectories: true)
 let badFile = broken.appendingPathComponent("pokestadium.cfg.json")
