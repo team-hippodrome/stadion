@@ -84,7 +84,7 @@ else
     git -C "$MAIN" worktree add -q --detach "$SRC" "$COMMIT"
     # submodules borrow the objects of the main checkout's (no full download), then the port's patches
     # (a shallow clone cannot lend its objects: those are fetched from GitHub by setup.sh)
-    for sm in game libultraship ghostship-ref; do
+    for sm in game libultraship; do
         if [ -e "$MAIN/$sm/.git" ] && [ "$(git -C "$MAIN/$sm" rev-parse --is-shallow-repository)" = false ]; then
             git -C "$SRC" -c protocol.file.allow=always submodule update -q --init --reference "$MAIN/$sm" "$sm"
         fi

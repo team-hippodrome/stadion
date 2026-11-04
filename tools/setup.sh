@@ -1,5 +1,5 @@
 #!/bin/bash
-# Fetches the submodules (game, libultraship, ghostship-ref) and applies the port's changes to libultraship
+# Fetches the submodules (game, libultraship) and applies the port's changes to libultraship
 # (patches/libultraship.patch) and to the decompiled game (patches/game/*.patch).
 # Run once after cloning, then build with: cmake -S . -B build && cmake --build build -j
 set -e

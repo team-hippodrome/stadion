@@ -626,7 +626,7 @@ constexpr uint32_t window = 0x12161D, card = 0x1A1F27, cardBorder = 0x2A313C, te
 constexpr uint32_t players[4] = { 0xF0B429, 0xE5484D, 0x3B82F6, 0x8E7FD3 };
 } // namespace Theme
 
-// Montserrat (from pokestadium.o2r) in the sizes the design uses; nullptr: ImGui's default font
+// ImGui's built-in font in the sizes the design uses; no external font files needed
 struct Fonts {
     ImFont* body = nullptr;  // 13
     ImFont* small = nullptr; // 11
@@ -643,23 +643,11 @@ struct FontSet {
 std::vector<FontSet> gFontSets;
 
 void LoadFonts() {
-    auto rm = ResourceGetResourceManager();
-    if (!rm) {
-        return;
-    }
-    auto file = rm->GetArchiveManager()->LoadFile("fonts/Montserrat-Regular.ttf");
-    if (!file || !file->Buffer || file->Buffer->empty()) {
-        return;
-    }
-    static std::vector<char> ttf; // ImGui keeps pointing at the data
-    ttf.assign(file->Buffer->begin() + (std::ptrdiff_t)file->BufferOffset, file->Buffer->end());
     ImGuiIO& io = ImGui::GetIO();
     auto add = [&](float size, float rasterScale) {
         ImFontConfig cfg;
-        cfg.FontDataOwnedByAtlas = false;
-        cfg.OversampleH = 2;
-        static const ImWchar ranges[] = { 0x0020, 0x00FF, 0x2013, 0x2014, 0x2026, 0x2026, 0x2713, 0x2713, 0 };
-        ImFont* font = io.Fonts->AddFontFromMemoryTTF(ttf.data(), (int)ttf.size(), size * rasterScale, &cfg, ranges);
+        cfg.SizePixels = size * rasterScale;
+        ImFont* font = io.Fonts->AddFontDefault(&cfg);
         font->Scale = 1.0f / rasterScale;
         return font;
     };
