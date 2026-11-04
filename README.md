@@ -38,6 +38,18 @@ and Linux builds; macOS only when built with `-DLUS_ENABLE_VULKAN=ON` against Ho
 keeps `vulkan_pipelines.txt` and `vulkan_pipeline_cache.bin` beside the settings: the shaders and pipelines of earlier
 runs are built ahead on worker threads (deleting them is safe; they are rebuilt).
 
+To audit shader coverage from source, build the optional `shader_source_inventory` CMake target after setup. It writes
+`shader_source_candidates.txt` and `vulkan_source_candidates.txt` in the build directory. The scan follows named static
+display lists. It explores inherited settings and reports candidates separately so you can compare them with replay
+traces before updating the shipped warm-up lists. Dynamic commands and display lists stored in assets still need
+runtime coverage. Run `tools/run_replays.py --all --backend metal --shader-capture --out build/shader-capture` (or
+`--backend vulkan` with a Vulkan build) to collect recipes from every rendered frame of the replay suite. Pass the
+capture directories to `tools/shader_list.py --capture-dir DIR --candidate-dir DIR` to stage the additions. Rerun
+on the same backend with `--shader-verify DIR --reference-dir CAPTURE/ref`. Verification uses a fresh profile
+and checks for first-draw compilation, new recipes and changes to the final captured image. It covers only the
+game paths exercised by those replays. Use `--gb-dir DIR` for the optional Game Boy Tower fixtures and
+`--replay-dir DIR` for additional recordings and their `replays.txt` manifest.
+
 ## Build
 
 The game code needs clang (for Windows: llvm-mingw); GCC and MSVC are not supported.

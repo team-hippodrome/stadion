@@ -4,7 +4,7 @@ import os
 import shutil
 import subprocess
 
-BACKENDS = {"directx": (1, "DirectX 11"), "opengl": (2, "OpenGL"), "vulkan": (4, "Vulkan")}
+BACKENDS = {"directx": (1, "DirectX 11"), "opengl": (2, "OpenGL"), "metal": (3, "Metal"), "vulkan": (4, "Vulkan")}
 
 
 def process_options():
