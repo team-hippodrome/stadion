@@ -106,7 +106,7 @@ s.save("out.fla")
 - `tests/` — `python3 -m unittest discover -s tests`
 - `ares/` — `ares_save`: the `tools/ares_ref` driver plus FlashRAM load/store, `build.sh`, `run.sh`
 - `verify/` — in-game verification: `cases.json` (edits + expected result), `scripts/` (controller input),
-  `saves/` (edited saves and the saves the game wrote back), `shots/` (screenshots), `last_run.txt`
+  `saves/` (edited saves and the saves the game wrote back), `shots/` (screenshots, written by `run_verify.py` and not committed), `last_run.txt`
 
 ## Tests
 

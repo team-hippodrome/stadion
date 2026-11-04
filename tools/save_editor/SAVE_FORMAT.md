@@ -7,7 +7,7 @@ Source references are to the decomp at `pokestadium/src` (functions named as in 
 Evidence levels used below:
 - **code**: read from the decomp source.
 - **ROM**: decoded from ROM data (text tables, species/move tables).
-- **ares**: observed in the real game running in ares (`verify/`, screenshots in `verify/shots/`).
+- **ares**: observed in the real game running in ares (`verify/`, screenshots written to `verify/shots/` by `verify/run_verify.py`, not committed).
 - **inferred**: a reasoned guess; the operation is named so it can be checked.
 
 ## 1. Hardware
