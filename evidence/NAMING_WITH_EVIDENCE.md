@@ -40,7 +40,7 @@ to reach.
 ## One run
 
 ```
-python3 -I tools/evidence/run.py <out dir> --bin build-evidence-all/pokestadium --frames N --rec <route.rec> \
+python3 -I tools/evidence/run.py <out dir> --bin build-evidence-all/stadion --frames N --rec <route.rec> \
     [--natural] [--gb ROM:SAVE] [--gb2 ROM:SAVE] [--flash STADIUM.flash] [--shots F1,F2] \
     [--set "Fn[#n][@exit]:symbol+offset:size=value;..."] [--call "Fn[#n][@exit]:Target:ret:args"] [--watch A,B]
 ```
@@ -77,7 +77,7 @@ For each function, the goal is a record that says what it does, shown by runs, a
    - Re-run that route with `--shots` at and after the first frame: what is on screen when it runs.
    - Read its callers and callees in the call graph (`callgraph.py` output: `call`, `table` and `ref` edges) and in
      the run's call paths: what calls it, in which situation, what it calls.
-   - Read the branch counts (`llvm-cov show build-evidence-all/pokestadium -instr-profile=<merged.profdata> <file>`):
+   - Read the branch counts (`llvm-cov show build-evidence-all/stadion -instr-profile=<merged.profdata> <file>`):
      which of its branches ran and how often, which never did.
    - For battle code, `--watch Fn` records the battle state at entry and exit; `watch.py diff <run> Fn` lists what
      changed.

@@ -23,14 +23,14 @@ def backend_home(env, directory, backend=None):
         return
     ident, name = BACKENDS[backend]
     os.makedirs(directory, exist_ok=True)
-    with open(os.path.join(directory, "pokestadium.cfg.json"), "w") as f:
+    with open(os.path.join(directory, "stadion.cfg.json"), "w") as f:
         json.dump({"Window": {"Backend": {"Id": ident, "Name": name}}}, f)
     env["SHIP_HOME"] = directory
 
 
 def actual_backend(directory):
     try:
-        with open(os.path.join(directory, "pokestadium.cfg.json")) as f:
+        with open(os.path.join(directory, "stadion.cfg.json")) as f:
             return json.load(f)["Window"]["Backend"]["Id"]
     except (OSError, ValueError, KeyError):
         return None

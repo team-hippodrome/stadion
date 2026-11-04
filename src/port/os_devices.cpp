@@ -127,7 +127,7 @@ bool gFlashBankWriteDirty = false;
 
 std::string FlashPath() {
     const char* p = getenv("PORT_FLASH_FILE");
-    return p ? p : "pokestadium.flash";
+    return p ? p : "stadion.flash";
 }
 
 void FlashLoad() {

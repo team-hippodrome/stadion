@@ -4,7 +4,7 @@
 # tools/gb_save.py --got-pokedex base (GBBASE), as each run's comment says.
 set -e
 cd "$(dirname "$0")/../../../.."
-O=$1; shift; B=build-evidence-all2/pokestadium; D=evidence/whole_game/routes/gate_trials2
+O=$1; shift; B=build-evidence-all2/stadion; D=evidence/whole_game/routes/gate_trials2
 S=/private/tmp/claude-501/-Users-michael-Projects-Pokemon/1fd4be59-42a7-4591-b1e0-223ce98f21f6/scratchpad
 CART=/Users/michael/Projects/Pokemon/pokestadium-port/gb/yellow_de.gb; GBBASE=${GBBASE:-$S/gbv_sl/base_in.sav}
 FB=evidence/battle_engine/routes/free_battle_gamepak.rec; CM=evidence/whole_game/routes/castle_mewtwo; P=$S/par_castle_mewtwo

@@ -81,6 +81,6 @@ minigames-gallery session can reach with a route.
 
 ```
 evidence/whole_game/routes/gate_trials2/runs.sh <out> r2_cup r2_cupwin r2_castle r2_mewtwo vp gift_keep gift_swap onix_dig vile_reflect
-python3 -I tools/evidence/frontier.py <scratchpad>/cg_all4.json build-evidence-all2/pokestadium <out>/front <batch4..14> <out>/* --files "^src/" --build build-evidence-all
-python3 -I tools/evidence/try_gates.py <front>/proposals.json <baselines as in section 1> --out <out>/auto --bin build-evidence-all2/pokestadium --jobs 2
+python3 -I tools/evidence/frontier.py <scratchpad>/cg_all4.json build-evidence-all2/stadion <out>/front <batch4..14> <out>/* --files "^src/" --build build-evidence-all
+python3 -I tools/evidence/try_gates.py <front>/proposals.json <baselines as in section 1> --out <out>/auto --bin build-evidence-all2/stadion --jobs 2
 ```

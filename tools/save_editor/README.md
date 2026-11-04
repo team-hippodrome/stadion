@@ -101,7 +101,7 @@ s.save("out.fla")
 - `stadium_save/` — library (`save.py` layout/records/footers/JSON, `pokemon.py` Gen 1 records and stats,
   `text.py` Game Boy / N64 text, `schema.py` exact struct codec, `cli.py`, `web.py`, `gamedata.py` generated tables)
 - `gen_data.py` — regenerates `stadium_save/gamedata.py` (names from the ROM text tables; species, move, index and
-  charset tables from the decomp): `python3 gen_data.py <rom.z64> ../../../pokestadium/src stadium_save/gamedata.py`
+  charset tables from the decomp): `python3 gen_data.py <rom.z64> ../../../stadion/src stadium_save/gamedata.py`
 - `fixtures/first_save.flash` — the save the real game writes on a blank chip (ares)
 - `tests/` — `python3 -m unittest discover -s tests`
 - `ares/` — `ares_save`: the `tools/ares_ref` driver plus FlashRAM load/store, `build.sh`, `run.sh`
@@ -119,7 +119,7 @@ structured records); footer/checksum rules; repair (backup copy, reset); fix; sp
 edits change only the intended records and leave both copies valid; the verified saves are reproducible from
 `verify/cases.json`; saves written back by the game validate.
 
-`tests/test_ui.py` drives the web page inside the macOS launcher. It needs "Pokemon Stadium.app" built with
+`tests/test_ui.py` drives the web page inside the macOS launcher. It needs "stadion.app" built with
 `tools/make_app.sh` and is skipped otherwise. `tests/ui_test.js` runs in the editor window and uses every button and
 field of every section: overview cards, quick actions and Repair, progress checkboxes and dropdowns, options, team
 tabs, slots and the Pokémon dialog (species, nickname, level, trainer, moves, PP Ups, starting moves, DVs, Stat Exp,

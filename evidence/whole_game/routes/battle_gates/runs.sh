@@ -3,7 +3,7 @@
 # <base.sav>: a save from tools/gb_save.py --got-pokedex (saves stay out of the repository).
 set -e
 cd "$(dirname "$0")/../../../.."
-O=$1; BASE=$2; B=build-evidence-all2/pokestadium; D=evidence/whole_game/routes/battle_gates
+O=$1; BASE=$2; B=build-evidence-all2/stadion; D=evidence/whole_game/routes/battle_gates
 CART=/Users/michael/Projects/Pokemon/pokestadium-port/gb/yellow_de.gb
 FB=evidence/battle_engine/routes/free_battle_gamepak.rec
 T="BLASTOISE:70;MEW:100;MAGIKARP:5"

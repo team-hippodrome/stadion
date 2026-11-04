@@ -156,8 +156,8 @@ int main(int argc, char** argv) {
         with tempfile.TemporaryDirectory() as tmp:
             home=Path(tmp); (home/'logs').mkdir()
             secret='ROM C:\\Users\\Private Name\\Downloads\\Pokémon.z64\nSave /Users/private/person folder/progress.sav\nAndroid /storage/emulated/0/secret.gb\nrelative-person.sav failed\n'
-            (home/'logs/pokestadium.log').write_text('old secret marker\n'+'x'*40000+'\n'+secret+'port_env.txt: PORT_PRIVATE=env-value-never-export\nAuthorization: Bearer credential-never-export\nVulkan failed to initialize\n',encoding='utf-8')
-            (home/'pokestadium.cfg.json').write_text('{"private": "never export config"}')
+            (home/'logs/stadion.log').write_text('old secret marker\n'+'x'*40000+'\n'+secret+'port_env.txt: PORT_PRIVATE=env-value-never-export\nAuthorization: Bearer credential-never-export\nVulkan failed to initialize\n',encoding='utf-8')
+            (home/'stadion.cfg.json').write_text('{"private": "never export config"}')
             result=self.invoke('diagnostics','',home)
             self.assertEqual(result.returncode,0,result.stderr)
             text=Path(result.stdout).read_text(encoding='utf-8')

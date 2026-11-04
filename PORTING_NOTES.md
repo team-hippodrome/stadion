@@ -3,25 +3,25 @@
 ## Layout
 - `libultraship/`  upstream Kenix3/libultraship (shallow clone), built as a CMake subproject.
 - `src/port/`      port harness (libultraship context, window, per-frame display-list submission).
-- The decomp lives untouched in `../pokestadium`.
+- The decomp lives untouched in `../stadion`.
 
 ## Build / run
     cmake -S . -B build -GNinja -DCMAKE_BUILD_TYPE=Release
-    cmake --build build --target pokestadium
-    cd build && ./pokestadium
+    cmake --build build --target stadion
+    cd build && ./stadion
 
 The port's resources (shaders, the shader warm-up list, launcher pictures; `tools/make_o2r.py`) are packed into
-`pokestadium.o2r` and built into the executable as a C array (`generated/pokestadium_o2r.c`), mounted through
+`stadion.o2r` and built into the executable as a C array (`generated/stadion_o2r.c`), mounted through
 `ResourceManager::SetBuiltInArchive` and an in-memory `O2rArchive` (patches/libultraship.patch). It used to be a
 separate file next to the executable; a damaged, unreadable or missing copy (a user's Windows install in a Steam folder)
 left libultraship without an archive and the renderer crashed a moment later on the shaders it reads from it (an
-uncaught C++ exception, 0x20474343). A `pokestadium.o2r` left from an older version is not read.
+uncaught C++ exception, 0x20474343). A `stadion.o2r` left from an older version is not read.
 
 ## Milestone 0 (done): window + Fast3D
 `main.cpp` builds a fill-rectangle display list and submits it every frame. Verified: process stays alive
 for 6s, no exception. Not verified visually (screenshot capture was unavailable).
 
-## Findings that shape the real port (measured on pokestadium @ 697f9ba7)
+## Findings that shape the real port (measured on stadion @ 697f9ba7)
 - 347 C files, ~250k lines. 306/347 already pass `clang -fsyntax-only` with the repo's compile_flags; 41 fail
   (mostly 1-2 errors each, battle_prep_* worst at up to 14).
 - Pointer width is the main obstacle. Counts in src/*.c: 553 `(u32)` casts, 48 `(u32)&...`, 235 hard-coded
@@ -50,7 +50,7 @@ for 6s, no exception. Not verified visually (screenshot capture was unavailable)
 `game/` started as a copy of the decomp's `src/` and `include/` (plus the SDK headers libultraship does not provide
 under `game/lib/ultralib/include`). It is now a submodule pinned at an unmodified decomp commit, with the port's changes
 applied from `patches/game/` (see README "The game submodule"). The SDK stand-in headers described below live in
-`src/port/sdk/`. The decomp checkout in `../pokestadium` is untouched.
+`src/port/sdk/`. The decomp checkout in `../stadion` is untouched.
 
     tools/syntax_check.sh              # clang -fsyntax-only over all of game/src: 0 errors / 347 files
     cmake --build build --target stadium_game   # compiles all 347 files into build/libstadium_game.a
@@ -87,11 +87,11 @@ What was changed to get there:
   `F3DEX2_data_bin`, `aspMain*` (RSP audio ucode), alHeap/alSeq/__init_lpfilter pieces, `__osPi*` internals.
 
 ## Stage 2 (done): runtime layer, symbols, linked executable
-`pokestadium` now links `stadium_game` + libultraship and the game's `Main()` runs on host threads.
+`stadion` now links `stadium_game` + libultraship and the game's `Main()` runs on host threads.
 
-    cmake --build build --target pokestadium
+    cmake --build build --target stadion
     tools/try_run.sh 12            # rebuild, run 12 s against the US ROM, symbolize a crash (PORT_TRACE=1 logs thread/queue events)
-    ./build/pokestadium "/path/to/Pokemon Stadium (USA).z64"
+    ./build/stadion "/path/to/Pokemon Stadium (USA).z64"
 
 New pieces (all under src/port/):
 - `os_thread.cpp`: libultra threads and blocking message queues on host threads. One token decides which
@@ -146,9 +146,9 @@ What was added/changed in this stage:
   (0x8Nxxxxxx) - through `Memmap_GetSegmentVaddr/GetFragmentVaddr`. Host pointers are always >= 4 GB on arm64 macOS
   so the two cannot be confused. The `& 0x1FFFFFFF` physical-address masks (139 sites) were removed and
   `osVirtualToPhysical` is the identity.
-- Metal: `tools/make_o2r.py` packs Fast3D's shader sources into `pokestadium.o2r` and strips `thread` from helper
+- Metal: `tools/make_o2r.py` packs Fast3D's shader sources into `stadion.o2r` and strips `thread` from helper
   parameters, which the macOS 27 Metal compiler rejects. The archive is rebuilt by CMake after linking.
-- Flash/SRAM: command-level flash chip emulation (`os_devices.cpp`, file `pokestadium.flash`), SRAM, ROM reads.
+- Flash/SRAM: command-level flash chip emulation (`os_devices.cpp`, file `stadion.flash`), SRAM, ROM reads.
 - Pointer fixes found by running: Storage request queues take `OSMesgQueue*`; message-queue storage is owned by the
   port (the game's 4-byte-slot buffers overflow with 8-byte slots); `osRecvMesg` writes only as many bytes as the
   caller's variable (`_Generic` on the pointer type); scheduler client structs, `UnkArray4`/`unk_D_800A7450`,
@@ -317,8 +317,8 @@ Other game instances running at the same time (parallel test runs) disturb the n
 
 - Every run records the pad state per frame to `build/last_input.rec` (`PORT_RECORD=<file>` to choose another name). A
   crash ends the recording at the crash frame, and the crash report prints `game frame N`. Packaged builds (AppImage,
-  macOS app: `SHIP_HOME` set) write it to their settings folder instead (`~/.local/share/pokestadium`,
-  `~/Library/Application Support/com.team-hippodrome.pokestadium`). On Windows, `pokestadium.exe` has no console
+  macOS app: `SHIP_HOME` set) write it to their settings folder instead (`~/.local/share/stadion`,
+  `~/Library/Application Support/com.team-hippodrome.stadion`). On Windows, `stadion.exe` has no console
   window; stderr reaches the console it was started from, a redirection (`2> log.txt`), or with `PORT_CONSOLE=1` a
   console window of its own.
 - `tools/run_replays.py` is the quick sweep (~1 minute on an M-series Mac): it plays the stored recordings with the game
@@ -822,7 +822,7 @@ saved without the pak leaves the cartridge undetected).
   boxes/items, statues, a saved battle, photos and non-zero option words, with one primary record per bank
   corrupted, comes back byte-identical after the game repairs and rewrites all four banks. tools/save_to_port_order.py
   (converter to the old host-order layout) is obsolete: hand ares/editor saves to the port as they are
-  (`PORT_FLASH_FILE=<file>`, absolute or relative to build/). A pokestadium.flash written by an older build is in
+  (`PORT_FLASH_FILE=<file>`, absolute or relative to build/). A stadion.flash written by an older build is in
   the old layout; its records fail the check and are reset on load, like on a blank chip.
 - VS screen before a cup/Free Battle (user report: the 12 grid cells stayed empty; ares shows each team's Pokémon).
   battle_prep_39AC50.c renders every Pokémon's 3D model into its own 128x96 image (PokeIcon render list,
@@ -1103,7 +1103,7 @@ sample count after every VI frame).
   build are identical), the GB-party Free Battle, Misty's gym and the Mewtwo battle (only background
   animation phase differs).
 
-## macOS launcher (tools/launcher, "Pokemon Stadium.app"): debug option and save editor
+## macOS launcher (tools/launcher, "stadion.app"): debug option and save editor
 
 - `tools/make_app.sh` builds the app; `tools/launcher/Launcher.swift` is the launcher window (ROM/saves per Transfer
   Pak, PLAY, Auto-play).
@@ -1346,10 +1346,10 @@ per program, a visible hitch the first time each effect appears. The stored reco
 (`to_battle` alone 48). So the port builds them ahead (`src/port/shader_warmup.cpp`, started at the end of
 `Port::Init`):
 
-- **The list**: `src/port/shader_warmup.txt` (packed into `pokestadium.o2r` as `port/shader_warmup.txt`), the programs
+- **The list**: `src/port/shader_warmup.txt` (packed into `stadion.o2r` as `port/shader_warmup.txt`), the programs
   the recordings draw, ordered by how many recordings draw them (boot and menus first). `tools/shader_list.py --run`
   plays all recordings with `PORT_TRACE_SHADERS=1` and rewrites it; lists recorded while playing can be added
-  (`tools/shader_list.py <shaders.txt>`). Plus `shaders.txt` next to `pokestadium.cfg.json`: each program this
+  (`tools/shader_list.py <shaders.txt>`). Plus `shaders.txt` next to `stadion.cfg.json`: each program this
   installation draws that is in neither list is appended there, and later runs build it ahead too. Ids that a newer
   build no longer draws only cost a build; a program is always built from its id by the current code.
 - **Metal**: worker threads (half the cores, 2-6) build each program's library and pipeline (`PrebuildShadersAsync` in
@@ -1484,7 +1484,7 @@ closes it).
 The same battle runs in the port and in the original game in ares, with the same random numbers, and is compared
 event by event; then the move animations are compared frame by frame.
     tools/ares_ref/build.sh build-ares               # ares + ares_ref with tools/ares_ref/ares-host-hooks.patch
-    tools/battle_xcheck.py run <dir> --seed 7 --port-bin build-xcheck/pokestadium [--anim]
+    tools/battle_xcheck.py run <dir> --seed 7 --port-bin build-xcheck/stadion [--anim]
     tools/battle_xcheck.py compare <dir>             # <dir>/report.md
     tools/battle_xcheck.py anim <dir>                # <dir>/anim.md + <dir>/anim/*.png (deletes the raw frames)
 How the two sides play the same battle:

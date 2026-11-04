@@ -23,7 +23,7 @@ How the two sides are made to play the same battle (see also src/port/xcheck.cpp
 - Animations: each move animation (BattleScene_EnterRow3StartMoveAnim / Row19) saves its frames on both sides; they
   are aligned in time (best offset of small thumbnails), scored with SSIM and put side by side.
 
-Needs: the port built with this change (--port-bin, default build/pokestadium), ares_ref built with
+Needs: the port built with this change (--port-bin, default build/stadion), ares_ref built with
 tools/ares_ref/build.sh (ARES_REF_BUILD: its build directory; ARES_REF_FIRMWARE or ARES_REF_SRC for the PIF files).
 Frame dumps are large: `anim` deletes the raw frames after making the sheets unless --keep-frames.
 """
@@ -88,7 +88,7 @@ def cmd_run(out, args):
     write_inputs(out, frames)
     procs = []
     if "--ares-only" not in args:
-        port = os.path.abspath(args.get("--port-bin", os.path.join(ROOT, "build", "pokestadium")))
+        port = os.path.abspath(args.get("--port-bin", os.path.join(ROOT, "build", "stadion")))
         shutil.copyfile(os.path.join(ROOT, "replays", "default.flash"), os.path.join(out, "port.flash"))
         env = dict(os.environ, PORT_REPLAY=os.path.join(out, "port.rec"), PORT_STOP_AT=str(frames), PORT_SPEED="max",
                    PORT_FLASH_FILE=os.path.join(out, "port.flash"), PORT_RECORD=os.path.join(out, "port_last.rec"),

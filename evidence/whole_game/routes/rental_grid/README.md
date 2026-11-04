@@ -3,7 +3,7 @@
 The grid opens from the team tray's confirmation prompt, "Reselect some Pokémon" (`Rental_HandleTeamConfirmation`
 case 3, or `Rental_HandleRegisteredTeamConfirmation` case 2 while registering), and from the level-cap warning.
 The cup routes start from the stored cup recording's menu path (Stadium → Poké Cup, `cuploss0.rec` up to the tray);
-the Castle routes from the state shortcut. All runs: `--bin build-evidence-all2/pokestadium --natural`.
+the Castle routes from the state shortcut. All runs: `--bin build-evidence-all2/stadion --natural`.
 
 | route | run options | reaches |
 |---|---|---|

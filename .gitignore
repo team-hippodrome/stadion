@@ -1,7 +1,7 @@
 # build output
 /build/
 /build_asan/
-/Pokemon Stadium.app/
+/stadion.app/
 
 # game data: never commit ROMs, saves or recordings of the games
 *.z64

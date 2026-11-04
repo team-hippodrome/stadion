@@ -258,9 +258,9 @@ The ares binary used here is a copy of the lockstep work tree's current build (i
 cmake -S . -B build-evidence -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PROJECT_INCLUDE=$PWD/cmake/evidence.cmake
 nice -n 15 cmake --build build-evidence -j 4
 tools/evidence/callgraph.py build-evidence /tmp/cg.json
-tools/evidence/run.py /tmp/s7 --bin build-evidence/pokestadium --seed 7 --frames 30000
+tools/evidence/run.py /tmp/s7 --bin build-evidence/stadion --seed 7 --frames 30000
 tools/evidence/watch.py queue /tmp/s7 /tmp/crit34.txt Battle_Random 0 34
-tools/evidence/run.py /tmp/crit34 --bin build-evidence/pokestadium --seed 7 --queue /tmp/crit34.txt --frames 3800 \
+tools/evidence/run.py /tmp/crit34 --bin build-evidence/stadion --seed 7 --queue /tmp/crit34.txt --frames 3800 \
     --watch Battle_CheckCriticalHit,Battle_ApplyDamageRandomFactor
 tools/evidence/analyze.py /tmp/cg.json evidence/battle_engine /tmp/s7 /tmp/crit34 --reviews evidence/battle_engine/reviews.json
 ```

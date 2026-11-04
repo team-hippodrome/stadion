@@ -4,7 +4,7 @@ Every route enters its state through the game's own loop from the title screen (
 `--set "State_TitleScreen#1@exit:gCurrentGameState:4=<state>"`: 39 `STATE_GYM_LEADER_CASTLE`, 34 `STATE_VS_MEWTWO`,
 40 `STATE_BATTLE_NOW_1P`) and is otherwise played with real input: every battle is won or lost by the moves the
 recording picks, and nothing in memory is forced. Run with
-`tools/evidence/run.py <out> --bin build-evidence-all2/pokestadium --frames N --rec <route> --natural --flash F --gb yellow_de.gb:SAVE --set "State_TitleScreen#1@exit:gCurrentGameState:4=<state>"`.
+`tools/evidence/run.py <out> --bin build-evidence-all2/stadion --frames N --rec <route> --natural --flash F --gb yellow_de.gb:SAVE --set "State_TitleScreen#1@exit:gCurrentGameState:4=<state>"`.
 
 ## Saves (not in the repository)
 

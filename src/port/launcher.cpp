@@ -1,7 +1,7 @@
 // Launcher shown inside the game window when the port is started without a ROM argument (macOS, Linux, Windows). Same
 // design as the macOS app's launcher (tools/launcher/Launcher.swift): four player cards with the Game Boy cartridge
 // of each Transfer Pak (picture, game, trainer from the save, save file) and a bar with the Stadium ROM, its save and
-// PLAY. The choices are remembered in pokestadium.cfg.json and passed to the game the way the command line does
+// PLAY. The choices are remembered in stadion.cfg.json and passed to the game the way the command line does
 // (PORT_FLASH_FILE, PORT_GB_ROM*, PORT_GB_SAVE*). Auto-play skips it next time (hold Shift while starting to see it
 // again); Debug adds a button that opens the save editor (tools/save_editor, needs python3) in the browser. Controls
 // swaps the player cards for the key and controller bindings of each player (libultraship's ControlDeck mappings).
@@ -656,7 +656,7 @@ void LoadFonts() {
 }
 
 
-// cartridge and N64 pictures (tools/launcher/assets, packed into pokestadium.o2r)
+// cartridge and N64 pictures (tools/launcher/assets, packed into stadion.o2r)
 ImTextureID Picture(Fast::Fast3dGui* gui, const char* name) {
     if (gui == nullptr) {
         return nullptr;
@@ -672,7 +672,7 @@ ImTextureID Picture(Fast::Fast3dGui* gui, const char* name) {
     return gui->GetTextureByName(key);
 }
 
-// ---- controls: libultraship's ControlDeck mappings (gControllers.* in pokestadium.cfg.json) --------------------------
+// ---- controls: libultraship's ControlDeck mappings (gControllers.* in stadion.cfg.json) --------------------------
 
 // one N64 input: a button, or a direction of the stick (button == 0)
 struct Input {
@@ -874,7 +874,7 @@ NavInput ReadNavInput() {
 class LauncherWindow : public Ship::GuiWindow {
   public:
     LauncherWindow(State* state, bool* play, bool* quit, bool* restart, Fast::Fast3dGui* gui, std::shared_ptr<Ship::Window> window)
-        : GuiWindow("gLauncherWindowOpen", "Pokémon Stadium Launcher", ImVec2(kW, kH)), mState(state), mPlay(play),
+        : GuiWindow("gLauncherWindowOpen", "stadion Launcher", ImVec2(kW, kH)), mState(state), mPlay(play),
           mQuit(quit), mRestart(restart), mGui(gui), mWindow(std::move(window)) {
         // requested before, but the game started with another one: that renderer could not start here
         mRendererFailed = state->renderer != ActiveRenderer() ? state->renderer : 0;
@@ -942,7 +942,7 @@ class LauncherWindow : public Ship::GuiWindow {
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
         // header: title | subtitle, line
-        Text(16, 10, "Pokémon Stadium", gFonts.title);
+        Text(16, 10, "stadion", gFonts.title);
         Text(190, 11, "|", gFonts.title, Theme::cardBorder);
         Text(206, 14, "PC port · Transfer Pak", gFonts.body, Theme::dim);
         dl->AddRectFilled(P(0, 44), P(kW, 45), Hex(Theme::cardBorder));
@@ -1510,7 +1510,7 @@ class LauncherWindow : public Ship::GuiWindow {
             GoToPage(kPageHome);
         }
         ImDrawList* dl = ImGui::GetWindowDrawList();
-        Text(24, 14, "Pokémon Stadium", gFonts.title);
+        Text(24, 14, "stadion", gFonts.title);
         const char* pageName = mPage == kPageTransferPak ? "Transfer Pak" : mPage == kPageControls ? "Controls" : mPage == kPageTools ? "Files & help" : "";
         Text(220, 17, pageName, gFonts.body, Theme::dim);
         dl->AddRectFilled(P(0, 50), P(kW, 51), Hex(Theme::cardBorder));
@@ -1550,7 +1550,7 @@ class LauncherWindow : public Ship::GuiWindow {
         const float cx = 24, cy = 66, cw = 440, ch = 426;
         dl->AddRectFilled(P(cx, cy), P(cx + cw, cy + ch), Hex(Theme::card), 10 * mScale);
         dl->AddRect(P(cx, cy), P(cx + cw, cy + ch), Hex(Theme::cardBorder), 10 * mScale);
-        Image("pokestadium", cx + (cw - 190) / 2, cy + 20, 190, 190);
+        Image("stadion", cx + (cw - 190) / 2, cy + 20, 190, 190);
         std::string romError = CheckRom(s.rom);
         Text(cx + 24, cy + 228, romError.empty() ? "Pokémon Stadium (USA)" : (s.rom.empty() ? "No Stadium ROM" : FileName(s.rom)),
              gFonts.title);
@@ -1678,7 +1678,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
                 SDL_SetWindowSize(sdl, int(std::round(kW * scale)), int(std::round(launcherHeight * scale)));
                 SDL_SetWindowPosition(sdl, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
             }
-            SDL_SetWindowTitle(sdl, "Pokémon Stadium — Launcher");
+            SDL_SetWindowTitle(sdl, "stadion — Launcher");
         }
 #ifdef _WIN32
         HWND nativeWindow = nullptr;
@@ -1767,7 +1767,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
             }
             SDL_SetWindowSize(sdl, gameW, gameH);
             SDL_SetWindowPosition(sdl, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-            SDL_SetWindowTitle(sdl, "Pokémon Stadium");
+            SDL_SetWindowTitle(sdl, "stadion");
         }
     }
 

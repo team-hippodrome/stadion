@@ -39,7 +39,7 @@ final class PortableLauncherStore {
     init(directory: URL, legacy: [String: Any] = [:]) {
         let home = directory.standardizedFileURL
         self.directory = home
-        self.file = home.appendingPathComponent("pokestadium.cfg.json")
+        self.file = home.appendingPathComponent("stadion.cfg.json")
         do {
             try FileManager.default.createDirectory(at: self.directory, withIntermediateDirectories: true)
             if FileManager.default.fileExists(atPath: file.path) {

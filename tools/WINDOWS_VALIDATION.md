@@ -6,7 +6,7 @@ window to another display when one is available. Keep the desktop idle while
 the test runs. Captures and results are written to the output directory.
 
 ```powershell
-python tools/windows_window_smoke.py --bin build-win/pokestadium.exe --rom 'C:/path/to/Pokemon Stadium (USA).z64' --out build-win/validation/window-smoke
+python tools/windows_window_smoke.py --bin build-win/stadion.exe --rom 'C:/path/to/Pokemon Stadium (USA).z64' --out build-win/validation/window-smoke
 ```
 
 `run_replays.py` accepts `--port-bin`, `--backend directx|opengl|vulkan`, `--out`, and
@@ -18,8 +18,8 @@ fallback. Windows timeouts allow for slower framebuffer readback.
 Example (PowerShell, from the repository root):
 
 ```powershell
-python -X utf8 -I tools/run_replays.py --all --port-bin build-win/pokestadium.exe --rom 'C:/path/to/Pokemon Stadium (USA).z64' --backend directx --out build-win/validation/directx/replays -j 2
-python -X utf8 -I tools/run_replays.py --all --port-bin build-win/pokestadium.exe --rom 'C:/path/to/Pokemon Stadium (USA).z64' --backend opengl --out build-win/validation/opengl/replays --reference-dir build-win/validation/directx/replays/ref -j 2
+python -X utf8 -I tools/run_replays.py --all --port-bin build-win/stadion.exe --rom 'C:/path/to/Pokemon Stadium (USA).z64' --backend directx --out build-win/validation/directx/replays -j 2
+python -X utf8 -I tools/run_replays.py --all --port-bin build-win/stadion.exe --rom 'C:/path/to/Pokemon Stadium (USA).z64' --backend opengl --out build-win/validation/opengl/replays --reference-dir build-win/validation/directx/replays/ref -j 2
 ```
 
 Without an existing reference the runner creates a local baseline; this checks
@@ -35,7 +35,7 @@ $env:ARES_REF_BUILD = 'C:/path/to/ares-reference/build'
 $env:ARES_REF_SRC = 'C:/path/to/ares-reference/ares'
 $env:PORT_TEST_BACKEND = 'directx'
 $env:XCHECK_SWEEP_DIR = "$PWD/build-win/validation/directx/animations"
-python -X utf8 -I tools/battle_sweep.py run --port-bin build-win/pokestadium.exe --jobs 2
+python -X utf8 -I tools/battle_sweep.py run --port-bin build-win/stadion.exe --jobs 2
 ```
 
 Repeat with `opengl` and `vulkan`, choosing a distinct output directory for each.
@@ -72,7 +72,7 @@ from Yellow relies on a linker layout that Windows does not preserve.
 Run the real menu routes rather than `PORT_BOOT`, which skips the initial hub visit:
 
 ```powershell
-python -I tools/windows_menu_regressions.py --bin build-win/pokestadium.exe --rom "C:/path/Stadium.z64" --gb-rom "C:/path/Red.gb" --gb-save "C:/path/Red.sav" --out build-win/validation/menu-regressions --backends directx opengl vulkan --jobs 2
+python -I tools/windows_menu_regressions.py --bin build-win/stadion.exe --rom "C:/path/Stadium.z64" --gb-rom "C:/path/Red.gb" --gb-save "C:/path/Red.sav" --out build-win/validation/menu-regressions --backends directx opengl vulkan --jobs 2
 ```
 
 The runner checks backend selection, exit status, completion frame, and unchanged
@@ -93,7 +93,7 @@ Set `NM` to the full `llvm-nm.exe` path if it is not on PATH.
 
 ```powershell
 foreach ($backend in @('opengl', 'vulkan', 'directx')) {
-    python -X utf8 -I tools/evidence/whole_game_windows.py --bin build-evidence-win/pokestadium.exe --rom 'C:/path/to/Pokemon Stadium (USA).z64' --out build-win/validation/whole-game --backend $backend --jobs 2
+    python -X utf8 -I tools/evidence/whole_game_windows.py --bin build-evidence-win/stadion.exe --rom 'C:/path/to/Pokemon Stadium (USA).z64' --out build-win/validation/whole-game --backend $backend --jobs 2
 }
 ```
 

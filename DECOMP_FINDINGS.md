@@ -1,4 +1,4 @@
-# Findings to send back to the decomp (pokestadium)
+# Findings to send back to the decomp (stadion)
 
 Facts learned while porting that are true for the original game too: types, layouts, names, data formats and real
 bugs. Each entry names the decomp symbol/file, what the port found, and the evidence. None of these change matching

@@ -5,7 +5,7 @@
 # gal_album run writes. Saves and flashes stay out of the repository.
 set -e
 cd "$(dirname "$0")/../../../.."
-O=$1; V=$2; B=build-evidence-all2/pokestadium; D=evidence/whole_game/routes/minigames_gallery
+O=$1; V=$2; B=build-evidence-all2/stadion; D=evidence/whole_game/routes/minigames_gallery
 Y=/Users/michael/Projects/Pokemon/pokestadium-port/gb/yellow_de.gb
 mkdir -p "$O"
 run() { n=$1; shift; nice -n 15 python3 -I tools/evidence/run.py "$O/$n" --bin $B --natural "$@" > "$O/$n.log" 2>&1

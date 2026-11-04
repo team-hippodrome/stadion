@@ -1,7 +1,7 @@
 # Pokémon Stadium (N64, US) save format
 
 This describes the cartridge save of *Pokémon Stadium* (US, `NPOE`, ROM MD5 `ed1378bc12115f71209a77844965ba50`).
-Source references are to the decomp at `pokestadium/src` (functions named as in that tree); the same files are in
+Source references are to the decomp at `stadion/src` (functions named as in that tree); the same files are in
 `pokestadium-port/game/src`. The editor in this directory (`stadium_save/`) implements exactly this layout.
 
 Evidence levels used below:

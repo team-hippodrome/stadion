@@ -26,11 +26,11 @@ buffer a voice still reads hands it other bytes.
 Two more runs (commands from the repository root, sound on):
 
 ```bash
-PORT_GAME_AUDIO=1 python3 -I tools/evidence/run.py OUT/pause_end --bin build-evidence-all2/pokestadium --frames 25800 --rec evidence/whole_game/routes/audio_seq/tour_mg_dynamo_audio.rec --natural --set "Widget_PauseMenuCheckTournamentEnd#1@exit:D_8780FC4C:1=1"
+PORT_GAME_AUDIO=1 python3 -I tools/evidence/run.py OUT/pause_end --bin build-evidence-all2/stadion --frames 25800 --rec evidence/whole_game/routes/audio_seq/tour_mg_dynamo_audio.rec --natural --set "Widget_PauseMenuCheckTournamentEnd#1@exit:D_8780FC4C:1=1"
 ```
 
 ```bash
-PORT_GAME_AUDIO=1 python3 -I tools/evidence/run.py OUT/al_close --bin build-evidence-all2/pokestadium --frames 3200 --rec evidence/whole_game/routes/audio_seq/options.rec --natural --set "State_TitleScreen#1@exit:gCurrentGameState:4=19" --call "Audio_CreateFrameTask#3000:n_alClose:v:" --call-fork
+PORT_GAME_AUDIO=1 python3 -I tools/evidence/run.py OUT/al_close --bin build-evidence-all2/stadion --frames 3200 --rec evidence/whole_game/routes/audio_seq/options.rec --natural --set "State_TitleScreen#1@exit:gCurrentGameState:4=19" --call "Audio_CreateFrameTask#3000:n_alClose:v:" --call-fork
 ```
 
 - `pause_end` (**forced**: the tournament-end flag where the game computes it; no player reaches the round target in

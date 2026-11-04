@@ -36,11 +36,11 @@ ROMs and byte-swapped `.n64` or `.v64` files are not accepted.
 
 Choose the package for your system from the
 [latest release](https://github.com/team-hippodrome/pokestadium-port/releases/latest).
-Current downloads and executables use the `pokestadium` filename prefix.
+Current downloads and executables use the `stadion` filename prefix.
 
 | Platform | Package | Start |
 | --- | --- | --- |
-| Windows x64 / ARM64 | ZIP for your architecture | Extract into a writable folder, then run `pokestadium.exe`. |
+| Windows x64 / ARM64 | ZIP for your architecture | Extract into a writable folder, then run `stadion.exe`. |
 | macOS Apple Silicon | ARM64 ZIP | Extract into a writable folder, then open the included app. |
 | Linux x86_64 | AppImage | Make it executable, then launch it. Requires glibc 2.39 or newer and system OpenGL drivers. |
 | Android ARM64 | APK | Install the APK, then open the app. Requires Android 10 or newer; current releases are debug-signed. |
@@ -96,12 +96,12 @@ you start.
 
 ## Saves and settings
 
-On desktop, `pokestadium.cfg.json`, logs and the default `saves/` folder live beside
+On desktop, `stadion.cfg.json`, logs and the default `saves/` folder live beside
 the launcher: the executable on Windows, the app bundle on macOS, or the AppImage on
 Linux. Keep these in a writable folder. Move the config and `saves/` with the launcher
 to keep your settings and progress. `SHIP_HOME` overrides the data folder.
 
-Android uses `/sdcard/Android/data/com.teamhippodrome.pokestadium/files`.
+Android uses `/sdcard/Android/data/com.teamhippodrome.stadion/files`.
 Files selected through its picker are copied into the app's `imported/` folder.
 
 **Import save** accepts raw 128 KiB N64 cartridge saves (`.flash`, `.fla`, `.sra`,
@@ -122,11 +122,11 @@ current save, then copy the chosen `.bak` over the active save file.
 If **Auto-play** skips the launcher, hold **Shift** while starting, or run:
 
 ```sh
-pokestadium --launcher
+stadion --launcher
 ```
 
-If graphics initialization fails, run `pokestadium --safe-mode` to reopen the
-launcher with OpenGL, or Metal on macOS. Windows commands use `pokestadium.exe`.
+If graphics initialization fails, run `stadion --safe-mode` to reopen the
+launcher with OpenGL, or Metal on macOS. Windows commands use `stadion.exe`.
 `PORT_FORCE_LAUNCHER=1` and `PORT_SAFE_MODE=1` provide the same recovery options.
 
 Use **Files & help → Export diagnostics** when reporting a problem. Review the

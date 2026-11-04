@@ -74,9 +74,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "v$VERSION" -m "Pokémon Stadium port v$VERSION" "$GITHUB_SHA"
+          git tag -a "v$VERSION" -m "stadion v$VERSION" "$GITHUB_SHA"
           git push origin "v$VERSION"
           git tag -f latest "$GITHUB_SHA"
           git push -f origin latest
           gh release create "v$VERSION" dist/* --title "v$VERSION" --target "$GITHUB_SHA" \
-            --notes "Builds for Linux (x86_64 AppImage), macOS (Apple Silicon, Pokemon Stadium.app) and Windows (x64 and arm64). No game data included: you need your own Pokémon Stadium (USA) ROM. See README.md."
+            --notes "Builds for Linux (x86_64 AppImage), macOS (Apple Silicon, stadion.app) and Windows (x64 and arm64). No game data included: you need your own Pokémon Stadium (USA) ROM. See README.md."

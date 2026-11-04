@@ -5,7 +5,7 @@ random values, compared event by event and frame by frame (the method of tools/b
 Usage:
   tools/battle_sweep.py paths [--move N|NAME]            the path catalog derived from the decomp (no runs)
   tools/battle_sweep.py run [--move N|NAME | --case ID] [--path P | --all-paths] [--user SPECIES] [--jobs 2] [--force]
-                            [--open] [--port-bin build-xcheck/pokestadium]
+                            [--open] [--port-bin build-xcheck/stadion]
   tools/battle_sweep.py report [--all-paths]             build-xcheck-sweep/report.md from the cached cases
 By default each move runs on its base path, with additional injured-user healing cases and its sound compared
 (the battle music is switched off on both sides, so the move's sound effects are what is heard); --all-paths runs
@@ -1130,7 +1130,7 @@ def main():
         print("%d cases, %d uses, %d skipped" % (len(cases), sum(len(c["uses"]) for c in cases), len(skipped)))
         return
     if cmd == "run":
-        port_bin = os.path.abspath(args.get("--port-bin", os.path.join(ROOT, "build", "pokestadium")))
+        port_bin = os.path.abspath(args.get("--port-bin", os.path.join(ROOT, "build", "stadion")))
         frames = int(args.get("--frames", "12000"))
         todo = open_cases(cases, port_bin) if args.get("--open") else []
         for c in ([] if args.get("--open") else cases):

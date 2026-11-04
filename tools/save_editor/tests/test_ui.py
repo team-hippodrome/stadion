@@ -1,6 +1,6 @@
 """UI test of the editor page (stadium_save/editor.html) in the macOS launcher's editor window.
 
-Runs "Pokemon Stadium.app" (build it with tools/make_app.sh) with LAUNCHER_EDITOR_TEST=tests/ui_test.js: the launcher
+Runs "stadion.app" (build it with tools/make_app.sh) with LAUNCHER_EDITOR_TEST=tests/ui_test.js: the launcher
 opens the editor on a fixture save, runs the suite in the page (it clicks every button and changes every field),
 answers the page's confirm() and the unsaved-changes prompt itself (LAUNCHER_AUTO_CONFIRM), closes the window and
 quits. Then the written save is checked with the library. Skipped when the app is not built (or not on macOS).
@@ -24,7 +24,7 @@ from stadium_save import make_mon  # noqa: E402
 from stadium_save.gbsave import GBSave  # noqa: E402
 from stadium_save.save import PHOTO, SaveFile, new_save_bytes  # noqa: E402
 
-LAUNCHER = os.path.join(PROJECT, "Pokemon Stadium.app", "Contents", "MacOS", "launcher")
+LAUNCHER = os.path.join(PROJECT, "stadion.app", "Contents", "MacOS", "launcher")
 
 
 def fixture(path):

@@ -6,7 +6,7 @@
 set -u
 OUT=$(cd "${1:?out dir}" && pwd); shift
 R=$(cd "$(dirname "$0")" && pwd)
-BIN=build-evidence-all2/pokestadium
+BIN=build-evidence-all2/stadion
 T="State_TitleScreen#1@exit"   # every call / state entry is made when the title screen returns (A at frame 1720)
 
 # run <name> <rec> [run.py args]  (FR: frames, default 2100; DE: dump every DE frames, default 30)
@@ -24,7 +24,7 @@ parked() {
     local py=$!
     sleep 20
     local p
-    for p in $(pgrep -P $py); do pkill -P "$p" -x pokestadium; done
+    for p in $(pgrep -P $py); do pkill -P "$p" -x stadion; done
     wait $py
 }
 want() { [ -z "$WANT" ] || [[ " $WANT " == *" $1 "* ]]; }

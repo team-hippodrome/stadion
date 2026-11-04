@@ -4,8 +4,8 @@ dispatch tables) can be turned back into host function pointers. Fragments share
 carries the ROM offset of the fragment it belongs to (0 for the always-resident main segment)."""
 import re, subprocess, pathlib
 root = pathlib.Path(__file__).resolve().parent.parent
-# the unmodified decomp checkout and build the game is patched from (PORT_DECOMP_DIR, default ../pokestadium)
-decomp = pathlib.Path(__import__("os").environ.get("PORT_DECOMP_DIR", root.parent / "pokestadium"))
+# the unmodified decomp checkout and build the game is patched from (PORT_DECOMP_DIR, default ../stadion)
+decomp = pathlib.Path(__import__("os").environ.get("PORT_DECOMP_DIR", root.parent / "stadion"))
 mp = (decomp / "build/pokestadium-us.map").read_text(errors="replace").split("\n")
 sympat = re.compile(r"^\s+0x([0-9a-f]{8,16})\s+([A-Za-z_]\w*)\s*(?:=.*)?$")
 # fragment ranges
