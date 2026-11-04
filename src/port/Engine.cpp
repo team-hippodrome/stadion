@@ -446,6 +446,8 @@ static void WriteFramePpmSmall(const char* path, int w, int h, const std::vector
 static void MaybeScreenshot() {
     static const char* dir = getenv("PORT_SCREENSHOT_DIR");
     static const bool xcheckAnim = Port_XcheckAnimActive(); // battle cross-check: move animation frames (xcheck.cpp)
+    static const bool stopOnly = getenv("PORT_SCREENSHOT_STOP_ONLY") != nullptr;
+    if (stopOnly && !xcheckAnim && !Port_FreezeCheckEnabled() && sCaptureFrame == 0) return;
     static int frame = 0;
     if (!dir && !xcheckAnim && !Port_FreezeCheckEnabled()) return;
     ++frame;

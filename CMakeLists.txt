@@ -116,6 +116,12 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_S
 # C arrays of 16/32-bit words in the game sources (textures among them need N64 byte order): their files are compiled
 # through generated wrappers that register the arrays with the renderer (see tools/gen_word_arrays.py)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+# Optional source audit. Keep speculative variants separate from the shipped warm-up lists.
+add_custom_target(shader_source_inventory
+  COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/shader_source_list.py
+          --output ${CMAKE_CURRENT_BINARY_DIR}/shader_source_candidates.txt
+          --vulkan-output ${CMAKE_CURRENT_BINARY_DIR}/vulkan_source_candidates.txt
+  VERBATIM)
 if(WIN32)
   # Windows has no dladdr: cross-check caller rules use the same named game functions as the ROM callback table.
   execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_xcheck_symbols.py
