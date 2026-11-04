@@ -344,8 +344,7 @@ if(EMSCRIPTEN)
     --profiling-funcs) # function names in the browser's stack traces
   file(GLOB_RECURSE PORT_WEB_RESOURCE_INPUTS CONFIGURE_DEPENDS
        ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*
-       ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png
-       ${CMAKE_CURRENT_SOURCE_DIR}/ghostship-ref/port/fonts/*)
+       ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png)
   set_property(TARGET pokestadium APPEND PROPERTY LINK_DEPENDS
                ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
                ${CMAKE_CURRENT_SOURCE_DIR}/src/port/vulkan_pipeline_warmup.txt
@@ -355,13 +354,12 @@ if(EMSCRIPTEN)
             $<TARGET_FILE_DIR:pokestadium>/pokestadium.o2r ${PORT_O2R_EXTRA}
     COMMENT "Packing web resources")
 else()
-# Runtime resources (shaders, fonts, the shader warm-up list, launcher pictures) packed into pokestadium.o2r and built
+# Runtime resources (shaders, the shader warm-up list, launcher pictures) packed into pokestadium.o2r and built
 # into the executable as a C array (tools/make_o2r.py --c): no separate file to lose or damage. The archive itself is
 # left in generated/ for inspection.
 file(GLOB_RECURSE PORT_O2R_INPUTS CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*
-     ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png
-     ${CMAKE_CURRENT_SOURCE_DIR}/ghostship-ref/port/fonts/*)
+     ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png)
 add_custom_command(
   OUTPUT ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c
   COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py

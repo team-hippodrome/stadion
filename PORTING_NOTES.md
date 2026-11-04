@@ -2,7 +2,6 @@
 
 ## Layout
 - `libultraship/`  upstream Kenix3/libultraship (shallow clone), built as a CMake subproject.
-- `ghostship-ref/` HarbourMasters/Ghostship (Mario 64 port), reference only; not built.
 - `src/port/`      port harness (libultraship context, window, per-frame display-list submission).
 - The decomp lives untouched in `../pokestadium`.
 
@@ -11,7 +10,7 @@
     cmake --build build --target pokestadium
     cd build && ./pokestadium
 
-The port's resources (shaders, fonts, the shader warm-up list, launcher pictures; `tools/make_o2r.py`) are packed into
+The port's resources (shaders, the shader warm-up list, launcher pictures; `tools/make_o2r.py`) are packed into
 `pokestadium.o2r` and built into the executable as a C array (`generated/pokestadium_o2r.c`), mounted through
 `ResourceManager::SetBuiltInArchive` and an in-memory `O2rArchive` (patches/libultraship.patch). It used to be a
 separate file next to the executable; a damaged, unreadable or missing copy (a user's Windows install in a Steam folder)

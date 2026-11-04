@@ -6,7 +6,13 @@ Transfer Pak support and a built-in Game Boy Tower. Built by Team Hippodrome on
 
 [Download](https://github.com/team-hippodrome/pokestadium-port/releases/latest) ·
 [Report an issue](https://github.com/team-hippodrome/pokestadium-port/issues) ·
-[Build from source](docs/BUILDING.md)
+[Build from source](docs/BUILDING.md) ·
+[Discord](https://discord.com/invite/8EvuQxbxu8)
+
+## Community
+
+Join the [Project Hippodrome Discord](https://discord.com/invite/8EvuQxbxu8) for
+project discussion and help with stadion.
 
 ## Quick start
 

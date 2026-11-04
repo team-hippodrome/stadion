@@ -95,7 +95,6 @@ moves `latest` and creates the GitHub release, after asking. `--only macos,windo
 - `src/port/` — host layer: OS/threads, VI, controllers, sound (audio microcode, AI), Transfer Pak, flash saves, GB core
 - `src/port/sdk/` — stand-ins for the N64 SDK headers the game includes (`ultra64.h`, `PR/*.h`, force-included `port_compat.h`)
 - `libultraship/` — submodule; the port's renderer changes are in `patches/libultraship.patch`
-- `ghostship-ref/` — submodule (fonts used by `tools/make_o2r.py`)
 - `tools/` — launcher, save editor, ares comparison tooling (`tools/tour.py`), replay helpers
   (`tools/run_replays.py` plays all stored recordings without showing the window and reports which still pass;
   `tools/frame_sweep.py` captures a stretch of the game at 5 pictures per second, skipping repeats, as contact sheets;
