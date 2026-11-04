@@ -25,6 +25,7 @@
 #if defined(_WIN32)
 #include <exception>
 #include <io.h>
+#include <SDL3/SDL_process.h>
 #include <spdlog/spdlog.h>
 #else
 #include <sys/ucontext.h>
@@ -46,6 +47,32 @@ extern "C" void Port_InputFinish(); // game entry (src/main.c): starts libultra 
 extern "C" void Port_ReserveLowAddressSpace(void);
 
 #if defined(_WIN32)
+static bool RestartWindowsLauncher() {
+    wchar_t path[32768];
+    const DWORD size = GetModuleFileNameW(nullptr, path, DWORD(std::size(path)));
+    if (size == 0 || size >= std::size(path)) {
+        SDL_SetError("Could not locate the running executable");
+        return false;
+    }
+    const auto executable = Port::PathUtf8(std::filesystem::path(path));
+    const char* args[] = { executable.c_str(), "--launcher", nullptr };
+    SDL_Environment* env = SDL_CreateEnvironment(true);
+    const SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_Process* process = nullptr;
+    if (env && props &&
+        SDL_UnsetEnvironmentVariable(env, "PORT_SAFE_MODE") &&
+        SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ENVIRONMENT_POINTER, env) &&
+        SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, const_cast<char**>(args)) &&
+        SDL_SetBooleanProperty(props, SDL_PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN, true)) {
+        process = SDL_CreateProcessWithProperties(props);
+    }
+    SDL_DestroyProperties(props);
+    SDL_DestroyEnvironment(env);
+    if (!process) return false;
+    SDL_DestroyProcess(process);
+    return true;
+}
+
 // pokestadium.exe is a window-only program (no console window of its own); stdout/stderr (logs, crash reports) still
 // reach a console when there is one. Output redirected to a file or pipe (pokestadium.exe 2> log.txt) is kept as is;
 // otherwise the program writes to the console of the shell it was started from, or to a console of its own with
@@ -420,7 +447,21 @@ static int RunGame(int argc, char** argv) {
     if (interactive) { std::ofstream marker(recovery); marker << "game\n"; }
     InstallSignalHandlers();
     if (romPath.empty()) {
-        romPath = Port::RunLauncher(Port::GetWindow());
+        bool restart = false;
+        do {
+            restart = false;
+            romPath = Port::RunLauncher(Port::GetWindow(), restart);
+#ifdef _WIN32
+            if (restart) {
+                clearRecovery();
+                if (RestartWindowsLauncher()) {
+                    fflush(nullptr);
+                    _exit(0);
+                }
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not restart Pokémon Stadium", SDL_GetError(), nullptr);
+            }
+#endif
+        } while (restart);
         if (romPath.empty()) {
             clearRecovery();
             fflush(nullptr);

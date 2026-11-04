@@ -38,6 +38,18 @@ and Linux builds; macOS only when built with `-DLUS_ENABLE_VULKAN=ON` against Ho
 keeps `vulkan_pipelines.txt` and `vulkan_pipeline_cache.bin` beside the settings: the shaders and pipelines of earlier
 runs are built ahead on worker threads (deleting them is safe; they are rebuilt).
 
+To audit shader coverage from source, build the optional `shader_source_inventory` CMake target after setup. It writes
+`shader_source_candidates.txt` and `vulkan_source_candidates.txt` in the build directory. The scan follows named static
+display lists. It explores inherited settings and reports candidates separately so you can compare them with replay
+traces before updating the shipped warm-up lists. Dynamic commands and display lists stored in assets still need
+runtime coverage. Run `tools/run_replays.py --all --backend metal --shader-capture --out build/shader-capture` (or
+`--backend vulkan` with a Vulkan build) to collect recipes from every rendered frame of the replay suite. Pass the
+capture directories to `tools/shader_list.py --capture-dir DIR --candidate-dir DIR` to stage the additions. Rerun
+on the same backend with `--shader-verify DIR --reference-dir CAPTURE/ref`. Verification uses a fresh profile
+and checks for first-draw compilation, new recipes and changes to the final captured image. It covers only the
+game paths exercised by those replays. Use `--gb-dir DIR` for the optional Game Boy Tower fixtures and
+`--replay-dir DIR` for additional recordings and their `replays.txt` manifest.
+
 ## Build
 
 The game code needs clang (for Windows: llvm-mingw); GCC and MSVC are not supported.
@@ -127,7 +139,9 @@ remembered (`pokestadium.cfg.json`); Auto-play skips the launcher next time (hol
 and Debug adds a save-editor button (needs python3). Screen picks the picture's shape, 4:3 (the N64's) or 16:9
 (widescreen: 3D scenes show more at the sides); a window of another shape gets black bars (`PORT_ASPECT=4:3|16:9`
 overrides it). Renderer cycles through the graphics APIs the build has (DX11, OpenGL, Metal, Vulkan); the choice
-applies the next time the game starts. With a ROM path as argument the game starts right away:
+applies the next time the game starts. On Windows, **Restart and apply** reopens the launcher with the selected
+renderer. If the renderer falls back, the launcher shows the active renderer next to the selection.
+With a ROM path as argument the game starts right away:
 `cd build && ./pokestadium "/path/to/Pokemon Stadium (USA).z64"`.
 
 On desktop systems, `pokestadium.cfg.json`, logs and the default `saves/` folder follow the launcher rather than the

@@ -887,9 +887,9 @@ NavInput ReadNavInput() {
 
 class LauncherWindow : public Ship::GuiWindow {
   public:
-    LauncherWindow(State* state, bool* play, bool* quit, Fast::Fast3dGui* gui, std::shared_ptr<Ship::Window> window)
+    LauncherWindow(State* state, bool* play, bool* quit, bool* restart, Fast::Fast3dGui* gui, std::shared_ptr<Ship::Window> window)
         : GuiWindow("gLauncherWindowOpen", "Pokémon Stadium Launcher", ImVec2(kW, kH)), mState(state), mPlay(play),
-          mQuit(quit), mGui(gui), mWindow(std::move(window)) {
+          mQuit(quit), mRestart(restart), mGui(gui), mWindow(std::move(window)) {
         // requested before, but the game started with another one: that renderer could not start here
         mRendererFailed = state->renderer != ActiveRenderer() ? state->renderer : 0;
     }
@@ -1553,10 +1553,6 @@ class LauncherWindow : public Ship::GuiWindow {
                 s.renderer = it == ids.end() || it + 1 == ids.end() ? ids.front() : *(it + 1);
                 mChanged = true;
             }
-            if (pending) {
-                Text(x + 616, y + 43, mRendererFailed == s.renderer ? "Unavailable" : "Restart required",
-                     gFonts.small, Theme::dim);
-            }
             if (ImGui::IsItemHovered()) {
                 std::string tip = "The graphics API the game draws with. A change applies the next time the game starts.";
                 if (mRendererFailed != 0 && s.renderer == mRendererFailed) {
@@ -1566,6 +1562,19 @@ class LauncherWindow : public Ship::GuiWindow {
                     tip += std::string("\nNow: ") + RendererName(active) + ".";
                 }
                 ImGui::SetTooltip("%s", tip.c_str());
+            }
+            if (pending) {
+                const std::string status = std::string("Active: ") + RendererName(active);
+                Text(x + 616, y + 43, status.c_str(), gFonts.small, Theme::dim);
+                if (mRendererFailed == s.renderer) {
+                    Text(x + 616, y + 63, "Selected unavailable", gFonts.small, Theme::dim);
+                }
+#ifdef _WIN32
+                if (mRendererFailed != s.renderer &&
+                    Button("Restart and apply", x + 616, y + 60, 128, 22, gFonts.small)) {
+                    *mRestart = true;
+                }
+#endif
             }
         }
 
@@ -1834,6 +1843,7 @@ class LauncherWindow : public Ship::GuiWindow {
     State* mState;
     bool* mPlay;
     bool* mQuit;
+    bool* mRestart;
     Fast::Fast3dGui* mGui;
     std::shared_ptr<Ship::Window> mWindow;
     bool mControls = false; // the controls panel instead of the player cards
@@ -1854,7 +1864,7 @@ class LauncherWindow : public Ship::GuiWindow {
 
 namespace Port {
 
-std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
+std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool& restart) {
     State state = Load();
     bool play = false, quit = false;
 
@@ -1924,7 +1934,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
         static uint8_t controllerBits;
         static OSContStatus controllerStatus[MAXCONTROLLERS];
         osContInit(nullptr, &controllerBits, controllerStatus);
-        auto launcher = std::make_shared<LauncherWindow>(&state, &play, &quit, gui.get(), window);
+        auto launcher = std::make_shared<LauncherWindow>(&state, &play, &quit, &restart, gui.get(), window);
         launcher->Init();
         launcher->Show();
         // test hook: PORT_LAUNCHER_MODS=1 opens the mods panel
@@ -1939,7 +1949,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
         // PORT_TRACE_PACING=1: launcher frames more than 40 ms apart
         static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
         auto lastFrame = std::chrono::steady_clock::now();
-        for (int frame = 0; !play && !quit && window->IsRunning(); frame++) {
+        for (int frame = 0; !play && !quit && !restart && window->IsRunning(); frame++) {
             window->HandleEvents();
             window->DrawAndRunGraphicsCommands(empty, {});
             auto now = std::chrono::steady_clock::now();
@@ -1960,7 +1970,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window) {
         }
         window->GetGui()->RemoveGuiWindow(launcher->GetName());
         Store(state);
-        if (!play) {
+        if (!play || restart) {
             return "";
         }
 #ifdef _WIN32

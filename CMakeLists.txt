@@ -119,6 +119,12 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_S
 # C arrays of 16/32-bit words in the game sources (textures among them need N64 byte order): their files are compiled
 # through generated wrappers that register the arrays with the renderer (see tools/gen_word_arrays.py)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+# Optional source audit. Keep speculative variants separate from the shipped warm-up lists.
+add_custom_target(shader_source_inventory
+  COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/shader_source_list.py
+          --output ${CMAKE_CURRENT_BINARY_DIR}/shader_source_candidates.txt
+          --vulkan-output ${CMAKE_CURRENT_BINARY_DIR}/vulkan_source_candidates.txt
+  VERBATIM)
 if(WIN32)
   # Windows has no dladdr: cross-check caller rules use the same named game functions as the ROM callback table.
   execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_xcheck_symbols.py
@@ -224,9 +230,34 @@ target_include_directories(port_os PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include/libultraship)
 set(PORT_BUILD_DESCRIPTION "${PORT_VERSION} (${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}, ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION})")
-if(DEFINED ENV{GITHUB_SHA})
-  string(APPEND PORT_BUILD_DESCRIPTION " revision $ENV{GITHUB_SHA}")
+set(PORT_SOURCE_REVISION "" CACHE STRING "Source commit for this build (auto-detected in Git checkouts)")
+if(NOT PORT_SOURCE_REVISION)
+  find_package(Git QUIET)
+  if(Git_FOUND)
+    execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --verify HEAD
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                    OUTPUT_VARIABLE PORT_SOURCE_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if(PORT_SOURCE_REVISION)
+      execute_process(COMMAND ${GIT_EXECUTABLE} symbolic-ref -q HEAD
+                      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                      OUTPUT_VARIABLE PORT_GIT_REF OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+      foreach(PORT_GIT_FILE HEAD "${PORT_GIT_REF}" packed-refs)
+        if(PORT_GIT_FILE)
+          execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --path-format=absolute --git-path "${PORT_GIT_FILE}"
+                          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                          OUTPUT_VARIABLE PORT_GIT_PATH OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+          if(EXISTS "${PORT_GIT_PATH}")
+            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PORT_GIT_PATH}")
+          endif()
+        endif()
+      endforeach()
+    endif()
+  endif()
 endif()
+if(NOT PORT_SOURCE_REVISION)
+  set(PORT_SOURCE_REVISION "unknown")
+endif()
+string(APPEND PORT_BUILD_DESCRIPTION " revision ${PORT_SOURCE_REVISION}")
 target_compile_definitions(pokestadium PRIVATE PORT_BUILD_VERSION="${PORT_BUILD_DESCRIPTION}")
 target_compile_definitions(port_os PRIVATE LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 NDEBUG _FINALROM N_MICRO VERSION_US BUILD_VERSION=VERSION_I_P)
 target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/port_compat.h
@@ -320,6 +351,7 @@ if(EMSCRIPTEN)
        ${CMAKE_CURRENT_SOURCE_DIR}/ghostship-ref/port/fonts/*)
   set_property(TARGET pokestadium APPEND PROPERTY LINK_DEPENDS
                ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
+               ${CMAKE_CURRENT_SOURCE_DIR}/src/port/vulkan_pipeline_warmup.txt
                ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt ${PORT_WEB_RESOURCE_INPUTS})
   add_custom_command(TARGET pokestadium POST_BUILD
     COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
@@ -338,6 +370,7 @@ add_custom_command(
   COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
           ${CMAKE_BINARY_DIR}/generated/pokestadium.o2r --c ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt
+          ${CMAKE_CURRENT_SOURCE_DIR}/src/port/vulkan_pipeline_warmup.txt
           ${PORT_O2R_INPUTS}
   COMMENT "Packing pokestadium.o2r")
 target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c)
