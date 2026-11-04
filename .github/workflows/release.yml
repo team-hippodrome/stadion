@@ -63,7 +63,9 @@ jobs:
               cp "$dir/$name.app.zip" "dist/${name}-v${VERSION}.zip"
               continue
             fi
-            cp README.md "$dir/README.md"
+            cp README.md PORTING_NOTES.md "$dir/"
+            mkdir -p "$dir/docs"
+            cp docs/BUILDING.md "$dir/docs/BUILDING.md"
             (cd "$dir" && zip -r "../../dist/${name}-v${VERSION}.zip" .)
           done
           ls -l dist

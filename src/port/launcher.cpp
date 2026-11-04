@@ -357,7 +357,7 @@ CartInfo InspectCart(const std::string& rom, const std::string& save) {
 }
 
 std::string FileName(const std::string& path) {
-    return path.empty() ? std::string("—") : fs::u8path(path).filename().string();
+    return path.empty() ? std::string("-") : fs::u8path(path).filename().string();
 }
 
 // ---- native file dialogs (SDL); they report back through a callback, possibly on another thread ----------------------
@@ -1132,14 +1132,14 @@ class LauncherWindow : public Ship::GuiWindow {
             Text(x + 12, y + 214, "No cartridge", gFonts.game, Theme::dim);
         }
         Text(x + 12, y + 246, "Trainer", gFonts.body, Theme::dim);
-        Text(x + 72, y + 246, info.trainer.empty() ? "—" : info.trainer, gFonts.body);
+        Text(x + 72, y + 246, info.trainer.empty() ? "-" : info.trainer, gFonts.body);
         Text(x + 12, y + 266, "ID", gFonts.body, Theme::dim);
-        Text(x + 72, y + 266, info.trainerId.empty() ? "—" : info.trainerId, gFonts.body);
+        Text(x + 72, y + 266, info.trainerId.empty() ? "-" : info.trainerId, gFonts.body);
 
         Text(x + 12, y + 300, "Save", gFonts.body, Theme::dim);
         std::string save = GbSave(g);
         std::string saveName = FileName(save);
-        if (saveName.size() > 18) saveName = saveName.substr(0, 17) + "…";
+        if (saveName.size() > 18) saveName = saveName.substr(0, 15) + "...";
         Text(x + 52, y + 300, saveName, gFonts.small);
         if (Button("Change", x + w - 76, y + 294, 66, 26)) {
             if (g.save.empty()) g.save = save;
@@ -1244,7 +1244,7 @@ class LauncherWindow : public Ship::GuiWindow {
         float bx = x + 96;
         for (size_t n = 0; n < list.size() && n < kShown; n++) {
             const Binding& b = list[n];
-            std::string label = b.name.size() > 12 ? b.name.substr(0, 11) + "…" : b.name;
+            std::string label = b.name.size() > 12 ? b.name.substr(0, 9) + "..." : b.name;
             label += "##" + b.id;
             if (ColorButton(label.c_str(), bx, y, 92, 24, b.pad ? 0x23406B : Theme::button,
                             b.pad ? 0x2D528A : Theme::buttonHover)) {
@@ -1309,7 +1309,7 @@ class LauncherWindow : public Ship::GuiWindow {
             Pick(&s.rom, false, kRomFilter, 2);
         }
         std::string saveName = "Save: " + FileName(s.save);
-        if (saveName.size() > 30) saveName = saveName.substr(0, 29) + "…";
+        if (saveName.size() > 30) saveName = saveName.substr(0, 27) + "...";
         Text(x + 250, y + 61, saveName, gFonts.small, Theme::dim);
         if (Button("Import save", x + 450, y + 56, 100, 26)) {
             Pick(&s.save, false, kSaveFilter, 2, s.save, true);
@@ -1557,7 +1557,7 @@ class LauncherWindow : public Ship::GuiWindow {
         dl->AddCircleFilled(P(cx + 30, cy + 272), 5 * mScale, Hex(romError.empty() ? Theme::green : Theme::red));
         Text(cx + 42, cy + 263, romError.empty() ? "ROM OK" : romError, gFonts.game, romError.empty() ? Theme::green : Theme::red);
         std::string saveName = "Save: " + FileName(s.save);
-        if (saveName.size() > 40) saveName = saveName.substr(0, 39) + "…";
+        if (saveName.size() > 40) saveName = saveName.substr(0, 37) + "...";
         Text(cx + 24, cy + 296, saveName, gFonts.body, Theme::dim);
         if (Button(s.rom.empty() ? "Load ROM" : "Change ROM", cx + 24, cy + 340, 190, 56, gFonts.game)) {
             Pick(&s.rom, false, kRomFilter, 2);
