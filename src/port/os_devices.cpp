@@ -867,6 +867,13 @@ bool TasksDrained() {
 std::atomic<bool> gDisplayPaced{ false };
 std::atomic<int64_t> gRetraceVblank{ 0 }; // the vblank the last paced retrace followed (steady clock), 0: not paced
 std::atomic<int64_t> gRetracePeriod{ 0 };
+// How far the last retrace came after its place in wall-clock time (ns; 0: on time). When the host cannot draw every
+// frame in time (a weak GPU: an Intel HD 520 needs ~20-25 ms per frame), game time, and with it the sound the game
+// produces, fell behind real time: the game ran in slow motion and the sound queue ran dry over and over (audible
+// stutter). Retraces now make up a lag of up to kMaxLagNs, and while the clock lags the window thread draws fewer
+// frames (PumpRspTasks, interp.cpp) until game time has caught up. A longer stall (loading) is not made up.
+std::atomic<int64_t> gClockLagNs{ 0 };
+constexpr int64_t kMaxLagNs = 100000000;
 
 class RetraceSchedule {
   public:
@@ -881,11 +888,17 @@ class RetraceSchedule {
             const auto period = std::chrono::microseconds((long long)periodUs);
             mNext += period;
             auto wallNow = std::chrono::steady_clock::now();
-            // Allow a late retrace, but do not burst several game frames into the audio queue after a stall.
-            if (mNext < wallNow - period) mNext = wallNow;
+            // A late retrace comes at once and the next ones follow quickly until the clock is back on time; after a
+            // stall longer than kMaxLagNs the clock restarts from now instead (no burst of game frames into the sound
+            // queue after loading). At other speeds a late retrace is not made up.
+            const auto maxLag = Port_Speed() == 1.0 ? std::chrono::nanoseconds(kMaxLagNs)
+                                                    : std::chrono::nanoseconds(period);
+            if (mNext < wallNow - maxLag) mNext = wallNow;
+            gClockLagNs = std::max<int64_t>(0, std::chrono::duration_cast<std::chrono::nanoseconds>(wallNow - mNext).count());
             std::this_thread::sleep_until(mNext);
             return;
         }
+        gClockLagNs = std::max<int64_t>(0, now - target);
         if (target > now) std::this_thread::sleep_for(std::chrono::nanoseconds(target - now));
     }
 
@@ -924,12 +937,13 @@ class RetraceSchedule {
         }
         int64_t base = vblank + sLeadNs;
         double k;
-        if (mTarget == 0 || mTarget + n * refresh < now - n * refresh) {
+        if (mTarget == 0 || mTarget + n * refresh < now - kMaxLagNs) {
             // the first retrace, or one after a stall: the next grid point (no racing to catch up)
             k = std::ceil((double)(now - base) / refresh);
         } else {
             // n refreshes after the previous one, snapped to the grid (it follows the display's measured clock); one
-            // that is already late (the game was busy) comes at once, and the next is back on the grid
+            // that is already late (the game was busy) comes at once, and so do the next ones until the clock is back
+            // on the grid (a lag of up to kMaxLagNs is made up)
             k = std::floor((double)(mTarget + n * refresh - base) / refresh + 0.5);
         }
         mTarget = base + (int64_t)k * refresh;
@@ -1065,6 +1079,17 @@ void LockstepClock() {
     }
 }
 } // namespace
+
+// how far game time lags behind real time at the latest retrace (ns; see gClockLagNs)
+extern "C" int64_t Port_ClockLagNs() {
+    return gClockLagNs.load();
+}
+
+// whether the game has submitted a task the window thread has not run yet (it waits for it)
+extern "C" bool Port_RspTaskPending() {
+    std::lock_guard<std::mutex> g(gTaskLock);
+    return !gTasks.empty();
+}
 
 // whether retraces follow the display's refresh (Engine.cpp then keeps libultraship's frame limiter out of the way)
 extern "C" bool Port_DisplayPaced() {
@@ -1361,6 +1386,33 @@ static void TryPresentCpuFrame() {
     }
 }
 
+// At normal speed, while game time lags behind real time by more than a retrace (the host took too long to draw), a
+// game frame is not drawn, only tracked (its state changes still happen, and a frame that renders to a texture or
+// draws over the previous picture with a changed amount of drawing is drawn after all, as when running fast), so that
+// the game catches up and keeps producing sound at the real rate. At most 2 frames in a row are skipped.
+// PORT_NO_FRAME_SKIP=1 turns it off.
+static bool WantSkipWhileBehind() {
+    static const bool sOff = getenv("PORT_NO_FRAME_SKIP") != nullptr && atoi(getenv("PORT_NO_FRAME_SKIP")) != 0;
+    if (sOff || Port_Speed() != 1.0 || !Port_Lockstep()) return false;
+    constexpr int64_t kSkipLagNs = 16666667;
+    return gClockLagNs.load() > kSkipLagNs;
+}
+
+// counts a game frame: drawn, or skipped to catch up (PORT_TRACE_PACING=1 reports them every 600 retraces)
+static void NoteGameFrame(bool skipped) {
+    static uint64_t sSkipped = 0, sDrawn = 0, sLastReport = 0;
+    (skipped ? sSkipped : sDrawn)++;
+    if (Port_PacingTrace() && gTick.load() >= sLastReport + 600) {
+        if (sSkipped > 0) {
+            fprintf(stderr, "[pace] last %llu retraces: %llu game frames drawn, %llu skipped to catch up (lag now %.1f ms)\n",
+                    (unsigned long long)(gTick.load() - sLastReport), (unsigned long long)sDrawn,
+                    (unsigned long long)sSkipped, gClockLagNs.load() / 1e6);
+        }
+        sSkipped = sDrawn = 0;
+        sLastReport = gTick.load();
+    }
+}
+
 void Port::PumpRspTasks() {
     TryPresentCpuFrame();
     for (;;) {
@@ -1380,11 +1432,22 @@ void Port::PumpRspTasks() {
             bool stopFrame, shotFrame;
             CheckCapture(&stopFrame, &shotFrame);
             // (Port_XcheckWantDraw: the battle cross-check is capturing a move animation, src/port/xcheck.cpp)
-            if ((gfxCount++ % Port_RenderEvery()) == 0 || stopFrame || shotFrame || Port_XcheckWantDraw()) {
+            constexpr int kMaxSkipsInRow = 2;
+            static int sSkipsInRow = 0;
+            const bool regular = (gfxCount++ % Port_RenderEvery()) == 0;
+            const bool catchUp = regular && sSkipsInRow < kMaxSkipsInRow && WantSkipWhileBehind();
+            bool skipped = false;
+            if ((regular && !catchUp) || stopFrame || shotFrame || Port_XcheckWantDraw()) {
                 Port::RunGameFrame(t->t.data_ptr, stopFrame || shotFrame); // (interp.cpp: in-between frames)
             } else if (Port::TrackFrame(t->t.data_ptr)) { // not drawn, but its state changes must still happen
                 Port::CancelInterpolation();
                 Port::RunFrame(t->t.data_ptr);                  // renders to a texture: draw it after all
+            } else {
+                skipped = true;
+            }
+            if (regular) {
+                sSkipsInRow = catchUp && skipped ? sSkipsInRow + 1 : 0;
+                NoteGameFrame(catchUp && skipped);
             }
             if (stopFrame) {
                 fprintf(stderr, "[stop] reached frame %llu\n", (unsigned long long)gTick.load());

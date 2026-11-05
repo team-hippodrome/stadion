@@ -315,6 +315,30 @@ also lists every interval with its phase in the display's refresh. The window mu
 macOS does not present a covered window; `PORT_WINDOW_ON_TOP=1` keeps it above other windows without taking the focus.
 Other game instances running at the same time (parallel test runs) disturb the numbers.
 
+### Slow GPUs: game time keeps up, sound does not stutter
+
+Reported on an Intel HD 520 (Windows): low frame rate (a battle at 43.8 FPS with Smooth motion, 60 normally) and
+stuttering sound. In lockstep mode a retrace waits until the window thread has drawn the frame the game submitted, and
+the game makes its sound per game frame (audio_out.cpp), so drawing that took longer than real time slowed game time
+itself: slow motion, and sound produced at ~70 % of the rate the device plays, which the playback-rate control (±3 %)
+cannot absorb, so the queue ran dry and refilled over and over. With Smooth motion each 30 fps battle frame got an
+in-between frame on the same thread; at ~22 ms per draw the two no longer fit in 33 ms.
+- Retraces now make up a lag of up to 100 ms (`gClockLagNs`, os_devices.cpp; free-running and display-paced clocks)
+  instead of restarting after one late retrace; a longer stall (loading) is still not made up.
+- While the clock lags by more than a retrace, game frames are only tracked, not drawn (`WantSkipWhileBehind`, at most
+  2 in a row), with the same safety as fast runs: a frame that renders to a texture or draws over the previous picture
+  with a changed amount of drawing is drawn after all (battle frames usually are). `PORT_NO_FRAME_SKIP=1` turns it off.
+- In-between frames (interp.cpp `PumpInterpolation`) are dropped when the game already waits for its next frame or the
+  clock lags by more than 4 ms: Smooth motion never slows the game.
+- The sound queue's target grows by half (up to 120 ms) after the queue ran dry without a long stall, past the first
+  600 retraces (boot underruns do not count).
+- `PORT_DEBUG_DRAW_MS=<ms>` adds that much to every drawn frame, to try this on a fast machine.
+Measured on an M-series Mac (debug battle to frame 1500, free-running clock as on Windows, `PORT_TRACE_AUDIO_OUT=1`):
+Smooth motion with 22 ms draws: game speed 70 % → 96 %, sound queue refills 653 → 1 (at boot); 30 ms draws: 94 → 97 %,
+7 refills. Without Smooth motion and 40 ms draws (a battle frame alone takes longer than 33 ms; battle frames cannot be
+skipped safely) game time stays at 74 %, refills 735 → 243. No change without the added delay; pictures at fixed game
+frames are identical with and without it (menus, battle with Smooth motion).
+
 - Every run records the pad state per frame to `build/last_input.rec` (`PORT_RECORD=<file>` to choose another name). A
   crash ends the recording at the crash frame, and the crash report prints `game frame N`. Packaged builds (AppImage,
   macOS app: `SHIP_HOME` set) write it to their settings folder instead (`~/.local/share/pokestadium`,
