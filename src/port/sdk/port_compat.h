@@ -172,6 +172,9 @@ s16 Port_WidenViewAngle(s16 angle);
 float Port_WidenViewSpan(float span);
 // N64 pixels beside the 4:3 frame on each side of a widescreen picture (0 at 4:3; src/port/Engine.cpp).
 int Port_WideMarginN64(void);
+// The x of a node of the battle's camera-facing effect grids (Hypnosis' swirl: Trail40, Trail40Variant, Trail40GridAlt)
+// for the picture's shape: unchanged at 4:3, wider in widescreen so the grid covers the whole picture.
+float Port_WidenEffectGridX(float x);
 // Full-screen 2D effects made for the 4:3 picture (the battle's strip wipe): the textured rectangles between these
 // markers are stretched over the whole width of a widescreen picture (libultraship patch, interpreter.cpp sWideRects).
 #define gDPPortWideRectsBegin(pkt) gDPNoOpTag3(pkt, 0x50, 0, 1)

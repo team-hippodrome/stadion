@@ -1445,6 +1445,24 @@ scenes are shown at the display's refresh rate: between two game frames the rend
 list again with matrices blended between the two frames, once per refresh. Off by default; the launcher's "Smooth
 motion" (Graphics panel, `gPort.Interpolate`) or `PORT_INTERPOLATE=1/0` (overrides the setting). Normal speed only.
 
+**Menus and other screens that draw over the previous picture** (most menus: the N64 frame buffer keeps its picture
+and they repaint only what changes) used to be shown at the game's rate. They now get in-between frames too: before the
+frame's first drawing the renderer copies each game frame buffer it draws into (`CopyFramebufferInStream`, ordered in
+that framebuffer's own command stream on Metal/Vulkan), and copies it back before each repeat, so every picture starts
+from the same one and the last, exact drawing leaves what the N64 would (`ReplayBegin(restorePicture)`; when a newer
+frame arrives early, the exact drawing is done first, `FinishPending`). With MSAA the copy has the game buffer's MSAA
+level and both images are copied (Metal/Vulkan: the multisampled attachment and its resolve target; DX11: the
+multisampled texture as it is; OpenGL: a same-size multisample blit). `PORT_INTERP_INCREMENTAL=0` turns it off. 2D also moves in between: `Interp2DPrepare` pairs the frame's textured and fill rectangles with the last
+exact frame's by texture, size and texture coordinates (or fill colour), same place first, then the most common
+moves (a panel's background, border and text move alike), and in-between drawings place each one between its old and
+new place (cursors, panels, text boxes; `PORT_INTERP_2D=0` off). Not blended: moves over 48 pixels, new rectangles,
+and anything touching a new rectangle (a panel whose edge is still entering from off screen moves at the game's rate
+rather than tearing). Measured on `to_battle` (menus to the battle): of the in-between frames whose neighbours differ,
+796 show a blended picture and 355 the new one; `tour_galmenu2`'s stop picture with interpolation on equals the
+reference (difference 0.001). With 2x/4x MSAA (Metal, Vulkan, OpenGL) the same route gets the same in-between frames
+as without (593 incremental frames blended); DX11 compiled only on Windows (untested here). Known: a one-refresh misplacement when a unique piece reappears near its old place at a
+screen change (the rental screen's tab bar, frame 856).
+
 **What libultraship has and what Ship of Harkinian adds.** libultraship (this version) has the renderer hooks only:
 `Interpreter::Run(commands, mtx_replacements)` / `Fast3dWindow::DrawAndRunGraphicsCommands` take a map from `Mtx*` to
 the `MtxF` to use instead (looked up in `GfxSpMatrix`), plus `G_MW_SEGMENT_INTERP` / `mInterpolationIndex` (segment

@@ -4189,7 +4189,7 @@ index d22c8ab0236357bfb3e93183f957a49b266ca22d..3318f035f8c8d657a146f41f5ee8d1b7
 +    return PORT_BE32(arg.rgba);
  }
 diff --git a/src/memmap.c b/src/memmap.c
-index a46c369996a35fd75fa474484e0a233d6df75183..d8b679f688b3e0d12e64e69a13afe4eb773307b0 100644
+index a46c369996a35fd75fa474484e0a233d6df75183..f8603da0961c458632581da8565b0460a2b32f70 100644
 --- a/src/memmap.c
 +++ b/src/memmap.c
 @@ -1,3 +1,5 @@
@@ -4339,15 +4339,19 @@ index a46c369996a35fd75fa474484e0a233d6df75183..d8b679f688b3e0d12e64e69a13afe4eb
  struct MemoryMap gSegments[16];
  struct MemoryMap gFragments[240];
  
-@@ -13,6 +149,7 @@ struct MemoryMap gFragments[240];
+@@ -13,6 +149,11 @@ struct MemoryMap gFragments[240];
   * Set the base virtual address and size of the specified segment memmap.
   */
  void Memmap_SetSegmentMap(u32 id, uintptr_t vaddr, size_t size) {
-+    Port_GfxFlushCache(); // PORT: translated display lists depend on these maps
++    // PORT: translated display lists depend on these maps. Menus set the same map again every frame: only a change
++    // flushes (a flush also drops Smooth motion's in-between frames, interp.cpp: menus stayed at 30 fps)
++    if (gSegments[id].vaddr != vaddr || gSegments[id].size != size) {
++        Port_GfxFlushCache();
++    }
      gSegments[id].vaddr = vaddr;
      gSegments[id].size = size;
  }
-@@ -33,7 +170,7 @@ uintptr_t Memmap_GetSegmentBaseVaddr(u32 id) {
+@@ -33,7 +174,7 @@ uintptr_t Memmap_GetSegmentBaseVaddr(u32 id) {
   * Y: Segment number.
   * Z: Segment offset.
   */
@@ -4356,7 +4360,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..d8b679f688b3e0d12e64e69a13afe4eb
      if ((mask >> 0x1C) == 0) {
          u32 id = (mask & 0x0F000000) >> 0x18;
          u32 value = (mask & 0x00FFFFFF) >> 0x00;
-@@ -62,6 +199,7 @@ u32 Memmap_GetSegmentVaddrMask(u32 i, uintptr_t addr) {
+@@ -62,6 +203,7 @@ u32 Memmap_GetSegmentVaddrMask(u32 i, uintptr_t addr) {
   * Clear the memmap for the segment ID specified.
   */
  void Memmap_ClearSegmentMemmap(u32 id) {
@@ -4364,7 +4368,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..d8b679f688b3e0d12e64e69a13afe4eb
      gSegments[id].vaddr = NULL;
      gSegments[id].size = 0;
  }
-@@ -75,15 +213,31 @@ void Memmap_SetSegments(Gfx** gfxDl) {
+@@ -75,15 +217,31 @@ void Memmap_SetSegments(Gfx** gfxDl) {
      Gfx* gfx = *gfxDl;
  
      for (i = 0; i < 16; i++) {
@@ -4397,7 +4401,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..d8b679f688b3e0d12e64e69a13afe4eb
      u32 isLoNeg;
      u32* luiRefs[32];
      u32 luiVals[32];
-@@ -105,6 +259,11 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
+@@ -105,6 +263,11 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
      osInvalICache(fragment, fragment->sizeInRam);
      osInvalDCache(fragment, fragment->sizeInRam);
      Memmap_SetFragmentMap(id, (uintptr_t)fragment, fragment->sizeInRam);
@@ -4409,7 +4413,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..d8b679f688b3e0d12e64e69a13afe4eb
  
      for (i = 0; i < relocInfo->nRelocations; i++) {
          reloc = relocInfo->relocations[i];
-@@ -157,8 +316,12 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
+@@ -157,8 +320,12 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
   * Set the base virtual address and size of the specified fragment memmap.
   */
  void Memmap_SetFragmentMap(u32 id, uintptr_t vaddr, size_t size) {
@@ -4422,7 +4426,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..d8b679f688b3e0d12e64e69a13afe4eb
  }
  
  /*
-@@ -179,9 +342,13 @@ uintptr_t Memmap_GetFragmentBaseVaddr(u32 id) {
+@@ -179,9 +346,13 @@ uintptr_t Memmap_GetFragmentBaseVaddr(u32 id) {
   * Z: Fragment offset.
   */
  uintptr_t Memmap_GetFragmentVaddr(void* addr) {
@@ -4439,7 +4443,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..d8b679f688b3e0d12e64e69a13afe4eb
  
          if (gFragments[id].vaddr != NULL) {
              addr = gFragments[id].vaddr + value;
-@@ -208,6 +375,7 @@ u32 Memmap_GetFragmentVaddrMask(u32 i, uintptr_t addr) {
+@@ -208,6 +379,7 @@ u32 Memmap_GetFragmentVaddrMask(u32 i, uintptr_t addr) {
   * Clear the memmap for the fragment ID specified.
   */
  void Memmap_ClearFragmentMemmap(u32 id) {
@@ -4447,7 +4451,7 @@ index a46c369996a35fd75fa474484e0a233d6df75183..d8b679f688b3e0d12e64e69a13afe4eb
      gFragments[id].vaddr = NULL;
      gFragments[id].size = 0;
  }
-@@ -230,3 +398,148 @@ uintptr_t Memmap_GetLoadedFragmentVaddr(uintptr_t addr) {
+@@ -230,3 +402,148 @@ uintptr_t Memmap_GetLoadedFragmentVaddr(uintptr_t addr) {
      }
      return 0;
  }
