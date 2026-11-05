@@ -1226,6 +1226,27 @@ void osSpTaskStartGo(OSTask* t) {
     static const bool asyncTasks = getenv("PORT_ASYNC_TASKS") != nullptr;
     if (trace) fprintf(stderr, "[sp] task type=%u flags=0x%x data=%p\n", (t ? t : gLoaded)->t.type, (t ? t : gLoaded)->t.flags, (void*)(t ? t : gLoaded)->t.data_ptr);
     std::unique_lock<std::mutex> g(gTaskLock);
+#if !defined(__EMSCRIPTEN__)
+    // A JPEG decode (pure CPU work, emulated on the host) is run right here when no other task is queued or in flight,
+    // so the order of tasks is unchanged. Scenes decode their backgrounds as 300 small tasks, the game submitting the
+    // next when the last is done: handing each to the window thread and back cost ~25 us, 8-10 ms per screen change,
+    // plus a pass of the window loop each (its event pump), which held up the next frame by 15-30 ms. The completion
+    // is posted as the window thread posts it (PumpRspTasks). PORT_JPEG_ON_WINDOW_THREAD=1: the old way.
+    static const bool jpegOnWindow = getenv("PORT_JPEG_ON_WINDOW_THREAD") != nullptr;
+    if ((t ? t : gLoaded)->t.type == 4 && !jpegOnWindow && !asyncTasks && Port_Lockstep() && gTasks.empty() &&
+        gTasksProcessed == gTasksSubmitted) {
+        OSTask* task = t ? t : gLoaded;
+        ++gTasksSubmitted;
+        g.unlock();
+        Port_RunJpegTask(task->t.data_ptr);
+        port_PostEvent(OS_EVENT_SP);
+        g.lock();
+        gTasksProcessed++;
+        g.unlock();
+        gTaskDoneCv.notify_all();
+        return;
+    }
+#endif
 #if defined(__EMSCRIPTEN__)
     if ((t ? t : gLoaded)->t.type != M_GFXTASK) {
         static std::once_flag started;
@@ -1512,9 +1533,9 @@ void Port::PumpRspTasks() {
     TryPresentCpuFrame(); // a frame buffer swapped while the tasks above ran
 }
 
-void Port::WaitForRspTasks(std::chrono::milliseconds timeout) {
+bool Port::WaitForRspTasks(std::chrono::milliseconds timeout) {
     std::unique_lock<std::mutex> g(gTaskLock);
-    gTaskQueuedCv.wait_for(g, timeout, [] { return !gTasks.empty() || gStop; });
+    return gTaskQueuedCv.wait_for(g, timeout, [] { return !gTasks.empty() || gStop; }) && !gStop;
 }
 
 void Port::StopDevices() {

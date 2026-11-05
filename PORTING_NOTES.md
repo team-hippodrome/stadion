@@ -265,6 +265,14 @@ sums RSP tasks per retrace (`[task]`) and lists the game threads when a retrace 
 pause at boot and at the title-to-menu change (~0.35 s): each scene decodes its backgrounds in 300 JPEG tasks, and each
 task waited for the next window-loop pass, which slept 1 ms; the loop now wakes when a task is queued
 (`Port::WaitForRspTasks`), and the pause is ~20 ms.
+Later measurement at maximum resolution (16:9, Resolution 200%) still showed the game held up 15-30 ms at each screen
+change that decodes its JPEG backgrounds: each of the 300 tasks went to the window thread and back (~25 us each) and
+cost a window-loop pass with its Cocoa event pump. JPEG tasks now run on the submitting game thread when no other task
+is queued or in flight (`osSpTaskStartGo`; order unchanged, `PORT_JPEG_ON_WINDOW_THREAD=1` restores the old way), and
+tasks queued back to back are run for up to 4 ms before the events are pumped again (main loop). Late retraces on
+`to_battle` 18 -> 12, e.g. frame 740 held up 24 -> 13 ms; `tour_galmenu2` replays in 28 s instead of ~38. The other
+pauses seen there are the game's own: the N64 loading waits of the intro and title (`Port_LoadStall`) and screen
+changes where the game draws no new frame for 3-5 retraces (no late retrace: game time keeps its pace).
 
 ### Controllers 2-4
 
