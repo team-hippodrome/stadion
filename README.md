@@ -86,6 +86,27 @@ OpenGL, Metal or Vulkan. Restart to apply a change. Vulkan requires a compatible
 driver; availability depends on the platform and build. On Windows, **Restart and
 apply** reopens the launcher with the selected renderer.
 
+Compiled shaders are saved in `shadercache/` beside the settings for DirectX 11,
+Vulkan, and OpenGL drivers that support program binaries. Later launches reuse
+matching compiler output. Invalid entries are rebuilt automatically. For
+diagnostics, `PORT_TRACE_SHADER_CACHE=1` logs cache hits and writes, and
+`PORT_NO_SHADER_DISK_CACHE=1` disables this cache.
+
+`PORT_TRACE_RENDER_SPIKES=1` reports frames exceeding 50 ms with shader, texture
+upload, draw, and presentation timings. `PORT_RENDER_SPIKE_MS` sets the threshold.
+Use `PORT_TRACE_RENDER_TIMING=1` for the full per-frame timing trace.
+The optional `shader_cache_check` build target tests corrupted and truncated
+entries, concurrent writes, and unavailable storage. Run it with an empty scratch
+directory as its argument.
+
+For a GPU copy regression check, configure an evidence build with
+`-DCMAKE_PROJECT_INCLUDE="$PWD/cmake/evidence.cmake"`
+`-DPORT_EVID_FILES="(game_state.c|battle_prep_)"`, then run
+`python3 tools/rtt_check.py <output> --bin <binary> --backend opengl`
+(or `metal`, `vulkan`, `directx`). It displays the castle's defeated-trainer card
+and checks the preserved portrait target against its original RGBA16 pixels, including alpha.
+`PORT_CHECK_RTT_INIT=1` enables the same readback diagnostics during other runs.
+
 ### Transfer Pak and Game Boy Tower
 
 Select a compatible Game Boy cartridge ROM and battery save for each player in the
