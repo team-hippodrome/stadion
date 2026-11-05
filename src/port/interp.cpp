@@ -76,6 +76,7 @@ struct Pending {
     int k = 0, next = 0;
     int64_t start = 0, period = 0, vblank = 0;
     bool grid = false;
+    bool restore = false; // drawn from a copy of the previous picture (a menu): the exact drawing must happen
     uint64_t mapGen = 0, tick = 0;
 } gPending;
 bool gHavePending = false;
@@ -301,12 +302,29 @@ void EndPending() {
     gPending = Pending();
 }
 
+void DrawNext();
+
+// Drops the in-between frames still due. A frame drawn over the previous picture (Pending::restore) has its exact
+// drawing done first: the game frame buffer would otherwise keep a blended picture that later frames draw over. Not
+// when the game has unloaded data the display list may use (the blended picture stays, as for other frames).
+void FinishPending() {
+    if (gHavePending && gPending.restore && gPending.next < gPending.k && gMapGen.load() == gPending.mapGen) {
+        gPending.next = gPending.k - 1;
+        DrawNext(); // (ends the pending frame)
+        return;
+    }
+    EndPending();
+}
+
 void DrawNext() {
     Pending& p = gPending;
     int j = p.next++;
     Replacements r;
     if (j + 1 < p.k) Build(*p.a, *p.b, (float)(j + 1) / p.k, r, nullptr);
-    if (auto interp = Interp()) interp->ReplayPassStart();
+    if (auto interp = Interp()) {
+        interp->ReplayPassStart();
+        interp->mReplayT = j + 1 < p.k ? (float)(j + 1) / p.k : 1.0f; // (2D rectangles: interpreter.cpp)
+    }
     Port::RunFrameWith(p.dl, &r, true, ShotWanted(p.tick));
     Shot(p.tick, j, p.k);
     if (p.next >= p.k) EndPending();
@@ -346,14 +364,14 @@ extern "C" void Port_InterpMapsChanged(void) {
 
 namespace Port {
 void CancelInterpolation() {
-    EndPending();
+    FinishPending();
     gPrev = nullptr;
 }
 
 void RunGameFrame(void* gfxCommands, bool exact) {
     bool on = Enabled();
     gRecording = on;
-    EndPending(); // a newer frame: in-between frames still due are dropped
+    FinishPending(); // a newer frame: in-between frames still due are dropped
     if (!on) {
         gPrev = nullptr;
         RunFrame(gfxCommands);
@@ -375,11 +393,14 @@ void RunGameFrame(void* gfxCommands, bool exact) {
     }
     Stats st;
     Replacements r;
-    bool repaint = false;
-    if (k >= 2) {
-        if (auto interp = Interp()) repaint = interp->FrameRepaintsScreen((Gfx*)gfxCommands);
+    bool repaint = false, restore = false;
+    auto interpreter = Interp();
+    if (k >= 2 && interpreter) {
+        repaint = interpreter->FrameRepaintsScreen((Gfx*)gfxCommands);
+        // a frame that draws over the previous picture (menus) is drawn again from a copy of that picture
+        restore = !repaint && interpreter->CanRestorePicture();
     }
-    if (k >= 2 && repaint) {
+    if (k >= 2 && (repaint || restore)) {
         Build(*gPrev, *cur, 1.0f / k, r, &st);
     }
     if (Logging()) {
@@ -388,7 +409,7 @@ void RunGameFrame(void* gfxCommands, bool exact) {
                 (unsigned long long)tick, cur ? "recorded" : "no record", k, (int)repaint, st.mats, st.matched,
                 st.regrouped, st.blended, st.cuts, st.cutTurn, st.cutMove, st.cutProj, st.maxMove);
     }
-    if (k >= 2 && repaint) {
+    if (k >= 2 && (repaint || restore)) {
         gPending.dl = gfxCommands;
         gPending.a = gPrev;
         gPending.b = cur;
@@ -400,7 +421,10 @@ void RunGameFrame(void* gfxCommands, bool exact) {
         gPending.grid = grid;
         gPending.mapGen = gMapGen.load();
         gPending.tick = tick;
-        if (auto interp = Interp()) interp->ReplayBegin();
+        gPending.restore = restore;
+        interpreter->Interp2DPrepare((Gfx*)gfxCommands);
+        interpreter->ReplayBegin(restore);
+        interpreter->mReplayT = 1.0f / k;
         RunFrameWith(gfxCommands, &r, false);
         Shot(tick, 0, k);
         gHavePending = true;
@@ -408,6 +432,7 @@ void RunGameFrame(void* gfxCommands, bool exact) {
             while (gHavePending) DrawNext();
         }
     } else {
+        if (interpreter) interpreter->mReplayT = 1.0f;
         RunFrame(gfxCommands);
         Shot(tick, 0, 1);
     }
@@ -424,7 +449,7 @@ void PumpInterpolation() {
     // An in-between frame never holds up the game: when the game already waits for its next frame to be drawn, or
     // game time lags behind real time (a slow GPU), the in-between frames still due are dropped.
     if (Port_RspTaskPending() || Port_ClockLagNs() > 4000000) {
-        EndPending();
+        FinishPending();
         return;
     }
     if (Port_SteadyNs() < Due(gPending, gPending.next)) return;

@@ -301,7 +301,7 @@ index f381184a..b475bf0b 100644
      std::shared_ptr<Ship::Config> mConfig;
  };
 diff --git a/include/fast/backends/gfx_metal.h b/include/fast/backends/gfx_metal.h
-index 51d5e2dd..c16e30df 100644
+index 51d5e2d..b6a5d52 100644
 --- a/include/fast/backends/gfx_metal.h
 +++ b/include/fast/backends/gfx_metal.h
 @@ -8,6 +8,13 @@
@@ -359,7 +359,11 @@ index 51d5e2dd..c16e30df 100644
      void ClearShaderCache() override;
      uint32_t NewTexture() override;
      void SelectTexture(int tile, uint32_t textureId) override;
-@@ -192,7 +207,10 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
+@@ -189,10 +204,14 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
+                                      bool opengl_invertY, bool render_target, bool has_depth_buffer,
+                                      bool can_extract_depth) override;
+     void StartDrawToFramebuffer(int fbId, float noiseScale) override;
++    void CopyFramebufferInStream(int streamFb, int dstFb, int srcFb, int w, int h) override;
      void CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0,
                           int dstX1, int dstY1) override;
      void ClearFramebuffer(bool color, bool depth) override;
@@ -370,7 +374,7 @@ index 51d5e2dd..c16e30df 100644
      void ResolveMSAAColorBuffer(int fbIdTarge, int fbIdSrc) override;
      std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
      GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) override;
-@@ -229,6 +247,34 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
+@@ -229,6 +248,34 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
      std::unordered_map<std::pair<uint64_t, uint32_t>, struct ShaderProgramMetal, hash_pair_shader_ids>
          mShaderProgramPool;
  
@@ -441,7 +445,7 @@ index b00ea01c..351d93fb 100644
      std::shared_ptr<Ship::ConsoleVariable> mConsoleVariable;
      std::shared_ptr<Ship::ResourceManager> mResourceManager;
 diff --git a/include/fast/backends/gfx_rendering_api.h b/include/fast/backends/gfx_rendering_api.h
-index 3eb09961..715869f2 100644
+index 3eb0996..82f67dc 100644
 --- a/include/fast/backends/gfx_rendering_api.h
 +++ b/include/fast/backends/gfx_rendering_api.h
 @@ -4,6 +4,8 @@
@@ -466,7 +470,19 @@ index 3eb09961..715869f2 100644
      virtual uint32_t NewTexture() = 0;
      virtual void SelectTexture(int tile, uint32_t textureId) = 0;
      virtual void UploadTexture(const uint8_t* rgba32Buf, uint32_t width, uint32_t height) = 0;
-@@ -67,7 +75,17 @@ class GfxRenderingAPI {
+@@ -61,13 +69,29 @@ class GfxRenderingAPI {
+     virtual void StartDrawToFramebuffer(int fbId, float noiseScale) = 0;
+     virtual void CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0,
+                                  int dstY0, int dstX1, int dstY1) = 0;
++    // PORT: copies srcFb's colour into dstFb (the whole w x h), ordered in streamFb's command stream before what is drawn
++    // into streamFb next (deferred backends record per-framebuffer command buffers; frame interpolation copies a game
++    // frame buffer's picture away and back, see Interpreter::ReplayBegin). Immediate backends: a plain copy.
++    virtual void CopyFramebufferInStream(int streamFb, int dstFb, int srcFb, int w, int h) {
++        CopyFramebuffer(dstFb, srcFb, 0, 0, w, h, 0, 0, w, h);
++    }
+     virtual void ClearFramebuffer(bool color, bool depth) = 0;
+     virtual void ClearDepthRegion(int x, int y, int w, int h) {
+         // Default: full depth clear. Backends that support scissored depth clears
          // (e.g. OpenGL) should override for a more precise partial clear.
          ClearFramebuffer(false, true);
      }
@@ -516,10 +532,10 @@ index 00000000..d85493f8
 +} // namespace Fast
 diff --git a/include/fast/backends/gfx_vulkan.h b/include/fast/backends/gfx_vulkan.h
 new file mode 100644
-index 00000000..5f2b288e
+index 0000000..88c8e52
 --- /dev/null
 +++ b/include/fast/backends/gfx_vulkan.h
-@@ -0,0 +1,400 @@
+@@ -0,0 +1,401 @@
 +//
 +//  gfx_vulkan.h
 +//  libultraship
@@ -708,6 +724,7 @@ index 00000000..5f2b288e
 +                                     bool opengl_invertY, bool render_target, bool has_depth_buffer,
 +                                     bool can_extract_depth) override;
 +    void StartDrawToFramebuffer(int fbId, float noiseScale) override;
++    void CopyFramebufferInStream(int streamFb, int dstFb, int srcFb, int w, int h) override;
 +    void CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0,
 +                         int dstX1, int dstY1) override;
 +    void ClearFramebuffer(bool color, bool depth) override;
@@ -1001,7 +1018,7 @@ index 00000000..987d6c01
 +
 +} // namespace Fast
 diff --git a/include/fast/interpreter.h b/include/fast/interpreter.h
-index a7334a9a..1f1fd399 100644
+index a7334a9..88f31a4 100644
 --- a/include/fast/interpreter.h
 +++ b/include/fast/interpreter.h
 @@ -190,13 +190,25 @@ struct TextureCacheKey {
@@ -1061,7 +1078,7 @@ index a7334a9a..1f1fd399 100644
  class Interpreter {
    public:
      Interpreter();
-@@ -395,6 +416,22 @@ class Interpreter {
+@@ -395,6 +416,32 @@ class Interpreter {
      void StartFrame();
      void RunGuiOnly();
      void Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_replacements);
@@ -1078,13 +1095,23 @@ index a7334a9a..1f1fd399 100644
 +    // it. A display list drawn again must start from the state it first started from, and the next frame from the
 +    // state it left. ReplayBegin: before the frame is first drawn; ReplayPassStart: before each repeat; ReplayEnd:
 +    // after the last one (restores the state the first drawing left).
-+    void ReplayBegin();
++    // restorePicture: the frame draws over the previous picture (menus): every game frame buffer it draws into is copied
++    // away before the first drawing and copied back before each repeat, so each picture starts from the same one and
++    // the last (exact) drawing leaves what the N64 would (CanRestorePicture: not with MSAA; PORT_INTERP_INCREMENTAL=0)
++    void ReplayBegin(bool restorePicture = false);
++    bool CanRestorePicture() const;
++    // the blend factor of the drawing (1: the exact frame, recorded; below 1: an in-between frame): textured and fill
++    // rectangles of the main picture are placed between their place in the last exact frame and this one (moving
++    // menu panels, cursors; PORT_INTERP_2D=0: off)
++    float mReplayT = 1.0f;
++    // before a frame's first in-between drawing: pairs its rectangles with the last exact drawing's (interpreter.cpp)
++    void Interp2DPrepare(Gfx* commands);
 +    void ReplayPassStart();
 +    void ReplayEnd();
      void EndFrame();
      void HandleWindowEvents();
      bool IsFrameReady();
-@@ -423,10 +460,15 @@ class Interpreter {
+@@ -423,10 +470,15 @@ class Interpreter {
      void SetResolutionMultiplier(float multiplier);
      void SetMsaaLevel(uint32_t level);
      void GetCurDimensions(uint32_t* width, uint32_t* height);
@@ -1100,7 +1127,7 @@ index a7334a9a..1f1fd399 100644
      ColorCombiner* LookupOrCreateColorCombiner(const ColorCombinerKey& key);
      void ShaderCacheClear();
      void TextureCacheClear();
-@@ -491,6 +533,8 @@ class Interpreter {
+@@ -491,6 +543,8 @@ class Interpreter {
      void GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry);
      void GfxDpSetZImage(void* zBufAddr);
      void GfxDpSetColorImage(uint32_t format, uint32_t size, uint32_t width, void* address);
@@ -1109,7 +1136,7 @@ index a7334a9a..1f1fd399 100644
      void GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode);
      void GfxDpSetOtherMode(uint32_t h, uint32_t l);
  
-@@ -525,6 +569,8 @@ class Interpreter {
+@@ -525,6 +579,8 @@ class Interpreter {
      std::map<ColorCombinerKey, ColorCombiner> mColorCombinerPool; // color_combiner_pool;
      std::map<ColorCombinerKey, ColorCombiner>::iterator mPrevCombiner = mColorCombinerPool.end();
      uint8_t* mTexUploadBuffer = nullptr;
@@ -2030,7 +2057,7 @@ index dd8cce5a..0dbebe43 100644
          throw Ship::HResultException(res, message);
      }
 diff --git a/src/fast/backends/gfx_metal.cpp b/src/fast/backends/gfx_metal.cpp
-index afc07db0..6861d8f4 100644
+index afc07db..546394c 100644
 --- a/src/fast/backends/gfx_metal.cpp
 +++ b/src/fast/backends/gfx_metal.cpp
 @@ -7,8 +7,10 @@
@@ -2225,7 +2252,7 @@ index afc07db0..6861d8f4 100644
 +    prg->pipeline_descriptor = built.descriptor;
 +    prg->pipeline_state_variants[built.msaaLevel] = built.pipeline;
 +    PipelineFor(prg, mFramebuffers[0].mMsaaLevel);
-
+ 
 -            prg->pipeline_state_variants[msaa_level] = pipeline_state;
 +    LoadShader((struct ShaderProgram*)prg);
 +
@@ -2532,7 +2559,65 @@ index afc07db0..6861d8f4 100644
  void GfxRenderingAPIMetal::ResolveMSAAColorBuffer(int fb_id_target, int fb_id_source) {
      int source_texture_id = mFramebuffers[fb_id_source].mTextureId;
      MTL::Texture* source_texture = mTextures[source_texture_id].texture;
-@@ -1182,6 +1463,34 @@ void GfxRenderingAPIMetal::CopyFramebuffer(int fb_dst_id, int fb_src_id, int src
+@@ -1109,6 +1390,57 @@ void GfxRenderingAPIMetal::SelectTextureFb(int fb_id) {
+     SelectTexture(tile, mFramebuffers[fb_id].mTextureId);
+ }
+ 
++// PORT: the copy goes into streamFb's command buffer, between what was drawn into it so far and what comes next
++void GfxRenderingAPIMetal::CopyFramebufferInStream(int streamFb, int dstFb, int srcFb, int w, int h) {
++    if (streamFb >= (int)mFramebuffers.size() || dstFb >= (int)mFramebuffers.size() ||
++        srcFb >= (int)mFramebuffers.size()) {
++        return;
++    }
++    FramebufferMetal& stream = mFramebuffers[streamFb];
++    if (stream.mCommandBuffer == nullptr || stream.mCommandEncoder == nullptr) {
++        StartDrawToFramebuffer(streamFb, 0.0f);
++    }
++    if (stream.mCommandBuffer == nullptr || stream.mCommandEncoder == nullptr) {
++        return;
++    }
++    MTL::Texture* src = mTextures[mFramebuffers[srcFb].mTextureId].texture;
++    MTL::Texture* dst = mTextures[mFramebuffers[dstFb].mTextureId].texture;
++    if (src == nullptr || dst == nullptr) {
++        return;
++    }
++    const NS::UInteger cw = std::min<NS::UInteger>({ (NS::UInteger)w, src->width(), dst->width() });
++    const NS::UInteger ch = std::min<NS::UInteger>({ (NS::UInteger)h, src->height(), dst->height() });
++    stream.mCommandEncoder->endEncoding();
++    MTL::BlitCommandEncoder* blit = stream.mCommandBuffer->blitCommandEncoder();
++    blit->copyFromTexture(src, 0, 0, MTL::Origin(0, 0, 0), MTL::Size(cw, ch, 1), dst, 0, 0, MTL::Origin(0, 0, 0));
++    blit->endEncoding();
++    // a new render encoder that keeps what the framebuffer holds (as CopyFramebuffer)
++    MTL::RenderPassColorAttachmentDescriptor* color0 = stream.mRenderPassDescriptor->colorAttachments()->object(0);
++    MTL::LoadAction colorLoad = color0->loadAction();
++    color0->setLoadAction(MTL::LoadActionLoad);
++    MTL::RenderPassDepthAttachmentDescriptor* depth = stream.mRenderPassDescriptor->depthAttachment();
++    MTL::LoadAction depthLoad = MTL::LoadActionDontCare;
++    if (stream.mHasDepthBuffer) {
++        depthLoad = depth->loadAction();
++        depth->setLoadAction(MTL::LoadActionLoad);
++    }
++    stream.mCommandEncoder = stream.mCommandBuffer->renderCommandEncoder(stream.mRenderPassDescriptor);
++    stream.mCommandEncoder->setDepthClipMode(MTL::DepthClipModeClamp);
++    stream.mCommandEncoder->setViewport(*stream.mViewport);
++    stream.mCommandEncoder->setScissorRect(*stream.mScissorRect);
++    color0->setLoadAction(colorLoad);
++    if (stream.mHasDepthBuffer) {
++        depth->setLoadAction(depthLoad);
++    }
++    stream.mHasBoundVertexShader = false;
++    stream.mHasBoundFragShader = false;
++    stream.mLastShaderProgram = nullptr;
++    for (int i = 0; i < SHADER_MAX_TEXTURES; i++) {
++        stream.mLastBoundTextures[i] = nullptr;
++        stream.mLastBoundSamplers[i] = nullptr;
++    }
++}
++
+ void GfxRenderingAPIMetal::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0, int srcY0, int srcX1, int srcY1,
+                                            int dstX0, int dstY0, int dstX1, int dstY1) {
+     if (fb_src_id >= (int)mFramebuffers.size() || fb_dst_id >= (int)mFramebuffers.size()) {
+@@ -1182,6 +1514,34 @@ void GfxRenderingAPIMetal::CopyFramebuffer(int fb_dst_id, int fb_src_id, int src
      source_framebuffer.mLastZmodeDecal = -1;
  }
  
@@ -2567,7 +2652,7 @@ index afc07db0..6861d8f4 100644
  void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFramebuffers.size()) {
          return;
-@@ -1202,6 +1511,10 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1202,6 +1562,10 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
  
              uint8_t* bgra = (uint8_t*)mScreenReadbackBuffer->contents();
              uint32_t count = mScreenReadbackWidth * mScreenReadbackHeight;
@@ -2578,7 +2663,7 @@ index afc07db0..6861d8f4 100644
              for (uint32_t i = 0; i < count; i++) {
                  uint8_t b = bgra[i * 4 + 0];
                  uint8_t g = bgra[i * 4 + 1];
-@@ -1217,6 +1530,9 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1217,6 +1581,9 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
          mScreenReadbackHeight = height;
      } else {
          // Custom Framebuffer: synchronous readback via readback queue
@@ -2588,7 +2673,7 @@ index afc07db0..6861d8f4 100644
          if (framebuffer.mCommandEncoder && !framebuffer.mHasEndedEncoding) {
              framebuffer.mCommandEncoder->endEncoding();
          }
-@@ -1267,6 +1583,16 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1267,6 +1634,16 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
      }
  }
  
@@ -3435,10 +3520,10 @@ index 00000000..59b58813
 +} // namespace Fast
 diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
 new file mode 100644
-index 00000000..7f3c9bee
+index 0000000..de93d90
 --- /dev/null
 +++ b/src/fast/backends/gfx_vulkan.cpp
-@@ -0,0 +1,2865 @@
+@@ -0,0 +1,2892 @@
 +//
 +//  gfx_vulkan.cpp
 +//  libultraship
@@ -5799,6 +5884,33 @@ index 00000000..7f3c9bee
 +    }
 +}
 +
++// PORT: the copy goes into streamFb's command buffer (submitted in framebuffer-id order), between what was drawn into
++// it so far and what comes next
++void GfxRenderingAPIVK::CopyFramebufferInStream(int streamFb, int dstFb, int srcFb, int w, int h) {
++    if (streamFb >= (int)mFramebuffers.size() || dstFb >= (int)mFramebuffers.size() ||
++        srcFb >= (int)mFramebuffers.size() || !mFrameActive) {
++        return;
++    }
++    TextureDataVK& srcTex = mTextures[mFramebuffers[srcFb].mTextureId];
++    TextureDataVK& dstTex = mTextures[mFramebuffers[dstFb].mTextureId];
++    if (srcTex.image == VK_NULL_HANDLE || dstTex.image == VK_NULL_HANDLE) {
++        return;
++    }
++    EnsurePassActive(streamFb);
++    FramebufferVK& stream = mFramebuffers[streamFb];
++    EndPass(stream);
++    FullBarrier(stream.mCommandBuffer);
++    VkImageCopy copy = {};
++    copy.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
++    copy.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
++    copy.extent = { std::min<uint32_t>({ (uint32_t)w, srcTex.width, dstTex.width }),
++                    std::min<uint32_t>({ (uint32_t)h, srcTex.height, dstTex.height }), 1 };
++    vkCmdCopyImage(stream.mCommandBuffer, srcTex.image, VK_IMAGE_LAYOUT_GENERAL, dstTex.image, VK_IMAGE_LAYOUT_GENERAL, 1,
++                   &copy);
++    FullBarrier(stream.mCommandBuffer);
++    EnsurePassActive(streamFb);
++}
++
 +void GfxRenderingAPIVK::CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0,
 +                                        int dstY0, int dstX1, int dstY1) {
 +    if (fbSrcId >= (int)mFramebuffers.size() || fbDstId >= (int)mFramebuffers.size() || !mFrameActive) {
@@ -6305,10 +6417,10 @@ index 00000000..7f3c9bee
 +
 +#endif
 diff --git a/src/fast/interpreter.cpp b/src/fast/interpreter.cpp
-index a1907a1..ccfe91b 100644
+index a1907a1..e4e97ae 100644
 --- a/src/fast/interpreter.cpp
 +++ b/src/fast/interpreter.cpp
-@@ -11,6 +11,7 @@
+@@ -11,13 +11,16 @@
  #include <dlfcn.h>
  #endif
  
@@ -6316,7 +6428,8 @@ index a1907a1..ccfe91b 100644
  #include <any>
  #include <map>
  #include <set>
-@@ -18,6 +19,7 @@
+ #include <unordered_map>
++#include <unordered_set>
  #include <vector>
  #include <list>
  #include <stack>
@@ -6324,7 +6437,7 @@ index a1907a1..ccfe91b 100644
  #include "fast/resource/type/Light.h"
  
  #ifndef _LANGUAGE_C
-@@ -59,6 +61,312 @@ std::stack<std::string> currentDir;
+@@ -59,6 +62,336 @@ std::stack<std::string> currentDir;
  #define SCALE_8_3(VAL_) ((VAL_) / 0x24)
  
  // Based off the current set native dimensions or active framebuffer
@@ -6607,6 +6720,30 @@ index a1907a1..ccfe91b 100644
 +// only not cut (gDPPortNoCut: the gallery camera's film reel runs on to the screen's edge as it ran off the N64's).
 +// Reset per frame (Run). PORT_NO_HUD_ANCHOR=1: off. Nothing changes at 4:3.
 +static int sAnchor = 0;
++// PORT: frame interpolation of frames that draw over the previous picture (Interpreter::ReplayBegin): a copy of each game
++// frame buffer's picture from before the frame, and the buffers already copied away/back in this drawing
++static bool sReplayRestore = false;
++static std::unordered_map<uintptr_t, int> sSnapFbs;
++static std::unordered_set<uintptr_t> sSnapDoneThisRun;
++// PORT: 2D in-between frames (Interpreter::mReplayT): the rectangles of the last exact drawing by key, in drawing order
++struct Interp2DKey {
++    const void* tex;
++    int32_t w, h;
++    uint32_t extra;
++    bool operator==(const Interp2DKey& o) const {
++        return tex == o.tex && w == o.w && h == o.h && extra == o.extra;
++    }
++};
++struct Interp2DKeyHash {
++    size_t operator()(const Interp2DKey& k) const {
++        return std::hash<const void*>()(k.tex) ^ ((size_t)k.w * 73856093u) ^ ((size_t)k.h * 19349663u) ^
++               ((size_t)k.extra * 83492791u);
++    }
++};
++using Interp2DRects = std::unordered_map<Interp2DKey, std::vector<std::pair<int32_t, int32_t>>, Interp2DKeyHash>;
++static Interp2DRects sRectLast, sRectRec;
++static std::unordered_map<Interp2DKey, uint32_t, Interp2DKeyHash> sRectSeen;
++static bool sRectLastRunExact = false;
 +static int sAppliedAnchor = 0; // the anchor the viewport and scissor sent to the backend were moved for
 +// PORT: while a 2D screen's patterned backdrop is drawn past the 4:3 lock (GfxDpTextureRectangle); while a
 +// full-screen fade is (GfxSpTri1)
@@ -6637,7 +6774,7 @@ index a1907a1..ccfe91b 100644
  #define HALF_SCREEN_WIDTH(activeFb) ((mFbActive ? activeFb->second.orig_width : mNativeDimensions.width) / 2)
  #define HALF_SCREEN_HEIGHT(activeFb) ((mFbActive ? activeFb->second.orig_height : mNativeDimensions.height) / 2)
  
-@@ -71,6 +379,12 @@ std::stack<std::string> currentDir;
+@@ -71,6 +404,12 @@ std::stack<std::string> currentDir;
  #define TEXTURE_CACHE_MAX_SIZE 1024
  
  namespace Fast {
@@ -6650,7 +6787,7 @@ index a1907a1..ccfe91b 100644
  
  static UcodeHandlers ucode_handler_index = ucode_f3dex2;
  
-@@ -135,25 +449,134 @@ void GfxSetInstance(std::shared_ptr<Interpreter> gfx) {
+@@ -135,25 +474,134 @@ void GfxSetInstance(std::shared_ptr<Interpreter> gfx) {
  // N64 prim_depth is 15-bit (0 near, 0x7FFF far).
  static constexpr float N64_PRIM_DEPTH_MAX = 32767.0f;
  
@@ -6786,7 +6923,7 @@ index a1907a1..ccfe91b 100644
  const char* Interpreter::CCMUXtoStr(uint32_t ccmux) {
      static constexpr std::array tbl = {
          "G_CCMUX_COMBINED",
-@@ -547,26 +970,20 @@ std::string_view Interpreter::GetBaseTexturePath(std::string_view path) {
+@@ -547,26 +995,20 @@ std::string_view Interpreter::GetBaseTexturePath(std::string_view path) {
  }
  
  void Interpreter::TextureCacheDelete(const uint8_t* origAddr) {
@@ -6825,7 +6962,7 @@ index a1907a1..ccfe91b 100644
      }
  }
  
-@@ -591,6 +1008,49 @@ static uint32_t GetTileSizeFromCoordinates(float low, float high) {
+@@ -591,6 +1033,49 @@ static uint32_t GetTileSizeFromCoordinates(float low, float high) {
      return static_cast<uint32_t>(lroundf((high - low + 4.0f) / 4.0f));
  }
  
@@ -6875,7 +7012,7 @@ index a1907a1..ccfe91b 100644
  void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
      const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
      const uint8_t* addr =
-@@ -669,7 +1129,10 @@ void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
+@@ -669,7 +1154,10 @@ void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
          }
      }
  
@@ -6887,7 +7024,7 @@ index a1907a1..ccfe91b 100644
  }
  
  void Interpreter::ImportTextureRgba32(int tile, bool importReplacement) {
-@@ -741,7 +1204,10 @@ void Interpreter::ImportTextureRgba32(int tile, bool importReplacement) {
+@@ -741,7 +1229,10 @@ void Interpreter::ImportTextureRgba32(int tile, bool importReplacement) {
              i++;
          }
      }
@@ -6899,7 +7036,7 @@ index a1907a1..ccfe91b 100644
  }
  
  void Interpreter::ImportTextureIA4(int tile, bool importReplacement) {
-@@ -787,7 +1253,7 @@ void Interpreter::ImportTextureIA4(int tile, bool importReplacement) {
+@@ -787,7 +1278,7 @@ void Interpreter::ImportTextureIA4(int tile, bool importReplacement) {
          }
      }
  
@@ -6908,7 +7045,7 @@ index a1907a1..ccfe91b 100644
  }
  
  void Interpreter::ImportTextureIA8(int tile, bool importReplacement) {
-@@ -830,7 +1296,7 @@ void Interpreter::ImportTextureIA8(int tile, bool importReplacement) {
+@@ -830,7 +1321,7 @@ void Interpreter::ImportTextureIA8(int tile, bool importReplacement) {
          }
      }
  
@@ -6917,7 +7054,7 @@ index a1907a1..ccfe91b 100644
  }
  
  void Interpreter::ImportTextureIA16(int tile, bool importReplacement) {
-@@ -881,9 +1347,11 @@ void Interpreter::ImportTextureIA16(int tile, bool importReplacement) {
+@@ -881,9 +1372,11 @@ void Interpreter::ImportTextureIA16(int tile, bool importReplacement) {
          }
      }
  
@@ -6930,7 +7067,7 @@ index a1907a1..ccfe91b 100644
  void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
      const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
      const uint8_t* addr =
-@@ -920,21 +1388,17 @@ void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
+@@ -920,21 +1413,17 @@ void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
  
              uint8_t byte = addr[clrIdx / 2];
              uint8_t part = (byte >> (4 - (clrIdx % 2) * 4)) & 0xf;
@@ -6958,7 +7095,7 @@ index a1907a1..ccfe91b 100644
  }
  
  void Interpreter::ImportTextureI8(int tile, bool importReplacement) {
-@@ -975,7 +1439,7 @@ void Interpreter::ImportTextureI8(int tile, bool importReplacement) {
+@@ -975,7 +1464,7 @@ void Interpreter::ImportTextureI8(int tile, bool importReplacement) {
          }
      }
  
@@ -6967,7 +7104,7 @@ index a1907a1..ccfe91b 100644
  }
  
  void Interpreter::ImportTextureCi4(int tile, bool importReplacement) {
-@@ -1069,7 +1533,10 @@ void Interpreter::ImportTextureCi4(int tile, bool importReplacement) {
+@@ -1069,7 +1558,10 @@ void Interpreter::ImportTextureCi4(int tile, bool importReplacement) {
          }
      }
  
@@ -6979,7 +7116,7 @@ index a1907a1..ccfe91b 100644
  }
  
  void Interpreter::ImportTextureCi8(int tile, bool importReplacement) {
-@@ -1151,7 +1618,10 @@ void Interpreter::ImportTextureCi8(int tile, bool importReplacement) {
+@@ -1151,7 +1643,10 @@ void Interpreter::ImportTextureCi8(int tile, bool importReplacement) {
          height = tile_h;
      }
  
@@ -6991,7 +7128,7 @@ index a1907a1..ccfe91b 100644
  }
  
  void Interpreter::ImportTextureImg(int tile, bool importReplacement) {
-@@ -1169,7 +1639,7 @@ void Interpreter::ImportTextureImg(int tile, bool importReplacement) {
+@@ -1169,7 +1664,7 @@ void Interpreter::ImportTextureImg(int tile, bool importReplacement) {
  
      uint16_t width = metadata->width;
      uint16_t height = metadata->height;
@@ -7000,7 +7137,7 @@ index a1907a1..ccfe91b 100644
  }
  
  void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
-@@ -1217,7 +1687,7 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
+@@ -1217,7 +1712,7 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
  
      if (resultNewLineSize == 4 * width && resultNewHeight == height) {
          // Can use the texture directly since it has the correct dimensions
@@ -7009,7 +7146,7 @@ index a1907a1..ccfe91b 100644
          return;
      }
  
-@@ -1265,16 +1735,46 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
+@@ -1265,16 +1760,46 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
              uploadHeight = resultNewHeight;
          }
      }
@@ -7057,7 +7194,7 @@ index a1907a1..ccfe91b 100644
  
      const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
      const uint8_t* origAddr =
-@@ -1332,6 +1832,56 @@ void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {
+@@ -1332,6 +1857,56 @@ void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {
      } else {
          key = { origAddr, {}, fmt, siz, paletteIndex, origSizeBytes };
      }
@@ -7114,7 +7251,7 @@ index a1907a1..ccfe91b 100644
  
      if (TextureCacheLookup(i, key)) {
          return;
-@@ -1470,7 +2020,7 @@ void Interpreter::ImportTextureMask(int i, int tile) {
+@@ -1470,7 +2045,7 @@ void Interpreter::ImportTextureMask(int i, int tile) {
          }
      }
  
@@ -7123,7 +7260,7 @@ index a1907a1..ccfe91b 100644
  }
  
  void Interpreter::NormalizeVector(float v[3]) {
-@@ -1505,9 +2055,13 @@ void Interpreter::CalculateNormalDir(const F3DLight_t* light, float coeffs[3]) {
+@@ -1505,9 +2080,13 @@ void Interpreter::CalculateNormalDir(const F3DLight_t* light, float coeffs[3]) {
  }
  
  void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
@@ -7138,7 +7275,7 @@ index a1907a1..ccfe91b 100644
          for (int i = 0; i < 4; i++) {
              for (int j = 0; j < 4; j++) {
                  float v = it->second.mf[i][j];
-@@ -1532,6 +2086,20 @@ void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
+@@ -1532,6 +2111,20 @@ void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
  #endif
      }
  
@@ -7159,7 +7296,7 @@ index a1907a1..ccfe91b 100644
      const int8_t mtx_projection = get_attr(MTX_PROJECTION);
      const int8_t mtx_load = get_attr(MTX_LOAD);
      const int8_t mtx_push = get_attr(MTX_PUSH);
-@@ -1600,6 +2168,8 @@ void Interpreter::AdjustWidthHeightForScale(uint32_t& width, uint32_t& height, u
+@@ -1600,6 +2193,8 @@ void Interpreter::AdjustWidthHeightForScale(uint32_t& width, uint32_t& height, u
  }
  
  void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx* vertices) {
@@ -7168,7 +7305,7 @@ index a1907a1..ccfe91b 100644
      for (size_t i = 0; i < n_vertices; i++, dest_index++) {
          const F3DVtx_t* v = &vertices[i].v;
          const F3DVtx_tn* vn = &vertices[i].n;
-@@ -1626,6 +2196,11 @@ void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx
+@@ -1626,6 +2221,11 @@ void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx
              world_pos[2] = v->ob[0] * mtx[0][2] + v->ob[1] * mtx[1][2] + v->ob[2] * mtx[2][2] + mtx[3][2];
          }
  
@@ -7180,7 +7317,7 @@ index a1907a1..ccfe91b 100644
          x = AdjXForAspectRatio(x);
  
          short U = v->tc[0] * mRsp->texture_scaling_factor.s >> 16;
-@@ -1640,6 +2215,16 @@ void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx
+@@ -1640,6 +2240,16 @@ void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx
                  static const Light_t lookat_y = {{0, 0, 0}, 0, {0, 0, 0}, 0, {0, 127, 0}, 0};*/
                  CalculateNormalDir(&mRsp->lookat[0], mRsp->current_lookat_coeffs[0]);
                  CalculateNormalDir(&mRsp->lookat[1], mRsp->current_lookat_coeffs[1]);
@@ -7197,7 +7334,7 @@ index a1907a1..ccfe91b 100644
                  mRsp->lights_changed = false;
              }
  
-@@ -1798,6 +2383,27 @@ void Interpreter::GfxSpModifyVertex(uint16_t vtx_idx, uint8_t where, uint32_t va
+@@ -1798,6 +2408,27 @@ void Interpreter::GfxSpModifyVertex(uint16_t vtx_idx, uint8_t where, uint32_t va
      v->v = t;
  }
  
@@ -7225,7 +7362,7 @@ index a1907a1..ccfe91b 100644
  void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bool is_rect) {
      struct LoadedVertex* v1 = &mRsp->loaded_vertices[vtx1_idx];
      struct LoadedVertex* v2 = &mRsp->loaded_vertices[vtx2_idx];
-@@ -1805,11 +2411,86 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1805,11 +2436,86 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
      struct LoadedVertex* v_arr[3] = { v1, v2, v3 };
  
      // if (rand()%2) return;
@@ -7312,7 +7449,7 @@ index a1907a1..ccfe91b 100644
  
      const uint32_t cull_both = get_attr(CULL_BOTH);
      const uint32_t cull_front = get_attr(CULL_FRONT);
-@@ -1870,16 +2551,44 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1870,16 +2576,44 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
          mRenderingState.decal_mode = zmode_decal;
      }
  
@@ -7364,7 +7501,7 @@ index a1907a1..ccfe91b 100644
          }
          mRdp->viewport_or_scissor_changed = false;
      }
-@@ -1893,12 +2602,86 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1893,12 +2627,86 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
      uint8_t blend_src = mRdp->other_mode_l >> 30;
      bool use_blend_color = blend_src == G_BL_CLR_BL;
      bool use_fog = blend_src == G_BL_CLR_FOG || use_blend_color;
@@ -7451,7 +7588,7 @@ index a1907a1..ccfe91b 100644
      bool use_grayscale = mRdp->grayscale;
      bool use_prim_depth = (mRdp->other_mode_l & G_ZS_PRIM) != 0;
  
-@@ -1965,6 +2748,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1965,6 +2773,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
  
      uint32_t tm = 0;
      uint32_t tex_width[2], tex_height[2], tex_width2[2], tex_height2[2];
@@ -7460,7 +7597,7 @@ index a1907a1..ccfe91b 100644
      uint32_t effective_tile[2];
  
      for (int i = 0; i < 2; i++) {
-@@ -1977,9 +2762,39 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1977,9 +2787,39 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
          effective_tile[i] = tile;
  
          if (comb->usedTextures[i]) {
@@ -7501,7 +7638,7 @@ index a1907a1..ccfe91b 100644
                  if (mRdp->loaded_texture[i].masked) {
                      ImportTextureMask(SHADER_FIRST_MASK_TEXTURE + i, tile);
                  }
-@@ -2058,6 +2873,18 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2058,6 +2898,18 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
                  tex_height[i] = tex_height2[i];
              }
  
@@ -7520,7 +7657,7 @@ index a1907a1..ccfe91b 100644
              uint32_t tex_width1 = tex_width[i] << (cms & G_TX_MIRROR);
              uint32_t tex_height1 = tex_height[i] << (cmt & G_TX_MIRROR);
  
-@@ -2153,6 +2980,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2153,6 +3005,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
  
              u -= mRdp->texture_tile[uv_tile].uls / 4.0f;
              v -= mRdp->texture_tile[uv_tile].ult / 4.0f;
@@ -7529,7 +7666,7 @@ index a1907a1..ccfe91b 100644
  
              if ((mRdp->other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) {
                  // Linear filter adds 0.5f to the coordinates
-@@ -2169,11 +2998,11 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2169,11 +3023,11 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
              bool clampT = tm & (1 << 2 * t + 1);
  
              if (clampS) {
@@ -7543,7 +7680,7 @@ index a1907a1..ccfe91b 100644
              }
          }
  
-@@ -2188,7 +3017,17 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2188,7 +3042,17 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
                  mBufVbo[mBufVboLen++] = mRdp->fog_color.r / 255.0f;
                  mBufVbo[mBufVboLen++] = mRdp->fog_color.g / 255.0f;
                  mBufVbo[mBufVboLen++] = mRdp->fog_color.b / 255.0f;
@@ -7562,7 +7699,7 @@ index a1907a1..ccfe91b 100644
              }
          }
  
-@@ -2371,11 +3210,16 @@ void Interpreter::CalcAndSetViewport(const F3DVp_t* viewport) {
+@@ -2371,11 +3235,16 @@ void Interpreter::CalcAndSetViewport(const F3DVp_t* viewport) {
      mRdp->viewport.height = height;
  
      AdjustVIewportOrScissor(&mRdp->viewport);
@@ -7579,7 +7716,7 @@ index a1907a1..ccfe91b 100644
      switch (index) {
          case F3DEX2_G_MV_VIEWPORT:
              CalcAndSetViewport((const F3DVp_t*)data);
-@@ -2428,6 +3272,7 @@ void Interpreter::GfxSpMovewordF3dex2(uint8_t index, uint16_t offset, uintptr_t
+@@ -2428,6 +3297,7 @@ void Interpreter::GfxSpMovewordF3dex2(uint8_t index, uint16_t offset, uintptr_t
              break;
          case G_MW_SEGMENT: {
              int segNumber = offset / 4;
@@ -7587,7 +7724,7 @@ index a1907a1..ccfe91b 100644
              mSegmentPointers[segNumber] = data;
          } break;
          case G_MW_SEGMENT_INTERP: {
-@@ -2467,6 +3312,7 @@ void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t dat
+@@ -2467,6 +3337,7 @@ void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t dat
  }
  
  void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t tile, uint8_t on) {
@@ -7595,7 +7732,7 @@ index a1907a1..ccfe91b 100644
      mRsp->texture_scaling_factor.s = sc;
      mRsp->texture_scaling_factor.t = tc;
      if (mRdp->first_tile_index != tile) {
-@@ -2478,6 +3324,31 @@ void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t
+@@ -2478,6 +3349,31 @@ void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t
  }
  
  void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uint32_t lrx, uint32_t lry) {
@@ -7627,7 +7764,7 @@ index a1907a1..ccfe91b 100644
      float x = ulx / 4.0f;
      float y = lry / 4.0f;
      float width = (lrx - ulx) / 4.0f;
-@@ -2495,6 +3366,7 @@ void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uin
+@@ -2495,6 +3391,7 @@ void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uin
  
  void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t width, const char* texPath,
                                         uint32_t texFlags, RawTexMetadata rawTexMetdata, const void* addr) {
@@ -7635,7 +7772,7 @@ index a1907a1..ccfe91b 100644
      // fprintf(stderr, "GfxDpSetTextureImage: %s (width=%d; size=0x%X)\n",
      //         rawTexMetdata.resource ? rawTexMetdata.resource->GetInitData()->Identifier.GetPath().c_str() : nullptr,
      //         width, size);
-@@ -2508,6 +3380,9 @@ void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t
+@@ -2508,6 +3405,9 @@ void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t
  void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_t tmem, uint8_t tile, uint32_t palette,
                                 uint32_t cmt, uint32_t maskt, uint32_t shiftt, uint32_t cms, uint32_t masks,
                                 uint32_t shifts) {
@@ -7645,7 +7782,7 @@ index a1907a1..ccfe91b 100644
      // OTRTODO:
      // SUPPORT_CHECK(tmem == 0 || tmem == 256);
  
-@@ -2530,6 +3405,12 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
+@@ -2530,6 +3430,12 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
      mRdp->texture_tile[tile].line_size_bytes = line * 8;
  
      mRdp->texture_tile[tile].tmem = tmem;
@@ -7658,7 +7795,7 @@ index a1907a1..ccfe91b 100644
      // mRdp->texture_tile[tile].tmem_index = tmem / 256; // tmem is the 64-bit word offset, so 256 words means 2 kB
  
      mRdp->texture_tile[tile].tmem_index =
-@@ -2540,6 +3421,7 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
+@@ -2540,6 +3446,7 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
  }
  
  void Interpreter::GfxDpSetTileSize(uint8_t tile, uint16_t uls, uint16_t ult, uint16_t lrs, uint16_t lrt) {
@@ -7666,7 +7803,7 @@ index a1907a1..ccfe91b 100644
      mRdp->texture_tile[tile].uls = uls;
      mRdp->texture_tile[tile].ult = ult;
      mRdp->texture_tile[tile].lrs = lrs;
-@@ -2555,6 +3437,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
+@@ -2555,6 +3462,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
      const uint8_t* src = mRdp->texture_to_load.addr;
      uint32_t entryCount = high_index + 1;
      uint32_t byteCount = entryCount * 2;
@@ -7685,7 +7822,7 @@ index a1907a1..ccfe91b 100644
  
      if (tmem >= 256) {
          // N64 TMEM palette area starts at tmem word 256. Each CI4 palette = 16 entries = 16 tmem words.
-@@ -2589,7 +3483,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
+@@ -2589,7 +3508,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
      }
  }
  
@@ -7704,7 +7841,7 @@ index a1907a1..ccfe91b 100644
      SUPPORT_CHECK(uls == 0);
      SUPPORT_CHECK(ult == 0);
  
-@@ -2658,6 +3563,11 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
+@@ -2658,6 +3588,11 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata = mRdp->texture_to_load.raw_tex_metadata;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].addr = mRdp->texture_to_load.addr;
@@ -7716,7 +7853,7 @@ index a1907a1..ccfe91b 100644
      // fprintf(stderr, "GfxDpLoadBlock: line_size = 0x%x; orig = 0x%x; bpp=%d; lrs=%d\n", size_bytes,
      // orig_size_bytes,
      //         mRdp->texture_to_load.siz, lrs);
-@@ -2680,6 +3590,7 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
+@@ -2680,6 +3615,7 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
  }
  
  void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t lrs, uint32_t lrt) {
@@ -7724,7 +7861,7 @@ index a1907a1..ccfe91b 100644
      SUPPORT_CHECK(tile == G_TX_LOADTILE);
  
      uint32_t word_size_shift = 0;
-@@ -2731,6 +3642,15 @@ void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32
+@@ -2731,6 +3667,15 @@ void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata = mRdp->texture_to_load.raw_tex_metadata;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].addr = mRdp->texture_to_load.addr + start_offset_bytes;
@@ -7740,7 +7877,7 @@ index a1907a1..ccfe91b 100644
  
      const std::string_view texPath =
          mRdp->texture_to_load.raw_tex_metadata.resource != nullptr
-@@ -2798,6 +3718,43 @@ static inline uint32_t alpha_comb(uint32_t a, uint32_t b, uint32_t c, uint32_t d
+@@ -2798,6 +3743,43 @@ static inline uint32_t alpha_comb(uint32_t a, uint32_t b, uint32_t c, uint32_t d
      return (a & 7) | ((b & 7) << 3) | ((c & 7) << 6) | ((d & 7) << 9);
  }
  
@@ -7784,7 +7921,7 @@ index a1907a1..ccfe91b 100644
  // Sign-extend a 9-bit value (used for G_SETCONVERT K0..K5).
  static inline int16_t sign_extend_9(uint32_t v) {
      return (int16_t)((v & 0x100) ? (int32_t)(v | 0xFFFFFE00u) : (int32_t)v);
-@@ -2870,8 +3827,10 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
+@@ -2870,8 +3852,10 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
      lrxf = lrxf / (4.0f * HALF_SCREEN_WIDTH(mActiveFrameBuffer)) - 1.0f;
      lryf = -(lryf / (4.0f * HALF_SCREEN_HEIGHT(mActiveFrameBuffer))) + 1.0f;
  
@@ -7797,11 +7934,46 @@ index a1907a1..ccfe91b 100644
  
      struct LoadedVertex* ul = &mRsp->loaded_vertices[MAX_VERTICES + 0];
      struct LoadedVertex* ll = &mRsp->loaded_vertices[MAX_VERTICES + 1];
-@@ -2930,7 +3889,19 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
+@@ -2928,9 +3912,54 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
+     }
+ }
  
++// PORT: 2D in-between frames. An exact drawing (mReplayT 1) records each rectangle of the main picture by key (texture,
++// size, texture coordinates or fill colour). Before a frame's first in-between drawing, Interp2DPrepare walks its
++// display list for its rectangles and pairs them with the last exact drawing's, for the whole frame at once: same key
++// at the same place first (not moving), then the most common moves (a sliding panel's background, border and text all
++// move alike), so the parts of a panel stay together. A move needs a key that occurred once on both sides (a cursor,
++// a panel) or at least 4 rectangles moving alike; moves of more than 48 pixels (a cut, a jump) and new rectangles are
++// not blended. In-between drawings then place each rectangle between its old and new place.
++static std::unordered_map<Interp2DKey, std::vector<std::pair<int32_t, int32_t>>, Interp2DKeyHash> sRectMove;
++static void Interp2DPlaceImpl(float t, const Interp2DKey& key, int32_t& ulx, int32_t& uly, int32_t& lrx, int32_t& lry) {
++    static const bool sOff = getenv("PORT_INTERP_2D") != nullptr && atoi(getenv("PORT_INTERP_2D")) == 0;
++    if (sOff) return;
++    const uint32_t n = sRectSeen[key]++;
++    if (t >= 0.999f) {
++        sRectRec[key].push_back({ ulx, uly });
++        return;
++    }
++    auto it = sRectMove.find(key);
++    if (it == sRectMove.end() || n >= it->second.size()) return;
++    const int32_t dx = it->second[n].first, dy = it->second[n].second;
++    if (dx == 0 && dy == 0) return;
++    const int32_t sx = (int32_t)lroundf(-(1.0f - t) * dx), sy = (int32_t)lroundf(-(1.0f - t) * dy);
++    ulx += sx;
++    lrx += sx;
++    uly += sy;
++    lry += sy;
++}
++
  void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry, uint8_t tile, int16_t uls,
                                          int16_t ult, int16_t dsdx, int16_t dtdy, bool flip) {
 -    // printf("render %d at %d\n", tile, lrx);
++    if (!mFbActive) { // PORT: 2D in-between frames (mReplayT)
++        const TmemRegion* r = TmemFind(mRdp->texture_tile[tile].tmem);
++        Interp2DPlaceImpl(mReplayT, { r ? (const void*)r->raw : nullptr, lrx - ulx, lry - uly,
++                        ((uint32_t)(uint16_t)uls << 16) | (uint16_t)ult },
++                      ulx, uly, lrx, lry);
++    }
 +    if (PortTexLog()) fprintf(stderr, "[rect] %d,%d - %d,%d tile=%u st=%d,%d d=%d,%d flip=%d\n", ulx, uly, lrx, lry, tile, uls, ult, dsdx, dtdy, (int)flip);
 +    if (gPortDrawLog && PortRectLog()) // PORT debug: state of each textured rectangle in the logged frame
 +        fprintf(stderr, "[trect] %d,%d-%d,%d cc=%016llx omh=%08x oml=%08x fmt=%u siz=%u pal=%u prim=%02x%02x%02x%02x env=%02x%02x%02x%02x tex=%p\n",
@@ -7818,7 +7990,7 @@ index a1907a1..ccfe91b 100644
      uint64_t saved_combine_mode = mRdp->combine_mode;
      if ((mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE)) == G_CYC_COPY) {
          // Per RDP Command Summary Set Tile's shift s and this dsdx should be set to 4 texels
-@@ -2953,6 +3924,87 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
+@@ -2953,6 +3982,87 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
          dsdx = -dsdx;
          dtdy = -dtdy;
      }
@@ -7906,7 +8078,7 @@ index a1907a1..ccfe91b 100644
      int16_t width = !flip ? lrx - ulx : lry - uly;
      int16_t height = !flip ? lry - uly : lrx - ulx;
      float lrs = ((uls << 7) + dsdx * width) >> 7;
-@@ -2985,7 +4037,34 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
+@@ -2985,7 +4095,34 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
      }
      mRdp->first_tile_index = tile;
  
@@ -7941,10 +8113,16 @@ index a1907a1..ccfe91b 100644
      if (saved_tile != tile) {
          mRdp->textures_changed[0] = true;
          mRdp->textures_changed[1] = true;
-@@ -3043,6 +4122,11 @@ void Interpreter::GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_
+@@ -3043,6 +4180,17 @@ void Interpreter::GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_
  }
  
  void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry) {
++    if (!mFbActive && mRdp->color_image_address != mRdp->z_buf_address) { // PORT: 2D in-between frames (mReplayT)
++        Interp2DPlaceImpl(mReplayT, { nullptr, lrx - ulx, lry - uly,
++                        (uint32_t)mRdp->fill_color.r << 24 | mRdp->fill_color.g << 16 | mRdp->fill_color.b << 8 |
++                            mRdp->fill_color.a },
++                      ulx, uly, lrx, lry);
++    }
 +    if (gPortDrawLog && PortRectLog())
 +        fprintf(stderr, "[frect] %d,%d-%d,%d fill=%08x omh=%08x cc=%016llx prim=%02x%02x%02x%02x env=%02x%02x%02x%02x\n", ulx, uly, lrx, lry,
 +                mRdp->fill_color.r << 24 | mRdp->fill_color.g << 16 | mRdp->fill_color.b << 8 | mRdp->fill_color.a, mRdp->other_mode_h,
@@ -7953,7 +8131,7 @@ index a1907a1..ccfe91b 100644
      if (mRdp->color_image_address == mRdp->z_buf_address) {
          // Fullscreen Z clears are redundant — already done by glClear at frame start.
          bool isFullScreen = (ulx <= 0 && uly <= 0 && lrx >= (int32_t)(mNativeDimensions.width - 1) * 4 &&
-@@ -3078,6 +4162,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
+@@ -3078,6 +4226,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
      }
      uint32_t mode = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE));
  
@@ -7977,7 +8155,7 @@ index a1907a1..ccfe91b 100644
      // Expand fullscreen fill rects to cover widescreen viewports.
      // Without this, screen clears and fades only cover the native 4:3 area.
      if (ulx == 0 && uly == 0) {
-@@ -3116,8 +4217,188 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
+@@ -3116,8 +4281,206 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
      mRdp->z_buf_address = zBufAddr;
  }
  
@@ -8119,6 +8297,24 @@ index a1907a1..ccfe91b 100644
 +            mRenderingState.viewport = {};
 +            mRenderingState.scissor = {};
 +        }
++        // PORT: frame interpolation of a frame that draws over the previous picture (ReplayBegin): the first drawing
++        // copies this buffer's picture away, each repeat copies it back before drawing
++        if (sReplayRestore && mMsaaLevel <= 1 && sSnapDoneThisRun.insert((uintptr_t)address).second) {
++            const bool window = ViewportMatchesRendererResolution();
++            const uint32_t w = window ? mGfxCurrentWindowDimensions.width : mCurDimensions.width;
++            const uint32_t h = window ? mGfxCurrentWindowDimensions.height : mCurDimensions.height;
++            int& snap = sSnapFbs[(uintptr_t)address];
++            if (snap == 0) {
++                snap = mRapi->CreateFramebuffer();
++                mRapi->UpdateFramebufferParameters(snap, w, h, 1, window ? true : true, true, true, true);
++            }
++            Flush();
++            if (!mReplayPass) {
++                mRapi->CopyFramebufferInStream(fb, snap, fb, (int)w, (int)h);
++            } else {
++                mRapi->CopyFramebufferInStream(fb, fb, snap, (int)w, (int)h);
++            }
++        }
 +    }
 +    // Stadium switches between 320x240 and 640x480 (hi-res) color images; the native coordinate space of
 +    // texture rectangles, fills and scissors follows the framebuffer width.
@@ -8166,7 +8362,7 @@ index a1907a1..ccfe91b 100644
  }
  
  void Interpreter::GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode) {
-@@ -3252,7 +4533,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
+@@ -3252,7 +4615,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
                            (float)(1 << 10) * realSW, (float)(1 << 10) * realSH, false);
  }
  
@@ -8190,7 +8386,7 @@ index a1907a1..ccfe91b 100644
      // Segmented?
      if (w1 & 1) {
          uint32_t segNum = (uint32_t)(w1 >> 24);
-@@ -3377,6 +4674,19 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3377,6 +4756,19 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      const char* filename = (const char*)(cmd)->words.w1;
      uint32_t p = C0(16, 8);
      uint32_t l = C0(0, 16);
@@ -8210,7 +8406,7 @@ index a1907a1..ccfe91b 100644
      if (p == 7) {
          g_exec_stack.openDisp(filename, l);
      } else if (p == 8) {
-@@ -3389,10 +4699,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3389,10 +4781,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      return false;
  }
  
@@ -8235,7 +8431,7 @@ index a1907a1..ccfe91b 100644
  
      gfx->GfxSpMatrix(C0(0, 8) ^ F3DEX2_G_MTX_PUSH, (const int32_t*)gfx->SegAddr(mtxAddr));
      return false;
-@@ -3632,7 +4956,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3632,7 +5038,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
  
@@ -8257,7 +8453,7 @@ index a1907a1..ccfe91b 100644
  
      return false;
  }
-@@ -3736,16 +5073,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3736,16 +5155,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
  }
  
  // F3D, F3DEX, and F3DEX2 do the same thing but F3DEX2 has its own opcode number
@@ -8284,7 +8480,7 @@ index a1907a1..ccfe91b 100644
          (*cmd0) = subGFX;
          g_exec_stack.branch(cmd);
          return true; // shortcut cmd increment
-@@ -4018,7 +5365,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
+@@ -4018,7 +5447,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
      uintptr_t i = (uintptr_t)gfx->SegAddr(cmd->words.w1);
@@ -8356,7 +8552,7 @@ index a1907a1..ccfe91b 100644
      char* imgData = (char*)i;
      uint32_t texFlags = 0;
      RawTexMetadata rawTexMetdata = {};
-@@ -4947,6 +6358,19 @@ static void gfx_step() {
+@@ -4947,6 +6440,19 @@ static void gfx_step() {
          } else {
              SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, for loaded ucode: {}", (uint8_t)opcode,
                              (uint32_t)ucode_handler_index);
@@ -8376,7 +8572,7 @@ index a1907a1..ccfe91b 100644
          }
      } else {
          SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, invalid ucode: {}", (uint8_t)opcode, (uint32_t)ucode_handler_index);
-@@ -5005,8 +6429,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
+@@ -5005,8 +6511,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
      mGameFb = mRapi->CreateFramebuffer();
      mGameFbMsaaResolved = mRapi->CreateFramebuffer();
  
@@ -8387,7 +8583,7 @@ index a1907a1..ccfe91b 100644
  
      for (int i = 0; i < MAX_SEGMENT_POINTERS; i++) {
          mSegmentPointers[i] = 0;
-@@ -5109,16 +6533,28 @@ void Interpreter::StartFrame() {
+@@ -5109,16 +6615,31 @@ void Interpreter::StartFrame() {
  
      mPrvDimensions = mCurDimensions;
      mPrevNativeDimensions = mNativeDimensions;
@@ -8410,6 +8606,9 @@ index a1907a1..ccfe91b 100644
 +                fbs.push_back(e.second);
 +            }
 +        }
++        for (auto& e : sSnapFbs) { // (frame interpolation's copies of them)
++            fbs.push_back(e.second);
++        }
 +        for (int fb : fbs) {
 +            if (!ViewportMatchesRendererResolution()) {
 +                mRapi->UpdateFramebufferParameters(fb, mCurDimensions.width, mCurDimensions.height, mMsaaLevel, true,
@@ -8425,7 +8624,7 @@ index a1907a1..ccfe91b 100644
          }
          if (mMsaaLevel > 1 && !ViewportMatchesRendererResolution()) {
              mRapi->UpdateFramebufferParameters(mGameFbMsaaResolved, mCurDimensions.width, mCurDimensions.height, 1,
-@@ -5173,7 +6609,293 @@ void Interpreter::RunGuiOnly() {
+@@ -5173,7 +6694,499 @@ void Interpreter::RunGuiOnly() {
      }
  }
  
@@ -8570,7 +8769,204 @@ index a1907a1..ccfe91b 100644
 +}
 +} // namespace
 +
-+void Interpreter::ReplayBegin() {
++void Interpreter::Interp2DPrepare(Gfx* commands) {
++    sRectMove.clear();
++    static const bool sOff = getenv("PORT_INTERP_2D") != nullptr && atoi(getenv("PORT_INTERP_2D")) == 0;
++    if (sOff || sRectLast.empty()) return;
++    // the frame's rectangles: a walk like TrackSegmentsOnly's (texture state through the normal handlers), state
++    // restored afterwards
++    RSP savedRsp = *mRsp;
++    RDP savedRdp = *mRdp;
++    uintptr_t savedSegments[MAX_SEGMENT_POINTERS];
++    memcpy(savedSegments, mSegmentPointers, sizeof(savedSegments));
++    std::list<TmemRegion> savedTmem = CopyTmem(sTmemRegions, savedRdp);
++    Interp2DRects cur;
++    std::vector<F3DGfx*> stack;
++    F3DGfx* cmd = (F3DGfx*)commands;
++    bool main = true;
++    uintptr_t cimg = 0, zimg = 0;
++    for (int budget = 0; cmd != nullptr && budget < 400000; budget++) {
++        if ((uintptr_t)cmd < 0x100000000ull) break;
++        uint32_t w0 = (uint32_t)cmd->words.w0;
++        uintptr_t w1 = cmd->words.w1;
++        uint8_t op = (uint8_t)(w0 >> 24);
++        if (op == 0xDF /* G_ENDDL */ || (op > 0x07 && op < 0xD3)) {
++            if (stack.empty()) break;
++            cmd = stack.back();
++            stack.pop_back();
++            continue;
++        }
++        if (op == 0xDE /* G_DL */) {
++            F3DGfx* sub = (F3DGfx*)SegAddr(w1);
++            if (((w0 >> 16) & 0xFF) == 0) {
++                if (sub != nullptr && stack.size() < 64) {
++                    stack.push_back(cmd + 1);
++                    cmd = sub;
++                    continue;
++                }
++            } else {
++                if (sub == nullptr) {
++                    if (stack.empty()) break;
++                    cmd = stack.back();
++                    stack.pop_back();
++                } else {
++                    cmd = sub;
++                }
++                continue;
++            }
++        } else if (op == 0xDB /* G_MOVEWORD */ && ((w0 >> 16) & 0xFF) == G_MW_SEGMENT) {
++            int seg = (int)((w0 & 0xFFFF) / 4);
++            if (seg >= 0 && seg < MAX_SEGMENT_POINTERS) mSegmentPointers[seg] = w1;
++        } else if (op == 0xFF /* G_SETCIMG */) {
++            uint32_t width = (w0 & 0xFFF) + 1;
++            cimg = (uintptr_t)SegAddr(w1);
++            main = width == 320 || width == 640;
++        } else if (op == 0xFE /* G_SETZIMG */) {
++            zimg = (uintptr_t)SegAddr(w1);
++        } else if (op == 0xE4 || op == 0xE5 /* G_TEXRECT(FLIP) */) {
++            const int32_t lrx = (w0 >> 12) & 0xFFF, lry = w0 & 0xFFF;
++            const uint8_t tile = (uint8_t)((w1 >> 24) & 7);
++            const int32_t ulx = ((uint32_t)w1 >> 12) & 0xFFF, uly = (uint32_t)w1 & 0xFFF;
++            const uint32_t st = (uint32_t)cmd[1].words.w1;
++            if (main) {
++                const TmemRegion* r = TmemFind(mRdp->texture_tile[tile].tmem);
++                const int16_t uls = (int16_t)(st >> 16), ult = (int16_t)(st & 0xFFFF);
++                cur[{ r ? (const void*)r->raw : nullptr, lrx - ulx, lry - uly,
++                      ((uint32_t)(uint16_t)uls << 16) | (uint16_t)ult }]
++                    .push_back({ ulx, uly });
++            }
++            cmd += 3;
++            continue;
++        } else if (op == 0xF6 /* G_FILLRECT */) {
++            const int32_t lrx = (w0 >> 12) & 0xFFF, lry = w0 & 0xFFF;
++            const int32_t ulx = ((uint32_t)w1 >> 12) & 0xFFF, uly = (uint32_t)w1 & 0xFFF;
++            if (main && cimg != zimg) {
++                cur[{ nullptr, lrx - ulx, lry - uly,
++                      (uint32_t)mRdp->fill_color.r << 24 | mRdp->fill_color.g << 16 | mRdp->fill_color.b << 8 |
++                          mRdp->fill_color.a }]
++                    .push_back({ ulx, uly });
++            }
++        } else if (op == 0xFD || op == 0xF5 || op == 0xF2 || op == 0xF3 || op == 0xF4 || op == 0xF0 || op == 0xF7) {
++            // G_SETTIMG, G_SETTILE, G_SETTILESIZE, G_LOADBLOCK, G_LOADTILE, G_LOADTLUT, G_SETFILLCOLOR
++            int8_t sop = (int8_t)op;
++            if (rdpHandlers.contains(sop)) {
++                F3DGfx* c = cmd;
++                rdpHandlers.at(sop).second(&c);
++            }
++        }
++        cmd++;
++    }
++    *mRsp = savedRsp;
++    *mRdp = savedRdp;
++    memcpy(mSegmentPointers, savedSegments, sizeof(savedSegments));
++    sTmemRegions = std::move(savedTmem);
++
++    // pairing: not moving first, then the most common moves
++    constexpr int32_t kMaxMove = 48 * 4; // (10.2 fixed point)
++    struct Side {
++        std::vector<std::pair<int32_t, int32_t>> pos;
++        std::vector<bool> used;
++    };
++    std::unordered_map<Interp2DKey, Side, Interp2DKeyHash> curSide, lastSide;
++    std::map<std::pair<int32_t, int32_t>, int> votes;
++    std::set<std::pair<int32_t, int32_t>> uniqueMoves;
++    for (auto& [key, cv] : cur) {
++        auto lit = sRectLast.find(key);
++        if (lit == sRectLast.end()) continue;
++        Side& c = curSide[key];
++        Side& l = lastSide[key];
++        c.pos = cv;
++        c.used.assign(cv.size(), false);
++        l.pos = lit->second;
++        l.used.assign(l.pos.size(), false);
++        sRectMove[key].assign(cv.size(), { 0, 0 });
++        for (size_t a = 0; a < c.pos.size(); a++) {
++            for (size_t b = 0; b < l.pos.size(); b++) {
++                if (!l.used[b] && l.pos[b] == c.pos[a]) {
++                    c.used[a] = l.used[b] = true;
++                    break;
++                }
++            }
++        }
++        if (c.pos.size() == 1 && l.pos.size() == 1 && !c.used[0]) {
++            const int32_t dx = c.pos[0].first - l.pos[0].first, dy = c.pos[0].second - l.pos[0].second;
++            if (std::abs(dx) <= kMaxMove && std::abs(dy) <= kMaxMove) uniqueMoves.insert({ dx, dy });
++        }
++        if (c.pos.size() > 64 || l.pos.size() > 64) continue;
++        for (size_t a = 0; a < c.pos.size(); a++) {
++            if (c.used[a]) continue;
++            for (size_t b = 0; b < l.pos.size(); b++) {
++                if (l.used[b]) continue;
++                const int32_t dx = c.pos[a].first - l.pos[b].first, dy = c.pos[a].second - l.pos[b].second;
++                if (std::abs(dx) <= kMaxMove && std::abs(dy) <= kMaxMove) votes[{ dx, dy }]++;
++            }
++        }
++    }
++    std::vector<std::pair<int, std::pair<int32_t, int32_t>>> order;
++    for (auto& [d, count] : votes) {
++        if (count >= 4 || uniqueMoves.count(d)) order.push_back({ uniqueMoves.count(d) ? count + 1000000 : count, d });
++    }
++    std::sort(order.begin(), order.end(), [](const auto& x, const auto& y) { return x.first > y.first; });
++    for (auto& [count, d] : order) {
++        for (auto& [key, c] : curSide) {
++            Side& l = lastSide[key];
++            auto& moves = sRectMove[key];
++            for (size_t a = 0; a < c.pos.size(); a++) {
++                if (c.used[a]) continue;
++                for (size_t b = 0; b < l.pos.size(); b++) {
++                    if (!l.used[b] && c.pos[a].first - l.pos[b].first == d.first &&
++                        c.pos[a].second - l.pos[b].second == d.second) {
++                        c.used[a] = l.used[b] = true;
++                        moves[a] = d;
++                        break;
++                    }
++                }
++            }
++        }
++    }
++    // tear guard: a moving rectangle that overlaps a new one (not in the last drawing, e.g. the clipped edge of a
++    // panel sliding in from off screen, or text being typed) stays put, and so does what overlaps it in turn: a panel
++    // moves as a whole or not at all
++    struct Box {
++        int32_t x0, y0, x1, y1;
++        bool moving, blocked;
++        std::pair<int32_t, int32_t>* move;
++    };
++    std::vector<Box> boxes;
++    for (auto& [key, cv] : cur) {
++        auto sit = curSide.find(key);
++        auto mit = sRectMove.find(key);
++        for (size_t a = 0; a < cv.size(); a++) {
++            const bool matched = sit != curSide.end() && sit->second.used[a];
++            std::pair<int32_t, int32_t>* mv = mit != sRectMove.end() ? &mit->second[a] : nullptr;
++            const bool moving = mv != nullptr && (mv->first != 0 || mv->second != 0);
++            boxes.push_back({ cv[a].first, cv[a].second, cv[a].first + key.w, cv[a].second + key.h, moving, !matched, mv });
++        }
++    }
++    for (bool changed = true; changed;) {
++        changed = false;
++        for (auto& m : boxes) {
++            if (!m.moving) continue;
++            for (const auto& o : boxes) {
++                if (o.blocked && &o != &m && o.x0 <= m.x1 && m.x0 <= o.x1 && o.y0 <= m.y1 && m.y0 <= o.y1) { // (touching too)
++                    *m.move = { 0, 0 };
++                    m.moving = false;
++                    m.blocked = true;
++                    changed = true;
++                    break;
++                }
++            }
++        }
++    }
++}
++
++bool Interpreter::CanRestorePicture() const {
++    static const bool sOff = getenv("PORT_INTERP_INCREMENTAL") != nullptr && atoi(getenv("PORT_INTERP_INCREMENTAL")) == 0;
++    return !sOff && mMsaaLevel <= 1 && mRendersToFb;
++}
++
++void Interpreter::ReplayBegin(bool restorePicture) {
++    sReplayRestore = restorePicture;
 +    if (sReplay == nullptr) sReplay = new ReplayState();
 +    ReplayState& r = *sReplay;
 +    r.rspStart = *mRsp;
@@ -8614,6 +9010,7 @@ index a1907a1..ccfe91b 100644
 +    r.tmemStart.clear();
 +    r.begun = false;
 +    r.haveEnd = false;
++    sReplayRestore = false;
 +}
 +
 +bool Interpreter::FrameRepaintsScreen(Gfx* commands) {
@@ -8711,6 +9108,14 @@ index a1907a1..ccfe91b 100644
 +    s2DRectArea = 0.0f;
 +    sWideRects = false;
 +    sAnchor = 0;
++    sSnapDoneThisRun.clear();
++    // 2D in-between frames: the last exact drawing's rectangles become the reference; an exact drawing records anew
++    if (sRectLastRunExact) {
++        sRectLast.swap(sRectRec);
++    }
++    sRectRec.clear();
++    sRectSeen.clear();
++    sRectLastRunExact = mReplayT >= 0.999f;
 +    sPreserveNextColorImage = false;
 +    sSeen3DThisRun = false;
 +    sLock43ThisRun = false;
@@ -8719,7 +9124,7 @@ index a1907a1..ccfe91b 100644
      SpReset();
  
      mGetPixelDepthPending.clear();
-@@ -5184,17 +6906,38 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5184,17 +7197,38 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
      mRapi->UpdateFramebufferParameters(0, mGfxCurrentWindowDimensions.width, mGfxCurrentWindowDimensions.height, 1,
                                         false, true, true, !mRendersToFb);
      mRapi->StartFrame();
@@ -8759,7 +9164,7 @@ index a1907a1..ccfe91b 100644
          if (dbg->IsDebugging()) {
              g_exec_stack.gfx_path.push_back(cmd);
              if (dbg->HasBreakPoint(g_exec_stack.gfx_path)) {
-@@ -5209,10 +6952,26 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5209,10 +7243,26 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
              }
              g_exec_stack.gfx_path.pop_back();
          }
@@ -8786,7 +9191,7 @@ index a1907a1..ccfe91b 100644
      mGfxFrameBuffer = 0;
      currentDir = std::stack<std::string>();
  
-@@ -5236,13 +6995,41 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5236,13 +7286,41 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
  
          assert(0 && "active framebuffer was never reset back to original");
      }
