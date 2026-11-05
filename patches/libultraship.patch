@@ -109,10 +109,18 @@ index 728fa13f..a8b8b9b6 100644
  
  /**
 diff --git a/include/fast/backends/gfx_direct3d_common.h b/include/fast/backends/gfx_direct3d_common.h
-index 4ba2d354..480e8447 100644
+index 4ba2d354..09580fff 100644
 --- a/include/fast/backends/gfx_direct3d_common.h
 +++ b/include/fast/backends/gfx_direct3d_common.h
-@@ -149,6 +149,7 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
+@@ -8,6 +8,7 @@
+ #include <cstdint>
+ #include <string>
+ #include "gfx_rendering_api.h"
++#include "gfx_shader_cache.h"
+ #include "d3d11.h"
+ #include "d3dcompiler.h"
+
+@@ -149,6 +150,7 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
      void CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0,
                           int dstX1, int dstY1) override;
      void ClearFramebuffer(bool color, bool depth) override;
@@ -120,7 +128,7 @@ index 4ba2d354..480e8447 100644
      void ReadFramebufferToCPU(int fbId, uint32_t width, uint32_t height, uint16_t* rgba16Buf) override;
      void ResolveMSAAColorBuffer(int fbIdTarger, int fbIdSrc) override;
      std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
-@@ -162,11 +163,11 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
+@@ -162,11 +164,11 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
      ImTextureID GetTextureById(int id) override;
      /** @} */
  
@@ -134,11 +142,14 @@ index 4ba2d354..480e8447 100644
  
      std::shared_ptr<Ship::ConsoleVariable> mConsoleVariable;
      std::shared_ptr<Ship::ResourceManager> mResourceManager;
-@@ -175,12 +176,12 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
+@@ -175,15 +177,22 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
      void CreateDepthStencilObjects(uint32_t width, uint32_t height, uint32_t msaa_count, ID3D11DepthStencilView** view,
                                     ID3D11ShaderResourceView** srv);
  
 -    HMODULE mDX11Module;
++    std::vector<char> CompileShader(const std::string& source, const char* entry, const char* target,
++                                    UINT flags, bool useCache = true);
++    ShaderDiskCache mShaderCache;
 +    HMODULE mDX11Module = nullptr;
  
 -    HMODULE mCompilerModule;
@@ -151,7 +162,14 @@ index 4ba2d354..480e8447 100644
  
      Microsoft::WRL::ComPtr<ID3D11RasterizerState> mRasterizerState;
      Microsoft::WRL::ComPtr<ID3D11DepthStencilState> mDepthStencilState;
-@@ -196,30 +197,30 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
++    std::map<uint32_t, Microsoft::WRL::ComPtr<ID3D11DepthStencilState>> mDepthStencilStates;
++    std::map<uint32_t, Microsoft::WRL::ComPtr<ID3D11RasterizerState>> mRasterizerStates;
++    static constexpr size_t kVertexRingSize = 4 * 1024 * 1024;
++    size_t mVertexRingOffset = kVertexRingSize;
+     Microsoft::WRL::ComPtr<ID3D11Buffer> mVertexBuffer;
+     Microsoft::WRL::ComPtr<ID3D11Buffer> mPerFrameCb;
+     Microsoft::WRL::ComPtr<ID3D11Buffer> mPerDrawCb;
+@@ -196,30 +205,30 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
      Microsoft::WRL::ComPtr<ID3D11ComputeShader> mComputeShader;
      Microsoft::WRL::ComPtr<ID3D11ComputeShader> mComputeShaderMsaa;
      Microsoft::WRL::ComPtr<ID3DBlob> mComputeShaderMsaaBlob;
@@ -386,10 +404,18 @@ index 51d5e2dd5c093692604d4b063ae18ebd4f034c59..97967e8a441cc6449ec55a1c5158f418
      std::vector<FramebufferMetal> mFramebuffers;
      FrameUniforms mFrameUniforms;
 diff --git a/include/fast/backends/gfx_opengl.h b/include/fast/backends/gfx_opengl.h
-index b00ea01c..5905ef52 100644
+index b00ea01c..129cdb45 100644
 --- a/include/fast/backends/gfx_opengl.h
 +++ b/include/fast/backends/gfx_opengl.h
-@@ -119,6 +119,7 @@ class GfxRenderingAPIOGL final : public GfxRenderingAPI {
+@@ -3,6 +3,7 @@
+
+ #include <memory>
+ #include "gfx_rendering_api.h"
++#include "gfx_shader_cache.h"
+ #include "../interpreter.h"
+
+ namespace Ship {
+@@ -119,6 +120,7 @@ class GfxRenderingAPIOGL final : public GfxRenderingAPI {
      void CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0,
                           int dstX1, int dstY1) override;
      void ClearFramebuffer(bool color, bool depth) override;
@@ -397,6 +423,19 @@ index b00ea01c..5905ef52 100644
      void ClearDepthRegion(int x, int y, int w, int h) override;
      void ReadFramebufferToCPU(int fbId, uint32_t width, uint32_t height, uint16_t* rgba16Buf) override;
      void ResolveMSAAColorBuffer(int fbIdTarger, int fbIdSrc) override;
+@@ -136,6 +138,12 @@ class GfxRenderingAPIOGL final : public GfxRenderingAPI {
+     void SetUniforms(ShaderProgram* prg) const;
+     std::string BuildFsShader(const CCFeatures& cc_features);
+     void SetPerDrawUniforms();
++    GLuint CompileProgram(const std::string& vertex, const std::string& fragment, bool dualSource);
++    GLuint LoadProgramBinary(uint64_t key);
++    void StoreProgramBinary(uint64_t key, GLuint program);
++    ShaderDiskCache mShaderCache;
++    std::string mDriverIdentity;
++    bool mProgramBinaries = false;
+
+     std::shared_ptr<Ship::ConsoleVariable> mConsoleVariable;
+     std::shared_ptr<Ship::ResourceManager> mResourceManager;
 diff --git a/include/fast/backends/gfx_rendering_api.h b/include/fast/backends/gfx_rendering_api.h
 index 3eb09961909f0f10ee498311bd175b85e86baca0..870ae1ec8c765ad99f77153224b505662785f0c1 100644
 --- a/include/fast/backends/gfx_rendering_api.h
@@ -439,12 +478,42 @@ index 3eb09961909f0f10ee498311bd175b85e86baca0..870ae1ec8c765ad99f77153224b50566
      virtual void ResolveMSAAColorBuffer(int fbIdTarger, int fbIdSrc) = 0;
      virtual std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
      GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) = 0;
+diff --git a/include/fast/backends/gfx_shader_cache.h b/include/fast/backends/gfx_shader_cache.h
+new file mode 100644
+index 00000000..d85493f8
+--- /dev/null
++++ b/include/fast/backends/gfx_shader_cache.h
+@@ -0,0 +1,24 @@
++#pragma once
++
++#include <cstdint>
++#include <filesystem>
++#include <initializer_list>
++#include <string_view>
++#include <vector>
++
++namespace Fast {
++
++// Source-keyed compiler output. Backends validate driver compatibility before use.
++class ShaderDiskCache {
++  public:
++    void Open(const char* backend);
++    std::vector<char> Load(uint64_t key) const;
++    void Store(uint64_t key, const void* data, size_t size) const;
++    static uint64_t Hash(std::initializer_list<std::string_view> parts);
++
++  private:
++    std::filesystem::path PathFor(uint64_t key) const;
++    std::filesystem::path mDir;
++};
++
++} // namespace Fast
 diff --git a/include/fast/backends/gfx_vulkan.h b/include/fast/backends/gfx_vulkan.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..37e4a2f8e4f9e2ae8a66b4b9e6d3092036669a31
+index 00000000..0470aff3
 --- /dev/null
 +++ b/include/fast/backends/gfx_vulkan.h
-@@ -0,0 +1,397 @@
+@@ -0,0 +1,399 @@
 +//
 +//  gfx_vulkan.h
 +//  libultraship
@@ -462,6 +531,7 @@ index 0000000000000000000000000000000000000000..37e4a2f8e4f9e2ae8a66b4b9e6d30920
 +#ifdef ENABLE_VULKAN
 +
 +#include "gfx_rendering_api.h"
++#include "gfx_shader_cache.h"
 +#include "../interpreter.h"
 +
 +#include <volk.h>
@@ -769,6 +839,7 @@ index 0000000000000000000000000000000000000000..37e4a2f8e4f9e2ae8a66b4b9e6d30920
 +
 +    VkDescriptorSetLayout mTextureSetLayout = VK_NULL_HANDLE; // 6 combined image samplers (fragment)
 +    VkPipelineLayout mPipelineLayout = VK_NULL_HANDLE;         // + the push constants
++    ShaderDiskCache mShaderCache;
 +    VkPipelineCache mPipelineCache = VK_NULL_HANDLE;
 +
 +    // PORT: shader warm-up and the on-disk caches. Workers build the queued programs (and the pipelines listed for
@@ -1393,7 +1464,7 @@ index b80c9907..719941e1 100644
          default:
              return "";
 diff --git a/src/fast/backends/gfx_direct3d11.cpp b/src/fast/backends/gfx_direct3d11.cpp
-index f747b818..5d9465a1 100644
+index f747b818..1c53d15d 100644
 --- a/src/fast/backends/gfx_direct3d11.cpp
 +++ b/src/fast/backends/gfx_direct3d11.cpp
 @@ -6,6 +6,7 @@
@@ -1412,7 +1483,125 @@ index f747b818..5d9465a1 100644
  #include "fast/interpreter.h"
  
  #include <prism/processor.h>
-@@ -499,12 +501,13 @@ struct ShaderProgram* GfxRenderingAPIDX11::CreateAndLoadNewShader(uint64_t shade
+@@ -196,6 +198,10 @@ static bool CreateDeviceFunc(class GfxRenderingAPIDX11* self, bool SoftwareRende
+ };
+
+ void GfxRenderingAPIDX11::Init() {
++    mShaderCache.Open("d3d11");
++    mDepthStencilStates.clear();
++    mRasterizerStates.clear();
++    mVertexRingOffset = kVertexRingSize;
+     // Load d3d11.dll
+     mDX11Module = LoadLibraryW(L"d3d11.dll");
+     if (mDX11Module == nullptr) {
+@@ -263,7 +269,7 @@ void GfxRenderingAPIDX11::Init() {
+     ZeroMemory(&vertex_buffer_desc, sizeof(D3D11_BUFFER_DESC));
+
+     vertex_buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
+-    vertex_buffer_desc.ByteWidth = 256 * 32 * 3 * sizeof(float); // Same as buf_vbo size in gfx_pc
++    vertex_buffer_desc.ByteWidth = kVertexRingSize;
+     vertex_buffer_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+     vertex_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+     vertex_buffer_desc.MiscFlags = 0;
+@@ -391,53 +397,55 @@ void GfxRenderingAPIDX11::ClearShaderCache() {
+     mShaderProgramPool.clear();
+ }
+
++std::vector<char> GfxRenderingAPIDX11::CompileShader(const std::string& source, const char* entry,
++                                                     const char* target, UINT flags, bool useCache) {
++    const auto options = std::to_string(flags);
++    const uint64_t key = ShaderDiskCache::Hash({source, entry, target, options, "d3dcompiler47-v1"});
++    if (useCache) {
++        auto data = mShaderCache.Load(key);
++        if (!data.empty()) return data;
++    }
++    ComPtr<ID3DBlob> code, error;
++    const HRESULT hr = mD3dCompile(source.data(), source.size(), nullptr, nullptr, nullptr, entry, target,
++                                    flags, 0, code.GetAddressOf(), error.GetAddressOf());
++    if (FAILED(hr)) {
++        const char* message = error ? static_cast<const char*>(error->GetBufferPointer()) : "Shader compilation failed";
++        MessageBoxA(mWindowBackend->GetWindowHandle(), message, "Error", MB_OK | MB_ICONERROR);
++        throw Ship::HResultException(hr, "Shader compilation failed");
++    }
++    const auto* bytes = static_cast<const char*>(code->GetBufferPointer());
++    std::vector<char> data(bytes, bytes + code->GetBufferSize());
++    mShaderCache.Store(key, data.data(), data.size());
++    return data;
++}
++
+ struct ShaderProgram* GfxRenderingAPIDX11::CreateAndLoadNewShader(uint64_t shader_id0, uint64_t shader_id1) {
+     CCFeatures cc_features;
+     gfx_cc_get_features(shader_id0, shader_id1, &cc_features);
+
+-    char* buf;
+-    size_t len, numFloats;
+-
+-    auto shader = gfx_direct3d_common_build_shader(numFloats, cc_features, false,
+-                                                   mCurrentFilterMode == FILTER_THREE_POINT, mSrgbMode);
+-
+-    buf = shader.data();
+-    len = shader.size();
+-
+-    ComPtr<ID3DBlob> vs, ps;
+-    ComPtr<ID3DBlob> error_blob;
+-
++    size_t numFloats;
++    const auto shader = gfx_direct3d_common_build_shader(numFloats, cc_features, false,
++                                                        mCurrentFilterMode == FILTER_THREE_POINT, mSrgbMode);
+ #if DEBUG_D3D
+     UINT compile_flags = D3DCOMPILE_DEBUG;
+ #else
+     UINT compile_flags = D3DCOMPILE_OPTIMIZATION_LEVEL2;
+ #endif
+-
+-    HRESULT hr = mD3dCompile(buf, len, nullptr, nullptr, nullptr, "VSMain", "vs_4_0", compile_flags, 0,
+-                             vs.GetAddressOf(), error_blob.GetAddressOf());
+-
++    auto vs = CompileShader(shader, "VSMain", "vs_4_0", compile_flags);
++    auto ps = CompileShader(shader, "PSMain", "ps_4_0", compile_flags);
++    auto* prg = &mShaderProgramPool[std::make_pair(shader_id0, shader_id1)];
++    // Drivers can reject cached bytecode after an update. Recompile it once.
++    HRESULT hr = mDevice->CreateVertexShader(vs.data(), vs.size(), nullptr, prg->vertex_shader.GetAddressOf());
+     if (FAILED(hr)) {
+-        char* err = (char*)error_blob->GetBufferPointer();
+-        MessageBoxA(mWindowBackend->GetWindowHandle(), err, "Error", MB_OK | MB_ICONERROR);
+-        throw Ship::HResultException(hr, "Vertex shader compilation failed");
++        vs = CompileShader(shader, "VSMain", "vs_4_0", compile_flags, false);
++        ThrowIfFailed(mDevice->CreateVertexShader(vs.data(), vs.size(), nullptr, prg->vertex_shader.ReleaseAndGetAddressOf()));
+     }
+-
+-    hr = mD3dCompile(buf, len, nullptr, nullptr, nullptr, "PSMain", "ps_4_0", compile_flags, 0, ps.GetAddressOf(),
+-                     error_blob.GetAddressOf());
+-
++    hr = mDevice->CreatePixelShader(ps.data(), ps.size(), nullptr, prg->pixel_shader.GetAddressOf());
+     if (FAILED(hr)) {
+-        char* err = (char*)error_blob->GetBufferPointer();
+-        MessageBoxA(mWindowBackend->GetWindowHandle(), err, "Error", MB_OK | MB_ICONERROR);
+-        throw Ship::HResultException(hr, "Pixel shader compilation failed");
++        ps = CompileShader(shader, "PSMain", "ps_4_0", compile_flags, false);
++        ThrowIfFailed(mDevice->CreatePixelShader(ps.data(), ps.size(), nullptr, prg->pixel_shader.ReleaseAndGetAddressOf()));
+     }
+
+-    struct ShaderProgramD3D11* prg = &mShaderProgramPool[std::make_pair(shader_id0, shader_id1)];
+-
+-    ThrowIfFailed(mDevice->CreateVertexShader(vs->GetBufferPointer(), vs->GetBufferSize(), nullptr,
+-                                              prg->vertex_shader.GetAddressOf()));
+-    ThrowIfFailed(mDevice->CreatePixelShader(ps->GetBufferPointer(), ps->GetBufferSize(), nullptr,
+-                                             prg->pixel_shader.GetAddressOf()));
+-
+     // Input Layout
+
+     D3D11_INPUT_ELEMENT_DESC ied[16];
+@@ -489,7 +497,7 @@ struct ShaderProgram* GfxRenderingAPIDX11::CreateAndLoadNewShader(uint64_t shade
+         ied[ied_index++] = { "INPUT", i, format, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 };
+     }
+
+-    ThrowIfFailed(mDevice->CreateInputLayout(ied, ied_index, vs->GetBufferPointer(), vs->GetBufferSize(),
++    ThrowIfFailed(mDevice->CreateInputLayout(ied, ied_index, vs.data(), vs.size(),
+                                              prg->input_layout.GetAddressOf()));
+
+     // Blend state
+@@ -499,12 +507,13 @@ struct ShaderProgram* GfxRenderingAPIDX11::CreateAndLoadNewShader(uint64_t shade
  
      if (cc_features.opt_alpha) {
          blend_desc.RenderTarget[0].BlendEnable = true;
@@ -1431,7 +1620,131 @@ index f747b818..5d9465a1 100644
          blend_desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
          blend_desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
      } else {
-@@ -860,6 +863,129 @@ int GfxRenderingAPIDX11::CreateFramebuffer() {
+@@ -673,32 +682,35 @@ void GfxRenderingAPIDX11::SetUseAlpha(bool use_alpha) {
+
+ void GfxRenderingAPIDX11::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris) {
+
+-    if (mLastDepthTest != mCurrentDepthTest || mLastDepthMask != mCurrentDepthMask) {
++    if (mLastDepthTest != mCurrentDepthTest || mLastDepthMask != mCurrentDepthMask ||
++        mLastZmodeDecal != mCurrentZmodeDecal) {
+         mLastDepthTest = mCurrentDepthTest;
+         mLastDepthMask = mCurrentDepthMask;
+
+-        mDepthStencilState.Reset();
+-
+-        D3D11_DEPTH_STENCIL_DESC depth_stencil_desc;
+-        ZeroMemory(&depth_stencil_desc, sizeof(D3D11_DEPTH_STENCIL_DESC));
+-
+-        depth_stencil_desc.DepthEnable = mCurrentDepthTest || mCurrentDepthMask;
+-        depth_stencil_desc.DepthWriteMask =
+-            mCurrentDepthMask ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+-        depth_stencil_desc.DepthFunc = mCurrentDepthTest
+-                                           ? (mCurrentZmodeDecal ? D3D11_COMPARISON_LESS_EQUAL : D3D11_COMPARISON_LESS)
+-                                           : D3D11_COMPARISON_ALWAYS;
+-        depth_stencil_desc.StencilEnable = false;
+-
+-        ThrowIfFailed(mDevice->CreateDepthStencilState(&depth_stencil_desc, mDepthStencilState.GetAddressOf()));
++        const uint32_t key = (mCurrentDepthTest ? 1 : 0) | (mCurrentDepthMask ? 2 : 0) |
++                             (mCurrentZmodeDecal ? 4 : 0);
++        auto& state = mDepthStencilStates[key];
++        if (state == nullptr) {
++            D3D11_DEPTH_STENCIL_DESC depth_stencil_desc;
++            ZeroMemory(&depth_stencil_desc, sizeof(D3D11_DEPTH_STENCIL_DESC));
++
++            depth_stencil_desc.DepthEnable = mCurrentDepthTest || mCurrentDepthMask;
++            depth_stencil_desc.DepthWriteMask =
++                mCurrentDepthMask ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
++            depth_stencil_desc.DepthFunc = mCurrentDepthTest
++                                               ? (mCurrentZmodeDecal ? D3D11_COMPARISON_LESS_EQUAL : D3D11_COMPARISON_LESS)
++                                               : D3D11_COMPARISON_ALWAYS;
++            depth_stencil_desc.StencilEnable = false;
++
++            ThrowIfFailed(mDevice->CreateDepthStencilState(&depth_stencil_desc, state.GetAddressOf()));
++        }
++        mDepthStencilState = state;
+         mContext->OMSetDepthStencilState(mDepthStencilState.Get(), 0);
+     }
+
+     if (mLastZmodeDecal != mCurrentZmodeDecal) {
+         mLastZmodeDecal = mCurrentZmodeDecal;
+
+-        mRasterizerState.Reset();
+-
+         D3D11_RASTERIZER_DESC rasterizer_desc;
+         ZeroMemory(&rasterizer_desc, sizeof(D3D11_RASTERIZER_DESC));
+
+@@ -730,7 +742,13 @@ void GfxRenderingAPIDX11::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, siz
+         rasterizer_desc.MultisampleEnable = false;
+         rasterizer_desc.AntialiasedLineEnable = false;
+
+-        ThrowIfFailed(mDevice->CreateRasterizerState(&rasterizer_desc, mRasterizerState.GetAddressOf()));
++        uint32_t key;
++        memcpy(&key, &rasterizer_desc.SlopeScaledDepthBias, sizeof(key));
++        auto& state = mRasterizerStates[key];
++        if (state == nullptr) {
++            ThrowIfFailed(mDevice->CreateRasterizerState(&rasterizer_desc, state.GetAddressOf()));
++        }
++        mRasterizerState = state;
+         mContext->RSSetState(mRasterizerState.Get());
+     }
+
+@@ -755,11 +773,11 @@ void GfxRenderingAPIDX11::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, siz
+                     textures_changed = true;
+                 }
+
+-                if (mLastSamplerStates[i].Get() != mTextures[mCurrentTextureIds[i]].sampler_state.Get()) {
+-                    mLastSamplerStates[i] = mTextures[mCurrentTextureIds[i]].sampler_state.Get();
+-                }
+             }
+-            mContext->PSSetSamplers(i, 1, mTextures[mCurrentTextureIds[i]].sampler_state.GetAddressOf());
++            if (mLastSamplerStates[i].Get() != mTextures[mCurrentTextureIds[i]].sampler_state.Get()) {
++                mLastSamplerStates[i] = mTextures[mCurrentTextureIds[i]].sampler_state.Get();
++                mContext->PSSetSamplers(i, 1, mTextures[mCurrentTextureIds[i]].sampler_state.GetAddressOf());
++            }
+         }
+     }
+
+@@ -783,16 +801,21 @@ void GfxRenderingAPIDX11::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, siz
+         mPrimDepthDirty = false;
+     }
+
+-    // Set vertex buffer data
+-
+-    D3D11_MAPPED_SUBRESOURCE ms;
+-    ZeroMemory(&ms, sizeof(D3D11_MAPPED_SUBRESOURCE));
+-    mContext->Map(mVertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms);
+-    memcpy(ms.pData, buf_vbo, buf_vbo_len * sizeof(float));
+-    mContext->Unmap(mVertexBuffer.Get(), 0);
+-
+-    uint32_t stride = mShaderProgram->numFloats * sizeof(float);
++    // Append without overwriting vertices still in use by earlier draws.
++    const uint32_t stride = mShaderProgram->numFloats * sizeof(float);
+     uint32_t offset = 0;
++    const size_t bytes = buf_vbo_len * sizeof(float);
++    size_t start = (mVertexRingOffset + stride - 1) / stride * stride;
++    D3D11_MAP mapType = D3D11_MAP_WRITE_NO_OVERWRITE;
++    if (start + bytes > kVertexRingSize) {
++        start = 0;
++        mapType = D3D11_MAP_WRITE_DISCARD;
++    }
++    D3D11_MAPPED_SUBRESOURCE ms{};
++    ThrowIfFailed(mContext->Map(mVertexBuffer.Get(), 0, mapType, 0, &ms));
++    memcpy(static_cast<char*>(ms.pData) + start, buf_vbo, bytes);
++    mContext->Unmap(mVertexBuffer.Get(), 0);
++    mVertexRingOffset = start + bytes;
+
+     if (mLastVertexBufferStride != stride) {
+         mLastVertexBufferStride = stride;
+@@ -816,7 +839,7 @@ void GfxRenderingAPIDX11::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, siz
+         mContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+     }
+
+-    mContext->Draw(buf_vbo_num_tris * 3, 0);
++    mContext->Draw(buf_vbo_num_tris * 3, static_cast<UINT>(start / stride));
+ }
+
+ void GfxRenderingAPIDX11::OnResize() {
+@@ -860,6 +883,129 @@ int GfxRenderingAPIDX11::CreateFramebuffer() {
      return (int)index;
  }
  
@@ -1561,7 +1874,7 @@ index f747b818..5d9465a1 100644
  void GfxRenderingAPIDX11::UpdateFramebufferParameters(int fb_id, uint32_t width, uint32_t height, uint32_t msaa_level,
                                                        bool opengl_invertY, bool render_target, bool has_depth_buffer,
                                                        bool can_extract_depth) {
-@@ -892,12 +1018,37 @@ void GfxRenderingAPIDX11::UpdateFramebufferParameters(int fb_id, uint32_t width,
+@@ -892,12 +1038,37 @@ void GfxRenderingAPIDX11::UpdateFramebufferParameters(int fb_id, uint32_t width,
              texture_desc.SampleDesc.Count = msaa_level;
              texture_desc.SampleDesc.Quality = 0;
  
@@ -1599,7 +1912,7 @@ index f747b818..5d9465a1 100644
          } else if (diff || (render_target && tex.texture.Get() == nullptr)) {
              DXGI_SWAP_CHAIN_DESC1 desc1;
              IDXGISwapChain1* swap_chain = mWindowBackend->GetSwapChain();
-@@ -952,6 +1103,21 @@ void GfxRenderingAPIDX11::StartDrawToFramebuffer(int fb_id, float noise_scale) {
+@@ -952,6 +1123,21 @@ void GfxRenderingAPIDX11::StartDrawToFramebuffer(int fb_id, float noise_scale) {
      mContext->Map(mPerFrameCb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms);
      memcpy(ms.pData, &mPerFrameCbData, sizeof(PerFrameCB));
      mContext->Unmap(mPerFrameCb.Get(), 0);
@@ -1621,7 +1934,7 @@ index f747b818..5d9465a1 100644
  }
  
  void GfxRenderingAPIDX11::ClearFramebuffer(bool color, bool depth) {
-@@ -1051,6 +1217,9 @@ void GfxRenderingAPIDX11::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX
+@@ -1051,6 +1237,9 @@ void GfxRenderingAPIDX11::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX
      }
  }
  
@@ -1631,7 +1944,7 @@ index f747b818..5d9465a1 100644
  void GfxRenderingAPIDX11::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFrameBuffers.size()) {
          return;
-@@ -1097,6 +1266,22 @@ void GfxRenderingAPIDX11::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32
+@@ -1097,6 +1286,22 @@ void GfxRenderingAPIDX11::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32
          return;
      }
  
@@ -1654,7 +1967,7 @@ index f747b818..5d9465a1 100644
      // Convert RGBA32 → RGBA16 with nearest-neighbor scaling from actual texture
      // dimensions to requested output dimensions, respecting RowPitch for row stride
      for (uint32_t j = 0; j < height; j++) {
-@@ -1243,7 +1428,8 @@ void GfxRenderingAPIDX11::SetSrgbMode() {
+@@ -1243,7 +1448,8 @@ void GfxRenderingAPIDX11::SetSrgbMode() {
      mSrgbMode = true;
  }
  
@@ -2257,7 +2570,7 @@ index 39b5d344..d3d7810d 100644
  static const char* p_shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
                                          bool first_cycle, bool hint_single_element) {
 diff --git a/src/fast/backends/gfx_opengl.cpp b/src/fast/backends/gfx_opengl.cpp
-index 6c4dfc86..7e739df9 100644
+index 6c4dfc86..f8bf3a8c 100644
 --- a/src/fast/backends/gfx_opengl.cpp
 +++ b/src/fast/backends/gfx_opengl.cpp
 @@ -1,9 +1,11 @@
@@ -2377,31 +2690,49 @@ index 6c4dfc86..7e739df9 100644
      processor.populate(mContext);
      auto init = std::make_shared<Ship::ResourceInitData>();
      init->Type = (uint32_t)Ship::ResourceType::Shader;
-@@ -414,6 +467,15 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
-     gfx_cc_get_features(shader_id0, shader_id1, &cc_features);
-     const auto fs_buf = BuildFsShader(cc_features);
-     const auto vs_buf = BuildVsShader(cc_features);
-+    if (const char* dumpDir = getenv("PORT_GL_DUMP_SHADERS")) { // debug: the generated GLSL, one file per shader
-+        char path[1024];
-+        snprintf(path, sizeof path, "%s/%016llx_%016llx.glsl", dumpDir, (unsigned long long)shader_id0,
-+                 (unsigned long long)shader_id1);
-+        if (FILE* f = fopen(path, "w")) {
-+            fprintf(f, "// vertex\n%s\n// fragment\n%s\n", vs_buf.c_str(), fs_buf.c_str());
-+            fclose(f);
-+        }
-+    }
+@@ -409,11 +462,7 @@ void GfxRenderingAPIOGL::ClearShaderCache() {
+     mShaderProgramPool.clear();
+ }
+
+-ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, uint64_t shader_id1) {
+-    CCFeatures cc_features;
+-    gfx_cc_get_features(shader_id0, shader_id1, &cc_features);
+-    const auto fs_buf = BuildFsShader(cc_features);
+-    const auto vs_buf = BuildVsShader(cc_features);
++GLuint GfxRenderingAPIOGL::CompileProgram(const std::string& vs_buf, const std::string& fs_buf, bool dualSource) {
      const GLchar* sources[2] = { vs_buf.data(), fs_buf.data() };
      const GLint lengths[2] = { (GLint)vs_buf.size(), (GLint)fs_buf.size() };
      GLint success;
-@@ -449,7 +511,21 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
+@@ -427,7 +476,7 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
+         glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &max_length);
+         char error_log[1024];
+         // fprintf(stderr, "Vertex shader compilation failed\n");
+-        glGetShaderInfoLog(vertex_shader, max_length, &max_length, &error_log[0]);
++        glGetShaderInfoLog(vertex_shader, sizeof(error_log), &max_length, &error_log[0]);
+         // fprintf(stderr, "%s\n", &error_log[0]);
+         abort();
+     }
+@@ -441,7 +490,7 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
+         glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &max_length);
+         char error_log[1024];
+         fprintf(stderr, "Fragment shader compilation failed\n");
+-        glGetShaderInfoLog(fragment_shader, max_length, &max_length, &error_log[0]);
++        glGetShaderInfoLog(fragment_shader, sizeof(error_log), &max_length, &error_log[0]);
+         fprintf(stderr, "%s\n", &error_log[0]);
+         abort();
+     }
+@@ -449,7 +498,84 @@ ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, u
      GLuint shader_program = glCreateProgram();
      glAttachShader(shader_program, vertex_shader);
      glAttachShader(shader_program, fragment_shader);
 +#ifndef USE_OPENGLES
-+    if (DualSource() && cc_features.opt_alpha) { // PORT: dual-source blending outputs (default.shader.glsl)
++    if (dualSource) { // PORT: dual-source blending outputs (default.shader.glsl)
 +        glBindFragDataLocationIndexed(shader_program, 0, 0, "vOutColor");
 +        glBindFragDataLocationIndexed(shader_program, 0, 1, "vOutColor1");
 +    }
++#endif
++#ifndef __EMSCRIPTEN__
++    if (mProgramBinaries) glProgramParameteri(shader_program, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
 +#endif
      glLinkProgram(shader_program);
 +    glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
@@ -2412,10 +2743,70 @@ index 6c4dfc86..7e739df9 100644
 +        fprintf(stderr, "Shader program link failed\n%.*s\nfragment shader:\n%s\n", (int)len, error_log, fs_buf.c_str());
 +        abort();
 +    }
++
++    glDeleteShader(vertex_shader);
++    glDeleteShader(fragment_shader);
++    return shader_program;
++}
++
++GLuint GfxRenderingAPIOGL::LoadProgramBinary(uint64_t key) {
++#ifndef __EMSCRIPTEN__
++    if (!mProgramBinaries) return 0;
++    const auto blob = mShaderCache.Load(key);
++    if (blob.size() <= sizeof(GLenum)) return 0;
++    GLenum format;
++    memcpy(&format, blob.data(), sizeof(format));
++    GLuint program = glCreateProgram();
++    glProgramBinary(program, format, blob.data() + sizeof(format), static_cast<GLsizei>(blob.size() - sizeof(format)));
++    GLint linked = GL_FALSE;
++    glGetProgramiv(program, GL_LINK_STATUS, &linked);
++    if (linked) return program;
++    glDeleteProgram(program);
++    // A rejected driver binary is a cache miss. Clear its GL errors before rebuilding.
++    while (glGetError() != GL_NO_ERROR) {}
++#endif
++    return 0;
++}
++
++void GfxRenderingAPIOGL::StoreProgramBinary(uint64_t key, GLuint program) {
++#ifndef __EMSCRIPTEN__
++    if (!mProgramBinaries) return;
++    GLint size = 0;
++    glGetProgramiv(program, GL_PROGRAM_BINARY_LENGTH, &size);
++    if (size <= 0) return;
++    std::vector<char> blob(sizeof(GLenum) + size);
++    GLenum format;
++    glGetProgramBinary(program, size, &size, &format, blob.data() + sizeof(format));
++    memcpy(blob.data(), &format, sizeof(format));
++    if (size > 0) mShaderCache.Store(key, blob.data(), sizeof(format) + size);
++#endif
++}
++
++ShaderProgram* GfxRenderingAPIOGL::CreateAndLoadNewShader(uint64_t shader_id0, uint64_t shader_id1) {
++    CCFeatures cc_features;
++    gfx_cc_get_features(shader_id0, shader_id1, &cc_features);
++    const auto fs_buf = BuildFsShader(cc_features);
++    const auto vs_buf = BuildVsShader(cc_features);
++    if (const char* dumpDir = getenv("PORT_GL_DUMP_SHADERS")) { // debug: the generated GLSL, one file per shader
++        char path[1024];
++        snprintf(path, sizeof path, "%s/%016llx_%016llx.glsl", dumpDir, (unsigned long long)shader_id0,
++                 (unsigned long long)shader_id1);
++        if (FILE* f = fopen(path, "w")) {
++            fprintf(f, "// vertex\n%s\n// fragment\n%s\n", vs_buf.c_str(), fs_buf.c_str());
++            fclose(f);
++        }
++    }
++    const bool dualSource = DualSource() && cc_features.opt_alpha;
++    const uint64_t key = ShaderDiskCache::Hash({mDriverIdentity, vs_buf, fs_buf, dualSource ? "dual" : "single"});
++    GLuint shader_program = LoadProgramBinary(key);
++    if (shader_program == 0) {
++        shader_program = CompileProgram(vs_buf, fs_buf, dualSource);
++        StoreProgramBinary(key, shader_program);
++    }
  
      size_t cnt = 0;
  
-@@ -560,6 +636,7 @@ GLuint GfxRenderingAPIOGL::NewTexture() {
+@@ -560,6 +686,7 @@ GLuint GfxRenderingAPIOGL::NewTexture() {
      GLuint ret;
      glGenTextures(1, &ret);
      textures.resize(std::max(textures.size(), (size_t)ret + 1));
@@ -2423,7 +2814,7 @@ index 6c4dfc86..7e739df9 100644
      return ret;
  }
  
-@@ -584,9 +661,17 @@ void GfxRenderingAPIOGL::UploadTexture(const uint8_t* rgba32_buf, uint32_t width
+@@ -584,9 +711,17 @@ void GfxRenderingAPIOGL::UploadTexture(const uint8_t* rgba32_buf, uint32_t width
      if (width == 0 || height == 0) {
          return;
      }
@@ -2443,7 +2834,7 @@ index 6c4dfc86..7e739df9 100644
  }
  
  #ifdef USE_OPENGLES
-@@ -730,7 +815,17 @@ void GfxRenderingAPIOGL::Init() {
+@@ -730,7 +865,17 @@ void GfxRenderingAPIOGL::Init() {
      glEnable(GL_DEPTH_CLAMP);
  #endif
      glDepthFunc(GL_LEQUAL);
@@ -2462,7 +2853,41 @@ index 6c4dfc86..7e739df9 100644
  
      mFrameBuffers.resize(1); // for the default screen buffer
  
-@@ -759,6 +854,15 @@ void GfxRenderingAPIOGL::StartFrame() {
+@@ -748,6 +893,33 @@ void GfxRenderingAPIOGL::Init() {
+
+     glGetIntegerv(GL_MAX_SAMPLES, &mMaxMsaaLevel);
+
++#ifndef __EMSCRIPTEN__
++#ifdef FAST_GFX_OPENGL_USE_GLEW
++    mProgramBinaries = (GLEW_VERSION_4_1 || GLEW_ARB_get_program_binary) &&
++                      glProgramBinary && glGetProgramBinary && glProgramParameteri;
++#elif defined(USE_OPENGLES)
++    mProgramBinaries = true;
++#else
++    mProgramBinaries = SDL_GL_ExtensionSupported("GL_ARB_get_program_binary");
++#endif
++    if (mProgramBinaries) {
++        GLint formats = 0;
++        glGetIntegerv(GL_NUM_PROGRAM_BINARY_FORMATS, &formats);
++        mProgramBinaries = formats > 0;
++    }
++    if (mProgramBinaries) {
++        mShaderCache.Open("opengl");
++        for (GLenum name : {GL_VENDOR, GL_RENDERER, GL_VERSION}) {
++            const auto value = glGetString(name);
++            mDriverIdentity += value ? reinterpret_cast<const char*>(value) : "";
++            mDriverIdentity += '\n';
++        }
++    }
++    if (getenv("PORT_TRACE_SHADER_CACHE")) {
++        fprintf(stderr, "[shader-cache] OpenGL program binaries %s\n", mProgramBinaries ? "supported" : "unavailable");
++    }
++#endif
++
+     sOGLResourceManager = mResourceManager;
+ }
+
+@@ -759,6 +931,15 @@ void GfxRenderingAPIOGL::StartFrame() {
  }
  
  void GfxRenderingAPIOGL::EndFrame() {
@@ -2478,7 +2903,7 @@ index 6c4dfc86..7e739df9 100644
      glFlush();
  }
  
-@@ -797,10 +901,19 @@ int GfxRenderingAPIOGL::CreateFramebuffer() {
+@@ -797,10 +978,19 @@ int GfxRenderingAPIOGL::CreateFramebuffer() {
      return i;
  }
  
@@ -2498,7 +2923,7 @@ index 6c4dfc86..7e739df9 100644
  
      width = std::max(width, 1U);
      height = std::max(height, 1U);
-@@ -808,16 +921,45 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
+@@ -808,16 +998,45 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
  
      glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo);
  
@@ -2546,7 +2971,7 @@ index 6c4dfc86..7e739df9 100644
                  glBindRenderbuffer(GL_RENDERBUFFER, 0);
                  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, fb.clrbufMsaa);
              }
-@@ -841,6 +983,35 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
+@@ -841,6 +1060,35 @@ void GfxRenderingAPIOGL::UpdateFramebufferParameters(int fb_id, uint32_t width,
          }
      }
  
@@ -2582,7 +3007,7 @@ index 6c4dfc86..7e739df9 100644
      fb.width = width;
      fb.height = height;
      fb.has_depth_buffer = has_depth_buffer;
-@@ -856,6 +1027,27 @@ void GfxRenderingAPIOGL::StartDrawToFramebuffer(int fb_id, float noise_scale) {
+@@ -856,6 +1104,27 @@ void GfxRenderingAPIOGL::StartDrawToFramebuffer(int fb_id, float noise_scale) {
      }
      glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo);
      mCurrentFrameBuffer = fb_id;
@@ -2610,7 +3035,7 @@ index 6c4dfc86..7e739df9 100644
  }
  
  void GfxRenderingAPIOGL::ClearFramebuffer(bool color, bool depth) {
-@@ -928,6 +1120,10 @@ void GfxRenderingAPIOGL::SelectTextureFb(int fb_id) {
+@@ -928,6 +1197,10 @@ void GfxRenderingAPIOGL::SelectTextureFb(int fb_id) {
      if (texId >= textures.size()) {
          textures.resize((size_t)texId + 1);
      }
@@ -2621,7 +3046,7 @@ index 6c4dfc86..7e739df9 100644
      SelectTexture(tile, texId);
  }
  
-@@ -1003,6 +1199,9 @@ void GfxRenderingAPIOGL::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0
+@@ -1003,6 +1276,9 @@ void GfxRenderingAPIOGL::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0
      }
  }
  
@@ -2631,7 +3056,7 @@ index 6c4dfc86..7e739df9 100644
  void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFrameBuffers.size()) {
          return;
-@@ -1016,7 +1215,30 @@ void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_
+@@ -1016,7 +1292,30 @@ void GfxRenderingAPIOGL::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_
  
      std::vector<uint8_t> rgba8(width * height * 4);
      glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba8.data());
@@ -2811,12 +3236,140 @@ index c8bc6cd..00000000 100644
      uint64_t t = qpc_to_100ns(SDL_GetPerformanceCounter());
  
      const int64_t next = previous_time + 10 * FRAME_INTERVAL_US_NUMERATOR / FRAME_INTERVAL_US_DENOMINATOR;
+diff --git a/src/fast/backends/gfx_shader_cache.cpp b/src/fast/backends/gfx_shader_cache.cpp
+new file mode 100644
+index 00000000..59b58813
+--- /dev/null
++++ b/src/fast/backends/gfx_shader_cache.cpp
+@@ -0,0 +1,122 @@
++// Adapted from Kenix3/libultraship 37daaa66 (Ghostship).
++#include "fast/backends/gfx_shader_cache.h"
++
++#include <array>
++#include <atomic>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <fstream>
++#include "ship/core/Context.h"
++
++#ifdef _WIN32
++#include <windows.h>
++#include <process.h>
++#else
++#include <unistd.h>
++#endif
++
++namespace Fast {
++namespace {
++constexpr size_t kMaxBlobSize = 32 * 1024 * 1024;
++constexpr std::array<char, 8> kMagic = { 'S', 'T', 'D', 'S', 'H', 'D', 'R', '1' };
++
++bool TraceCache() {
++    static const bool enabled = getenv("PORT_TRACE_SHADER_CACHE") != nullptr;
++    return enabled;
++}
++} // namespace
++
++uint64_t ShaderDiskCache::Hash(std::initializer_list<std::string_view> parts) {
++    uint64_t hash = 0xcbf29ce484222325ULL;
++    for (auto part : parts) {
++        // A separator length prevents different divisions of the same text colliding.
++        uint64_t size = part.size();
++        for (unsigned i = 0; i < 8; ++i) {
++            hash = (hash ^ ((size >> (i * 8)) & 255)) * 0x100000001b3ULL;
++        }
++        for (unsigned char byte : part) hash = (hash ^ byte) * 0x100000001b3ULL;
++    }
++    return hash;
++}
++
++void ShaderDiskCache::Open(const char* backend) {
++    mDir.clear();
++    if (getenv("PORT_NO_SHADER_DISK_CACHE")) return;
++    auto path = std::filesystem::u8path(Ship::Context::GetPathRelativeToAppDirectory("shadercache")) / backend;
++    std::error_code ec;
++    std::filesystem::create_directories(path, ec);
++    if (!ec) mDir = std::move(path);
++}
++
++std::filesystem::path ShaderDiskCache::PathFor(uint64_t key) const {
++    char name[32];
++    snprintf(name, sizeof(name), "%016llx.bin", static_cast<unsigned long long>(key));
++    return mDir / name;
++}
++
++std::vector<char> ShaderDiskCache::Load(uint64_t key) const {
++    if (mDir.empty()) return {};
++    std::ifstream in(PathFor(key), std::ios::binary | std::ios::ate);
++    const auto length = in.tellg();
++    constexpr size_t headerSize = kMagic.size() + sizeof(uint64_t) * 2;
++    if (length <= static_cast<std::streamoff>(headerSize) ||
++        length > static_cast<std::streamoff>(headerSize + kMaxBlobSize)) return {};
++    in.seekg(0);
++    std::array<char, 8> magic{};
++    uint64_t storedKey = 0, checksum = 0;
++    in.read(magic.data(), magic.size());
++    in.read(reinterpret_cast<char*>(&storedKey), sizeof(storedKey));
++    in.read(reinterpret_cast<char*>(&checksum), sizeof(checksum));
++    std::vector<char> data(static_cast<size_t>(length) - headerSize);
++    in.read(data.data(), data.size());
++    if (!in || magic != kMagic || storedKey != key ||
++        Hash({ std::string_view(data.data(), data.size()) }) != checksum) return {};
++    if (TraceCache()) fprintf(stderr, "[shader-cache] %s hit %016llx\n",
++                              mDir.filename().string().c_str(), static_cast<unsigned long long>(key));
++    return data;
++}
++
++void ShaderDiskCache::Store(uint64_t key, const void* data, size_t size) const {
++    if (mDir.empty() || size == 0 || size > kMaxBlobSize) return;
++    static std::atomic<uint64_t> sequence{0};
++#ifdef _WIN32
++    const int pid = _getpid();
++#else
++    const int pid = getpid();
++#endif
++    const auto path = PathFor(key);
++    auto tmp = path;
++    tmp += "." + std::to_string(pid) + "." + std::to_string(sequence.fetch_add(1)) + ".tmp";
++    const uint64_t checksum = Hash({ std::string_view(static_cast<const char*>(data), size) });
++    {
++        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
++        out.write(kMagic.data(), kMagic.size());
++        out.write(reinterpret_cast<const char*>(&key), sizeof(key));
++        out.write(reinterpret_cast<const char*>(&checksum), sizeof(checksum));
++        out.write(static_cast<const char*>(data), size);
++        out.close();
++        if (!out) {
++            std::error_code ec;
++            std::filesystem::remove(tmp, ec);
++            return;
++        }
++    }
++    // Unique temporary names also allow multiple warm-up workers or game instances.
++#ifdef _WIN32
++    const bool saved = MoveFileExW(tmp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING) != 0;
++#else
++    std::error_code ec;
++    std::filesystem::rename(tmp, path, ec);
++    const bool saved = !ec;
++#endif
++    if (!saved) {
++        std::error_code ec;
++        std::filesystem::remove(tmp, ec);
++    } else if (TraceCache()) {
++        fprintf(stderr, "[shader-cache] %s stored %016llx (%zu bytes)\n",
++                mDir.filename().string().c_str(), static_cast<unsigned long long>(key), size);
++    }
++}
++
++} // namespace Fast
 diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
 new file mode 100644
-index 0000000000000000000000000000000000000000..c86f0e6ffb0d8c94fc3928d73fd5f23d2bae39b6
+index 00000000..e3259f21
 --- /dev/null
 +++ b/src/fast/backends/gfx_vulkan.cpp
-@@ -0,0 +1,2824 @@
+@@ -0,0 +1,2838 @@
 +//
 +//  gfx_vulkan.cpp
 +//  libultraship
@@ -2898,7 +3451,19 @@ index 0000000000000000000000000000000000000000..c86f0e6ffb0d8c94fc3928d73fd5f23d
 +
 +// Returns an empty vector (and logs the error with the numbered source) when the source does not compile. Thread-safe
 +// (glslang_initialize_process ran in VulkanInit).
-+static std::vector<uint32_t> CompileGlslToSpirv(const std::string& source, bool vertex) {
++static std::vector<uint32_t> CompileGlslToSpirv(const ShaderDiskCache& cache, const std::string& source, bool vertex) {
++    glslang_version_t version{};
++    glslang_get_version(&version);
++    const std::string compiler = std::to_string(version.major) + "." + std::to_string(version.minor) + "." +
++                                 std::to_string(version.patch) + (version.flavor ? version.flavor : "");
++    const uint64_t key = ShaderDiskCache::Hash({source, vertex ? "vertex" : "fragment", compiler,
++                                               "vulkan1.1-spv1.3-default-v1"});
++    const auto cached = cache.Load(key);
++    if (cached.size() >= 5 * sizeof(uint32_t) && cached.size() % sizeof(uint32_t) == 0) {
++        std::vector<uint32_t> code(cached.size() / sizeof(uint32_t));
++        memcpy(code.data(), cached.data(), cached.size());
++        if (code[0] == 0x07230203 && code[3] != 0 && code[4] == 0) return code;
++    }
 +    glslang_input_t input = {};
 +    input.language = GLSLANG_SOURCE_GLSL;
 +    input.stage = vertex ? GLSLANG_STAGE_VERTEX : GLSLANG_STAGE_FRAGMENT;
@@ -2941,6 +3506,7 @@ index 0000000000000000000000000000000000000000..c86f0e6ffb0d8c94fc3928d73fd5f23d
 +        glslang_program_delete(program);
 +    }
 +    glslang_shader_delete(shader);
++    if (!spirv.empty()) cache.Store(key, spirv.data(), spirv.size() * sizeof(uint32_t));
 +    return spirv;
 +}
 +
@@ -3602,6 +4168,7 @@ index 0000000000000000000000000000000000000000..c86f0e6ffb0d8c94fc3928d73fd5f23d
 +// MARK: - ImGui & SDL hooks (called from Fast3dGui)
 +
 +bool GfxRenderingAPIVK::VulkanInit(SDL_Window* window) {
++    mShaderCache.Open("vulkan-spirv");
 +    mWindow = window;
 +    glslang_initialize_process();
 +
@@ -3869,10 +4436,10 @@ index 0000000000000000000000000000000000000000..c86f0e6ffb0d8c94fc3928d73fd5f23d
 +
 +    // debug: PORT_VK_SELFTEST=1 compiles a trivial shader pair (checks the glslang wiring)
 +    if (getenv("PORT_VK_SELFTEST") != nullptr) {
-+        auto vs = CompileGlslToSpirv("#version 450\nlayout(location = 0) in vec4 aPos;\n"
++        auto vs = CompileGlslToSpirv(mShaderCache, "#version 450\nlayout(location = 0) in vec4 aPos;\n"
 +                                     "void main() { gl_Position = aPos; }\n",
 +                                     true);
-+        auto fs = CompileGlslToSpirv("#version 450\nlayout(location = 0, index = 0) out vec4 o0;\n"
++        auto fs = CompileGlslToSpirv(mShaderCache, "#version 450\nlayout(location = 0, index = 0) out vec4 o0;\n"
 +                                     "layout(location = 0, index = 1) out vec4 o1;\n"
 +                                     "void main() { o0 = vec4(1.0); o1 = vec4(0.5); }\n",
 +                                     false);
@@ -4285,8 +4852,8 @@ index 0000000000000000000000000000000000000000..c86f0e6ffb0d8c94fc3928d73fd5f23d
 +            fclose(f);
 +        }
 +    }
-+    const std::vector<uint32_t> vsSpirv = CompileGlslToSpirv(vsSource, true);
-+    const std::vector<uint32_t> fsSpirv = CompileGlslToSpirv(fsSource, false);
++    const std::vector<uint32_t> vsSpirv = CompileGlslToSpirv(mShaderCache, vsSource, true);
++    const std::vector<uint32_t> fsSpirv = CompileGlslToSpirv(mShaderCache, fsSource, false);
 +    if (vsSpirv.empty() || fsSpirv.empty()) {
 +        SPDLOG_ERROR("Vulkan: shader {:016x}/{:016x} does not compile, its draws are skipped", shaderId0, shaderId1);
 +        return built;
@@ -5642,7 +6209,7 @@ index 0000000000000000000000000000000000000000..c86f0e6ffb0d8c94fc3928d73fd5f23d
 +
 +#endif
 diff --git a/src/fast/interpreter.cpp b/src/fast/interpreter.cpp
-index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b00c692cfc 100644
+index a1907a13..62915765 100644
 --- a/src/fast/interpreter.cpp
 +++ b/src/fast/interpreter.cpp
 @@ -11,6 +11,7 @@
@@ -5976,7 +6543,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  
  static UcodeHandlers ucode_handler_index = ucode_f3dex2;
  
-@@ -135,25 +438,114 @@ void GfxSetInstance(std::shared_ptr<Interpreter> gfx) {
+@@ -135,25 +438,134 @@ void GfxSetInstance(std::shared_ptr<Interpreter> gfx) {
  // N64 prim_depth is 15-bit (0 near, 0x7FFF far).
  static constexpr float N64_PRIM_DEPTH_MAX = 32767.0f;
  
@@ -5989,9 +6556,27 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
 +    unsigned calls = 0;
 +};
 +
-+bool TraceRenderTiming() {
++bool TraceRenderFrames() {
 +    static const bool enabled = getenv("PORT_TRACE_RENDER_TIMING") != nullptr;
 +    return enabled;
++}
++
++bool TraceRenderSpikes() {
++    static const bool enabled = getenv("PORT_TRACE_RENDER_SPIKES") != nullptr;
++    return enabled;
++}
++
++bool TraceRenderTiming() {
++    return TraceRenderFrames() || TraceRenderSpikes();
++}
++
++double RenderSpikeLimit() {
++    static const double limit = [] {
++        const char* value = getenv("PORT_RENDER_SPIKE_MS");
++        const double parsed = value ? atof(value) : 50.0;
++        return parsed > 0 ? parsed : 50.0;
++    }();
++    return limit;
 +}
 +
 +struct TimeRenderCall {
@@ -6009,6 +6594,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
 +};
 +
 +RenderTiming sUploadTiming, sDrawTiming, sShaderTiming;
++size_t sTriangleCount = 0;
 +
 +void UploadTimed(Fast::GfxRenderingAPI* api, const uint8_t* pixels, uint32_t width, uint32_t height) {
 +    TimeRenderCall timer(sUploadTiming);
@@ -6022,6 +6608,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
 -        mRapi->DrawTriangles(mBufVbo, mBufVboLen, mBufVboNumTris);
 +        {
 +            TimeRenderCall timer(sDrawTiming);
++            if (TraceRenderTiming()) sTriangleCount += mBufVboNumTris;
 +            mRapi->DrawTriangles(mBufVbo, mBufVboLen, mBufVboNumTris);
 +        }
          mBufVboLen = 0;
@@ -6092,7 +6679,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  const char* Interpreter::CCMUXtoStr(uint32_t ccmux) {
      static constexpr std::array tbl = {
          "G_CCMUX_COMBINED",
-@@ -547,26 +939,20 @@ std::string_view Interpreter::GetBaseTexturePath(std::string_view path) {
+@@ -547,26 +959,20 @@ std::string_view Interpreter::GetBaseTexturePath(std::string_view path) {
  }
  
  void Interpreter::TextureCacheDelete(const uint8_t* origAddr) {
@@ -6131,7 +6718,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      }
  }
  
-@@ -591,6 +977,49 @@ static uint32_t GetTileSizeFromCoordinates(float low, float high) {
+@@ -591,6 +997,49 @@ static uint32_t GetTileSizeFromCoordinates(float low, float high) {
      return static_cast<uint32_t>(lroundf((high - low + 4.0f) / 4.0f));
  }
  
@@ -6181,7 +6768,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
      const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
      const uint8_t* addr =
-@@ -669,7 +1098,10 @@ void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
+@@ -669,7 +1118,10 @@ void Interpreter::ImportTextureRgba16(int tile, bool importReplacement) {
          }
      }
  
@@ -6193,7 +6780,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  }
  
  void Interpreter::ImportTextureRgba32(int tile, bool importReplacement) {
-@@ -741,7 +1173,10 @@ void Interpreter::ImportTextureRgba32(int tile, bool importReplacement) {
+@@ -741,7 +1193,10 @@ void Interpreter::ImportTextureRgba32(int tile, bool importReplacement) {
              i++;
          }
      }
@@ -6205,7 +6792,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  }
  
  void Interpreter::ImportTextureIA4(int tile, bool importReplacement) {
-@@ -787,7 +1222,7 @@ void Interpreter::ImportTextureIA4(int tile, bool importReplacement) {
+@@ -787,7 +1242,7 @@ void Interpreter::ImportTextureIA4(int tile, bool importReplacement) {
          }
      }
  
@@ -6214,7 +6801,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  }
  
  void Interpreter::ImportTextureIA8(int tile, bool importReplacement) {
-@@ -830,7 +1265,7 @@ void Interpreter::ImportTextureIA8(int tile, bool importReplacement) {
+@@ -830,7 +1285,7 @@ void Interpreter::ImportTextureIA8(int tile, bool importReplacement) {
          }
      }
  
@@ -6223,7 +6810,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  }
  
  void Interpreter::ImportTextureIA16(int tile, bool importReplacement) {
-@@ -881,9 +1316,11 @@ void Interpreter::ImportTextureIA16(int tile, bool importReplacement) {
+@@ -881,9 +1336,11 @@ void Interpreter::ImportTextureIA16(int tile, bool importReplacement) {
          }
      }
  
@@ -6236,7 +6823,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
      const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
      const uint8_t* addr =
-@@ -920,21 +1357,17 @@ void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
+@@ -920,21 +1377,17 @@ void Interpreter::ImportTextureI4(int tile, bool importReplacement) {
  
              uint8_t byte = addr[clrIdx / 2];
              uint8_t part = (byte >> (4 - (clrIdx % 2) * 4)) & 0xf;
@@ -6264,7 +6851,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  }
  
  void Interpreter::ImportTextureI8(int tile, bool importReplacement) {
-@@ -975,7 +1408,7 @@ void Interpreter::ImportTextureI8(int tile, bool importReplacement) {
+@@ -975,7 +1428,7 @@ void Interpreter::ImportTextureI8(int tile, bool importReplacement) {
          }
      }
  
@@ -6273,7 +6860,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  }
  
  void Interpreter::ImportTextureCi4(int tile, bool importReplacement) {
-@@ -1069,7 +1502,10 @@ void Interpreter::ImportTextureCi4(int tile, bool importReplacement) {
+@@ -1069,7 +1522,10 @@ void Interpreter::ImportTextureCi4(int tile, bool importReplacement) {
          }
      }
  
@@ -6285,7 +6872,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  }
  
  void Interpreter::ImportTextureCi8(int tile, bool importReplacement) {
-@@ -1151,7 +1587,10 @@ void Interpreter::ImportTextureCi8(int tile, bool importReplacement) {
+@@ -1151,7 +1607,10 @@ void Interpreter::ImportTextureCi8(int tile, bool importReplacement) {
          height = tile_h;
      }
  
@@ -6297,7 +6884,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  }
  
  void Interpreter::ImportTextureImg(int tile, bool importReplacement) {
-@@ -1169,7 +1608,7 @@ void Interpreter::ImportTextureImg(int tile, bool importReplacement) {
+@@ -1169,7 +1628,7 @@ void Interpreter::ImportTextureImg(int tile, bool importReplacement) {
  
      uint16_t width = metadata->width;
      uint16_t height = metadata->height;
@@ -6306,7 +6893,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  }
  
  void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
-@@ -1217,7 +1656,7 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
+@@ -1217,7 +1676,7 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
  
      if (resultNewLineSize == 4 * width && resultNewHeight == height) {
          // Can use the texture directly since it has the correct dimensions
@@ -6315,7 +6902,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
          return;
      }
  
-@@ -1265,16 +1704,46 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
+@@ -1265,16 +1724,46 @@ void Interpreter::ImportTextureRaw(int tile, bool importReplacement) {
              uploadHeight = resultNewHeight;
          }
      }
@@ -6363,7 +6950,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  
      const RawTexMetadata* metadata = &mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata;
      const uint8_t* origAddr =
-@@ -1332,6 +1801,56 @@ void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {
+@@ -1332,6 +1821,56 @@ void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {
      } else {
          key = { origAddr, {}, fmt, siz, paletteIndex, origSizeBytes };
      }
@@ -6420,7 +7007,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  
      if (TextureCacheLookup(i, key)) {
          return;
-@@ -1470,7 +1989,7 @@ void Interpreter::ImportTextureMask(int i, int tile) {
+@@ -1470,7 +2009,7 @@ void Interpreter::ImportTextureMask(int i, int tile) {
          }
      }
  
@@ -6429,7 +7016,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  }
  
  void Interpreter::NormalizeVector(float v[3]) {
-@@ -1505,9 +2024,13 @@ void Interpreter::CalculateNormalDir(const F3DLight_t* light, float coeffs[3]) {
+@@ -1505,9 +2044,13 @@ void Interpreter::CalculateNormalDir(const F3DLight_t* light, float coeffs[3]) {
  }
  
  void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
@@ -6444,7 +7031,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
          for (int i = 0; i < 4; i++) {
              for (int j = 0; j < 4; j++) {
                  float v = it->second.mf[i][j];
-@@ -1532,6 +2055,20 @@ void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
+@@ -1532,6 +2075,20 @@ void Interpreter::GfxSpMatrix(uint8_t parameters, const int32_t* addr) {
  #endif
      }
  
@@ -6465,7 +7052,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      const int8_t mtx_projection = get_attr(MTX_PROJECTION);
      const int8_t mtx_load = get_attr(MTX_LOAD);
      const int8_t mtx_push = get_attr(MTX_PUSH);
-@@ -1600,6 +2137,8 @@ void Interpreter::AdjustWidthHeightForScale(uint32_t& width, uint32_t& height, u
+@@ -1600,6 +2157,8 @@ void Interpreter::AdjustWidthHeightForScale(uint32_t& width, uint32_t& height, u
  }
  
  void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx* vertices) {
@@ -6474,7 +7061,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      for (size_t i = 0; i < n_vertices; i++, dest_index++) {
          const F3DVtx_t* v = &vertices[i].v;
          const F3DVtx_tn* vn = &vertices[i].n;
-@@ -1626,6 +2165,11 @@ void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx
+@@ -1626,6 +2185,11 @@ void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx
              world_pos[2] = v->ob[0] * mtx[0][2] + v->ob[1] * mtx[1][2] + v->ob[2] * mtx[2][2] + mtx[3][2];
          }
  
@@ -6486,7 +7073,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
          x = AdjXForAspectRatio(x);
  
          short U = v->tc[0] * mRsp->texture_scaling_factor.s >> 16;
-@@ -1640,6 +2184,16 @@ void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx
+@@ -1640,6 +2204,16 @@ void Interpreter::GfxSpVertex(size_t n_vertices, size_t dest_index, const F3DVtx
                  static const Light_t lookat_y = {{0, 0, 0}, 0, {0, 0, 0}, 0, {0, 127, 0}, 0};*/
                  CalculateNormalDir(&mRsp->lookat[0], mRsp->current_lookat_coeffs[0]);
                  CalculateNormalDir(&mRsp->lookat[1], mRsp->current_lookat_coeffs[1]);
@@ -6503,7 +7090,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
                  mRsp->lights_changed = false;
              }
  
-@@ -1798,6 +2352,27 @@ void Interpreter::GfxSpModifyVertex(uint16_t vtx_idx, uint8_t where, uint32_t va
+@@ -1798,6 +2372,27 @@ void Interpreter::GfxSpModifyVertex(uint16_t vtx_idx, uint8_t where, uint32_t va
      v->v = t;
  }
  
@@ -6531,7 +7118,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bool is_rect) {
      struct LoadedVertex* v1 = &mRsp->loaded_vertices[vtx1_idx];
      struct LoadedVertex* v2 = &mRsp->loaded_vertices[vtx2_idx];
-@@ -1805,11 +2380,86 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1805,11 +2400,86 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
      struct LoadedVertex* v_arr[3] = { v1, v2, v3 };
  
      // if (rand()%2) return;
@@ -6618,7 +7205,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  
      const uint32_t cull_both = get_attr(CULL_BOTH);
      const uint32_t cull_front = get_attr(CULL_FRONT);
-@@ -1876,10 +2526,25 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1876,10 +2546,25 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
              mRapi->SetViewport(mRdp->viewport.x, mRdp->viewport.y, mRdp->viewport.width, mRdp->viewport.height);
              mRenderingState.viewport = mRdp->viewport;
          }
@@ -6647,7 +7234,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
          }
          mRdp->viewport_or_scissor_changed = false;
      }
-@@ -1893,12 +2558,86 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1893,12 +2578,86 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
      uint8_t blend_src = mRdp->other_mode_l >> 30;
      bool use_blend_color = blend_src == G_BL_CLR_BL;
      bool use_fog = blend_src == G_BL_CLR_FOG || use_blend_color;
@@ -6734,7 +7321,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      bool use_grayscale = mRdp->grayscale;
      bool use_prim_depth = (mRdp->other_mode_l & G_ZS_PRIM) != 0;
  
-@@ -1965,6 +2704,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1965,6 +2724,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
  
      uint32_t tm = 0;
      uint32_t tex_width[2], tex_height[2], tex_width2[2], tex_height2[2];
@@ -6743,7 +7330,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      uint32_t effective_tile[2];
  
      for (int i = 0; i < 2; i++) {
-@@ -1977,9 +2718,39 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -1977,9 +2738,39 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
          effective_tile[i] = tile;
  
          if (comb->usedTextures[i]) {
@@ -6784,7 +7371,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
                  if (mRdp->loaded_texture[i].masked) {
                      ImportTextureMask(SHADER_FIRST_MASK_TEXTURE + i, tile);
                  }
-@@ -2058,6 +2829,18 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2058,6 +2849,18 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
                  tex_height[i] = tex_height2[i];
              }
  
@@ -6803,7 +7390,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
              uint32_t tex_width1 = tex_width[i] << (cms & G_TX_MIRROR);
              uint32_t tex_height1 = tex_height[i] << (cmt & G_TX_MIRROR);
  
-@@ -2153,6 +2936,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2153,6 +2956,8 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
  
              u -= mRdp->texture_tile[uv_tile].uls / 4.0f;
              v -= mRdp->texture_tile[uv_tile].ult / 4.0f;
@@ -6812,7 +7399,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  
              if ((mRdp->other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT) {
                  // Linear filter adds 0.5f to the coordinates
-@@ -2169,11 +2954,11 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2169,11 +2974,11 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
              bool clampT = tm & (1 << 2 * t + 1);
  
              if (clampS) {
@@ -6826,7 +7413,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
              }
          }
  
-@@ -2188,7 +2973,17 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
+@@ -2188,7 +2993,17 @@ void Interpreter::GfxSpTri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx
                  mBufVbo[mBufVboLen++] = mRdp->fog_color.r / 255.0f;
                  mBufVbo[mBufVboLen++] = mRdp->fog_color.g / 255.0f;
                  mBufVbo[mBufVboLen++] = mRdp->fog_color.b / 255.0f;
@@ -6845,7 +7432,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
              }
          }
  
-@@ -2371,11 +3166,16 @@ void Interpreter::CalcAndSetViewport(const F3DVp_t* viewport) {
+@@ -2371,11 +3186,16 @@ void Interpreter::CalcAndSetViewport(const F3DVp_t* viewport) {
      mRdp->viewport.height = height;
  
      AdjustVIewportOrScissor(&mRdp->viewport);
@@ -6862,7 +7449,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      switch (index) {
          case F3DEX2_G_MV_VIEWPORT:
              CalcAndSetViewport((const F3DVp_t*)data);
-@@ -2428,6 +3228,7 @@ void Interpreter::GfxSpMovewordF3dex2(uint8_t index, uint16_t offset, uintptr_t
+@@ -2428,6 +3248,7 @@ void Interpreter::GfxSpMovewordF3dex2(uint8_t index, uint16_t offset, uintptr_t
              break;
          case G_MW_SEGMENT: {
              int segNumber = offset / 4;
@@ -6870,7 +7457,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
              mSegmentPointers[segNumber] = data;
          } break;
          case G_MW_SEGMENT_INTERP: {
-@@ -2467,6 +3268,7 @@ void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t dat
+@@ -2467,6 +3288,7 @@ void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t dat
  }
  
  void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t tile, uint8_t on) {
@@ -6878,7 +7465,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      mRsp->texture_scaling_factor.s = sc;
      mRsp->texture_scaling_factor.t = tc;
      if (mRdp->first_tile_index != tile) {
-@@ -2478,6 +3280,27 @@ void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t
+@@ -2478,6 +3300,27 @@ void Interpreter::GfxSpTexture(uint16_t sc, uint16_t tc, uint8_t level, uint8_t
  }
  
  void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uint32_t lrx, uint32_t lry) {
@@ -6906,7 +7493,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      float x = ulx / 4.0f;
      float y = lry / 4.0f;
      float width = (lrx - ulx) / 4.0f;
-@@ -2495,6 +3318,7 @@ void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uin
+@@ -2495,6 +3338,7 @@ void Interpreter::GfxDpSetScissor(uint32_t mode, uint32_t ulx, uint32_t uly, uin
  
  void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t width, const char* texPath,
                                         uint32_t texFlags, RawTexMetadata rawTexMetdata, const void* addr) {
@@ -6914,7 +7501,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      // fprintf(stderr, "GfxDpSetTextureImage: %s (width=%d; size=0x%X)\n",
      //         rawTexMetdata.resource ? rawTexMetdata.resource->GetInitData()->Identifier.GetPath().c_str() : nullptr,
      //         width, size);
-@@ -2508,6 +3332,9 @@ void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t
+@@ -2508,6 +3352,9 @@ void Interpreter::GfxDpSetTextureImage(uint32_t format, uint32_t size, uint32_t
  void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_t tmem, uint8_t tile, uint32_t palette,
                                 uint32_t cmt, uint32_t maskt, uint32_t shiftt, uint32_t cms, uint32_t masks,
                                 uint32_t shifts) {
@@ -6924,7 +7511,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      // OTRTODO:
      // SUPPORT_CHECK(tmem == 0 || tmem == 256);
  
-@@ -2530,6 +3357,12 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
+@@ -2530,6 +3377,12 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
      mRdp->texture_tile[tile].line_size_bytes = line * 8;
  
      mRdp->texture_tile[tile].tmem = tmem;
@@ -6937,7 +7524,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      // mRdp->texture_tile[tile].tmem_index = tmem / 256; // tmem is the 64-bit word offset, so 256 words means 2 kB
  
      mRdp->texture_tile[tile].tmem_index =
-@@ -2540,6 +3373,7 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
+@@ -2540,6 +3393,7 @@ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_
  }
  
  void Interpreter::GfxDpSetTileSize(uint8_t tile, uint16_t uls, uint16_t ult, uint16_t lrs, uint16_t lrt) {
@@ -6945,7 +7532,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      mRdp->texture_tile[tile].uls = uls;
      mRdp->texture_tile[tile].ult = ult;
      mRdp->texture_tile[tile].lrs = lrs;
-@@ -2555,6 +3389,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
+@@ -2555,6 +3409,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
      const uint8_t* src = mRdp->texture_to_load.addr;
      uint32_t entryCount = high_index + 1;
      uint32_t byteCount = entryCount * 2;
@@ -6964,7 +7551,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  
      if (tmem >= 256) {
          // N64 TMEM palette area starts at tmem word 256. Each CI4 palette = 16 entries = 16 tmem words.
-@@ -2589,7 +3435,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
+@@ -2589,7 +3455,18 @@ void Interpreter::GfxDpLoadTlut(uint8_t tile, uint32_t high_index) {
      }
  }
  
@@ -6983,7 +7570,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      SUPPORT_CHECK(uls == 0);
      SUPPORT_CHECK(ult == 0);
  
-@@ -2658,6 +3515,11 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
+@@ -2658,6 +3535,11 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata = mRdp->texture_to_load.raw_tex_metadata;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].addr = mRdp->texture_to_load.addr;
@@ -6995,7 +7582,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      // fprintf(stderr, "GfxDpLoadBlock: line_size = 0x%x; orig = 0x%x; bpp=%d; lrs=%d\n", size_bytes,
      // orig_size_bytes,
      //         mRdp->texture_to_load.siz, lrs);
-@@ -2680,6 +3542,7 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
+@@ -2680,6 +3562,7 @@ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint3
  }
  
  void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t lrs, uint32_t lrt) {
@@ -7003,7 +7590,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      SUPPORT_CHECK(tile == G_TX_LOADTILE);
  
      uint32_t word_size_shift = 0;
-@@ -2731,6 +3594,15 @@ void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32
+@@ -2731,6 +3614,15 @@ void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata = mRdp->texture_to_load.raw_tex_metadata;
      mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].addr = mRdp->texture_to_load.addr + start_offset_bytes;
@@ -7019,7 +7606,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  
      const std::string_view texPath =
          mRdp->texture_to_load.raw_tex_metadata.resource != nullptr
-@@ -2870,8 +3742,10 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
+@@ -2870,8 +3762,10 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
      lrxf = lrxf / (4.0f * HALF_SCREEN_WIDTH(mActiveFrameBuffer)) - 1.0f;
      lryf = -(lryf / (4.0f * HALF_SCREEN_HEIGHT(mActiveFrameBuffer))) + 1.0f;
  
@@ -7032,7 +7619,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  
      struct LoadedVertex* ul = &mRsp->loaded_vertices[MAX_VERTICES + 0];
      struct LoadedVertex* ll = &mRsp->loaded_vertices[MAX_VERTICES + 1];
-@@ -2930,7 +3804,19 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
+@@ -2930,7 +3824,19 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
  
  void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry, uint8_t tile, int16_t uls,
                                          int16_t ult, int16_t dsdx, int16_t dtdy, bool flip) {
@@ -7053,7 +7640,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      uint64_t saved_combine_mode = mRdp->combine_mode;
      if ((mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE)) == G_CYC_COPY) {
          // Per RDP Command Summary Set Tile's shift s and this dsdx should be set to 4 texels
-@@ -2953,6 +3839,85 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
+@@ -2953,6 +3859,85 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
          dsdx = -dsdx;
          dtdy = -dtdy;
      }
@@ -7139,7 +7726,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      int16_t width = !flip ? lrx - ulx : lry - uly;
      int16_t height = !flip ? lry - uly : lrx - ulx;
      float lrs = ((uls << 7) + dsdx * width) >> 7;
-@@ -2985,7 +3950,34 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
+@@ -2985,7 +3970,34 @@ void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, i
      }
      mRdp->first_tile_index = tile;
  
@@ -7174,7 +7761,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      if (saved_tile != tile) {
          mRdp->textures_changed[0] = true;
          mRdp->textures_changed[1] = true;
-@@ -3043,6 +4035,11 @@ void Interpreter::GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_
+@@ -3043,6 +4055,11 @@ void Interpreter::GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_
  }
  
  void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry) {
@@ -7186,7 +7773,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      if (mRdp->color_image_address == mRdp->z_buf_address) {
          // Fullscreen Z clears are redundant — already done by glClear at frame start.
          bool isFullScreen = (ulx <= 0 && uly <= 0 && lrx >= (int32_t)(mNativeDimensions.width - 1) * 4 &&
-@@ -3078,6 +4075,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
+@@ -3078,6 +4095,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
      }
      uint32_t mode = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE));
  
@@ -7210,7 +7797,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      // Expand fullscreen fill rects to cover widescreen viewports.
      // Without this, screen clears and fades only cover the native 4:3 area.
      if (ulx == 0 && uly == 0) {
-@@ -3116,8 +4130,185 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
+@@ -3116,8 +4150,185 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
      mRdp->z_buf_address = zBufAddr;
  }
  
@@ -7396,7 +7983,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  }
  
  void Interpreter::GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode) {
-@@ -3252,7 +4443,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
+@@ -3252,7 +4463,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
                            (float)(1 << 10) * realSW, (float)(1 << 10) * realSH, false);
  }
  
@@ -7420,7 +8007,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      // Segmented?
      if (w1 & 1) {
          uint32_t segNum = (uint32_t)(w1 >> 24);
-@@ -3377,6 +4584,10 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3377,6 +4604,10 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      const char* filename = (const char*)(cmd)->words.w1;
      uint32_t p = C0(16, 8);
      uint32_t l = C0(0, 16);
@@ -7431,7 +8018,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      if (p == 7) {
          g_exec_stack.openDisp(filename, l);
      } else if (p == 8) {
-@@ -3389,10 +4600,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3389,10 +4620,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      return false;
  }
  
@@ -7456,7 +8043,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  
      gfx->GfxSpMatrix(C0(0, 8) ^ F3DEX2_G_MTX_PUSH, (const int32_t*)gfx->SegAddr(mtxAddr));
      return false;
-@@ -3632,7 +4857,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3632,7 +4877,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
  
@@ -7478,7 +8065,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  
      return false;
  }
-@@ -3736,16 +4974,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3736,16 +4994,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
  }
  
  // F3D, F3DEX, and F3DEX2 do the same thing but F3DEX2 has its own opcode number
@@ -7505,7 +8092,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
          (*cmd0) = subGFX;
          g_exec_stack.branch(cmd);
          return true; // shortcut cmd increment
-@@ -4018,7 +5266,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
+@@ -4018,7 +5286,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
      uintptr_t i = (uintptr_t)gfx->SegAddr(cmd->words.w1);
@@ -7577,7 +8164,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      char* imgData = (char*)i;
      uint32_t texFlags = 0;
      RawTexMetadata rawTexMetdata = {};
-@@ -4947,6 +6259,19 @@ static void gfx_step() {
+@@ -4947,6 +6279,19 @@ static void gfx_step() {
          } else {
              SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, for loaded ucode: {}", (uint8_t)opcode,
                              (uint32_t)ucode_handler_index);
@@ -7597,7 +8184,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
          }
      } else {
          SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, invalid ucode: {}", (uint8_t)opcode, (uint32_t)ucode_handler_index);
-@@ -5005,8 +6330,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
+@@ -5005,8 +6350,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
      mGameFb = mRapi->CreateFramebuffer();
      mGameFbMsaaResolved = mRapi->CreateFramebuffer();
  
@@ -7608,7 +8195,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  
      for (int i = 0; i < MAX_SEGMENT_POINTERS; i++) {
          mSegmentPointers[i] = 0;
-@@ -5109,16 +6434,28 @@ void Interpreter::StartFrame() {
+@@ -5109,16 +6454,28 @@ void Interpreter::StartFrame() {
  
      mPrvDimensions = mCurDimensions;
      mPrevNativeDimensions = mNativeDimensions;
@@ -7646,7 +8233,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
          }
          if (mMsaaLevel > 1 && !ViewportMatchesRendererResolution()) {
              mRapi->UpdateFramebufferParameters(mGameFbMsaaResolved, mCurDimensions.width, mCurDimensions.height, 1,
-@@ -5173,7 +6510,285 @@ void Interpreter::RunGuiOnly() {
+@@ -5173,7 +6530,291 @@ void Interpreter::RunGuiOnly() {
      }
  }
  
@@ -7917,7 +8504,13 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
  void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_replacements) {
 +    const bool traceTiming = TraceRenderTiming();
 +    const auto runStart = traceTiming ? RenderClock::now() : RenderClock::time_point{};
++    static RenderClock::time_point lastRunStart{};
++    const double gapMs = traceTiming && lastRunStart.time_since_epoch().count() != 0
++                             ? std::chrono::duration<double, std::milli>(runStart - lastRunStart).count()
++                             : 0;
 +    if (traceTiming) {
++        lastRunStart = runStart;
++        sTriangleCount = 0;
 +        sUploadTiming = {};
 +        sDrawTiming = {};
 +        sShaderTiming = {};
@@ -7932,7 +8525,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
      SpReset();
  
      mGetPixelDepthPending.clear();
-@@ -5184,17 +6799,38 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5184,17 +6825,38 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
      mRapi->UpdateFramebufferParameters(0, mGfxCurrentWindowDimensions.width, mGfxCurrentWindowDimensions.height, 1,
                                         false, true, true, !mRendersToFb);
      mRapi->StartFrame();
@@ -7972,7 +8565,7 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
          if (dbg->IsDebugging()) {
              g_exec_stack.gfx_path.push_back(cmd);
              if (dbg->HasBreakPoint(g_exec_stack.gfx_path)) {
-@@ -5209,10 +6845,24 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5209,10 +6871,26 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
              }
              g_exec_stack.gfx_path.pop_back();
          }
@@ -7990,14 +8583,29 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
 +    if (traceTiming) {
 +        const auto setupMs = std::chrono::duration<double, std::milli>(listStart - runStart).count();
 +        const auto listMs = std::chrono::duration<double, std::milli>(RenderClock::now() - listStart).count();
-+        fprintf(stderr, "[render] frame %llu setup=%.2f list=%.2f upload=%.2f/%u draw=%.2f/%u shader=%.2f/%u\n",
-+                (unsigned long long)Port_ViTick(), setupMs, listMs, sUploadTiming.ms, sUploadTiming.calls, sDrawTiming.ms,
-+                sDrawTiming.calls, sShaderTiming.ms, sShaderTiming.calls);
++        if (TraceRenderFrames()) {
++            fprintf(stderr, "[render] frame %llu setup=%.2f list=%.2f upload=%.2f/%u draw=%.2f/%u shader=%.2f/%u\n",
++                    (unsigned long long)Port_ViTick(), setupMs, listMs, sUploadTiming.ms, sUploadTiming.calls,
++                    sDrawTiming.ms, sDrawTiming.calls, sShaderTiming.ms, sShaderTiming.calls);
++        }
 +    }
      mGfxFrameBuffer = 0;
      currentDir = std::stack<std::string>();
  
-@@ -5239,10 +6889,19 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5236,13 +6914,41 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+
+         assert(0 && "active framebuffer was never reset back to original");
+     }
++    if (TraceRenderSpikes()) {
++        const double renderMs = std::chrono::duration<double, std::milli>(RenderClock::now() - runStart).count();
++        if (gapMs > RenderSpikeLimit() || renderMs > RenderSpikeLimit()) {
++            fprintf(stderr, "[render-spike] frame %llu gap=%.2f render=%.2f upload=%.2f/%u draw=%.2f/%u "
++                            "shader=%.2f/%u triangles=%zu\n",
++                    (unsigned long long)Port_ViTick(), gapMs, renderMs, sUploadTiming.ms, sUploadTiming.calls,
++                    sDrawTiming.ms, sDrawTiming.calls, sShaderTiming.ms, sShaderTiming.calls, sTriangleCount);
++        }
++    }
++
  }
  
  void Interpreter::EndFrame() {
@@ -8008,11 +8616,20 @@ index a1907a1382376bf8a959c6050b1cef8b88e8a0b5..a3215c9789aa923c4dee4b3df6bb61b0
 +    const auto submitEnd = traceTiming ? RenderClock::now() : RenderClock::time_point{};
      mWapi->SwapBuffersBegin();
      mRapi->FinishRender();
++    const auto presentEnd = traceTiming ? RenderClock::now() : RenderClock::time_point{};
      mWapi->SwapBuffersEnd();
 +    if (traceTiming) {
 +        const auto submitMs = std::chrono::duration<double, std::milli>(submitEnd - start).count();
 +        const auto presentMs = std::chrono::duration<double, std::milli>(RenderClock::now() - submitEnd).count();
-+        fprintf(stderr, "[render-end] frame %llu submit=%.2f present=%.2f\n", (unsigned long long)Port_ViTick(), submitMs, presentMs);
++        const auto waitMs = std::chrono::duration<double, std::milli>(RenderClock::now() - presentEnd).count();
++        if (TraceRenderFrames()) {
++            fprintf(stderr, "[render-end] frame %llu submit=%.2f present=%.2f swap_wait=%.2f\n",
++                    (unsigned long long)Port_ViTick(), submitMs, presentMs, waitMs);
++        }
++        if (TraceRenderSpikes() && submitMs + presentMs > RenderSpikeLimit()) {
++            fprintf(stderr, "[render-present-spike] frame %llu submit=%.2f present=%.2f swap_wait=%.2f\n",
++                    (unsigned long long)Port_ViTick(), submitMs, presentMs, waitMs);
++        }
 +    }
  }
  
