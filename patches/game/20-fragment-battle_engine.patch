@@ -1430,6 +1430,45 @@ index 1dff858894fb800233491ea564da3d885035f53b..999cbd50796b8559e914ac380dc24eda
  
      Vec3f_CrossProductComponents(sp84, sp80, sp7C, sp78, sp74, sp70, &sp68, &sp64, &sp60);
      Vec3f_CrossProductComponents(sp84, sp80, sp7C, sp68, sp64, sp60, &sp5C, &sp58, &sp54);
+diff --git a/src/fragments/battle_engine/battle_engine_34E1A0.c b/src/fragments/battle_engine/battle_engine_34E1A0.c
+index 66477ac9ced7779c75d8db6be49143fcc8697822..46920798e4f03e19f5111da86f65538b16b392a7 100644
+--- a/src/fragments/battle_engine/battle_engine_34E1A0.c
++++ b/src/fragments/battle_engine/battle_engine_34E1A0.c
+@@ -61,7 +61,7 @@ void Trail40_Init(s16 arg0) {
+             tmp3 = tmp1 * 0x10;
+             tmp2 = j * 0x20;
+ 
+-            var_v0->unk_00 = (i * 9.0f) - 72.0f;
++            var_v0->unk_00 = Port_WidenEffectGridX((i * 9.0f) - 72.0f); // PORT: covers a widescreen picture
+             var_v0->unk_04 = 1.0f;
+             var_v0->unk_08 = (j * 7.0f) - 56.0f;
+ 
+diff --git a/src/fragments/battle_engine/battle_engine_34F1A0.c b/src/fragments/battle_engine/battle_engine_34F1A0.c
+index 32ae143c9d2a34dc1c8721119b02a7d9cb3c10ed..dd8b99d838270941d8c167ec91bebdcc9b503f86 100644
+--- a/src/fragments/battle_engine/battle_engine_34F1A0.c
++++ b/src/fragments/battle_engine/battle_engine_34F1A0.c
+@@ -81,7 +81,7 @@ void Trail40Variant_InitPool(s16 arg0) {
+         for (j = 0; j < 16; j++) {
+             tmp1 = i * 0x20;
+ 
+-            var_v0->unk_00 = (i * 9.0f) - 72.0f;
++            var_v0->unk_00 = Port_WidenEffectGridX((i * 9.0f) - 72.0f); // PORT: covers a widescreen picture
+ 
+             var_v0->unk_1C = 0.0f;
+             var_v0->unk_04 = (__sinf(var_v0->unk_1C) * 0.5) + 1.0;
+diff --git a/src/fragments/battle_engine/battle_engine_3502D0.c b/src/fragments/battle_engine/battle_engine_3502D0.c
+index 5b3f1a5989453f1740cd4c199e53492bea743082..c5a8fe48a16f609ddbc9d427136d6bb60e96bd38 100644
+--- a/src/fragments/battle_engine/battle_engine_3502D0.c
++++ b/src/fragments/battle_engine/battle_engine_3502D0.c
+@@ -63,7 +63,7 @@ void Trail40GridAlt_Init(s16 arg0) {
+             tmp3 = tmp1 * 0x10;
+             tmp2 = j * 0x20;
+ 
+-            var_v0->unk_00 = (i * 9.0f) - 72.0f;
++            var_v0->unk_00 = Port_WidenEffectGridX((i * 9.0f) - 72.0f); // PORT: covers a widescreen picture
+             var_v0->unk_04 = 1.0f;
+             var_v0->unk_08 = (j * 7.0f) - 56.0f;
+ 
 diff --git a/src/fragments/battle_engine/battle_engine_357C30.c b/src/fragments/battle_engine/battle_engine_357C30.c
 index 9c78286fd6511c8769e7a4beef129caa7d7275df..578f06ca9ccd7b69e75a01429d22e0583c256692 100644
 --- a/src/fragments/battle_engine/battle_engine_357C30.c

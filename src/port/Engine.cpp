@@ -809,6 +809,13 @@ extern "C" float Port_WidenViewSpan(float span) {
     return Port::AspectSetting() == 1 ? span * (4.0f / 3.0f) : span;
 }
 
+// Port_WidenEffectGridX (port_compat.h): the effect grids span x -72..63 at 4:3, which puts their right edge at 0.94 of
+// the screen's half-width (their left edge at 1.08); in 16:9 the right edge has to reach 4/3 of it, so the grid is
+// widened by 1.45 about its centre (x 0: the screen's centre)
+extern "C" float Port_WidenEffectGridX(float x) {
+    return Port::AspectSetting() == 1 ? x * 1.45f : x;
+}
+
 // Port_WideMarginN64 (port_compat.h): N64 pixels beside the 4:3 frame on each side of the picture (16:9: 54, rounded up)
 extern "C" int Port_WideMarginN64(void) {
     return Port::AspectSetting() == 1 ? 54 : 0;
