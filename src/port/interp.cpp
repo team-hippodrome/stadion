@@ -40,6 +40,8 @@
 
 extern "C" uint64_t Port_ViTick();
 extern "C" double Port_Speed();
+extern "C" bool Port_RspTaskPending();
+extern "C" int64_t Port_ClockLagNs();
 
 namespace {
 using Replacements = std::unordered_map<Mtx*, MtxF>;
@@ -416,6 +418,12 @@ void RunGameFrame(void* gfxCommands, bool exact) {
 void PumpInterpolation() {
     if (!gHavePending) return;
     if (gMapGen.load() != gPending.mapGen) { // the game unloaded or moved data the display list may use
+        EndPending();
+        return;
+    }
+    // An in-between frame never holds up the game: when the game already waits for its next frame to be drawn, or
+    // game time lags behind real time (a slow GPU), the in-between frames still due are dropped.
+    if (Port_RspTaskPending() || Port_ClockLagNs() > 4000000) {
         EndPending();
         return;
     }

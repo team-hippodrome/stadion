@@ -599,6 +599,13 @@ uint64_t FramesDrawn() {
     return sFramesDrawn.load(std::memory_order_relaxed);
 }
 
+// PORT debug: PORT_DEBUG_DRAW_MS=<ms> makes every drawn frame (in-between frames too) take that much longer, as on a
+// slow GPU (an Intel HD 520 needs ~20-25 ms per battle frame), to test pacing and sound when drawing falls behind
+static void DebugDrawDelay() {
+    static const double sDrawDelayMs = getenv("PORT_DEBUG_DRAW_MS") ? atof(getenv("PORT_DEBUG_DRAW_MS")) : 0.0;
+    if (sDrawDelayMs > 0) std::this_thread::sleep_for(std::chrono::microseconds((long long)(sDrawDelayMs * 1000)));
+}
+
 bool RunFrame(void* gfxCommands) {
     return RunFrameWith(gfxCommands, nullptr, false);
 }
@@ -618,6 +625,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         interp->mReplayPass = true;
         interp->mReplayReadback = readBack; // (Metal reads the screen back at the end of the next frame)
         sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), replacements);
+        DebugDrawDelay();
         sFramesDrawn.fetch_add(1, std::memory_order_relaxed);
         interp->mReplayPass = false;
         interp->mReplayReadback = false;
@@ -675,6 +683,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
     auto drawStart = std::chrono::steady_clock::now();
     Port_BeforePresent();
     sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), replacements);
+    DebugDrawDelay();
     sFramesDrawn.fetch_add(1, std::memory_order_relaxed);
     Port_PacingNote(PORT_PACE_DRAWN, Port_SteadyNs());
     if (tracePacing) { // PORT_TRACE_PACING=1: presented frames more than 40 ms apart, and slow draws (os_devices.cpp)

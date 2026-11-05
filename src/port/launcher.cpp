@@ -6,6 +6,9 @@
 // again); Debug adds a button that opens the save editor (tools/save_editor, needs python3) in the browser. Controls
 // swaps the player cards for the key and controller bindings of each player (libultraship's ControlDeck mappings).
 // Renderer picks libultraship's window backend (Window.Backend.Id); it applies the next time the game starts.
+// Graphics swaps the player cards for the drawing settings (resolution scale, anti-aliasing, VSync, Smooth motion,
+// frame skipping when the graphics chip falls behind), with a preset for slow ones such as an Intel HD 520; they apply
+// at once and are kept in pokestadium.cfg.json.
 // Android (or PORT_LAUNCHER_HANDHELD=1) shows a handheld layout instead: the Stadium cartridge and a big PLAY, the
 // Transfer Pak cards and the controls on pages of their own, everything reachable with the gamepad (D-pad or stick
 // moves the focus, A presses, B goes back) as well as by touch.
@@ -947,11 +950,16 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(206, 14, "PC port · Transfer Pak", gFonts.body, Theme::dim);
         dl->AddRectFilled(P(0, 44), P(kW, 45), Hex(Theme::cardBorder));
         Tools();
+        if (getenv("PORT_LAUNCHER_OPEN_GRAPHICS") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
+            mGraphicsTestOpened = mGraphics = true;
+        }
 
         if (mTools) {
             ToolsPanel(16, 58, kW - 32, 366);
         } else if (mControls) {
             ControlsPanel(16, 58, kW - 32, 366);
+        } else if (mGraphics) {
+            GraphicsPanel(16, 58, kW - 32, 366);
         } else {
             for (int i = 0; i < 4; i++) {
                 PlayerCard(i, 16 + i * (222 + 14), 58, 222, 366);
@@ -1288,6 +1296,148 @@ class LauncherWindow : public Ship::GuiWindow {
         }
     }
 
+    // ---- graphics settings ----
+    // (libultraship's console variables: gInternalResolution, gMSAAValue, gVsyncEnabled; the port's gPort.Interpolate
+    // and gPort.FrameSkip, read by os_devices.cpp)
+    static constexpr float kScales[] = { 0.5f, 0.75f, 1.0f, 1.5f, 2.0f };
+    static constexpr int kMsaa[] = { 1, 2, 4, 8 };
+
+    static void SetResolutionScale(float scale) {
+        CVarSetFloat("gInternalResolution", scale);
+        Port::GetWindow()->SetResolutionMultiplier(scale);
+    }
+    static void SetMsaa(int level) {
+        CVarSetInteger("gMSAAValue", level);
+        Port::GetWindow()->SetMsaaLevel(level);
+    }
+
+    // a row of buttons, the chosen one highlighted; returns the index clicked, or -1
+    int Choice(const char* id, const std::vector<std::string>& labels, int chosen, float x, float y, float bw = 64) {
+        int clicked = -1;
+        ImGui::PushID(id);
+        for (int i = 0; i < (int)labels.size(); i++) {
+            ImGui::PushID(i);
+            const bool on = i == chosen;
+            if (ColorButton(labels[i].c_str(), x + i * (bw + 4), y, bw, 26, on ? 0x23406B : Theme::button,
+                            on ? 0x23406B : Theme::buttonHover)) {
+                clicked = i;
+            }
+            ImGui::PopID();
+        }
+        ImGui::PopID();
+        return clicked;
+    }
+
+    void GraphicsPanel(float x, float y, float w, float h) {
+        State& s = *mState;
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "GRAPHICS", gFonts.body, Theme::text);
+        Text(x + 110, y + 15, "Changes apply at once and are kept for the next start.", gFonts.small, Theme::dim);
+        if (Button("Done", x + w - 108, y + 9, 94, 26)) {
+            mGraphics = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+
+        const float lx = x + 14, cx = x + 190, tx = x + 560;
+        float ry = y + 58;
+        auto label = [&](const char* name, const char* hint) {
+            Text(lx, ry + 5, name, gFonts.body);
+            Text(tx, ry + 1, hint, gFonts.small, Theme::dim);
+        };
+
+        // resolution scale: the game is drawn at the window's size times this
+        {
+            const float scale = CVarGetFloat("gInternalResolution", 1.0f);
+            int chosen = -1;
+            for (int i = 0; i < (int)std::size(kScales); i++) {
+                if (std::fabs(scale - kScales[i]) < 0.01f) chosen = i;
+            }
+            label("Resolution", "Pixels drawn, relative to the window.\nLower is much faster on slow graphics chips.");
+            int c = Choice("res", { "50%", "75%", "100%", "150%", "200%" }, chosen, cx, ry);
+            if (c >= 0) SetResolutionScale(kScales[c]);
+            int ww = 0, wh = 0;
+            if (SDL_Window** ws = SDL_GetWindows(nullptr)) {
+                if (ws[0] != nullptr) SDL_GetWindowSizeInPixels(ws[0], &ww, &wh);
+                SDL_free(ws);
+            }
+            if (ww > 0) {
+                char buf[64];
+                snprintf(buf, sizeof buf, "draws %d x %d", (int)(ww * CVarGetFloat("gInternalResolution", 1.0f)),
+                         (int)(wh * CVarGetFloat("gInternalResolution", 1.0f)));
+                Text(lx, ry + 25, buf, gFonts.small, Theme::dim);
+            }
+        }
+        ry += 52;
+        // anti-aliasing (MSAA)
+        {
+            const int level = CVarGetInteger("gMSAAValue", 1);
+            int chosen = 0;
+            for (int i = 0; i < (int)std::size(kMsaa); i++) {
+                if (level == kMsaa[i]) chosen = i;
+            }
+            label("Anti-aliasing", "Smooths jagged edges (MSAA).\nCosts a lot on slow graphics chips: keep it off there.");
+            int c = Choice("msaa", { "Off", "2x", "4x", "8x" }, chosen, cx, ry);
+            if (c >= 0) SetMsaa(kMsaa[c]);
+        }
+        ry += 52;
+        // VSync
+        {
+            const bool on = CVarGetInteger("gVsyncEnabled", 1) != 0;
+            label("VSync", "Frames wait for the display's refresh: no tearing.\nOff can tear; it does not make the game faster.");
+            int c = Choice("vsync", { "On", "Off" }, on ? 0 : 1, cx, ry);
+            if (c >= 0) CVarSetInteger("gVsyncEnabled", c == 0 ? 1 : 0);
+        }
+        ry += 52;
+        // Smooth motion (frame interpolation)
+        {
+            label("Smooth motion", "In-between frames for 3D scenes, drawn between the game's\n30 or 20 frames per second. "
+                                   "Doubles the drawing work.");
+            int c = Choice("smooth", { "On", "Off" }, s.smooth ? 0 : 1, cx, ry);
+            if (c >= 0) {
+                s.smooth = c == 0;
+                mChanged = true;
+            }
+        }
+        ry += 52;
+        // frame skipping when drawing falls behind (os_devices.cpp, WantSkipWhileBehind)
+        {
+            const bool on = CVarGetInteger("gPort.FrameSkip", 1) != 0;
+            label("Keep full speed", "When the graphics chip cannot keep up, frames are skipped so\nthe game and its sound "
+                                     "keep their speed (off: slow motion).");
+            int c = Choice("skip", { "On", "Off" }, on ? 0 : 1, cx, ry);
+            if (c >= 0) CVarSetInteger("gPort.FrameSkip", c == 0 ? 1 : 0);
+        }
+
+        // presets
+        const float by = y + h - 40;
+        dl->AddRectFilled(P(x, by - 8), P(x + w, by - 7), Hex(Theme::cardBorder));
+        if (Button("Settings for slow graphics chips", lx, by, 236, 28)) {
+            SetResolutionScale(0.5f);
+            SetMsaa(1);
+            CVarSetInteger("gVsyncEnabled", 1);
+            CVarSetInteger("gPort.FrameSkip", 1);
+            s.smooth = false;
+            mChanged = true;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("For integrated graphics such as Intel HD 520: resolution 50%%, anti-aliasing and Smooth\n"
+                              "motion off, VSync and Keep full speed on. A smaller window helps as well.");
+        }
+        if (Button("Defaults", lx + 246, by, 90, 28)) {
+            SetResolutionScale(1.0f);
+            SetMsaa(1);
+            CVarSetInteger("gVsyncEnabled", 1);
+            CVarSetInteger("gPort.FrameSkip", 1);
+            s.smooth = false;
+            mChanged = true;
+        }
+        Text(lx + 350, by + 7, std::string("Renderer: ") + RendererName(ActiveRenderer()) +
+             " (change it below; DirectX or OpenGL can be faster on some chips)", gFonts.small, Theme::dim);
+        CVarSave();
+    }
+
     void BottomBar(float x, float y, float w, float h) {
         State& s = *mState;
         ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -1324,13 +1474,16 @@ class LauncherWindow : public Ship::GuiWindow {
             }
         }
         Check("Debug", &s.debug, x + 164, y + 88);
-        Check("Smooth motion", &s.smooth, x + 250, y + 88);
+        if (Button(mGraphics ? "Players" : "Graphics", x + 340, y + 86, 100, 26)) {
+            mGraphics = !mGraphics;
+            mControls = mTools = false;
+        }
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("3D scenes at the display's refresh rate: in-between frames are drawn between the game's\n"
-                              "own 30 or 20 frames per second (one game frame of extra delay)");
+            ImGui::SetTooltip("Resolution, anti-aliasing, VSync, Smooth motion; a preset for slow graphics chips");
         }
         if (Button(mControls ? "Players" : "Controls", x + 450, y + 86, 100, 26)) {
             mControls = !mControls;
+            mGraphics = mTools = false;
         }
         // the game picture's shape (the rest of the window gets black bars)
         Text(x + 566, y + 91, "Screen", gFonts.small, Theme::dim);
@@ -1402,7 +1555,7 @@ class LauncherWindow : public Ship::GuiWindow {
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Start the game directly next time (hold Shift while starting to see this launcher)");
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mTools) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mTools && !mGraphics) {
             *mPlay = ReadyToPlay(s);
         }
         (void)mQuit;
@@ -1635,6 +1788,8 @@ class LauncherWindow : public Ship::GuiWindow {
     Fast::Fast3dGui* mGui;
     std::shared_ptr<Ship::Window> mWindow;
     bool mControls = false; // the controls panel instead of the player cards
+    bool mGraphics = false; // the graphics panel instead of the player cards
+    bool mGraphicsTestOpened = false;
     int mPort = 0;          // whose controls it shows
     int mCapture = -1;      // the input (kInputs) waiting for a key or controller input, -1: none
     std::string mCaptureId; // the binding it replaces ("": adds one)
