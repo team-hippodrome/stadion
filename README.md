@@ -86,6 +86,19 @@ OpenGL, Metal or Vulkan. Restart to apply a change. Vulkan requires a compatible
 driver; availability depends on the platform and build. On Windows, **Restart and
 apply** reopens the launcher with the selected renderer.
 
+**Graphics** opens the drawing settings; changes apply at once and are kept:
+- **Resolution**: pixels drawn relative to the window (50–200%). Lower is much faster
+  on integrated graphics.
+- **Anti-aliasing**: MSAA off, 2x, 4x or 8x. Keep it off on slow graphics chips.
+- **VSync**: on avoids tearing.
+- **Smooth motion**: in-between frames for 3D scenes. Doubles the drawing work.
+- **Keep full speed**: when the graphics chip cannot keep up, frames are skipped so
+  the game and its sound keep their speed instead of slowing down and stuttering.
+
+**Settings for slow graphics chips** (for example Intel HD 520) sets resolution 50%,
+anti-aliasing and Smooth motion off, VSync and Keep full speed on. A smaller window
+helps as well, and DirectX or OpenGL can be faster than the other on some chips.
+
 Compiled shaders are saved in `shadercache/` beside the settings for DirectX 11,
 Vulkan, and OpenGL drivers that support program binaries. Later launches reuse
 matching compiler output. Invalid entries are rebuilt automatically. For

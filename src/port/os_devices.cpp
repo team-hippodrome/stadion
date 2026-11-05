@@ -1390,10 +1390,10 @@ static void TryPresentCpuFrame() {
 // game frame is not drawn, only tracked (its state changes still happen, and a frame that renders to a texture or
 // draws over the previous picture with a changed amount of drawing is drawn after all, as when running fast), so that
 // the game catches up and keeps producing sound at the real rate. At most 2 frames in a row are skipped.
-// PORT_NO_FRAME_SKIP=1 turns it off.
+// The launcher's Graphics panel switches it (gPort.FrameSkip, default on); PORT_NO_FRAME_SKIP=1 turns it off.
 static bool WantSkipWhileBehind() {
     static const bool sOff = getenv("PORT_NO_FRAME_SKIP") != nullptr && atoi(getenv("PORT_NO_FRAME_SKIP")) != 0;
-    if (sOff || Port_Speed() != 1.0 || !Port_Lockstep()) return false;
+    if (sOff || Port_Speed() != 1.0 || !Port_Lockstep() || CVarGetInteger("gPort.FrameSkip", 1) == 0) return false;
     constexpr int64_t kSkipLagNs = 16666667;
     return gClockLagNs.load() > kSkipLagNs;
 }
