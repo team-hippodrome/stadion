@@ -1388,6 +1388,19 @@ index a6c3e39119a26e6fa30ac5bf59ad5cb7848cdcd1..15dd9139fcd364cfd4f269cb0ee3c410
                G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
      gSPDisplayList(gDisplayListHead++, D_8140DD78);
  
+diff --git a/src/fragments/battle_engine/battle_engine_347330.c b/src/fragments/battle_engine/battle_engine_347330.c
+index 1dff858894fb800233491ea564da3d885035f53b..999cbd50796b8559e914ac380dc24edaa647c887 100644
+--- a/src/fragments/battle_engine/battle_engine_347330.c
++++ b/src/fragments/battle_engine/battle_engine_347330.c
+@@ -717,6 +717,8 @@ void TerrainGrid_BuildCameraBounds(unk_D_843975E8* arg0, f32 arg1) {
+
+     var_fs0 = Math_AbsF32(var_fs0);
+     sp94 = spB4->perspective.unk_0C * var_fs0 * sp48 * 1.2f;
++    // PORT: the water panel covers the current camera's horizontal view.
++    sp94 = Port_WidenViewSpan(sp94);
+
+     Vec3f_CrossProductComponents(sp84, sp80, sp7C, sp78, sp74, sp70, &sp68, &sp64, &sp60);
+     Vec3f_CrossProductComponents(sp84, sp80, sp7C, sp68, sp64, sp60, &sp5C, &sp58, &sp54);
 diff --git a/src/fragments/battle_engine/battle_engine_357C30.c b/src/fragments/battle_engine/battle_engine_357C30.c
 index 9c78286fd6511c8769e7a4beef129caa7d7275df..578f06ca9ccd7b69e75a01429d22e0583c256692 100644
 --- a/src/fragments/battle_engine/battle_engine_357C30.c
