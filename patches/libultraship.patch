@@ -109,7 +109,7 @@ index 728fa13f..a8b8b9b6 100644
  
  /**
 diff --git a/include/fast/backends/gfx_direct3d_common.h b/include/fast/backends/gfx_direct3d_common.h
-index 4ba2d354..4992c33e 100644
+index 4ba2d35..52e2b20 100644
 --- a/include/fast/backends/gfx_direct3d_common.h
 +++ b/include/fast/backends/gfx_direct3d_common.h
 @@ -8,6 +8,7 @@
@@ -119,8 +119,12 @@ index 4ba2d354..4992c33e 100644
 +#include "gfx_shader_cache.h"
  #include "d3d11.h"
  #include "d3dcompiler.h"
-
-@@ -149,6 +150,8 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
+ 
+@@ -146,9 +147,12 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
+                                      bool opengl_invertY, bool render_target, bool has_depth_buffer,
+                                      bool can_extract_depth) override;
+     void StartDrawToFramebuffer(int fbId, float noiseScale) override;
++    void CopyFramebufferInStream(int streamFb, int dstFb, int srcFb, int w, int h) override;
      void CopyFramebuffer(int fbDstId, int fbSrcId, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0,
                           int dstX1, int dstY1) override;
      void ClearFramebuffer(bool color, bool depth) override;
@@ -129,7 +133,7 @@ index 4ba2d354..4992c33e 100644
      void ReadFramebufferToCPU(int fbId, uint32_t width, uint32_t height, uint16_t* rgba16Buf) override;
      void ResolveMSAAColorBuffer(int fbIdTarger, int fbIdSrc) override;
      std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
-@@ -162,11 +165,11 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
+@@ -162,11 +166,11 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
      ImTextureID GetTextureById(int id) override;
      /** @} */
  
@@ -143,7 +147,7 @@ index 4ba2d354..4992c33e 100644
  
      std::shared_ptr<Ship::ConsoleVariable> mConsoleVariable;
      std::shared_ptr<Ship::ResourceManager> mResourceManager;
-@@ -175,15 +178,22 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
+@@ -175,15 +179,22 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
      void CreateDepthStencilObjects(uint32_t width, uint32_t height, uint32_t msaa_count, ID3D11DepthStencilView** view,
                                     ID3D11ShaderResourceView** srv);
  
@@ -170,7 +174,7 @@ index 4ba2d354..4992c33e 100644
      Microsoft::WRL::ComPtr<ID3D11Buffer> mVertexBuffer;
      Microsoft::WRL::ComPtr<ID3D11Buffer> mPerFrameCb;
      Microsoft::WRL::ComPtr<ID3D11Buffer> mPerDrawCb;
-@@ -196,30 +206,30 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
+@@ -196,30 +207,30 @@ class GfxRenderingAPIDX11 final : public GfxRenderingAPI {
      Microsoft::WRL::ComPtr<ID3D11ComputeShader> mComputeShader;
      Microsoft::WRL::ComPtr<ID3D11ComputeShader> mComputeShaderMsaa;
      Microsoft::WRL::ComPtr<ID3DBlob> mComputeShaderMsaaBlob;
@@ -1499,7 +1503,7 @@ index b80c9907..719941e1 100644
          default:
              return "";
 diff --git a/src/fast/backends/gfx_direct3d11.cpp b/src/fast/backends/gfx_direct3d11.cpp
-index f747b818..2236c650 100644
+index f747b81..343ed2a 100644
 --- a/src/fast/backends/gfx_direct3d11.cpp
 +++ b/src/fast/backends/gfx_direct3d11.cpp
 @@ -6,6 +6,7 @@
@@ -1520,7 +1524,7 @@ index f747b818..2236c650 100644
  #include <prism/processor.h>
 @@ -196,6 +198,10 @@ static bool CreateDeviceFunc(class GfxRenderingAPIDX11* self, bool SoftwareRende
  };
-
+ 
  void GfxRenderingAPIDX11::Init() {
 +    mShaderCache.Open("d3d11");
 +    mDepthStencilStates.clear();
@@ -1531,7 +1535,7 @@ index f747b818..2236c650 100644
      if (mDX11Module == nullptr) {
 @@ -263,7 +269,7 @@ void GfxRenderingAPIDX11::Init() {
      ZeroMemory(&vertex_buffer_desc, sizeof(D3D11_BUFFER_DESC));
-
+ 
      vertex_buffer_desc.Usage = D3D11_USAGE_DYNAMIC;
 -    vertex_buffer_desc.ByteWidth = 256 * 32 * 3 * sizeof(float); // Same as buf_vbo size in gfx_pc
 +    vertex_buffer_desc.ByteWidth = kVertexRingSize;
@@ -1541,7 +1545,7 @@ index f747b818..2236c650 100644
 @@ -391,53 +397,55 @@ void GfxRenderingAPIDX11::ClearShaderCache() {
      mShaderProgramPool.clear();
  }
-
+ 
 +std::vector<char> GfxRenderingAPIDX11::CompileShader(const std::string& source, const char* entry,
 +                                                     const char* target, UINT flags, bool useCache) {
 +    const auto options = std::to_string(flags);
@@ -1567,7 +1571,7 @@ index f747b818..2236c650 100644
  struct ShaderProgram* GfxRenderingAPIDX11::CreateAndLoadNewShader(uint64_t shader_id0, uint64_t shader_id1) {
      CCFeatures cc_features;
      gfx_cc_get_features(shader_id0, shader_id1, &cc_features);
-
+ 
 -    char* buf;
 -    size_t len, numFloats;
 -
@@ -1616,7 +1620,7 @@ index f747b818..2236c650 100644
 +        ps = CompileShader(shader, "PSMain", "ps_4_0", compile_flags, false);
 +        ThrowIfFailed(mDevice->CreatePixelShader(ps.data(), ps.size(), nullptr, prg->pixel_shader.ReleaseAndGetAddressOf()));
      }
-
+ 
 -    struct ShaderProgramD3D11* prg = &mShaderProgramPool[std::make_pair(shader_id0, shader_id1)];
 -
 -    ThrowIfFailed(mDevice->CreateVertexShader(vs->GetBufferPointer(), vs->GetBufferSize(), nullptr,
@@ -1625,16 +1629,16 @@ index f747b818..2236c650 100644
 -                                             prg->pixel_shader.GetAddressOf()));
 -
      // Input Layout
-
+ 
      D3D11_INPUT_ELEMENT_DESC ied[16];
 @@ -489,7 +497,7 @@ struct ShaderProgram* GfxRenderingAPIDX11::CreateAndLoadNewShader(uint64_t shade
          ied[ied_index++] = { "INPUT", i, format, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 };
      }
-
+ 
 -    ThrowIfFailed(mDevice->CreateInputLayout(ied, ied_index, vs->GetBufferPointer(), vs->GetBufferSize(),
 +    ThrowIfFailed(mDevice->CreateInputLayout(ied, ied_index, vs.data(), vs.size(),
                                               prg->input_layout.GetAddressOf()));
-
+ 
      // Blend state
 @@ -499,12 +507,13 @@ struct ShaderProgram* GfxRenderingAPIDX11::CreateAndLoadNewShader(uint64_t shade
  
@@ -1656,15 +1660,15 @@ index f747b818..2236c650 100644
          blend_desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
      } else {
 @@ -673,32 +682,35 @@ void GfxRenderingAPIDX11::SetUseAlpha(bool use_alpha) {
-
+ 
  void GfxRenderingAPIDX11::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris) {
-
+ 
 -    if (mLastDepthTest != mCurrentDepthTest || mLastDepthMask != mCurrentDepthMask) {
 +    if (mLastDepthTest != mCurrentDepthTest || mLastDepthMask != mCurrentDepthMask ||
 +        mLastZmodeDecal != mCurrentZmodeDecal) {
          mLastDepthTest = mCurrentDepthTest;
          mLastDepthMask = mCurrentDepthMask;
-
+ 
 -        mDepthStencilState.Reset();
 -
 -        D3D11_DEPTH_STENCIL_DESC depth_stencil_desc;
@@ -1699,19 +1703,19 @@ index f747b818..2236c650 100644
 +        mDepthStencilState = state;
          mContext->OMSetDepthStencilState(mDepthStencilState.Get(), 0);
      }
-
+ 
      if (mLastZmodeDecal != mCurrentZmodeDecal) {
          mLastZmodeDecal = mCurrentZmodeDecal;
-
+ 
 -        mRasterizerState.Reset();
 -
          D3D11_RASTERIZER_DESC rasterizer_desc;
          ZeroMemory(&rasterizer_desc, sizeof(D3D11_RASTERIZER_DESC));
-
+ 
 @@ -730,7 +742,13 @@ void GfxRenderingAPIDX11::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, siz
          rasterizer_desc.MultisampleEnable = false;
          rasterizer_desc.AntialiasedLineEnable = false;
-
+ 
 -        ThrowIfFailed(mDevice->CreateRasterizerState(&rasterizer_desc, mRasterizerState.GetAddressOf()));
 +        uint32_t key;
 +        memcpy(&key, &rasterizer_desc.SlopeScaledDepthBias, sizeof(key));
@@ -1722,11 +1726,11 @@ index f747b818..2236c650 100644
 +        mRasterizerState = state;
          mContext->RSSetState(mRasterizerState.Get());
      }
-
+ 
 @@ -755,11 +773,11 @@ void GfxRenderingAPIDX11::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, siz
                      textures_changed = true;
                  }
-
+ 
 -                if (mLastSamplerStates[i].Get() != mTextures[mCurrentTextureIds[i]].sampler_state.Get()) {
 -                    mLastSamplerStates[i] = mTextures[mCurrentTextureIds[i]].sampler_state.Get();
 -                }
@@ -1738,11 +1742,11 @@ index f747b818..2236c650 100644
 +            }
          }
      }
-
+ 
 @@ -783,16 +801,21 @@ void GfxRenderingAPIDX11::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, siz
          mPrimDepthDirty = false;
      }
-
+ 
 -    // Set vertex buffer data
 -
 -    D3D11_MAPPED_SUBRESOURCE ms;
@@ -1767,17 +1771,17 @@ index f747b818..2236c650 100644
 +    memcpy(static_cast<char*>(ms.pData) + start, buf_vbo, bytes);
 +    mContext->Unmap(mVertexBuffer.Get(), 0);
 +    mVertexRingOffset = start + bytes;
-
+ 
      if (mLastVertexBufferStride != stride) {
          mLastVertexBufferStride = stride;
 @@ -816,7 +839,7 @@ void GfxRenderingAPIDX11::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, siz
          mContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
      }
-
+ 
 -    mContext->Draw(buf_vbo_num_tris * 3, 0);
 +    mContext->Draw(buf_vbo_num_tris * 3, static_cast<UINT>(start / stride));
  }
-
+ 
  void GfxRenderingAPIDX11::OnResize() {
 @@ -860,6 +883,129 @@ int GfxRenderingAPIDX11::CreateFramebuffer() {
      return (int)index;
@@ -1969,7 +1973,34 @@ index f747b818..2236c650 100644
  }
  
  void GfxRenderingAPIDX11::ClearFramebuffer(bool color, bool depth) {
-@@ -1051,6 +1237,14 @@ void GfxRenderingAPIDX11::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX
+@@ -982,6 +1168,26 @@ void GfxRenderingAPIDX11::SelectTextureFb(int fbID) {
+     SelectTexture(tile, mFrameBuffers[fbID].texture_id);
+ }
+ 
++// PORT: frame interpolation copies a game frame buffer away and back (immediate context: in order). Two multisampled
++// framebuffers of the same size and sample count are copied as they are (CopyFramebuffer would resolve the source).
++void GfxRenderingAPIDX11::CopyFramebufferInStream(int streamFb, int dstFb, int srcFb, int w, int h) {
++    if (dstFb >= (int)mFrameBuffers.size() || srcFb >= (int)mFrameBuffers.size()) {
++        return;
++    }
++    FramebufferDX11& dst = mFrameBuffers[dstFb];
++    FramebufferDX11& src = mFrameBuffers[srcFb];
++    TextureData& tdDst = mTextures[dst.texture_id];
++    TextureData& tdSrc = mTextures[src.texture_id];
++    if (src.msaa_level > 1 || dst.msaa_level > 1) {
++        if (src.msaa_level == dst.msaa_level && tdSrc.width == tdDst.width && tdSrc.height == tdDst.height &&
++            tdSrc.texture && tdDst.texture) {
++            mContext->CopyResource(tdDst.texture.Get(), tdSrc.texture.Get());
++        }
++        return;
++    }
++    CopyFramebuffer(dstFb, srcFb, 0, 0, w, h, 0, 0, w, h);
++}
++
+ void GfxRenderingAPIDX11::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0, int srcY0, int srcX1, int srcY1,
+                                           int dstX0, int dstY0, int dstX1, int dstY1) {
+     if (fb_src_id >= (int)mFrameBuffers.size() || fb_dst_id >= (int)mFrameBuffers.size()) {
+@@ -1051,6 +1257,14 @@ void GfxRenderingAPIDX11::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX
      }
  }
  
@@ -1984,7 +2015,7 @@ index f747b818..2236c650 100644
  void GfxRenderingAPIDX11::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFrameBuffers.size()) {
          return;
-@@ -1097,6 +1291,22 @@ void GfxRenderingAPIDX11::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32
+@@ -1097,6 +1311,22 @@ void GfxRenderingAPIDX11::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32
          return;
      }
  
@@ -2007,7 +2038,7 @@ index f747b818..2236c650 100644
      // Convert RGBA32 → RGBA16 with nearest-neighbor scaling from actual texture
      // dimensions to requested output dimensions, respecting RowPitch for row stride
      for (uint32_t j = 0; j < height; j++) {
-@@ -1243,7 +1453,8 @@ void GfxRenderingAPIDX11::SetSrgbMode() {
+@@ -1243,7 +1473,8 @@ void GfxRenderingAPIDX11::SetSrgbMode() {
      mSrgbMode = true;
  }
  
@@ -2057,7 +2088,7 @@ index dd8cce5a..0dbebe43 100644
          throw Ship::HResultException(res, message);
      }
 diff --git a/src/fast/backends/gfx_metal.cpp b/src/fast/backends/gfx_metal.cpp
-index afc07db..546394c 100644
+index afc07db..87312cd 100644
 --- a/src/fast/backends/gfx_metal.cpp
 +++ b/src/fast/backends/gfx_metal.cpp
 @@ -7,8 +7,10 @@
@@ -2559,7 +2590,7 @@ index afc07db..546394c 100644
  void GfxRenderingAPIMetal::ResolveMSAAColorBuffer(int fb_id_target, int fb_id_source) {
      int source_texture_id = mFramebuffers[fb_id_source].mTextureId;
      MTL::Texture* source_texture = mTextures[source_texture_id].texture;
-@@ -1109,6 +1390,57 @@ void GfxRenderingAPIMetal::SelectTextureFb(int fb_id) {
+@@ -1109,6 +1390,68 @@ void GfxRenderingAPIMetal::SelectTextureFb(int fb_id) {
      SelectTexture(tile, mFramebuffers[fb_id].mTextureId);
  }
  
@@ -2576,16 +2607,27 @@ index afc07db..546394c 100644
 +    if (stream.mCommandBuffer == nullptr || stream.mCommandEncoder == nullptr) {
 +        return;
 +    }
-+    MTL::Texture* src = mTextures[mFramebuffers[srcFb].mTextureId].texture;
-+    MTL::Texture* dst = mTextures[mFramebuffers[dstFb].mTextureId].texture;
++    const TextureDataMetal& srcTex = mTextures[mFramebuffers[srcFb].mTextureId];
++    const TextureDataMetal& dstTex = mTextures[mFramebuffers[dstFb].mTextureId];
++    MTL::Texture* src = srcTex.texture;
++    MTL::Texture* dst = dstTex.texture;
 +    if (src == nullptr || dst == nullptr) {
 +        return;
 +    }
 +    const NS::UInteger cw = std::min<NS::UInteger>({ (NS::UInteger)w, src->width(), dst->width() });
 +    const NS::UInteger ch = std::min<NS::UInteger>({ (NS::UInteger)h, src->height(), dst->height() });
++    // with MSAA the picture lives in the multisampled texture (loaded by every pass, resolved into the plain one): copied
++    // whole when both framebuffers have one of the same size and sample count
++    MTL::Texture* srcMs = mFramebuffers[srcFb].mMsaaLevel > 1 ? srcTex.msaaTexture : nullptr;
++    MTL::Texture* dstMs = mFramebuffers[dstFb].mMsaaLevel > 1 ? dstTex.msaaTexture : nullptr;
++    const bool copyMs = srcMs != nullptr && dstMs != nullptr && srcMs->sampleCount() == dstMs->sampleCount() &&
++                        srcMs->width() == dstMs->width() && srcMs->height() == dstMs->height();
 +    stream.mCommandEncoder->endEncoding();
 +    MTL::BlitCommandEncoder* blit = stream.mCommandBuffer->blitCommandEncoder();
 +    blit->copyFromTexture(src, 0, 0, MTL::Origin(0, 0, 0), MTL::Size(cw, ch, 1), dst, 0, 0, MTL::Origin(0, 0, 0));
++    if (copyMs) {
++        blit->copyFromTexture(srcMs, dstMs);
++    }
 +    blit->endEncoding();
 +    // a new render encoder that keeps what the framebuffer holds (as CopyFramebuffer)
 +    MTL::RenderPassColorAttachmentDescriptor* color0 = stream.mRenderPassDescriptor->colorAttachments()->object(0);
@@ -2617,7 +2659,7 @@ index afc07db..546394c 100644
  void GfxRenderingAPIMetal::CopyFramebuffer(int fb_dst_id, int fb_src_id, int srcX0, int srcY0, int srcX1, int srcY1,
                                             int dstX0, int dstY0, int dstX1, int dstY1) {
      if (fb_src_id >= (int)mFramebuffers.size() || fb_dst_id >= (int)mFramebuffers.size()) {
-@@ -1182,6 +1514,34 @@ void GfxRenderingAPIMetal::CopyFramebuffer(int fb_dst_id, int fb_src_id, int src
+@@ -1182,6 +1525,34 @@ void GfxRenderingAPIMetal::CopyFramebuffer(int fb_dst_id, int fb_src_id, int src
      source_framebuffer.mLastZmodeDecal = -1;
  }
  
@@ -2652,7 +2694,7 @@ index afc07db..546394c 100644
  void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
      if (fb_id >= (int)mFramebuffers.size()) {
          return;
-@@ -1202,6 +1562,10 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1202,6 +1573,10 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
  
              uint8_t* bgra = (uint8_t*)mScreenReadbackBuffer->contents();
              uint32_t count = mScreenReadbackWidth * mScreenReadbackHeight;
@@ -2663,7 +2705,7 @@ index afc07db..546394c 100644
              for (uint32_t i = 0; i < count; i++) {
                  uint8_t b = bgra[i * 4 + 0];
                  uint8_t g = bgra[i * 4 + 1];
-@@ -1217,6 +1581,9 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1217,6 +1592,9 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
          mScreenReadbackHeight = height;
      } else {
          // Custom Framebuffer: synchronous readback via readback queue
@@ -2673,7 +2715,7 @@ index afc07db..546394c 100644
          if (framebuffer.mCommandEncoder && !framebuffer.mHasEndedEncoding) {
              framebuffer.mCommandEncoder->endEncoding();
          }
-@@ -1267,6 +1634,16 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
+@@ -1267,6 +1645,16 @@ void GfxRenderingAPIMetal::ReadFramebufferToCPU(int fb_id, uint32_t width, uint3
      }
  }
  
@@ -3520,10 +3562,10 @@ index 00000000..59b58813
 +} // namespace Fast
 diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
 new file mode 100644
-index 0000000..de93d90
+index 0000000..b2fe3f1
 --- /dev/null
 +++ b/src/fast/backends/gfx_vulkan.cpp
-@@ -0,0 +1,2892 @@
+@@ -0,0 +1,2902 @@
 +//
 +//  gfx_vulkan.cpp
 +//  libultraship
@@ -5907,6 +5949,16 @@ index 0000000..de93d90
 +                    std::min<uint32_t>({ (uint32_t)h, srcTex.height, dstTex.height }), 1 };
 +    vkCmdCopyImage(stream.mCommandBuffer, srcTex.image, VK_IMAGE_LAYOUT_GENERAL, dstTex.image, VK_IMAGE_LAYOUT_GENERAL, 1,
 +                   &copy);
++    // with MSAA the picture lives in the multisampled attachment (loaded by every pass, resolved into the texture)
++    const FramebufferVK& srcFbo = mFramebuffers[srcFb];
++    const FramebufferVK& dstFbo = mFramebuffers[dstFb];
++    if (srcFbo.mMsaaLevel > 1 && srcFbo.mMsaaLevel == dstFbo.mMsaaLevel && srcFbo.mMsaaImage != VK_NULL_HANDLE &&
++        dstFbo.mMsaaImage != VK_NULL_HANDLE && srcTex.width == dstTex.width && srcTex.height == dstTex.height) {
++        VkImageCopy ms = copy;
++        ms.extent = { srcTex.width, srcTex.height, 1 };
++        vkCmdCopyImage(stream.mCommandBuffer, srcFbo.mMsaaImage, VK_IMAGE_LAYOUT_GENERAL, dstFbo.mMsaaImage,
++                       VK_IMAGE_LAYOUT_GENERAL, 1, &ms);
++    }
 +    FullBarrier(stream.mCommandBuffer);
 +    EnsurePassActive(streamFb);
 +}
@@ -6417,7 +6469,7 @@ index 0000000..de93d90
 +
 +#endif
 diff --git a/src/fast/interpreter.cpp b/src/fast/interpreter.cpp
-index a1907a1..e4e97ae 100644
+index a1907a1..0d7932c 100644
 --- a/src/fast/interpreter.cpp
 +++ b/src/fast/interpreter.cpp
 @@ -11,13 +11,16 @@
@@ -6723,7 +6775,7 @@ index a1907a1..e4e97ae 100644
 +// PORT: frame interpolation of frames that draw over the previous picture (Interpreter::ReplayBegin): a copy of each game
 +// frame buffer's picture from before the frame, and the buffers already copied away/back in this drawing
 +static bool sReplayRestore = false;
-+static std::unordered_map<uintptr_t, int> sSnapFbs;
++static std::unordered_map<uintptr_t, std::pair<int, uint32_t>> sSnapFbs; // framebuffer, its MSAA level
 +static std::unordered_set<uintptr_t> sSnapDoneThisRun;
 +// PORT: 2D in-between frames (Interpreter::mReplayT): the rectangles of the last exact drawing by key, in drawing order
 +struct Interp2DKey {
@@ -7469,15 +7521,15 @@ index a1907a1..e4e97ae 100644
 -            mRenderingState.viewport = mRdp->viewport;
 +            mRapi->SetViewport(viewport.x, viewport.y, viewport.width, viewport.height);
 +            mRenderingState.viewport = viewport;
-         }
--        if (memcmp(&mRdp->scissor, &mRenderingState.scissor, sizeof(mRdp->scissor)) != 0) {
++        }
 +        XYWidthHeight scissor = mRdp->scissor;
 +        if (shift != 0) {
 +            const int32_t x0 = std::max<int32_t>(0, scissor.x + shift);
 +            const int32_t x1 = std::max<int32_t>(x0, scissor.x + shift + (int32_t)scissor.width);
 +            scissor.x = (int16_t)x0;
 +            scissor.width = (uint32_t)(x1 - x0);
-+        }
+         }
+-        if (memcmp(&mRdp->scissor, &mRenderingState.scissor, sizeof(mRdp->scissor)) != 0) {
 +        if ((sLock43ThisRun || clip43) && anchor == 0 && !mFbActive && !sWidePattern && !sWideFade) { // PORT: a 2D screen or 2D shape stays inside the 4:3 area
 +            const float halfW = mNativeDimensions.width / 2.0f;
 +            // (rounded: truncated, 79.99998 became 79 and the area ended a pixel short of the picture's right edge,
@@ -8155,7 +8207,7 @@ index a1907a1..e4e97ae 100644
      // Expand fullscreen fill rects to cover widescreen viewports.
      // Without this, screen clears and fades only cover the native 4:3 area.
      if (ulx == 0 && uly == 0) {
-@@ -3116,8 +4281,206 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
+@@ -3116,8 +4281,212 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
      mRdp->z_buf_address = zBufAddr;
  }
  
@@ -8299,15 +8351,21 @@ index a1907a1..e4e97ae 100644
 +        }
 +        // PORT: frame interpolation of a frame that draws over the previous picture (ReplayBegin): the first drawing
 +        // copies this buffer's picture away, each repeat copies it back before drawing
-+        if (sReplayRestore && mMsaaLevel <= 1 && sSnapDoneThisRun.insert((uintptr_t)address).second) {
++        if (sReplayRestore && sSnapDoneThisRun.insert((uintptr_t)address).second) {
++            // (the copy has the game buffer's size, MSAA level and orientation: see the resize in StartFrame)
 +            const bool window = ViewportMatchesRendererResolution();
 +            const uint32_t w = window ? mGfxCurrentWindowDimensions.width : mCurDimensions.width;
 +            const uint32_t h = window ? mGfxCurrentWindowDimensions.height : mCurDimensions.height;
-+            int& snap = sSnapFbs[(uintptr_t)address];
-+            if (snap == 0) {
-+                snap = mRapi->CreateFramebuffer();
-+                mRapi->UpdateFramebufferParameters(snap, w, h, 1, window ? true : true, true, true, true);
++            auto& entry = sSnapFbs[(uintptr_t)address];
++            if (entry.first == 0) {
++                entry.first = mRapi->CreateFramebuffer();
 +            }
++            if (entry.second != mMsaaLevel) {
++                entry.second = mMsaaLevel;
++                mRapi->UpdateFramebufferParameters(entry.first, w, h, mMsaaLevel, window ? mMsaaLevel <= 1 : true, true,
++                                                   true, true);
++            }
++            const int snap = entry.first;
 +            Flush();
 +            if (!mReplayPass) {
 +                mRapi->CopyFramebufferInStream(fb, snap, fb, (int)w, (int)h);
@@ -8362,7 +8420,7 @@ index a1907a1..e4e97ae 100644
  }
  
  void Interpreter::GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode) {
-@@ -3252,7 +4615,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
+@@ -3252,7 +4621,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
                            (float)(1 << 10) * realSW, (float)(1 << 10) * realSH, false);
  }
  
@@ -8386,7 +8444,7 @@ index a1907a1..e4e97ae 100644
      // Segmented?
      if (w1 & 1) {
          uint32_t segNum = (uint32_t)(w1 >> 24);
-@@ -3377,6 +4756,19 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3377,6 +4762,19 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      const char* filename = (const char*)(cmd)->words.w1;
      uint32_t p = C0(16, 8);
      uint32_t l = C0(0, 16);
@@ -8406,7 +8464,7 @@ index a1907a1..e4e97ae 100644
      if (p == 7) {
          g_exec_stack.openDisp(filename, l);
      } else if (p == 8) {
-@@ -3389,10 +4781,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3389,10 +4787,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      return false;
  }
  
@@ -8431,7 +8489,7 @@ index a1907a1..e4e97ae 100644
  
      gfx->GfxSpMatrix(C0(0, 8) ^ F3DEX2_G_MTX_PUSH, (const int32_t*)gfx->SegAddr(mtxAddr));
      return false;
-@@ -3632,7 +5038,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3632,7 +5044,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
  
@@ -8453,7 +8511,7 @@ index a1907a1..e4e97ae 100644
  
      return false;
  }
-@@ -3736,16 +5155,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3736,16 +5161,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
  }
  
  // F3D, F3DEX, and F3DEX2 do the same thing but F3DEX2 has its own opcode number
@@ -8480,7 +8538,7 @@ index a1907a1..e4e97ae 100644
          (*cmd0) = subGFX;
          g_exec_stack.branch(cmd);
          return true; // shortcut cmd increment
-@@ -4018,7 +5447,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
+@@ -4018,7 +5453,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
      uintptr_t i = (uintptr_t)gfx->SegAddr(cmd->words.w1);
@@ -8552,7 +8610,7 @@ index a1907a1..e4e97ae 100644
      char* imgData = (char*)i;
      uint32_t texFlags = 0;
      RawTexMetadata rawTexMetdata = {};
-@@ -4947,6 +6440,19 @@ static void gfx_step() {
+@@ -4947,6 +6446,19 @@ static void gfx_step() {
          } else {
              SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, for loaded ucode: {}", (uint8_t)opcode,
                              (uint32_t)ucode_handler_index);
@@ -8572,7 +8630,7 @@ index a1907a1..e4e97ae 100644
          }
      } else {
          SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, invalid ucode: {}", (uint8_t)opcode, (uint32_t)ucode_handler_index);
-@@ -5005,8 +6511,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
+@@ -5005,8 +6517,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
      mGameFb = mRapi->CreateFramebuffer();
      mGameFbMsaaResolved = mRapi->CreateFramebuffer();
  
@@ -8583,7 +8641,7 @@ index a1907a1..e4e97ae 100644
  
      for (int i = 0; i < MAX_SEGMENT_POINTERS; i++) {
          mSegmentPointers[i] = 0;
-@@ -5109,16 +6615,31 @@ void Interpreter::StartFrame() {
+@@ -5109,16 +6621,32 @@ void Interpreter::StartFrame() {
  
      mPrvDimensions = mCurDimensions;
      mPrevNativeDimensions = mNativeDimensions;
@@ -8607,7 +8665,8 @@ index a1907a1..e4e97ae 100644
 +            }
 +        }
 +        for (auto& e : sSnapFbs) { // (frame interpolation's copies of them)
-+            fbs.push_back(e.second);
++            fbs.push_back(e.second.first);
++            e.second.second = mMsaaLevel;
 +        }
 +        for (int fb : fbs) {
 +            if (!ViewportMatchesRendererResolution()) {
@@ -8624,7 +8683,7 @@ index a1907a1..e4e97ae 100644
          }
          if (mMsaaLevel > 1 && !ViewportMatchesRendererResolution()) {
              mRapi->UpdateFramebufferParameters(mGameFbMsaaResolved, mCurDimensions.width, mCurDimensions.height, 1,
-@@ -5173,7 +6694,499 @@ void Interpreter::RunGuiOnly() {
+@@ -5173,7 +6701,499 @@ void Interpreter::RunGuiOnly() {
      }
  }
  
@@ -8962,7 +9021,7 @@ index a1907a1..e4e97ae 100644
 +
 +bool Interpreter::CanRestorePicture() const {
 +    static const bool sOff = getenv("PORT_INTERP_INCREMENTAL") != nullptr && atoi(getenv("PORT_INTERP_INCREMENTAL")) == 0;
-+    return !sOff && mMsaaLevel <= 1 && mRendersToFb;
++    return !sOff && mRendersToFb;
 +}
 +
 +void Interpreter::ReplayBegin(bool restorePicture) {
@@ -9124,7 +9183,7 @@ index a1907a1..e4e97ae 100644
      SpReset();
  
      mGetPixelDepthPending.clear();
-@@ -5184,17 +7197,38 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5184,17 +7204,38 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
      mRapi->UpdateFramebufferParameters(0, mGfxCurrentWindowDimensions.width, mGfxCurrentWindowDimensions.height, 1,
                                         false, true, true, !mRendersToFb);
      mRapi->StartFrame();
@@ -9164,7 +9223,7 @@ index a1907a1..e4e97ae 100644
          if (dbg->IsDebugging()) {
              g_exec_stack.gfx_path.push_back(cmd);
              if (dbg->HasBreakPoint(g_exec_stack.gfx_path)) {
-@@ -5209,10 +7243,26 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5209,10 +7250,26 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
              }
              g_exec_stack.gfx_path.pop_back();
          }
@@ -9191,7 +9250,7 @@ index a1907a1..e4e97ae 100644
      mGfxFrameBuffer = 0;
      currentDir = std::stack<std::string>();
  
-@@ -5236,13 +7286,41 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5236,13 +7293,41 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
  
          assert(0 && "active framebuffer was never reset back to original");
      }
