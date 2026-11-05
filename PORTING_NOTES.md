@@ -1263,6 +1263,27 @@ same on every backend). The first frame buffer the game selects in a frame gets 
 right of the picture (interpreter GfxDpSetColorImage); 3D scenes redraw the margins on top, and a 4:3 window is not
 touched. `PORT_NO_MARGIN_CLEAR=1` restores the old behaviour.
 
+Battle HUD at the widescreen edges: the status boxes, portraits and menus were laid out for the 4:3 frame and cut at
+its sides, so in 16:9 they slid in and out of the middle of the picture (from the 4:3 edge, the rest of the box
+missing) and sat inside it. The game now brackets each side's HUD with markers (`gDPPortAnchorLeft/Right/End` in
+port_compat.h, a G_NOOP of type 0x52): `Battle_RenderHud` around `BattleHud_DrawOwnSideStatus` (left: the player's
+box, portrait frame, command bar and move menu) and `BattleHud_DrawOpponentSideStatus` (right, with its label bar),
+`Battle_DrawCompactStatusBoxesIfVisible` (the small boxes shown during moves), and `Battle_FillActivePokemonThumbnail`
+for the portraits, which are captured into a render target only when they change and blitted every frame at the
+portrait camera's viewport (`Port_SetHudAnchorCameras` / `Port_HudAnchorSide` tell which camera is which side; a
+registration older than 4 retraces does not count). Between the markers the renderer (interpreter `sAnchor`) moves
+the viewport and scissor by the margin beside the 4:3 frame and does not cut at the 4:3 sides, so each side sits at
+the screen's edge and slides in from it; what the game parks off screen stays past the screen's edge. At 4:3 nothing
+changes. `PORT_NO_HUD_ANCHOR=1` turns it off.
+The gallery camera's film reel (Pokémon Snap station) ran off the N64 screen's right edge, so in 16:9 its strip stopped
+at the 4:3 line in the middle of the picture. Moving it to the edge would put the canister on the viewfinder's
+corner, so it stays where the game puts it and only the strip goes on: `gDPPortNoCut` (marker value 3: not moved, not
+cut, and the edge-strip drop does not apply), the game's own clip rectangle (`D_800A7440`, its right edge is the field
+`y1`) widened by `Port_WideMarginN64()` (54 N64 pixels at 16:9) while it draws, and as many more 8-pixel strip pieces
+(`Gallery_DrawPhotoCounterReel` / `...Exit`). Found by the Smooth motion + 16:9 sweep over the function-evidence
+routes (seam detector: a sharp edge exactly on the 4:3 line with picture on both sides); the sweep found no other
+case. Before/after pictures of each fix: `tools/widescreen_review.py` (add a case there for every new one).
+
 Patterned menu backdrops in widescreen: the main menu, Game Pak Check, Battle Now and Options draw their wallpaper
 (the "POKéMON" pattern, the green pattern of Options, the cream pattern of the fades) as one textured
 rectangle over the whole N64 screen with a small repeating tile (WRAP or MIRROR, the rectangle several periods wide).

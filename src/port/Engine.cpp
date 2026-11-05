@@ -809,6 +809,11 @@ extern "C" float Port_WidenViewSpan(float span) {
     return Port::AspectSetting() == 1 ? span * (4.0f / 3.0f) : span;
 }
 
+// Port_WideMarginN64 (port_compat.h): N64 pixels beside the 4:3 frame on each side of the picture (16:9: 54, rounded up)
+extern "C" int Port_WideMarginN64(void) {
+    return Port::AspectSetting() == 1 ? 54 : 0;
+}
+
 namespace Port {
 
 void ApplyAspect() {

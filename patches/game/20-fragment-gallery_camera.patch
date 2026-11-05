@@ -1,5 +1,5 @@
 diff --git a/src/fragments/gallery_camera/gallery_camera_14CA70.c b/src/fragments/gallery_camera/gallery_camera_14CA70.c
-index e2a05ad0c9e0e708c37830758328b69e1ad80a59..bf60e3cb3be3e6c6fe4576e9394faf6b00217dad 100644
+index e2a05ad0c9e0e708c37830758328b69e1ad80a59..380cb1fde2b7ecbe419daac3ef3e9b8032fd30b9 100644
 --- a/src/fragments/gallery_camera/gallery_camera_14CA70.c
 +++ b/src/fragments/gallery_camera/gallery_camera_14CA70.c
 @@ -64,12 +64,11 @@ static u8 D_86908A80[] = {
@@ -96,8 +96,27 @@ index e2a05ad0c9e0e708c37830758328b69e1ad80a59..bf60e3cb3be3e6c6fe4576e9394faf6b
          D_8690A610.unk_18.unk_04.rgba = temp_v1->unk_04.rgba;
          D_8690A610.node.callbackArg = 1;
      }
+@@ -996,8 +1003,16 @@ void Gallery_CameraDraw(void) {
+     Geo_RenderRootNode(D_87906050);
+     Gallery_DrawFrameMarkers();
+     Gallery_CameraDrawHelpBalloon();
+-    Gallery_DrawPhotoCounterReel();
+-    Gallery_DrawPhotoCounterReelExit();
++    { // PORT: in widescreen the film reel runs on to the picture's right edge (not cut at the 4:3 side; the game's own
++      // clip rectangle, the N64 screen, is widened by the margin while it draws; its right edge is the field y1)
++        const s16 right = D_800A7440.y1;
++        D_800A7440.y1 = right + Port_WideMarginN64();
++        gDPPortNoCut(gDisplayListHead++);
++        Gallery_DrawPhotoCounterReel();
++        Gallery_DrawPhotoCounterReelExit();
++        gDPPortAnchorEnd(gDisplayListHead++);
++        D_800A7440.y1 = right;
++    }
+     Gallery_DrawTutorialTextBox();
+     Gallery_DrawNicknameBanner(D_8690A6A0.unk_30);
+     Gallery_DrawBackgroundSelectMenu(D_8690A710->unk_00C);
 diff --git a/src/fragments/gallery_camera/gallery_camera_150AC0.c b/src/fragments/gallery_camera/gallery_camera_150AC0.c
-index 44ef82aea95af7712076a03923ef345d69ff2212..3542140d2f4e4f6ebd8e00e618c4334d435d7aae 100644
+index 44ef82aea95af7712076a03923ef345d69ff2212..4af6459ea00785acc16b928da85757b378318cb6 100644
 --- a/src/fragments/gallery_camera/gallery_camera_150AC0.c
 +++ b/src/fragments/gallery_camera/gallery_camera_150AC0.c
 @@ -39,7 +39,7 @@ void GalleryUI_DrawGradientQuad(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4
@@ -244,3 +263,31 @@ index 44ef82aea95af7712076a03923ef345d69ff2212..3542140d2f4e4f6ebd8e00e618c4334d
      Color_RGB8 sp34 = D_86908C98;
      Color_RGB8 sp30 = D_86908C9C;
  
+@@ -763,6 +763,12 @@ void Gallery_DrawPhotoCounterReel(void) {
+     Gallery_DrawHelpBalloonBubble(D_5000BA0, GalleryUI_ClampReelDigitX(sp24 + 0x18), 0x18, 8, 0x1E);
+     Gallery_DrawHelpBalloonBubble(D_5000BA0, GalleryUI_ClampReelDigitX(sp24 + 0x20), 0x18, 8, 0x1E);
+     Gallery_DrawHelpBalloonBubble(D_5000BA0, GalleryUI_ClampReelDigitX(sp24 + 0x28), 0x18, 8, 0x1E);
++    { // PORT: in widescreen the film strip goes on to the picture's edge, as it ran off the N64 screen's
++        s16 k;
++        for (k = 0x30; k < 0x30 + Port_WideMarginN64(); k += 8) {
++            Gallery_DrawHelpBalloonBubble(D_5000BA0, GalleryUI_ClampReelDigitX(sp24 + k), 0x18, 8, 0x1E);
++        }
++    }
+ }
+ 
+ void Gallery_DrawPhotoCounterReelExit(void) {
+@@ -798,6 +804,14 @@ void Gallery_DrawPhotoCounterReelExit(void) {
+     if (GalleryUI_ClampReelDigitX(sp2E + 0x28) != 0x3E8) {
+         Gallery_DrawHelpBalloonBubble(D_5000BA0, GalleryUI_ClampReelDigitX(sp2E + 0x28), 0x18, 8, 0x1E);
+     }
++    { // PORT: in widescreen the film strip goes on to the picture's edge (Gallery_DrawPhotoCounterReel)
++        s16 k;
++        for (k = 0x30; k < 0x30 + Port_WideMarginN64(); k += 8) {
++            if (GalleryUI_ClampReelDigitX(sp2E + k) != 0x3E8) {
++                Gallery_DrawHelpBalloonBubble(D_5000BA0, GalleryUI_ClampReelDigitX(sp2E + k), 0x18, 8, 0x1E);
++            }
++        }
++    }
+ 
+     GalleryUI_DrawRotatedSprite(D_50003F0, sp30, 0x13, 0x18, 0x29);
+ }

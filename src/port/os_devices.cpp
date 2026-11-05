@@ -1080,6 +1080,21 @@ void LockstepClock() {
 }
 } // namespace
 
+// The battle's portrait cameras, anchored to the picture's edges like its HUD (port_compat.h): registered every frame
+// the battle draws its HUD; a registration older than 4 retraces is ignored, so a camera node that a later scene
+// allocates at the same address is not anchored.
+static std::atomic<const void*> sHudCamLeft{ nullptr }, sHudCamRight{ nullptr };
+static std::atomic<uint64_t> sHudCamTick{ 0 };
+extern "C" void Port_SetHudAnchorCameras(const void* left, const void* right) {
+    sHudCamLeft = left;
+    sHudCamRight = right;
+    sHudCamTick = gTick.load();
+}
+extern "C" int Port_HudAnchorSide(const void* camera) {
+    if (camera == nullptr || gTick.load() > sHudCamTick.load() + 4) return 0;
+    return camera == sHudCamLeft.load() ? -1 : camera == sHudCamRight.load() ? 1 : 0;
+}
+
 // how far game time lags behind real time at the latest retrace (ns; see gClockLagNs)
 extern "C" int64_t Port_ClockLagNs() {
     return gClockLagNs.load();
