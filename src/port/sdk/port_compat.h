@@ -174,6 +174,17 @@ float Port_WidenViewSpan(float span);
 // markers are stretched over the whole width of a widescreen picture (libultraship patch, interpreter.cpp sWideRects).
 #define gDPPortWideRectsBegin(pkt) gDPNoOpTag3(pkt, 0x50, 0, 1)
 #define gDPPortWideRectsEnd(pkt) gDPNoOpTag3(pkt, 0x50, 0, 0)
+// The battle HUD in a widescreen picture: what is drawn between these markers moves to the left or right edge of the
+// picture (by the margin beside the 4:3 frame) and is not cut at the 4:3 sides (libultraship patch, interpreter.cpp
+// sAnchor), so the status boxes, portraits and menus slide in from the screen's edges. Nothing changes at 4:3.
+#define gDPPortAnchorLeft(pkt) gDPNoOpTag3(pkt, 0x52, 0, 1)
+#define gDPPortAnchorRight(pkt) gDPNoOpTag3(pkt, 0x52, 0, 2)
+#define gDPPortAnchorEnd(pkt) gDPNoOpTag3(pkt, 0x52, 0, 0)
+// The battle's two portrait cameras (CameraNode*): their portraits are anchored like the HUD when drawn
+// (battle_engine_main.c Battle_FillActivePokemonThumbnail);
+// set by the battle every frame it draws its HUD; a registration older than a few frames no longer counts.
+void Port_SetHudAnchorCameras(const void* left, const void* right);
+int Port_HudAnchorSide(const void* camera); // -1 left, 1 right, 0 none
 // Preserve the CPU pixels of the next colour image before a GPU blend (interpreter.cpp RttInitialize).
 #define gDPPortPreserveColorImage(pkt) gDPNoOpTag3(pkt, 0x51, 0, 1)
 #define PORT_AUDIO_OFF() (!Port_GameAudio())
