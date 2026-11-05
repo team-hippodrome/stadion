@@ -796,6 +796,10 @@ extern "C" s16 Port_WidenViewAngle(s16 angle) {
     return (s16)lround(widened / kBinToRad);
 }
 
+extern "C" float Port_WidenViewSpan(float span) {
+    return Port::AspectSetting() == 1 ? span * (4.0f / 3.0f) : span;
+}
+
 namespace Port {
 
 void ApplyAspect() {

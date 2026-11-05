@@ -168,6 +168,8 @@ void Port_LoadStall(int retraces);
 // A horizontal view half-angle (binary angle, 0x10000 = 360 degrees) widened for the picture's shape: unchanged at 4:3,
 // wider at 16:9 (src/port/Engine.cpp). For game checks of what the camera sees, which assume the N64's 4:3 picture.
 s16 Port_WidenViewAngle(s16 angle);
+// Horizontal camera spans follow the projection's width relative to the original 4:3 view.
+float Port_WidenViewSpan(float span);
 // Full-screen 2D effects made for the 4:3 picture (the battle's strip wipe): the textured rectangles between these
 // markers are stretched over the whole width of a widescreen picture (libultraship patch, interpreter.cpp sWideRects).
 #define gDPPortWideRectsBegin(pkt) gDPNoOpTag3(pkt, 0x50, 0, 1)
