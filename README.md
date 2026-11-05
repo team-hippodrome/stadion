@@ -104,7 +104,7 @@ For a GPU copy regression check, configure an evidence build with
 `-DPORT_EVID_FILES="(game_state.c|battle_prep_)"`, then run
 `python3 tools/rtt_check.py <output> --bin <binary> --backend opengl`
 (or `metal`, `vulkan`, `directx`). It displays the castle's defeated-trainer card
-and checks each new render target against its original RGBA16 pixels, including alpha.
+and checks the preserved portrait target against its original RGBA16 pixels, including alpha.
 `PORT_CHECK_RTT_INIT=1` enables the same readback diagnostics during other runs.
 
 ### Transfer Pak and Game Boy Tower

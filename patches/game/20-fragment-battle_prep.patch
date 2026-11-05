@@ -51,7 +51,7 @@ index 20b0fe8eec8b41a972488b4148f9efab96101cf3..4b4a2b0d950ecdb8a7aa788f205a924f
      0x0D000000, 0x05000000,    0x0F000000, 0x05000000, 0x20050000, 0x00000000,  0x00000000,  0x00000000,  0x00000000,
      0x08000000, BattlePrep_StarfieldGeoCallback, D_84B19910, 0x06000000, 0x0F000002, 0x05000000,  0x0A000000,  &D_800AC840, 0x06000000,
 diff --git a/src/fragments/battle_prep/battle_prep_397B10.c b/src/fragments/battle_prep/battle_prep_397B10.c
-index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..1fd4da55064f2c7374d62c7fa52e16ef1ce95c65 100644
+index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..b6e0f377828486ed011cf8bc0bd7a4d5dabc0c84 100644
 --- a/src/fragments/battle_prep/battle_prep_397B10.c
 +++ b/src/fragments/battle_prep/battle_prep_397B10.c
 @@ -31,6 +31,8 @@ static u8* D_84B0FC54[] = {
@@ -333,7 +333,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..1fd4da55064f2c7374d62c7fa52e16ef
          gSPDisplayList(gDisplayListHead++, arg1->display_node_header.callbackArg);
  
          GeoRender_ApplyMaterialState();
-@@ -1364,9 +1365,9 @@ s32 BattlePrep_BadgeCarouselGlowCallback2(s32 arg0, unk_func_80011B94* arg1) {
+@@ -1364,10 +1365,14 @@ s32 BattlePrep_BadgeCarouselGlowCallback2(s32 arg0, unk_func_80011B94* arg1) {
      return 0;
  }
  
@@ -343,9 +343,14 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..1fd4da55064f2c7374d62c7fa52e16ef
 -    u32 sp3C = Util_ConvertAddrToVirtAddr(&D_3017F00);
 +    uintptr_t sp3C = Util_ConvertAddrToVirtAddr(&D_3017F00);
  
++    // PORT: blend the defeated-trainer mark over the portrait loaded in RDRAM.
++    // The renderer uploads this color image before its first draw.
++    //@src/port/sdk/port_compat.h
++    gDPPortPreserveColorImage(gDisplayListHead++);
      GfxImage_Initialize(&sp40, 0, 2, 0x40, 0x40, arg0);
      GfxImage_SetRenderTarget(&gDisplayListHead, &sp40);
-@@ -1512,7 +1513,7 @@ void BattlePrep_InitBadgeCarousel(unk_D_84B259E8* arg0, DisplayObject* arg1, s16
+
+@@ -1512,7 +1517,7 @@ void BattlePrep_InitBadgeCarousel(unk_D_84B259E8* arg0, DisplayObject* arg1, s16
          for (i = 4; i < 8; i++) {
              Model_InitDisplayObject(&arg0->unk_08[i], 1, 0, arg0->unk_0C);
              Vec3f_SetComponentsDuplicate(&arg0->unk_08[i].position, 320.0f, -48.0f, -289.0f);
@@ -354,7 +359,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..1fd4da55064f2c7374d62c7fa52e16ef
          }
          arg0->unk_00 = 1;
      } else {
-@@ -1561,21 +1562,22 @@ void BattlePrep_RenderBadgeBackground(unk_D_84B259E8* arg0, s16 arg1, char* arg2
+@@ -1561,21 +1566,22 @@ void BattlePrep_RenderBadgeBackground(unk_D_84B259E8* arg0, s16 arg1, char* arg2
      }
  }
  
@@ -383,7 +388,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..1fd4da55064f2c7374d62c7fa52e16ef
          main_pool_realloc(arg0, (temp_v0 + sp1C));
          for (; arg0 < sp24;) {
              *--sp20 = *--sp24;
-@@ -1587,7 +1589,10 @@ s32 BattlePrep_Align64PoolBlock(s32* arg0) {
+@@ -1587,7 +1593,10 @@ s32 BattlePrep_Align64PoolBlock(s32* arg0) {
  
  void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArchive* arg2) {
      s16 i;
@@ -395,7 +400,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..1fd4da55064f2c7374d62c7fa52e16ef
      unk_func_84B067B4* temp_s5;
      unk_func_84B067B4* ptr;
      s16 tmp;
-@@ -1626,16 +1631,16 @@ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArc
+@@ -1626,16 +1635,16 @@ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArc
              break;
      }
  
@@ -415,7 +420,7 @@ index 9ff427e1d0ffafdf1e24d5bcb080ffbfb3b70736..1fd4da55064f2c7374d62c7fa52e16ef
              arg0->unk_10[i] = BattlePrep_Align64PoolBlock(BinArchive_GetFile(arg2, tmp));
              if (i < (gSessionContext.roundOrDemoId - 1)) {
                  BattlePrep_RenderBadgeGlowTexture(arg0->unk_10[i]);
-@@ -1645,8 +1650,9 @@ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArc
+@@ -1645,8 +1654,9 @@ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArc
          }
      } else {
          for (i = 0; i < 8; i++) {

@@ -172,6 +172,8 @@ s16 Port_WidenViewAngle(s16 angle);
 // markers are stretched over the whole width of a widescreen picture (libultraship patch, interpreter.cpp sWideRects).
 #define gDPPortWideRectsBegin(pkt) gDPNoOpTag3(pkt, 0x50, 0, 1)
 #define gDPPortWideRectsEnd(pkt) gDPNoOpTag3(pkt, 0x50, 0, 0)
+// Preserve the CPU pixels of the next colour image before a GPU blend (interpreter.cpp RttInitialize).
+#define gDPPortPreserveColorImage(pkt) gDPNoOpTag3(pkt, 0x51, 0, 1)
 #define PORT_AUDIO_OFF() (!Port_GameAudio())
 // Audio interface: a virtual DMA FIFO in game time, played through SDL3 (src/port/audio_out.cpp)
 s32 port_osAiSetNextBuffer(void* buf, u32 size);
