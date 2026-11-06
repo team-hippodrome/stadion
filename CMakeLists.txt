@@ -102,8 +102,10 @@ if(NOT ANDROID AND NOT EMSCRIPTEN)
   endif()
 endif()
 if(APPLE)
-  target_sources(pokestadium PRIVATE src/port/pacing_mac.mm)
-  target_link_libraries(pokestadium PRIVATE "-framework CoreVideo" "-framework QuartzCore" "-framework Metal")
+  target_sources(pokestadium PRIVATE src/port/pacing_mac.mm src/port/save_editor_mac.mm)
+  target_link_libraries(pokestadium PRIVATE "-framework CoreVideo" "-framework QuartzCore" "-framework Metal"
+                        "-framework WebKit")
+  set_source_files_properties(src/port/save_editor_mac.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
 endif()
 
 # ---------------------------------------------------------------------------------------------
