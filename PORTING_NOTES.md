@@ -526,6 +526,14 @@ harmless ones (`Geo_NodeReference`, `main_pool_set_func`, 64DD code in rsp.c).
   host pointer (`de 09900e30`), which the renderer skipped: Ditto, the model that uses it, lost its surface list
   (G_TEXTURE_GEN, TEXEL0 x PRIM x SHADE, its pink texture) and drew flat white with its node's PRIM x SHADE
   material, on every screen (rental details, VS grid, battle). In ares, overwriting the texture turns Ditto green.
+  The converted lists and frame records are cached by host address, and each entry now keeps the raw bytes it was
+  made from and converts again when they differ (user report: Rapidash's flames flat yellow with red and white
+  patches, changing with the pose, after Ponyta's rental detail had been open; ares: correct). The rental screen loads
+  every Pokémon's model into the same block, so Rapidash's animated flame record (eight texture frames,
+  `Port_PdlFrameRecord`) sat where Ponyta's had been and the cache returned Ponyta's texture addresses, which inside
+  Rapidash's blob point at its body and eye textures. A full table reuses its entries in turn (it converted into a
+  new buffer on every call once full). The other converters with an address-only cache (`Port_CbTexPair`,
+  `Port_MiniFxTexPair`, `Port_MiniFxColorRamp`, `Port_ConvertMaterialList`) are unchanged so far.
 - Per-species slot effects (`StadiumModelSlot`, model_renderer_callbacks.c / 33FE0.c): `StadiumModel.modelSegment`
   holds a pointer and `unkSegment` is a whole `ModelSegment` (was u32 + padding: the copy overran `position`); the two
   slot-model templates (u32 words: s16 tables, Vtx, F3DEX2 lists) are converted to host layout on first use;
