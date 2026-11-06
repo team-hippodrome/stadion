@@ -999,6 +999,9 @@ class LauncherWindow : public Ship::GuiWindow {
         if (getenv("PORT_LAUNCHER_OPEN_GRAPHICS") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
             mGraphicsTestOpened = mGraphics = true;
         }
+        if (getenv("PORT_LAUNCHER_OPEN_SOUND") != nullptr && !mSoundTestOpened) { // test hook (as OPEN_TOOLS)
+            mSoundTestOpened = mSound = true;
+        }
 
         if (mTools) {
             ToolsPanel(16, 58, kW - 32, 366);
@@ -1006,6 +1009,8 @@ class LauncherWindow : public Ship::GuiWindow {
             ControlsPanel(16, 58, kW - 32, 366);
         } else if (mGraphics) {
             GraphicsPanel(16, 58, kW - 32, 366);
+        } else if (mSound) {
+            SoundPanel(16, 58, kW - 32, 366);
         } else {
             for (int i = 0; i < 4; i++) {
                 PlayerCard(i, 16 + i * (222 + 14), 58, 222, 366);
@@ -1484,6 +1489,101 @@ class LauncherWindow : public Ship::GuiWindow {
         CVarSave();
     }
 
+    // launcher > Sound: CVars gSound.*, handed to the audio paths at once (Port::ApplySoundSettings, sound_settings.h)
+    void SoundPanel(float x, float y, float w, float h) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "SOUND", gFonts.body, Theme::text);
+        Text(x + 90, y + 15, "Changes apply at once and are kept for the next start.", gFonts.small, Theme::dim);
+        if (Button("Done", x + w - 108, y + 9, 94, 26)) {
+            mSound = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+        bool changed = false;
+
+        // volumes (left column)
+        const float lx = x + 14, sx = x + 150, sw = 250;
+        float ry = y + 60;
+        auto volume = [&](const char* name, const char* cvar, const char* hint) {
+            Text(lx, ry + 4, name, gFonts.body);
+            int v = std::clamp(CVarGetInteger(cvar, 100), 0, 100);
+            ImGui::SetCursorScreenPos(P(sx, ry));
+            ImGui::SetNextItemWidth(sw * mScale);
+            ImGui::PushStyleColor(ImGuiCol_SliderGrab, HexV(0x4C7BD9));
+            ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, HexV(0x6E95E6));
+            const std::string id = std::string("##") + cvar;
+            if (ImGui::SliderInt(id.c_str(), &v, 0, 100, v == 0 ? "off" : "%d%%", ImGuiSliderFlags_AlwaysClamp)) {
+                CVarSetInteger(cvar, v);
+                changed = true;
+            }
+            ImGui::PopStyleColor(2);
+            if (ImGui::IsItemHovered() && hint != nullptr) ImGui::SetTooltip("%s", hint);
+            ry += 44;
+        };
+        volume("Master", "gSound.Master", "All sound, the Game Boy included");
+        volume("Music", "gSound.Music", "The game's songs");
+        volume("Sound effects", "gSound.Effects", "Menus, moves and the other effects");
+        volume("Voices", "gSound.Voices", "Pokémon cries and the announcer");
+        volume("Game Boy", "gSound.GameBoy", "The Game Boy games in the GB Tower");
+
+        // switches (right column)
+        const float cx = x + 470, ox = x + 640;
+        float oy = y + 60;
+        auto option = [&](const char* name, const char* hint, const char* id, const std::vector<std::string>& labels,
+                          int chosen, float bw) {
+            Text(cx, oy + 5, name, gFonts.body);
+            const int c = Choice(id, labels, chosen, ox, oy, bw);
+            Text(cx, oy + 30, hint, gFonts.small, Theme::dim);
+            oy += 74;
+            return c;
+        };
+        {
+            const int c = option("Sound", "Off silences everything (the game runs as before).", "snd-on", { "On", "Off" },
+                                 CVarGetInteger("gSound.On", 1) != 0 ? 0 : 1, 64);
+            if (c >= 0) {
+                CVarSetInteger("gSound.On", c == 0 ? 1 : 0);
+                changed = true;
+            }
+        }
+        {
+            const int c = option("In the background", "Silent while another window is in front.", "snd-bg",
+                                 { "Play", "Mute" }, CVarGetInteger("gSound.MuteInBackground", 0) != 0 ? 1 : 0, 64);
+            if (c >= 0) {
+                CVarSetInteger("gSound.MuteInBackground", c);
+                changed = true;
+            }
+        }
+        {
+            const int c = option("Sound delay", "Long helps when the sound crackles on a slow PC.\nApplies when the game starts.",
+                                 "snd-delay", { "Short", "Normal", "Long" }, std::array<int, 3>{ 1, 0, 2 }[std::clamp(
+                                                                               CVarGetInteger("gSound.Delay", 0), 0, 2)],
+                                 72);
+            if (c >= 0) {
+                CVarSetInteger("gSound.Delay", std::array<int, 3>{ 1, 0, 2 }[c]); // buttons: short, normal, long
+                changed = true;
+            }
+        }
+
+        // defaults
+        const float by = y + h - 40;
+        dl->AddRectFilled(P(x, by - 8), P(x + w, by - 7), Hex(Theme::cardBorder));
+        if (Button("Defaults", lx, by, 90, 28)) {
+            for (const char* cvar : { "gSound.Master", "gSound.Music", "gSound.Effects", "gSound.Voices", "gSound.GameBoy" }) {
+                CVarSetInteger(cvar, 100);
+            }
+            CVarSetInteger("gSound.On", 1);
+            CVarSetInteger("gSound.MuteInBackground", 0);
+            CVarSetInteger("gSound.Delay", 0);
+            changed = true;
+        }
+        Text(lx + 104, by + 7, "Stereo or mono: the game's own Options menu.", gFonts.small, Theme::dim);
+        if (changed) {
+            Port::ApplySoundSettings();
+            CVarSave();
+        }
+    }
+
     void BottomBar(float x, float y, float w, float h) {
         State& s = *mState;
         ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -1523,16 +1623,23 @@ class LauncherWindow : public Ship::GuiWindow {
             }
         }
         Check("Debug", &s.debug, x + 164, y + 88);
+        if (Button(mSound ? "Players" : "Sound", x + 234, y + 86, 96, 26)) {
+            mSound = !mSound;
+            mGraphics = mControls = mTools = false;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Volume of music, sound effects, voices and the Game Boy; mute in the background");
+        }
         if (Button(mGraphics ? "Players" : "Graphics", x + 340, y + 86, 100, 26)) {
             mGraphics = !mGraphics;
-            mControls = mTools = false;
+            mControls = mTools = mSound = false;
         }
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Resolution, anti-aliasing, VSync, Smooth motion; a preset for slow graphics chips");
         }
         if (Button(mControls ? "Players" : "Controls", x + 450, y + 86, 100, 26)) {
             mControls = !mControls;
-            mGraphics = mTools = false;
+            mGraphics = mTools = mSound = false;
         }
         // the game picture's shape (the rest of the window gets black bars)
         Text(x + 566, y + 91, "Screen", gFonts.small, Theme::dim);
@@ -1604,7 +1711,7 @@ class LauncherWindow : public Ship::GuiWindow {
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Start the game directly next time (hold Shift while starting to see this launcher)");
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mTools && !mGraphics) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mTools && !mGraphics && !mSound) {
             *mPlay = ReadyToPlay(s);
         }
         (void)mQuit;
@@ -1838,6 +1945,8 @@ class LauncherWindow : public Ship::GuiWindow {
     std::shared_ptr<Ship::Window> mWindow;
     bool mControls = false; // the controls panel instead of the player cards
     bool mGraphics = false; // the graphics panel instead of the player cards
+    bool mSound = false;    // the sound panel instead of the player cards
+    bool mSoundTestOpened = false;
     bool mGraphicsTestOpened = false;
     int mPort = 0;          // whose controls it shows
     int mCapture = -1;      // the input (kInputs) waiting for a key or controller input, -1: none
