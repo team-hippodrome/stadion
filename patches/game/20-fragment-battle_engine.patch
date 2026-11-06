@@ -1798,7 +1798,7 @@ index 1463c36f9d91811ef32fd53a4bad18102a7318ed..542995eadd70f90f800d7aa52e905c1b
      BattleAI_SeedRandomState(0x35);
  
 diff --git a/src/fragments/battle_engine/battle_engine_main.c b/src/fragments/battle_engine/battle_engine_main.c
-index f52b88d105b39060d8d3f853d6fec3aa56c62e86..b1997faa7415bc2a32e7fdef57a8b10f57c6c888 100644
+index f52b88d105b39060d8d3f853d6fec3aa56c62e86..8e08cdf88f8b3c52d894c559cc1bd3a772b580d5 100644
 --- a/src/fragments/battle_engine/battle_engine_main.c
 +++ b/src/fragments/battle_engine/battle_engine_main.c
 @@ -1,3 +1,5 @@
@@ -1861,7 +1861,16 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..b1997faa7415bc2a32e7fdef57a8b10f
          GfxImage_FillCurrent(&gDisplayListHead, Battle_TintTexel16(sStageBackdrop));
          return;
      }
-@@ -254,6 +256,12 @@ void Battle_RenderActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer*
+@@ -214,6 +216,8 @@ void Battle_DrawStageBackdrop(void) {
+     bottom = sStageCamera.viewport.height + top;
+     texture_step_y = 0x10000 / (sStageCamera.viewport.height / 2);
+ 
++    // PORT: the sky comes before the arena: keep the frame a 3D scene's, at the whole width of a widescreen picture
++    gDPPort3DScene(gDisplayListHead++);
+     if ((sStageCamera.viewport.width < 0x140) || (sStageCamera.viewport.height < 0xF0)) {
+         GfxImage_FillCurrent(&gDisplayListHead, 1);
+     } else {
+@@ -254,6 +258,12 @@ void Battle_RenderActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer*
  
          GfxImage_SetRenderTarget(&gDisplayListHead, thumbnail);
          GfxImage_FillCurrent(&gDisplayListHead, 0x10D);
@@ -1874,7 +1883,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..b1997faa7415bc2a32e7fdef57a8b10f
          Geo_RenderRootNode(thumbnail_root);
  
          camera_node->node.flags &= ~0x10;
-@@ -308,7 +316,7 @@ void Battle_FillActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer* t
+@@ -308,7 +318,7 @@ void Battle_FillActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer* t
      s32 y;
      CameraNode* camera_node = thumbnail_root->children;
      CameraViewport* viewport = &thumbnail_root->children->viewport;
@@ -1883,7 +1892,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..b1997faa7415bc2a32e7fdef57a8b10f
  
      x = viewport->x;
      y = viewport->y;
-@@ -316,6 +324,15 @@ void Battle_FillActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer* t
+@@ -316,6 +326,15 @@ void Battle_FillActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer* t
      camera_node++;
  
      gDPPipeSync(gDisplayListHead++);
@@ -1899,7 +1908,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..b1997faa7415bc2a32e7fdef57a8b10f
  
      gDPSetCycleType(gDisplayListHead++, G_CYC_1CYCLE);
      gDPSetRenderMode(gDisplayListHead++, G_RM_OPA_SURF, G_RM_OPA_SURF2);
-@@ -333,6 +350,7 @@ void Battle_FillActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer* t
+@@ -333,6 +352,7 @@ void Battle_FillActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer* t
      Battle_DrawTexturedRectSegment(x, y + 30, 37, 7, image_address, 76);
  
      gDPPipeSync(gDisplayListHead++);
@@ -1907,7 +1916,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..b1997faa7415bc2a32e7fdef57a8b10f
  
      gDPSetTexturePersp(gDisplayListHead++, G_TP_PERSP);
      gDPSetTextureFilter(gDisplayListHead++, G_TF_BILERP);
-@@ -398,6 +416,7 @@ void func_84300E80(void) {
+@@ -398,6 +418,7 @@ void func_84300E80(void) {
  s32 BattleScene_UpdateFrame(s32 fade_mode) {
      s32 battle_result;
  
@@ -1915,7 +1924,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..b1997faa7415bc2a32e7fdef57a8b10f
      GeoRender_AdvanceFrameCounter();
      ModelAnim_UpdateFrameChangeState();
      BattleScene_DispatchLifecycle(2, sBattleSides);
-@@ -611,7 +630,7 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -611,7 +632,7 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
      sBattleSides[1].unk_10 = PokeIcon_AllocFramebuffers(3);
      PokeIcon_OpenModelArchives();
  
@@ -1924,7 +1933,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..b1997faa7415bc2a32e7fdef57a8b10f
      GfxImage_Initialize(thumbnail_depth, 0, 2, 0x4C, 0x4C, stage_context->unk_18[0]->depth_p->img_p);
      sSide1PokemonThumbnail = GfxImage_Allocate(0, 2, 0x4C, 0x4C, 0);
      sSide2PokemonThumbnail = GfxImage_Allocate(0, 2, 0x4C, 0x4C, 0);
-@@ -640,8 +659,16 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -640,8 +661,16 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
          }
      }
  
@@ -1943,7 +1952,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..b1997faa7415bc2a32e7fdef57a8b10f
  
      model = Model_LoadByArchiveIndex(0x9A);
      Battle_SelectComRoster();
-@@ -669,17 +696,17 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -669,17 +698,17 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
      sSide2ThumbnailRoot = process_geo_layout(layout_pool, sSide2ThumbnailLayout);
  
      // Selectors 0, 1, and 3 each attach geometry beneath a stage tint/scale callback.
@@ -1964,7 +1973,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..b1997faa7415bc2a32e7fdef57a8b10f
      if (stage_layout != NULL) {
          GraphNode_AppendChild(&sStageLayout3, process_geo_layout(layout_pool, stage_layout));
      }
-@@ -687,13 +714,14 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -687,13 +716,14 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
      MainPool_FinalizeAllocation(layout_pool);
  
      // callbackArg records whether this arena supplied fog, for Battle_SetStageTintColor.
