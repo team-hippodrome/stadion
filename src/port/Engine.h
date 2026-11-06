@@ -34,6 +34,8 @@ std::string AppPath(const char* name);
 // The game picture's shape (Engine.cpp): 0 = 4:3, 1 = 16:9. ApplyAspect hands it to the renderer.
 int AspectSetting();
 void ApplyAspect();
+// Hands the launcher's Sound settings (CVars gSound.*) to the audio paths (sound_settings.h). At start and on change.
+void ApplySoundSettings();
 // the game window (after Init), for the launcher
 std::shared_ptr<Fast::Fast3dWindow> GetWindow();
 // starts building the shader programs earlier runs drew, and records new ones (shader_warmup.cpp; after Init)

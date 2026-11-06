@@ -11,6 +11,7 @@
 // PORT_GB_WAV dump ran ~1.5 % slow against ares).
 #include <SDL3/SDL.h>
 #include "web_audio.h" // (web build: an AudioWorklet instead of SDL's audio device)
+#include "sound_settings.h" // launcher > Sound: Game Boy volume, master, Sound off, background mute
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -20,6 +21,7 @@
 namespace {
 std::mutex gLock;
 SDL_AudioStream* gStream = nullptr;
+float gGain = -1.0f; // the stream's gain as last set (-1: not set on this stream)
 int gFreq = 0;
 int gEnabled = -1;
 // virtual AI queue (output off): bytes queued, VI tick of the last drain, fractional bytes
@@ -62,6 +64,7 @@ void OpenStream(int freq) {
         return;
     }
     gFreq = freq;
+    gGain = -1.0f;
     SDL_ResumeAudioStreamDevice(gStream);
 }
 } // namespace
@@ -107,6 +110,11 @@ void Port_GbAudioSubmit(const void* samples, uint32_t bytes) {
     // keep at most ~0.25 s queued (the tower produces a little more than it needs when it runs ahead)
     if (SDL_GetAudioStreamQueued(gStream) > gFreq) {
         return;
+    }
+    const float gain = Port::SoundOutputGain(true);
+    if (gain != gGain) {
+        SDL_SetAudioStreamGain(gStream, gain);
+        gGain = gain;
     }
     SDL_PutAudioStreamData(gStream, samples, (int)bytes);
 }

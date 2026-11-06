@@ -25,6 +25,8 @@
 #include <libultraship/bridge/crashhandlerbridge.h>
 #include <libultraship/bridge/gfxbridge.h>
 
+#include "sound_settings.h"
+
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
@@ -249,6 +251,7 @@ bool Init() {
 
     MigrateControls(cvars);
     ApplyAspect();
+    ApplySoundSettings();
     auto controlDeck = std::make_shared<LUS::ControlDeck>(std::vector<CONTROLLERBUTTONS_T>(), DefaultMappings(),
                                                           std::unordered_map<CONTROLLERBUTTONS_T, std::string>({
                                                               { BTN_A, "A" },
@@ -725,6 +728,8 @@ bool PumpFrame() {
         int n = 0;
         if (SDL_Window** ws = SDL_GetWindows(&n)) {
             if (n > 0) Port_DisplayFollowWindow(ws[0]);
+            // launcher > Sound > Mute in background (audio_out.cpp reads it on the game thread)
+            if (n > 0) NoteSoundWindowFocus((SDL_GetWindowFlags(ws[0]) & SDL_WINDOW_INPUT_FOCUS) != 0);
             SDL_free(ws);
         }
     }
@@ -822,6 +827,19 @@ extern "C" int Port_WideMarginN64(void) {
 }
 
 namespace Port {
+
+void ApplySoundSettings() {
+    SoundSettings s;
+    s.master = CVarGetInteger("gSound.Master", 100);
+    s.music = CVarGetInteger("gSound.Music", 100);
+    s.effects = CVarGetInteger("gSound.Effects", 100);
+    s.voices = CVarGetInteger("gSound.Voices", 100);
+    s.gameBoy = CVarGetInteger("gSound.GameBoy", 100);
+    s.on = CVarGetInteger("gSound.On", 1) != 0;
+    s.muteInBackground = CVarGetInteger("gSound.MuteInBackground", 0) != 0;
+    s.delay = CVarGetInteger("gSound.Delay", 0);
+    SetSoundSettings(s);
+}
 
 void ApplyAspect() {
     const bool wide = AspectSetting() == 1;

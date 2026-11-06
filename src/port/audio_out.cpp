@@ -11,10 +11,13 @@
 // stream falls far behind, the queue is dropped and filled again instead of lagging. A queue that ran dry without a
 // long stall raises the target (a host whose frames come unevenly, e.g. a slow GPU; see PORTING_NOTES, Slow GPUs).
 // Output is on at normal speed; PORT_SPEED other than 1 turns it off, PORT_SOUND=0/1 overrides.
+// The launcher's Sound settings (sound_settings.h) set the stream's gain (master, Sound off, background mute) and
+// the queue target (Sound delay).
 // PORT_AUDIO_DUMP=<file> writes everything the AI accepts as raw 16-bit stereo PCM at the AI rate (host byte
 // order; the rate is printed as "[audio] rate"), plus <file>.frames with the VI frame of each buffer.
 #include <SDL3/SDL.h>
 #include "web_audio.h" // (web build: an AudioWorklet instead of SDL's audio device)
+#include "sound_settings.h"
 
 #include <algorithm>
 #include <cmath>
@@ -56,6 +59,7 @@ double gRateIntegral = 0.0;
 double gQueueAvg = 0.0;   // smoothed fill level (s)
 uint64_t gLastOutNs = 0;  // host time of the previous Output (SDL_GetTicksNS)
 bool gPlaying = false;    // the device runs (paused while the queue fills up)
+float gGain = -1.0f;      // the stream's gain as last set (-1: not set on this stream)
 FILE* gDump = nullptr;
 FILE* gDumpFrames = nullptr;
 
@@ -162,6 +166,9 @@ void OpenStream() {
         gQueueTarget = kDefaultQueueTarget;
     }
 #endif
+    gQueueTarget = Port::SoundQueueTarget(gQueueTarget); // launcher > Sound > Sound delay
+    if (getenv("PORT_TRACE_AUDIO_OUT")) fprintf(stderr, "[audio-out] queue target %.1f ms\n", gQueueTarget * 1000);
+    gGain = -1.0f;
     gRatio = 1.0;
     gRateIntegral = 0.0;
     gLastOutNs = 0;
@@ -220,6 +227,11 @@ void Output(const void* data, uint32_t bytes) {
         gRateIntegral = std::clamp(gRateIntegral + err * kKi * dt, -0.03, 0.03);
         gRatio = std::clamp(1.0 + gRateIntegral + std::clamp(err * kKp, -0.005, 0.005), 0.97, 1.03);
         SDL_SetAudioStreamFrequencyRatio(gStream, (float)gRatio);
+    }
+    const float gain = Port::SoundOutputGain(false); // master volume, Sound off, muted in the background
+    if (gain != gGain) {
+        SDL_SetAudioStreamGain(gStream, gain);
+        gGain = gain;
     }
     SDL_PutAudioStreamData(gStream, data, (int)bytes);
     if (!gPlaying && SDL_GetAudioStreamQueued(gStream) >= gQueueTarget * bytesPerSecond) {
