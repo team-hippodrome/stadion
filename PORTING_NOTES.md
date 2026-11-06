@@ -1404,6 +1404,30 @@ listening.
   phase differs between the runs, and the computer's lead Pokémon is random (see above), so cries differ.
 - Linux (Xvfb, OpenGL) produces a bit-identical dump to macOS for the same run.
 
+### Sound settings (launcher > Sound)
+
+A panel next to Graphics (`SoundPanel`, launcher.cpp), stored as CVars and handed to the audio paths at start and on
+every change (`Port::ApplySoundSettings`, Engine.cpp; state in sound_settings.cpp, read by the game and audio threads):
+- `gSound.Music`, `gSound.Effects` (0-100): the music player's voice volume (`Audio_ComputeVoiceVolume`,
+  libnumus/player.c), by the voice's `IsFX`, on top of the game's own master volumes and fades.
+- `gSound.Voices`: the stream mix in audio_stream.c (`func_80044EA4`). Cries (`Cry_Play` starts stream 0) and the
+  announcer play through those two streams.
+- `gSound.Master`, `gSound.GameBoy`, `gSound.On`, `gSound.MuteInBackground`: the output streams' gain
+  (`SDL_SetAudioStreamGain`; audio_out.cpp for the game, gb_audio_out.cpp for the GB Tower, which also takes the Game
+  Boy volume). The window thread reports the focus every frame (`NoteSoundWindowFocus`, Engine.cpp).
+- `gSound.Delay` (0 normal, 1 short, 2 long): the output queue target when the stream opens (`SoundQueueTarget`):
+  short 60 % of the platform's (at least 20 ms), long 120 ms, which the adaptive target reaches on a slow PC anyway.
+  macOS: 22.9 / 20.0 / 120 ms (`PORT_TRACE_AUDIO_OUT=1` prints it).
+Volumes follow a square curve (50 % = 1/4 amplitude, about half as loud). At 100 % nothing is multiplied: the mix is
+bit-identical to before. Stereo or mono stays the game's own Options setting. The handheld (Android) launcher has no
+Sound panel yet. `PORT_LAUNCHER_OPEN_SOUND=1` opens it (with `PORT_LAUNCHER_SHOT` for a picture).
+
+Checked: `PORT_AUDIO_DUMP` of the rental route (Music 0 and Effects 0 each remove their part; defaults identical) and
+of `boot_battle_move` with `PORT_BOOT=battle` (Voices 0 removes the cries and announcer, the rest unchanged); SDL's
+disk driver (`SDL_AUDIO_DRIVER=disk`) for the output: Master 50 % gives 1/4 of the amplitude, Sound off and Mute in the
+background (a hidden window has no focus) are silent. Battle runs with game sound on vary from run to run (an announcer
+line at frame 1443 sometimes does not start); that is older than these settings.
+
 ## Shader warm-up
 
 Fast3D builds a shader program the first time a combiner/state combination is drawn, and that draw waits for it. With a

@@ -167,6 +167,7 @@ void OpenStream() {
     }
 #endif
     gQueueTarget = Port::SoundQueueTarget(gQueueTarget); // launcher > Sound > Sound delay
+    if (getenv("PORT_TRACE_AUDIO_OUT")) fprintf(stderr, "[audio-out] queue target %.1f ms\n", gQueueTarget * 1000);
     gGain = -1.0f;
     gRatio = 1.0;
     gRateIntegral = 0.0;

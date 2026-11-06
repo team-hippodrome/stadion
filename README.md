@@ -99,6 +99,16 @@ apply** reopens the launcher with the selected renderer.
 anti-aliasing and Smooth motion off, VSync and Keep full speed on. A smaller window
 helps as well, and DirectX or OpenGL can be faster than the other on some chips.
 
+**Sound** opens the sound settings; changes apply at once and are kept:
+- **Master**, **Music**, **Sound effects**, **Voices** (Pokémon cries and the announcer)
+  and **Game Boy** (the GB Tower) volumes.
+- **Sound**: on or off. **In the background**: keep playing or mute while another
+  window is in front.
+- **Sound delay**: short, normal or long. Long helps when the sound crackles on a slow
+  PC; it applies when the game starts.
+
+Stereo or mono is set in the game's own Options menu.
+
 Compiled shaders are saved in `shadercache/` beside the settings for DirectX 11,
 Vulkan, and OpenGL drivers that support program binaries. Later launches reuse
 matching compiler output. Invalid entries are rebuilt automatically. For
