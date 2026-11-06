@@ -485,11 +485,17 @@ static int RunGame(int argc, char** argv) {
 #endif
     // The window must be driven from the process's main thread; game threads run on host threads.
     while (Port::PumpFrame()) {
-        Port::PumpRspTasks();
-        Port::PumpInterpolation();
         // up to 1 ms, less when the game queues an RSP task: a scene's 300 JPEG tasks each waited a full loop pass
-        // (a 0.35 s pause at the title-to-menu change)
-        Port::WaitForRspTasks(std::chrono::milliseconds(1));
+        // (a 0.35 s pause at the title-to-menu change). Tasks queued right after one another (those JPEG tasks: the
+        // game submits the next when the last is done) are run for up to 4 ms before the window's events are pumped
+        // again: the event pump (Cocoa) costs about as much as a task, and paying it 300 times held up the screen
+        // changes by 15-30 ms (with or without Smooth motion). Events are still handled every 4 ms or so.
+        const auto burstStart = std::chrono::steady_clock::now();
+        do {
+            Port::PumpRspTasks();
+            Port::PumpInterpolation();
+        } while (Port::WaitForRspTasks(std::chrono::milliseconds(1)) &&
+                 std::chrono::steady_clock::now() - burstStart < std::chrono::milliseconds(4));
     }
     Port::StopDevices();
     // Window closed: end the process at once, as on SIGTERM. Returning from main ran the static destructors while

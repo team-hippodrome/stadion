@@ -3,7 +3,8 @@
 // of each Transfer Pak (picture, game, trainer from the save, save file) and a bar with the Stadium ROM, its save and
 // PLAY. The choices are remembered in pokestadium.cfg.json and passed to the game the way the command line does
 // (PORT_FLASH_FILE, PORT_GB_ROM*, PORT_GB_SAVE*). Auto-play skips it next time (hold Shift while starting to see it
-// again); Debug adds a button that opens the save editor (tools/save_editor, needs python3) in the browser. Controls
+// again); Debug adds a button that opens the save editor (tools/save_editor, needs python3): on macOS in a window of
+// the app (save_editor_mac.mm), elsewhere in the browser. Controls
 // swaps the player cards for the key and controller bindings of each player (libultraship's ControlDeck mappings).
 // Renderer picks libultraship's window backend (Window.Backend.Id); it applies the next time the game starts.
 // Graphics swaps the player cards for the drawing settings (resolution scale, anti-aliasing, VSync, Smooth motion,
@@ -53,6 +54,12 @@
 #include <mutex>
 #include <string>
 #include <vector>
+
+#ifdef __APPLE__
+// macOS: the editor in a window of the app, as the old macOS launcher had it (save_editor_mac.mm)
+bool Port_SaveEditorOpen(const std::string& dir, const std::string& save, std::string* status);
+void Port_SaveEditorStop();
+#endif
 
 namespace {
 
@@ -569,6 +576,12 @@ void OfferExport(const std::string& path) {
 std::string SaveEditorDir() {
     const char* base = SDL_GetBasePath();
     fs::path p = base != nullptr ? fs::path(base) : fs::current_path();
+    // a packaged app carries the package itself (macOS: Contents/Resources/save_editor, SDL's base path there)
+    for (const fs::path& packaged : { p / "save_editor", p / ".." / "Resources" / "save_editor" }) {
+        if (fs::exists(packaged / "stadium_save")) {
+            return packaged.lexically_normal().string();
+        }
+    }
     for (int up = 0; up < 3 && !p.empty(); up++) {
         if (fs::exists(p / "tools" / "save_editor" / "stadium_save")) {
             return (p / "tools" / "save_editor").string();
@@ -579,6 +592,7 @@ std::string SaveEditorDir() {
 }
 
 std::string gEditorStatus;
+SDL_Process* gEditorProcess = nullptr; // the save editor's server (stopped when the launcher closes)
 
 void OpenSaveEditor(const std::string& save) {
     std::string dir = SaveEditorDir();
@@ -586,7 +600,17 @@ void OpenSaveEditor(const std::string& save) {
         gEditorStatus = "tools/save_editor not found";
         return;
     }
-    static SDL_Process* sEditor = nullptr;
+    std::error_code ec;
+    if (save.empty() || !fs::exists(fs::u8path(save), ec)) { // a new install: the game writes the save when it starts
+        gEditorStatus = "No save yet: start the game once";
+        return;
+    }
+#ifdef __APPLE__
+    Port_SaveEditorOpen(dir, save, &gEditorStatus);
+    return;
+#endif
+    // elsewhere: the page in the browser
+    SDL_Process*& sEditor = gEditorProcess;
     if (sEditor == nullptr) {
 #ifdef _WIN32
         const char* python = "python";
@@ -600,7 +624,20 @@ void OpenSaveEditor(const std::string& save) {
         SDL_SetStringProperty(props, SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING, dir.c_str());
 #endif
         // the module is found through PYTHONPATH too (older SDL cannot set the child's working directory)
-        SDL_SetEnvironmentVariable(SDL_GetEnvironment(), "PYTHONPATH", dir.c_str(), true);
+        SDL_Environment* env = SDL_GetEnvironment();
+        SDL_SetEnvironmentVariable(env, "PYTHONPATH", dir.c_str(), true);
+#ifndef _WIN32
+        // an app started from Finder gets only /usr/bin:/bin:/usr/sbin:/sbin: also look where Homebrew and the
+        // python.org installer put python3
+        {
+            const char* path = SDL_GetEnvironmentVariable(env, "PATH");
+            std::string p = path != nullptr ? path : "/usr/bin:/bin";
+            for (const char* extra : { "/opt/homebrew/bin", "/usr/local/bin", "/Library/Frameworks/Python.framework/Versions/Current/bin" }) {
+                if (("" + p + ":").find(std::string(extra) + ":") == std::string::npos) p += std::string(":") + extra;
+            }
+            SDL_SetEnvironmentVariable(env, "PATH", p.c_str(), true);
+        }
+#endif
         sEditor = SDL_CreateProcessWithProperties(props);
         SDL_DestroyProperties(props);
         if (sEditor == nullptr) {
@@ -608,6 +645,15 @@ void OpenSaveEditor(const std::string& save) {
             return;
         }
         SDL_Delay(800); // let the server bind its port
+    }
+    // the server stopped (no python3, a Python error, the port taken by another program): say so, and start it again
+    // on the next click
+    int exitCode = 0;
+    if (SDL_WaitProcess(sEditor, false, &exitCode)) {
+        SDL_DestroyProcess(sEditor);
+        sEditor = nullptr;
+        gEditorStatus = exitCode == 127 ? "Needs python3" : "Save editor stopped (code " + std::to_string(exitCode) + ")";
+        return;
     }
     SDL_OpenURL("http://127.0.0.1:8765/");
     gEditorStatus = "Opened in the browser";
@@ -1466,8 +1512,11 @@ class LauncherWindow : public Ship::GuiWindow {
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Import a raw N64 Stadium cartridge save. A working copy is saved beside the launcher; the original is kept.");
         if (s.debug) {
-            if (Button("Save editor", x + 556, y + 56, 96, 26)) {
+            static bool sTestClicked = false; // test hook: PORT_LAUNCHER_TEST_SAVE_EDITOR=1 clicks it once
+            if (Button("Save editor", x + 556, y + 56, 96, 26) ||
+                (!sTestClicked && getenv("PORT_LAUNCHER_TEST_SAVE_EDITOR") != nullptr && (sTestClicked = true))) {
                 OpenSaveEditor(s.save);
+                if (getenv("PORT_LAUNCHER_TEST_SAVE_EDITOR") != nullptr) fprintf(stderr, "[launcher] save editor: %s\n", gEditorStatus.c_str());
             }
             if (!gEditorStatus.empty()) {
                 Text(x + 658, y + 61, gEditorStatus, gFonts.small, Theme::dim);
@@ -1905,6 +1954,14 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
         }
         window->GetGui()->RemoveGuiWindow(launcher->GetName());
         Store(state);
+#ifdef __APPLE__
+        Port_SaveEditorStop();
+#endif
+        if (gEditorProcess != nullptr) { // the save editor's server ends with the launcher (it edits the save the game
+            SDL_KillProcess(gEditorProcess, true); // is about to load, and used to keep running after the window closed)
+            SDL_DestroyProcess(gEditorProcess);
+            gEditorProcess = nullptr;
+        }
         if (!play || restart) {
             return "";
         }
