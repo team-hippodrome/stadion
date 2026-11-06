@@ -1,8 +1,8 @@
 #!/usr/bin/env python3 -I
 """Before/after pictures of the widescreen (16:9) fixes, for review (PORTING_NOTES: Battle HUD at the widescreen edges).
 
-Each case runs a route twice in 16:9: "before" with the fixes off (PORT_NO_HUD_ANCHOR=1: the anchor/no-cut markers
-are ignored, as before the change) and "after" with them on, and saves the chosen frames:
+Each case runs a route twice in 16:9: "before" with the fixes off (the case's "off" switches, by default
+PORT_NO_HUD_ANCHOR=1: the anchor/no-cut markers are ignored, as before the change) and "after" with them on, and saves the chosen frames:
 <out>/<case>/<frame>_before.png, <frame>_after.png, <frame>_compare.png (before above after), and <out>/index.html.
 Add a case to CASES for every new widescreen fix.
 
@@ -45,6 +45,12 @@ CASES = [
               "runs on to the picture's right edge.",
          rec="evidence/whole_game/routes/minigames_gallery/gal_album_boot.rec",
          env=dict(PORT_CONTROLLERS="1,2"), gb="base.sav", frames=[4568]),
+    dict(id="elite_four_room", title="Elite Four room (and the rival's)",
+         note="Its sunset sky is drawn as full-screen rectangles before the arena. Before: that made the frame a 2D "
+              "screen, so the whole battle was kept inside the 4:3 area with the sides empty. After: the arena fills "
+              "the picture like the other stages. Stage 16 (the rival's room) is the same room.",
+         rec="replays/boot_battle_move.rec", env=dict(PORT_BOOT="battle", PORT_BOOT_STAGE="15"),
+         off=dict(PORT_NO_3D_SCENE_MARK="1"), frames=[1201, 1300, 1800]),
 ]
 
 
@@ -58,9 +64,11 @@ def run(case, mode, out):
                PORT_EVID_BACKGROUND="1", PORT_ASPECT="16:9", PORT_DEBUG_RESIZE="1:1280x720",
                PORT_SCREENSHOT_DIR=work, PORT_SCREENSHOT_STOP_ONLY="1", PORT_RECORD="/dev/null",
                PORT_FLASH_FILE=os.path.join(work, "port.flash"), SHIP_HOME=os.path.join(work, "home"))
-    env.pop("PORT_NO_HUD_ANCHOR", None)
+    off = case.get("off", dict(PORT_NO_HUD_ANCHOR="1"))
+    for key in off:
+        env.pop(key, None)
     if mode == "before":
-        env["PORT_NO_HUD_ANCHOR"] = "1"
+        env.update(off)
     env.update(case.get("env", {}))
     if case.get("gb"):
         shutil.copyfile(os.path.join(FIX, case["gb"]), os.path.join(work, "gb.sav"))

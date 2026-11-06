@@ -244,7 +244,7 @@ stubbed (intro models look "exploded"); audio, Transfer Pak and GB Tower emulati
 
 Debug aids: `PORT_SCREENSHOT_DIR` (+ `PORT_SCREENSHOT_STUCK=secs`, `PORT_SCREENSHOT_NOSTOP`, `PORT_SCREENSHOT_ALL`, `PORT_SCREENSHOT_MAX_MB` (default 2048: no more changed frames past that size)), `PORT_ASPECT=4:3|16:9` (the
 picture's shape, else the launcher's Screen option), `PORT_NO_BACKDROP_STRETCH=1` (2D backdrops stay 4:3 in widescreen), `PORT_NO_2D_LOCK=1` (2D screens are not kept
-inside the 4:3 area), `PORT_NO_WIDE_PATTERN=1` (the menus' patterned backdrops stay 4:3 in widescreen), `PORT_NO_2D_CLIP=1` (2D shapes in 3D scenes are not cut at the 4:3 sides),
+inside the 4:3 area), `PORT_NO_3D_SCENE_MARK=1` (the Elite Four room is taken for a 2D screen again, as before its fix), `PORT_NO_WIDE_PATTERN=1` (the menus' patterned backdrops stay 4:3 in widescreen), `PORT_NO_2D_CLIP=1` (2D shapes in 3D scenes are not cut at the 4:3 sides),
 `tools/shot_run.sh <rom> [max secs]` (`STEP`, `KEEP` env; builds `build/shots/sheet.png`, deletes the PPMs, kills the
 game), `tools/run_for.sh`, `PORT_AUTOSTART=<ms>` (taps Start; `PORT_AUTOA` taps Start+A), `PORT_SPEED=<n>`,
 `PORT_TRACE_STATE`, `PORT_TEXLOG`, `PORT_TRILOG`, `PORT_MTXLOG`, `PORT_OPLOG`, `PORT_TRACE_JPEG`, `PORT_ALLOCLOG`,
@@ -1291,6 +1291,16 @@ registration older than 4 retraces does not count). Between the markers the rend
 the viewport and scissor by the margin beside the 4:3 frame and does not cut at the 4:3 sides, so each side sits at
 the screen's edge and slides in from it; what the game parks off screen stays past the screen's edge. At 4:3 nothing
 changes. `PORT_NO_HUD_ANCHOR=1` turns it off.
+Elite Four in widescreen: the Elite Four room (stage file 15) and the rival's room (16, the same room) were drawn
+only inside the 4:3 area, with empty sides, in every frame of their battles, while all other stages filled 16:9. Their
+sunset sky is the one stage backdrop drawn as a texture (`Battle_DrawStageBackdrop`: two rectangles over the whole
+screen, each half its height), before the arena and with nothing 3D before it (the cup stadiums draw their crowd first
+in `BgStage_DrawFrame`), so the 2D-screen check (interpreter `s2DRectArea`: textured rectangles over 90% of the picture
+before any 3D) took the frame for a menu and kept all of it inside the 4:3 area. The backdrop now marks the frame as a
+3D scene's first (`gDPPort3DScene` in port_compat.h, a G_NOOP of type 0x53, sets the interpreter's `sSeen3DThisRun`), so
+the sky is widened as the other stages' backdrops are and the arena fills the picture. Checked over all 18 stage files
+in 16:9 (`PORT_BOOT=battle PORT_BOOT_STAGE=n`: only 15 and 16 change) and the Castle's Elite Four and rival route; at
+4:3 the pictures are identical. `PORT_NO_3D_SCENE_MARK=1` ignores the marker.
 The gallery camera's film reel (Pokémon Snap station) ran off the N64 screen's right edge, so in 16:9 its strip stopped
 at the 4:3 line in the middle of the picture. Moving it to the edge would put the canister on the viewfinder's
 corner, so it stays where the game puts it and only the strip goes on: `gDPPortNoCut` (marker value 3: not moved, not

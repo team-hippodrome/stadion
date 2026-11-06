@@ -193,6 +193,10 @@ float Port_WidenEffectGridX(float x);
 // set by the battle every frame it draws its HUD; a registration older than a few frames no longer counts.
 void Port_SetHudAnchorCameras(const void* left, const void* right);
 int Port_HudAnchorSide(const void* camera); // -1 left, 1 right, 0 none
+// The main picture is a 3D scene's even where 2D drawing comes first: a backdrop of full-screen rectangles drawn before
+// any 3D (the Elite Four room's sky, battle_engine_main.c Battle_DrawStageBackdrop) must not make the frame a 2D screen,
+// which widescreen keeps inside the 4:3 area (libultraship patch, interpreter.cpp s2DRectArea). Nothing changes at 4:3.
+#define gDPPort3DScene(pkt) gDPNoOpTag3(pkt, 0x53, 0, 1)
 // Preserve the CPU pixels of the next colour image before a GPU blend (interpreter.cpp RttInitialize).
 #define gDPPortPreserveColorImage(pkt) gDPNoOpTag3(pkt, 0x51, 0, 1)
 #define PORT_AUDIO_OFF() (!Port_GameAudio())
