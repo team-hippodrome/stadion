@@ -536,10 +536,10 @@ index 00000000..d85493f8
 +} // namespace Fast
 diff --git a/include/fast/backends/gfx_vulkan.h b/include/fast/backends/gfx_vulkan.h
 new file mode 100644
-index 0000000..88c8e52
+index 0000000..f819d1d
 --- /dev/null
 +++ b/include/fast/backends/gfx_vulkan.h
-@@ -0,0 +1,401 @@
+@@ -0,0 +1,407 @@
 +//
 +//  gfx_vulkan.h
 +//  libultraship
@@ -584,10 +584,16 @@ index 0000000..88c8e52
 +
 +namespace Fast {
 +
-+// PORT: a swapchain failure must leave the render loop before another driver call uses an invalid handle.
-+class VulkanSwapchainError : public std::runtime_error {
++// PORT: a Vulkan failure the renderer cannot continue from (the port selects OpenGL for the next start and exits,
++// Port::ExitAfterVulkanFailure). It must leave the render loop before another driver call uses an invalid handle.
++class VulkanFatalError : public std::runtime_error {
 +  public:
 +    using std::runtime_error::runtime_error;
++};
++// PORT: the swapchain could not be created or recreated.
++class VulkanSwapchainError : public VulkanFatalError {
++  public:
++    using VulkanFatalError::VulkanFatalError;
 +};
 +
 +constexpr uint32_t VK_FRAMES_IN_FLIGHT = 3;
@@ -3562,10 +3568,10 @@ index 00000000..59b58813
 +} // namespace Fast
 diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
 new file mode 100644
-index 0000000..b2fe3f1
+index 0000000..73f78f0
 --- /dev/null
 +++ b/src/fast/backends/gfx_vulkan.cpp
-@@ -0,0 +1,2902 @@
+@@ -0,0 +1,2931 @@
 +//
 +//  gfx_vulkan.cpp
 +//  libultraship
@@ -3611,12 +3617,36 @@ index 0000000..b2fe3f1
 +#include "ship/resource/factory/ShaderFactory.h"
 +#include "ship/core/Context.h"
 +
-+#define VK_CHECK(expr)                                                          \
-+    do {                                                                        \
-+        VkResult _res = (expr);                                                 \
-+        if (_res != VK_SUCCESS) {                                               \
-+            SPDLOG_ERROR("Vulkan error {} at {}: " #expr, (int)_res, __LINE__); \
-+        }                                                                       \
++// PORT: errors that leave the device unusable (out of host or device memory, device lost) end the render loop on the
++// window thread (Fast::VulkanFatalError: the port selects OpenGL for the next start and exits). Logging and going on
++// passed a null command buffer to the next call: an Intel HD driver (igvk64.dll) crashed in vkBeginCommandBuffer
++// after vkAllocateCommandBuffers had failed with VK_ERROR_OUT_OF_HOST_MEMORY. Other threads (pipeline prebuild
++// workers) only log: an exception there would end in std::terminate.
++static std::thread::id sVkRenderThread;
++static void VkCheckFailed(VkResult res, const char* expr, int line) {
++    SPDLOG_ERROR("Vulkan error {} at {}: {}", (int)res, line, expr);
++    const bool fatal = res == VK_ERROR_OUT_OF_HOST_MEMORY || res == VK_ERROR_OUT_OF_DEVICE_MEMORY ||
++                       res == VK_ERROR_DEVICE_LOST || res == VK_ERROR_INITIALIZATION_FAILED;
++    if (fatal && std::this_thread::get_id() == sVkRenderThread) {
++        // for the dialog: the Vulkan call's name and what the error means
++        std::string call(expr);
++        const size_t at = call.find("vk");
++        size_t end = at;
++        while (end < call.size() && (isalnum((unsigned char)call[end]) || call[end] == '_')) end++;
++        call = at != std::string::npos ? call.substr(at, end - at) : "A Vulkan call";
++        const char* what = res == VK_ERROR_OUT_OF_HOST_MEMORY     ? "the graphics driver ran out of memory (VK_ERROR_OUT_OF_HOST_MEMORY)"
++                           : res == VK_ERROR_OUT_OF_DEVICE_MEMORY ? "the graphics chip ran out of memory (VK_ERROR_OUT_OF_DEVICE_MEMORY)"
++                           : res == VK_ERROR_DEVICE_LOST          ? "the graphics driver stopped responding (VK_ERROR_DEVICE_LOST)"
++                                                                  : "the graphics driver failed (VK_ERROR_INITIALIZATION_FAILED)";
++        throw Fast::VulkanFatalError(call + " failed: " + what + ".");
++    }
++}
++#define VK_CHECK(expr)                            \
++    do {                                          \
++        VkResult _res = (expr);                   \
++        if (_res != VK_SUCCESS) {                 \
++            VkCheckFailed(_res, #expr, __LINE__); \
++        }                                         \
 +    } while (0)
 +
 +namespace Fast {
@@ -4971,6 +5001,7 @@ index 0000000..b2fe3f1
 +}
 +
 +void GfxRenderingAPIVK::Init() {
++    sVkRenderThread = std::this_thread::get_id(); // the thread that draws (VK_CHECK)
 +    if (mDevice == VK_NULL_HANDLE) {
 +        SPDLOG_CRITICAL("Vulkan: the device could not be created (see the errors above)");
 +        abort();
@@ -5594,7 +5625,11 @@ index 0000000..b2fe3f1
 +        ai.commandPool = mFrames[mFrameSlot].commandPool;
 +        ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 +        ai.commandBufferCount = 1;
-+        VK_CHECK(vkAllocateCommandBuffers(mDevice, &ai, &fb.mCommandBuffer));
++        // PORT debug: PORT_DEBUG_VK_OOM=<n> makes the n-th of these allocations fail as a driver out of memory does
++        static long sFailAt = getenv("PORT_DEBUG_VK_OOM") ? strtol(getenv("PORT_DEBUG_VK_OOM"), nullptr, 10) : 0;
++        static long sAllocations = 0;
++        VK_CHECK(++sAllocations == sFailAt ? VK_ERROR_OUT_OF_HOST_MEMORY
++                                           : vkAllocateCommandBuffers(mDevice, &ai, &fb.mCommandBuffer));
 +        VkCommandBufferBeginInfo bi = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 +        bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 +        VK_CHECK(vkBeginCommandBuffer(fb.mCommandBuffer, &bi));

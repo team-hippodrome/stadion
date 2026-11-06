@@ -511,7 +511,7 @@ int main(int argc, char** argv) {
 #ifdef ENABLE_VULKAN
     try {
         return RunGame(argc, argv);
-    } catch (const Fast::VulkanSwapchainError& e) {
+    } catch (const Fast::VulkanFatalError& e) { // (a failed swapchain, or a device out of memory or lost)
         Port::ExitAfterVulkanFailure(e.what());
     }
 #else

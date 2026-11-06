@@ -860,12 +860,14 @@ std::shared_ptr<Fast::Fast3dWindow> GetWindow() {
     } catch (const std::exception& e) {
         fprintf(stderr, "Could not save the renderer fallback: %s\n", e.what());
     }
-    std::string message = std::string("Vulkan could not create the display images.\n\n") + reason +
+    std::string message = std::string("The Vulkan renderer stopped working.\n\n") + reason +
                           (saved ? "\n\nOpenGL has been selected for the next launch. Please restart the game."
                                  : "\n\nPlease select OpenGL or DirectX 11 in pokestadium.cfg.json before restarting.");
     SPDLOG_ERROR("{}", message);
     fprintf(stderr, "%s\n", message.c_str());
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pokémon Stadium: Vulkan error", message.c_str(), nullptr);
+    if (getenv("PORT_HIDDEN_WINDOW") == nullptr) { // (scripted runs: no dialog waiting for a click)
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pokémon Stadium: Vulkan error", message.c_str(), nullptr);
+    }
     // A failed swapchain may already have retired the old one. Do not unwind driver objects or run static
     // destructors while game threads are still alive (the normal shutdown path also exits the process directly).
     fflush(nullptr);
