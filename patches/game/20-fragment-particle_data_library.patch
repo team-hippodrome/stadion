@@ -40,14 +40,15 @@ index ce6113a99131ef35e86eeb7b2b4ab6cf5e58e42d..fc7991f0e4e2cce8f0a95390491b7e91
  } DisplayListState; // size = 0x1C
  
 diff --git a/src/fragments/particle_data_library/particle_data_library_2554C0.c b/src/fragments/particle_data_library/particle_data_library_2554C0.c
-index 5da83e0f1af7910a7488c6675bb292d6a7821bcd..d8e5b9f61f119b37842b3d383f937505b1ef6b61 100644
+index 5da83e0f1af7910a7488c6675bb292d6a7821bcd..ab1f9382bd6e12c9ea6dfca3f5808ce574d3f544 100644
 --- a/src/fragments/particle_data_library/particle_data_library_2554C0.c
 +++ b/src/fragments/particle_data_library/particle_data_library_2554C0.c
-@@ -3,6 +3,47 @@
+@@ -3,6 +3,65 @@
  #include "src/geo_render.h"
  #include "src/battle_hud.h"
  #include "src/model_renderer_callbacks.h"
 +#include <stdlib.h>
++#include <string.h>
 +#include "src/util.h"
 +
 +extern int Port_IsRawData(const void* p);
@@ -59,39 +60,56 @@ index 5da83e0f1af7910a7488c6675bb292d6a7821bcd..d8e5b9f61f119b37842b3d383f937505
 +    return Util_ConvertAddrToVirtAddr(v);
 +}
 +
++// PORT: converted lists are cached by host address, and each entry keeps the raw bytes it was made from: a model loaded
++// where another one was (the rental screen loads each Pokemon into the same block) has other addresses at the same
++// place, and a cache by address alone handed out the old model's (after Ponyta, Rapidash's flames used Ponyta's flame
++// textures). When the table is full, entries are reused in turn instead of converting into a new buffer on every call.
 +uintptr_t* Port_PdlWords(void* arg) {
 +    static struct {
 +        const u8* src;
++        u8 raw[40];
 +        uintptr_t* out;
 +    } sCache[128];
 +    static s32 sCount;
++    static s32 sNext;
 +    const u8* p = (const u8*)Util_ConvertAddrToVirtAddr((uintptr_t)arg);
 +    uintptr_t* out;
 +    s32 i;
++    s32 slot = -1;
 +
 +    if (p == NULL || !Port_IsRawData(p)) {
 +        return (uintptr_t*)p;
 +    }
 +    for (i = 0; i < sCount; i++) {
 +        if (sCache[i].src == p) {
-+            return sCache[i].out;
++            if (memcmp(sCache[i].raw, p, sizeof(sCache[i].raw)) == 0) {
++                return sCache[i].out;
++            }
++            slot = i; // same place, other data: convert again into this entry
++            break;
 +        }
 +    }
-+    out = calloc(10, sizeof(uintptr_t));
++    if (slot < 0) {
++        if (sCount < 128) {
++            slot = sCount++;
++            sCache[slot].out = calloc(10, sizeof(uintptr_t));
++        } else {
++            slot = sNext;
++            sNext = (sNext + 1) % 128;
++        }
++        sCache[slot].src = p;
++    }
++    out = sCache[slot].out;
++    memcpy(sCache[slot].raw, p, sizeof(sCache[slot].raw));
 +    for (i = 0; i < 10; i++) {
 +        out[i] = Port_PdlAddr(((u32)p[i * 4] << 24) | ((u32)p[i * 4 + 1] << 16) | ((u32)p[i * 4 + 2] << 8) | p[i * 4 + 3]);
-+    }
-+    if (sCount < 128) {
-+        sCache[sCount].src = p;
-+        sCache[sCount].out = out;
-+        sCount++;
 +    }
 +    return out;
 +}
  
  // The Japanese .rodata starts with D_810041D0; it has no "DUMMY NAME" string.
  #if !defined(VERSION_JP)
-@@ -46,8 +87,8 @@ void DisplayList_InitIndexedTextureSegment(s32 arg0, DisplayListState* state) {
+@@ -46,8 +105,8 @@ void DisplayList_InitIndexedTextureSegment(s32 arg0, DisplayListState* state) {
      DisplayListAddresses* addresses;
  
      if (arg0 == 2) {
@@ -102,7 +120,7 @@ index 5da83e0f1af7910a7488c6675bb292d6a7821bcd..d8e5b9f61f119b37842b3d383f937505
          state->gfx = gfx;
          DisplayList_BuildIndexedTextureSegment(gfx, addresses, D_8006F084 & 7);
      }
-@@ -72,8 +113,8 @@ void DisplayList_InitAnimatedModelTexture(s32 arg0, DisplayListState* state) {
+@@ -72,8 +131,8 @@ void DisplayList_InitAnimatedModelTexture(s32 arg0, DisplayListState* state) {
  
      temp_v1 = ModelRenderer_GetActiveMode();
      if (arg0 == 2) {
@@ -235,11 +253,12 @@ index 9abfaa0da26740b13e8f9d293fad9d6e202b1ba3..8d71ba4a92edfbea674f6b08b9348c4d
          func_81002530(gfx, addresses);
      }
 diff --git a/src/fragments/particle_data_library/particle_data_library_257AF0.c b/src/fragments/particle_data_library/particle_data_library_257AF0.c
-index 7e949d673777c557e5ab0e295b4ebf1a681069df..76ba84f23096fb9d91fdbb400714918f11ae4f4a 100644
+index 7e949d673777c557e5ab0e295b4ebf1a681069df..e0c4080722f431346675ed77de3794534494cc50 100644
 --- a/src/fragments/particle_data_library/particle_data_library_257AF0.c
 +++ b/src/fragments/particle_data_library/particle_data_library_257AF0.c
-@@ -1,26 +1,64 @@
+@@ -1,26 +1,79 @@
 +#include <stdlib.h>
++#include <string.h>
 +#include "src/util.h"
  #include "particle_data_library.h"
  #include "src/gfx_buffer.h"
@@ -270,37 +289,51 @@ index 7e949d673777c557e5ab0e295b4ebf1a681069df..76ba84f23096fb9d91fdbb400714918f
  
 +extern int Port_IsRawData(const void* p);
 +
-+// the frame record from ROM: two big-endian s16, then 32-bit addresses
++// the frame record from ROM: two big-endian s16, then 32-bit addresses. Cached by host address with the raw bytes it was
++// made from (see Port_PdlWords): a model loaded where another one was must not get the old model's texture frames.
 +static unk_arg1_func_81002830* Port_PdlFrameRecord(void* arg) {
 +    static struct {
 +        const u8* src;
++        u8 raw[4 + 40];
 +        unk_arg1_func_81002830* out;
 +    } sCache[32];
 +    static s32 sCount;
++    static s32 sNext;
 +    const u8* p = (const u8*)Util_ConvertAddrToVirtAddr((uintptr_t)arg);
 +    unk_arg1_func_81002830* out;
 +    uintptr_t* words;
 +    s32 i;
++    s32 slot = -1;
 +
 +    if (p == NULL || !Port_IsRawData(p)) {
 +        return (unk_arg1_func_81002830*)p;
 +    }
 +    for (i = 0; i < sCount; i++) {
 +        if (sCache[i].src == p) {
-+            return sCache[i].out;
++            if (memcmp(sCache[i].raw, p, sizeof(sCache[i].raw)) == 0) {
++                return sCache[i].out;
++            }
++            slot = i; // same place, other data: convert again into this entry
++            break;
 +        }
 +    }
-+    out = calloc(1, sizeof(*out));
++    if (slot < 0) {
++        if (sCount < 32) {
++            slot = sCount++;
++            sCache[slot].out = calloc(1, sizeof(*out));
++        } else {
++            slot = sNext;
++            sNext = (sNext + 1) % 32;
++        }
++        sCache[slot].src = p;
++    }
++    out = sCache[slot].out;
++    memcpy(sCache[slot].raw, p, sizeof(sCache[slot].raw));
 +    out->unk_00 = (s16)((p[0] << 8) | p[1]);
 +    out->unk_02 = (s16)((p[2] << 8) | p[3]);
 +    words = Port_PdlWords((void*)(p + 4));
 +    for (i = 0; i < 8; i++) {
 +        out->unk_04[i] = words[i];
-+    }
-+    if (sCount < 32) {
-+        sCache[sCount].src = p;
-+        sCache[sCount].out = out;
-+        sCount++;
 +    }
 +    return out;
 +}
@@ -308,7 +341,7 @@ index 7e949d673777c557e5ab0e295b4ebf1a681069df..76ba84f23096fb9d91fdbb400714918f
  void func_81002830(Gfx* gfx, unk_arg1_func_81002830* arg1) {
      s16 temp_v0;
      s32 var_a3;
-@@ -43,18 +81,18 @@ void func_81002830(Gfx* gfx, unk_arg1_func_81002830* arg1) {
+@@ -43,18 +96,18 @@ void func_81002830(Gfx* gfx, unk_arg1_func_81002830* arg1) {
  }
  
  void DisplayList_InitAnimatedFrameSegment(s32 arg0, unk_arg1_func_81002968* arg1) {
@@ -332,7 +365,7 @@ index 7e949d673777c557e5ab0e295b4ebf1a681069df..76ba84f23096fb9d91fdbb400714918f
      gDPLoadTextureBlock(gfx++, textures[index + 1], G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 32, 0, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD, G_TX_NOLOD);
      gSPEndDisplayList(gfx++);
      return gfx;
-@@ -62,11 +100,11 @@ Gfx* DisplayList_BuildSelectedTextureSegment(Gfx* gfx, u32* textures, s32 index)
+@@ -62,11 +115,11 @@ Gfx* DisplayList_BuildSelectedTextureSegment(Gfx* gfx, u32* textures, s32 index)
  
  void DisplayList_InitSelectedTextureSegment(s32 arg0, TextureState* state) {
      s32 index;
