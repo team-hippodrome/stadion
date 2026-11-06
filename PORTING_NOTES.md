@@ -1318,6 +1318,21 @@ screens (white, black; `PresentCpuFrame`) are shown full width when the frame be
 (`Port_LastFrameFilledWide`), instead of a 4:3 frame between two widescreen ones. Nothing changes at 4:3.
 `PORT_NO_WIDE_PATTERN=1` turns all of this off.
 
+## Vulkan failures: OpenGL for the next start instead of a crash
+
+A swapchain that cannot be created already ended the game with a message and OpenGL selected for the next start
+(`Fast::VulkanSwapchainError`, `Port::ExitAfterVulkanFailure`). Other Vulkan calls only logged their errors and went
+on: a user report (Windows, Intel HD driver `igvk64.dll`) had `vkAllocateCommandBuffers` fail with
+VK_ERROR_OUT_OF_HOST_MEMORY in `EnsurePassActive`, and the next call, `vkBeginCommandBuffer` with the null handle,
+crashed in the driver (0xc0000005). Now `VK_CHECK` throws `Fast::VulkanFatalError` (the swapchain error is one) on
+errors that leave the device unusable (out of host or device memory, device lost, initialization failed), and
+`main` takes the same path: OpenGL for the next start, a dialog naming the call ("vkAllocateCommandBuffers failed:
+the graphics driver ran out of memory"), exit. Only on the drawing thread: the pipeline prebuild workers keep
+logging, since an exception there would end in std::terminate. The dialog is left out with `PORT_HIDDEN_WINDOW`.
+`PORT_DEBUG_VK_OOM=<n>` makes the n-th command buffer allocation of `EnsurePassActive` fail that way (test).
+Checked on MoltenVK: at most 26 command buffers between two resets of a frame's pool on the rental screen with
+Smooth motion and 2x MSAA (no growth), and the forced failure exits with the dialog's text and OpenGL saved.
+
 ## Game sound: music, sound effects, voices
 
 The game's own sound (everything but the GB Tower, which has its own path, above) used to be compiled out
