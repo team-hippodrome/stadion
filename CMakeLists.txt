@@ -69,6 +69,8 @@ set(PORT_MAIN_SOURCES
   src/port/shader_warmup.cpp
   src/port/touch_controls.cpp
   src/port/xcheck.cpp
+  src/port/save_editor/stadium_save.cpp
+  src/port/save_editor/save_editor_ui.cpp
   src/port/stubs.c
   src/port/port_platform.c
 )
@@ -95,6 +97,17 @@ target_include_directories(pokestadium PRIVATE
 target_compile_definitions(pokestadium PRIVATE F3DEX_GBI_2)
 target_link_libraries(pokestadium PRIVATE libultraship)
 if(NOT ANDROID AND NOT EMSCRIPTEN)
+  # the save library's command-line driver, for tools/save_editor/tests/test_native.py (not shipped)
+  add_executable(stadium_save_cli EXCLUDE_FROM_ALL src/port/save_editor/cli_main.cpp src/port/save_editor/stadium_save.cpp)
+  find_package(nlohmann_json QUIET)
+  if(TARGET nlohmann_json::nlohmann_json)
+    target_link_libraries(stadium_save_cli PRIVATE nlohmann_json::nlohmann_json)
+  else()
+    target_link_libraries(stadium_save_cli PRIVATE libultraship) # (its include path has nlohmann/json.hpp)
+  endif()
+  if(WIN32 AND NOT MSVC)
+    target_link_options(stadium_save_cli PRIVATE -static)
+  endif()
   add_executable(shader_cache_check EXCLUDE_FROM_ALL tools/shader_cache_check.cpp)
   target_link_libraries(shader_cache_check PRIVATE libultraship)
   if(WIN32 AND NOT MSVC)
@@ -102,10 +115,8 @@ if(NOT ANDROID AND NOT EMSCRIPTEN)
   endif()
 endif()
 if(APPLE)
-  target_sources(pokestadium PRIVATE src/port/pacing_mac.mm src/port/save_editor_mac.mm)
-  target_link_libraries(pokestadium PRIVATE "-framework CoreVideo" "-framework QuartzCore" "-framework Metal"
-                        "-framework WebKit")
-  set_source_files_properties(src/port/save_editor_mac.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+  target_sources(pokestadium PRIVATE src/port/pacing_mac.mm)
+  target_link_libraries(pokestadium PRIVATE "-framework CoreVideo" "-framework QuartzCore" "-framework Metal")
 endif()
 
 # ---------------------------------------------------------------------------------------------

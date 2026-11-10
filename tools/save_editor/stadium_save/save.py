@@ -164,6 +164,7 @@ class ListBody:
         if "_unused_entries" in v:
             un = raw_from_json(v["_unused_entries"])
             start = 0x10 + len(entries) * es
+            un = un[:max(0, self.tail_off - start)]  # more entries than when decoded: less room behind them
             buf[start:start + len(un)] = un
         for i, e in enumerate(entries):
             buf[0x10 + i * es:0x10 + (i + 1) * es] = self.codec.encode(e)

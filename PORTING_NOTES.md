@@ -1188,6 +1188,28 @@ sample count after every VI frame).
   them). It guards against a bug found by hand: WKWebView ignored confirm()/alert() until the launcher implemented the WKUIDelegate panels, so
   "Delete saved run", "Delete team" and the other confirmations did nothing. 25 tests pass.
 
+## Built-in save editor (src/port/save_editor, the port's own launcher)
+
+- The ImGui launcher (`launcher.cpp`) used to start `python -m stadium_save serve` and show `editor.html` (in a
+  WKWebView on macOS, the browser elsewhere), so players needed Python 3.9; on Windows that rarely worked. The editor
+  is now part of the game: `stadium_save.cpp` is a C++ port of the Python library (save.py, schema.py, pokemon.py,
+  text.py, gbsave.py and the edit operations of web.py) on nlohmann::json, keeping its JSON model so the two can be
+  compared; `gamedata.h` comes from `tools/save_editor/gen_data.py` (same tables as `gamedata.py`).
+- `tools/save_editor/tests/test_native.py` runs `stadium_save_cli` (CMake target, not shipped) against the Python
+  library on the fixtures, the verify saves, random and damaged saves: identical dumps, byte-identical builds, the same
+  repair and checksum fixes, the same bytes after 13 kinds of editor edits on every fixture, the same new Pokémon (and
+  the same refusals), the same names, and the same Game Boy edits; the Lab PC transfers give the bytes the game wrote.
+- `save_editor_ui.cpp` draws the pages of `editor.html` without the raw JSON view: overview with repair, progress,
+  options, registered teams, Lab boxes (moving Pokémon to and from the Transfer Pak cartridges), item boxes, Victory
+  Palace, saved cup run, gallery, and each Game Boy save (trainer, party, boxes, items, Pokédex). Pokémon are edited
+  on a page with Pokémon / Moves / Stats tabs. Species, moves and items are chosen on a picker page with a search
+  field, and questions replace the page, so on the handheld layout every control is a gamepad focus target and B goes
+  back. Save rebuilds the file from the dump it was opened with and commits only the records that changed, refuses a
+  file that changed on disk since, and keeps the previous file as `.bak`, as the page did.
+- Desktop: Debug → *Save editor* (and *Edit save* on a Transfer Pak card) replaces the launcher's panels until
+  *Close*; ⌘S/Ctrl+S saves, Escape goes back. Handheld (Android, `PORT_LAUNCHER_HANDHELD=1`): *Files & help* →
+  *Save editor*. The release zips and the macOS app no longer carry `save_editor/`.
+
 ## Linux and Windows
 
 What made the code macOS-only, and what replaces it:
