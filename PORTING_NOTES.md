@@ -469,6 +469,13 @@ harmless ones (`Geo_NodeReference`, `main_pool_set_func`, 64DD code in rsp.c).
   missed texture loads. `Interpreter::TrackSegmentsOnly` now walks skipped frames and applies segment writes and
   texture loads (SETTIMG/SETTILE/SETTILESIZE/LOADBLOCK/LOADTILE/LOADTLUT); frames that render to a texture are drawn.
 - Invalid F3DEX2 opcodes end the current display list (a freed buffer already holding asset data is no longer run).
+- Full-screen fill rectangles are widened so that they also cover the widescreen margins. The new size used to be
+  fixed at -1024..2048 (10.2 format: -256..512 pixels), which is right for 320x240 screens only. The Trade Machine
+  draws at 640x480, so its clear at the start of every frame stopped at x 512 and left the right fifth of the screen
+  untouched. Below the machine picture nothing else paints there, so the corners of earlier panels stayed: a
+  Pokémon's detail panel ("/40" PP, "No") next to the box grid, in 4:3 as well as 16:9 (a Windows tester's
+  screenshot). The margin now scales with the native width; 320x240 screens get the same numbers as before.
+  `trade_box_pages.rec` (evidence/whole_game/routes/menus_trade) shows it from frame 9680.
 - Texture cache keys include a hash of the texel/palette bytes (RAM textures change in place).
 - Render targets carry a 16-byte marker in RDRAM; once the CPU overwrites it the target is dropped (fixed the
   missing letters: glyphs in a font file loaded where a render target used to be).
