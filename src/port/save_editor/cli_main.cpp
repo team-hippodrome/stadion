@@ -19,6 +19,10 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#ifdef _WIN32
+#include <windows.h>
+#include <shellapi.h>
+#endif
 
 using namespace stadium_save;
 
@@ -40,8 +44,27 @@ static void Print(const json& j) {
     std::cout << j.dump(-1, ' ', false, json::error_handler_t::replace) << "\n";
 }
 
+// the arguments as UTF-8 (Windows hands main() its arguments in the ANSI code page, which loses "♂")
+static std::vector<std::string> Arguments(int argc, char** argv) {
+#ifdef _WIN32
+    int n = 0;
+    std::vector<std::string> out;
+    if (LPWSTR* w = CommandLineToArgvW(GetCommandLineW(), &n)) {
+        for (int i = 1; i < n; i++) {
+            int len = WideCharToMultiByte(CP_UTF8, 0, w[i], -1, nullptr, 0, nullptr, nullptr);
+            std::string s(len > 0 ? len - 1 : 0, '\0');
+            if (len > 1) WideCharToMultiByte(CP_UTF8, 0, w[i], -1, s.data(), len, nullptr, nullptr);
+            out.push_back(s);
+        }
+        LocalFree(w);
+        return out;
+    }
+#endif
+    return std::vector<std::string>(argv + 1, argv + argc);
+}
+
 int main(int argc, char** argv) {
-    std::vector<std::string> a(argv + 1, argv + argc);
+    std::vector<std::string> a = Arguments(argc, argv);
     auto need = [&](size_t n) {
         if (a.size() < n) throw Error("missing arguments (see the comment at the top of cli_main.cpp)");
     };
