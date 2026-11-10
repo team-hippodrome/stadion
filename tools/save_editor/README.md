@@ -96,6 +96,17 @@ s.edit(lambda d: d["teams"]["prime_cup"][0].update(flags=1, name="RED", trainer_
 s.save("out.fla")
 ```
 
+## From the game's launcher
+
+Tick *Debug* in the launcher, then click *Save editor*. macOS opens the editor in a window of the app. Windows and
+Linux run `python -m stadium_save serve <save> --port 8765 --write` from the `save_editor` folder next to the game
+(the release zips include it) and open http://127.0.0.1:8765/ in the browser. The editor needs Python 3.9 or newer
+from python.org or a package manager, with no extra packages. On Windows the launcher tries `py -3`, then `python` and
+`python3` from PATH, then `%LOCALAPPDATA%\Programs\Python\Python3*` and `Program Files\Python3*`. It skips the
+Microsoft Store's `python` stub (exit code 9009), which does nothing until Python itself is installed. When the editor
+cannot start, the launcher shows why; the server's output is in `%TEMP%\pokestadium-save-editor.log`
+(`$TMPDIR/pokestadium-save-editor.log` elsewhere).
+
 ## Files
 
 - `stadium_save/` — library (`save.py` layout/records/footers/JSON, `pokemon.py` Gen 1 records and stats,

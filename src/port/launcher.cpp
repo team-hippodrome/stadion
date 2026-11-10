@@ -3,7 +3,7 @@
 // of each Transfer Pak (picture, game, trainer from the save, save file) and a bar with the Stadium ROM, its save and
 // PLAY. The choices are remembered in pokestadium.cfg.json and passed to the game the way the command line does
 // (PORT_FLASH_FILE, PORT_GB_ROM*, PORT_GB_SAVE*). Auto-play skips it next time (hold Shift while starting to see it
-// again); Debug adds a button that opens the save editor (tools/save_editor, needs python3): on macOS in a window of
+// again); Debug adds a button that opens the save editor (tools/save_editor, needs Python 3.9+): on macOS in a window of
 // the app (save_editor_mac.mm), elsewhere in the browser. Controls
 // swaps the player cards for the key and controller bindings of each player (libultraship's ControlDeck mappings).
 // Renderer picks libultraship's window backend (Window.Backend.Id); it applies the next time the game starts.
@@ -573,18 +573,22 @@ void OfferExport(const std::string& path) {
 // ---- save editor (debug option) --------------------------------------------------------------------------------------
 
 // tools/save_editor next to the executable or in the source tree above it
+// SDL's base path is UTF-8 (on Windows fs::path(const char*) would read it in the ANSI code page and lose a folder
+// such as "Pokémon Stadium"), and the result goes back to SDL as UTF-8.
 std::string SaveEditorDir() {
     const char* base = SDL_GetBasePath();
-    fs::path p = base != nullptr ? fs::path(base) : fs::current_path();
-    // a packaged app carries the package itself (macOS: Contents/Resources/save_editor, SDL's base path there)
+    fs::path p = base != nullptr ? fs::u8path(base) : fs::current_path();
+    std::error_code ec;
+    // a packaged app carries the package itself (Windows and Linux zips: save_editor next to the executable; macOS:
+    // Contents/Resources/save_editor, SDL's base path there)
     for (const fs::path& packaged : { p / "save_editor", p / ".." / "Resources" / "save_editor" }) {
-        if (fs::exists(packaged / "stadium_save")) {
-            return packaged.lexically_normal().string();
+        if (fs::exists(packaged / "stadium_save", ec)) {
+            return Port::PathUtf8(packaged.lexically_normal());
         }
     }
     for (int up = 0; up < 3 && !p.empty(); up++) {
-        if (fs::exists(p / "tools" / "save_editor" / "stadium_save")) {
-            return (p / "tools" / "save_editor").string();
+        if (fs::exists(p / "tools" / "save_editor" / "stadium_save", ec)) {
+            return Port::PathUtf8(p / "tools" / "save_editor");
         }
         p = p.parent_path();
     }
@@ -593,6 +597,169 @@ std::string SaveEditorDir() {
 
 std::string gEditorStatus;
 SDL_Process* gEditorProcess = nullptr; // the save editor's server (stopped when the launcher closes)
+
+
+// The interpreters to try for the save editor's server (Python 3.9 or newer, no packages needed). Windows has no
+// python3 command: python.org's installer adds the "py" launcher (C:\Windows\py.exe) and only puts python.exe on PATH
+// when "Add python.exe to PATH" was ticked, so try py -3 first, then python / python3 from PATH (which can be the
+// Microsoft Store's stub: it exits with 9009 when no Python is installed), then the installer's default folders.
+std::vector<std::vector<std::string>> PythonCandidates() {
+    std::vector<std::vector<std::string>> list;
+#ifdef _WIN32
+    list.push_back({ "py", "-3" });
+    list.push_back({ "python" });
+    list.push_back({ "python3" });
+    std::vector<fs::path> roots;
+    const char* local = SDL_getenv("LOCALAPPDATA");
+    if (local != nullptr) roots.push_back(fs::u8path(local) / "Programs" / "Python"); // per-user install (default)
+    for (const char* var : { "ProgramFiles", "ProgramW6432", "ProgramFiles(x86)" }) {        // install for all users
+        const char* v = SDL_getenv(var);
+        if (v != nullptr) roots.push_back(fs::u8path(v));
+    }
+    std::vector<fs::path> found;
+    std::error_code ec;
+    for (const fs::path& root : roots) {
+        for (fs::directory_iterator it(root, ec), end; !ec && it != end; it.increment(ec)) {
+            const std::string name = Port::PathUtf8(it->path().filename());
+            if (name.rfind("Python3", 0) == 0 && fs::exists(it->path() / "python.exe", ec)) {
+                found.push_back(it->path() / "python.exe");
+            }
+        }
+    }
+    // newest first: Python313 before Python39 (compare the minor version as a number)
+    auto minor = [](const fs::path& exe) { return std::atoi(Port::PathUtf8(exe.parent_path().filename()).c_str() + 7); };
+    std::sort(found.begin(), found.end(), [&](const fs::path& a, const fs::path& b) { return minor(a) > minor(b); });
+    for (const fs::path& exe : found) list.push_back({ Port::PathUtf8(exe) });
+#else
+    list.push_back({ "python3" });
+#endif
+    return list;
+}
+
+// stadium_save exits with this when the Python running it is older than 3.9 (stadium_save/__init__.py)
+constexpr int kPythonTooOld = 3;
+#ifdef _WIN32
+constexpr int kNotFound = 9009; // cmd.exe's "not recognized" code, also the Microsoft Store stub's
+constexpr int kPyNoRuntime = 103; // py -3 with no Python 3 installed ("No suitable Python runtime found")
+#else
+constexpr int kNotFound = 127;
+constexpr int kPyNoRuntime = 127;
+#endif
+
+// the last non-empty line of the server's log (its error, if it stopped)
+std::string LastLogLine(const fs::path& log) {
+    std::ifstream f(log, std::ios::binary);
+    std::string line, last;
+    while (std::getline(f, line)) {
+        while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
+        if (!line.empty()) last = line;
+    }
+    return last;
+}
+
+// Starts the server with the first interpreter that runs it, as gEditorProcess. Returns the status line; on failure
+// also explains it in a message box (the line under the button is short).
+std::string StartSaveEditorServer(const std::string& dir, const std::string& save) {
+    std::error_code ec;
+    const fs::path log = fs::temp_directory_path(ec) / "pokestadium-save-editor.log";
+    const std::string logUtf8 = Port::PathUtf8(log);
+    bool tooOld = false;
+    std::string failure;
+    for (const std::vector<std::string>& python : PythonCandidates()) {
+        std::vector<const char*> args;
+        for (const std::string& a : python) args.push_back(a.c_str());
+        for (const char* a : { "-m", "stadium_save", "serve" }) args.push_back(a);
+        args.push_back(save.c_str());
+        for (const char* a : { "--port", "8765", "--write" }) args.push_back(a);
+        args.push_back(nullptr);
+
+        SDL_PropertiesID props = SDL_CreateProperties();
+        SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, (void*)args.data());
+#ifdef SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING // SDL 3.4+
+        SDL_SetStringProperty(props, SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING, dir.c_str());
+#endif
+        // the module is found through PYTHONPATH too (older SDL cannot set the child's working directory)
+        SDL_Environment* env = SDL_CreateEnvironment(true);
+        SDL_SetEnvironmentVariable(env, "PYTHONPATH", dir.c_str(), true);
+        SDL_SetEnvironmentVariable(env, "PYTHONDONTWRITEBYTECODE", "1", true); // the game folder can be read-only
+        SDL_SetEnvironmentVariable(env, "PYTHONIOENCODING", "utf-8", true);
+#ifndef _WIN32
+        // an app started from Finder gets only /usr/bin:/bin:/usr/sbin:/sbin: also look where Homebrew and the
+        // python.org installer put python3
+        {
+            const char* path = SDL_GetEnvironmentVariable(env, "PATH");
+            std::string p = path != nullptr ? path : "/usr/bin:/bin";
+            for (const char* extra : { "/opt/homebrew/bin", "/usr/local/bin", "/Library/Frameworks/Python.framework/Versions/Current/bin" }) {
+                if (("" + p + ":").find(std::string(extra) + ":") == std::string::npos) p += std::string(":") + extra;
+            }
+            SDL_SetEnvironmentVariable(env, "PATH", p.c_str(), true);
+        }
+#endif
+        SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ENVIRONMENT_POINTER, env);
+        // the server's output goes to a log in the temp folder (a GUI program has no console to inherit)
+        SDL_IOStream* out = SDL_IOFromFile(logUtf8.c_str(), "wb");
+        if (out != nullptr) {
+            SDL_SetNumberProperty(props, SDL_PROP_PROCESS_CREATE_STDOUT_NUMBER, SDL_PROCESS_STDIO_REDIRECT);
+            SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_STDOUT_POINTER, out);
+            SDL_SetNumberProperty(props, SDL_PROP_PROCESS_CREATE_STDERR_NUMBER, SDL_PROCESS_STDIO_REDIRECT);
+            SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_STDERR_POINTER, out);
+        }
+        SDL_Process* process = SDL_CreateProcessWithProperties(props);
+        SDL_DestroyProperties(props);
+        SDL_DestroyEnvironment(env);
+        if (out != nullptr) SDL_CloseIO(out); // the child has its own handle now
+        if (process == nullptr) {
+            continue; // not on PATH
+        }
+        // give the server time to bind its port; a missing or broken interpreter exits well within that
+        int exitCode = 0;
+        bool exited = false;
+        for (int waited = 0; waited < 1500 && !(exited = SDL_WaitProcess(process, false, &exitCode)); waited += 50) {
+            SDL_Delay(50);
+        }
+        if (!exited) {
+            gEditorProcess = process;
+            return "Starting...";
+        }
+        SDL_DestroyProcess(process);
+        SDL_Log("save editor: %s exited with %d", python[0].c_str(), exitCode);
+        if (exitCode == kNotFound || exitCode == kPyNoRuntime) {
+            continue; // the Store stub, or py without a Python 3
+        }
+        if (exitCode == kPythonTooOld) {
+            tooOld = true;
+            continue; // an old python on PATH: a newer one may come later in the list
+        }
+        // it ran and failed: the port taken, an error in the editor
+        std::string last = LastLogLine(log);
+        failure = "The save editor stopped (code " + std::to_string(exitCode) + ")" + (last.empty() ? "" : ":\n" + last) +
+                  "\n\nFull output: " + logUtf8;
+        break;
+    }
+    std::string text;
+    std::string status;
+    if (!failure.empty()) {
+        text = failure;
+        status = "Save editor stopped: see the message";
+    } else {
+        status = tooOld ? "Needs Python 3.9 or newer" : "Python 3 not found";
+        text = std::string(tooOld ? "The save editor needs Python 3.9 or newer; the Python found is older."
+                                  : "The save editor needs Python 3.9 or newer, and none was found.")
+#ifdef _WIN32
+               + "\n\nInstall it from python.org (keep \"py launcher\" ticked; \"Add python.exe to PATH\" also helps), "
+                 "then click Save editor again. The Microsoft Store's \"python\" command does not count until Python "
+                 "itself is installed."
+#else
+               + "\n\nInstall python3 (your package manager, or python.org), then click Save editor again."
+#endif
+            ;
+    }
+    SDL_Log("save editor: %s", text.c_str());
+    if (getenv("PORT_LAUNCHER_TEST_SAVE_EDITOR") == nullptr) { // the test hook only logs it (a dialog would wait)
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Save editor", text.c_str(), nullptr);
+    }
+    return status;
+}
 
 void OpenSaveEditor(const std::string& save) {
     std::string dir = SaveEditorDir();
@@ -609,51 +776,21 @@ void OpenSaveEditor(const std::string& save) {
     Port_SaveEditorOpen(dir, save, &gEditorStatus);
     return;
 #endif
-    // elsewhere: the page in the browser
-    SDL_Process*& sEditor = gEditorProcess;
-    if (sEditor == nullptr) {
-#ifdef _WIN32
-        const char* python = "python";
-#else
-        const char* python = "python3";
-#endif
-        const char* args[] = { python, "-m", "stadium_save", "serve", save.c_str(), "--port", "8765", "--write", nullptr };
-        SDL_PropertiesID props = SDL_CreateProperties();
-        SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, (void*)args);
-#ifdef SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING // SDL 3.4+
-        SDL_SetStringProperty(props, SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING, dir.c_str());
-#endif
-        // the module is found through PYTHONPATH too (older SDL cannot set the child's working directory)
-        SDL_Environment* env = SDL_GetEnvironment();
-        SDL_SetEnvironmentVariable(env, "PYTHONPATH", dir.c_str(), true);
-#ifndef _WIN32
-        // an app started from Finder gets only /usr/bin:/bin:/usr/sbin:/sbin: also look where Homebrew and the
-        // python.org installer put python3
-        {
-            const char* path = SDL_GetEnvironmentVariable(env, "PATH");
-            std::string p = path != nullptr ? path : "/usr/bin:/bin";
-            for (const char* extra : { "/opt/homebrew/bin", "/usr/local/bin", "/Library/Frameworks/Python.framework/Versions/Current/bin" }) {
-                if (("" + p + ":").find(std::string(extra) + ":") == std::string::npos) p += std::string(":") + extra;
-            }
-            SDL_SetEnvironmentVariable(env, "PATH", p.c_str(), true);
-        }
-#endif
-        sEditor = SDL_CreateProcessWithProperties(props);
-        SDL_DestroyProperties(props);
-        if (sEditor == nullptr) {
-            gEditorStatus = "Needs python3";
+    // elsewhere: the page in the browser, served by python -m stadium_save
+    if (gEditorProcess == nullptr) {
+        gEditorStatus = StartSaveEditorServer(dir, save);
+        if (gEditorProcess == nullptr) {
             return;
         }
-        SDL_Delay(800); // let the server bind its port
-    }
-    // the server stopped (no python3, a Python error, the port taken by another program): say so, and start it again
-    // on the next click
-    int exitCode = 0;
-    if (SDL_WaitProcess(sEditor, false, &exitCode)) {
-        SDL_DestroyProcess(sEditor);
-        sEditor = nullptr;
-        gEditorStatus = exitCode == 127 ? "Needs python3" : "Save editor stopped (code " + std::to_string(exitCode) + ")";
-        return;
+    } else {
+        // the server stopped since the last click (closed from outside): say so, and start it again on the next one
+        int exitCode = 0;
+        if (SDL_WaitProcess(gEditorProcess, false, &exitCode)) {
+            SDL_DestroyProcess(gEditorProcess);
+            gEditorProcess = nullptr;
+            gEditorStatus = "Save editor stopped (code " + std::to_string(exitCode) + "): click again";
+            return;
+        }
     }
     SDL_OpenURL("http://127.0.0.1:8765/");
     gEditorStatus = "Opened in the browser";
