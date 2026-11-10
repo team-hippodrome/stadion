@@ -6504,7 +6504,7 @@ index 0000000..73f78f0
 +
 +#endif
 diff --git a/src/fast/interpreter.cpp b/src/fast/interpreter.cpp
-index a1907a1..605822c 100644
+index a1907a1..0181333 100644
 --- a/src/fast/interpreter.cpp
 +++ b/src/fast/interpreter.cpp
 @@ -11,13 +11,16 @@
@@ -7558,15 +7558,15 @@ index a1907a1..605822c 100644
 -            mRenderingState.viewport = mRdp->viewport;
 +            mRapi->SetViewport(viewport.x, viewport.y, viewport.width, viewport.height);
 +            mRenderingState.viewport = viewport;
-+        }
+         }
+-        if (memcmp(&mRdp->scissor, &mRenderingState.scissor, sizeof(mRdp->scissor)) != 0) {
 +        XYWidthHeight scissor = mRdp->scissor;
 +        if (shift != 0) {
 +            const int32_t x0 = std::max<int32_t>(0, scissor.x + shift);
 +            const int32_t x1 = std::max<int32_t>(x0, scissor.x + shift + (int32_t)scissor.width);
 +            scissor.x = (int16_t)x0;
 +            scissor.width = (uint32_t)(x1 - x0);
-         }
--        if (memcmp(&mRdp->scissor, &mRenderingState.scissor, sizeof(mRdp->scissor)) != 0) {
++        }
 +        if ((sLock43ThisRun || clip43) && anchor == 0 && !mFbActive && !sWidePattern && !sWideFade) { // PORT: a 2D screen or 2D shape stays inside the 4:3 area
 +            const float halfW = mNativeDimensions.width / 2.0f;
 +            // (rounded: truncated, 79.99998 became 79 and the area ended a pixel short of the picture's right edge,
@@ -8220,7 +8220,7 @@ index a1907a1..605822c 100644
      if (mRdp->color_image_address == mRdp->z_buf_address) {
          // Fullscreen Z clears are redundant — already done by glClear at frame start.
          bool isFullScreen = (ulx <= 0 && uly <= 0 && lrx >= (int32_t)(mNativeDimensions.width - 1) * 4 &&
-@@ -3078,6 +4228,23 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
+@@ -3078,16 +4228,37 @@ void Interpreter::GfxDpFillRectangle(int32_t ulx, int32_t uly, int32_t lrx, int3
      }
      uint32_t mode = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE));
  
@@ -8244,7 +8244,25 @@ index a1907a1..605822c 100644
      // Expand fullscreen fill rects to cover widescreen viewports.
      // Without this, screen clears and fades only cover the native 4:3 area.
      if (ulx == 0 && uly == 0) {
-@@ -3116,8 +4283,214 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
+         bool isFullScreen = (lrx == ((int32_t)(mNativeDimensions.width - 1) * 4) &&
+                              lry == ((int32_t)(mNativeDimensions.height - 1) * 4));
+         if (isFullScreen) {
+-            ulx = -1024;
+-            uly = -1024;
+-            lrx = 2048;
+-            lry = 2048;
++            // PORT: a margin of the native width on every side (-256..512 pixels at 320x240, as before). The fixed
++            // -1024..2048 stopped at x 512 on 640x480 screens: the Trade Machine's clear left its right fifth, so
++            // pieces of earlier panels stayed below the machine.
++            const int32_t w = (int32_t)mNativeDimensions.width;
++            ulx = -w * 16 / 5;
++            uly = -w * 16 / 5;
++            lrx = w * 32 / 5;
++            lry = w * 32 / 5;
+         }
+     }
+ 
+@@ -3116,8 +4287,214 @@ void Interpreter::GfxDpSetZImage(void* zBufAddr) {
      mRdp->z_buf_address = zBufAddr;
  }
  
@@ -8459,7 +8477,7 @@ index a1907a1..605822c 100644
  }
  
  void Interpreter::GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode) {
-@@ -3252,7 +4625,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
+@@ -3252,7 +4629,23 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
                            (float)(1 << 10) * realSW, (float)(1 << 10) * realSH, false);
  }
  
@@ -8483,7 +8501,7 @@ index a1907a1..605822c 100644
      // Segmented?
      if (w1 & 1) {
          uint32_t segNum = (uint32_t)(w1 >> 24);
-@@ -3377,6 +4766,27 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3377,6 +4770,27 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      const char* filename = (const char*)(cmd)->words.w1;
      uint32_t p = C0(16, 8);
      uint32_t l = C0(0, 16);
@@ -8511,7 +8529,7 @@ index a1907a1..605822c 100644
      if (p == 7) {
          g_exec_stack.openDisp(filename, l);
      } else if (p == 8) {
-@@ -3389,10 +4799,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3389,10 +4803,24 @@ bool gfx_noop_handler_f3dex2(F3DGfx** cmd0) {
      return false;
  }
  
@@ -8536,7 +8554,7 @@ index a1907a1..605822c 100644
  
      gfx->GfxSpMatrix(C0(0, 8) ^ F3DEX2_G_MTX_PUSH, (const int32_t*)gfx->SegAddr(mtxAddr));
      return false;
-@@ -3632,7 +5056,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3632,7 +5060,20 @@ bool gfx_vtx_handler_f3dex2(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
  
@@ -8558,7 +8576,7 @@ index a1907a1..605822c 100644
  
      return false;
  }
-@@ -3736,16 +5173,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
+@@ -3736,16 +5177,26 @@ bool gfx_modify_vtx_handler_f3dex2(F3DGfx** cmd0) {
  }
  
  // F3D, F3DEX, and F3DEX2 do the same thing but F3DEX2 has its own opcode number
@@ -8585,7 +8603,7 @@ index a1907a1..605822c 100644
          (*cmd0) = subGFX;
          g_exec_stack.branch(cmd);
          return true; // shortcut cmd increment
-@@ -4018,7 +5465,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
+@@ -4018,7 +5469,71 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
      Interpreter* gfx = mInstance.lock().get();
      F3DGfx* cmd = *cmd0;
      uintptr_t i = (uintptr_t)gfx->SegAddr(cmd->words.w1);
@@ -8657,7 +8675,7 @@ index a1907a1..605822c 100644
      char* imgData = (char*)i;
      uint32_t texFlags = 0;
      RawTexMetadata rawTexMetdata = {};
-@@ -4947,6 +6458,19 @@ static void gfx_step() {
+@@ -4947,6 +6462,19 @@ static void gfx_step() {
          } else {
              SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, for loaded ucode: {}", (uint8_t)opcode,
                              (uint32_t)ucode_handler_index);
@@ -8677,7 +8695,7 @@ index a1907a1..605822c 100644
          }
      } else {
          SPDLOG_CRITICAL("Unhandled OP code: 0x{:X}, invalid ucode: {}", (uint8_t)opcode, (uint32_t)ucode_handler_index);
-@@ -5005,8 +6529,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
+@@ -5005,8 +6533,8 @@ void Interpreter::Init(class GfxWindowBackend* wapi, class GfxRenderingAPI* rapi
      mGameFb = mRapi->CreateFramebuffer();
      mGameFbMsaaResolved = mRapi->CreateFramebuffer();
  
@@ -8688,7 +8706,7 @@ index a1907a1..605822c 100644
  
      for (int i = 0; i < MAX_SEGMENT_POINTERS; i++) {
          mSegmentPointers[i] = 0;
-@@ -5109,16 +6633,32 @@ void Interpreter::StartFrame() {
+@@ -5109,16 +6637,32 @@ void Interpreter::StartFrame() {
  
      mPrvDimensions = mCurDimensions;
      mPrevNativeDimensions = mNativeDimensions;
@@ -8730,7 +8748,7 @@ index a1907a1..605822c 100644
          }
          if (mMsaaLevel > 1 && !ViewportMatchesRendererResolution()) {
              mRapi->UpdateFramebufferParameters(mGameFbMsaaResolved, mCurDimensions.width, mCurDimensions.height, 1,
-@@ -5173,7 +6713,502 @@ void Interpreter::RunGuiOnly() {
+@@ -5173,7 +6717,502 @@ void Interpreter::RunGuiOnly() {
      }
  }
  
@@ -9233,7 +9251,7 @@ index a1907a1..605822c 100644
      SpReset();
  
      mGetPixelDepthPending.clear();
-@@ -5184,17 +7219,38 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5184,17 +7223,38 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
      mRapi->UpdateFramebufferParameters(0, mGfxCurrentWindowDimensions.width, mGfxCurrentWindowDimensions.height, 1,
                                         false, true, true, !mRendersToFb);
      mRapi->StartFrame();
@@ -9273,7 +9291,7 @@ index a1907a1..605822c 100644
          if (dbg->IsDebugging()) {
              g_exec_stack.gfx_path.push_back(cmd);
              if (dbg->HasBreakPoint(g_exec_stack.gfx_path)) {
-@@ -5209,10 +7265,26 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5209,10 +7269,26 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
              }
              g_exec_stack.gfx_path.pop_back();
          }
@@ -9300,7 +9318,7 @@ index a1907a1..605822c 100644
      mGfxFrameBuffer = 0;
      currentDir = std::stack<std::string>();
  
-@@ -5236,13 +7308,41 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+@@ -5236,13 +7312,41 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
  
          assert(0 && "active framebuffer was never reset back to original");
      }
