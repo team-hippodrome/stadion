@@ -536,10 +536,10 @@ index 00000000..d85493f8
 +} // namespace Fast
 diff --git a/include/fast/backends/gfx_vulkan.h b/include/fast/backends/gfx_vulkan.h
 new file mode 100644
-index 0000000..f819d1d
+index 0000000..e84db11
 --- /dev/null
 +++ b/include/fast/backends/gfx_vulkan.h
-@@ -0,0 +1,407 @@
+@@ -0,0 +1,413 @@
 +//
 +//  gfx_vulkan.h
 +//  libultraship
@@ -765,6 +765,11 @@ index 0000000..f819d1d
 +        VkFence fence = VK_NULL_HANDLE;
 +        bool fenceInFlight = false;
 +        VkCommandPool commandPool = VK_NULL_HANDLE;
++        // PORT: the command buffers allocated from commandPool. vkResetCommandPool (NewFrame) only resets them, so
++        // they are handed out again frame after frame; allocating new ones every frame grew the pool without end
++        // (VK_ERROR_OUT_OF_HOST_MEMORY in vkAllocateCommandBuffers on an Intel HD driver after a while in the GB Tower)
++        std::vector<VkCommandBuffer> commandBuffers;
++        size_t commandBuffersUsed = 0;
 +        // texture descriptor sets, reset every frame; more pools are added when a frame uses up the first
 +        std::vector<VkDescriptorPool> descriptorPools;
 +        size_t descriptorPoolIndex = 0;
@@ -807,6 +812,7 @@ index 0000000..f819d1d
 +    VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspect);
 +    void TransitionToGeneral(VkCommandBuffer cmd, VkImage image, VkImageAspectFlags aspect);
 +    void FullBarrier(VkCommandBuffer cmd);
++    VkCommandBuffer AcquireCommandBuffer(); // PORT: a reset buffer of this frame's pool (FrameSlot::commandBuffers)
 +    VkCommandBuffer BeginOneShot();
 +    void EndOneShot(VkCommandBuffer cmd);
 +    VkRenderPass GetRenderPass(uint32_t msaaLevel, bool hasDepth);
@@ -3568,10 +3574,10 @@ index 00000000..59b58813
 +} // namespace Fast
 diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
 new file mode 100644
-index 0000000..73f78f0
+index 0000000..53e3ab8
 --- /dev/null
 +++ b/src/fast/backends/gfx_vulkan.cpp
-@@ -0,0 +1,2931 @@
+@@ -0,0 +1,2948 @@
 +//
 +//  gfx_vulkan.cpp
 +//  libultraship
@@ -3660,7 +3666,7 @@ index 0000000..73f78f0
 +// debug: PORT_VK_STATS=1 prints where the backend spent its time, every 60 drawn frames
 +static const bool sStats = getenv("PORT_VK_STATS") != nullptr;
 +static struct {
-+    int programs = 0, prebuiltPrograms = 0, pipelines = 0, syncSubmits = 0;
++    int programs = 0, prebuiltPrograms = 0, pipelines = 0, syncSubmits = 0, commandBuffers = 0, commandBuffersAllocated = 0;
 +    double programMs = 0, pipelineMs = 0, syncMs = 0, fenceMs = 0, acquireMs = 0;
 +} sStat;
 +static double MsSince(std::chrono::steady_clock::time_point t) {
@@ -3987,6 +3993,33 @@ index 0000000..73f78f0
 +                         nullptr, 0, nullptr);
 +}
 +
++// PORT: hands out the frame slot's command buffers in turn and allocates only when a frame needs more than any frame
++// before it (each framebuffer drawn, each synchronous readback and the upload buffer take one). The slot's pool is
++// reset in NewFrame after its fence, which puts all of them back in the initial state.
++VkCommandBuffer GfxRenderingAPIVK::AcquireCommandBuffer() {
++    FrameSlot& slot = mFrames[mFrameSlot];
++    sStat.commandBuffers++;
++    // PORT debug: PORT_DEBUG_VK_OOM=<n> makes the n-th acquire fail as a driver out of memory does
++    static long sFailAt = getenv("PORT_DEBUG_VK_OOM") ? strtol(getenv("PORT_DEBUG_VK_OOM"), nullptr, 10) : 0;
++    static long sAcquires = 0;
++    if (++sAcquires == sFailAt) {
++        VkCheckFailed(VK_ERROR_OUT_OF_HOST_MEMORY, "vkAllocateCommandBuffers (PORT_DEBUG_VK_OOM)", __LINE__);
++    }
++    if (slot.commandBuffersUsed < slot.commandBuffers.size()) {
++        return slot.commandBuffers[slot.commandBuffersUsed++];
++    }
++    VkCommandBufferAllocateInfo ai = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
++    ai.commandPool = slot.commandPool;
++    ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
++    ai.commandBufferCount = 1;
++    VkCommandBuffer cmd = VK_NULL_HANDLE;
++    VK_CHECK(vkAllocateCommandBuffers(mDevice, &ai, &cmd));
++    sStat.commandBuffersAllocated++;
++    slot.commandBuffers.push_back(cmd);
++    slot.commandBuffersUsed++;
++    return cmd;
++}
++
 +VkCommandBuffer GfxRenderingAPIVK::BeginOneShot() {
 +    VkCommandBufferAllocateInfo ai = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
 +    ai.commandPool = mFrames[mFrameSlot].commandPool;
@@ -4159,11 +4192,7 @@ index 0000000..73f78f0
 +    if (mUploadCmd != VK_NULL_HANDLE) {
 +        return;
 +    }
-+    VkCommandBufferAllocateInfo ai = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-+    ai.commandPool = mFrames[mFrameSlot].commandPool;
-+    ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-+    ai.commandBufferCount = 1;
-+    VK_CHECK(vkAllocateCommandBuffers(mDevice, &ai, &mUploadCmd));
++    mUploadCmd = AcquireCommandBuffer();
 +    VkCommandBufferBeginInfo bi = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 +    bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 +    VK_CHECK(vkBeginCommandBuffer(mUploadCmd, &bi));
@@ -4912,6 +4941,7 @@ index 0000000..73f78f0
 +    }
 +    CollectGarbage(slot);
 +    VK_CHECK(vkResetCommandPool(mDevice, slot.commandPool, 0));
++    slot.commandBuffersUsed = 0; // all of the slot's command buffers are free again
 +    for (VkDescriptorPool pool : slot.descriptorPools) {
 +        VK_CHECK(vkResetDescriptorPool(mDevice, pool, 0));
 +    }
@@ -5621,15 +5651,7 @@ index 0000000..73f78f0
 +    }
 +
 +    if (fb.mCommandBuffer == VK_NULL_HANDLE) {
-+        VkCommandBufferAllocateInfo ai = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-+        ai.commandPool = mFrames[mFrameSlot].commandPool;
-+        ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-+        ai.commandBufferCount = 1;
-+        // PORT debug: PORT_DEBUG_VK_OOM=<n> makes the n-th of these allocations fail as a driver out of memory does
-+        static long sFailAt = getenv("PORT_DEBUG_VK_OOM") ? strtol(getenv("PORT_DEBUG_VK_OOM"), nullptr, 10) : 0;
-+        static long sAllocations = 0;
-+        VK_CHECK(++sAllocations == sFailAt ? VK_ERROR_OUT_OF_HOST_MEMORY
-+                                           : vkAllocateCommandBuffers(mDevice, &ai, &fb.mCommandBuffer));
++        fb.mCommandBuffer = AcquireCommandBuffer();
 +        VkCommandBufferBeginInfo bi = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 +        bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 +        VK_CHECK(vkBeginCommandBuffer(fb.mCommandBuffer, &bi));
@@ -6371,9 +6393,10 @@ index 0000000..73f78f0
 +    if (sStats && ++sStatFrames == 60) {
 +        fprintf(stderr,
 +                "[vkstats] 60 frames: %d programs (%d prebuilt) %.0f ms, %d pipelines %.0f ms, %d sync submits %.0f "
-+                "ms, fence waits %.0f ms, acquire %.0f ms\n",
++                "ms, fence waits %.0f ms, acquire %.0f ms, %d command buffers (%d new; pools hold %zu + %zu)\n",
 +                sStat.programs, sStat.prebuiltPrograms, sStat.programMs, sStat.pipelines, sStat.pipelineMs, sStat.syncSubmits, sStat.syncMs,
-+                sStat.fenceMs, sStat.acquireMs);
++                sStat.fenceMs, sStat.acquireMs, sStat.commandBuffers, sStat.commandBuffersAllocated,
++                mFrames[0].commandBuffers.size(), mFrames[VK_FRAMES_IN_FLIGHT - 1].commandBuffers.size());
 +        sStat = {};
 +        sStatFrames = 0;
 +    }
