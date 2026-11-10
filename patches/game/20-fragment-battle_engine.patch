@@ -469,7 +469,7 @@ index dd4b887036d4969755f4a44fbfe395ba1e278f63..41a6baa042770bf61df02333cb901c15
  
      return (tmp / 65535.0) * arg0;
 diff --git a/src/fragments/battle_engine/battle_engine_2F74E0.c b/src/fragments/battle_engine/battle_engine_2F74E0.c
-index 6c09ac72e3d8f5549eaf114faad543625f04a8e5..460a09ccb6feec8c283c5e45c6e83a91d72e421f 100644
+index 6c09ac72e3d8f5549eaf114faad543625f04a8e5..1ebaa52963813628228594973c7e339bcd763feb 100644
 --- a/src/fragments/battle_engine/battle_engine_2F74E0.c
 +++ b/src/fragments/battle_engine/battle_engine_2F74E0.c
 @@ -165,6 +165,13 @@ s32 BattleScene_UpdateResultPresentation(void) {
@@ -486,6 +486,105 @@ index 6c09ac72e3d8f5549eaf114faad543625f04a8e5..460a09ccb6feec8c283c5e45c6e83a91
      if (gSessionContext.timeLimitsEnabled == 0) {
          return 0;
      }
+@@ -316,6 +323,68 @@ void BattleScene_AutoSelectAvailableMove(ActivePokemon* arg0) {
+     }
+ }
+ 
++// PORT: battle boot (src/port/xcheck.cpp): a scripted side's decisions. The side's menu is up for `think` game frames
++// (the calls that return 0 let it run), then the next scripted choice is made as the move time limit would make it
++// (BattleScene_AutoSelectAvailableMove / BattleScene_AutoSelectReplacementMon): a move slot, or a switch to a party slot
++// (state 2, the party menu's result). An empty or unusable choice falls back to the first usable move / healthy mon.
++extern int Port_BattleBootScripted(int side);
++extern int Port_BattleBootThink(void);
++extern int Port_BattleBootNextAction(int side, int consume, int* arg);
++
++static s32 BattleBoot_Switch(ActivePokemon* arg0, s32 slot) {
++    ActivePokemonState* st = &arg0->state;
++    TeamRoster* roster = arg0->sessionTeams->teamMember[0];
++
++    if ((slot < 0) || (slot >= roster->numberOfPokemonChosen) || (slot == st->unk_08) || (roster->pokemonPicked[slot].unk_02 == 0)) {
++        return 0;
++    }
++    st->unk_04 = 2;
++    st->unk_1C = 0;
++    st->unk_1E = 0;
++    st->unk_10 = 3;
++    st->unk_18 = slot;
++    return 1;
++}
++
++// returns 1 once the decision is made (replacement: a mon must come in)
++s32 BattleBoot_Decide(ActivePokemon* arg0, s32 replacement) {
++    static s32 waited[2];
++    s32 side = BattleScene_GetParticipantSideIndex(arg0);
++    s32 kind, arg;
++
++    if (!Port_BattleBootScripted(side)) {
++        return 0;
++    }
++    if (waited[side]++ < Port_BattleBootThink()) {
++        return 0;
++    }
++    waited[side] = 0;
++    kind = Port_BattleBootNextAction(side, 0, &arg);
++    if (replacement) {
++        if ((kind == 2) && BattleBoot_Switch(arg0, arg)) {
++            Port_BattleBootNextAction(side, 1, &arg);
++            return 1;
++        }
++        BattleScene_AutoSelectReplacementMon(arg0);
++        return 1;
++    }
++    if (kind != 0) {
++        Port_BattleBootNextAction(side, 1, &arg);
++    }
++    if ((kind == 2) && BattleBoot_Switch(arg0, arg)) {
++        return 1;
++    }
++    if ((kind == 1) && (BattleScene_IsMoveUnavailable(arg0, arg) == 0) && (BattleScene_SelectFallbackWhenNoUsableMoves(arg0) == 0)) {
++        arg0->state.unk_04 = 1;
++        arg0->state.unk_10 = 3;
++        arg0->state.unk_14 = arg;
++        arg0->state.unk_0C = arg;
++        return 1;
++    }
++    BattleScene_AutoSelectAvailableMove(arg0);
++    return 1;
++}
++
+ void BattleScene_AutoSelectReplacementMon(ActivePokemon* arg0) {
+     s32 i;
+     ActivePokemonState* sp1C = &arg0->state;
+@@ -1059,6 +1128,9 @@ s32 BattleScene_HandlePlayerActionInput(ActivePokemon* arg0) {
+         return 1;
+     }
+ 
++    if (BattleBoot_Decide(arg0, 0) != 0) { // PORT: battle boot (src/port/xcheck.cpp)
++        return 1;
++    }
+     if (BattleScene_IsActionSelectionTimerExpired() != 0) {
+         if (arg0->state.unk_04 == 2) {
+             BattleScene_AutoSelectReplacementMon(arg0);
+@@ -1095,6 +1167,9 @@ s32 BattleScene_HandlePlayerForcedActionState(ActivePokemon* arg0, ActivePokemon
+             return 1;
+         }
+ 
++        if (BattleBoot_Decide(arg0, 1) != 0) { // PORT: battle boot (src/port/xcheck.cpp)
++            return 1;
++        }
+         if (BattleScene_IsActionSelectionTimerExpired() != 0) {
+             BattleScene_AutoSelectReplacementMon(arg0);
+             return 1;
+@@ -1107,6 +1182,9 @@ s32 BattleScene_HandlePlayerForcedActionState(ActivePokemon* arg0, ActivePokemon
+     }
+ 
+     if (sp1C->unk_2D == 0x10) {
++        if (BattleBoot_Decide(arg0, 1) != 0) { // PORT: battle boot (src/port/xcheck.cpp)
++            return 1;
++        }
+         if (BattleScene_IsActionSelectionTimerExpired() != 0) {
+             BattleScene_AutoSelectReplacementMon(arg0);
+             return 1;
 diff --git a/src/fragments/battle_engine/battle_engine_2FA4D0.c b/src/fragments/battle_engine/battle_engine_2FA4D0.c
 index f8a3b8862d17edaf214dd05d2e29c313124d9ed4..a91f4ded68e7996484b49d5ff22d95b68aacccc3 100644
 --- a/src/fragments/battle_engine/battle_engine_2FA4D0.c
@@ -868,7 +967,7 @@ index 883360294ba05bc180fa8857710d4eb6f2cc5eaf..44e4326acf090b5cbf2cdf70733bc974
  #endif
      if (gSessionContext.mode != 8) {
 diff --git a/src/fragments/battle_engine/battle_engine_313D60.c b/src/fragments/battle_engine/battle_engine_313D60.c
-index e2dca54b8eb1b66ff3ea445e8ab7c41227284187..97ee36abade5059bd9c69419057974221ea5a775 100644
+index e2dca54b8eb1b66ff3ea445e8ab7c41227284187..61f513ddef458f93767aba6c1e59d260b95c0b1a 100644
 --- a/src/fragments/battle_engine/battle_engine_313D60.c
 +++ b/src/fragments/battle_engine/battle_engine_313D60.c
 @@ -1,3 +1,6 @@
@@ -929,7 +1028,7 @@ index e2dca54b8eb1b66ff3ea445e8ab7c41227284187..97ee36abade5059bd9c6941905797422
      BattleAnim_CalculateDistanceAngles(&arg1->view.targetPosition, &arg1->view.eyePosition, &sp70, &sp6E, &sp6C);
      sp60.z = (COSS((sp6C - 0x8000)) * 30.0f) + arg1->view.eyePosition.z;
      sp60.x = (SINS((sp6C - 0x8000)) * 30.0f) + arg1->view.eyePosition.x;
-@@ -685,7 +691,17 @@ void BattleScene_UpdateOwnerVisibilityDouble(CameraNode* arg0) {
+@@ -685,7 +691,21 @@ void BattleScene_UpdateOwnerVisibilityDouble(CameraNode* arg0) {
      BattleScene_HideFaintedOwners();
  }
  
@@ -943,6 +1042,10 @@ index e2dca54b8eb1b66ff3ea445e8ab7c41227284187..97ee36abade5059bd9c6941905797422
 +            fprintf(stderr, "[battle] frame %llu phase %d sub %d u18 %d u40 %d u44 %d step %d\n", Port_ViTick(), now[0], now[1], now[2], now[3], now[4], now[5]);
 +            memcpy(last, now, sizeof now);
 +        }
++    }
++    { // PORT: battle boot (src/port/xcheck.cpp): the scene phase, for where the frame dump starts
++        extern void Port_BattleBootPhase(int phase);
++        Port_BattleBootPhase((int)sBattleScene.unk_00->unk_1C);
 +    }
      BattleScene_TickCameraSubstate(arg0);
      BattleScene_ApplyCameraPhaseDefaults();
@@ -1798,7 +1901,7 @@ index 1463c36f9d91811ef32fd53a4bad18102a7318ed..542995eadd70f90f800d7aa52e905c1b
      BattleAI_SeedRandomState(0x35);
  
 diff --git a/src/fragments/battle_engine/battle_engine_main.c b/src/fragments/battle_engine/battle_engine_main.c
-index f52b88d105b39060d8d3f853d6fec3aa56c62e86..8e08cdf88f8b3c52d894c559cc1bd3a772b580d5 100644
+index f52b88d105b39060d8d3f853d6fec3aa56c62e86..2a850f8d5aacd59ec00a8f2428e17f7f45b14553 100644
 --- a/src/fragments/battle_engine/battle_engine_main.c
 +++ b/src/fragments/battle_engine/battle_engine_main.c
 @@ -1,3 +1,5 @@
@@ -1924,7 +2027,46 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..8e08cdf88f8b3c52d894c559cc1bd3a7
      GeoRender_AdvanceFrameCounter();
      ModelAnim_UpdateFrameChangeState();
      BattleScene_DispatchLifecycle(2, sBattleSides);
-@@ -611,7 +632,7 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -540,6 +561,8 @@ void Battle_SelectComRoster(void) {
+     s32 i;
+     s32 number_of_pokemon_picked;
+ 
++    extern int Port_BattleBootActive(void); // PORT: battle boot (src/port/xcheck.cpp)
++
+     player_roster = gSessionContext.battleSides[0].teamMember[0];
+     // In Free Battle Team Battle, side 0 can have a second allied trainer in teamMember[1].
+     player_teammate_roster = gSessionContext.battleSides[0].teamMember[1];
+@@ -553,6 +576,9 @@ void Battle_SelectComRoster(void) {
+             } else {
+                 number_of_pokemon_picked = 3;
+             }
++            if (Port_BattleBootActive()) {
++                number_of_pokemon_picked = com_roster->rosterInfo->numberOfPokemonCanBePicked;
++            }
+             func_843831A0(player_roster, player_teammate_roster, com_roster, gSessionContext.aiDifficulty, order_of_picked_pokemon, gSessionContext.ruleCategory, number_of_pokemon_picked);
+         } else {
+             if (gSessionContext.ruleCategory == RULE_CATEGORY_VS_MEWTWO) {
+@@ -560,8 +586,19 @@ void Battle_SelectComRoster(void) {
+             } else {
+                 number_of_pokemon_picked = 3;
+             }
++            if (Port_BattleBootActive()) {
++                number_of_pokemon_picked = com_roster->rosterInfo->numberOfPokemonCanBePicked;
++            }
+             func_843831A0(player_roster, NULL, com_roster, com_roster->unk_018 & 0xFF, order_of_picked_pokemon, gSessionContext.ruleCategory, number_of_pokemon_picked);
+         }
++        if (Port_BattleBootActive()) {
++            // PORT: battle boot: the computer's AI is set up by the pick above (its team context, difficulty, random
++            // state), but the party is as the case file wrote it: all of it, in order
++            number_of_pokemon_picked = com_roster->rosterInfo->numberOfPokemonCanBePicked;
++            for (i = 0; i < 6; i++) {
++                order_of_picked_pokemon[i] = i;
++            }
++        }
+         Battle_CompleteRosterOrder(order_of_picked_pokemon, number_of_pokemon_picked);
+         com_roster->numberOfPokemonChosen = number_of_pokemon_picked;
+ 
+@@ -611,7 +648,7 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
      sBattleSides[1].unk_10 = PokeIcon_AllocFramebuffers(3);
      PokeIcon_OpenModelArchives();
  
@@ -1933,12 +2075,18 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..8e08cdf88f8b3c52d894c559cc1bd3a7
      GfxImage_Initialize(thumbnail_depth, 0, 2, 0x4C, 0x4C, stage_context->unk_18[0]->depth_p->img_p);
      sSide1PokemonThumbnail = GfxImage_Allocate(0, 2, 0x4C, 0x4C, 0);
      sSide2PokemonThumbnail = GfxImage_Allocate(0, 2, 0x4C, 0x4C, 0);
-@@ -640,8 +661,16 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -640,8 +677,22 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
          }
      }
  
 -    arena_entry = BinArchive_GetFile(ASSET_LOAD2(stadium_models, 1, 1), arena_index);
 -    sStageBackdrop = arena_entry(2, 0);
++    {
++        extern int Port_BattleBootArena(void); // PORT: battle boot (src/port/xcheck.cpp): the case's arena
++        if (Port_BattleBootArena() >= 0) {
++            arena_index = Port_BattleBootArena();
++        }
++    }
 +    if (PORT_GETENV_ONCE("PORT_BOOT_STAGE") != NULL) { // PORT debug: force a stage file of stadium_models
 +        arena_index = atoi(PORT_GETENV_ONCE("PORT_BOOT_STAGE"));
 +    }
@@ -1952,7 +2100,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..8e08cdf88f8b3c52d894c559cc1bd3a7
  
      model = Model_LoadByArchiveIndex(0x9A);
      Battle_SelectComRoster();
-@@ -669,17 +698,17 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -669,17 +720,17 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
      sSide2ThumbnailRoot = process_geo_layout(layout_pool, sSide2ThumbnailLayout);
  
      // Selectors 0, 1, and 3 each attach geometry beneath a stage tint/scale callback.
@@ -1973,7 +2121,7 @@ index f52b88d105b39060d8d3f853d6fec3aa56c62e86..8e08cdf88f8b3c52d894c559cc1bd3a7
      if (stage_layout != NULL) {
          GraphNode_AppendChild(&sStageLayout3, process_geo_layout(layout_pool, stage_layout));
      }
-@@ -687,13 +716,14 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
+@@ -687,13 +738,14 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
      MainPool_FinalizeAllocation(layout_pool);
  
      // callbackArg records whether this arena supplied fog, for Battle_SetStageTintColor.

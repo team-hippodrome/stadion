@@ -185,6 +185,13 @@ bool Init() {
     auto config = std::make_shared<Ship::Config>(
         Ship::Context::GetPathRelativeToAppDirectory("pokestadium.cfg.json"), nullptr);
     sContext->GetChildren().Add(config);
+    if (const char* res = getenv("PORT_BATTLE_RES")) { // battle boot: the window (so the picture) at that size
+        int rw = 0, rh = 0;
+        if (sscanf(res, "%dx%d", &rw, &rh) == 2 && rw > 0 && rh > 0) {
+            config->SetInt("Window.Width", rw);
+            config->SetInt("Window.Height", rh);
+        }
+    }
 
     auto cvars = std::make_shared<Ship::ConsoleVariable>(config);
     sContext->GetChildren().Add(cvars);
@@ -392,6 +399,9 @@ static void ValidateList(const Gfx* g, int depth, const char* path) {
 // returns the previous frame as RGBA5551). Convert with tools/ppm2png.py.
 extern "C" int Port_XcheckAnimActive(void);
 extern "C" const char* Port_XcheckFramePath(void);
+extern "C" int Port_BattleBootActive(void);
+extern "C" const char* Port_BattleFramePath(int* w, int* h);
+extern "C" void Port_BattleFrameWritten(void);
 
 // the presented frame as a PPM: the 8-bit screen pixels when the readback has them (same frame as buf), else the
 // RGBA5551 copy
@@ -410,6 +420,38 @@ static void WriteFramePpm(const char* path, int w, int h, const std::vector<uint
         uint8_t px[3] = { (uint8_t)(((v >> 11) & 31) * 255 / 31), (uint8_t)(((v >> 6) & 31) * 255 / 31), (uint8_t)(((v >> 1) & 31) * 255 / 31) };
         fwrite(px, 1, 3, f);
     }
+    fclose(f);
+}
+
+// battle boot frames (xcheck.cpp): the presented frame as an 8-bit PPM, box-averaged to ow x oh when that is asked for
+static void WriteFramePpmSized(const char* path, int w, int h, const std::vector<uint16_t>& buf, int ow, int oh) {
+    if (ow <= 0 || oh <= 0 || (ow == w && oh == h)) return WriteFramePpm(path, w, h, buf);
+    FILE* f = fopen(path, "wb");
+    if (!f) return;
+    bool full = gPortScreenW == (uint32_t)w && gPortScreenH == (uint32_t)h && gPortScreenBgra.size() == buf.size() * 4;
+    auto pixel = [&](size_t i, unsigned* rgb) {
+        if (full) {
+            rgb[0] += gPortScreenBgra[i * 4 + 2], rgb[1] += gPortScreenBgra[i * 4 + 1], rgb[2] += gPortScreenBgra[i * 4];
+        } else {
+            uint16_t v = buf[i];
+            rgb[0] += ((v >> 11) & 31) * 255 / 31, rgb[1] += ((v >> 6) & 31) * 255 / 31, rgb[2] += ((v >> 1) & 31) * 255 / 31;
+        }
+    };
+    std::vector<uint8_t> out((size_t)ow * oh * 3);
+    for (int y = 0; y < oh; y++) {
+        int ya = (int)((int64_t)y * h / oh), yb = std::max(ya + 1, (int)((int64_t)(y + 1) * h / oh));
+        for (int x = 0; x < ow; x++) {
+            int xa = (int)((int64_t)x * w / ow), xb = std::max(xa + 1, (int)((int64_t)(x + 1) * w / ow));
+            unsigned sum[3] = { 0, 0, 0 }, n = 0;
+            for (int yy = ya; yy < yb && yy < h; yy++) {
+                for (int xx = xa; xx < xb && xx < w; xx++) pixel((size_t)yy * w + xx, sum), n++;
+            }
+            n = std::max(n, 1u);
+            for (int c = 0; c < 3; c++) out[((size_t)y * ow + x) * 3 + c] = (uint8_t)(sum[c] / n);
+        }
+    }
+    fprintf(f, "P6\n%d %d\n255\n", ow, oh);
+    fwrite(out.data(), 1, out.size(), f);
     fclose(f);
 }
 
@@ -450,9 +492,10 @@ static void MaybeScreenshot() {
     static const char* dir = getenv("PORT_SCREENSHOT_DIR");
     static const bool xcheckAnim = Port_XcheckAnimActive(); // battle cross-check: move animation frames (xcheck.cpp)
     static const bool stopOnly = getenv("PORT_SCREENSHOT_STOP_ONLY") != nullptr;
-    if (stopOnly && !xcheckAnim && !Port_FreezeCheckEnabled() && sCaptureFrame == 0) return;
+    static const bool battleBoot = Port_BattleBootActive() != 0; // battle boot: frames of the whole battle (xcheck.cpp)
+    if (stopOnly && !xcheckAnim && !battleBoot && !Port_FreezeCheckEnabled() && sCaptureFrame == 0) return;
     static int frame = 0;
-    if (!dir && !xcheckAnim && !Port_FreezeCheckEnabled()) return;
+    if (!dir && !xcheckAnim && !battleBoot && !Port_FreezeCheckEnabled()) return;
     ++frame;
     int w = sWindow->GetWidth(), h = sWindow->GetHeight();
     {   // the drawable can be larger than the window in points (Retina): read the full pixel size
@@ -475,6 +518,13 @@ static void MaybeScreenshot() {
         Port_NotePictureHash(fh);
     }
     if (const char* xpath = xcheckAnim ? Port_XcheckFramePath() : nullptr) WriteFramePpmSmall(xpath, w, h, buf);
+    if (battleBoot) {
+        int ow = 0, oh = 0;
+        if (const char* bpath = Port_BattleFramePath(&ow, &oh)) {
+            WriteFramePpmSized(bpath, w, h, buf, ow, oh);
+            Port_BattleFrameWritten();
+        }
+    }
     if (!dir) return;
     // Only save when the picture changed since the last saved frame (hash of a sparse sample), checked every 15 frames.
     // The readback must still be requested every frame to stay in sync.
