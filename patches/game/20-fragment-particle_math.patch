@@ -253,7 +253,7 @@ index b8f5169839d019040d47a76b9d5e37c4aecdcfc5..3dd5dfaa5267a77f5062587f2e51c49e
      }
  }
 diff --git a/src/fragments/particle_math/particle_math_269820.c b/src/fragments/particle_math/particle_math_269820.c
-index b166f985362a84525ad2acbd7787495f00616ee3..e3b7f93fcade1d9c021ac1c41a0b7ceb6237f0d2 100644
+index b166f985362a84525ad2acbd7787495f00616ee3..6ee885f84ce623ca8664fe5e3b874522572f8c4c 100644
 --- a/src/fragments/particle_math/particle_math_269820.c
 +++ b/src/fragments/particle_math/particle_math_269820.c
 @@ -1,3 +1,5 @@
@@ -408,7 +408,7 @@ index b166f985362a84525ad2acbd7787495f00616ee3..e3b7f93fcade1d9c021ac1c41a0b7ceb
          arg0->unk_B0 = arg1;
      }
  }
-@@ -2038,10 +2040,42 @@ void Particle_PrepareRender(Particle* arg0) {
+@@ -2038,10 +2040,45 @@ void Particle_PrepareRender(Particle* arg0) {
      }
  }
  
@@ -438,12 +438,15 @@ index b166f985362a84525ad2acbd7787495f00616ee3..e3b7f93fcade1d9c021ac1c41a0b7ceb
 +            if (partId == partSeenCount && partSeenCount < 4096) {
 +                partSeen[partSeenCount++] = (void*)arg0;
 +            }
-+            fprintf(partlog, "%llu d%ld #%d 2C(%g %g %g) 38(%g %g %g) 50(%g %g %g) 5C(%g %g %g) 68(%g %g %g) 74 %g %g 7C(%g %g %g) 94(%d %d %d)\n",
++            fprintf(partlog, "%llu d%ld #%d 2C(%g %g %g) 38(%g %g %g) 50(%g %g %g) 5C(%g %g %g) 68(%g %g %g) 74 %g %g 7C(%g %g %g) 94(%d %d %d)",
 +                    Port_CamlogAnimFrame(), (long)(arg0->unk_0C - gBattleAnimParticleDescriptors), partId,
 +                    arg0->unk_2C.x, arg0->unk_2C.y, arg0->unk_2C.z, arg0->unk_38.x, arg0->unk_38.y, arg0->unk_38.z,
 +                    arg0->unk_50.x, arg0->unk_50.y, arg0->unk_50.z, arg0->unk_5C.x, arg0->unk_5C.y, arg0->unk_5C.z,
 +                    arg0->unk_68.x, arg0->unk_68.y, arg0->unk_68.z, arg0->unk_74, arg0->unk_78, arg0->unk_7C.x,
 +                    arg0->unk_7C.y, arg0->unk_7C.z, arg0->unk_94.x, arg0->unk_94.y, arg0->unk_94.z);
++            // appended after the original fields: scale, field 20, prim rgba, env rgb, texture frame (unk_C7)
++            fprintf(partlog, " X s=%g f20=%g prim=%d,%d,%d,%d env=%d,%d,%d tf=%d\n", arg0->unk_1C, arg0->unk_20, arg0->prim_r, arg0->prim_g,
++                    arg0->prim_b, arg0->prim_a, arg0->env_r, arg0->env_g, arg0->env_b, arg0->unk_C7);
 +            fflush(partlog);
 +        }
 +    }
