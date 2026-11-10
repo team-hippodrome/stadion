@@ -7,7 +7,6 @@ Usage: tools/make_macos_bundle.py <build dir> <output .app> [version] [icon .png
 - Contents/Frameworks: the non-system dylibs (Homebrew's SDL3, GLEW, libzip, ...) and theirs, with every reference
   rewritten to @rpath, so the app runs without Homebrew
 - Config, logs and saves live beside the .app, outside the signed bundle; a missing config is generated on first start.
-- Contents/Resources/save_editor: the launcher's save editor (tools/save_editor/stadium_save, needs python3)
 - an icon: tools/macos/AppIcon.png ("POKéMON STADIUM" lettering, drawn by tools/macos_icon.swift) or the given
   picture; and an ad-hoc signature (needed after install_name_tool; not notarized: the first
   start of a downloaded copy needs "Open Anyway" or `xattr -dr com.apple.quarantine`)
@@ -125,11 +124,6 @@ def main():
         f.write(PLIST.format(bid=BUNDLE_ID, ver=version))
     icon = os.path.abspath(sys.argv[4]) if len(sys.argv) > 4 else os.path.join(root, "tools/macos/AppIcon.png")
     make_icon(icon, os.path.join(res, "AppIcon.icns"))
-    # the launcher's save editor (Debug -> Save editor): the Python package, standard library only (launcher.cpp
-    # SaveEditorDir looks in Contents/Resources/save_editor)
-    shutil.copytree(os.path.join(root, "tools", "save_editor", "stadium_save"),
-                    os.path.join(res, "save_editor", "stadium_save"),
-                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     libs = bundle_libs(exe, fw)
     run("codesign", "--force", "--deep", "--sign", "-", app)
     files = [exe] + [os.path.join(fw, n) for n in libs]

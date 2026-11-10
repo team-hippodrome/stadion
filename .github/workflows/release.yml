@@ -64,9 +64,6 @@ jobs:
               continue
             fi
             cp README.md PORTING_NOTES.md "$dir/"
-            # Windows: the launcher's Save editor (Debug) runs save_editor/stadium_save next to the exe (Python 3.9+)
-            mkdir -p "$dir/save_editor"
-            cp -R tools/save_editor/stadium_save tools/save_editor/README.md "$dir/save_editor/"
             mkdir -p "$dir/docs"
             cp docs/BUILDING.md "$dir/docs/BUILDING.md"
             (cd "$dir" && zip -r "../../dist/${name}-v${VERSION}.zip" .)

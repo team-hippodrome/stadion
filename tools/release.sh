@@ -140,10 +140,6 @@ build_windows() { # $1: x64 or arm64
     "
     cp "$SRC/README.md" "$stage/README.md"
     cp "$SRC/PORTING_NOTES.md" "$stage/PORTING_NOTES.md"
-    # the launcher's Save editor (Debug) runs save_editor/stadium_save next to the exe with Python 3.9+
-    mkdir -p "$stage/save_editor"
-    cp -R "$SRC/tools/save_editor/stadium_save" "$SRC/tools/save_editor/README.md" "$stage/save_editor/"
-    rm -rf "$stage/save_editor/stadium_save/__pycache__"
     mkdir -p "$stage/docs"
     cp "$SRC/docs/BUILDING.md" "$stage/docs/BUILDING.md"
     rm -f "$DIST/pokestadium-windows-$arch-v$VERSION.zip"

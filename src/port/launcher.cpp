@@ -3,8 +3,8 @@
 // of each Transfer Pak (picture, game, trainer from the save, save file) and a bar with the Stadium ROM, its save and
 // PLAY. The choices are remembered in pokestadium.cfg.json and passed to the game the way the command line does
 // (PORT_FLASH_FILE, PORT_GB_ROM*, PORT_GB_SAVE*). Auto-play skips it next time (hold Shift while starting to see it
-// again); Debug adds a button that opens the save editor (tools/save_editor, needs Python 3.9+): on macOS in a window of
-// the app (save_editor_mac.mm), elsewhere in the browser. Controls
+// again); Debug adds a button that opens the save editor (save_editor/save_editor_ui.cpp, built in: it takes the
+// launcher's place until it is closed; on the handheld layout it is under Files & help). Controls
 // swaps the player cards for the key and controller bindings of each player (libultraship's ControlDeck mappings).
 // Renderer picks libultraship's window backend (Window.Backend.Id); it applies the next time the game starts.
 // Graphics swaps the player cards for the drawing settings (resolution scale, anti-aliasing, VSync, Smooth motion,
@@ -19,6 +19,7 @@
 #include "port_platform.h"
 #include "Engine.h"
 #include "rom_check.h"
+#include "save_editor/save_editor_ui.h"
 
 #include <chrono>
 #include <libultraship/libultraship.h>
@@ -54,12 +55,6 @@
 #include <mutex>
 #include <string>
 #include <vector>
-
-#ifdef __APPLE__
-// macOS: the editor in a window of the app, as the old macOS launcher had it (save_editor_mac.mm)
-bool Port_SaveEditorOpen(const std::string& dir, const std::string& save, std::string* status);
-void Port_SaveEditorStop();
-#endif
 
 namespace {
 
@@ -572,228 +567,30 @@ void OfferExport(const std::string& path) {
 
 // ---- save editor (debug option) --------------------------------------------------------------------------------------
 
-// tools/save_editor next to the executable or in the source tree above it
-// SDL's base path is UTF-8 (on Windows fs::path(const char*) would read it in the ANSI code page and lose a folder
-// such as "Pokémon Stadium"), and the result goes back to SDL as UTF-8.
-std::string SaveEditorDir() {
-    const char* base = SDL_GetBasePath();
-    fs::path p = base != nullptr ? fs::u8path(base) : fs::current_path();
-    std::error_code ec;
-    // a packaged app carries the package itself (Windows and Linux zips: save_editor next to the executable; macOS:
-    // Contents/Resources/save_editor, SDL's base path there)
-    for (const fs::path& packaged : { p / "save_editor", p / ".." / "Resources" / "save_editor" }) {
-        if (fs::exists(packaged / "stadium_save", ec)) {
-            return Port::PathUtf8(packaged.lexically_normal());
-        }
-    }
-    for (int up = 0; up < 3 && !p.empty(); up++) {
-        if (fs::exists(p / "tools" / "save_editor" / "stadium_save", ec)) {
-            return Port::PathUtf8(p / "tools" / "save_editor");
-        }
-        p = p.parent_path();
-    }
-    return "";
-}
-
 std::string gEditorStatus;
-SDL_Process* gEditorProcess = nullptr; // the save editor's server (stopped when the launcher closes)
+Port::SaveEditor gSaveEditor; // the editor, drawn in place of the launcher's panels while it is open
 
-
-// The interpreters to try for the save editor's server (Python 3.9 or newer, no packages needed). Windows has no
-// python3 command: python.org's installer adds the "py" launcher (C:\Windows\py.exe) and only puts python.exe on PATH
-// when "Add python.exe to PATH" was ticked, so try py -3 first, then python / python3 from PATH (which can be the
-// Microsoft Store's stub: it exits with 9009 when no Python is installed), then the installer's default folders.
-std::vector<std::vector<std::string>> PythonCandidates() {
-    std::vector<std::vector<std::string>> list;
-#ifdef _WIN32
-    list.push_back({ "py", "-3" });
-    list.push_back({ "python" });
-    list.push_back({ "python3" });
-    std::vector<fs::path> roots;
-    const char* local = SDL_getenv("LOCALAPPDATA");
-    if (local != nullptr) roots.push_back(fs::u8path(local) / "Programs" / "Python"); // per-user install (default)
-    for (const char* var : { "ProgramFiles", "ProgramW6432", "ProgramFiles(x86)" }) {        // install for all users
-        const char* v = SDL_getenv(var);
-        if (v != nullptr) roots.push_back(fs::u8path(v));
-    }
-    std::vector<fs::path> found;
+// Opens the save editor on the Stadium save, with the Game Boy saves of the Transfer Paks that are on; gbSlot: the
+// player card whose cartridge to show first (-1: the overview).
+void OpenSaveEditor(const State& s, int gbSlot = -1) {
     std::error_code ec;
-    for (const fs::path& root : roots) {
-        for (fs::directory_iterator it(root, ec), end; !ec && it != end; it.increment(ec)) {
-            const std::string name = Port::PathUtf8(it->path().filename());
-            if (name.rfind("Python3", 0) == 0 && fs::exists(it->path() / "python.exe", ec)) {
-                found.push_back(it->path() / "python.exe");
-            }
-        }
-    }
-    // newest first: Python313 before Python39 (compare the minor version as a number)
-    auto minor = [](const fs::path& exe) { return std::atoi(Port::PathUtf8(exe.parent_path().filename()).c_str() + 7); };
-    std::sort(found.begin(), found.end(), [&](const fs::path& a, const fs::path& b) { return minor(a) > minor(b); });
-    for (const fs::path& exe : found) list.push_back({ Port::PathUtf8(exe) });
-#else
-    list.push_back({ "python3" });
-#endif
-    return list;
-}
-
-// stadium_save exits with this when the Python running it is older than 3.9 (stadium_save/__init__.py)
-constexpr int kPythonTooOld = 3;
-#ifdef _WIN32
-constexpr int kNotFound = 9009; // cmd.exe's "not recognized" code, also the Microsoft Store stub's
-constexpr int kPyNoRuntime = 103; // py -3 with no Python 3 installed ("No suitable Python runtime found")
-#else
-constexpr int kNotFound = 127;
-constexpr int kPyNoRuntime = 127;
-#endif
-
-// the last non-empty line of the server's log (its error, if it stopped)
-std::string LastLogLine(const fs::path& log) {
-    std::ifstream f(log, std::ios::binary);
-    std::string line, last;
-    while (std::getline(f, line)) {
-        while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
-        if (!line.empty()) last = line;
-    }
-    return last;
-}
-
-// Starts the server with the first interpreter that runs it, as gEditorProcess. Returns the status line; on failure
-// also explains it in a message box (the line under the button is short).
-std::string StartSaveEditorServer(const std::string& dir, const std::string& save) {
-    std::error_code ec;
-    const fs::path log = fs::temp_directory_path(ec) / "pokestadium-save-editor.log";
-    const std::string logUtf8 = Port::PathUtf8(log);
-    bool tooOld = false;
-    std::string failure;
-    for (const std::vector<std::string>& python : PythonCandidates()) {
-        std::vector<const char*> args;
-        for (const std::string& a : python) args.push_back(a.c_str());
-        for (const char* a : { "-m", "stadium_save", "serve" }) args.push_back(a);
-        args.push_back(save.c_str());
-        for (const char* a : { "--port", "8765", "--write" }) args.push_back(a);
-        args.push_back(nullptr);
-
-        SDL_PropertiesID props = SDL_CreateProperties();
-        SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, (void*)args.data());
-#ifdef SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING // SDL 3.4+
-        SDL_SetStringProperty(props, SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING, dir.c_str());
-#endif
-        // the module is found through PYTHONPATH too (older SDL cannot set the child's working directory)
-        SDL_Environment* env = SDL_CreateEnvironment(true);
-        SDL_SetEnvironmentVariable(env, "PYTHONPATH", dir.c_str(), true);
-        SDL_SetEnvironmentVariable(env, "PYTHONDONTWRITEBYTECODE", "1", true); // the game folder can be read-only
-        SDL_SetEnvironmentVariable(env, "PYTHONIOENCODING", "utf-8", true);
-#ifndef _WIN32
-        // an app started from Finder gets only /usr/bin:/bin:/usr/sbin:/sbin: also look where Homebrew and the
-        // python.org installer put python3
-        {
-            const char* path = SDL_GetEnvironmentVariable(env, "PATH");
-            std::string p = path != nullptr ? path : "/usr/bin:/bin";
-            for (const char* extra : { "/opt/homebrew/bin", "/usr/local/bin", "/Library/Frameworks/Python.framework/Versions/Current/bin" }) {
-                if (("" + p + ":").find(std::string(extra) + ":") == std::string::npos) p += std::string(":") + extra;
-            }
-            SDL_SetEnvironmentVariable(env, "PATH", p.c_str(), true);
-        }
-#endif
-        SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ENVIRONMENT_POINTER, env);
-        // the server's output goes to a log in the temp folder (a GUI program has no console to inherit)
-        SDL_IOStream* out = SDL_IOFromFile(logUtf8.c_str(), "wb");
-        if (out != nullptr) {
-            SDL_SetNumberProperty(props, SDL_PROP_PROCESS_CREATE_STDOUT_NUMBER, SDL_PROCESS_STDIO_REDIRECT);
-            SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_STDOUT_POINTER, out);
-            SDL_SetNumberProperty(props, SDL_PROP_PROCESS_CREATE_STDERR_NUMBER, SDL_PROCESS_STDIO_REDIRECT);
-            SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_STDERR_POINTER, out);
-        }
-        SDL_Process* process = SDL_CreateProcessWithProperties(props);
-        SDL_DestroyProperties(props);
-        SDL_DestroyEnvironment(env);
-        if (out != nullptr) SDL_CloseIO(out); // the child has its own handle now
-        if (process == nullptr) {
-            continue; // not on PATH
-        }
-        // give the server time to bind its port; a missing or broken interpreter exits well within that
-        int exitCode = 0;
-        bool exited = false;
-        for (int waited = 0; waited < 1500 && !(exited = SDL_WaitProcess(process, false, &exitCode)); waited += 50) {
-            SDL_Delay(50);
-        }
-        if (!exited) {
-            gEditorProcess = process;
-            return "Starting...";
-        }
-        SDL_DestroyProcess(process);
-        SDL_Log("save editor: %s exited with %d", python[0].c_str(), exitCode);
-        if (exitCode == kNotFound || exitCode == kPyNoRuntime) {
-            continue; // the Store stub, or py without a Python 3
-        }
-        if (exitCode == kPythonTooOld) {
-            tooOld = true;
-            continue; // an old python on PATH: a newer one may come later in the list
-        }
-        // it ran and failed: the port taken, an error in the editor
-        std::string last = LastLogLine(log);
-        failure = "The save editor stopped (code " + std::to_string(exitCode) + ")" + (last.empty() ? "" : ":\n" + last) +
-                  "\n\nFull output: " + logUtf8;
-        break;
-    }
-    std::string text;
-    std::string status;
-    if (!failure.empty()) {
-        text = failure;
-        status = "Save editor stopped: see the message";
-    } else {
-        status = tooOld ? "Needs Python 3.9 or newer" : "Python 3 not found";
-        text = std::string(tooOld ? "The save editor needs Python 3.9 or newer; the Python found is older."
-                                  : "The save editor needs Python 3.9 or newer, and none was found.")
-#ifdef _WIN32
-               + "\n\nInstall it from python.org (keep \"py launcher\" ticked; \"Add python.exe to PATH\" also helps), "
-                 "then click Save editor again. The Microsoft Store's \"python\" command does not count until Python "
-                 "itself is installed."
-#else
-               + "\n\nInstall python3 (your package manager, or python.org), then click Save editor again."
-#endif
-            ;
-    }
-    SDL_Log("save editor: %s", text.c_str());
-    if (getenv("PORT_LAUNCHER_TEST_SAVE_EDITOR") == nullptr) { // the test hook only logs it (a dialog would wait)
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Save editor", text.c_str(), nullptr);
-    }
-    return status;
-}
-
-void OpenSaveEditor(const std::string& save) {
-    std::string dir = SaveEditorDir();
-    if (dir.empty()) {
-        gEditorStatus = "tools/save_editor not found";
-        return;
-    }
-    std::error_code ec;
-    if (save.empty() || !fs::exists(fs::u8path(save), ec)) { // a new install: the game writes the save when it starts
+    if (s.save.empty() || !fs::exists(fs::u8path(s.save), ec)) { // a new install: the game writes the save when it starts
         gEditorStatus = "No save yet: start the game once";
         return;
     }
-#ifdef __APPLE__
-    Port_SaveEditorOpen(dir, save, &gEditorStatus);
-    return;
-#endif
-    // elsewhere: the page in the browser, served by python -m stadium_save
-    if (gEditorProcess == nullptr) {
-        gEditorStatus = StartSaveEditorServer(dir, save);
-        if (gEditorProcess == nullptr) {
-            return;
-        }
-    } else {
-        // the server stopped since the last click (closed from outside): say so, and start it again on the next one
-        int exitCode = 0;
-        if (SDL_WaitProcess(gEditorProcess, false, &exitCode)) {
-            SDL_DestroyProcess(gEditorProcess);
-            gEditorProcess = nullptr;
-            gEditorStatus = "Save editor stopped (code " + std::to_string(exitCode) + "): click again";
-            return;
-        }
+    std::vector<Port::SaveEditorGb> gbs;
+    for (int i = 0; i < 4; i++) {
+        const GbSlot& g = s.gb[i];
+        const bool shown = (g.enabled && !g.rom.empty()) || i == gbSlot;
+        gbs.push_back({ "Player " + std::to_string(i + 1), shown ? GbSave(g) : "", g.rom });
     }
-    SDL_OpenURL("http://127.0.0.1:8765/");
-    gEditorStatus = "Opened in the browser";
+    std::string error;
+    if (gSaveEditor.Open(s.save, gbs, gbSlot, &error)) {
+        gEditorStatus.clear();
+    } else {
+        gEditorStatus = "Cannot open the save: " + error;
+        SDL_Log("save editor: %s", gEditorStatus.c_str());
+    }
 }
 
 // ---- look: Launcher.swift's Theme and fonts --------------------------------------------------------------------------
@@ -1140,6 +937,13 @@ class LauncherWindow : public Ship::GuiWindow {
             mSoundTestOpened = mSound = true;
         }
 
+        if (gSaveEditor.IsOpen()) {
+            EditorPanel(16, 58, kW - 32, kH - 58 - 16);
+            if (mChanged) {
+                Store(s);
+            }
+            return;
+        }
         if (mTools) {
             ToolsPanel(16, 58, kW - 32, 366);
         } else if (mControls) {
@@ -1166,7 +970,7 @@ class LauncherWindow : public Ship::GuiWindow {
     bool mToolsTestOpened = false, mTools = false;
     void Tools() {
         const bool testOpen = getenv("PORT_LAUNCHER_OPEN_TOOLS") != nullptr && !mToolsTestOpened;
-        ImGui::BeginDisabled(mCapture >= 0);
+        ImGui::BeginDisabled(mCapture >= 0 || (gSaveEditor.IsOpen() && !Handheld()));
         const bool opened = Button("Files & help", 800, 8, 144, 30);
         ImGui::EndDisabled();
         if ((opened && mCapture < 0) || testOpen) {
@@ -1174,6 +978,20 @@ class LauncherWindow : public Ship::GuiWindow {
             mTools = !mTools;
             if (Handheld()) GoToPage(mTools ? kPageTools : kPageHome);
         }
+    }
+    // the save editor in the rectangle (design coordinates), with the launcher's scale, fonts and gamepad focus
+    void EditorPanel(float x, float y, float w, float h) {
+        Port::SaveEditorStyle style;
+        style.scale = mScale;
+        style.body = gFonts.body;
+        style.small = gFonts.small;
+        style.game = gFonts.game;
+        style.title = gFonts.title;
+        style.handheld = Handheld();
+        style.navItem = [this] { return NavItem(); };
+        style.setDefaultFocus = [this] { mDefaultFocus = (int)mNavItems.size(); };
+        style.resetFocus = [this] { mFocusReset = true; };
+        gSaveEditor.Draw(style, P(x, y), P(x + w, y + h));
     }
     bool ToolAction(const char* label) {
         const bool clicked = ImGui::Button(label, ImVec2(std::min(280.0f * mScale, ImGui::GetContentRegionAvail().x),
@@ -1193,6 +1011,16 @@ class LauncherWindow : public Ship::GuiWindow {
                 const auto romError = CheckRom(mState->rom);
                 if (!romError.empty()) check.errors.insert(check.errors.begin(), "Stadium ROM: " + romError);
                 mToolsStatus = CheckText(check);
+            }
+            if (Handheld() && ToolAction("Save editor")) { // (the desktop layout has it under Debug)
+                OpenSaveEditor(*mState);
+                if (gSaveEditor.IsOpen()) {
+                    mTools = false;
+                    GoToPage(kPageSaveEditor);
+                    mFocusReset = true; // (this frame still draws the old page: its default would win)
+                } else {
+                    mToolsStatus = gEditorStatus;
+                }
             }
             if (ToolAction("Open settings folder")) OpenFolder(directory);
             if (ToolAction("Open saves folder")) OpenFolder(fs::u8path(mState->save).parent_path());
@@ -1344,7 +1172,7 @@ class LauncherWindow : public Ship::GuiWindow {
 
         Text(x + 12, y + h - 26, "Transfer Pak · controller " + std::to_string(i + 1), gFonts.small, Theme::dim);
         if (s.debug && !save.empty() && Button("Edit save", x + w - 90, y + h - 33, 80, 26)) {
-            OpenSaveEditor(save);
+            OpenSaveEditor(s, i);
         }
         ImGui::PopID();
     }
@@ -1752,8 +1580,10 @@ class LauncherWindow : public Ship::GuiWindow {
             static bool sTestClicked = false; // test hook: PORT_LAUNCHER_TEST_SAVE_EDITOR=1 clicks it once
             if (Button("Save editor", x + 556, y + 56, 96, 26) ||
                 (!sTestClicked && getenv("PORT_LAUNCHER_TEST_SAVE_EDITOR") != nullptr && (sTestClicked = true))) {
-                OpenSaveEditor(s.save);
-                if (getenv("PORT_LAUNCHER_TEST_SAVE_EDITOR") != nullptr) fprintf(stderr, "[launcher] save editor: %s\n", gEditorStatus.c_str());
+                OpenSaveEditor(s);
+                if (getenv("PORT_LAUNCHER_TEST_SAVE_EDITOR") != nullptr) {
+                    fprintf(stderr, "[launcher] save editor: %s\n", gSaveEditor.IsOpen() ? "open" : gEditorStatus.c_str());
+                }
             }
             if (!gEditorStatus.empty()) {
                 Text(x + 658, y + 61, gEditorStatus, gFonts.small, Theme::dim);
@@ -1900,6 +1730,12 @@ class LauncherWindow : public Ship::GuiWindow {
         }
         mHeldDx = dx;
         mHeldDy = dy;
+        if (mFocusReset) { // no focus this frame; NavEndFrame picks the default the new view named
+            mFocusReset = false;
+            mFocus = -1;
+            mNavPrev.clear();
+            move = false;
+        }
         if (mNavPrev.empty()) {
             mFocus = -1; // (the page's items are not known before its first frame)
         } else if (mFocus < 0 || mFocus >= (int)mNavPrev.size()) {
@@ -1955,13 +1791,29 @@ class LauncherWindow : public Ship::GuiWindow {
         if (mPage == kPageControls && !mControls) { // the panel's Done button
             GoToPage(kPageHome);
         }
+        if (mPage == kPageSaveEditor) {
+            if (mNavBack) { // B: out of a picker or the Pokémon dialog first, then close (asking about unsaved edits)
+                gSaveEditor.Back();
+                mNavBack = false;
+            }
+            if (!gSaveEditor.IsOpen()) {
+                GoToPage(kPageHome);
+            }
+        } else if (gSaveEditor.IsOpen()) { // opened from a Transfer Pak card
+            GoToPage(kPageSaveEditor);
+            mFocusReset = true;
+        }
         ImDrawList* dl = ImGui::GetWindowDrawList();
         Text(24, 14, "Pokémon Stadium", gFonts.title);
-        const char* pageName = mPage == kPageTransferPak ? "Transfer Pak" : mPage == kPageControls ? "Controls" : mPage == kPageTools ? "Files & help" : "";
+        const char* pageName = mPage == kPageTransferPak ? "Transfer Pak" : mPage == kPageControls ? "Controls"
+                               : mPage == kPageTools ? "Files & help" : mPage == kPageSaveEditor ? "Save editor" : "";
         Text(220, 17, pageName, gFonts.body, Theme::dim);
         dl->AddRectFilled(P(0, 50), P(kW, 51), Hex(Theme::cardBorder));
 
-        if (mPage == kPageTools) {
+        if (mPage == kPageSaveEditor) {
+            mDefaultFocus = 0; // (the editor names its own: the current section)
+            EditorPanel(16, 62, kW - 32, 438);
+        } else if (mPage == kPageTools) {
             ToolsPanel(16, 62, kW - 32, 430);
             mDefaultFocus = 0;
         } else if (mPage == kPageTransferPak) {
@@ -2066,10 +1918,11 @@ class LauncherWindow : public Ship::GuiWindow {
     struct NavRect {
         ImVec2 min, max;
     };
-    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2, kPageTools = 3;
+    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2, kPageTools = 3, kPageSaveEditor = 4;
     int mPage = kPageHome;
     std::vector<NavRect> mNavItems, mNavPrev; // this frame's and last frame's focus targets, in drawing order
     int mFocus = -1, mDefaultFocus = 0;
+    bool mFocusReset = false; // the save editor changed its view: the new view's default focus
     bool mNavAccept = false, mNavBack = false, mWasAccept = true, mWasBack = true; // (held at start: not a press)
     int mHeldDx = 0, mHeldDy = 0;
     std::chrono::steady_clock::time_point mRepeatAt;
@@ -2093,6 +1946,83 @@ class LauncherWindow : public Ship::GuiWindow {
     ImVec2 mOrigin;
     bool mChanged = false;
 };
+
+// Test hook: PORT_LAUNCHER_SCRIPT=<file> drives the launcher with ImGui input, one command per line:
+//   <frame> click <x> <y>   left click at design coordinates (the 960x556 layout; 960x540 handheld)
+//   <frame> move <x> <y>    <frame> wheel <dy>
+//   <frame> text <string>   typed characters      <frame> key <name>   Enter, Escape, Tab, Backspace, Up, Down,
+//                                                                       Left, Right, Ctrl+S, Ctrl+A
+//   <frame> shot <file.ppm> the picture (saved twice: Metal reads the screen back a frame late)
+//   <frame> quit
+// It goes through ImGui's input queue like the mouse and keyboard, so it checks the real controls (also under Wine).
+struct ScriptStep {
+    int frame;
+    std::string cmd, arg;
+};
+
+std::vector<ScriptStep> LoadScript(const char* path) {
+    std::vector<ScriptStep> steps;
+    std::ifstream f(fs::u8path(path));
+    std::string line;
+    while (std::getline(f, line)) {
+        while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
+        if (line.empty() || line[0] == '#') continue;
+        ScriptStep st{};
+        size_t a = line.find(' ');
+        if (a == std::string::npos) continue;
+        st.frame = atoi(line.substr(0, a).c_str());
+        size_t b = line.find(' ', a + 1);
+        st.cmd = line.substr(a + 1, b == std::string::npos ? std::string::npos : b - a - 1);
+        st.arg = b == std::string::npos ? "" : line.substr(b + 1);
+        steps.push_back(st);
+    }
+    return steps;
+}
+
+// returns true for quit
+bool RunScriptStep(const ScriptStep& st) {
+    ImGuiIO& io = ImGui::GetIO();
+    ImGuiViewport* vp = ImGui::GetMainViewport();
+    const float designH = Handheld() ? kHandheldH : kH;
+    const float scale = std::min(vp->Size.x / kW, vp->Size.y / designH);
+    auto pos = [&](const std::string& arg) {
+        float x = 0, y = 0;
+        sscanf(arg.c_str(), "%f %f", &x, &y);
+        return ImVec2(vp->Pos.x + (vp->Size.x - kW * scale) / 2 + x * scale, vp->Pos.y + (vp->Size.y - designH * scale) / 2 + y * scale);
+    };
+    if (st.cmd == "click" || st.cmd == "move") {
+        ImVec2 p = pos(st.arg);
+        io.AddMousePosEvent(p.x, p.y);
+        if (st.cmd == "click") {
+            io.AddMouseButtonEvent(0, true);
+            io.AddMouseButtonEvent(0, false);
+        }
+    } else if (st.cmd == "wheel") {
+        io.AddMouseWheelEvent(0, (float)atof(st.arg.c_str()));
+    } else if (st.cmd == "text") {
+        io.AddInputCharactersUTF8(st.arg.c_str());
+    } else if (st.cmd == "key") {
+        static const std::pair<const char*, ImGuiKey> keys[] = {
+            { "Enter", ImGuiKey_Enter }, { "Escape", ImGuiKey_Escape }, { "Tab", ImGuiKey_Tab },
+            { "Backspace", ImGuiKey_Backspace }, { "Up", ImGuiKey_UpArrow }, { "Down", ImGuiKey_DownArrow },
+            { "Left", ImGuiKey_LeftArrow }, { "Right", ImGuiKey_RightArrow }, { "S", ImGuiKey_S }, { "A", ImGuiKey_A },
+        };
+        std::string name = st.arg;
+        const bool ctrl = name.rfind("Ctrl+", 0) == 0;
+        if (ctrl) name = name.substr(5);
+        for (auto [n, k] : keys) {
+            if (name == n) {
+                if (ctrl) io.AddKeyEvent(ImGuiMod_Ctrl, true);
+                io.AddKeyEvent(k, true);
+                io.AddKeyEvent(k, false);
+                if (ctrl) io.AddKeyEvent(ImGuiMod_Ctrl, false);
+            }
+        }
+    } else if (st.cmd == "quit") {
+        return true;
+    }
+    return false;
+}
 
 } // namespace
 
@@ -2179,8 +2109,14 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
         // PORT_TRACE_PACING=1: launcher frames more than 40 ms apart
         static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
         auto lastFrame = std::chrono::steady_clock::now();
+        static const char* scriptPath = getenv("PORT_LAUNCHER_SCRIPT");
+        std::vector<ScriptStep> script = scriptPath != nullptr ? LoadScript(scriptPath) : std::vector<ScriptStep>{};
         for (int frame = 0; !play && !quit && !restart && window->IsRunning(); frame++) {
             window->HandleEvents();
+            for (const ScriptStep& st : script) {
+                if (st.frame == frame) quit |= RunScriptStep(st);
+                if (st.cmd == "shot" && (st.frame == frame - 1 || st.frame == frame - 2)) Port::SaveScreen(st.arg.c_str());
+            }
             window->DrawAndRunGraphicsCommands(empty, {});
             auto now = std::chrono::steady_clock::now();
             if (tracePacing && frame > 0 && now - lastFrame > std::chrono::milliseconds(40)) {
@@ -2200,14 +2136,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
         }
         window->GetGui()->RemoveGuiWindow(launcher->GetName());
         Store(state);
-#ifdef __APPLE__
-        Port_SaveEditorStop();
-#endif
-        if (gEditorProcess != nullptr) { // the save editor's server ends with the launcher (it edits the save the game
-            SDL_KillProcess(gEditorProcess, true); // is about to load, and used to keep running after the window closed)
-            SDL_DestroyProcess(gEditorProcess);
-            gEditorProcess = nullptr;
-        }
+        gSaveEditor.Close(); // (unsaved edits are dropped with the window, as the browser page did)
         if (!play || restart) {
             return "";
         }
