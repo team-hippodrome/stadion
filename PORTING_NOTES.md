@@ -1339,9 +1339,16 @@ errors that leave the device unusable (out of host or device memory, device lost
 `main` takes the same path: OpenGL for the next start, a dialog naming the call ("vkAllocateCommandBuffers failed:
 the graphics driver ran out of memory"), exit. Only on the drawing thread: the pipeline prebuild workers keep
 logging, since an exception there would end in std::terminate. The dialog is left out with `PORT_HIDDEN_WINDOW`.
-`PORT_DEBUG_VK_OOM=<n>` makes the n-th command buffer allocation of `EnsurePassActive` fail that way (test).
-Checked on MoltenVK: at most 26 command buffers between two resets of a frame's pool on the rental screen with
-Smooth motion and 2x MSAA (no growth), and the forced failure exits with the dialog's text and OpenGL saved.
+`PORT_DEBUG_VK_OOM=<n>` makes the n-th command buffer request (`AcquireCommandBuffer`) fail that way (test).
+
+The cause of that report was a leak: each frame allocated new command buffers from its slot's pool (one per
+framebuffer drawn, one per synchronous readback, one for uploads, about 2 per game frame) and never freed them, while
+`vkResetCommandPool` resets buffers without freeing them. So every pool grew for as long as the game ran (16,840
+buffers over the 8,200 frames of the gbtower_quit replay) until the Intel driver ran out of host memory, after a
+long session in the GB Tower. Now each `FrameSlot` keeps its buffers (`commandBuffers`) and hands them out again
+after the reset. That replay allocates 30 in total (at most 18 per slot), and `PORT_VK_STATS=1` prints the counts.
+Checked on MoltenVK (`-DLUS_ENABLE_VULKAN=ON`). `PORT_DEBUG_VK_OOM=12000` in that replay (in the tower) exits with
+the dialog's text and OpenGL saved.
 
 ## Game sound: music, sound effects, voices
 
