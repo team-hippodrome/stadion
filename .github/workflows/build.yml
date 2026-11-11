@@ -161,6 +161,10 @@ jobs:
           cmake --build build
       - name: Audit build paths
         run: python3 -I tools/check_build_paths.py build/pokestadium.exe
+      - name: Strip
+        # no debug info and no symbol table in the shipped exe (a symbol table after the last section reads as an
+        # appended blob, which antivirus heuristics count against the file)
+        run: llvm-strip --strip-all build/pokestadium.exe
       - uses: actions/upload-artifact@v4
         with:
           name: pokestadium-windows-${{ matrix.arch }}

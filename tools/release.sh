@@ -25,6 +25,7 @@
 #                    static SDL3 in ~/rel/deps, appimagetool at ~/rel/appimagetool (the build.yml setup)
 # The machines see this Mac's /Users, so they build from the same checkout; their build folders stay in their own home.
 # Local paths are kept out of the binaries (CMake PORT_PATH_MAP; debug info stripped except the APK's, kept for crash stacks).
+# Windows: the shipped exe has no symbol table; a copy with it goes to releases/v<version>/symbols/ (never published).
 # No game data goes into any file: the user's own ROM is needed to play.
 set -euo pipefail
 
@@ -124,7 +125,7 @@ build_windows() { # $1: x64 or arm64
         arm64) triple=aarch64-w64-mingw32 vcpkg=arm64-mingw-static ;;
     esac
     local stage="$REL/windows-$arch"
-    rm -rf "$stage"; mkdir -p "$stage"
+    rm -rf "$stage"; mkdir -p "$stage" "$REL/symbols"
     orb run -m "$WIN_VM" bash -lc "
         set -e
         export PATH=\"\$(ls -d \$HOME/tools/llvm-mingw-*/bin | head -1):\$PATH\" MINGW_TRIPLE=$triple
@@ -134,7 +135,10 @@ build_windows() { # $1: x64 or arm64
             -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE='$SRC/cmake/toolchain-mingw-clang.cmake' -DPORT_VERSION=$VERSION \
             -DPORT_PATH_MAP=\"$VM_MAP\"
         nice -n 15 cmake --build \"\$B\" -j $JOBS
-        llvm-strip --strip-debug -o '$stage/pokestadium.exe' \"\$B/pokestadium.exe\"
+        # shipped exe: no symbol table at all (an unstripped table after the last section reads as an appended blob,
+        # which antivirus heuristics count against the file); the symbol table copy stays in the release folder only
+        llvm-strip --strip-debug -o '$REL/symbols/pokestadium-windows-$arch-v$VERSION.exe' \"\$B/pokestadium.exe\"
+        llvm-strip --strip-all -o '$stage/pokestadium.exe' \"\$B/pokestadium.exe\"
         if [ -f \"\$B/pokestadium.o2r\" ]; then cp \"\$B/pokestadium.o2r\" '$stage/'; fi
         [ $KEEP = 1 ] || rm -rf \"\$B\"
     "
