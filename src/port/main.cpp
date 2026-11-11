@@ -392,6 +392,22 @@ static int RunGame(int argc, char** argv) {
     // The port tells N64 addresses (below 4 GB) from host pointers; keep host allocations above 4 GB (Windows).
     Port_ReserveLowAddressSpace();
     Port_AltSignalStack();
+    // Battle boot (src/port/xcheck.cpp): `pokestadium <rom> --battle <case file> [--frames <dir>] [--every <n>]
+    // [--res <WxH>] [--max-frames <n>]` starts the battle engine directly; the options set the PORT_BATTLE_* variables.
+    for (int i = 2; i + 1 < argc; i += 2) {
+        const char* key = nullptr;
+        if (strcmp(argv[i], "--battle") == 0) key = "PORT_BATTLE";
+        else if (strcmp(argv[i], "--frames") == 0) key = "PORT_BATTLE_FRAMES";
+        else if (strcmp(argv[i], "--every") == 0) key = "PORT_BATTLE_EVERY";
+        else if (strcmp(argv[i], "--res") == 0) key = "PORT_BATTLE_RES";
+        else if (strcmp(argv[i], "--max-frames") == 0) key = "PORT_BATTLE_MAX_FRAMES";
+        if (!key) break;
+#ifdef _WIN32
+        _putenv_s(key, argv[i + 1]);
+#else
+        setenv(key, argv[i + 1], 1);
+#endif
+    }
     InstallSignalHandlers();
     Port::UseShipHomeDefaults();
     // With a ROM argument the game starts right away (scripts, replays); without one, the launcher (launcher.cpp)

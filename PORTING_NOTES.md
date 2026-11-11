@@ -1649,6 +1649,61 @@ frames as `interp_<frame>_<i>of<k>.ppm` in `PORT_SCREENSHOT_DIR`; `PORT_SHOT_SCA
 `PORT_INTERP_JUMP=<units>` (the move threshold), `PORT_LAUNCHER_SHOT=<file.ppm>` (saves the launcher's picture and
 closes it).
 
+## Battle boot: straight into a battle from a case file (tools/battle_boot.py)
+The port can start the battle engine directly with a given setup, with no menus and no replay, for 1:1 comparisons with
+other renderers (and quick battle experiments). A run to the end of two turns takes about 25 s, most of it the battle
+itself; the old route (the menu replay of tools/battle_xcheck.py) first spends ~2300 game frames in the menus.
+
+    tools/battle_boot.py --out <dir> --p1 25,4,7 --p2 113 --known2 1,34 --arena 2 --moves 85,85 --seed 1 \
+        --turns 2 --frames-every 2 --res 640x480 --trace --camlog --partlog [--twice]
+    pokestadium <rom> --battle <case file> [--frames <dir>] [--every <n>] [--res <WxH>] [--max-frames <n>]   # or PORT_BATTLE=<file>
+
+`--twice` repeats the run and compares trace, camera log, particle log and every frame byte for byte. Run it hidden
+(`PORT_HIDDEN_WINDOW=1 PORT_SPEED=max PORT_INTERPOLATE=0`, which the script sets) and with an own `SHIP_HOME` (the
+window size is part of the settings).
+
+The case file is the xcheck case format (src/port/xcheck.cpp: `mon`, `rule`, `stop`, `nomusic`) plus:
+
+    arena <id>               stadium_models file: 0 Free Battle, 1-3 Cups 97-99, 4 Petit, 5 Pika, 6 Prime, 7-16 Castle, 17 Mewtwo
+    seed <n>                 the random seed (PORT_XCHECK_RNG; default 1: a battle boot is always seeded)
+    intro <0|1>              0: the send-out intro runs undrawn and frame dumping starts after it
+    think <n>                game frames a scripted side's menu is up before its choice (default 20)
+    mode <m> [<rule>]        session mode / rule category (default 9 6 = Battle Now!)
+    trainer <side> <NAME>
+    act <side> m0 m1 s2 ...  scripted decisions in order: m<slot> a move slot, s<slot> a switch to that party slot
+    mon <side> <slot> species=<dex> level=50 nick=PIKA hp=.. maxhp=.. status=.. m1..m4=<move> p1..p4=<PP> atk=.. def=.. spd=.. spc=..
+    dump <dir> / dump_every <n> / dump_res <WxH> / frames <n>    (or the PORT_BATTLE_* variables)
+
+A side with `act` lines is a player: it has a controller, its menus are drawn, and the scripted choice is made after
+`think` frames the way the move time limit makes one (BattleScene_AutoSelectAvailableMove / ..ReplacementMon). A side
+without is the computer. Decisions are consumed one per move decision; after a faint the replacement takes the next
+entry only if it is a switch (s<slot>), else the first healthy Pokemon. An unusable choice (no PP, fainted target) falls
+back to the first usable move. A party slot exists through a `mon` line that names it with species=; `*` lines apply to
+all slots. Species are Pokedex numbers, moves the Gen 1 ids of the move table (85 Thunderbolt, 34 Body Slam).
+
+What it sets (all in game/src/game_state.c `State_PortBattle`, state 0x90, entered from `Game_Thread` after the same
+initialisation as PORT_BOOT): `Session_SetMode`, then per side `Trainer_Create` + `Pokemon_CreateDefault` (species, level,
+stats) + the case's moves and fields (`Pokemon_PrepareBattleMon` derives PP and HP, then the explicit fields win) +
+`Trainer_AddPokemon` + `Team_AddTrainer`, as `Team_BuildQuickBattleTeams` does; no battle prep, no order select. In the
+engine: the arena index in `BattleScene_Init`, the computer's roster in `Battle_SelectComRoster` (the AI is initialised by
+its pick as always, but the party is kept whole and in order), and the scripted decisions (`BattleBoot_Decide`, battle_engine_2F74E0.c).
+The run ends when the battle engine returns, after `stop <turns>` turns, or after `frames <n>` dumped frames.
+
+Outputs: `PORT_XCHECK=<file>` (the xcheck trace: events, random values, with `B`/`S` lines for start and end),
+`PORT_XCHECK_ANIM=<dir>` (160x120 frames per move animation), `PORT_CAMLOG=<file>` (one line per camera drawn: game frame,
+frame since the animation start, VI tick, viewport, eye, target, up, fov, near; game/src/geo_render.c) and
+`PORT_PARTLOG=<file>` (one line per drawn particle; particles are numbered in order of first drawing, particle_math_269820.c),
+and the whole-battle frame dump (`frames/f_<n>.ppm`, n = battle game frame since the start, one per `dump_every`, as drawn
+or box-scaled to `dump_res`; the window is set to that size first, so the picture is rendered at it where the display allows).
+The logs and frames are byte-identical between runs.
+
+Limits: only the Stadium-style battle (1P vs computer or scripted) is booted: no rules screens, no Poke Cup rounds,
+no result screens, 2P menus untested; a battle that needs a trainer from the ROM tables is not built (parties are all from
+the case). Arenas 0, 1, 2, 4, 5, 7, 16 and 17 were run and render; the Castle arenas show their stage only (no gym leader or
+round scenes) and Vs. Mewtwo no Mewtwo scene.
+The send-out intro cannot be skipped, only left undrawn. Music/announcer run unless `nomusic` (audio is not part of the
+determinism check).
+
 ## Battle cross-check against ares (tools/battle_xcheck.py)
 The same battle runs in the port and in the original game in ares, with the same random numbers, and is compared
 event by event; then the move animations are compared frame by frame.
