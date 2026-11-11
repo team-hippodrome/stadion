@@ -1,0 +1,100 @@
+# A release built on the Mac mini (the self-hosted runner with the label pokestadium-port-release) by tools/release.sh:
+# macOS, Windows x64 and arm64, the Linux AppImage and the Android APK, the same builds as a release made on a
+# developer's Mac. The Mac is set up once with tools/release_host_setup.sh.
+# Manual only: Actions tab -> Release (Mac mini) -> Run workflow. The version is the next one after the latest v* tag
+# (v0.0.12 -> 0.0.13). Without "publish" it only builds; the files are attached to the run (and kept on the Mac in
+# ~/pokestadium-releases/v<version>/dist, with the Windows symbol copies).
+name: Release (Mac mini)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: What to build (a branch of origin, a tag or a commit)
+        required: false
+        default: main
+      only:
+        description: Some of macos,android,windows-x64,windows-arm64,linux, comma-separated (empty = all)
+        required: false
+        default: ''
+      publish:
+        description: Tag the next version, move "latest" and publish the GitHub release
+        type: boolean
+        default: false
+
+# one release at a time on the Mac; a second run waits instead of cancelling the first
+concurrency:
+  group: release-macmini
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: [self-hosted, macOS, ARM64, pokestadium-port-release]
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # release.sh resolves the ref and tags the commit
+          submodules: recursive # full submodule clones: release.sh borrows their objects for each release checkout
+      - name: Environment
+        # the runner service starts with a minimal PATH: Homebrew (in ~/homebrew or /opt/homebrew) and OrbStack's orb
+        run: |
+          for p in "$HOME/.orbstack/bin" /opt/homebrew/bin "$HOME/homebrew/bin"; do
+            if [ -d "$p" ]; then echo "$p" >> "$GITHUB_PATH"; export PATH="$p:$PATH"; fi
+          done
+          prefix="$(brew --prefix)"
+          echo "JAVA_HOME=$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home" >> "$GITHUB_ENV"
+          echo "PORT_RELEASE_ROOT=$HOME/pokestadium-releases" >> "$GITHUB_ENV"
+          printf 'sdk.dir=%s\ncmake.dir=%s\n' "$HOME/Library/Android/sdk" "$prefix" > android/local.properties
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          orb list
+      - name: Version
+        id: version
+        # the next version after the latest release tag: v0.0.12 -> 0.0.13
+        run: |
+          latest="$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+(\.[0-9]+)*$' | head -1)"
+          [ -n "$latest" ] || { echo "no v* tag found" >&2; exit 1; }
+          v="${latest#v}"
+          case "$v" in
+            *.*) next="${v%.*}.$(( ${v##*.} + 1 ))" ;;
+            *) next="$(( v + 1 ))" ;; # a one-number version (v7 -> 8)
+          esac
+          echo "latest release $latest, building $next"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+      - name: Build (and publish)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          REF: ${{ inputs.ref }}
+          ONLY: ${{ inputs.only }}
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          # a branch name is built from origin (fetched by release.sh); tags and commits as given
+          if git ls-remote --exit-code --heads origin "$REF" >/dev/null 2>&1; then REF="origin/$REF"; fi
+          args=("$VERSION" --ref "$REF")
+          if [ -n "$ONLY" ]; then args+=(--only "$ONLY"); fi
+          if [ "$PUBLISH" = true ]; then args+=(--publish --yes); fi
+          tools/release.sh "${args[@]}"
+      - name: Logs
+        if: always()
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          ls -l "$PORT_RELEASE_ROOT/v$V/logs" 2>/dev/null || true
+          for f in "$PORT_RELEASE_ROOT/v$V"/logs/*.log; do
+            [ -f "$f" ] && { echo "::group::$(basename "$f")"; tail -200 "$f"; echo "::endgroup::"; }
+          done
+      - name: Collect files
+        if: success()
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          rm -rf "$RUNNER_TEMP/dist" && cp -R "$PORT_RELEASE_ROOT/v$V/dist" "$RUNNER_TEMP/dist"
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: pokestadium-v${{ steps.version.outputs.version }}
+          path: ${{ runner.temp }}/dist
+          retention-days: 14
