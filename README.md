@@ -2,7 +2,7 @@
 
 A native N64 game port for Windows, macOS, Linux and Android, with local multiplayer,
 Transfer Pak support and a built-in Game Boy Tower. Built by Team Hippodrome on
-[libultraship](https://github.com/Kenix3/libultraship).
+[Team Hippodrome's libultraship fork](https://github.com/team-hippodrome/libultraship).
 
 [Download](https://github.com/team-hippodrome/pokestadium-port/releases/latest) ·
 [Report an issue](https://github.com/team-hippodrome/pokestadium-port/issues) ·

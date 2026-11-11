@@ -176,11 +176,11 @@ int Port_WideMarginN64(void);
 // for the picture's shape: unchanged at 4:3, wider in widescreen so the grid covers the whole picture.
 float Port_WidenEffectGridX(float x);
 // Full-screen 2D effects made for the 4:3 picture (the battle's strip wipe): the textured rectangles between these
-// markers are stretched over the whole width of a widescreen picture (libultraship patch, interpreter.cpp sWideRects).
+// markers are stretched over the whole width of a widescreen picture (libultraship fork, interpreter.cpp sWideRects).
 #define gDPPortWideRectsBegin(pkt) gDPNoOpTag3(pkt, 0x50, 0, 1)
 #define gDPPortWideRectsEnd(pkt) gDPNoOpTag3(pkt, 0x50, 0, 0)
 // The battle HUD in a widescreen picture: what is drawn between these markers moves to the left or right edge of the
-// picture (by the margin beside the 4:3 frame) and is not cut at the 4:3 sides (libultraship patch, interpreter.cpp
+// picture (by the margin beside the 4:3 frame) and is not cut at the 4:3 sides (libultraship fork, interpreter.cpp
 // sAnchor), so the status boxes, portraits and menus slide in from the screen's edges. Nothing changes at 4:3.
 #define gDPPortAnchorLeft(pkt) gDPNoOpTag3(pkt, 0x52, 0, 1)
 #define gDPPortAnchorRight(pkt) gDPNoOpTag3(pkt, 0x52, 0, 2)
@@ -195,7 +195,7 @@ void Port_SetHudAnchorCameras(const void* left, const void* right);
 int Port_HudAnchorSide(const void* camera); // -1 left, 1 right, 0 none
 // The main picture is a 3D scene's even where 2D drawing comes first: a backdrop of full-screen rectangles drawn before
 // any 3D (the Elite Four room's sky, battle_engine_main.c Battle_DrawStageBackdrop) must not make the frame a 2D screen,
-// which widescreen keeps inside the 4:3 area (libultraship patch, interpreter.cpp s2DRectArea). Nothing changes at 4:3.
+// which widescreen keeps inside the 4:3 area (libultraship fork, interpreter.cpp s2DRectArea). Nothing changes at 4:3.
 #define gDPPort3DScene(pkt) gDPNoOpTag3(pkt, 0x53, 0, 1)
 // Preserve the CPU pixels of the next colour image before a GPU blend (interpreter.cpp RttInitialize).
 #define gDPPortPreserveColorImage(pkt) gDPNoOpTag3(pkt, 0x51, 0, 1)

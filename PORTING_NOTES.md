@@ -1,7 +1,7 @@
 # Pokemon Stadium (US) -> libultraship port: status and findings
 
 ## Layout
-- `libultraship/`  upstream Kenix3/libultraship (shallow clone), built as a CMake subproject.
+- `libultraship/`  [Team Hippodrome's fork](https://github.com/team-hippodrome/libultraship), pinned as a submodule and built as a CMake subproject.
 - `src/port/`      port harness (libultraship context, window, per-frame display-list submission).
 - The decomp lives untouched in `../pokestadium`.
 
@@ -12,7 +12,7 @@
 
 The port's resources (shaders, the shader warm-up list, launcher pictures; `tools/make_o2r.py`) are packed into
 `pokestadium.o2r` and built into the executable as a C array (`generated/pokestadium_o2r.c`), mounted through
-`ResourceManager::SetBuiltInArchive` and an in-memory `O2rArchive` (patches/libultraship.patch). It used to be a
+`ResourceManager::SetBuiltInArchive` and an in-memory `O2rArchive` (in the libultraship fork). It used to be a
 separate file next to the executable; a damaged, unreadable or missing copy (a user's Windows install in a Steam folder)
 left libultraship without an archive and the renderer crashed a moment later on the shaders it reads from it (an
 uncaught C++ exception, 0x20474343). A `pokestadium.o2r` left from an older version is not read.
@@ -1375,7 +1375,7 @@ Smooth motion, Keep full speed, and two presets.
   are not shifted by half a pixel. 428 (Port_WideMarginN64's 54 a side) would not fit 3x into 1280 x 720, 6x into
   2560 x 1440 or 9x into 3840 x 2160 for Integer scaling. Fixed heights use 16:9 widths with an even margin (480p:
   854, not 853). The few 640 x 480 screens (Trade Machine) are drawn at half their detail at Native: use 2x.
-- Match window (`gAdvancedResolution.MatchPixels`, patches/libultraship.patch `Fast3dGui::CalculateGameViewport`)
+- Match window (`gAdvancedResolution.MatchPixels`, libultraship's `Fast3dGui::CalculateGameViewport`)
   counts the window's pixels, not ImGui's points: on a Retina Mac it used to draw 1280 x 720 in a 2560 x 1440 window
   and scale that up. It now draws every pixel (four times the work there; Low-power or a fixed size for old Intel
   Macs). The old percentages are gone: on the first start with this version a configuration below 100 % (the
@@ -1844,7 +1844,7 @@ Thrash x3, Body Slam x2, Blizzard):
   texgen error recolours the screen; in the port it flickered between two looks on alternate frames. The game sends the
   same commands on both kinds of frame, so it was the texgen result: the RSP keeps the transformed lookat directions as
   signed bytes, libultraship kept floats, and lookat X's transformed y component (the difference of two nearly equal
-  terms) ran a sawtooth (-0.0059, -0.0002, -0.0032, ...). patches/libultraship.patch (Interpreter::GfxSpVertex) now
+  terms) ran a sawtooth (-0.0059, -0.0002, -0.0032, ...). The libultraship fork (Interpreter::GfxSpVertex) now
   floors current_lookat_coeffs to 1/128 steps (clamped at 127/128) after CalculateNormalDir. Floor (an arithmetic
   shift) gives Sing 49 -> 33-37; round to nearest 56.5, truncation toward zero 60.6. The other texgen effects (Barrier,
   Light Screen, Reflect) stay at ~34; the light directions (diffuse shading) stay float. Psybeam's remaining
@@ -1887,7 +1887,7 @@ Thrash x3, Body Slam x2, Blizzard):
   address that is already hooked. Arguments the caller sets in the jal/jalr delay slot read as stale there (a
   particle callback's a0 read 0).
 - RDP noise (port bug, fixed): the colour combiner's NOISE input came out in [0.5, 1) instead of [0, 1). Every backend's
-  RAND_NOISE (patches/libultraship.patch: gfx_metal_shader.cpp, gfx_opengl.cpp (Vulkan uses its formulas),
+  RAND_NOISE (libultraship fork: gfx_metal_shader.cpp, gfx_opengl.cpp (Vulkan uses its formulas),
   gfx_direct3d11.cpp) mapped random() as if it were in [-1, 1] with (r + 1) / 2, but the shaders' random() is
   fract(...), already in [0, 1). Sand-Attack's sand cloud (ParticleGfx_SetPrimEnvNoiseCombine: cycle 1 NOISE, cycle 2
   lerps from ENVIRONMENT to PRIMITIVE by it) was therefore smooth and pulled toward the bright primitive colour; ares
@@ -1977,7 +1977,7 @@ sea, no fog tint and pale label boxes. Three separate causes:
 - Label boxes: they are texture rectangles drawn while the map's 2-cycle render mode (`G_RM_FOG_SHADE_A`) is still
   set. A rectangle has no shade on the RDP (0), so the blender's fog by shade alpha leaves it as it is. The renderer
   used the rectangle's stale vertex alpha (0xFF) and painted the boxes in the fog colour. Rectangles now fog by 0
-  (`patches/libultraship.patch`, `GfxSpTri1`).
+  (libultraship fork, `GfxSpTri1`).
 After these fixes, region averages of the 9500/9800 frames match ares within a few levels (what remains is ares'
 320x240 VI output).
 
