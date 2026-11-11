@@ -1313,18 +1313,112 @@ class LauncherWindow : public Ship::GuiWindow {
     }
 
     // ---- graphics settings ----
-    // (libultraship's console variables: gInternalResolution, gMSAAValue, gVsyncEnabled; the port's gPort.Interpolate
-    // and gPort.FrameSkip, read by os_devices.cpp)
-    static constexpr float kScales[] = { 0.5f, 0.75f, 1.0f, 1.5f, 2.0f };
+    // (the port's internal resolution, Port::ResolutionSetting in Engine.h (gPort.Resolution.*); libultraship's
+    // gMSAAValue and gVsyncEnabled; the config's Window.Fullscreen.Enabled, applied on Play; gPort.Interpolate and
+    // gPort.FrameSkip, read by os_devices.cpp). Layout after the usual PC-game and emulator settings pages: one
+    // Internal resolution list (Dolphin, DuckStation), Scaling next to it, two presets that light up when they match.
+    struct ResEntry {
+        int mode, value;
+    };
+    static constexpr ResEntry kResEntries[] = {
+        { Port::kResWindow, 0 }, { Port::kResN64, 1 },     { Port::kResN64, 2 },     { Port::kResN64, 3 },
+        { Port::kResN64, 4 },    { Port::kResN64, 5 },     { Port::kResN64, 6 },     { Port::kResHeight, 480 },
+        { Port::kResHeight, 720 }, { Port::kResHeight, 1080 }, { Port::kResHeight, 1440 }, { Port::kResHeight, 2160 },
+    };
     static constexpr int kMsaa[] = { 1, 2, 4, 8 };
 
-    static void SetResolutionScale(float scale) {
-        CVarSetFloat("gInternalResolution", scale);
-        Port::GetWindow()->SetResolutionMultiplier(scale);
+    static int ResIndex(const Port::ResolutionSetting& r) {
+        for (int i = 0; i < (int)std::size(kResEntries); i++) {
+            const ResEntry& e = kResEntries[i];
+            if (e.mode == r.mode && (e.mode == Port::kResWindow || e.value == (e.mode == Port::kResN64 ? r.multiple : r.height))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+    static void SetResolution(const ResEntry& e) {
+        Port::ResolutionSetting r = Port::GetResolutionSetting();
+        // the N64's own sizes look their best with Integer scaling: picking one from another kind switches Scaling to
+        // it (it can be changed back); leaving them goes back to Smooth
+        if (e.mode == Port::kResN64 && r.mode != Port::kResN64) r.upscale = Port::kUpscaleExact;
+        else if (e.mode != Port::kResN64 && r.mode == Port::kResN64 && r.upscale == Port::kUpscaleExact) {
+            r.upscale = Port::kUpscaleSmooth;
+        }
+        r.mode = e.mode;
+        if (e.mode == Port::kResN64) r.multiple = e.value;
+        if (e.mode == Port::kResHeight) r.height = e.value;
+        Port::SetResolutionSetting(r);
+    }
+    static void SetUpscale(int upscale) {
+        Port::ResolutionSetting r = Port::GetResolutionSetting();
+        r.upscale = upscale;
+        Port::SetResolutionSetting(r);
     }
     static void SetMsaa(int level) {
         CVarSetInteger("gMSAAValue", level);
         Port::GetWindow()->SetMsaaLevel(level);
+    }
+    static std::shared_ptr<Ship::Config> WindowConfig() {
+        return Port::GetWindow()->GetContext()->GetChildren().GetFirst<Ship::Config>();
+    }
+
+    // The Internal resolution list: a combo the width of four buttons, entries named with their pixel size for the
+    // current shape. Left/Right on the closed list step to the previous/next entry (keyboard and gamepad, like the
+    // button rows); A/Enter opens it on the current entry, B/Escape closes it unchanged.
+    void ResolutionCombo(float x, float y, float w) {
+        const Port::ResolutionSetting r = Port::GetResolutionSetting();
+        const int cur = ResIndex(r);
+        ImGui::SetCursorScreenPos(P(x, y));
+        ImGui::SetWindowFontScale(mScale);
+        const float fh = ImGui::GetFontSize();
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8 * mScale, std::max(0.0f, (26 * mScale - fh) / 2)));
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ImGui::GetStyle().FrameRounding);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, HexV(Theme::button));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, HexV(Theme::buttonHover));
+        ImGui::PushStyleColor(ImGuiCol_Button, HexV(Theme::button));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, HexV(Theme::buttonHover));
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, HexV(Theme::card));
+        ImGui::PushStyleColor(ImGuiCol_Header, HexV(0x23406B));
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, HexV(Theme::buttonHover));
+        ImGui::SetNextItemWidth(w * mScale);
+        const std::string preview = cur >= 0 ? Port::ResolutionLabel(kResEntries[cur].mode, kResEntries[cur].value) : "Custom";
+        static int sOpenForTest = getenv("PORT_LAUNCHER_OPEN_RESOLUTION") != nullptr ? 2 : 0; // test hook: the list open
+        if (sOpenForTest > 0 && --sOpenForTest == 0) {
+            ImGui::OpenPopupEx(ImHashStr("##ComboPopup", 0, ImGui::GetID("##internalres")));
+        }
+        const bool open = ImGui::BeginCombo("##internalres", preview.c_str(), ImGuiComboFlags_HeightLargest);
+        const bool focused = ImGui::IsItemFocused();
+        int pick = -1;
+        if (open) {
+            // (the launcher brings its own window to the front every frame, Draw: the list goes above it)
+            ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+            ImGui::SetWindowFontScale(mScale);
+            for (int i = 0; i < (int)std::size(kResEntries); i++) {
+                const ResEntry& e = kResEntries[i];
+                if (i == 1 || i == 7) ImGui::Separator();
+                const std::string label = Port::ResolutionLabel(e.mode, e.value);
+                const size_t sp = e.mode == Port::kResWindow ? std::string::npos : label.find(' ');
+                const std::string name = label.substr(0, sp), size = sp == std::string::npos ? "" : label.substr(sp + 1);
+                ImGui::PushID(i);
+                if (ImGui::Selectable(name.c_str(), i == cur)) pick = i;
+                if (i == cur && ImGui::IsWindowAppearing()) ImGui::SetItemDefaultFocus();
+                if (!size.empty()) {
+                    ImGui::SameLine(ImGui::GetContentRegionMax().x - ImGui::CalcTextSize(size.c_str()).x);
+                    ImGui::TextColored(HexV(Theme::dim), "%s", size.c_str());
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndCombo();
+        } else if (focused && cur >= 0) {
+            const bool left = ImGui::IsKeyPressed(ImGuiKey_GamepadDpadLeft) || ImGui::IsKeyPressed(ImGuiKey_LeftArrow);
+            const bool right = ImGui::IsKeyPressed(ImGuiKey_GamepadDpadRight) || ImGui::IsKeyPressed(ImGuiKey_RightArrow);
+            if (left && cur > 0) pick = cur - 1;
+            if (right && cur + 1 < (int)std::size(kResEntries)) pick = cur + 1;
+        }
+        ImGui::PopStyleColor(7);
+        ImGui::PopStyleVar(2);
+        ImGui::SetWindowFontScale(1.0f);
+        if (pick >= 0 && pick != cur) SetResolution(kResEntries[pick]);
     }
 
     // a row of buttons, the chosen one highlighted; returns the index clicked, or -1
@@ -1356,101 +1450,120 @@ class LauncherWindow : public Ship::GuiWindow {
         }
         dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
 
-        const float lx = x + 14, cx = x + 190, tx = x + 560;
+        const float lx = x + 14, cx = x + 190, tx = x + 560, pitch = 37;
         float ry = y + 58;
-        auto label = [&](const char* name, const char* hint) {
+        auto label = [&](const char* name, const std::string& hint) {
             Text(lx, ry + 5, name, gFonts.body);
             Text(tx, ry + 1, hint, gFonts.small, Theme::dim);
         };
+        auto onOff = [&](const char* id, bool on) { return Choice(id, { "On", "Off" }, on ? 0 : 1, cx, ry); };
 
-        // resolution scale: the game is drawn at the window's size times this
+        // Display: windowed or (borderless) fullscreen; the launcher keeps its own window, the game gets this on Play
         {
-            const float scale = CVarGetFloat("gInternalResolution", 1.0f);
-            int chosen = -1;
-            for (int i = 0; i < (int)std::size(kScales); i++) {
-                if (std::fabs(scale - kScales[i]) < 0.01f) chosen = i;
-            }
-            label("Resolution", "Pixels drawn, relative to the window.\nLower is much faster on slow graphics chips.");
-            int c = Choice("res", { "50%", "75%", "100%", "150%", "200%" }, chosen, cx, ry);
-            if (c >= 0) SetResolutionScale(kScales[c]);
-            int ww = 0, wh = 0;
-            if (SDL_Window** ws = SDL_GetWindows(nullptr)) {
-                if (ws[0] != nullptr) SDL_GetWindowSizeInPixels(ws[0], &ww, &wh);
-                SDL_free(ws);
-            }
-            if (ww > 0) {
-                char buf[64];
-                snprintf(buf, sizeof buf, "draws %d x %d", (int)(ww * CVarGetFloat("gInternalResolution", 1.0f)),
-                         (int)(wh * CVarGetFloat("gInternalResolution", 1.0f)));
-                Text(lx, ry + 25, buf, gFonts.small, Theme::dim);
+            auto config = WindowConfig();
+            const bool full = config != nullptr && config->GetBool("Window.Fullscreen.Enabled", false);
+            label("Display", "Fullscreen is borderless;\nF11 switches in-game.");
+            int c = Choice("display", { "Windowed", "Fullscreen" }, full ? 1 : 0, cx, ry, 96);
+            if (c >= 0 && config != nullptr && (c == 1) != full) {
+                config->SetBool("Window.Fullscreen.Enabled", c == 1);
+                config->Save();
             }
         }
-        ry += 52;
-        // anti-aliasing (MSAA)
+        ry += pitch;
+        const Port::ResolutionSetting r = Port::GetResolutionSetting();
+        // Internal resolution: how many pixels the game is drawn with (Port::ResolutionSetting)
         {
-            const int level = CVarGetInteger("gMSAAValue", 1);
+            int rw = 0, rh = 0;
+            Port::RenderSize(&rw, &rh);
+            char hint[96];
+            if (rw > 0) snprintf(hint, sizeof hint, "Draws %d x %d.\nLower it if the game is slow.", rw, rh);
+            else snprintf(hint, sizeof hint, "Lower it if the game is slow.");
+            label("Internal resolution", hint);
+            ResolutionCombo(cx, ry, 4 * 64 + 3 * 4);
+        }
+        ry += pitch;
+        // Scaling: how a fixed resolution's picture is stretched to the window (not used by Match window)
+        {
+            const bool used = r.mode != Port::kResWindow;
+            label("Scaling", used ? "How the picture is stretched to the window.\nInteger: largest whole multiple, black borders."
+                                  : "Not used: the picture already\nmatches the window.");
+            ImGui::BeginDisabled(!used);
+            int c = Choice("scaling", { "Integer", "Sharp", "Smooth" }, used ? r.upscale : Port::kUpscaleSmooth, cx, ry, 84);
+            ImGui::EndDisabled();
+            if (c >= 0 && used) SetUpscale(c);
+        }
+        ry += pitch;
+        // anti-aliasing (MSAA)
+        const int msaa = CVarGetInteger("gMSAAValue", 1);
+        {
             int chosen = 0;
             for (int i = 0; i < (int)std::size(kMsaa); i++) {
-                if (level == kMsaa[i]) chosen = i;
+                if (msaa == kMsaa[i]) chosen = i;
             }
-            label("Anti-aliasing", "Smooths jagged edges (MSAA).\nCosts a lot on slow graphics chips: keep it off there.");
+            label("Anti-aliasing", "Smooths jagged edges.\nCosts speed on weak chips.");
             int c = Choice("msaa", { "Off", "2x", "4x", "8x" }, chosen, cx, ry);
             if (c >= 0) SetMsaa(kMsaa[c]);
         }
-        ry += 52;
-        // VSync
+        ry += pitch;
+        const bool vsync = CVarGetInteger("gVsyncEnabled", 1) != 0;
         {
-            const bool on = CVarGetInteger("gVsyncEnabled", 1) != 0;
-            label("VSync", "Frames wait for the display's refresh: no tearing.\nOff can tear; it does not make the game faster.");
-            int c = Choice("vsync", { "On", "Off" }, on ? 0 : 1, cx, ry);
+            label("VSync", "Stops tearing.");
+            int c = onOff("vsync", vsync);
             if (c >= 0) CVarSetInteger("gVsyncEnabled", c == 0 ? 1 : 0);
         }
-        ry += 52;
+        ry += pitch;
         // Smooth motion (frame interpolation)
         {
-            label("Smooth motion", "In-between frames for 3D scenes, drawn between the game's\n30 or 20 frames per second. "
-                                   "Doubles the drawing work.");
-            int c = Choice("smooth", { "On", "Off" }, s.smooth ? 0 : 1, cx, ry);
+            label("Smooth motion", "In-between frames for the 3D scenes the game\ndraws at 30 or 20 per second.");
+            int c = onOff("smooth", s.smooth);
             if (c >= 0) {
                 s.smooth = c == 0;
                 mChanged = true;
             }
         }
-        ry += 52;
+        ry += pitch;
         // frame skipping when drawing falls behind (os_devices.cpp, WantSkipWhileBehind)
+        const bool skip = CVarGetInteger("gPort.FrameSkip", 1) != 0;
         {
-            const bool on = CVarGetInteger("gPort.FrameSkip", 1) != 0;
-            label("Keep full speed", "When the graphics chip cannot keep up, frames are skipped so\nthe game and its sound "
-                                     "keep their speed (off: slow motion).");
-            int c = Choice("skip", { "On", "Off" }, on ? 0 : 1, cx, ry);
+            label("Keep full speed", "Skips frames rather than\nslowing the game down.");
+            int c = onOff("skip", skip);
             if (c >= 0) CVarSetInteger("gPort.FrameSkip", c == 0 ? 1 : 0);
         }
 
-        // presets
+        // presets: lit when the settings match one (Display is not part of them)
+        const bool recommended = r.mode == Port::kResWindow && msaa == 4 && vsync && s.smooth && skip;
+        const bool lowPower = r.mode == Port::kResN64 && r.multiple == 2 && r.upscale == Port::kUpscaleSmooth &&
+                              msaa == 1 && vsync && !s.smooth && skip;
+        auto apply = [&](const ResEntry& e, int msaaLevel, bool smooth) {
+            SetResolution(e);
+            SetUpscale(Port::kUpscaleSmooth);
+            SetMsaa(msaaLevel);
+            CVarSetInteger("gVsyncEnabled", 1);
+            CVarSetInteger("gPort.FrameSkip", 1);
+            s.smooth = smooth;
+            mChanged = true;
+        };
         const float by = y + h - 40;
         dl->AddRectFilled(P(x, by - 8), P(x + w, by - 7), Hex(Theme::cardBorder));
-        if (Button("Settings for slow graphics chips", lx, by, 236, 28)) {
-            SetResolutionScale(0.5f);
-            SetMsaa(1);
-            CVarSetInteger("gVsyncEnabled", 1);
-            CVarSetInteger("gPort.FrameSkip", 1);
-            s.smooth = false;
-            mChanged = true;
+        Text(lx, by + 6, "Preset:", gFonts.body);
+        const uint32_t lit = 0x23406B;
+        if (ColorButton("Recommended", lx + 66, by, 120, 28, recommended ? lit : Theme::button,
+                        recommended ? lit : Theme::buttonHover)) {
+            apply({ Port::kResWindow, 0 }, 4, true);
         }
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("For integrated graphics such as Intel HD 520: resolution 50%%, anti-aliasing and Smooth\n"
-                              "motion off, VSync and Keep full speed on. A smaller window helps as well.");
+            ImGui::SetTooltip("Match window, 4x anti-aliasing, VSync, Smooth motion and Keep full speed on.");
         }
-        if (Button("Defaults", lx + 246, by, 90, 28)) {
-            SetResolutionScale(1.0f);
-            SetMsaa(1);
-            CVarSetInteger("gVsyncEnabled", 1);
-            CVarSetInteger("gPort.FrameSkip", 1);
-            s.smooth = false;
-            mChanged = true;
+        if (ColorButton("Low-power", lx + 192, by, 110, 28, lowPower ? lit : Theme::button,
+                        lowPower ? lit : Theme::buttonHover)) {
+            apply({ Port::kResN64, 2 }, 1, false);
         }
-        Text(lx + 350, by + 7, std::string("Renderer: ") + RendererName(ActiveRenderer()) +
-             " (change it below; DirectX or OpenGL can be faster on some chips)", gFonts.small, Theme::dim);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("For integrated graphics such as Intel HD 520: 2x (640 x 480), Smooth scaling,\n"
+                              "anti-aliasing and Smooth motion off, VSync and Keep full speed on.");
+        }
+        Text(x + w - 160, by + 7, std::string("Current: ") + (recommended ? "Recommended" : lowPower ? "Low-power" : "Custom"),
+             gFonts.small, Theme::dim);
         CVarSave();
     }
 
@@ -2155,6 +2268,13 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
             SDL_SetWindowSize(sdl, gameW, gameH);
             SDL_SetWindowPosition(sdl, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
             SDL_SetWindowTitle(sdl, "Pokémon Stadium");
+        }
+        // Graphics > Display: the game window windowed or fullscreen (the launcher kept its own window)
+        if (auto config = window->GetContext()->GetChildren().GetFirst<Ship::Config>()) {
+            const bool full = config->GetBool("Window.Fullscreen.Enabled", false);
+            if (full != window->IsFullscreen()) {
+                window->SetFullscreen(full);
+            }
         }
     }
 

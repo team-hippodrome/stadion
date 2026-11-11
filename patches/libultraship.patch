@@ -10639,3 +10639,494 @@ index 78ed604a..621babc4 100644
  #include <processthreadsapi.h>
  #include <dbghelp.h>
  #endif
+diff --git a/src/fast/interpreter.cpp b/src/fast/interpreter.cpp
+--- a/src/fast/interpreter.cpp
++++ b/src/fast/interpreter.cpp
+@@ -6694,6 +6694,7 @@ void Interpreter::RunGuiOnly() {
+ 
+     Flush();
+     mGfxFrameBuffer = 0;
++    mGfxFrameBufferFb = -1;
+ 
+     if (mRendersToFb) {
+         mRapi->StartDrawToFramebuffer(0, 1);
+@@ -6702,11 +6703,13 @@ void Interpreter::RunGuiOnly() {
+             if (!ViewportMatchesRendererResolution()) {
+                 mRapi->ResolveMSAAColorBuffer(mGameFbMsaaResolved, mGameFb);
+                 mGfxFrameBuffer = (uintptr_t)mRapi->GetFramebufferTextureId(mGameFbMsaaResolved);
++                mGfxFrameBufferFb = mGameFbMsaaResolved;
+             } else {
+                 mRapi->ResolveMSAAColorBuffer(0, mGameFb);
+             }
+         } else {
+             mGfxFrameBuffer = (uintptr_t)mRapi->GetFramebufferTextureId(mGameFb);
++            mGfxFrameBufferFb = mGameFb;
+         }
+     } else if (mFbActive) {
+         // Failsafe reset to main framebuffer to prevent softlocking the renderer
+@@ -7290,6 +7293,7 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+         }
+     }
+     mGfxFrameBuffer = 0;
++    mGfxFrameBufferFb = -1;
+     currentDir = std::stack<std::string>();
+ 
+     if (mRendersToFb) {
+@@ -7299,11 +7303,13 @@ void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_r
+             if (!ViewportMatchesRendererResolution()) {
+                 mRapi->ResolveMSAAColorBuffer(mGameFbMsaaResolved, mGameFb);
+                 mGfxFrameBuffer = (uintptr_t)mRapi->GetFramebufferTextureId(mGameFbMsaaResolved);
++                mGfxFrameBufferFb = mGameFbMsaaResolved;
+             } else {
+                 mRapi->ResolveMSAAColorBuffer(0, mGameFb);
+             }
+         } else {
+             mGfxFrameBuffer = (uintptr_t)mRapi->GetFramebufferTextureId(mGameFb);
++            mGfxFrameBufferFb = mGameFb;
+         }
+     } else if (mFbActive) {
+         // Failsafe reset to main framebuffer to prevent softlocking the renderer
+diff --git a/src/fast/Fast3dGui.cpp b/src/fast/Fast3dGui.cpp
+--- a/src/fast/Fast3dGui.cpp
++++ b/src/fast/Fast3dGui.cpp
+@@ -1,5 +1,7 @@
+ #include "fast/Fast3dGui.h"
+ 
++#include <algorithm>
++
+ #include "fast/Fast3dWindow.h"
+ #include "ship/core/Context.h"
+ #include "ship/config/ConsoleVariable.h"
+@@ -38,6 +40,7 @@
+ #endif
+ 
+ #if defined(ENABLE_DX11) || defined(ENABLE_DX12)
++#include <d3d11.h> // PORT: the nearest sampler (UseNearestSamplingForImGui)
+ #include <imgui_impl_dx11.h>
+ #include <imgui_impl_win32.h>
+ 
+@@ -410,8 +413,15 @@ void Fast3dGui::CalculateGameViewport() {
+     mainPos.x -= mTemporaryWindowPos.x;
+     mainPos.y -= mTemporaryWindowPos.y;
+     ImVec2 size = ImGui::GetContentRegionAvail();
+-    mInterpreter.lock()->mCurDimensions.width = (uint32_t)(size.x * mInterpreter.lock()->mCurDimensions.internal_mul);
+-    mInterpreter.lock()->mCurDimensions.height = (uint32_t)(size.y * mInterpreter.lock()->mCurDimensions.internal_mul);
++    // PORT: gAdvancedResolution.MatchPixels: the window's size in pixels, not ImGui's points (a HiDPI display has
++    // several pixels per point; "Match window" draws every one of them)
++    float mul = mInterpreter.lock()->mCurDimensions.internal_mul;
++    if (mConsoleVariables->GetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".MatchPixels", 0) &&
++        ImGui::GetIO().DisplayFramebufferScale.x > 0.0f) {
++        mul *= ImGui::GetIO().DisplayFramebufferScale.x;
++    }
++    mInterpreter.lock()->mCurDimensions.width = (uint32_t)lroundf(size.x * mul);
++    mInterpreter.lock()->mCurDimensions.height = (uint32_t)lroundf(size.y * mul);
+     mInterpreter.lock()->mGameWindowViewport.x = (int16_t)mainPos.x;
+     mInterpreter.lock()->mGameWindowViewport.y = (int16_t)mainPos.y;
+     mInterpreter.lock()->mGameWindowViewport.width = (int16_t)size.x;
+@@ -465,12 +475,31 @@ void Fast3dGui::DrawGame() {
+     ImVec2 mainPos = ImGui::GetWindowPos();
+     ImVec2 size = ImGui::GetContentRegionAvail();
+     ImVec2 pos = ImVec2(0, 0);
+-    if (mConsoleVariables->GetInteger(CVAR_LOW_RES_MODE, 0) == 1) { // N64 Mode takes priority
++    // PORT: pixel-exact mode measures in pixels, not ImGui's points (a HiDPI display has several pixels per point:
++    // the largest whole multiple of the picture that fits the window's pixels), and a picture larger than the window
++    // (a fixed height above the window's) is fitted, scaled down, instead of being drawn at factor 1 and cut off
++    bool pixelExact = false;
++    if (mConsoleVariables->GetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled", 0) &&
++        mConsoleVariables->GetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".PixelPerfectMode", 0) &&
++        mConsoleVariables->GetInteger(CVAR_LOW_RES_MODE, 0) != 1) {
++        const float ps = ImGui::GetIO().DisplayFramebufferScale.x > 0.0f ? ImGui::GetIO().DisplayFramebufferScale.x : 1.0f;
++        const float cw = (float)mInterpreter.lock()->mCurDimensions.width;
++        const float ch = (float)mInterpreter.lock()->mCurDimensions.height;
++        const float vw = floorf(size.x * ps + 0.5f), vh = floorf(size.y * ps + 0.5f);
++        const int factor = cw > 0 && ch > 0 ? (int)std::min(floorf(vw / cw), floorf(vh / ch)) : 0;
++        if (factor >= 1) {
++            pos = ImVec2(floorf((vw - cw * factor) / 2.0f) / ps, floorf((vh - ch * factor) / 2.0f) / ps);
++            size = ImVec2(cw * factor / ps, ch * factor / ps);
++            pixelExact = true;
++        }
++    }
++    if (pixelExact) {
++    } else if (mConsoleVariables->GetInteger(CVAR_LOW_RES_MODE, 0) == 1) { // N64 Mode takes priority
+         const float sw = size.y * 320.0f / 240.0f;
+         pos = ImVec2(floor(size.x / 2 - sw / 2), 0);
+         size = ImVec2(sw, size.y);
+     } else if (mConsoleVariables->GetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled", 0)) {
+-        if (!mConsoleVariables->GetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".PixelPerfectMode", 0)) {
++        if (true) { // PORT: pixel-exact handled above; a picture that does not fit is fitted as in the other modes
+             if (!mConsoleVariables->GetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".IgnoreAspectCorrection", 0)) {
+                 float sWdth =
+                     size.y * mInterpreter.lock()->mCurDimensions.width / mInterpreter.lock()->mCurDimensions.height;
+@@ -500,13 +529,108 @@ void Fast3dGui::DrawGame() {
+     }
+     uintptr_t fb = mWindow->GetGfxFrameBuffer();
+     if (fb) {
++        // PORT: gAdvancedResolution.NearestUpscale: a picture drawn larger than it was rendered keeps sharp pixels
++        // (nearest magnification; making it smaller stays linear)
++        auto interp = mInterpreter.lock();
++        const bool nearest = mConsoleVariables->GetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".NearestUpscale", 0) != 0 &&
++                             interp != nullptr && interp->mGfxFrameBufferFb >= 0;
++        const bool vulkan = mWindow->GetWindowBackend() == WindowBackend::FAST3D_SDL_VULKAN;
++        if (nearest && vulkan) {
++            if (void* id = interp->GetCurrentRenderingAPI()->GetFramebufferTextureIdNearest(interp->mGfxFrameBufferFb)) {
++                fb = (uintptr_t)id;
++            }
++        }
+         ImGui::SetCursorPos(pos);
++        if (nearest && !vulkan) {
++            ImGui::GetWindowDrawList()->AddCallback(
++                [](const ImDrawList*, const ImDrawCmd* cmd) {
++                    static_cast<Fast3dGui*>(cmd->UserCallbackData)->UseNearestSamplingForImGui();
++                },
++                this);
++        }
+         ImGui::Image(reinterpret_cast<ImTextureID>(fb), size);
++        if (nearest && !vulkan) {
++            ImGui::GetWindowDrawList()->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
++        }
+     }
+ 
+     ImGui::End();
+ }
+ 
++// PORT: see DrawGame. OpenGL and DirectX 11: a sampler object for texture unit 0 (ImGui's renderers bind none of
++// their own, or only in their setup, which ImDrawCallback_ResetRenderState runs again); Metal: Metal's own pipeline copy.
++void Fast3dGui::UseNearestSamplingForImGui() {
++    switch (mWindow->GetWindowBackend()) {
++#ifdef ENABLE_OPENGL
++        case WindowBackend::FAST3D_SDL_OPENGL: {
++#ifdef _WIN32
++#define PORT_GLAPI __stdcall
++#else
++#define PORT_GLAPI
++#endif
++            // looked up at run time: glBindSampler needs OpenGL 3.3 (or ES 3); without it the picture stays linear
++            typedef void(PORT_GLAPI * GenSamplers)(int, unsigned int*);
++            typedef void(PORT_GLAPI * SamplerParameteri)(unsigned int, unsigned int, int);
++            typedef void(PORT_GLAPI * BindSampler)(unsigned int, unsigned int);
++            static BindSampler sBind = nullptr;
++            static unsigned int sSampler = 0;
++            static bool sTried = false;
++            if (!sTried) {
++                sTried = true;
++                auto gen = (GenSamplers)SDL_GL_GetProcAddress("glGenSamplers");
++                auto param = (SamplerParameteri)SDL_GL_GetProcAddress("glSamplerParameteri");
++                sBind = (BindSampler)SDL_GL_GetProcAddress("glBindSampler");
++                if (gen != nullptr && param != nullptr && sBind != nullptr) {
++                    gen(1, &sSampler);
++                    param(sSampler, 0x2801 /* GL_TEXTURE_MIN_FILTER */, 0x2601 /* GL_LINEAR */);
++                    param(sSampler, 0x2800 /* GL_TEXTURE_MAG_FILTER */, 0x2600 /* GL_NEAREST */);
++                    param(sSampler, 0x2802 /* GL_TEXTURE_WRAP_S */, 0x812F /* GL_CLAMP_TO_EDGE */);
++                    param(sSampler, 0x2803 /* GL_TEXTURE_WRAP_T */, 0x812F);
++                }
++                if (sSampler == 0) {
++                    sBind = nullptr;
++                }
++            }
++            if (sBind != nullptr) {
++                sBind(0, sSampler);
++            }
++#undef PORT_GLAPI
++            break;
++        }
++#endif
++#ifdef __APPLE__
++        case WindowBackend::FAST3D_SDL_METAL:
++            mInterpreter.lock()->GetCurrentRenderingAPI()->UseNearestSamplingForImGui();
++            break;
++#endif
++#ifdef ENABLE_DX11
++        case WindowBackend::FAST3D_DXGI_DX11: {
++            static ID3D11SamplerState* sSampler = nullptr;
++            static bool sTried = false;
++            auto* device = static_cast<ID3D11Device*>(mImpl.Dx11.Device);
++            auto* context = static_cast<ID3D11DeviceContext*>(mImpl.Dx11.DeviceContext);
++            if (!sTried && device != nullptr) {
++                sTried = true;
++                D3D11_SAMPLER_DESC sd = {};
++                sd.Filter = D3D11_FILTER_MIN_LINEAR_MAG_MIP_POINT;
++                sd.AddressU = sd.AddressV = sd.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
++                sd.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
++                sd.MaxLOD = D3D11_FLOAT32_MAX;
++                if (FAILED(device->CreateSamplerState(&sd, &sSampler))) {
++                    sSampler = nullptr;
++                }
++            }
++            if (sSampler != nullptr && context != nullptr) {
++                context->PSSetSamplers(0, 1, &sSampler);
++            }
++            break;
++        }
++#endif
++        default:
++            break;
++    }
++}
++
+ void Fast3dGui::ApplyResolutionChanges() {
+     ImVec2 size = ImGui::GetContentRegionAvail();
+ 
+diff --git a/src/fast/backends/gfx_vulkan.cpp b/src/fast/backends/gfx_vulkan.cpp
+--- a/src/fast/backends/gfx_vulkan.cpp
++++ b/src/fast/backends/gfx_vulkan.cpp
+@@ -1101,6 +1101,9 @@ bool GfxRenderingAPIVK::VulkanInit(SDL_Window* window) {
+         si.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+         si.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+         VK_CHECK(vkCreateSampler(mDevice, &si, nullptr, &mImGuiSampler));
++        // PORT: and nearest, for a sharp upscale of the game picture (GetFramebufferTextureIdNearest)
++        si.magFilter = VK_FILTER_NEAREST;
++        VK_CHECK(vkCreateSampler(mDevice, &si, nullptr, &mImGuiSamplerNearest));
+     }
+ 
+     // Initial swapchain
+@@ -1669,6 +1672,10 @@ void GfxRenderingAPIVK::DestroyTextureData(TextureDataVK& tex, bool deferred) {
+         ImGui_ImplVulkan_RemoveTexture(tex.imguiSet);
+         tex.imguiSet = VK_NULL_HANDLE;
+     }
++    if (tex.imguiSetNearest != VK_NULL_HANDLE) {
++        ImGui_ImplVulkan_RemoveTexture(tex.imguiSetNearest);
++        tex.imguiSetNearest = VK_NULL_HANDLE;
++    }
+     if (tex.view != VK_NULL_HANDLE) {
+         if (deferred) {
+             FrameSlot& slot = mFrames[mFrameSlot];
+@@ -2277,10 +2284,15 @@ void GfxRenderingAPIVK::UpdateFramebufferParameters(int fbId, uint32_t width, ui
+     if (keep) {
+         oldTex = tex;
+         oldTex.imguiSet = VK_NULL_HANDLE;
++        oldTex.imguiSetNearest = VK_NULL_HANDLE;
+         if (tex.imguiSet != VK_NULL_HANDLE) {
+             ImGui_ImplVulkan_RemoveTexture(tex.imguiSet);
+             tex.imguiSet = VK_NULL_HANDLE;
+         }
++        if (tex.imguiSetNearest != VK_NULL_HANDLE) {
++            ImGui_ImplVulkan_RemoveTexture(tex.imguiSetNearest);
++            tex.imguiSetNearest = VK_NULL_HANDLE;
++        }
+         tex.view = VK_NULL_HANDLE;
+         tex.image = VK_NULL_HANDLE;
+         tex.memory = VK_NULL_HANDLE;
+@@ -2829,6 +2841,18 @@ void* GfxRenderingAPIVK::GetFramebufferTextureId(int fbId) {
+     return GetTextureById(mFramebuffers[fbId].mTextureId);
+ }
+ 
++// PORT: the same picture with a nearest-magnifying sampler (gfx_rendering_api.h)
++void* GfxRenderingAPIVK::GetFramebufferTextureIdNearest(int fbId) {
++    TextureDataVK& tex = mTextures[mFramebuffers[fbId].mTextureId];
++    if (tex.view == VK_NULL_HANDLE) {
++        return nullptr;
++    }
++    if (tex.imguiSetNearest == VK_NULL_HANDLE) {
++        tex.imguiSetNearest = ImGui_ImplVulkan_AddTexture(mImGuiSamplerNearest, tex.view, VK_IMAGE_LAYOUT_GENERAL);
++    }
++    return (void*)tex.imguiSetNearest;
++}
++
+ void GfxRenderingAPIVK::SelectTextureFb(int fbId) {
+     SelectTexture(0, mFramebuffers[fbId].mTextureId);
+ }
+diff --git a/src/fast/backends/gfx_metal.cpp b/src/fast/backends/gfx_metal.cpp
+--- a/src/fast/backends/gfx_metal.cpp
++++ b/src/fast/backends/gfx_metal.cpp
+@@ -133,6 +133,112 @@ void GfxRenderingAPIMetal::RenderDrawData(ImDrawData* drawData) {
+     ImGui_ImplMetal_RenderDrawData(drawData, framebuffer.mCommandBuffer, framebuffer.mCommandEncoder);
+ }
+ 
++// PORT: imgui_impl_metal's pipeline (same shaders, vertex layout and blending) with a nearest-magnifying sampler, set
++// on ImGui's encoder by a draw callback before the game picture (Fast3dGui::DrawGame); ImDrawCallback_ResetRenderState
++// after the picture puts ImGui's own pipeline back. Made again when the screen's pixel formats or sample count change.
++void GfxRenderingAPIMetal::UseNearestSamplingForImGui() {
++    FramebufferMetal& framebuffer = mFramebuffers[0];
++    if (framebuffer.mCommandEncoder == nullptr || framebuffer.mRenderPassDescriptor == nullptr) {
++        return;
++    }
++    MTL::RenderPassDescriptor* pass = framebuffer.mRenderPassDescriptor;
++    MTL::Texture* color = pass->colorAttachments()->object(0)->texture();
++    if (color == nullptr) {
++        return;
++    }
++    MTL::Texture* depth = pass->depthAttachment() != nullptr ? pass->depthAttachment()->texture() : nullptr;
++    MTL::Texture* stencil = pass->stencilAttachment() != nullptr ? pass->stencilAttachment()->texture() : nullptr;
++    const MTL::PixelFormat depthFormat = depth != nullptr ? depth->pixelFormat() : MTL::PixelFormatInvalid;
++    const MTL::PixelFormat stencilFormat = stencil != nullptr ? stencil->pixelFormat() : MTL::PixelFormatInvalid;
++    const uint64_t key = ((uint64_t)color->pixelFormat() << 40) | ((uint64_t)depthFormat << 24) |
++                         ((uint64_t)stencilFormat << 8) | (uint64_t)color->sampleCount();
++    if (mImGuiNearestPipeline == nullptr || mImGuiNearestKey != key) {
++        static MTL::Function* sVertex = nullptr;
++        static MTL::Function* sFragment = nullptr;
++        if (sVertex == nullptr) {
++            static const char* source = R"(
++                #include <metal_stdlib>
++                using namespace metal;
++                struct Uniforms { float4x4 projectionMatrix; };
++                struct VertexIn {
++                    float2 position  [[attribute(0)]];
++                    float2 texCoords [[attribute(1)]];
++                    uchar4 color     [[attribute(2)]];
++                };
++                struct VertexOut { float4 position [[position]]; float2 texCoords; float4 color; };
++                vertex VertexOut imguiNearestVertex(VertexIn in [[stage_in]], constant Uniforms& uniforms [[buffer(1)]]) {
++                    VertexOut out;
++                    out.position = uniforms.projectionMatrix * float4(in.position, 0, 1);
++                    out.texCoords = in.texCoords;
++                    out.color = float4(in.color) / float4(255.0);
++                    return out;
++                }
++                fragment half4 imguiNearestFragment(VertexOut in [[stage_in]],
++                                                    texture2d<half, access::sample> texture [[texture(0)]]) {
++                    constexpr sampler nearestSampler(coord::normalized, min_filter::linear, mag_filter::nearest,
++                                                     mip_filter::linear);
++                    return half4(in.color) * texture.sample(nearestSampler, in.texCoords);
++                }
++            )";
++            NS::Error* error = nullptr;
++            MTL::Library* library =
++                mDevice->newLibrary(NS::String::string(source, NS::UTF8StringEncoding), nullptr, &error);
++            if (library == nullptr) {
++                SPDLOG_ERROR("Failed to compile the ImGui nearest shader: {}",
++                             error ? error->localizedDescription()->cString(NS::UTF8StringEncoding) : "?");
++                return;
++            }
++            sVertex = library->newFunction(NS::String::string("imguiNearestVertex", NS::UTF8StringEncoding));
++            sFragment = library->newFunction(NS::String::string("imguiNearestFragment", NS::UTF8StringEncoding));
++            library->release();
++        }
++        MTL::VertexDescriptor* vd = MTL::VertexDescriptor::alloc()->init();
++        vd->attributes()->object(0)->setOffset(offsetof(ImDrawVert, pos));
++        vd->attributes()->object(0)->setFormat(MTL::VertexFormatFloat2);
++        vd->attributes()->object(0)->setBufferIndex(0);
++        vd->attributes()->object(1)->setOffset(offsetof(ImDrawVert, uv));
++        vd->attributes()->object(1)->setFormat(MTL::VertexFormatFloat2);
++        vd->attributes()->object(1)->setBufferIndex(0);
++        vd->attributes()->object(2)->setOffset(offsetof(ImDrawVert, col));
++        vd->attributes()->object(2)->setFormat(MTL::VertexFormatUChar4);
++        vd->attributes()->object(2)->setBufferIndex(0);
++        vd->layouts()->object(0)->setStepRate(1);
++        vd->layouts()->object(0)->setStepFunction(MTL::VertexStepFunctionPerVertex);
++        vd->layouts()->object(0)->setStride(sizeof(ImDrawVert));
++        MTL::RenderPipelineDescriptor* desc = MTL::RenderPipelineDescriptor::alloc()->init();
++        desc->setVertexFunction(sVertex);
++        desc->setFragmentFunction(sFragment);
++        desc->setVertexDescriptor(vd);
++        desc->setRasterSampleCount(color->sampleCount());
++        MTL::RenderPipelineColorAttachmentDescriptor* c0 = desc->colorAttachments()->object(0);
++        c0->setPixelFormat(color->pixelFormat());
++        c0->setBlendingEnabled(true);
++        c0->setRgbBlendOperation(MTL::BlendOperationAdd);
++        c0->setSourceRGBBlendFactor(MTL::BlendFactorSourceAlpha);
++        c0->setDestinationRGBBlendFactor(MTL::BlendFactorOneMinusSourceAlpha);
++        c0->setAlphaBlendOperation(MTL::BlendOperationAdd);
++        c0->setSourceAlphaBlendFactor(MTL::BlendFactorOne);
++        c0->setDestinationAlphaBlendFactor(MTL::BlendFactorOneMinusSourceAlpha);
++        desc->setDepthAttachmentPixelFormat(depthFormat);
++        desc->setStencilAttachmentPixelFormat(stencilFormat);
++        NS::Error* error = nullptr;
++        MTL::RenderPipelineState* pipeline = mDevice->newRenderPipelineState(desc, &error);
++        desc->release();
++        vd->release();
++        if (pipeline == nullptr) {
++            SPDLOG_ERROR("Failed to create the ImGui nearest pipeline: {}",
++                         error ? error->localizedDescription()->cString(NS::UTF8StringEncoding) : "?");
++            return;
++        }
++        if (mImGuiNearestPipeline != nullptr) {
++            mImGuiNearestPipeline->release();
++        }
++        mImGuiNearestPipeline = pipeline;
++        mImGuiNearestKey = key;
++    }
++    framebuffer.mCommandEncoder->setRenderPipelineState(mImGuiNearestPipeline);
++}
++
+ // MARK: - Metal Graphics Rendering API
+ 
+ const char* GfxRenderingAPIMetal::GetName() {
+diff --git a/include/fast/interpreter.h b/include/fast/interpreter.h
+--- a/include/fast/interpreter.h
++++ b/include/fast/interpreter.h
+@@ -591,6 +591,7 @@ class Interpreter {
+     XYWidthHeight mNativeDimensions{};     // gfx_native_dimensions;
+     XYWidthHeight mPrevNativeDimensions{}; // gfx_prev_native_dimensions;
+     uintptr_t mGfxFrameBuffer{};
++    int mGfxFrameBufferFb = -1; // PORT: the framebuffer whose texture mGfxFrameBuffer is (Fast3dGui::DrawGame: nearest sampling)
+ 
+     unsigned int mMsaaLevel = 1;
+     bool mDroppedFrame{};
+diff --git a/include/fast/Fast3dGui.h b/include/fast/Fast3dGui.h
+--- a/include/fast/Fast3dGui.h
++++ b/include/fast/Fast3dGui.h
+@@ -181,6 +181,11 @@ class Fast3dGui : public Ship::Gui {
+      */
+     int16_t GetIntegerScaleFactor();
+ 
++  public:
++    // PORT: switches ImGui's renderer to nearest magnification for the draws that follow (the game picture's sharp
++    // upscale, DrawGame; called from an ImGui draw callback). Vulkan takes a second texture id instead.
++    void UseNearestSamplingForImGui();
++
+     std::unordered_map<std::string, Ship::GuiTextureMetadata> mGuiTextures; ///< Cached GPU texture registry.
+ };
+ } // namespace Fast
+diff --git a/include/fast/backends/gfx_metal.h b/include/fast/backends/gfx_metal.h
+--- a/include/fast/backends/gfx_metal.h
++++ b/include/fast/backends/gfx_metal.h
+@@ -232,8 +232,13 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
+     void RenderDrawData(ImDrawData* drawData);
+     /** @brief Initializes Metal/SDL bridge objects for this renderer instance. */
+     bool MetalInit(SDL_Renderer* renderer);
++    // PORT: imgui_impl_metal samples linearly in its shader: a copy of its pipeline that samples nearest, set by an
++    // ImGui draw callback before the game picture (gfx_rendering_api.h)
++    void UseNearestSamplingForImGui() override;
+ 
+   private:
++    MTL::RenderPipelineState* mImGuiNearestPipeline = nullptr;
++    uint64_t mImGuiNearestKey = 0; // the pixel formats and sample count it was made for
+     bool NonUniformThreadGroupSupported();
+     void SetupScreenFramebuffer(uint32_t width, uint32_t height);
+     // Elements that only need to be setup once
+diff --git a/include/fast/backends/gfx_rendering_api.h b/include/fast/backends/gfx_rendering_api.h
+--- a/include/fast/backends/gfx_rendering_api.h
++++ b/include/fast/backends/gfx_rendering_api.h
+@@ -96,6 +96,15 @@ class GfxRenderingAPI {
+     virtual std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
+     GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) = 0;
+     virtual void* GetFramebufferTextureId(int fbId) = 0;
++    // PORT: the game picture as ImGui draws it into the window, sampled nearest (a sharp upscale of a low render
++    // resolution, Fast3dGui::DrawGame). Backends whose ImGui renderer takes the sampler from the texture id (Vulkan)
++    // return a second id; the others keep the id and switch the sampler in UseNearestSamplingForImGui, which an ImGui
++    // draw callback calls before the picture (ImDrawCallback_ResetRenderState after it restores the default).
++    virtual void* GetFramebufferTextureIdNearest(int fbId) {
++        return GetFramebufferTextureId(fbId);
++    }
++    virtual void UseNearestSamplingForImGui() {
++    }
+     virtual void SelectTextureFb(int fbId) = 0;
+     virtual void DeleteTexture(uint32_t texId) = 0;
+     virtual void SetTextureFilter(FilteringMode mode) = 0;
+diff --git a/include/fast/backends/gfx_vulkan.h b/include/fast/backends/gfx_vulkan.h
+--- a/include/fast/backends/gfx_vulkan.h
++++ b/include/fast/backends/gfx_vulkan.h
+@@ -112,6 +112,7 @@ struct TextureDataVK {
+     VkImageView view = VK_NULL_HANDLE;
+     VkSampler sampler = VK_NULL_HANDLE; // owned by the sampler cache
+     VkDescriptorSet imguiSet = VK_NULL_HANDLE;
++    VkDescriptorSet imguiSetNearest = VK_NULL_HANDLE; // PORT: the same image with mImGuiSamplerNearest
+     uint32_t width = 0;
+     uint32_t height = 0;
+     uint32_t filtering = 0;
+@@ -204,6 +205,7 @@ class GfxRenderingAPIVK final : public GfxRenderingAPI {
+     std::unordered_map<std::pair<float, float>, uint16_t, hash_pair_ff>
+     GetPixelDepth(int fb_id, const std::set<std::pair<float, float>>& coordinates) override;
+     void* GetFramebufferTextureId(int fbId) override;
++    void* GetFramebufferTextureIdNearest(int fbId) override;
+     void SelectTextureFb(int fbId) override;
+     void DeleteTexture(uint32_t texId) override;
+     void SetTextureFilter(FilteringMode mode) override;
+@@ -377,6 +379,7 @@ class GfxRenderingAPIVK final : public GfxRenderingAPI {
+ 
+     TextureDataVK mDummyTexture; // bound to unused sampler slots
+     VkSampler mImGuiSampler = VK_NULL_HANDLE;
++    VkSampler mImGuiSamplerNearest = VK_NULL_HANDLE; // PORT: the game picture's sharp upscale (DrawGame)
+ 
+     ShaderProgramVK* mShaderProgram = nullptr;
+ 

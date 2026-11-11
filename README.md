@@ -87,16 +87,27 @@ driver; availability depends on the platform and build. On Windows, **Restart an
 apply** reopens the launcher with the selected renderer.
 
 **Graphics** opens the drawing settings; changes apply at once and are kept:
-- **Resolution**: pixels drawn relative to the window (50–200%). Lower is much faster
-  on integrated graphics.
-- **Anti-aliasing**: MSAA off, 2x, 4x or 8x. Keep it off on slow graphics chips.
-- **VSync**: on avoids tearing.
+- **Display**: windowed or fullscreen (borderless), applied when the game starts.
+  F11 switches in-game.
+- **Internal resolution**: the pixels the game is drawn with. **Match window** (the
+  default) draws every pixel of the window, Retina and other HiDPI displays included.
+  **Native** is the N64's own 320 x 240 (426 x 240 in 16:9); **2x** to **6x** are
+  multiples of it; **480p** to **2160p** are fixed heights. Each entry shows its size.
+  Lower is much faster on integrated graphics.
+- **Scaling**: how a fixed resolution is stretched to the window. **Integer** uses the
+  largest whole multiple that fits (sharp, even pixels, black borders), **Sharp** fills
+  the window without blurring, **Smooth** fills it with linear filtering. Not used with
+  Match window. Picking Native or a multiple switches it to Integer.
+- **Anti-aliasing**: MSAA off, 2x, 4x or 8x. It costs speed on weak chips.
+- **VSync**: on stops tearing.
 - **Smooth motion**: in-between frames for 3D scenes. Doubles the drawing work.
 - **Keep full speed**: when the graphics chip cannot keep up, frames are skipped so
   the game and its sound keep their speed instead of slowing down and stuttering.
 
-**Settings for slow graphics chips** (for example Intel HD 520) sets resolution 50%,
-anti-aliasing and Smooth motion off, VSync and Keep full speed on. A smaller window
+Two presets light up when the settings match them: **Recommended** (Match window, 4x
+anti-aliasing, VSync, Smooth motion and Keep full speed on; the default for a new
+configuration) and **Low-power** (for chips such as Intel HD 520: 2x, Smooth scaling,
+anti-aliasing and Smooth motion off, VSync and Keep full speed on). A smaller window
 helps as well, and DirectX or OpenGL can be faster than the other on some chips.
 
 **Sound** opens the sound settings; changes apply at once and are kept:

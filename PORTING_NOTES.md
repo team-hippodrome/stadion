@@ -341,11 +341,11 @@ in-between frame on the same thread; at ~22 ms per draw the two no longer fit in
 - The sound queue's target grows by half (up to 120 ms) after the queue ran dry without a long stall, past the first
   600 retraces (boot underruns do not count).
 - `PORT_DEBUG_DRAW_MS=<ms>` adds that much to every drawn frame, to try this on a fast machine.
-- The launcher's Graphics panel sets these and the drawing cost: Resolution (`gInternalResolution`, applied with
-  `SetResolutionMultiplier`), Anti-aliasing (`gMSAAValue`, `SetMsaaLevel`), VSync (`gVsyncEnabled`, read by the
-  backends every frame), Smooth motion, Keep full speed (`gPort.FrameSkip`), and a preset for slow graphics chips
-  (50 %, MSAA and Smooth motion off). `PORT_LAUNCHER_OPEN_GRAPHICS=1` opens it (with `PORT_LAUNCHER_SHOT` for a
-  picture). The handheld (Android) launcher does not have it yet.
+- The launcher's Graphics panel sets these and the drawing cost: Internal resolution and Scaling (see "Internal
+  resolution and scaling" below), Anti-aliasing (`gMSAAValue`, `SetMsaaLevel`), VSync (`gVsyncEnabled`, read by the
+  backends every frame), Smooth motion, Keep full speed (`gPort.FrameSkip`), and the Low-power preset (2x, MSAA and
+  Smooth motion off). `PORT_LAUNCHER_OPEN_GRAPHICS=1` opens it (with `PORT_LAUNCHER_SHOT` for a picture). The
+  handheld (Android) launcher does not have it yet.
 Measured on an M-series Mac (debug battle to frame 1500, free-running clock as on Windows, `PORT_TRACE_AUDIO_OUT=1`):
 Smooth motion with 22 ms draws: game speed 70 % → 96 %, sound queue refills 653 → 1 (at boot); 30 ms draws: 94 → 97 %,
 7 refills. Without Smooth motion and 40 ms draws (a battle frame alone takes longer than 33 ms; battle frames cannot be
@@ -1356,6 +1356,62 @@ textured edge or over part of the screen keep the lock. The single-colour frames
 screens (white, black; `PresentCpuFrame`) are shown full width when the frame before covered the whole picture
 (`Port_LastFrameFilledWide`), instead of a 4:3 frame between two widescreen ones. Nothing changes at 4:3.
 `PORT_NO_WIDE_PATTERN=1` turns all of this off.
+
+## Internal resolution and scaling (launcher > Graphics)
+
+The game can be drawn at the window's pixels, at the N64's own size or a multiple of it, or at a fixed height, and
+that picture is scaled to the window. The panel follows the usual PC-game and emulator settings pages (Dolphin,
+DuckStation; layout reviewed with Fable 5.2): Display, one Internal resolution list, Scaling, Anti-aliasing, VSync,
+Smooth motion, Keep full speed, and two presets.
+
+- Settings: `Port::ResolutionSetting` (Engine.h), CVars `gPort.Resolution.Mode` (0 Match window, 1 N64 multiple,
+  2 fixed height), `.Multiple` (1-6), `.Height` (480-2160), `.Upscale` (0 Integer, 1 Sharp, 2 Smooth).
+  `PORT_RESOLUTION=window|window:50|native|2x..6x|480p..2160p` and `PORT_UPSCALE=exact|sharp|smooth` override them
+  for a run. `ApplyAspect` hands them to libultraship's fixed-aspect ("advanced") resolution CVars together with the
+  4:3 / 16:9 shape: the N64 and fixed-height modes set `VerticalResolutionToggle` + `VerticalPixelCount` and give the
+  width as the aspect ratio (`AspectRatioX/Y` = width/height), so the size is exact.
+- Sizes. 4:3: 320 x 240 times n; heights get width = height x 4/3 (720p: 960 x 720). 16:9: the N64's 240 lines get
+  426 x 240 (16:9 is 426.7): the 4:3 middle then starts on a whole pixel (53 each side), so the 2D screens and HUD
+  are not shifted by half a pixel. 428 (Port_WideMarginN64's 54 a side) would not fit 3x into 1280 x 720, 6x into
+  2560 x 1440 or 9x into 3840 x 2160 for Integer scaling. Fixed heights use 16:9 widths with an even margin (480p:
+  854, not 853). The few 640 x 480 screens (Trade Machine) are drawn at half their detail at Native: use 2x.
+- Match window (`gAdvancedResolution.MatchPixels`, patches/libultraship.patch `Fast3dGui::CalculateGameViewport`)
+  counts the window's pixels, not ImGui's points: on a Retina Mac it used to draw 1280 x 720 in a 2560 x 1440 window
+  and scale that up. It now draws every pixel (four times the work there; Low-power or a fixed size for old Intel
+  Macs). The old percentages are gone: on the first start with this version a configuration below 100 % (the
+  slow-chip preset's 50 %) becomes 2x, anything else Match window, and a new configuration gets the Recommended
+  preset (MSAA 4x, Smooth motion on). The web build's devicePixelRatio scale is covered by MatchPixels now (untested
+  there).
+- Scaling (`Fast3dGui::DrawGame`). Integer (`PixelPerfectMode`): the largest whole multiple of the picture that fits
+  the window, measured in pixels (libultraship measured in points, so HiDPI displays could get uneven pixels), centred
+  with black borders; a picture larger than the window (2160p in a 1080p window) is fitted, scaled down, instead of
+  drawn at 1x and cut off. Sharp and Integer magnify nearest (`gAdvancedResolution.NearestUpscale`); shrinking stays
+  linear. Match window's picture is not scaled; Scaling is greyed out there.
+- Nearest sampling where ImGui draws the game picture into the window, per backend (gfx_rendering_api.h
+  `GetFramebufferTextureIdNearest`, `UseNearestSamplingForImGui`, called from an ImGui draw callback before the
+  picture; `ImDrawCallback_ResetRenderState` after it): OpenGL binds a sampler object to unit 0 (`glBindSampler`,
+  looked up at run time: GL 3.3 / ES 3), DirectX 11 sets a point-mag sampler (`PSSetSamplers`), Metal sets a copy of
+  imgui_impl_metal's pipeline whose shader samples nearest (imgui_impl_metal's sampler is constexpr in its shader),
+  Vulkan hands ImGui a second descriptor set for the framebuffer with a nearest sampler.
+- Display: `Window.Fullscreen.Enabled` in the config, applied on Play (the launcher keeps its own window size);
+  `gSdlWindowedFullscreen` = 1 on the desktop makes SDL's fullscreen borderless (DXGI's already is; macOS uses its own
+  fullscreen). F11 toggles in-game as before.
+- Launcher: the Internal resolution list is an ImGui combo (the first one in the launcher). The launcher brings its
+  window to the front every frame, so the list's popup brings itself to the front too. Left/Right on the closed list
+  step to the neighbouring entry. `PORT_LAUNCHER_OPEN_RESOLUTION=1` opens it for a `PORT_LAUNCHER_SHOT` picture.
+
+Checked on an M-series Mac (2560 x 1440 pixel window, 1280 x 720 points), Metal, OpenGL and Vulkan (MoltenVK;
+`-DLUS_ENABLE_VULKAN=ON`): every resolution and scaling in 4:3 and 16:9 in a battle (boot_battle_move.rec, frames
+1300 and 1800). The three backends gave the same picture rectangles: Native Integer = 6x (1920 x 1440 / 2556 x 1440),
+runs of exactly 6 identical pixels; 2x -> 3x; 3x -> 2x; 4x (960 lines) -> 1x with borders; 720p -> 2x; Smooth has no
+such runs. Also: MSAA 2x/4x with Native, 2x, 3x and 720p; Smooth motion at normal speed at Native and 720p; a window
+resized during the battle (Integer re-centres: 1024 x 768 -> 4x, 1704 x 960); the Elite Four room at Native 16:9;
+HUD, text boxes and the 4:3 middle line up at Native in 16:9. The replay suite: all 22 pixel-identical to the
+references at the old default size (`PORT_RESOLUTION=window:50` on Retina = the old points size, MSAA off) and runs through at Native (4:3 Metal,
+16:9 Vulkan) and 720p (16:9 OpenGL); at Native `tour_play`'s freeze check stops it on the Kids Club "Who wants to
+play?" screen, whose slow idle animation repeats few distinct pictures at 320 x 240 (the same screens as at full
+size; with `PORT_FREEZE_CHECK=0` it reaches its stop frame). Not checked: DirectX 11 and Windows (the DX11 sampler
+code is not even compiled here), Linux, Android, the web build, Display/fullscreen on Play, gamepad use of the list.
 
 ## Vulkan failures: OpenGL for the next start instead of a crash
 
