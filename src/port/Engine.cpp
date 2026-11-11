@@ -227,13 +227,24 @@ bool Init() {
         cvars->Save();
     }
 
-#if defined(__EMSCRIPTEN__)
-    // Web build: the canvas has devicePixelRatio pixels per point (HiDPI); the game is drawn at that resolution (at most
-    // twice the window's size in points) unless the player chose another one in the settings
-    if (CVarGetFloat("gInternalResolution", 0.0f) == 0.0f) {
-        cvars->SetFloat("gInternalResolution",
-                        (float)EM_ASM_DOUBLE({ return Math.min(Math.max(window.devicePixelRatio || 1, 1), 2); }));
+    // Graphics settings first seen by this version (the launcher's Graphics panel, Engine.h ResolutionSetting):
+    // Internal resolution replaced the old Resolution percentage (gInternalResolution): below 100 % (the slow-chip
+    // preset's 50 %) becomes 2x, the Low-power preset's size; anything else Match window, which now counts the
+    // window's pixels (a HiDPI display's too, as the web build's devicePixelRatio scale did). New configurations get
+    // the Recommended preset: 4x anti-aliasing and Smooth motion on. Fullscreen is borderless (SDL; DXGI always is).
+    if (cvars->GetInteger("gPort.Resolution.Mode", -1) < 0) {
+        const float old = cvars->GetFloat("gInternalResolution", 1.0f);
+        cvars->SetInteger("gPort.Resolution.Mode", old > 0.0f && old < 0.99f ? kResN64 : kResWindow);
+        cvars->SetInteger("gPort.Resolution.Multiple", 2);
+        cvars->SetInteger("gPort.Resolution.Height", 1080);
+        cvars->SetInteger("gPort.Resolution.Upscale", kUpscaleSmooth);
+        cvars->SetFloat("gInternalResolution", 1.0f);
+        if (cvars->GetInteger("gMSAAValue", 0) == 0) cvars->SetInteger("gMSAAValue", 4);
+        if (cvars->GetInteger("gPort.Interpolate", -1) < 0) cvars->SetInteger("gPort.Interpolate", 1);
+        cvars->Save();
     }
+#if !defined(__ANDROID__)
+    cvars->SetInteger("gSdlWindowedFullscreen", 1);
 #endif
     // ImGui windows (tooltips, menus) stay inside the game window: with multi-viewports on, one that reached past its
     // edge became an OS window of its own, and the Metal backend crashed creating it (the launcher's wide tooltips)
@@ -331,6 +342,7 @@ bool Init() {
     WindowSetWindowComponent(sWindow);
     GfxSetFast3dWindow(sWindow);
     sWindow->Init();
+    ApplyAspect(); // again: the renderer's Init read the scale from gInternalResolution (PORT_RESOLUTION=window:n)
     // PORT_WINDOW_ON_TOP=1: the window stays above other windows without taking the keyboard focus (measuring the
     // frame pacing with PORT_TRACE_PACING while working in another app: macOS stops presenting a covered window)
     if (getenv("PORT_WINDOW_ON_TOP")) {
@@ -891,14 +903,109 @@ void ApplySoundSettings() {
     SetSoundSettings(s);
 }
 
+// a fixed resolution's size for the picture's shape (see ApplyAspect)
+static void FixedSize(int mode, int value, bool wide, int* width, int* lines) {
+    if (mode == kResN64) {
+        *lines = 240 * value;
+        *width = (wide ? 426 : 320) * value;
+    } else {
+        *lines = value;
+        *width = wide ? 2 * (int)lround(value * 16.0 / 9.0 / 2.0) : (int)lround(value * 4.0 / 3.0);
+        if (wide && ((*width - (int)lround(value * 4.0 / 3.0)) & 1)) (*width)++;
+    }
+}
+
+std::string ResolutionLabel(int mode, int value) {
+    if (mode == kResWindow) return "Match window";
+    int w, h;
+    FixedSize(mode, value, AspectSetting() == 1, &w, &h);
+    char buf[64];
+    if (mode == kResN64) snprintf(buf, sizeof buf, "%s %d x %d", value == 1 ? "Native" : (std::to_string(value) + "x").c_str(), w, h);
+    else snprintf(buf, sizeof buf, "%dp %d x %d", value, w, h);
+    return buf;
+}
+
+ResolutionSetting GetResolutionSetting() {
+    ResolutionSetting r;
+    r.mode = std::clamp(CVarGetInteger("gPort.Resolution.Mode", kResWindow), (int)kResWindow, (int)kResHeight);
+    r.multiple = std::clamp(CVarGetInteger("gPort.Resolution.Multiple", 1), 1, 8);
+    r.height = std::clamp(CVarGetInteger("gPort.Resolution.Height", 1080), 240, 4320);
+    r.scale = 1.0f; // (the window mode's scale: PORT_RESOLUTION=window:n only)
+    r.upscale = std::clamp(CVarGetInteger("gPort.Resolution.Upscale", kUpscaleSmooth), (int)kUpscaleExact,
+                           (int)kUpscaleSmooth);
+    if (const char* e = getenv("PORT_RESOLUTION")) {
+        const std::string v = e;
+        int n = atoi(e);
+        if (v == "native") {
+            r.mode = kResN64;
+            r.multiple = 1;
+        } else if (v.size() >= 2 && v.back() == 'x' && n >= 1) {
+            r.mode = kResN64;
+            r.multiple = std::min(n, 8);
+        } else if (v.size() >= 2 && v.back() == 'p' && n >= 240) {
+            r.mode = kResHeight;
+            r.height = std::min(n, 4320);
+        } else if (v.rfind("window", 0) == 0) {
+            r.mode = kResWindow;
+            if (v.size() > 7) r.scale = std::clamp(atoi(e + 7) / 100.0f, 0.25f, 4.0f);
+        }
+    }
+    if (const char* e = getenv("PORT_UPSCALE")) {
+        r.upscale = strcmp(e, "exact") == 0 ? kUpscaleExact : strcmp(e, "sharp") == 0 ? kUpscaleSharp : kUpscaleSmooth;
+    }
+    return r;
+}
+
+void SetResolutionSetting(const ResolutionSetting& r) {
+    CVarSetInteger("gPort.Resolution.Mode", r.mode);
+    CVarSetInteger("gPort.Resolution.Multiple", r.multiple);
+    CVarSetInteger("gPort.Resolution.Height", r.height);
+    CVarSetInteger("gPort.Resolution.Upscale", r.upscale);
+    ApplyAspect();
+}
+
+void RenderSize(int* w, int* h) {
+    *w = *h = 0;
+    if (sWindow == nullptr) return;
+    if (auto interp = sWindow->GetInterpreterWeak().lock()) {
+        uint32_t cw = 0, ch = 0;
+        interp->GetCurDimensions(&cw, &ch);
+        *w = (int)cw;
+        *h = (int)ch;
+    }
+}
+
+// The picture's shape and resolution go to libultraship's fixed-aspect ("advanced") resolution settings: the window
+// mode keeps the window's resolution (times gInternalResolution) cut to the shape; the N64 and fixed-height modes set
+// the vertical pixel count and a width for the shape. Their 16:9 widths keep the 4:3 middle on whole pixels with an
+// even margin on each side, so the 2D screens and HUD drawn into it are not shifted by half a pixel: the N64's 240
+// lines get 426 = 320 + 2 x 53 (16:9 is 426.7; 428, Port_WideMarginN64's 54 a side, would not fit 3x into 1280 x 720
+// or 6x into 2560 x 1440 for pixel-exact upscaling), 480 lines 854 (not 853).
 void ApplyAspect() {
     const bool wide = AspectSetting() == 1;
+    const ResolutionSetting r = GetResolutionSetting();
     CVarSetInteger("gAdvancedResolution.Enabled", 1);
-    CVarSetFloat("gAdvancedResolution.AspectRatioX", wide ? 16.0f : 4.0f);
-    CVarSetFloat("gAdvancedResolution.AspectRatioY", wide ? 9.0f : 3.0f);
-    CVarSetInteger("gAdvancedResolution.VerticalResolutionToggle", 0); // the window's resolution
-    CVarSetInteger("gAdvancedResolution.PixelPerfectMode", 0);
     CVarSetInteger("gAdvancedResolution.IgnoreAspectCorrection", 0);
+    if (r.mode == kResWindow) {
+        CVarSetFloat("gAdvancedResolution.AspectRatioX", wide ? 16.0f : 4.0f);
+        CVarSetFloat("gAdvancedResolution.AspectRatioY", wide ? 9.0f : 3.0f);
+        CVarSetInteger("gAdvancedResolution.VerticalResolutionToggle", 0); // the window's resolution
+    } else {
+        int width, lines;
+        FixedSize(r.mode, r.mode == kResN64 ? r.multiple : r.height, wide, &width, &lines);
+        CVarSetFloat("gAdvancedResolution.AspectRatioX", (float)width);
+        CVarSetFloat("gAdvancedResolution.AspectRatioY", (float)lines);
+        CVarSetInteger("gAdvancedResolution.VerticalResolutionToggle", 1);
+        CVarSetInteger("gAdvancedResolution.VerticalPixelCount", lines);
+    }
+    // Scaling (whole multiples: Fast3dGui::DrawGame; nearest) for the fixed resolutions; Match window's picture has the
+    // window's pixels and is not scaled (Scaling is greyed out there), so it is always drawn linearly
+    CVarSetInteger("gAdvancedResolution.PixelPerfectMode", r.mode != kResWindow && r.upscale == kUpscaleExact ? 1 : 0);
+    CVarSetInteger("gAdvancedResolution.NearestUpscale", r.mode != kResWindow && r.upscale != kUpscaleSmooth ? 1 : 0);
+    CVarSetInteger("gAdvancedResolution.MatchPixels", r.mode == kResWindow ? 1 : 0);
+    if (sWindow != nullptr) {
+        sWindow->SetResolutionMultiplier(r.mode == kResWindow ? r.scale : 1.0f);
+    }
 }
 
 std::string AppPath(const char* name) {
