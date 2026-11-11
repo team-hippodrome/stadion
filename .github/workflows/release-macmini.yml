@@ -1,16 +1,14 @@
 # A release built on the Mac mini (the self-hosted runner with the label pokestadium-port-release) by tools/release.sh:
 # macOS, Windows x64 and arm64, the Linux AppImage and the Android APK, the same builds as a release made on a
 # developer's Mac. The Mac is set up once with tools/release_host_setup.sh.
-# Manual: Actions tab -> Release (Mac mini) -> Run workflow. Without "publish" it only builds; the files are attached
-# to the run (and kept on the Mac in ~/pokestadium-releases/v<version>/dist, with the Windows symbol copies).
+# Manual only: Actions tab -> Release (Mac mini) -> Run workflow. The version is the next one after the latest v* tag
+# (v0.0.12 -> 0.0.13). Without "publish" it only builds; the files are attached to the run (and kept on the Mac in
+# ~/pokestadium-releases/v<version>/dist, with the Windows symbol copies).
 name: Release (Mac mini)
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: Version, e.g. 0.0.13 (a leading "v" is dropped)
-        required: true
       ref:
         description: What to build (a branch of origin, a tag or a commit)
         required: false
@@ -20,7 +18,7 @@ on:
         required: false
         default: ''
       publish:
-        description: Tag v<version>, move "latest" and publish the GitHub release
+        description: Tag the next version, move "latest" and publish the GitHub release
         type: boolean
         default: false
 
@@ -54,10 +52,23 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           orb list
+      - name: Version
+        id: version
+        # the next version after the latest release tag: v0.0.12 -> 0.0.13
+        run: |
+          latest="$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+(\.[0-9]+)*$' | head -1)"
+          [ -n "$latest" ] || { echo "no v* tag found" >&2; exit 1; }
+          v="${latest#v}"
+          case "$v" in
+            *.*) next="${v%.*}.$(( ${v##*.} + 1 ))" ;;
+            *) next="$(( v + 1 ))" ;; # a one-number version (v7 -> 8)
+          esac
+          echo "latest release $latest, building $next"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
       - name: Build (and publish)
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
           REF: ${{ inputs.ref }}
           ONLY: ${{ inputs.only }}
           PUBLISH: ${{ inputs.publish }}
@@ -71,7 +82,7 @@ jobs:
       - name: Logs
         if: always()
         run: |
-          V="${{ inputs.version }}"; V="${V#v}"
+          V="${{ steps.version.outputs.version }}"
           ls -l "$PORT_RELEASE_ROOT/v$V/logs" 2>/dev/null || true
           for f in "$PORT_RELEASE_ROOT/v$V"/logs/*.log; do
             [ -f "$f" ] && { echo "::group::$(basename "$f")"; tail -200 "$f"; echo "::endgroup::"; }
@@ -79,11 +90,11 @@ jobs:
       - name: Collect files
         if: success()
         run: |
-          V="${{ inputs.version }}"; V="${V#v}"
+          V="${{ steps.version.outputs.version }}"
           rm -rf "$RUNNER_TEMP/dist" && cp -R "$PORT_RELEASE_ROOT/v$V/dist" "$RUNNER_TEMP/dist"
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: pokestadium-v${{ inputs.version }}
+          name: pokestadium-v${{ steps.version.outputs.version }}
           path: ${{ runner.temp }}/dist
           retention-days: 14
