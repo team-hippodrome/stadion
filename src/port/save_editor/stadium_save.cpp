@@ -254,15 +254,16 @@ const GbTables& Tables() {
     return t;
 }
 
-// text._tokens: "<...>" groups or single characters (as UTF-8)
+// text._tokens: "<...>" groups or single characters (as UTF-8); a "<" without a closing ">" is a character
 std::vector<std::string> Tokens(const std::string& text) {
     std::vector<uint32_t> cps = CodePoints(text);
     std::vector<std::string> out;
     for (size_t i = 0; i < cps.size();) {
+        size_t j = i;
         if (cps[i] == '<') {
-            size_t j = i;
             while (j < cps.size() && cps[j] != '>') j++;
-            if (j == cps.size()) throw Error("substring not found");
+        }
+        if (cps[i] == '<' && j < cps.size() && j > i) {
             std::string tok;
             for (size_t k = i; k <= j; k++) tok += Utf8(cps[k]);
             out.push_back(tok);
@@ -279,10 +280,29 @@ bool IsGroup(const std::string& tok) {
     return tok.size() > 1 && tok[0] == '<';
 }
 
+bool IsHexByte(const std::string& h) {
+    return h.size() == 2 && isxdigit((unsigned char)h[0]) && isxdigit((unsigned char)h[1]);
+}
+
 int GroupByte(const std::string& tok) {
     long long v = ParseInt(tok.substr(1, tok.size() - 2), 16);
     if (v < 0 || v > 255) throw Error("byte must be in range(0, 256)");
     return (int)v;
+}
+
+// text._ALIASES: spellings accepted when encoding
+std::string Alias(const std::string& tok) {
+    if (tok == "<M>") return "♂";
+    if (tok == "<F>") return "♀";
+    if (tok == "\u2019" || tok == "\u2018" || tok == "\u00b4" || tok == "`") return "'";
+    if (tok == "\u2013" || tok == "\u2014" || tok == "\u2212") return "-";
+    if (tok == "\u2715") return "\u00d7";
+    return "";
+}
+
+std::string UpperAscii(std::string s) {
+    for (char& c : s) c = (char)toupper((unsigned char)c);
+    return s;
 }
 
 std::string Repr(const std::string& s) {
@@ -315,14 +335,17 @@ Bytes EncodeGb(const std::string& text, size_t size, uint8_t pad) {
     const GbTables& t = Tables();
     Bytes out;
     for (const std::string& tok : Tokens(text)) {
-        auto it = t.fromChr.find(tok);
-        if (tok == "<PLAYER>") {
+        const std::string key = IsGroup(tok) ? UpperAscii(tok) : tok;
+        auto it = t.fromChr.find(key);
+        if (key == "<PLAYER>") {
             out.push_back(GB_PLAYER);
         } else if (it != t.fromChr.end()) {
             out.push_back(it->second);
-        } else if (IsGroup(tok)) {
+        } else if (!Alias(key).empty() && t.fromChr.count(Alias(key))) {
+            out.push_back(t.fromChr.at(Alias(key)));
+        } else if (IsGroup(tok) && IsHexByte(tok.substr(1, tok.size() - 2))) {
             out.push_back((uint8_t)GroupByte(tok));
-        } else if (t.fromChr.count(Upper(tok))) {
+        } else if (!IsGroup(tok) && t.fromChr.count(Upper(tok))) {
             out.push_back(t.fromChr.at(Upper(tok)));
         } else {
             throw Error("character " + Repr(tok) + " has no Game Boy encoding");

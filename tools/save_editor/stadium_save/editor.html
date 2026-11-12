@@ -519,10 +519,10 @@ function renderDlg() {
         el("input", { list: "speciesList", value: d.species, placeholder: "Type a name, e.g. PIKACHU", style: "width:100%",
           onchange: e => { const s = speciesByInput(e.target.value); if (s) setSpecies(s); else { e.target.value = d.species; toast("Pick a species from the list"); } } })),
       el("div", {}, el("label", {}, "Nickname"),
-        el("input", { value: text(d.nickname), maxLength: 10, onchange: e => { d.nickname = e.target.value.toUpperCase() || (sp ? sp.name : ""); refreshPreview(); } })),
+        el("input", { value: text(d.nickname), maxLength: 10, onchange: e => { d.nickname = e.target.value || (sp ? sp.name : ""); refreshPreview(); } })),
       num("Level (1–100)", d, "level", 1, 100),
       el("div", {}, el("label", {}, "Original trainer"),
-        el("input", { value: text(d.ot_name), maxLength: 10, onchange: e => { d.ot_name = e.target.value.toUpperCase(); refreshPreview(); } })),
+        el("input", { value: text(d.ot_name), maxLength: 10, onchange: e => { d.ot_name = e.target.value; refreshPreview(); } })),
       num("Trainer ID (0–65535)", d, "ot_id", 0, 65535, 110),
       el("div", { class: "hint", style: "grid-column:1/-1" }, "Names use the Game Boy alphabet: up to 10 capital letters, digits and a few symbols. " +
         "Experience, HP and PP are filled in to match the level, as for a freshly caught Pokémon."));
@@ -598,7 +598,7 @@ function renderTeams() {
   const panel = el("div", { class: "card" },
     el("div", { class: "row", style: "margin-bottom:14px" },
       el("div", {}, el("label", {}, "Team name (trainer)"), el("input", { value: text(tl.name), maxLength: 10, placeholder: "e.g. RED",
-        onchange: e => editTeam(r => r.name = e.target.value.toUpperCase()) })),
+        onchange: e => editTeam(r => r.name = e.target.value) })),
       el("div", {}, el("label", {}, "Trainer ID"), el("input", { type: "number", min: 0, max: 65535, value: tl.trainer_id, style: "width:110px",
         onchange: e => editTeam(r => r.trainer_id = Math.max(0, Math.min(65535, +e.target.value || 0))) })),
       el("span", { class: "grow" }),
@@ -715,8 +715,8 @@ function renderGB(g) {
   let body;
   if (view.gbTab === "trainer") {
     body = [el("div", { class: "card" }, el("div", { class: "formgrid" },
-      el("div", {}, el("label", {}, "Player name"), el("input", { value: text(t.name), maxLength: 7, onchange: e => mut(() => t.name = e.target.value.toUpperCase()) })),
-      el("div", {}, el("label", {}, "Rival name"), el("input", { value: text(t.rival), maxLength: 7, onchange: e => mut(() => t.rival = e.target.value.toUpperCase()) })),
+      el("div", {}, el("label", {}, "Player name"), el("input", { value: text(t.name), maxLength: 7, onchange: e => mut(() => t.name = e.target.value) })),
+      el("div", {}, el("label", {}, "Rival name"), el("input", { value: text(t.rival), maxLength: 7, onchange: e => mut(() => t.rival = e.target.value) })),
       numberField("Trainer ID", t.id, 0, 65535, v => t.id = v),
       numberField("Money (₽)", t.money, 0, 999999, v => t.money = v),
       g.kind === "yellow" ? numberField("Pikachu's friendship (0–255)", t.pikachu_happiness, 0, 255, v => t.pikachu_happiness = v) : null,
@@ -770,7 +770,7 @@ function renderItems() {
       `Item box ${i + 1}`, " ", el("span", { class: "muted" }, listRecord(x).entries.length || "")))),
     el("div", { class: "card" },
       el("div", { class: "row", style: "margin-bottom:12px" },
-        el("div", {}, el("label", {}, "Owner name"), el("input", { value: text(bl.name), maxLength: 10, onchange: e => edit(r => r.name = e.target.value.toUpperCase()) })),
+        el("div", {}, el("label", {}, "Owner name"), el("input", { value: text(bl.name), maxLength: 10, onchange: e => edit(r => r.name = e.target.value) })),
         el("div", {}, el("label", {}, "Owner ID"), el("input", { type: "number", min: 0, max: 65535, value: bl.trainer_id, style: "width:110px",
           onchange: e => edit(r => r.trainer_id = Math.max(0, Math.min(65535, +e.target.value || 0))) }))),
       bl.entries.length ? el("table", { class: "items" }, bl.entries.map((it, i) => el("tr", {},
@@ -798,7 +798,7 @@ function renderPalace() {
       e ? el("button", { class: "danger", onclick: () => { ents[dex - 1] = null; changed(); } }, "Remove statue")
         : el("button", { class: "primary", onclick: () => setE(() => {}) }, "Add statue")),
     e ? el("div", { class: "formgrid" },
-      el("div", {}, el("label", {}, "Nickname"), el("input", { value: text(e.nickname), maxLength: 10, onchange: ev => setE(x => x.nickname = ev.target.value.toUpperCase() || sp.name) })),
+      el("div", {}, el("label", {}, "Nickname"), el("input", { value: text(e.nickname), maxLength: 10, onchange: ev => setE(x => x.nickname = ev.target.value || sp.name) })),
       el("div", {}, el("label", {}, "Level"), el("input", { type: "number", min: 1, max: 100, value: e.level, onchange: ev => setE(x => x.level = Math.max(1, Math.min(100, +ev.target.value || 1))) })),
       selectField("Won in", e.mode & 0x7F, STATUE_MODES, v => setE(x => x.mode = (x.mode & 0x80) | v)),
       el("div", {}, el("label", {}, "Round"), checkField("Round 2", !!(e.mode & 0x80), v => setE(x => x.mode = (x.mode & 0x7F) | (v ? 0x80 : 0)))),

@@ -53,15 +53,47 @@ uint32_t TypeColor(const char* t) {
     return it != colors.end() ? it->second : 0x888888;
 }
 
-// ImGui's built-in font has Latin-1 only: the gender signs as letters
+// ImGui's built-in font has Latin-1 only: the gender signs as letters, the PK and MN ligatures as their letters
 std::string Show(const std::string& s) {
     std::string out;
     for (size_t i = 0; i < s.size(); i++) {
         if (s.compare(i, 3, "♀") == 0) out += " F", i += 2;
         else if (s.compare(i, 3, "♂") == 0) out += " M", i += 2;
+        else if (s.compare(i, 4, "<PK>") == 0) out += "PK", i += 3;
+        else if (s.compare(i, 4, "<MN>") == 0) out += "MN", i += 3;
         else out += s[i];
     }
     return out;
+}
+
+// A name as it is typed in a text field: the font cannot draw ♂ and ♀, so they are written <M> and <F> (like <PK>,
+// <MN>); the codec accepts both spellings.
+std::string FieldForm(const std::string& s) {
+    std::string out;
+    for (size_t i = 0; i < s.size(); i++) {
+        if (s.compare(i, 3, "♀") == 0) out += "<F>", i += 2;
+        else if (s.compare(i, 3, "♂") == 0) out += "<M>", i += 2;
+        else out += s[i];
+    }
+    return out;
+}
+
+// Characters the Game Boy games (and so the game's names) can hold that a keyboard may not have, for the picker:
+// {text inserted, label}. The labels stay in ASCII/Latin-1 for the built-in font.
+const std::vector<std::pair<std::string, std::string>>& GbSymbols() {
+    static const std::vector<std::pair<std::string, std::string>> v = {
+        { "<M>", "<M>  male sign" },     { "<F>", "<F>  female sign" },    { "<PK>", "<PK>  PK" },
+        { "<MN>", "<MN>  MN" },          { "é", "é  e acute" },            { "×", "×  multiplication" },
+        { "'", "'  apostrophe" },        { "-", "-  hyphen" },             { ".", ".  period" },
+        { ",", ",  comma" },             { "/", "/  slash" },              { "?", "?  question mark" },
+        { "!", "!  exclamation mark" },  { "(", "(  open parenthesis" },   { ")", ")  close parenthesis" },
+        { ":", ":  colon" },             { ";", ";  semicolon" },          { "[", "[  open bracket" },
+        { "]", "]  close bracket" },     { "¥", "¥  yen" },                { " ", "(space)" },
+        { "à", "à" }, { "è", "è" }, { "ù", "ù" }, { "ç", "ç" }, { "ß", "ß" },
+        { "ä", "ä" }, { "ö", "ö" }, { "ü", "ü" }, { "Ä", "Ä" }, { "Ö", "Ö" }, { "Ü", "Ü" },
+        { "â", "â" }, { "ê", "ê" }, { "î", "î" }, { "ô", "ô" }, { "û", "û" }, { "ë", "ë" }, { "ï", "ï" },
+    };
+    return v;
 }
 
 // a file's name, as UTF-8
@@ -187,6 +219,7 @@ struct SaveEditor::Impl {
     int slot = 0, box = 0, ibox = 0, dex = 25, gbTab = 1, gbBox = 0, xg = 0, xstore = -1; // xstore -1: party
     std::optional<MonDlg> dlg;
     std::optional<Picker> picker;
+    std::map<ImGuiID, std::string> pendingSymbol; // a Symbols button pick, taken by its name field next frame
     std::optional<Confirm> confirm;
     std::string toast, error;
     uint64_t toastUntil = 0;
@@ -414,18 +447,37 @@ struct SaveEditor::Impl {
         return std::nullopt;
     }
 
-    // A Game Boy name (up to 10 characters); refuses what the Game Boy alphabet cannot write
+    // A Game Boy name (up to 10 characters); refuses what the Game Boy alphabet cannot write. Besides the keyboard, a
+    // "Symbols" button picks ♂ ♀ PK MN é × and the rest of the Game Boy character set; the field spells ♂ ♀ as <M> <F>.
     std::optional<std::string> NameField(const char* id, const json& value, size_t size = 11, float w = 150) {
-        std::optional<std::string> t = TextField(id, TextOf(value), w, true);
+        const std::string current = TextOf(value);
+        const ImGuiID wid = ImGui::GetID(id);
+        std::optional<std::string> t = TextField(id, FieldForm(current), w, false);
+        ImGui::SameLine();
+        ImGui::PushID(id);
+        if (Btn("Symbols", 64)) {
+            std::vector<std::pair<int, std::string>> items;
+            for (size_t i = 0; i < GbSymbols().size(); i++) items.push_back({ (int)i, GbSymbols()[i].second });
+            OpenPicker("Symbol", std::move(items), -1, [this, wid](int v) { pendingSymbol[wid] = GbSymbols()[v].first; });
+        }
+        ImGui::PopID();
+        auto pend = pendingSymbol.find(wid);
+        if (pend != pendingSymbol.end()) {
+            t = current + pend->second;
+            pendingSymbol.erase(pend);
+        }
         if (!t) return std::nullopt;
-        std::string err;
-        if (!GbEncodable(*t, size, &err)) {
-            error = "\"" + *t + "\" cannot be written in the Game Boy alphabet or is too long (" + std::to_string(size - 1) +
-                    " characters at most): capital letters, digits and a few symbols.";
+        try {
+            // what the game would read back: <M> -> the sign, e.g. lower case where the alphabet has it
+            std::string canon = DecodeGb(EncodeGb(*t, size).data(), size);
+            error.clear();
+            return canon;
+        } catch (const std::exception&) {
+            error = "\"" + FieldForm(*t) + "\" cannot be written in the Game Boy alphabet or is too long (" + std::to_string(size - 1) +
+                    " characters at most). Letters, digits and the Symbols button's characters work; <PK>, <MN>, <M>, <F> and "
+                    "<xx> (a byte in hex) can be typed.";
             return std::nullopt;
         }
-        error.clear();
-        return t;
     }
 
     // a number: [-] field [+]; the new value when changed

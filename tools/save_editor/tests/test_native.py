@@ -286,7 +286,11 @@ class Native(unittest.TestCase):
     def test_text(self):
         for kind, size, text in [("gb", 11, "RED"), ("gb", 11, "<PLAYER>"), ("gb", 11, "àéÄ♂♀<PK><MN>"), ("gb", 11, "a b-c?!"),
                                  ("gb", 11, "<A0><FF>"), ("gb", 16, "lowercase"), ("n64", 11, "Mew♂<PK>"), ("n64", 11, "a<3C>b"),
-                                 ("n64", 11, "ÿé"), ("gb", 11, "ABCDEFGHIJK"), ("gb", 11, "{"), ("n64", 11, "€")]:
+                                 ("n64", 11, "ÿé"), ("gb", 11, "ABCDEFGHIJK"), ("gb", 11, "{"), ("n64", 11, "€"),
+                                 ("gb", 11, "NIDORAN<M>"), ("gb", 11, "NIDORAN<f>"), ("gb", 11, "<pk>MON"), ("gb", 11, "<mn>"),
+                                 ("gb", 11, "a<b"), ("gb", 11, "<"), ("gb", 11, "<ZZ>"), ("gb", 11, "<1>"), ("gb", 11, "<>"),
+                                 ("gb", 11, "DON\u2019T"), ("gb", 11, "A\u2013B"), ("gb", 11, "3\u00d74"), ("gb", 11, "ß"),
+                                 ("gb", 11, "<e5><E8>")]:
             with self.subTest(kind=kind, text=text):
                 try:
                     b = encode_gb(text, size) if kind == "gb" else encode_n64(text, size)
@@ -298,6 +302,18 @@ class Native(unittest.TestCase):
                     self.assertEqual(r.returncode, 2, r.stdout)
                 else:
                     self.assertEqual(r.stdout.splitlines(), expect)
+
+    def test_text_every_byte(self):
+        """Every Game Boy byte decodes and encodes back to itself in both implementations, and they agree."""
+        for b in range(256):
+            if b in (0x50,):
+                continue
+            raw = bytes([b, 0x80])
+            with self.subTest(byte=b):
+                shown = decode_gb(raw)
+                self.assertEqual(encode_gb(shown, 11)[:2], raw if b != 0x7F else bytes([0x7F, 0x80]))
+                r = self.run_cli("text", "gb", 11, shown)
+                self.assertEqual(r.stdout.splitlines(), [encode_gb(shown, 11).hex(), decode_gb(encode_gb(shown, 11))])
 
     def test_game_boy(self):
         for p in GB_SAVES:

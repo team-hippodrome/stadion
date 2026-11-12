@@ -173,6 +173,23 @@ class Pokemon(unittest.TestCase):
         for s in ("RED", "NIDORAN♀", "<PLAYER>", "Mr.Mime", "<PK><MN>"):
             self.assertEqual(text.decode_gb(text.encode_gb(s, 11)), s)
         self.assertEqual(text.decode_gb(bytes([0x80, 0x01, 0x50])), "A<01>")
+        # the characters the Game Boy games allow in names: every byte survives decode + encode
+        for b in range(256):
+            if b == 0x50:
+                continue
+            self.assertEqual(text.encode_gb(text.decode_gb(bytes([b])), 11)[0], b, hex(b))
+        # glyphs the game draws (D_80073030): gender signs, x, e acute, apostrophe, PK and MN
+        for b, s in ((0xEF, "\u2642"), (0xF5, "\u2640"), (0xF1, "\u00d7"), (0xBC, "\u00e9"), (0xE0, "'"), (0xE1, "<PK>"),
+                     (0xE2, "<MN>"), (0xE3, "-"), (0xE6, "?"), (0xE7, "!"), (0xF2, "."), (0xF3, "/"), (0xF4, ","), (0xF0, "\u00a5")):
+            self.assertEqual(text.decode_gb(bytes([b, 0x50])), s)
+            self.assertEqual(text.encode_gb(s, 3)[0], b)
+        # easier spellings
+        self.assertEqual(text.encode_gb("NIDORAN<M>", 11), text.encode_gb("NIDORAN\u2642", 11))
+        self.assertEqual(text.encode_gb("<f><pk>", 11), text.encode_gb("\u2640<PK>", 11))
+        self.assertEqual(text.encode_gb("DON\u2019T", 11), text.encode_gb("DON'T", 11))
+        for bad in ("<", "a<b", "<ZZ>", "<1>", "<>", "\u20ac"):  # an error, never another exception type
+            with self.assertRaises(ValueError):
+                text.encode_gb(bad, 11)
         with self.assertRaises(ValueError):
             text.encode_gb("ABCDEFGHIJK", 11)  # 11 characters + terminator do not fit
 

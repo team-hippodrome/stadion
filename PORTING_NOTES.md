@@ -1206,6 +1206,10 @@ sample count after every VI frame).
   field, and questions replace the page, so on the handheld layout every control is a gamepad focus target and B goes
   back. Save rebuilds the file from the dump it was opened with and commits only the records that changed, refuses a
   file that changed on disk since, and keeps the previous file as `.bak`, as the page did.
+- Names: the launcher font has Latin-1 only, so ♂ and ♀ are typed and shown as `<M>` / `<F>` in name fields (PK and
+  MN as `<PK>` / `<MN>`), and a *Symbols* button next to each name field picks them and é × ' ¥ ... from a list.
+  Letters are no longer forced to upper case (é became É, which the Game Boy set lacks, so it could not be typed; Game
+  Boy names may be lower case). `tools/save_editor/tests` round-trip every Game Boy byte through both codecs.
 - Desktop: Debug → *Save editor* (and *Edit save* on a Transfer Pak card) replaces the launcher's panels until
   *Close*; ⌘S/Ctrl+S saves, Escape goes back. Handheld (Android, `PORT_LAUNCHER_HANDHELD=1`): *Files & help* →
   *Save editor*. The release zips and the macOS app no longer carry `save_editor/`.
