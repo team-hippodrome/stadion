@@ -7,12 +7,12 @@ Use Clang (AppleClang on macOS, llvm-mingw for the Windows cross-build below), C
 Clone the repository and prepare its submodules before following the instructions for your platform:
 
 ```bash
-git clone https://github.com/team-hippodrome/pokestadium-port.git
-cd pokestadium-port
+git clone https://github.com/team-hippodrome/stadion.git
+cd stadion
 ```
 
 ```bash
-tools/setup.sh                      # submodules + the port's patches (patches/libultraship.patch, patches/game/)
+tools/setup.sh                      # submodules + the port's game patches (patches/game/)
 ```
 
 **macOS** (Homebrew):
@@ -94,7 +94,8 @@ moves `latest` and creates the GitHub release, after asking. `--only macos,windo
 - `game/` — submodule: the decompiled game (C), unmodified; the port's changes are in `patches/game/` (see below)
 - `src/port/` — host layer: OS/threads, VI, controllers, sound (audio microcode, AI), Transfer Pak, flash saves, GB core
 - `src/port/sdk/` — stand-ins for the N64 SDK headers the game includes (`ultra64.h`, `PR/*.h`, force-included `port_compat.h`)
-- `libultraship/` — submodule; the port's renderer changes are in `patches/libultraship.patch`
+- `libultraship/`: submodule of [Team Hippodrome's fork](https://github.com/team-hippodrome/libultraship);
+  the port's renderer changes are committed in the fork, not applied as a local patch
 - `tools/` — launcher, save editor, ares comparison tooling (`tools/tour.py`), replay helpers
   (`tools/run_replays.py` plays all stored recordings without showing the window and reports which still pass;
   `tools/frame_sweep.py` captures a stretch of the game at 5 pictures per second, skipping repeats, as contact sheets;
@@ -102,6 +103,18 @@ moves `latest` and creates the GitHub release, after asking. `--only macos,windo
   against the sound, for ares or the port, against a video such as a console capture)
 - `replays/` — input recordings used as regression tests
 - `PORTING_NOTES.md` — what was done, how it was checked against ares, debug switches
+
+## The libultraship submodule
+
+`libultraship/` is pinned to a committed revision of Team Hippodrome's fork. Make renderer and runtime dependency
+changes in that repository, then update the submodule pointer here after the fork commit is available remotely.
+Setup and CI use the pinned source directly; do not export or apply a libultraship patch.
+
+For an existing checkout, first save any local libultraship edits (including untracked files) outside the checkout.
+If the old setup applied the renderer patch, restore the tracked files to the old pinned revision only after
+backing up those edits. Then run `tools/setup.sh`: it synchronizes the submodule URL before updating the pin.
+Git may refuse the update if old edits or untracked files would be overwritten; do not force it or delete files
+until you have verified your backup. A fresh clone avoids this migration step.
 
 ## The game submodule
 

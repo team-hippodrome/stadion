@@ -17,23 +17,23 @@ Editing: apply, change files in game/, export, commit patches/game. Moving to a 
 check out the new commit in game/, apply (fix the patches that no longer apply, e.g. with `git apply --3way` and
 the decomp's renames), export, and commit the submodule pointer together with patches/game.
 
-Merging: when this branch and <ref> both changed patches/game or patches/libultraship.patch, `git merge` conflicts
+Merging: when this branch and <ref> both changed patches/game, `git merge` conflicts
 on hunk offsets and index lines even where the source changes don't overlap. `merge <ref>` merges at the source level
-instead: it builds the merge base's and <ref>'s patch series on the pinned decomp and libultraship commits (in a
-temporary index, nothing is checked out), applies the difference to game/ and libultraship/, exports both patches
-again and commits the merge. game/ and libultraship/ must match this branch's patches first, and the merge base and
+instead: it builds the merge base's and <ref>'s patch series on the pinned decomp commit (in a
+temporary index, nothing is checked out), applies the difference to game/, exports the game patches
+again and commits the merge. game/ must match this branch's patches first, and the merge base and
 <ref> must pin the same submodule commits. A hunk that does not apply is reported with its context and left in a
 .rej file beside the file: apply it by hand, delete the .rej file, then `merge --continue`. Conflicts in other
 files are resolved as usual (edit, `git add`) before `merge --continue`. `merge --abort` undoes the merge and
-restores game/ and libultraship/ to this branch's patches.
+restores game/ to this branch's patches. libultraship is a committed fork dependency, managed by ordinary Git
+submodule merges; this helper never edits it. Merges spanning the old libultraship patch workflow must be
+migrated manually before using the helper.
 """
 import os, re, subprocess, sys, tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GAME = os.path.join(ROOT, "game")
 PATCHES = os.path.join(ROOT, "patches", "game")
-LUS = os.path.join(ROOT, "libultraship")
-LUS_PATCH = os.path.join(ROOT, "patches", "libultraship.patch")  # exactly `git -C libultraship diff`
 AREAS = ("include", "lib", "src")  # what the port compiles from the decomp; tools/ and asm/ stay untouched
 
 
@@ -130,11 +130,18 @@ def pin_at(ref, path):
 
 
 def patches_at(ref):
-    """(game patches, libultraship patch) as stored in a commit"""
+    """game patches as stored in a commit"""
     names = run(ROOT, "ls-tree", "--name-only", ref, "patches/game/").decode().split()
     game = [run(ROOT, "show", "%s:%s" % (ref, n)) for n in sorted(names) if n.endswith(".patch")]
-    lus = run(ROOT, "show", "%s:patches/libultraship.patch" % ref, check=False)
-    return game, lus
+    return game
+
+
+def check_patch_history(*refs):
+    """Do not silently lose dependency changes from pre-fork branches."""
+    for ref in refs:
+        if run(ROOT, "ls-tree", "--name-only", ref, "--", "patches/libultraship.patch").strip():
+            sys.exit("%s still uses the legacy libultraship patch; migrate that branch to the fork "
+                     "and merge it manually before using this helper" % ref)
 
 
 def tree_with(repo, pin, patches, tmp):
@@ -180,28 +187,23 @@ def apply_change(repo, diff, tmp):
 def merge(ref):
     if in_merge():
         sys.exit("a merge is already in progress: finish it with `merge --continue` or `merge --abort`")
-    for repo, name in ((GAME, "game"), (LUS, "libultraship")):
-        if run(repo, "rev-parse", "HEAD").decode().strip() != pin_at("HEAD", name):
-            sys.exit("%s/ is not checked out at the commit this branch pins" % name)
+    other = run(ROOT, "rev-parse", "--verify", ref + "^{commit}").decode().strip()
+    base = run(ROOT, "merge-base", "HEAD", other).decode().strip()
+    check_patch_history("HEAD", base, other)
+    if run(GAME, "rev-parse", "HEAD").decode().strip() != pin_at("HEAD", "game"):
+        sys.exit("game/ is not checked out at the commit this branch pins")
     if run(ROOT, "status", "--porcelain", "--", "patches"):
         sys.exit("patches/ has uncommitted changes; commit or discard them first")
-    # game/ and libultraship/ must hold exactly this branch's patches, or the merge would carry stray edits along
+    # game/ must hold exactly this branch's patches, or the merge would carry stray edits along
     export()
     if run(ROOT, "status", "--porcelain", "--", "patches"):
         sys.exit("game/ does not match patches/game (see `git diff patches/game`, just exported); "
                  "commit or drop those changes first")
-    with open(LUS_PATCH, "rb") as f:
-        if run(LUS, "diff") != f.read():
-            sys.exit("libultraship/ does not match patches/libultraship.patch (compare `git -C libultraship diff`)")
-
-    other = run(ROOT, "rev-parse", "--verify", ref + "^{commit}").decode().strip()
-    base = run(ROOT, "merge-base", "HEAD", other).decode().strip()
-    base_game, base_lus = patches_at(base)
-    other_game, other_lus = patches_at(other)
+    base_game = patches_at(base)
+    other_game = patches_at(other)
     changes = []
     with tempfile.TemporaryDirectory(prefix="game_patches_merge.") as tmp:
-        for repo, name, a, b, paths in ((GAME, "game", base_game, other_game, AREAS),
-                                        (LUS, "libultraship", [base_lus], [other_lus], ())):
+        for repo, name, a, b, paths in ((GAME, "game", base_game, other_game, AREAS),):
             pin = pin_at(base, name)
             if pin_at(other, name) != pin:
                 sys.exit("%s pins a different %s commit than the merge base; this helper only merges the patches"
@@ -234,13 +236,12 @@ def merge(ref):
 def finish():
     if not in_merge():
         sys.exit("no merge in progress")
-    left = ["%s/%s" % (n, f) for repo, n in ((GAME, "game"), (LUS, "libultraship")) for f in rejects(repo)]
+    check_patch_history("HEAD", "MERGE_HEAD")
+    left = ["game/%s" % f for f in rejects(GAME)]
     if left:
         sys.exit("apply and delete these first:\n  " + "\n  ".join(left))
     export()
-    with open(LUS_PATCH, "wb") as f:
-        f.write(run(LUS, "diff"))
-    run(ROOT, "add", "-A", "--", "patches/game", "patches/libultraship.patch")
+    run(ROOT, "add", "-A", "--", "patches/game")
     unmerged = run(ROOT, "diff", "--name-only", "--diff-filter=U").decode().split()
     if unmerged:
         sys.exit("resolve these conflicts, `git add` them, then run `merge --continue`:\n  " + "\n  ".join(unmerged))
@@ -250,24 +251,18 @@ def finish():
         for n in series():
             with open(os.path.join(PATCHES, n), "rb") as f:
                 game.append(f.read())
-        with open(LUS_PATCH, "rb") as f:
-            lus = f.read()
         tree_with(GAME, pinned(), game, tmp)
-        tree_with(LUS, pinned("libultraship"), [lus], tmp)
     run(ROOT, "commit", "--no-edit", "-q")
-    print("merged; patches/game and patches/libultraship.patch regenerated and checked against clean submodules")
+    print("merged; patches/game regenerated and checked against the clean game submodule")
 
 
 def abort():
     run(ROOT, "merge", "--abort")
-    for repo in (GAME, LUS):
-        for f in rejects(repo):
-            os.remove(os.path.join(repo, f))
+    for f in rejects(GAME):
+        os.remove(os.path.join(GAME, f))
     reset()
     apply(False)
-    run(LUS, "checkout", "--", ".")
-    run(LUS, "apply", LUS_PATCH)
-    print("merge aborted; game/ and libultraship/ hold this branch's patches again")
+    print("merge aborted; game/ holds this branch's patches again; libultraship/ was left untouched")
 
 
 if __name__ == "__main__":
