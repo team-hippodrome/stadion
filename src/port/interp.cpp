@@ -104,7 +104,8 @@ bool gHavePending = false;
 // the catch-up (PumpRspTasks) skips whole game frames, and the screen freezes and then jumps several frames ahead
 // ("fast-forward"; measured with PORT_DEBUG_DRAW_MS=25: 92 freezes over 50 ms and 37 jumps in 15 s, none without
 // Smooth motion). So the pictures are budgeted: when a series overran (a picture finished after the next game frame
-// was due, pictures were dropped in several frames in a row, or game time lags), the next frames get one picture
+// was due, the first picture alone took two refreshes, or pictures were dropped in 3 frames in a row), the next frames
+// get one picture
 // each, exactly as without Smooth motion, for a hold time that doubles on each new overrun (2 s up to 5 min) and halves
 // again after long calm stretches; then in-between pictures are tried again.
 struct Budget {
@@ -552,8 +553,8 @@ void DrawNext();
 // Drops the in-between frames still due. A frame drawn over the previous picture (Pending::restore) has its exact
 // drawing done first: the game frame buffer would otherwise keep a blended picture that later frames draw over. Not
 // when the game has unloaded data the display list may use (the blended picture stays, as for other frames).
-void FinishPending() {
-    if (gHavePending && gPending.next < gPending.k) {
+void FinishPending(bool countDrop = true) {
+    if (gHavePending && gPending.next < gPending.k && countDrop) {
         if (++gBudget.dropsInRow >= 3) NoteOverrun("pictures dropped in 3 game frames in a row");
     } else if (gHavePending) {
         gBudget.dropsInRow = 0;
@@ -615,7 +616,7 @@ extern "C" void Port_InterpMapsChanged(void) {
 
 namespace Port {
 void CancelInterpolation() {
-    FinishPending();
+    FinishPending(false); // (something else is shown: not a drop for lack of time)
     gPrev = nullptr;
 }
 
@@ -697,8 +698,8 @@ void RunGameFrame(void* gfxCommands, bool exact) {
         interpreter->mReplayT = 1.0f / k;
         RunFrameWith(gfxCommands, &r, false);
         Shot(tick, 0, k);
-        // the first picture alone took more than a refresh and a half: no room for more
-        if (Port_SteadyNs() - gPending.start > gPending.period * 3 / 2) NoteOverrun("the first picture took longer than 1.5 refreshes");
+        // the first picture alone took two refreshes (a present that waits for the vblank takes up to one): no room
+        if (Port_SteadyNs() - gPending.start > gPending.period * 2) NoteOverrun("the first picture took two refreshes");
         gHavePending = true;
         if (immediate && !late) {
             while (gHavePending) DrawNext();

@@ -1623,13 +1623,34 @@ or the libultraship fork. The generic rules below are what each scene ran into.
 
 | class | what happened | now |
 |---|---|---|
-| draw cost (the big one) | every in-between picture is a full draw. When two draws no longer fit in a game frame (Intel HD 520: ~25 ms per picture; heavier scenes such as ceremonies, Psychic's and Fire Blast's full-screen layers, 4x MSAA, high resolutions push mid-range GPUs there too), the window thread delays the game, the lag catch-up skips whole game frames, and the screen freezes and then jumps ahead. Measured (`PORT_DEBUG_DRAW_MS=25`, cup-clear ceremony, real time, 15 s): with Smooth motion 92 freezes over 50 ms and 37 jumps of more than 4 retraces; without it 1 and 0. | a picture budget (`PicturesAllowed`, `NoteOverrun`): a series that overran (a picture finishing after the next game frame was due, the first picture alone taking over 1.5 refreshes, pictures dropped in 3 frames in a row) drops to one picture per game frame, exactly as with Smooth motion off, for a hold that doubles per overrun (2 s to 5 min) and halves after a calm minute; then in-between pictures are tried again |
+| draw cost (the big one) | every in-between picture is a full draw. When two draws no longer fit in a game frame (Intel HD 520: ~25 ms per picture; heavier scenes such as ceremonies, Psychic's and Fire Blast's full-screen layers, 4x MSAA, high resolutions push mid-range GPUs there too), the window thread delays the game, the lag catch-up skips whole game frames, and the screen freezes and then jumps ahead. Measured (`PORT_DEBUG_DRAW_MS=25`, cup-clear ceremony, real time, 15 s): with Smooth motion 92 freezes over 50 ms and 37 jumps of more than 4 retraces; without it 1 and 0. | a picture budget (`PicturesAllowed`, `NoteOverrun`): a series that overran (a picture finishing after the next game frame was due, the first picture alone taking two refreshes, pictures dropped in 3 frames in a row) drops to one picture per game frame, exactly as with Smooth motion off, for a hold that doubles per overrun (2 s to 5 min) and halves after a calm minute; then in-between pictures are tried again |
 | object identity | matrices were paired by "n-th matrix of (site, node)". Effects that recycle their slots (sparkles, sleep Zs, flames, confetti: the oldest goes, a new one comes, the list shifts) or change count paired different objects; a pair moving less than 300 units was blended, so every in-between picture slid objects half-way to a neighbour's place. Example: a 20-matrix group in the send-out sparkles shifts by 2 every frame (B[0] = A[2]); the n-th pairing blended B[0] with A[0], 100 units away. | `MatchGroup`: the n-th pairing only when every matrix's own partner is its nearest one; otherwise nearest partners, accepted only when unambiguous (nearer than half the spacing between candidates and clearly nearer than the second best), a partner taken twice by none; groups over 96 by number only when the count is unchanged; anything else drawn as built |
 | scene cuts | per-matrix cuts (60 degrees, 300 units, projection scale) left the matrices that survived a cut (small objects near the camera) blending into the old scene | `Plan`: a projection cut, a third of the matched matrices cut, or most matrices new makes the whole frame a cut: no in-between movement at all |
 | data the game rewrites in place | the in-between and final pictures are drawn after the game was told the frame is done (`PumpRspTasks` posts `OS_EVENT_DP` after the first drawing) and builds the next frame meanwhile; anything the list reads outside the double-buffered display-list buffer may already hold the next frame's state. The test harness (`PORT_INTERP_IMMEDIATE=1`) drew all pictures before posting, so it never saw this. | every recorded matrix is pinned to the value the first drawing used, in every picture (`Build`); `PORT_INTERP_IMMEDIATE=late` draws the pictures only after the game has built the next frame (the real-time worst case) for tests. Checked: the ceremony with `late` gives byte-identical pictures, i.e. no scene found so far rewrites vertices or textures in place |
 | frames submitted again / out of order | a display list drawn again (or an older one) became the "newer" frame and blended backwards | frame records carry a build serial; only a newer frame is blended, and only a newer one becomes the reference |
 | CPU-built geometry, particles under an identity matrix, texture animation | battle effects build their vertices on the CPU each frame under a shared identity modelview (`BattleAnim_*_Draw`, `RibbonMesh_DrawPool`); texture cycles (Moltres' wings, flames) | unchanged by design: shown at the game's rate while the camera moves smoothly around them (interpolating them would need per-effect game changes) |
 | 2D | rectangles paired by texture/size/texcoords and moved in between | unchanged (`Interp2DPrepare`); its cut rules (48 pixels, new rectangles) already fall back to the exact place |
+
+**Checked** (scripts and pictures in `scratch/interp-redesign`, a machine shared with other builds, load 40-50):
+- Real time, cup-clear ceremony, 15 s, `PORT_DEBUG_DRAW_MS=25`, two trials: old design 29 and 46 jumps of more than 4
+  retraces (33 and 49 freezes over 50 ms); new 4 and 12 (8, 13); Smooth motion off 1 and 4 (3, 9). With 14 ms draws 5
+  and 5 jumps. Without a delay the new design shows 830 pictures in 15 s (off: 448).
+- Old vs new pictures (`PORT_INTERP_MATCH=index`): Fire Blast's star-shaped burst collapses and the sleep Zs jump in
+  the old in-between pictures (frames 1970, 1986 of a Gengar vs sleeping Snorlax battle); the sparkles in Koga's gym
+  vanish (frame 146); the new ones lie between their neighbours. `PORT_INTERP_LOG=1` counts how many pairs the old
+  rule got wrong: about 11 per frame in the cup-clear ceremony, 9,700 in a castle-ending run, 2,000-3,400 per battle.
+- Every in-between picture of 19 scenes (the demo scenes, the castle ending, battles in arenas 2, 11 Koga and 15
+  Elite Four with Psychic and Fire Blast, 8 replays) in 16:9 and 4:3 scored against its neighbours: at most 2
+  pictures per scene outside the range, all of them HUD panels or icons sliding (2D blending).
+- Real-time pictures equal immediate-mode pictures byte for byte (1,185 of 1,185, ceremony); Metal, OpenGL and Vulkan
+  give the same in-between pictures; `late` equals immediate.
+- `tools/run_replays.py`: all 20 recordings OK with Smooth motion off, and with it on (`PORT_INTERPOLATE=1
+  PORT_INTERP_IMMEDIATE=1 PORT_RENDER_EVERY=1`, `PORT_REPLAY_TIMEOUT=900`) the same stop pictures (0.00, `tour_fb`
+  0.08 dither).
+- Psychic and Fire Blast with Smooth motion off match ares frame for frame (battle sweep cases 092-095, 126-131).
+- Not reproduced literally: the reported ceremony and Castle-ending breakage (no clip of it was at hand; on this Mac
+  the scenes look right in every mode). Draw cost and identity are the two mechanisms found that break exactly these
+  scenes. Not checked: Windows (no vblank: the 1/60 s clock), DX11, a visible window with vsync.
 
 **Rules** the code now follows: interpolate only what is unambiguous and continuous, show the exact frame otherwise;
 decide once per game frame, not per picture; never let in-between pictures cost the game time; never let a picture
@@ -1678,7 +1699,8 @@ other places (107 `gSPMatrix` sites), so the port blends the final matrices inst
 - **Ids.** Every `gSPMatrix` in game code already goes through `Port_GfxPrepareMtx` (`src/port/sdk/ultra64.h`,
   `gfx_translate.cpp`); it now also records the matrix with an id: the call site (`__builtin_return_address`), the
   scene-graph node being drawn (`Port_InterpNode`, set in `Geo_ProcessNodeChildren`, `Geo_NodeReference`,
-  `Geo_NodeSwitchCase`) and how many matrices that site/node pair produced before in the frame. Frames are delimited
+  `Geo_NodeSwitchCase`); matrices of one site/node pair form a group, paired with the previous frame's by identity
+  (`MatchGroup`, see the design review above), no longer by their number in the group. Frames are delimited
   by `Gfx_SwapDisplayListBuffer` (`Port_InterpBeginFrame`, keyed by the display-list buffer, which is what the graphics
   task points at). Matrices from ROM data (translated, the same every frame) are not recorded. The game-side changes are
   these four calls (game repository, `geo_render.c`, `gfx_buffer.c`).
@@ -1686,8 +1708,8 @@ other places (107 `gSPMatrix` sites), so the port blends the final matrices inst
   separately, so a turning part keeps its size; row 3 (translation) linearly; projections element-wise. Not blended
   (shown as the game drew it): a matrix that turned more than 60 degrees in one game frame, moved more than 300 units
   and more than half its distance from the origin (a camera cut, a reused node), a projection whose scale changed by
-  half, a matrix with no partner in the previous frame, and every matrix of a site/node group whose size changed
-  (particles coming and going: the n-th one may be another particle). Render targets (UI text, portraits) are always
+  half, a matrix with no unambiguous partner in the previous frame, and every matrix of a frame that is a scene cut.
+  Render targets (UI text, portraits) are always
   drawn with the game's own matrices, so their pixels, which are read back into game memory, never depend on it.
 - **Presentation** (window thread, `Port::RunGameFrame` / `Port::PumpInterpolation`). A graphics task is drawn when
   it arrives, as before, but as the first of k pictures, k = retraces since the previous game frame x refreshes per
@@ -1707,7 +1729,9 @@ other places (107 `gSPMatrix` sites), so the port blends the final matrices inst
   to game memory (no render-target readback), leave the CPU-drawn-frame detection's draw stamps alone, and start from
   the RSP/RDP state (segments, TMEM model, tiles, modes) the frame first started from; afterwards the state the first
   drawing left is put back (`ReplayBegin` / `ReplayPassStart` / `ReplayEnd`), so the next frame renders as without
-  interpolation. Lockstep timing is unchanged (the passes run on the window thread between retraces).
+  interpolation. Lockstep timing is unchanged (the passes run on the window thread between retraces). Every recorded
+  matrix is pinned to its first-drawing value in the later passes, and the picture budget keeps the passes from
+  delaying the game (design review above).
 
 Pitfalls found on the way: Metal reads the screen back one frame late (the blit is encoded in the next `EndFrame`); an
 in-between frame consumed or expired that pending readback, and screenshots and the freeze detector then saw a stale
@@ -1735,12 +1759,12 @@ display was at hand: k would be 4 there.
   gets in-between frames (e.g. `boot_battle_move` 1810 of 1906 frames, the minigame tours ~1920 of ~4000, of which
   ~1870 blend at least one matrix); frames without 3D (menus, cup grid, text screens) are shown as before.
 
-**Not interpolated / known limits** (all shown at the game's rate, as before): particles and other effects whose
-number changes every frame (send-out rays, confetti), anything turning faster than 60 degrees per game frame,
+**Not interpolated / known limits** (all shown at the game's rate, as before): particles that come and go in groups
+too dense to tell apart (a burst from one point: ambiguous partners), anything turning faster than 60 degrees per game frame,
 vertex-animated or CPU-built geometry (fade quads, 2D sprites, text), texture scrolling (`G_SETTILESIZE_INTERP` would
 need game-side changes per effect), and menus that draw over the previous picture. Data a list reads that the game
-changes in place while building the next frame (single-buffered vertex arrays, if any) would show the newer state in
-the in-between frame. Only macOS reports vblanks; on Linux/Windows the in-between frames follow a 1/60 s clock after
+changes in place while building the next frame (single-buffered vertex arrays or textures, none found so far;
+matrices are pinned) would show the newer state in the in-between frame. Only macOS reports vblanks; on Linux/Windows the in-between frames follow a 1/60 s clock after
 the game frame (so only up to 60 fps). DX11/OpenGL: the replay passes use the same interpreter path, not measured.
 
 Debug switches: `PORT_INTERP_LOG=1` (per game frame: matrices recorded / matched / blended, cuts and why;

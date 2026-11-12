@@ -157,6 +157,8 @@ def run_one(name, stop, env_extra, rom, update):
             # Coverage draws every frame, which needs a larger budget than normal max-speed runs.
             frames_per_second = 40 if os.name == "nt" or SHADER_CAPTURE or SHADER_VERIFY else 200
             timeout = max(300 if os.name == "nt" else 120, stop / frames_per_second)
+            # PORT_REPLAY_TIMEOUT=<s>: a longer budget (runs that draw every frame and its in-between frames)
+            timeout = max(timeout, float(os.environ.get("PORT_REPLAY_TIMEOUT", "0")))
             code = subprocess.run([PORT_BIN, rom], cwd=tmp, env=env, stdout=log,
                                   stderr=subprocess.STDOUT, timeout=timeout, **process_options()).returncode
         except subprocess.TimeoutExpired:
