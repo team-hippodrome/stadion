@@ -48,22 +48,38 @@ using Replacements = std::unordered_map<Mtx*, MtxF>;
 
 struct Tag {
     const void* mtx;
-    uint64_t id, group; // group: call site and node; id: group and the matrix's number in it
+    uint64_t group; // call site and scene-graph node (Port_InterpTagMtx)
+};
+
+// One matrix of a finished frame: where the display list reads it, its group, its number in the group, its value
+struct Mat {
+    const void* mtx;
+    uint64_t group;
+    uint32_t index;
+    MtxF v;
 };
 
 struct Frame {
     const void* dl = nullptr;
-    std::vector<Tag> tags;                       // game thread, while the frame is built
-    std::unordered_map<uint64_t, MtxF> byId;     // when finished: the matrices' values
-    std::unordered_map<uint64_t, uint32_t> sizes; // matrices per group
-    std::vector<Tag> mats;
+    uint64_t serial = 0;                                        // build order (frames the game submits again)
+    std::vector<Tag> tags;                                      // game thread, while the frame is built
+    std::vector<Mat> mats;                                      // when finished
+    std::unordered_map<uint64_t, std::vector<uint32_t>> groups; // group -> indices into mats, in drawing order
+};
+
+// What the in-between pictures of one game frame draw: for every recorded matrix of the newer frame its partner in the
+// older one (matched once per frame, see Plan()), or none (drawn as the game built it)
+struct PlanEntry {
+    Mtx* mtx;
+    MtxF a, b;
+    bool blend;
 };
 
 std::mutex gLock;
 std::shared_ptr<Frame> gBuilding;                 // game thread
 std::deque<std::shared_ptr<Frame>> gFinished;     // waiting for their task
-std::unordered_map<uint64_t, uint32_t> gSiteUses; // game thread: matrices per (site, node) in this frame
 const void* gNode = nullptr;
+uint64_t gSerial = 0;
 std::atomic<bool> gRecording{ false };
 std::atomic<uint64_t> gMapGen{ 0 };
 
@@ -73,13 +89,82 @@ uint64_t gPrevTick = 0;
 struct Pending {
     void* dl = nullptr;
     std::shared_ptr<Frame> a, b;
+    std::vector<PlanEntry> plan;
     int k = 0, next = 0;
     int64_t start = 0, period = 0, vblank = 0;
     bool grid = false;
     bool restore = false; // drawn from a copy of the previous picture (a menu): the exact drawing must happen
     uint64_t mapGen = 0, tick = 0;
+    int64_t frameDue = 0; // when the next game frame is expected (steady clock)
 } gPending;
 bool gHavePending = false;
+
+// How many pictures a game frame may get (window thread). Every in-between picture is a full draw; on a GPU that
+// needs ~25 ms per picture (an Intel HD 520), two pictures per 33 ms game frame do not fit, game time falls behind,
+// the catch-up (PumpRspTasks) skips whole game frames, and the screen freezes and then jumps several frames ahead
+// ("fast-forward"; measured with PORT_DEBUG_DRAW_MS=25: 92 freezes over 50 ms and 37 jumps in 15 s, none without
+// Smooth motion). So the pictures are budgeted: when a series overran (a picture finished after the next game frame
+// was due, the first picture alone took two refreshes, or pictures were dropped in 3 frames in a row), the next frames
+// get one picture
+// each, exactly as without Smooth motion, for a hold time that doubles on each new overrun (2 s up to 5 min) and halves
+// again after long calm stretches; then in-between pictures are tried again.
+struct Budget {
+    int maxPictures = 8;
+    uint64_t hold = 0;     // game frames left at one picture
+    uint64_t backoff = 60; // the next hold
+    uint64_t calm = 0;     // game frames at full budget without an overrun
+    int dropsInRow = 0;    // game frames in a row whose last pictures were dropped
+    bool overran = false;
+    uint64_t overruns = 0;
+} gBudget;
+
+bool BudgetDisabled() {
+    static const bool v = getenv("PORT_INTERP_IMMEDIATE") != nullptr ||
+                          (getenv("PORT_INTERP_BUDGET") && atoi(getenv("PORT_INTERP_BUDGET")) == 0);
+    return v;
+}
+
+void NoteOverrun(const char* why) {
+    if (BudgetDisabled()) return;
+    if (!gBudget.overran && getenv("PORT_INTERP_LOG")) {
+        fprintf(stderr, "[interp] overrun at frame %llu: %s\n", (unsigned long long)Port_ViTick(), why);
+    }
+    gBudget.overran = true;
+}
+
+// Once per game frame, before its pictures are planned: the number of pictures it may have.
+int PicturesAllowed() {
+    if (BudgetDisabled()) return 8;
+    Budget& b = gBudget;
+    bool lagging = Port_ClockLagNs() > 4000000;
+    if (b.overran) { // (a lag alone is not ours: loading stalls the game too; dropped pictures count, FinishPending)
+        if (b.maxPictures > 1) {
+            b.hold = b.backoff;
+            b.backoff = std::min<uint64_t>(b.backoff * 2, 9000);
+            b.overruns++;
+            if (getenv("PORT_INTERP_LOG")) {
+                fprintf(stderr, "[interp] budget: one picture per game frame for %llu frames (overrun %llu)\n",
+                        (unsigned long long)b.hold, (unsigned long long)b.overruns);
+            }
+        }
+        b.maxPictures = 1;
+        b.overran = false;
+        b.calm = 0;
+        b.dropsInRow = 0;
+    } else if (b.maxPictures == 1) {
+        if (lagging) {
+            b.hold = std::max(b.hold, (uint64_t)30); // the game lags without in-between pictures too: wait
+        } else if (b.hold > 0) {
+            b.hold--;
+        } else {
+            b.maxPictures = 8; // try again
+        }
+    } else if (++b.calm >= 1800) { // a minute without an overrun
+        b.calm = 0;
+        b.backoff = std::max<uint64_t>(b.backoff / 2, 60);
+    }
+    return b.maxPictures;
+}
 
 uint64_t Mix(uint64_t h, uint64_t v) {
     h ^= v + 0x9E3779B97F4A7C15ull + (h << 6) + (h >> 2);
@@ -105,12 +190,13 @@ MtxF ReadFixed(const void* p) {
 }
 
 void Finish(Frame& f) {
-    f.byId.reserve(f.tags.size());
+    std::unordered_map<uint64_t, uint32_t> counts;
+    f.mats.reserve(f.tags.size());
     for (auto& t : f.tags) {
-        f.byId[t.id] = ReadFixed(t.mtx);
-        f.sizes[t.group]++;
+        uint32_t n = counts[t.group]++;
+        f.groups[t.group].push_back((uint32_t)f.mats.size());
+        f.mats.push_back({ t.mtx, t.group, n, ReadFixed(t.mtx) });
     }
-    f.mats = std::move(f.tags);
     f.tags.clear();
 }
 
@@ -140,9 +226,10 @@ bool Affine(const MtxF& m) {
 }
 
 struct Stats {
-    int mats = 0, matched = 0, blended = 0, cuts = 0, regrouped = 0;
+    int mats = 0, matched = 0, blended = 0, cuts = 0, regrouped = 0, reordered = 0, ambiguous = 0, misindexed = 0;
     float maxMove = 0;
     int cutTurn = 0, cutMove = 0, cutProj = 0;
+    bool sceneCut = false;
 };
 
 float JumpLimit() {
@@ -217,25 +304,177 @@ bool Blend(const MtxF& a, const MtxF& b, float t, MtxF* out, Stats* st) {
     return true;
 }
 
-void Build(const Frame& a, const Frame& b, float t, Replacements& out, Stats* st) {
-    Stats local;
-    if (st == nullptr) st = &local;
-    for (auto& tag : b.mats) {
-        st->mats++;
-        auto ia = a.byId.find(tag.id);
-        if (ia == a.byId.end()) continue;
-        st->matched++;
-        // a site drawing a different number of matrices (particles coming and going): the n-th one may be another
-        // object than in the previous frame
-        auto sa = a.sizes.find(tag.group);
-        if (sa == a.sizes.end() || sa->second != b.sizes.at(tag.group)) {
-            st->regrouped++;
-            continue;
+float Dist(const MtxF& x, const MtxF& y) {
+    float d = 0;
+    for (int c = 0; c < 3; c++) d += (x.mf[3][c] - y.mf[3][c]) * (x.mf[3][c] - y.mf[3][c]);
+    return std::sqrt(d);
+}
+
+// Pairs one group's matrices (same call site and node) of the newer frame b with the older frame a's. partner[i]: the
+// index into ga for gb[i], or -1. The n-th matrix of a site is the same object in both frames for models and most
+// effects, but not for effects that recycle their slots (sleep Zs, flames, sparkles: the oldest one goes, a new one
+// comes, and everything after it moves up a place) or whose number changes. So the n-th pairing is kept only when
+// every matrix's own partner is its nearest one in the older frame; otherwise each one takes its nearest partner, and
+// only when that is unambiguous (clearly nearer than any other candidate, and nearer than half the spacing between
+// the candidates). Anything else is drawn as built: a wrong partner blends one object towards another's place.
+void MatchGroup(const Frame& a, const Frame& b, const std::vector<uint32_t>& ga, const std::vector<uint32_t>& gb,
+                std::vector<int>& partner, Stats* st) {
+    size_t na = ga.size(), nb = gb.size();
+    partner.assign(nb, -1);
+    // PORT_INTERP_MATCH=index: the rule before 2026-11 (n-th pairing, groups whose size changed not at all), to compare
+    static const bool legacy = getenv("PORT_INTERP_MATCH") && strcmp(getenv("PORT_INTERP_MATCH"), "index") == 0;
+    if (legacy) {
+        if (na == nb)
+            for (size_t i = 0; i < nb; i++) partner[i] = (int)i;
+        return;
+    }
+    if (na == 1 && nb == 1) {
+        partner[0] = 0;
+        return;
+    }
+    if (!Affine(b.mats[gb[0]].v)) { // projections: by number, and only when nothing came or went
+        if (na == nb)
+            for (size_t i = 0; i < nb; i++) partner[i] = (int)i;
+        return;
+    }
+    const size_t kMax = 96; // larger groups (a crowd, confetti): by number only, and only when nothing came or went
+    if (na > kMax || nb > kMax) {
+        if (na == nb)
+            for (size_t i = 0; i < nb; i++) partner[i] = (int)i;
+        return;
+    }
+    // the n-th pairing, when nothing came or went and each one's nearest candidate is its own (or as near)
+    if (na == nb) {
+        bool ok = true;
+        for (size_t i = 0; i < nb && ok; i++) {
+            const MtxF& m = b.mats[gb[i]].v;
+            float own = Dist(m, a.mats[ga[i]].v), best = own;
+            for (size_t j = 0; j < na; j++) best = std::min(best, Dist(m, a.mats[ga[j]].v));
+            if (own > best * 1.25f + 0.5f) ok = false;
         }
+        if (ok) {
+            for (size_t i = 0; i < nb; i++) partner[i] = (int)i;
+            return;
+        }
+    }
+    st->reordered++;
+    static const bool logGroups = getenv("PORT_INTERP_LOG") && atoi(getenv("PORT_INTERP_LOG")) >= 2;
+    if (logGroups) {
+        fprintf(stderr, "[interp]   group %016llx: %zu -> %zu matrices, not in the same order:", (unsigned long long)b.mats[gb[0]].group, na, nb);
+        for (size_t i = 0; i < std::min<size_t>(nb, 6); i++) {
+            const MtxF& m = b.mats[gb[i]].v;
+            fprintf(stderr, " (%.0f %.0f %.0f)", m.mf[3][0], m.mf[3][1], m.mf[3][2]);
+        }
+        fputs(" was", stderr);
+        for (size_t j = 0; j < std::min<size_t>(na, 6); j++) {
+            const MtxF& m = a.mats[ga[j]].v;
+            fprintf(stderr, " (%.0f %.0f %.0f)", m.mf[3][0], m.mf[3][1], m.mf[3][2]);
+        }
+        fputc('\n', stderr);
+    }
+    // nearest unambiguous partners
+    auto spacing = [](const Frame& f, const std::vector<uint32_t>& g, size_t i) {
+        float s = 1e30f;
+        for (size_t j = 0; j < g.size(); j++)
+            if (j != i) s = std::min(s, Dist(f.mats[g[i]].v, f.mats[g[j]].v));
+        return s;
+    };
+    std::vector<float> spaceA(na), spaceB(nb);
+    for (size_t j = 0; j < na; j++) spaceA[j] = spacing(a, ga, j);
+    for (size_t i = 0; i < nb; i++) spaceB[i] = spacing(b, gb, i);
+    for (size_t i = 0; i < nb; i++) {
+        const MtxF& m = b.mats[gb[i]].v;
+        int bestJ = -1;
+        float best = 1e30f, second = 1e30f;
+        for (size_t j = 0; j < na; j++) {
+            float d = Dist(m, a.mats[ga[j]].v);
+            if (d < best) {
+                second = best;
+                best = d;
+                bestJ = (int)j;
+            } else if (d < second) {
+                second = d;
+            }
+        }
+        if (bestJ < 0) continue;
+        if (best * 2.0f < std::min(spaceA[bestJ], spaceB[i]) && best * 2.0f < second) {
+            partner[i] = bestJ;
+        } else {
+            st->ambiguous++;
+        }
+    }
+    // a partner taken twice belongs to neither
+    std::vector<int> uses(na, 0);
+    for (int p : partner)
+        if (p >= 0) uses[p]++;
+    for (int& p : partner)
+        if (p >= 0 && uses[p] > 1) p = -1;
+    // (statistics: matrices the n-th pairing, the design before this one, would have blended with another object)
+    if (na == nb) {
+        Stats tmp;
+        for (size_t i = 0; i < nb; i++) {
+            MtxF m;
+            if (partner[i] != (int)i && Blend(a.mats[ga[i]].v, b.mats[gb[i]].v, 0.5f, &m, &tmp)) st->misindexed++;
+        }
+    }
+}
+
+// Matches the newer frame's matrices with the older frame's and decides once per game frame which ones are blended.
+// The whole frame is shown as built (no in-between movement at all) at a scene cut: a projection that jumped (another
+// camera), or a third or more of the matched matrices cut, or most of the matrices new. Blending the few that
+// survive a cut (small objects near the camera) would draw them half-way into the old scene.
+std::vector<PlanEntry> Plan(const Frame& a, const Frame& b, Stats* st) {
+    std::vector<PlanEntry> plan;
+    plan.reserve(b.mats.size());
+    std::vector<int> partner;
+    std::unordered_map<uint32_t, int> partnerOf; // index into b.mats -> index into a.mats
+    partnerOf.reserve(b.mats.size());
+    for (auto& [group, gb] : b.groups) {
+        auto ia = a.groups.find(group);
+        if (ia == a.groups.end()) continue;
+        if (ia->second.size() != gb.size()) st->regrouped++;
+        MatchGroup(a, b, ia->second, gb, partner, st);
+        for (size_t i = 0; i < gb.size(); i++)
+            if (partner[i] >= 0) partnerOf[gb[i]] = (int)ia->second[partner[i]];
+    }
+    int cuts = 0;
+    for (uint32_t i = 0; i < b.mats.size(); i++) {
+        const Mat& m = b.mats[i];
+        st->mats++;
+        PlanEntry e{ (Mtx*)m.mtx, m.v, m.v, false };
+        auto it = partnerOf.find(i);
+        if (it != partnerOf.end()) {
+            st->matched++;
+            e.a = a.mats[it->second].v;
+            int before = st->cuts;
+            MtxF tmp;
+            e.blend = Blend(e.a, e.b, 0.5f, &tmp, st);
+            if (st->cuts != before) cuts++;
+        }
+        plan.push_back(e);
+    }
+    st->sceneCut = st->cutProj > 0 || (st->matched >= 4 && cuts * 3 >= st->matched) ||
+                   (st->mats >= 8 && st->matched * 2 < st->mats);
+    for (auto& e : plan) {
+        if (st->sceneCut) e.blend = false;
+        if (e.blend) st->blended++;
+    }
+    return plan;
+}
+
+// The matrices for the picture at t (0 < t <= 1): blended ones between the two frames, every other recorded one with
+// the value the game built. All of them, not just the blended ones: the in-between and final pictures are drawn after
+// the game was told this frame is done, and a matrix the game keeps outside the display-list buffer may already hold
+// the next frame's value (the first picture, drawn before that, reads the same values).
+void Build(const std::vector<PlanEntry>& plan, float t, Replacements& out) {
+    Stats unused;
+    out.reserve(plan.size());
+    for (auto& e : plan) {
         MtxF m;
-        if (Blend(ia->second, b.byId.at(tag.id), t, &m, st)) {
-            out[(Mtx*)tag.mtx] = m;
-            st->blended++;
+        if (e.blend && t < 1.0f && Blend(e.a, e.b, t, &m, &unused)) {
+            out[e.mtx] = m;
+        } else {
+            out[e.mtx] = e.b;
         }
     }
 }
@@ -275,6 +514,13 @@ bool ShotWanted(uint64_t tick) {
 }
 
 void Shot(uint64_t tick, int i, int k) {
+    // PORT_INTERP_LOG=3: every picture shown (game frame, its number in the series, wall clock): what a real-time run
+    // puts on screen, and when
+    static const bool logPictures = getenv("PORT_INTERP_LOG") && atoi(getenv("PORT_INTERP_LOG")) >= 3;
+    if (logPictures) {
+        fprintf(stderr, "[picture] frame %llu %d/%d at %.2f ms\n", (unsigned long long)tick, i + 1, k,
+                Port_SteadyNs() / 1e6);
+    }
     if (!ShotWanted(tick)) return;
     char path[1024];
     snprintf(path, sizeof path, "%s/interp_%05llu_%dof%d.ppm", ShotDir(), (unsigned long long)tick,
@@ -307,7 +553,12 @@ void DrawNext();
 // Drops the in-between frames still due. A frame drawn over the previous picture (Pending::restore) has its exact
 // drawing done first: the game frame buffer would otherwise keep a blended picture that later frames draw over. Not
 // when the game has unloaded data the display list may use (the blended picture stays, as for other frames).
-void FinishPending() {
+void FinishPending(bool countDrop = true) {
+    if (gHavePending && gPending.next < gPending.k && countDrop) {
+        if (++gBudget.dropsInRow >= 3) NoteOverrun("pictures dropped in 3 game frames in a row");
+    } else if (gHavePending) {
+        gBudget.dropsInRow = 0;
+    }
     if (gHavePending && gPending.restore && gPending.next < gPending.k && gMapGen.load() == gPending.mapGen) {
         gPending.next = gPending.k - 1;
         DrawNext(); // (ends the pending frame)
@@ -320,13 +571,14 @@ void DrawNext() {
     Pending& p = gPending;
     int j = p.next++;
     Replacements r;
-    if (j + 1 < p.k) Build(*p.a, *p.b, (float)(j + 1) / p.k, r, nullptr);
+    Build(p.plan, j + 1 < p.k ? (float)(j + 1) / p.k : 1.0f, r);
     if (auto interp = Interp()) {
         interp->ReplayPassStart();
         interp->mReplayT = j + 1 < p.k ? (float)(j + 1) / p.k : 1.0f; // (2D rectangles: interpreter.cpp)
     }
     Port::RunFrameWith(p.dl, &r, true, ShotWanted(p.tick));
     Shot(p.tick, j, p.k);
+    if (Port_SteadyNs() > p.frameDue + 2000000) NoteOverrun("a picture ended after the next game frame was due");
     if (p.next >= p.k) EndPending();
 }
 } // namespace
@@ -340,8 +592,10 @@ extern "C" void Port_InterpBeginFrame(const void* dlStart) {
         while (gFinished.size() > 4) gFinished.pop_front();
     }
     gBuilding = on ? std::make_shared<Frame>() : nullptr;
-    if (gBuilding) gBuilding->dl = dlStart;
-    gSiteUses.clear();
+    if (gBuilding) {
+        gBuilding->dl = dlStart;
+        gBuilding->serial = ++gSerial;
+    }
     gNode = nullptr;
 }
 
@@ -353,9 +607,7 @@ extern "C" void Port_InterpTagMtx(const void* mtx, const void* site) {
     if (!gRecording.load(std::memory_order_relaxed) || (uintptr_t)mtx < 0x100000000ull) return;
     std::lock_guard<std::mutex> g(gLock);
     if (!gBuilding) return;
-    uint64_t key = Mix(Mix(0, (uint64_t)(uintptr_t)site), (uint64_t)(uintptr_t)gNode);
-    uint32_t n = gSiteUses[key]++;
-    gBuilding->tags.push_back({ mtx, Mix(key, n), key });
+    gBuilding->tags.push_back({ mtx, Mix(Mix(0, (uint64_t)(uintptr_t)site), (uint64_t)(uintptr_t)gNode) });
 }
 
 extern "C" void Port_InterpMapsChanged(void) {
@@ -364,17 +616,28 @@ extern "C" void Port_InterpMapsChanged(void) {
 
 namespace Port {
 void CancelInterpolation() {
-    FinishPending();
+    FinishPending(false); // (something else is shown: not a drop for lack of time)
     gPrev = nullptr;
 }
 
 void RunGameFrame(void* gfxCommands, bool exact) {
     bool on = Enabled();
     gRecording = on;
+    // PORT_INTERP_IMMEDIATE=late (test): the in-between pictures are drawn only now, after the game has built this
+    // newer frame (what a real-time run does when they come late in the game frame)
+    static const bool late = getenv("PORT_INTERP_IMMEDIATE") && strcmp(getenv("PORT_INTERP_IMMEDIATE"), "late") == 0;
+    if (late && gHavePending && gMapGen.load() == gPending.mapGen) {
+        while (gHavePending) DrawNext();
+    }
     FinishPending(); // a newer frame: in-between frames still due are dropped
     if (!on) {
         gPrev = nullptr;
-        RunFrame(gfxCommands);
+        if (ShotWanted(Port_ViTick())) { // (the same pictures as with it on, for comparisons)
+            RunFrameWith(gfxCommands, nullptr, false, true);
+        } else {
+            RunFrame(gfxCommands);
+        }
+        Shot(Port_ViTick(), 0, 1);
         return;
     }
     static const bool immediate = getenv("PORT_INTERP_IMMEDIATE") != nullptr;
@@ -388,11 +651,15 @@ void RunGameFrame(void* gfxCommands, bool exact) {
     // blended: over it many of a model's matrices turn too far and are cut while the ones skinned to them still blend,
     // and limbs stretch across the screen (Clefairy in the title's fall, blended from 20 retraces back).
     const uint64_t kMaxGap = 4;
-    if (cur && gPrev && !exact && tick > gPrevTick && tick - gPrevTick <= kMaxGap) {
+    // (a frame the game submits again, or an older one, is not blended "backwards" either)
+    if (cur && gPrev && !exact && cur->serial > gPrev->serial && tick > gPrevTick && tick - gPrevTick <= kMaxGap) {
         k = (int)std::min<uint64_t>((tick - gPrevTick) * perRetrace, 8);
     }
+    const uint64_t gap = tick > gPrevTick ? tick - gPrevTick : 0;
+    if (on && !exact) k = std::min(k, PicturesAllowed());
     Stats st;
     Replacements r;
+    std::vector<PlanEntry> plan;
     bool repaint = false, restore = false;
     auto interpreter = Interp();
     if (k >= 2 && interpreter) {
@@ -401,18 +668,21 @@ void RunGameFrame(void* gfxCommands, bool exact) {
         restore = !repaint && interpreter->CanRestorePicture();
     }
     if (k >= 2 && (repaint || restore)) {
-        Build(*gPrev, *cur, 1.0f / k, r, &st);
+        plan = Plan(*gPrev, *cur, &st);
+        Build(plan, 1.0f / k, r);
     }
     if (Logging()) {
-        fprintf(stderr, "[interp] frame %llu: %s k %d repaint %d mats %d matched %d regrouped %d blended %d cuts %d (turn %d "
-                "move %d projection %d) max move %.1f\n",
+        fprintf(stderr, "[interp] frame %llu: %s k %d repaint %d mats %d matched %d regrouped %d reordered %d ambiguous %d "
+                "misindexed %d blended %d cuts %d (turn %d move %d projection %d)%s max move %.1f\n",
                 (unsigned long long)tick, cur ? "recorded" : "no record", k, (int)repaint, st.mats, st.matched,
-                st.regrouped, st.blended, st.cuts, st.cutTurn, st.cutMove, st.cutProj, st.maxMove);
+                st.regrouped, st.reordered, st.ambiguous, st.misindexed, st.blended, st.cuts, st.cutTurn, st.cutMove, st.cutProj,
+                st.sceneCut ? " SCENE CUT" : "", st.maxMove);
     }
     if (k >= 2 && (repaint || restore)) {
         gPending.dl = gfxCommands;
         gPending.a = gPrev;
         gPending.b = cur;
+        gPending.plan = std::move(plan);
         gPending.k = k;
         gPending.next = 1;
         gPending.start = Port_SteadyNs();
@@ -422,13 +692,16 @@ void RunGameFrame(void* gfxCommands, bool exact) {
         gPending.mapGen = gMapGen.load();
         gPending.tick = tick;
         gPending.restore = restore;
+        gPending.frameDue = gPending.start + (int64_t)gap * 16666667;
         interpreter->Interp2DPrepare((Gfx*)gfxCommands);
         interpreter->ReplayBegin(restore);
         interpreter->mReplayT = 1.0f / k;
         RunFrameWith(gfxCommands, &r, false);
         Shot(tick, 0, k);
+        // the first picture alone took two refreshes (a present that waits for the vblank takes up to one): no room
+        if (Port_SteadyNs() - gPending.start > gPending.period * 2) NoteOverrun("the first picture took two refreshes");
         gHavePending = true;
-        if (immediate) {
+        if (immediate && !late) {
             while (gHavePending) DrawNext();
         }
     } else {
@@ -436,8 +709,10 @@ void RunGameFrame(void* gfxCommands, bool exact) {
         RunFrame(gfxCommands);
         Shot(tick, 0, 1);
     }
-    gPrev = cur;
-    gPrevTick = tick;
+    if (!cur || !gPrev || cur->serial > gPrev->serial) { // (a frame submitted again keeps the newer one as reference)
+        gPrev = cur;
+        gPrevTick = tick;
+    }
 }
 
 void PumpInterpolation() {
