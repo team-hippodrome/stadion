@@ -1206,6 +1206,10 @@ sample count after every VI frame).
   field, and questions replace the page, so on the handheld layout every control is a gamepad focus target and B goes
   back. Save rebuilds the file from the dump it was opened with and commits only the records that changed, refuses a
   file that changed on disk since, and keeps the previous file as `.bak`, as the page did.
+- Names: the launcher font has Latin-1 only, so ♂ and ♀ are typed and shown as `<M>` / `<F>` in name fields (PK and
+  MN as `<PK>` / `<MN>`), and a *Symbols* button next to each name field picks them and é × ' ¥ ... from a list.
+  Letters are no longer forced to upper case (é became É, which the Game Boy set lacks, so it could not be typed; Game
+  Boy names may be lower case). `tools/save_editor/tests` round-trip every Game Boy byte through both codecs.
 - Desktop: Debug → *Save editor* (and *Edit save* on a Transfer Pak card) replaces the launcher's panels until
   *Close*; ⌘S/Ctrl+S saves, Escape goes back. Handheld (Android, `PORT_LAUNCHER_HANDHELD=1`): *Files & help* →
   *Save editor*. The release zips and the macOS app no longer carry `save_editor/`.
@@ -1535,7 +1539,11 @@ every change (`Port::ApplySoundSettings`, Engine.cpp; state in sound_settings.cp
 - `gSound.Delay` (0 normal, 1 short, 2 long): the output queue target when the stream opens (`SoundQueueTarget`):
   short 60 % of the platform's (at least 20 ms), long 120 ms, which the adaptive target reaches on a slow PC anyway.
   macOS: 22.9 / 20.0 / 120 ms (`PORT_TRACE_AUDIO_OUT=1` prints it).
-Volumes follow a square curve (50 % = 1/4 amplitude, about half as loud). At 100 % nothing is multiplied: the mix is
+Volumes follow a square curve (50 % = 1/4 amplitude, -12 dB, about half as loud). Music and effects scale the music
+player's voice *volume*, which libnaudio squares itself (`n_env.c`: `em_volume = volume^2 >> 15`), so their gain is the
+linear fraction; applying the square there made 50 % come out at 1/16 (-24 dB) and 25 % inaudible (tester report). Measured
+(`PORT_AUDIO_DUMP`, main menu, RMS relative to 100 %): 75 % 0.56, 50 % 0.25, 25 % 0.063, 10 % 0.014. Voices scale
+samples, so they use the square. At 100 % nothing is multiplied: the mix is
 bit-identical to before. Stereo or mono stays the game's own Options setting. The handheld (Android) launcher has no
 Sound panel yet. `PORT_LAUNCHER_OPEN_SOUND=1` opens it (with `PORT_LAUNCHER_SHOT` for a picture).
 
@@ -2020,3 +2028,14 @@ game/include) and every cast that reads a field through a wider type; each use w
   (u8, u8, u16) read as f32 (the decomp marks it `//?`); whether the host reads the N64's value depends on how the
   record is loaded. Needs a run with a gallery photo against ares.
 - 64DD only: rsp.h overlays the low byte of `lba` with `mode` (dead in the retail game without a 64DD).
+
+## Vulkan: minimized window
+
+A minimized window on Windows has a surface with `currentExtent` 0x0 while SDL still reports the last pixel size, so
+the Vulkan backend created a zero-sized swapchain (a tester's Intel iGPU crashed the launcher). `NewFrame`
+(libultraship `gfx_vulkan.cpp`, Team Hippodrome fork) now makes no frame, and marks the swapchain for recreation, while
+SDL reports the window minimized or the surface has no area (`SurfaceHasNoArea`, also on the retry after
+`VK_ERROR_OUT_OF_DATE_KHR`). `PORT_DEBUG_MINIMIZE=<frame>:<restore frame>` minimizes and restores the window at those
+frames (game: VI frame; launcher: its own frame counter; needs a visible window). Checked on MoltenVK
+(`{"Window": {"Backend": {"Id": 4, "Name": "Vulkan"}}}`) in the game (minimized 120-360: no errors, picture back after the
+restore) and in the launcher. Windows itself is untested.

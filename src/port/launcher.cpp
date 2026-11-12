@@ -2226,6 +2226,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
         std::vector<ScriptStep> script = scriptPath != nullptr ? LoadScript(scriptPath) : std::vector<ScriptStep>{};
         for (int frame = 0; !play && !quit && !restart && window->IsRunning(); frame++) {
             window->HandleEvents();
+            Port::DebugMinimize((unsigned long long)frame); // test hook: PORT_DEBUG_MINIMIZE
             for (const ScriptStep& st : script) {
                 if (st.frame == frame) quit |= RunScriptStep(st);
                 if (st.cmd == "shot" && (st.frame == frame - 1 || st.frame == frame - 2)) Port::SaveScreen(st.arg.c_str());

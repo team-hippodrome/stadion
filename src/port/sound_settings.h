@@ -14,7 +14,9 @@ extern "C" {
 
 enum { PORT_SOUND_MUSIC = 0, PORT_SOUND_EFFECTS = 1, PORT_SOUND_VOICES = 2 };
 
-// One part's volume in Q15 (32768: as the game plays it). Called by the game's mixer.
+// One part's gain in Q15 (32768: as the game plays it). Called by the game's mixer. For music and effects it scales
+// the music player's voice volume (which the synthesizer squares), for voices the samples: the result is the same
+// amplitude curve, (slider/100)^2.
 int Port_SoundPartGainQ15(int part);
 
 #ifdef __cplusplus

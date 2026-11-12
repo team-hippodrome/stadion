@@ -30,8 +30,13 @@ extern "C" int Port_SoundPartGainQ15(int part) {
             v = gVoices.load(std::memory_order_relaxed);
             break;
     }
-    // a perceived halving is about 1/4 of the amplitude: the sliders follow a square curve (50 % -> 0.25)
-    return v >= 100 ? 32768 : (v * v * 32768) / 10000;
+    if (v >= 100) return 32768;
+    // A perceived halving is about 1/4 of the amplitude: 50 % -> 0.25 (-12 dB), 25 % -> 0.0625 (-24 dB).
+    // Voices scale samples directly (audio_stream.c), so their gain is the square. Music and effects scale the music
+    // player's voice volume, which the synthesizer squares itself (libnaudio n_env.c: em_volume = volume^2 >> 15), so
+    // the linear volume is already that curve in amplitude. Squaring it here as well made 50 % -24 dB and 25 % silent.
+    if (part == PORT_SOUND_MUSIC || part == PORT_SOUND_EFFECTS) return (v * 32768) / 100;
+    return (v * v * 32768) / 10000;
 }
 
 namespace Port {
