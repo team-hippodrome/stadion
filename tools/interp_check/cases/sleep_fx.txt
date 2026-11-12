@@ -1,0 +1,8 @@
+# Gengar (Psychic, Fire Blast) against a sleeping Snorlax: sleep Zs, Psychic, Fire Blast, send-out sparkles
+arena 2
+seed 1
+intro 1
+mon 0 0 species=94 level=50 m1=94 m2=126
+act 0 m0 m1 m0 m1
+mon 1 0 species=143 level=100 m1=1 status=7
+stop 4
