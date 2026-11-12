@@ -1639,10 +1639,12 @@ or the libultraship fork. The generic rules below are what each scene ran into.
 | CPU-built geometry, particles under an identity matrix, texture animation | battle effects build their vertices on the CPU each frame under a shared identity modelview (`BattleAnim_*_Draw`, `RibbonMesh_DrawPool`); texture cycles (Moltres' wings, flames) | unchanged by design: shown at the game's rate while the camera moves smoothly around them (interpolating them would need per-effect game changes) |
 | 2D | rectangles paired by texture/size/texcoords and moved in between | unchanged (`Interp2DPrepare`); its cut rules (48 pixels, new rectangles) already fall back to the exact place |
 
-**Checked** (scripts and pictures in `scratch/interp-redesign`, a machine shared with other builds, load 40-50):
+**Checked** (scripts in `tools/interp_check`: `sweep.sh`, `pacing.sh`; a machine shared with other builds, load 40-50):
 - Real time, cup-clear ceremony, 15 s, `PORT_DEBUG_DRAW_MS=25`, two trials: old design 29 and 46 jumps of more than 4
   retraces (33 and 49 freezes over 50 ms); new 4 and 12 (8, 13); Smooth motion off 1 and 4 (3, 9). With 14 ms draws 5
-  and 5 jumps. Without a delay the new design shows 830 pictures in 15 s (off: 448).
+  and 5 jumps. Without a delay the new design shows 830 pictures in 15 s (off: 448). Repeated on a quieter machine
+  (`tools/interp_check/pacing.sh`): old design 90 freezes / 51 jumps, new 5 / 2, off 1 / 0; with 14 ms draws the new
+  design keeps every in-between picture (897 in 15 s) with no freeze or jump.
 - Old vs new pictures (`PORT_INTERP_MATCH=index`): Fire Blast's star-shaped burst collapses and the sleep Zs jump in
   the old in-between pictures (frames 1970, 1986 of a Gengar vs sleeping Snorlax battle); the sparkles in Koga's gym
   vanish (frame 146); the new ones lie between their neighbours. `PORT_INTERP_LOG=1` counts how many pairs the old
