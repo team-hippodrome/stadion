@@ -1535,7 +1535,11 @@ every change (`Port::ApplySoundSettings`, Engine.cpp; state in sound_settings.cp
 - `gSound.Delay` (0 normal, 1 short, 2 long): the output queue target when the stream opens (`SoundQueueTarget`):
   short 60 % of the platform's (at least 20 ms), long 120 ms, which the adaptive target reaches on a slow PC anyway.
   macOS: 22.9 / 20.0 / 120 ms (`PORT_TRACE_AUDIO_OUT=1` prints it).
-Volumes follow a square curve (50 % = 1/4 amplitude, about half as loud). At 100 % nothing is multiplied: the mix is
+Volumes follow a square curve (50 % = 1/4 amplitude, -12 dB, about half as loud). Music and effects scale the music
+player's voice *volume*, which libnaudio squares itself (`n_env.c`: `em_volume = volume^2 >> 15`), so their gain is the
+linear fraction; applying the square there made 50 % come out at 1/16 (-24 dB) and 25 % inaudible (tester report). Measured
+(`PORT_AUDIO_DUMP`, main menu, RMS relative to 100 %): 75 % 0.56, 50 % 0.25, 25 % 0.063, 10 % 0.014. Voices scale
+samples, so they use the square. At 100 % nothing is multiplied: the mix is
 bit-identical to before. Stereo or mono stays the game's own Options setting. The handheld (Android) launcher has no
 Sound panel yet. `PORT_LAUNCHER_OPEN_SOUND=1` opens it (with `PORT_LAUNCHER_SHOT` for a picture).
 
