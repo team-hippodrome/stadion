@@ -2028,3 +2028,14 @@ game/include) and every cast that reads a field through a wider type; each use w
   (u8, u8, u16) read as f32 (the decomp marks it `//?`); whether the host reads the N64's value depends on how the
   record is loaded. Needs a run with a gallery photo against ares.
 - 64DD only: rsp.h overlays the low byte of `lba` with `mode` (dead in the retail game without a 64DD).
+
+## Vulkan: minimized window
+
+A minimized window on Windows has a surface with `currentExtent` 0x0 while SDL still reports the last pixel size, so
+the Vulkan backend created a zero-sized swapchain (a tester's Intel iGPU crashed the launcher). `NewFrame`
+(libultraship `gfx_vulkan.cpp`, Team Hippodrome fork) now makes no frame, and marks the swapchain for recreation, while
+SDL reports the window minimized or the surface has no area (`SurfaceHasNoArea`, also on the retry after
+`VK_ERROR_OUT_OF_DATE_KHR`). `PORT_DEBUG_MINIMIZE=<frame>:<restore frame>` minimizes and restores the window at those
+frames (game: VI frame; launcher: its own frame counter; needs a visible window). Checked on MoltenVK
+(`{"Window": {"Backend": {"Id": 4, "Name": "Vulkan"}}}`) in the game (minimized 120-360: no errors, picture back after the
+restore) and in the launcher. Windows itself is untested.

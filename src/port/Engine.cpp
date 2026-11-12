@@ -704,6 +704,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         return false;
     }
     sWindow->HandleEvents();
+    Port::DebugMinimize(Port_ViTick());
     { // PORT debug: PORT_DEBUG_RESIZE=<frame>:<w>x<h>[,<frame>:<w>x<h>...] resizes the window at those VI frames
         static const char* rs = getenv("PORT_DEBUG_RESIZE");
         unsigned long long f = 0;
@@ -889,6 +890,38 @@ extern "C" int Port_WideMarginN64(void) {
 }
 
 namespace Port {
+
+void DebugMinimize(unsigned long long frame) {
+    static const char* spec = getenv("PORT_DEBUG_MINIMIZE");
+    static unsigned long long minFrame = 0, restoreFrame = 0;
+    static bool parsed = false, minimized = false, restored = false;
+    if (spec == nullptr || restored) return;
+    if (!parsed) {
+        parsed = true;
+        if (sscanf(spec, "%llu:%llu", &minFrame, &restoreFrame) != 2) {
+            fprintf(stderr, "[minimize] PORT_DEBUG_MINIMIZE=<frame>:<restore frame>\n");
+            restored = true;
+            return;
+        }
+    }
+    int n = 0;
+    SDL_Window** ws = SDL_GetWindows(&n);
+    if (ws == nullptr || n == 0) {
+        SDL_free(ws);
+        return;
+    }
+    SDL_Window* w = ws[0];
+    SDL_free(ws);
+    if (!minimized && frame >= minFrame) {
+        minimized = true;
+        SDL_MinimizeWindow(w);
+        fprintf(stderr, "[minimize] window minimized at frame %llu\n", frame);
+    } else if (minimized && frame >= restoreFrame) {
+        restored = true;
+        SDL_RestoreWindow(w);
+        fprintf(stderr, "[minimize] window restored at frame %llu\n", frame);
+    }
+}
 
 void ApplySoundSettings() {
     SoundSettings s;

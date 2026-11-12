@@ -62,6 +62,9 @@ void RenderSize(int* w, int* h);
 void ApplySoundSettings();
 // the game window (after Init), for the launcher
 std::shared_ptr<Fast::Fast3dWindow> GetWindow();
+// debug hook, called once per frame (game: VI frame, launcher: its frame): PORT_DEBUG_MINIMIZE=<frame>:<restore frame>
+// minimizes the window at the first frame and restores it at the second, to test the renderers' minimized path
+void DebugMinimize(unsigned long long frame);
 // starts building the shader programs earlier runs drew, and records new ones (shader_warmup.cpp; after Init)
 bool RunShaderWarmup();
 void BeginShaderWarmup();
