@@ -1045,6 +1045,14 @@ sample count after every VI frame).
   press on the port (input is applied before the frame is drawn) but not on ares: the tower menu looked "one step
   ahead". With captures between presses (build/tour/towerexact) all 7 menu/layout captures match ares, including
   the fade during the Z switch.
+- Doduo / Dodrio fast-forward (C-Right; Normal tower: no effect, Doduo 1↔2, Dodrio 1→2→4→1 Game Boy frames per N64
+  frame, emu->unk_548E) had no effect: the tower passes `unk_548E * 0x9A` lines to GbCpu_Execute and the original
+  emulator runs that budget (context 0x53DE), while the native core ran one frame regardless. It now runs that many
+  frames, each with its own frame end, and time-stamps APU writes as the original (0x8120B04C): time over the whole
+  call divided by the speed, so the mixer plays them in one buffer and the music speeds up with the game. Measured
+  from the press to Yellow's surfing scene: port 1.99x / 3.97x, ares 1.98x / ~3.6x (on the N64 the CPU cannot always
+  fit 4 Game Boy frames in one VI, hence the "3x" of the manual; the port runs what the game asks for).
+  ares_ref needs the Game Boy core for these runs: configure its build with `-DARES_CORES="n64;gb"`.
 - Closing the window crashed (the user's 80-minute session ended with "mutex lock failed: Invalid argument", abort):
   main returned after the window loop, the C++ static destructors ran while game threads were still running, and one
   of them locked a destroyed mutex. main now ends with _exit(0) after the loop, as SIGTERM already did (saves are
