@@ -1408,6 +1408,9 @@ Smooth motion, Keep full speed, and two presets.
 - Display: `Window.Fullscreen.Enabled` in the config, applied on Play (the launcher keeps its own window size);
   `gSdlWindowedFullscreen` = 1 on the desktop makes SDL's fullscreen borderless (DXGI's already is; macOS uses its own
   fullscreen). F11 toggles in-game as before.
+- A fixed size taller than the display's pixels (`SDL_GetDesktopDisplayMode` height times pixel density; 1912 on an
+  M5 Air's default scaled mode) is drawn and then shrunk: the hint then says so and names a size that fits. 2160p
+  draws four times 1080p's pixels (menus: 4.6 against 1.6 ms of GPU time per picture on an M5 Air).
 - Launcher: the Internal resolution list is an ImGui combo (the first one in the launcher). The launcher brings its
   window to the front every frame, so the list's popup brings itself to the front too. Left/Right on the closed list
   step to the neighbouring entry. `PORT_LAUNCHER_OPEN_RESOLUTION=1` opens it for a `PORT_LAUNCHER_SHOT` picture.
@@ -1680,6 +1683,53 @@ old rule would have blended with another object, scene cuts), `=2` (each reorder
 picture shown with its game frame and wall-clock time: what a real-time run puts on screen); `PORT_INTERP_IMMEDIATE=late`;
 `PORT_INTERP_BUDGET=0` (no budget); `PORT_BOOT=demo:<n>` / `PORT_BOOT=castle_clear` (the ceremonies and the Castle
 ending without playing there: 0x11 cup clear, 0x15/0x1A completion, 0x16/0x17 first-clear bonus, 0x18 Mewtwo intro).
+
+### Picture budget misfires (2026-11-13): menus below 60 at 2160p, an HD 520 stuck at 20
+
+Reports after v0.0.13: on an M5 MacBook Air the menus did not reach 60 at 2160p (windowed, Integer, MSAA off, VSync,
+Smooth motion, Keep full speed); on an Intel HD 520 (Windows) the title showed 20 FPS at any setting, also OpenGL at
+720p with 2x MSAA in the Pokédex (v0.0.12: 60). Measured on the M5 Air (`PORT_TRACE_FRAMETIME`, below), the 2160p menus
+cost 4.6 ms of GPU time per picture (1.6 at 1080p, 2.7 at Match window): two pictures fit a 30 fps game frame easily.
+The budget fell back to one picture per game frame anyway, for three reasons, and its doubling hold kept it there:
+
+- **Self-inflicted lag counted as "behind".** The window thread runs the game's RSP tasks (audio, the next frame); a
+  picture of 9-10 ms delays them, so the next retrace comes a few ms late (made up at once). `PumpInterpolation` dropped
+  the pending in-between picture at a clock lag over 4 ms, and `PicturesAllowed` renewed the hold at the same 4 ms, so a
+  slow GPU never left one picture per frame. Both now allow one refresh (16.7 ms; `PORT_INTERP_LAG_MS`).
+- **"3 drops in a row" was "3 drops ever".** The count was reset only by a series still pending when the next game frame
+  came; a completed series never is (DrawNext ends it). It is now reset when a series shows all its pictures, and a
+  drop counts only when the dropped picture was already due (a game frame arriving before an in-between's refresh,
+  as in the start-up logos, is the game's pace, not a lack of time) or game time is a refresh behind.
+- **One late picture was an overrun.** A scene load, a shader build or a busy host made one picture late and put the
+  game on 30 for 2 s, doubling the next hold. A late picture (ended after the next game frame was due; first picture
+  over two refreshes) now counts only when another came within the last second (`NoteLatePicture`); a GPU that is
+  really too slow is late on every frame.
+
+`PORT_INTERP_OLD_BUDGET=1` restores the old rules for comparisons. `PORT_INTERP_LOG=1` also logs each dropped picture
+and why, and late pictures not counted. Results (M5 Air, Metal, a busy machine; scripts and logs in
+`~/Projects/Pokemon/scratch/menu-4k-perf`):
+
+| 2160p menus (tour_play replay, real time, 4 interleaved runs each) | pictures/s, median | budget holds |
+|---|---|---|
+| old rules / new rules | 55.5 / 59.7 | 8 / 0 |
+| `PORT_DEBUG_DRAW_MS=9` (a picture as costly as on an M1/M2), old / new | 55.7 / 59.8 | 8 / 0 |
+
+`tools/interp_check/pacing.sh` (cup-clear ceremony, 2 trials): at 14 ms per picture 894-897 pictures in 15 s (all of
+them) and no freezes, against 697-742 with the old rules; at 25 ms (HD 520) 421-440 pictures with 7-8 freezes and 5-7
+jumps, close to Smooth motion off (440-444, 1-6 freezes) and the old rules (427-448, 6-8 freezes, 1-3 jumps), far from
+no budget at all (76-100 freezes). Keep full speed holds game time when drawing cannot keep up even at one picture per
+frame (`PORT_DEBUG_DRAW_MS=40`: ~1800 retraces in 30 s with it, ~1200 without).
+
+Not the cause, measured: the Metal backend's empty render pass after each frame start (StartDraw then Clear) and the
+depth buffer stored at the end of every picture. Lazy encoders and a depth store decided at the end of the pass gave
+3.52 against 3.55 ms per picture at 2160p with the GPU saturated (Apple's driver skips the empty pass), so they were
+left out. On the HD 520, 8x MSAA is a real cost: every Vulkan/Metal pass loads and stores the multisampled attachments
+and resolves at its end (~120 MB per pass at 720p 8x).
+
+`PORT_TRACE_FRAMETIME=1` (libultraship Fast3dWindow): every 2 s, pictures per second and per picture the wait for a
+drawable, the interpreter, the GUI, submit (average/p95 ms) and the GPU's busy time (Metal command buffers'
+GPUStartTime..GPUEndTime); `=2` also per command buffer label (FrameBuffer 0 is the window, the game's frame buffers
+follow). GPU times are inflated at low load (the GPU clocks down): compare within one run or saturate it.
 
 The game draws a new frame every 2nd or 3rd VI retrace (30 or 20 fps; menus mostly 30). With interpolation on, 3D
 scenes are shown at the display's refresh rate: between two game frames the renderer draws the newer frame's display

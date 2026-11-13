@@ -1421,6 +1421,15 @@ class LauncherWindow : public Ship::GuiWindow {
         if (pick >= 0 && pick != cur) SetResolution(kResEntries[pick]);
     }
 
+    // the pixel height of the display the window is on (a Retina display's pixels, not its points); 0 if unknown
+    static int DisplayPixelHeight() {
+        SDL_Window* sdl = MainWindow();
+        if (sdl == nullptr) return 0;
+        const SDL_DisplayMode* mode = SDL_GetDesktopDisplayMode(SDL_GetDisplayForWindow(sdl));
+        if (mode == nullptr || mode->h <= 0) return 0;
+        return (int)std::lround(mode->h * std::max(1.0f, mode->pixel_density));
+    }
+
     // a row of buttons, the chosen one highlighted; returns the index clicked, or -1
     int Choice(const char* id, const std::vector<std::string>& labels, int chosen, float x, float y, float bw = 64) {
         int clicked = -1;
@@ -1475,9 +1484,20 @@ class LauncherWindow : public Ship::GuiWindow {
         {
             int rw = 0, rh = 0;
             Port::RenderSize(&rw, &rh);
-            char hint[96];
-            if (rw > 0) snprintf(hint, sizeof hint, "Draws %d x %d.\nLower it if the game is slow.", rw, rh);
-            else snprintf(hint, sizeof hint, "Lower it if the game is slow.");
+            char hint[128];
+            // a fixed size taller than the display is drawn and then shrunk to the display (or the window): it costs
+            // the work of the larger picture (2160p is four times the pixels of 1080p; on an M5 MacBook Air's GPU a
+            // menu picture took 4.6 ms at 2160p, 1.6 ms at 1080p) for little sharpness
+            const int lines = r.mode == Port::kResN64 ? 240 * r.multiple : r.mode == Port::kResHeight ? r.height : 0;
+            const int displayLines = DisplayPixelHeight();
+            if (lines > 0 && displayLines > 0 && lines > displayLines) {
+                snprintf(hint, sizeof hint, "Taller than this display (%d lines):\nslower, hardly sharper. Try %dp.",
+                         displayLines, displayLines >= 1440 ? 1440 : displayLines >= 1080 ? 1080 : 720);
+            } else if (rw > 0) {
+                snprintf(hint, sizeof hint, "Draws %d x %d.\nLower it if the game is slow.", rw, rh);
+            } else {
+                snprintf(hint, sizeof hint, "Lower it if the game is slow.");
+            }
             label("Internal resolution", hint);
             ResolutionCombo(cx, ry, 4 * 64 + 3 * 4);
         }
