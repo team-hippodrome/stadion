@@ -2110,3 +2110,21 @@ SDL reports the window minimized or the surface has no area (`SurfaceHasNoArea`,
 frames (game: VI frame; launcher: its own frame counter; needs a visible window). Checked on MoltenVK
 (`{"Window": {"Backend": {"Id": 4, "Name": "Vulkan"}}}`) in the game (minimized 120-360: no errors, picture back after the
 restore) and in the launcher. Windows itself is untested.
+
+## Cup grid: defeated trainers crossed out (OpenGL)
+
+The Cup trainer grid (Poké/Prime/Petit/Pika Cup) marks each beaten trainer by drawing the red cross into that
+trainer's portrait image in RDRAM (`BattlePrep_RenderBadgeGlowTexture`, called once per won battle in
+`BattlePrep_LoadBadgeTextures`, all in one frame; `gDPPortPreserveColorImage` keeps the portrait under it). On OpenGL
+only the first portrait got its cross (a tester's Poké Cup battle 6: 1 of 5). Cause: the GL backend's `SelectTexture`
+skips `glBindTexture` when `mLastBoundTextures` already names the texture, but `CreateFramebuffer` and
+`UpdateFramebufferParameters` bound the new render target's colour texture and then texture 0 behind that cache. From
+the second portrait on, the cross texture was a cache hit and the draw sampled texture 0 (nothing). Both now bind back
+the texture the cache records for the active unit (libultraship `gfx_opengl.cpp`, Team Hippodrome fork). Metal and
+Vulkan were never affected; DirectX 11 is untested.
+
+Checked with `replays/cup_giveup.rec` (plus Re-enter, OK: the second visit to the grid) and a temporary local override
+that set `roundOrDemoId` to 6 and `opponentHistory` to 0..7 in `BattlePrep_LoadBadgeTextures`. OpenGL before: 1 cross;
+after: 5, with Smooth motion on and off, at full speed and in real time with `PORT_DEBUG_DRAW_MS=25`. Metal and Vulkan
+also give 5. ares (original ROM, same inputs, RDRAM writes `fill 1500 1690 800AE542 2 0006` for the round and
+`800AF724..800AF72A` for the opponents) draws the same 5 crosses. The red share per cell matches within 1-2 %.
