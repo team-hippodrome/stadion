@@ -124,6 +124,25 @@ bool BudgetDisabled() {
     return v;
 }
 
+void NoteOverrun(const char* why);
+
+// A late picture counts as an overrun only when another came within the last second of game time: a GPU too slow for
+// the pictures is late on every frame, while a lone late picture (a scene loading, a shader built, the host busy for
+// a moment) put the menus on 30 pictures per second for 2 s and doubled the next hold.
+void NoteLatePicture(const char* why) {
+    static uint64_t sLastLate = 0;
+    const uint64_t tick = Port_ViTick();
+    static const bool sOld = getenv("PORT_INTERP_OLD_BUDGET") != nullptr; // the rules before 2026-11-13 (comparisons)
+    const bool repeated = sOld || (sLastLate != 0 && tick >= sLastLate && tick - sLastLate <= 60);
+    sLastLate = tick;
+    if (repeated) {
+        NoteOverrun(why);
+    } else if (getenv("PORT_INTERP_LOG")) {
+        fprintf(stderr, "[interp] late picture at frame %llu (%s): the first in a second, not counted\n",
+                (unsigned long long)tick, why);
+    }
+}
+
 void NoteOverrun(const char* why) {
     if (BudgetDisabled()) return;
     if (!gBudget.overran && getenv("PORT_INTERP_LOG")) {
@@ -136,7 +155,11 @@ void NoteOverrun(const char* why) {
 int PicturesAllowed() {
     if (BudgetDisabled()) return 8;
     Budget& b = gBudget;
-    bool lagging = Port_ClockLagNs() > 4000000;
+    // (a refresh, as in PumpInterpolation: drawing itself delays the next retrace by a few ms, and with 4 ms every
+    // frame of a slow GPU renewed the hold below, so the budget never left one picture per game frame: an Intel HD 520
+    // showed the game's own 20 per second in the title, where v0.0.12 showed 60)
+    static const bool sOld = getenv("PORT_INTERP_OLD_BUDGET") != nullptr;
+    bool lagging = Port_ClockLagNs() > (sOld ? 4000000 : 16666667);
     if (b.overran) { // (a lag alone is not ours: loading stalls the game too; dropped pictures count, FinishPending)
         if (b.maxPictures > 1) {
             b.hold = b.backoff;
@@ -553,15 +576,26 @@ void DrawNext();
 // Drops the in-between frames still due. A frame drawn over the previous picture (Pending::restore) has its exact
 // drawing done first: the game frame buffer would otherwise keep a blended picture that later frames draw over. Not
 // when the game has unloaded data the display list may use (the blended picture stays, as for other frames).
-void FinishPending(bool countDrop = true) {
-    if (gHavePending && gPending.next < gPending.k && countDrop) {
+// A drop counts against the budget only when the picture dropped was already due: we were late drawing it. A game
+// frame that comes before an in-between picture's refresh (the game's own uneven pace: start-up logos, loading) is
+// not a lack of time. Before 2026-11-13 every drop counted, and the count was reset only by a drop-free series that
+// was still pending when the next game frame came, which a completed series never is (DrawNext ends it): any three
+// drops since the last hold, seconds apart, started a new one (PORT_INTERP_OLD_BUDGET=1: those rules).
+bool gForcedFinish = false;
+
+void FinishPending(bool countDrop = true, bool behind = false) {
+    static const bool sOld = getenv("PORT_INTERP_OLD_BUDGET") != nullptr;
+    const bool late = sOld || behind || (gHavePending && Port_SteadyNs() > Due(gPending, gPending.next));
+    if (gHavePending && gPending.next < gPending.k && countDrop && late) {
         if (++gBudget.dropsInRow >= 3) NoteOverrun("pictures dropped in 3 game frames in a row");
     } else if (gHavePending) {
         gBudget.dropsInRow = 0;
     }
     if (gHavePending && gPending.restore && gPending.next < gPending.k && gMapGen.load() == gPending.mapGen) {
         gPending.next = gPending.k - 1;
+        gForcedFinish = true;
         DrawNext(); // (ends the pending frame)
+        gForcedFinish = false;
         return;
     }
     EndPending();
@@ -578,8 +612,12 @@ void DrawNext() {
     }
     Port::RunFrameWith(p.dl, &r, true, ShotWanted(p.tick));
     Shot(p.tick, j, p.k);
-    if (Port_SteadyNs() > p.frameDue + 2000000) NoteOverrun("a picture ended after the next game frame was due");
-    if (p.next >= p.k) EndPending();
+    if (Port_SteadyNs() > p.frameDue + 2000000) NoteLatePicture("a picture ended after the next game frame was due");
+    if (p.next >= p.k) {
+        static const bool sOld = getenv("PORT_INTERP_OLD_BUDGET") != nullptr;
+        if (!gForcedFinish && !sOld) gBudget.dropsInRow = 0; // every picture of the series shown
+        EndPending();
+    }
 }
 } // namespace
 
@@ -628,6 +666,10 @@ void RunGameFrame(void* gfxCommands, bool exact) {
     static const bool late = getenv("PORT_INTERP_IMMEDIATE") && strcmp(getenv("PORT_INTERP_IMMEDIATE"), "late") == 0;
     if (late && gHavePending && gMapGen.load() == gPending.mapGen) {
         while (gHavePending) DrawNext();
+    }
+    if (Logging() && gHavePending && gPending.next < gPending.k) {
+        fprintf(stderr, "[interp] drop at frame %llu picture %d/%d: newer frame (%.1f ms after the first)\n",
+                (unsigned long long)gPending.tick, gPending.next + 1, gPending.k, (Port_SteadyNs() - gPending.start) / 1e6);
     }
     FinishPending(); // a newer frame: in-between frames still due are dropped
     if (!on) {
@@ -699,7 +741,7 @@ void RunGameFrame(void* gfxCommands, bool exact) {
         RunFrameWith(gfxCommands, &r, false);
         Shot(tick, 0, k);
         // the first picture alone took two refreshes (a present that waits for the vblank takes up to one): no room
-        if (Port_SteadyNs() - gPending.start > gPending.period * 2) NoteOverrun("the first picture took two refreshes");
+        if (Port_SteadyNs() - gPending.start > gPending.period * 2) NoteLatePicture("the first picture took two refreshes");
         gHavePending = true;
         if (immediate && !late) {
             while (gHavePending) DrawNext();
@@ -722,9 +764,21 @@ void PumpInterpolation() {
         return;
     }
     // An in-between frame never holds up the game: when the game already waits for its next frame to be drawn, or
-    // game time lags behind real time (a slow GPU), the in-between frames still due are dropped.
-    if (Port_RspTaskPending() || Port_ClockLagNs() > 4000000) {
-        FinishPending();
+    // game time lags behind real time (a slow GPU), the in-between frames still due are dropped. The lag allowed is a
+    // refresh: drawing a picture delays the window thread's RSP tasks (the game's audio, its next frame), so each
+    // retrace after a long picture comes a few ms late and is made up at once. With 4 ms, pictures of 9-10 ms (3840 x
+    // 2160 on an M1/M2's GPU), two of which fit in a 30 fps frame, were dropped on most frames, and the budget then
+    // held the menus at 30 pictures per second for up to minutes (PORT_DEBUG_DRAW_MS=9: 37 pictures/s, 5 holds in 45 s).
+    static const int64_t sLagNs = getenv("PORT_INTERP_LAG_MS") ? (int64_t)(atof(getenv("PORT_INTERP_LAG_MS")) * 1e6)
+                                  : getenv("PORT_INTERP_OLD_BUDGET") ? 4000000 : 16666667;
+    if (Port_RspTaskPending() || Port_ClockLagNs() > sLagNs) {
+        if (Logging() && gPending.next < gPending.k) {
+            fprintf(stderr, "[interp] drop at frame %llu picture %d/%d: %s (lag %.1f ms, %.1f ms after the first)\n",
+                    (unsigned long long)gPending.tick, gPending.next + 1, gPending.k,
+                    Port_RspTaskPending() ? "next game frame waiting" : "clock lag", Port_ClockLagNs() / 1e6,
+                    (Port_SteadyNs() - gPending.start) / 1e6);
+        }
+        FinishPending(true, Port_ClockLagNs() > sLagNs); // (game time behind: drawing could not keep up)
         return;
     }
     if (Port_SteadyNs() < Due(gPending, gPending.next)) return;
