@@ -1045,6 +1045,14 @@ sample count after every VI frame).
   press on the port (input is applied before the frame is drawn) but not on ares: the tower menu looked "one step
   ahead". With captures between presses (build/tour/towerexact) all 7 menu/layout captures match ares, including
   the fade during the Z switch.
+- Doduo / Dodrio fast-forward (C-Right; Normal tower: no effect, Doduo 1↔2, Dodrio 1→2→4→1 Game Boy frames per N64
+  frame, emu->unk_548E) had no effect: the tower passes `unk_548E * 0x9A` lines to GbCpu_Execute and the original
+  emulator runs that budget (context 0x53DE), while the native core ran one frame regardless. It now runs that many
+  frames, each with its own frame end, and time-stamps APU writes as the original (0x8120B04C): time over the whole
+  call divided by the speed, so the mixer plays them in one buffer and the music speeds up with the game. Measured
+  from the press to Yellow's surfing scene: port 1.99x / 3.97x, ares 1.98x / ~3.6x (on the N64 the CPU cannot always
+  fit 4 Game Boy frames in one VI, hence the "3x" of the manual; the port runs what the game asks for).
+  ares_ref needs the Game Boy core for these runs: configure its build with `-DARES_CORES="n64;gb"`.
 - Closing the window crashed (the user's 80-minute session ended with "mutex lock failed: Invalid argument", abort):
   main returned after the window loop, the C++ static destructors ran while game threads were still running, and one
   of them locked a destroyed mutex. main now ends with _exit(0) after the loop, as SIGTERM already did (saves are
@@ -2160,3 +2168,21 @@ SDL reports the window minimized or the surface has no area (`SurfaceHasNoArea`,
 frames (game: VI frame; launcher: its own frame counter; needs a visible window). Checked on MoltenVK
 (`{"Window": {"Backend": {"Id": 4, "Name": "Vulkan"}}}`) in the game (minimized 120-360: no errors, picture back after the
 restore) and in the launcher. Windows itself is untested.
+
+## Cup grid: defeated trainers crossed out (OpenGL)
+
+The Cup trainer grid (Poké/Prime/Petit/Pika Cup) marks each beaten trainer by drawing the red cross into that
+trainer's portrait image in RDRAM (`BattlePrep_RenderBadgeGlowTexture`, called once per won battle in
+`BattlePrep_LoadBadgeTextures`, all in one frame; `gDPPortPreserveColorImage` keeps the portrait under it). On OpenGL
+only the first portrait got its cross (a tester's Poké Cup battle 6: 1 of 5). Cause: the GL backend's `SelectTexture`
+skips `glBindTexture` when `mLastBoundTextures` already names the texture, but `CreateFramebuffer` and
+`UpdateFramebufferParameters` bound the new render target's colour texture and then texture 0 behind that cache. From
+the second portrait on, the cross texture was a cache hit and the draw sampled texture 0 (nothing). Both now bind back
+the texture the cache records for the active unit (libultraship `gfx_opengl.cpp`, Team Hippodrome fork). Metal and
+Vulkan were never affected; DirectX 11 is untested.
+
+Checked with `replays/cup_giveup.rec` (plus Re-enter, OK: the second visit to the grid) and a temporary local override
+that set `roundOrDemoId` to 6 and `opponentHistory` to 0..7 in `BattlePrep_LoadBadgeTextures`. OpenGL before: 1 cross;
+after: 5, with Smooth motion on and off, at full speed and in real time with `PORT_DEBUG_DRAW_MS=25`. Metal and Vulkan
+also give 5. ares (original ROM, same inputs, RDRAM writes `fill 1500 1690 800AE542 2 0006` for the round and
+`800AF724..800AF72A` for the opponents) draws the same 5 crosses. The red share per cell matches within 1-2 %.
