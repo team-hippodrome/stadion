@@ -78,6 +78,8 @@ static struct {
     u16 shown[144][160]; // the picture handed to the presentation (kept while the screen is masked)
     int shownLcdOn;
     u32 frameCycles; // CPU cycles since the frame started (time stamp for the tower's sound mixer)
+    u32 soundBase;   // CPU cycles of the earlier Game Boy frames in this GbCpu_Execute call (fast-forward)
+    u32 speed;       // Game Boy frames per call: 1, or 2 / 4 in the Doduo / Dodrio Tower fast-forward
     int trnCmd, trnFrames;
     u8 trnArg;
     // MASK_EN as the N64 emulator keeps it: maskEn is the last value sent (context 0x5402), maskShown the one in effect
@@ -362,7 +364,9 @@ static void WriteIo(u16 a, u8 v) {
         default:
             G.io[r] = v;
             if (r >= 0x10 && r < 0x40) {
-                func_81208C08((u16)(0xFF00 | r), v, (u16)(G.frameCycles >> 2));
+                // as the N64 emulator (0x8120B04C): the time runs over all the Game Boy frames of this call and is
+                // divided by the speed, so the tower's mixer plays them in one buffer (the music speeds up too)
+                func_81208C08((u16)(0xFF00 | r), v, (u16)(((G.soundBase + G.frameCycles) >> 2) / (G.speed ? G.speed : 1)));
             }
             return;
     }
@@ -1256,27 +1260,8 @@ void GbCpu_InitOpcodeTables(void* emu, void* tables) {
     (void)tables;
 }
 
-// One video frame. The GB Tower code calls it once per N64 frame.
-int GbCpu_Execute(void* emu, int cycles) {
-    (void)cycles;
-    if (!G.initialised || gEmu != emu) {
-        Reset(emu);
-    }
-    G.pad = *(u16*)EMU_FIELD(emu, OFF_PAD);
-    // save RAM write-back: count down the pages written last time (see MarkSramDirty)
-    u8* dirty = EMU_FIELD(emu, OFF_DIRTY);
-    u8* delay = EMU_FIELD(emu, OFF_DELAY);
-    for (int i = 0; i < 0x80; i++) {
-        if (dirty[i] == 0 && delay[i] != 0 && delay[i] < 0xFE) delay[i]--;
-    }
-    G.frameDone = 0;
-    G.frameCycles = 0;
-    for (u32 guard = 0; !G.frameDone && guard < 200000; guard++) {
-        u32 c = Step();
-        G.frameCycles += c;
-        TimerStep(c);
-        LcdStep(G.doubleSpeed ? c / 2 : c); // the LCD keeps its pace in double speed
-    }
+// The end of one Game Boy frame (VBlank).
+static void FrameEnd(void* emu) {
     if (G.trnFrames && --G.trnFrames == 0) {
         SgbTransfer(G.trnCmd, G.trnArg);
     }
@@ -1299,6 +1284,38 @@ int GbCpu_Execute(void* emu, int cycles) {
             *EMU_FIELD(emu, OFF_BORDER_SHOWN) = 1;
             G.borderTrn = 0;
         }
+    }
+}
+
+// One N64 frame. The GB Tower code calls it once per N64 frame with a budget of 154 lines (one Game Boy frame) times
+// its speed, emu->unk_548E: 1, or 2 / 4 after C-Right in the Doduo / Dodrio Tower (gb_tower_emulator_7F9A0.c). The N64
+// emulator keeps the budget at context 0x53DE and runs that many lines, so the Game Boy game runs 2x / 4x; running a
+// single frame regardless left the fast-forward without effect.
+int GbCpu_Execute(void* emu, int cycles) {
+    if (!G.initialised || gEmu != emu) {
+        Reset(emu);
+    }
+    u32 speed = (u32)cycles / 0x9A;
+    G.speed = speed < 1 ? 1 : speed > 4 ? 4 : speed;
+    G.pad = *(u16*)EMU_FIELD(emu, OFF_PAD);
+    // save RAM write-back: count down the pages written last time (see MarkSramDirty)
+    u8* dirty = EMU_FIELD(emu, OFF_DIRTY);
+    u8* delay = EMU_FIELD(emu, OFF_DELAY);
+    for (int i = 0; i < 0x80; i++) {
+        if (dirty[i] == 0 && delay[i] != 0 && delay[i] < 0xFE) delay[i]--;
+    }
+    G.soundBase = 0;
+    for (u32 frame = 0; frame < G.speed; frame++) {
+        G.frameDone = 0;
+        G.frameCycles = 0;
+        for (u32 guard = 0; !G.frameDone && guard < 200000; guard++) {
+            u32 c = Step();
+            G.frameCycles += c;
+            TimerStep(c);
+            LcdStep(G.doubleSpeed ? c / 2 : c); // the LCD keeps its pace in double speed
+        }
+        G.soundBase += G.frameCycles;
+        FrameEnd(emu);
     }
     return 0;
 }
