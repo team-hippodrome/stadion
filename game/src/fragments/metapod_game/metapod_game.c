@@ -1828,7 +1828,7 @@ void MetapodGame_LoadAssets(void) {
     };
 
     s32 i;
-    MemoryBlock* temp_v0;
+    MainPoolState* temp_v0;
     unk_D_86002F30* temp_s1_2;
     s32 randN;
 

@@ -258,7 +258,8 @@ void Dma_ReadChunks(u8* arg0, s32 arg1, s32 arg2, s32 arg3) {
     }
 }
 
-s32 Flash_ProgramPages(u8* arg0, s16 arg1, s16 arg2, s32 arg3) {
+s32 Flash_ProgramPages(void* record, s16 arg1, s16 arg2, s32 arg3) {
+    u8* arg0 = record;
     OSMesg sp44;
     OSMesgQueue* mesq = &D_800A62C0;
 
@@ -481,11 +482,11 @@ void Storage_PrefetchLbaRange(s32 arg0, s32 arg1, s32 arg2) {
     Storage_LoadAssetByLbaRange(&sp1C, arg2);
 }
 
-void Memmap_ClearSegmentOnBlockFree(uintptr_t block_addr, u32 addr) {
+void Memmap_ClearSegmentOnBlockFree(void* block, u32 addr) {
     u32 base = addr & 0xFF000000;
     u32 sp1C = addr & 0xFFFFFF;
 
-    if ((base == 0x82000000) && (Memmap_GetSegmentBaseVaddr(sp1C) == block_addr)) {
+    if ((base == 0x82000000) && (Memmap_GetSegmentBaseVaddr(sp1C) == (uintptr_t)block)) {
         Memmap_ClearSegmentMemmap(sp1C);
     }
 }
@@ -513,14 +514,14 @@ MainPoolBlock* Asset_LoadToSegmentByLbaRange(s32 arg0, s32 arg1, s32 arg2, s32 a
     return temp_v0;
 }
 
-void Fragment_FreeCallback(uintptr_t base_addr, u32 addr) {
-    Port_VFree((void*)base_addr);
+void Fragment_FreeCallback(void* base, u32 addr) {
+    Port_VFree(base);
     u32 sp1C;
     u32 temp_a0;
 
     if ((addr & 0xFF000000) == 0x81000000) {
         sp1C = addr & 0xFFFFFF;
-        if (Memmap_GetFragmentBaseVaddr(sp1C) == base_addr) {
+        if (Memmap_GetFragmentBaseVaddr(sp1C) == (uintptr_t)base) {
             Memmap_ClearFragmentMemmap(sp1C);
         }
     }

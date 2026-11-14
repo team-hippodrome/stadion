@@ -758,7 +758,7 @@ void PikachuReward_SetupFollowerModel(DisplayObject* arg0, s16 arg1, s16 arg2, s
 }
 
 void PikachuReward_SetupScene(void) {
-    MemoryBlock* temp_v0;
+    MainPoolState* temp_v0;
     s32 i;
 
     temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);

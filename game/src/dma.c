@@ -33,7 +33,7 @@ s32 Storage_QueueRomWrite(void* arg0, void* arg1, s32 arg2, OSMesgQueue* arg3, s
     temp_v0 = Util_Malloc(sizeof(struct UnkStruct80000E80));
     if (temp_v0 != NULL) {
         temp_v0->unk0 = 0xF4;
-        temp_v0->unk1C = (uintptr_t)arg1;
+        temp_v0->unk1C = (s32)(uintptr_t)arg1; // cartridge address, 32-bit on the N64 bus
         temp_v0->unk24 = arg2;
         temp_v0->unk20 = arg0;
         temp_v0->unk28 = arg3;
@@ -107,7 +107,7 @@ s32 Storage_QueueDiskIdRead(OSMesgQueue* arg0, s32 arg1) {
     temp_v0 = Util_Malloc(sizeof(struct UnkStruct80000E80));
     if (temp_v0 != NULL) {
         temp_v0->unk0 = 0xC;
-        temp_v0->unk20 = &D_800818E0;
+        temp_v0->unk20 = (u8*)&D_800818E0;
         temp_v0->unk28 = arg0;
         Storage_QueueRequest(temp_v0, arg1);
     }

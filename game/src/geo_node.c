@@ -64,7 +64,7 @@ unk_D_86002F34_alt2* GeoNode_CreateWithReference(MainPoolState* arg0, unk_D_8600
     return arg1;
 }
 
-CameraNode* GeoNode_CreateCamera(MemoryBlock* arg0, CameraNode* arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5) {
+CameraNode* GeoNode_CreateCamera(MainPoolState* arg0, CameraNode* arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5) {
     if (arg0 != NULL) {
         arg1 = MainPool_AllocAligned(arg0, sizeof(CameraNode), 4);
     }
@@ -79,7 +79,7 @@ CameraNode* GeoNode_CreateCamera(MemoryBlock* arg0, CameraNode* arg1, s16 arg2, 
     return arg1;
 }
 
-unk_D_86002F34_alt13* GeoNode_CreateType3(MemoryBlock* arg0, unk_D_86002F34_alt13* arg1, s16 arg2) {
+unk_D_86002F34_alt13* GeoNode_CreateType3(MainPoolState* arg0, unk_D_86002F34_alt13* arg1, s16 arg2) {
     if (arg0 != NULL) {
         arg1 = MainPool_AllocAligned(arg0, sizeof(unk_D_86002F34_alt13), 4);
     }
@@ -92,7 +92,7 @@ unk_D_86002F34_alt13* GeoNode_CreateType3(MemoryBlock* arg0, unk_D_86002F34_alt1
     return arg1;
 }
 
-unk_D_86002F34_alt1* GeoNode_CreateType4(MemoryBlock* arg0, unk_D_86002F34_alt1* arg1, s16 arg2) {
+unk_D_86002F34_alt1* GeoNode_CreateType4(MainPoolState* arg0, unk_D_86002F34_alt1* arg1, s16 arg2) {
     if (arg0 != NULL) {
         arg1 = MainPool_AllocAligned(arg0, sizeof(unk_D_86002F34_alt1), 4);
     }

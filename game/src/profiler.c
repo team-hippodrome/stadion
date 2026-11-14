@@ -102,8 +102,8 @@ void draw_profiler_bar_cpu(OSTime clockBase, OSTime clockStart, OSTime clockEnd,
     // calculate the x coordinates of where start and end begins, respectively.
     // convert the cycles to microseconds, but multiply by 3 before converting them
     // to nanoseconds. So why not just use OS_CYCLES_TO_NSEC?
-    rectX1 = ((OS_CYCLES_TO_USEC(durationStart)) * 3ULL / 1000ULL) + 30;
-    rectX2 = ((OS_CYCLES_TO_USEC(durationEnd)) * 3ULL / 1000ULL) + 30;
+    rectX1 = (s32)((OS_CYCLES_TO_USEC(durationStart)) * 3ULL / 1000ULL) + 30;
+    rectX2 = (s32)((OS_CYCLES_TO_USEC(durationEnd)) * 3ULL / 1000ULL) + 30;
 
     if (rectX1 > 225) {
         rectX1 = 225;
@@ -135,7 +135,7 @@ void draw_profiler_bar_cpu_keep_max(OSTime start, OSTime end, s16 posY, s16* las
 
     // like earlier, multiply by 3 and convert to nsec by dividing by 1000.
     // why not just use OS_CYCLES_TO_NSEC?
-    lrx = (OS_CYCLES_TO_USEC(duration) * 3ULL / 1000ULL) + 30;
+    lrx = (s32)(OS_CYCLES_TO_USEC(duration) * 3ULL / 1000ULL) + 30;
     if (lrx > 225) {
         lrx = 225;
     }
@@ -370,7 +370,7 @@ u32 set_get_time_diff(enum SetGetTimeDiff state) {
             ret = 0;
             break;
         case GET_TIME_DIFF:
-            ret = OS_CYCLES_TO_USEC(osGetTime() - sBackupTime);
+            ret = (u32)OS_CYCLES_TO_USEC(osGetTime() - sBackupTime);
             break;
     }
     return ret;

@@ -197,7 +197,7 @@ void Minigame_Sample8Viewer_EndingLoop(void) {
 }
 
 void Minigame_Sample8Viewer_Init(void) {
-    MemoryBlock* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
 
     D_86700934 = process_geo_layout(sp1C, &D_86700840);
     MainPool_FinalizeAllocation(sp1C);

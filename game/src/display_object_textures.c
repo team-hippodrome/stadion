@@ -85,12 +85,12 @@ void func_80018C40(unk_D_86002F34* arg0, arg1_func_80010CA8 arg1) {
     }
 }
 
-Fragment* Jpeg_AllocAndDecodeFragment(MemoryBlock* arg0, PRESJPEG* arg1, PRESJPEG* arg2) {
+Fragment* Jpeg_AllocAndDecodeFragment(MainPoolState* arg0, PRESJPEG* arg1, PRESJPEG* arg2) {
     Fragment* sp1C;
     s32 sp18;
     s32 temp_v0_2;
 
-    sp18 = arg0->size;
+    sp18 = MainPool_GetUsedSize(arg0);
     sp1C = MainPool_AllocAligned(arg0, arg2->unk_0C + 0x100, 0x10);
 
     if (sp1C != NULL) {
@@ -225,7 +225,7 @@ Fragment* BinArchive_LoadFileToPool(MainPoolState* arg0, BinArchive* arg1, s32 a
     return var_s0;
 }
 
-ModelAnimationBank* Fragment_ProcessGeoLayout(MemoryBlock* arg0, Fragment* arg1, arg1_func_80010CA8 arg2) {
+ModelAnimationBank* Fragment_ProcessGeoLayout(MainPoolState* arg0, Fragment* arg1, arg1_func_80010CA8 arg2) {
     s32 i;
     unk_D_86002F34* temp_v0_2;
     ModelAnimationBank* temp_v0;
@@ -313,7 +313,7 @@ ModelAnimationBank* Fragment_ProcessGeoLayout(MemoryBlock* arg0, Fragment* arg1,
     return temp_v0;
 }
 
-void Fragment_ProcessGeoLayoutList(MemoryBlock* arg0, arg1_func_80019420* arg1) {
+void Fragment_ProcessGeoLayoutList(MainPoolState* arg0, arg1_func_80019420* arg1) {
     while (arg1->unk_00) {
         if (arg1->unk_00 == 3) {
             arg1->unk_04 = process_geo_layout(arg0, arg1->unk_04);
@@ -325,7 +325,7 @@ void Fragment_ProcessGeoLayoutList(MemoryBlock* arg0, arg1_func_80019420* arg1) 
 
 void PokeIcon_LoadModelArchive(unk_func_80019600* arg0) {
     UNUSED s32 pad;
-    MemoryBlock* sp28;
+    MainPoolState* sp28;
     Fragment* sp24;
 
     sp28 = MainPool_InitState(arg0->pool, arg0->size);
@@ -337,12 +337,12 @@ void PokeIcon_LoadModelArchive(unk_func_80019600* arg0) {
         arg0->unk_08 = 0;
     }
 
-    arg0->size = sp28->size + 0x10;
+    arg0->size = MainPool_GetUsedSize(sp28) + 0x10;
 }
 
 // PORT: a resource table in a ROM fragment is big-endian with 8-byte records {s8 type; s16; u32 address} and a zero
 // type at the end; returns the host-layout copy (pointer-sized address field), allocated from 'pool'.
-arg1_func_80019420* Port_ConvertResourceTable(MemoryBlock* pool, const void* data) {
+arg1_func_80019420* Port_ConvertResourceTable(MainPoolState* pool, const void* data) {
     const u8* raw = (const u8*)data;
     arg1_func_80019420* out;
     s32 n = 0;
@@ -620,7 +620,7 @@ unk_D_86002F30* Model_LoadByArchiveIndex(s32 arg0) {
     Fragment* sp2C;
     arg1_func_80010CA8 sp28;
     unk_D_86002F30* sp24 = NULL;
-    MemoryBlock* sp20;
+    MainPoolState* sp20;
 
     sp2C = BinArchive_GetFile(D_800ABE10.unk_A04.unk_00, arg0 - 1);
     if (PORT_GETENV_ONCE("PORT_TRACE"))
@@ -639,7 +639,7 @@ unk_D_86002F30* Model_LoadForPokemon(BattleMon* arg0) {
     Fragment* sp2C;
     arg1_func_80010CA8 sp28;
     unk_D_86002F30* sp24 = NULL;
-    MemoryBlock* sp20;
+    MainPoolState* sp20;
 
     sp2C = BinArchive_GetFile(D_800ABE10.unk_A04.unk_00, arg0->species.id - 1);
     if (sp2C != NULL) {
@@ -655,7 +655,7 @@ unk_D_86002F30* Model_LoadWithScale(s32 arg0, s32 arg1) {
     Fragment* sp2C;
     arg1_func_80010CA8 sp28;
     unk_D_86002F30* sp24 = 0;
-    MemoryBlock* sp20;
+    MainPoolState* sp20;
 
     sp2C = BinArchive_GetFile(D_800ABE10.unk_A04.unk_00, arg0 - 1);
     if (sp2C != NULL) {
@@ -671,7 +671,7 @@ unk_D_86002F30* Model_LoadWithScale(s32 arg0, s32 arg1) {
 arg1_func_80019420* BattleAnim_LoadResourceTable(s32 arg0) {
     Fragment* sp24;
     arg1_func_80019420* sp20;
-    MemoryBlock* sp1C;
+    MainPoolState* sp1C;
 
     sp20 = NULL;
     sp24 = BinArchive_GetFile(D_800ABE10.unk_A04.unk_04, arg0);

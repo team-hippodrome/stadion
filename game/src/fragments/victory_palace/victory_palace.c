@@ -2612,7 +2612,7 @@ void HallOfFame_SpawnPokeIcon(s32 arg0, f32 arg1) {
 void HallOfFame_InitGallery(void) {
     s32 i;
     s16 j;
-    MemoryBlock* temp_v0;
+    MainPoolState* temp_v0;
     unk_D_86002F30* temp_s0;
     DisplayObject* ptr;
 

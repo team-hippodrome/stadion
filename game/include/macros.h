@@ -39,12 +39,14 @@ extern void* port_hw_reg(unsigned long addr);
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
 
-// PORT: masks are pointer-width so these are safe on addresses.
-#define ALIGN2(val) (((uintptr_t)(val) + 0x1) & ~(uintptr_t)0x1)
-#define ALIGN4(val) (((uintptr_t)(val) + 0x3) & ~(uintptr_t)0x3)
-#define ALIGN8(val) (((uintptr_t)(val) + 0x7) & ~(uintptr_t)0x7)
-#define ALIGN16(val) (((uintptr_t)(val) + 0xF) & ~(uintptr_t)0xF)
-#define ALIGN64(val) (((uintptr_t)(val) + 0x3F) & ~(uintptr_t)0x3F)
+// The result has the (promoted) type of `val` (as in HarbourMasters' alignment.h), so sizes stay 32-bit and addresses
+// stay pointer-width. ~0xF is a negative int, which sign-extends to a full-width mask for 64-bit operands.
+// Cast pointers to uintptr_t first.
+#define ALIGN2(val) (((val) + 0x1) & ~0x1)
+#define ALIGN4(val) (((val) + 0x3) & ~0x3)
+#define ALIGN8(val) (((val) + 0x7) & ~0x7)
+#define ALIGN16(val) (((val) + 0xF) & ~0xF)
+#define ALIGN64(val) (((val) + 0x3F) & ~0x3F)
 
 #define DECR(x) ((x) == 0 ? 0 : --(x))
 
@@ -66,8 +68,9 @@ extern void* port_hw_reg(unsigned long addr);
 #define FRAGMENT_SYMBOL(fragment, suffix) FRAGMENT_SYMBOL_IMPL(fragment, suffix)
 #define FRAGMENT_SYMBOL_IMPL(fragment, suffix) fragment##suffix
 
-#define FRAGMENT_ID(fragment) ((((u32)FRAGMENT_SYMBOL(fragment, _TEXT_START) & 0x0FF00000) >> 0x14) - 0x10)
-#define ASSET_ID(asset) (((u32)asset & 0x0F000000) >> 0x18)
+// The linker symbols are addresses whose value is the N64 virtual address; only their low 32 bits matter.
+#define FRAGMENT_ID(fragment) ((((u32)(uintptr_t)FRAGMENT_SYMBOL(fragment, _TEXT_START) & 0x0FF00000) >> 0x14) - 0x10)
+#define ASSET_ID(asset) (((u32)(uintptr_t)(asset) & 0x0F000000) >> 0x18)
 
 #define FRAGMENT_LOAD(fragment)                                                  \
     (Fragment_Load(FRAGMENT_ID(fragment), FRAGMENT_SYMBOL(fragment, _ROM_START), \
@@ -75,7 +78,7 @@ extern void* port_hw_reg(unsigned long addr);
 
 #define FRAGMENT_LOAD_AND_CALL(fragment, arg0, arg1)                                    \
     (Fragment_LoadAndCall(FRAGMENT_ID(fragment), FRAGMENT_SYMBOL(fragment, _ROM_START), \
-                          FRAGMENT_SYMBOL(fragment, _relocs_ROM_END), arg0, arg1))
+                          FRAGMENT_SYMBOL(fragment, _relocs_ROM_END), arg0, (uintptr_t)(arg1)))
 
 #define FRAGMENT_LOAD_AND_CALL2(fragment, arg0, arg1)                                 \
     (Fragment_QueueCall(FRAGMENT_ID(fragment), FRAGMENT_SYMBOL(fragment, _ROM_START), \

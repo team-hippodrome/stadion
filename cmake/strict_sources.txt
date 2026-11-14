@@ -43,3 +43,20 @@ game/src/libnaudio/n_synthesizer.c
 game/src/libnumus/player.c
 game/src/port_audio.c
 game/src/rom_device.c
+
+# core runtime
+game/src/controller.c
+game/src/crash_screen.c
+game/src/dma.c
+game/src/game_state.c
+game/src/memmap.c
+game/src/memory.c
+game/src/memory_main.c
+game/src/profiler.c
+game/src/reset.c
+game/src/rsp.c
+game/src/save_data.c
+game/src/scheduler.c
+game/src/session.c
+game/src/stage_loader.c
+game/src/util.c

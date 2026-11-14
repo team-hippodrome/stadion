@@ -50,6 +50,6 @@ uintptr_t Memmap_GetFragmentBaseVaddr(u32 id);
 uintptr_t Memmap_GetFragmentVaddr(void* addr);
 u32 Memmap_GetFragmentVaddrMask(u32 i, uintptr_t addr);
 void Memmap_ClearFragmentMemmap(u32 id);
-uintptr_t Memmap_GetLoadedFragmentVaddr(uintptr_t addr);
+u32 Memmap_GetLoadedFragmentVaddr(uintptr_t addr);
 
 #endif // _MEMMAP_H_

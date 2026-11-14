@@ -78,12 +78,12 @@ s32 Sched_HandleRspCompletion(UnkStruct80001380* arg0) {
                 case M_GFXTASK:
                     profiler_log_gfx_time(RSP_COMPLETE);
                     if (arg0->unk_1E == 2) {
-                        osSendMesg(&arg0->queue, 'DONE', 0);
+                        osSendMesg(&arg0->queue, OS_MESG_32('DONE'), 0);
                     }
                     break;
 
                 case 4:
-                    osSendMesg(&arg0->queue, 'DONE', 0);
+                    osSendMesg(&arg0->queue, OS_MESG_32('DONE'), 0);
                     break;
             }
         }
@@ -93,19 +93,19 @@ s32 Sched_HandleRspCompletion(UnkStruct80001380* arg0) {
             case M_AUDTASK:
                 if (arg0->unk_1C == 1) {
                     profiler_log_vblank_time();
-                    osSendMesg(&arg0->queue, 'DONE', 0);
+                    osSendMesg(&arg0->queue, OS_MESG_32('DONE'), 0);
                 }
                 break;
 
             case M_GFXTASK:
                 profiler_log_gfx_time(RSP_COMPLETE);
                 if (arg0->unk_1E == 2) {
-                    osSendMesg(&arg0->queue, 'DONE', 0);
+                    osSendMesg(&arg0->queue, OS_MESG_32('DONE'), 0);
                 }
                 break;
 
             case 4:
-                osSendMesg(&arg0->queue, 'DONE', 0);
+                osSendMesg(&arg0->queue, OS_MESG_32('DONE'), 0);
                 break;
         }
         arg0->unk_1C = 3;
@@ -116,29 +116,29 @@ s32 Sched_HandleRspCompletion(UnkStruct80001380* arg0) {
 void Sched_HandleRdpCompletion(UnkStruct80001380* arg0) {
     profiler_log_gfx_time(RDP_COMPLETE);
     if (arg0->unk_1C == 3) {
-        osSendMesg(&arg0->queue, 'DONE', 0);
+        osSendMesg(&arg0->queue, OS_MESG_32('DONE'), 0);
     }
     arg0->unk_1E = 2;
 }
 
-void Sched_InitClientQueue(UnkStruct80083CA0_2* arg0, s32 arg1, s32 arg2) {
-    arg0->unk_1DC = arg1;
-    arg0->unk_1D8 = 0;
-    osCreateMesgQueue(&arg0->unk_1C0, arg0->unk_1B0, arg2);
+void Sched_InitClientQueue(SchedClient* client, s32 type, s32 msgCount) {
+    client->type = type;
+    client->next = NULL;
+    osCreateMesgQueue(&client->queue, client->msgs, msgCount);
 }
 
-intptr_t Sched_WaitClientQueue(UnkStruct80083CA0_2* arg0) {
+intptr_t Sched_WaitClientQueue(SchedClient* client) {
     void* sp1C;
 
-    osRecvMesg(&arg0->unk_1C0, &sp1C, 1);
-    return sp1C;
+    osRecvMesg(&client->queue, &sp1C, 1);
+    return (intptr_t)sp1C;
 }
 
-s32 Sched_TryReceiveClientQueue(UnkStruct80083CA0_2* arg0) {
+s32 Sched_TryReceiveClientQueue(SchedClient* client) {
     u32 sp1C = 'NULL';
 
-    if (arg0->unk_1C0.validCount != 0) {
-        osRecvMesg(&arg0->unk_1C0, &sp1C, 1);
+    if (client->queue.validCount != 0) {
+        osRecvMesg(&client->queue, &sp1C, 1);
     }
 
     return sp1C;
@@ -160,17 +160,17 @@ void func_80004DB4(void) {
 }
 
 void Sched_NotifyClients(uintptr_t arg0) {
-    unk_D_800AA660* var_s0 = D_800A62E0.unk_A10;
+    SchedClient* var_s0 = D_800A62E0.unk_A10;
 
     while (var_s0 != NULL) {
         if (D_800A62E0.unk_A38 == 0) {
-            if (var_s0->unk_01DC != 2) {
-                osSendMesg(&var_s0->queue1, arg0, 0);
+            if (var_s0->type != 2) {
+                osSendMesg(&var_s0->queue, OS_MESG_PTR(arg0), 0);
             }
-        } else if (var_s0->unk_01DC != 0) {
-            osSendMesg(&var_s0->queue1, arg0, 0);
+        } else if (var_s0->type != 0) {
+            osSendMesg(&var_s0->queue, OS_MESG_PTR(arg0), 0);
         }
-        var_s0 = var_s0->nextClient;
+        var_s0 = var_s0->next;
     }
 }
 
@@ -200,13 +200,13 @@ s32 Sched_TryYieldActiveTask(void) {
 }
 
 void Sched_HandlePreNMI(void) {
-    unk_D_800AA660* var_s0 = D_800A62E0.unk_A10;
+    SchedClient* var_s0 = D_800A62E0.unk_A10;
 
     while (var_s0 != NULL) {
-        if (var_s0->unk_01DC == 0) {
+        if (var_s0->type == 0) {
             osStopThread(&var_s0->thread);
         }
-        var_s0 = var_s0->nextClient;
+        var_s0 = var_s0->next;
     }
     D_800A62E0.unk_A38 = 1;
     Audio_FadeOutForShutdown();
@@ -290,10 +290,10 @@ void Sched_ThreadEntry(void* arg0) {
 
     __osSetFpcCsr(0x01000C01);
     osCreateMesgQueue(&D_800A62E0.queue, D_800A62E0.stack, 0x10);
-    osViSetEvent(&D_800A62E0.queue, 0x66, 1);
-    osSetEventMesg(4, &D_800A62E0.queue, 0x64);
-    osSetEventMesg(9, &D_800A62E0.queue, 0x65);
-    osSetEventMesg(0xE, &D_800A62E0.queue, 0x68);
+    osViSetEvent(&D_800A62E0.queue, OS_MESG_32(0x66), 1);
+    osSetEventMesg(4, &D_800A62E0.queue, OS_MESG_32(0x64));
+    osSetEventMesg(9, &D_800A62E0.queue, OS_MESG_32(0x65));
+    osSetEventMesg(0xE, &D_800A62E0.queue, OS_MESG_32(0x68));
 
     while (true) {
         osRecvMesg(&D_800A62E0.queue, &sp24, 1);
@@ -335,36 +335,36 @@ void Sched_Init(void) {
     osStartThread(&D_800A62E0.thread);
 }
 
-void Sched_AddClient(unk_D_800AA660* arg0) {
-    unk_D_800AA660* var_v1;
-    unk_D_800AA660* var_a1;
+void Sched_AddClient(SchedClient* client) {
+    SchedClient* var_v1;
+    SchedClient* var_a1;
 
     if (D_800A62E0.unk_A10 == NULL) {
-        D_800A62E0.unk_A10 = arg0;
+        D_800A62E0.unk_A10 = client;
     } else {
         var_v1 = D_800A62E0.unk_A10;
-        var_a1 = var_v1->nextClient;
+        var_a1 = var_v1->next;
 
         while (var_a1 != NULL) {
             var_v1 = var_a1;
-            var_a1 = var_a1->nextClient;
+            var_a1 = var_a1->next;
         }
-        var_v1->nextClient = arg0;
+        var_v1->next = client;
     }
-    arg0->nextClient = NULL;
+    client->next = NULL;
 }
 
-void Sched_RemoveClient(unk_D_800AA660* arg0) {
-    unk_D_800AA660** var_v0 = &D_800A62E0.unk_A10;
-    unk_D_800AA660* var_v1 = D_800A62E0.unk_A10;
+void Sched_RemoveClient(SchedClient* client) {
+    SchedClient** var_v0 = &D_800A62E0.unk_A10;
+    SchedClient* var_v1 = D_800A62E0.unk_A10;
 
     while (var_v1 != NULL) {
-        if (var_v1 == arg0) {
-            *var_v0 = var_v1->nextClient;
+        if (var_v1 == client) {
+            *var_v0 = var_v1->next;
             break;
         }
-        var_v0 = &var_v1->nextClient;
-        var_v1 = var_v1->nextClient;
+        var_v0 = &var_v1->next;
+        var_v1 = var_v1->next;
     }
 }
 
@@ -381,7 +381,7 @@ void Sched_SubmitTask(UnkStruct80001380* arg0, s32 arg1) {
                 if ((arg1 != 0) && (D_800A62E0.unk_A1C == NULL)) {
                     D_800A62E0.unk_A1C = arg0;
                     D_800A62E0.unk_A24 = NULL;
-                    osSendMesg(&D_800A62E0.queue, 0x67, 0);
+                    osSendMesg(&D_800A62E0.queue, OS_MESG_32(0x67), 0);
                 } else {
                     D_800A62E0.unk_A24 = arg0;
                 }
@@ -391,7 +391,7 @@ void Sched_SubmitTask(UnkStruct80001380* arg0, s32 arg1) {
                 if (D_800A62E0.unk_A1C == NULL) {
                     D_800A62E0.unk_A1C = arg0;
                     D_800A62E0.unk_A24 = NULL;
-                    osSendMesg(&D_800A62E0.queue, 0x67, 0);
+                    osSendMesg(&D_800A62E0.queue, OS_MESG_32(0x67), 0);
                 }
                 break;
         }

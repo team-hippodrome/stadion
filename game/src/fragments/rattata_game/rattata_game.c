@@ -1308,7 +1308,7 @@ void RattataGame_WaitForContinue(void) {
 void RattataGame_LoadAssets(void) {
     s32 i;
     s32 j;
-    MemoryBlock* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
     DisplayObject* temp_s0;
 
     D_86203E38 = process_geo_layout(temp_v0, &D_86203D0C);

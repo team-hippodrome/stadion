@@ -4155,7 +4155,7 @@ void func_88807D04(intptr_t arg0, MainPoolState* arg1, UNUSED s32 arg2, uintptr_
                    char** arg6) {
     s32 i;
     CameraNode* ptr;
-    MemoryBlock* sp4C;
+    MainPoolState* sp4C;
     unk_D_88826CF0_004* var_v1_2;
 
     sp4C = MainPool_InitState(arg1, 0x70800);

@@ -772,7 +772,7 @@ void Gallery_CopyBattleMonFromPhotoMon(BattleMon* arg0, unk_D_83407AC8* arg1) {
 
 void Geo_LoadSceneGraphNode(unk_func_80031270* arg0, UNUSED s16 arg1, UNUSED s16 arg2) {
     UNUSED s32 pad;
-    MemoryBlock* sp18;
+    MainPoolState* sp18;
 
     sp18 = MainPool_AllocState(main_pool_get_available(), 0);
     D_80075F80 = arg0;
@@ -901,7 +901,7 @@ void Gallery_InitializePhotoModel(unk_func_80031270* arg0) {
 }
 
 void Gallery_LoadPhotoSceneGraph(unk_func_80031270* arg0) {
-    MemoryBlock* sp24;
+    MainPoolState* sp24;
     FragmentEntry sp20;
     u32* temp_v0;
     u32* temp_v0_2;

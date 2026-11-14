@@ -43,10 +43,10 @@ s32 Storage_InitializeLeoManager(void) {
 OSPiHandle* Storage_GetSramHandle(void) {
     static OSPiHandle sramHandle;
 
-    void* baseAddr = OS_PHYSICAL_TO_K1(SRAM_START_ADDR);
+    void* baseAddr = (void*)(uintptr_t)OS_PHYSICAL_TO_K1(SRAM_START_ADDR);
     if (baseAddr != (void*)(uintptr_t)sramHandle.baseAddress) {
         sramHandle.type = DEVICE_TYPE_SRAM;
-        sramHandle.baseAddress = (uintptr_t)baseAddr;
+        sramHandle.baseAddress = (u32)(uintptr_t)baseAddr; // a K1 bus address, not a host pointer
         sramHandle.latency = SRAM_latency;
         sramHandle.pulse = SRAM_pulse;
         sramHandle.pageSize = SRAM_pageSize;
@@ -158,12 +158,13 @@ void* Storage_WaitForIoMessage(void) {
 }
 
 void* Storage_ReadDisk(struct UnkStruct800006C4_2* arg0) {
-    LeoReadWrite(arg0, 0, arg0->unk1C, arg0->vaddr, arg0->size, &D_80083BD0.queue2);
+    // The request starts with the LEOCmd the 64DD driver fills in (filler1).
+    LeoReadWrite((LEOCmd*)arg0, 0, arg0->unk1C, arg0->vaddr, arg0->size, &D_80083BD0.queue2);
     return Storage_WaitForIoMessage();
 }
 
 void* Storage_WriteDisk(struct UnkStruct800006C4_2* arg0) {
-    LeoReadWrite(arg0, 1, arg0->unk1C, arg0->vaddr, arg0->size, &D_80083BD0.queue2);
+    LeoReadWrite((LEOCmd*)arg0, 1, arg0->unk1C, arg0->vaddr, arg0->size, &D_80083BD0.queue2);
     return Storage_WaitForIoMessage();
 }
 

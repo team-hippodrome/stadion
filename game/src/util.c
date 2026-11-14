@@ -18,7 +18,7 @@ extern unsigned char gPortHeap[];
  */
 u32 gExpansionRAMStart = FALSE;
 
-MainPool** gMainPool;
+MemoryPool* gMainPool;
 
 void Dma_InitializeCompletionQueue(void);
 s32 StageContext_IsHighResolution(void);
@@ -30,7 +30,7 @@ s32 StageContext_IsHighResolution(void);
 #endif
 
 uintptr_t Util_ConvertAddrToVirtAddr(uintptr_t addr) {
-    uintptr_t retaddr = NULL; // any invalid cases are treated as NULL return.
+    uintptr_t retaddr = 0; // any invalid cases are treated as NULL return.
 
     // PORT: a host pointer (>= 4 GB) is already a valid address.
     if (addr >= 0x100000000ULL) {
@@ -51,7 +51,7 @@ uintptr_t Util_ConvertAddrToVirtAddr(uintptr_t addr) {
         // convert a fragment pre-relocated address to a post-relocated virtual address.
     } else if ((addr >= 0x81000000U) &&
                (addr < 0x90000000U)) { // is the address in fragment space? convert it to its post-relocated address.
-        retaddr = Memmap_GetFragmentVaddr(addr);
+        retaddr = Memmap_GetFragmentVaddr((void*)addr);
         // pass-through addresses that are already virtual (in installed memory range)
     } else if ((addr >= 0x80000000U) && (addr < (uintptr_t)(osMemSize + 0x80000000U))) {
         retaddr = addr;
@@ -147,10 +147,10 @@ void Util_DrawMemProfiler(Gfx** dlist) {
         // calculate approximation coordinates based on the current pool addresses in order
         // to display them on the memory profiler.
         s32 baseX = 30;
-        s32 startX = ((u32)(K0_TO_PHYS(pool->start)) >> 15) + baseX;
-        s32 headLX = ((u32)(K0_TO_PHYS(pool->listHeadL)) >> 15) + baseX;
-        s32 headRX = ((u32)(K0_TO_PHYS(pool->listHeadR) - gExpansionRAMStart) >> 15) + baseX;
-        s32 endX = ((u32)(K0_TO_PHYS(pool->end) - gExpansionRAMStart) >> 15) + baseX;
+        s32 startX = ((u32)(K0_TO_PHYS((uintptr_t)pool->start)) >> 15) + baseX;
+        s32 headLX = ((u32)(K0_TO_PHYS((uintptr_t)pool->listHeadL)) >> 15) + baseX;
+        s32 headRX = ((u32)(K0_TO_PHYS((uintptr_t)pool->listHeadR) - gExpansionRAMStart) >> 15) + baseX;
+        s32 endX = ((u32)(K0_TO_PHYS((uintptr_t)pool->end) - gExpansionRAMStart) >> 15) + baseX;
 
         // draw the rects.
         Util_DrawRect(dlist, baseX, startX, GPACK_RGBA5551(248, 120, 40, 1));  // orange
@@ -163,10 +163,10 @@ void Util_DrawMemProfiler(Gfx** dlist) {
     } else {
         // same as above.
         s32 baseX = 30;
-        s32 startX = ((u32)(K0_TO_PHYS(pool->start)) >> 15) + baseX;
-        s32 headLX = ((u32)(K0_TO_PHYS(pool->listHeadL)) >> 15) + baseX;
-        s32 headRX = ((u32)(K0_TO_PHYS(pool->listHeadR) - gExpansionRAMStart) >> 15) + baseX;
-        s32 endX = ((u32)(K0_TO_PHYS(pool->end) - gExpansionRAMStart) >> 15) + baseX;
+        s32 startX = ((u32)(K0_TO_PHYS((uintptr_t)pool->start)) >> 15) + baseX;
+        s32 headLX = ((u32)(K0_TO_PHYS((uintptr_t)pool->listHeadL)) >> 15) + baseX;
+        s32 headRX = ((u32)(K0_TO_PHYS((uintptr_t)pool->listHeadR) - gExpansionRAMStart) >> 15) + baseX;
+        s32 endX = ((u32)(K0_TO_PHYS((uintptr_t)pool->end) - gExpansionRAMStart) >> 15) + baseX;
 
         // draw the rects. if we are negative in the memory, we are using red for the backwards
         // allocations to indicate too much memory is being used.

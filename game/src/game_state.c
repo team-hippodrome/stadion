@@ -404,7 +404,8 @@ s32 Fragment_LoadAndCall(s32 arg0, u8* romStart, u8* romEnd, u32 arg3, uintptr_t
     s32 result;
     FragmentEntry func;
 
-    func = Fragment_Load(arg0, romStart, romEnd);
+    // Fragment_Load returns the entry point untyped; fragments started this way take (s32, intptr_t).
+    func = (FragmentEntry)Fragment_Load(arg0, romStart, romEnd);
 
     result = func(arg3, arg4);
 

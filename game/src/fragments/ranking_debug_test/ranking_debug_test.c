@@ -109,7 +109,7 @@ void miniUnkFadeOutLoop(void) {
 
 void miniUnkInit(void) {
     UNUSED s32 pad[2];
-    MemoryBlock* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
 
     D_87906050 = process_geo_layout(sp1C, &D_86D00530);
     MainPool_FinalizeAllocation(sp1C);

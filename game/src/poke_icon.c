@@ -36,7 +36,7 @@ void PokeIcon_InitRenderScene(unk_func_8001A024* arg0, s16 arg1, s16 arg2) {
     };
 
     CameraNode* sp24;
-    MemoryBlock* sp20 = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* sp20 = MainPool_AllocState(main_pool_get_available(), 0);
 
     arg0->unk_0C = process_geo_layout(sp20, D_8006F350);
     arg0->unk_10 = D_800ABE10.unk_A04.unk_0C;

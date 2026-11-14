@@ -607,7 +607,7 @@ void Diorama_RenderFinalFrame(void) {
 }
 
 void Diorama_InitScene(void) {
-    MemoryBlock* sp1C;
+    MainPoolState* sp1C;
 
     sp1C = MainPool_AllocState(main_pool_get_available(), 0);
     D_86B0E5D0 = process_geo_layout(sp1C, &sCompletionGeoLayoutCommands);

@@ -1244,7 +1244,7 @@ void BattlePrep_AdjustBannerTextureOffset(unk_D_84B259A8* arg0) {
 }
 
 void BattlePrep_LoadBannerGeoLayouts(unk_D_84B259A8* arg0) {
-    MemoryBlock* temp_v0;
+    MainPoolState* temp_v0;
 
     temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
     arg0->unk_24 = process_geo_layout(temp_v0, D_84B10378);
@@ -1738,7 +1738,7 @@ void BattlePrep_LoadBadgeTextures(unk_D_84B259E8* arg0, BinArchive* arg1, BinArc
 
 void BattlePrep_InitBadgeCarouselScene(unk_D_84B259E8* arg0, BinArchive* arg1, BinArchive* arg2) {
     s32 i;
-    MemoryBlock* temp_v0;
+    MainPoolState* temp_v0;
 
     arg0->unk_00 = 0;
     arg0->unk_01 = 0;

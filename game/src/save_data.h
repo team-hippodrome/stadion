@@ -166,15 +166,15 @@ typedef struct SaveBank {
     /* 0x08 */ unk_D_800AE4E8_004 unk_08;
 } SaveBank; // size = 0xC
 
-void Save_ResetBank(UNUSED MainPoolBlock* arg0, u32 arg1);
-u16 Save_Checksum(u8* arg0, s32 arg1);
-s32 Save_RecordIsValid(u8* arg0, s32 arg1);
-void Save_WriteFooter(u8* arg0, s32 arg1, s32 arg2);
-void Save_WriteRecord(u8* arg0, u8* arg1, s32 arg2, s32 arg3);
-void Save_CommitRecord(u8* arg0, s32 arg1, s32 arg2);
-void Save_InvalidateRecord(u8* arg0, s32 arg1, s32 arg2);
-void Save_RestoreRecord(u8* arg0, s32 arg1, s32 arg2);
-void Save_ClearRecord(u8* arg0, s32 arg1, s32 arg2);
+void Save_ResetBank(UNUSED void* data, u32 arg1);
+u16 Save_Checksum(void* record, s32 arg1);
+s32 Save_RecordIsValid(void* record, s32 arg1);
+void Save_WriteFooter(void* record, s32 arg1, s32 arg2);
+void Save_WriteRecord(void* arg0, void* arg1, s32 arg2, s32 arg3);
+void Save_CommitRecord(void* record, s32 arg1, s32 arg2);
+void Save_InvalidateRecord(void* record, s32 arg1, s32 arg2);
+void Save_RestoreRecord(void* record, s32 arg1, s32 arg2);
+void Save_ClearRecord(void* record, s32 arg1, s32 arg2);
 void Save_LoadWithRepair(s32 arg0, s32 arg1);
 void GbSave_LoadBattleMonRecord(BattleMon* arg0, GbPokemonNamedRecord* arg1);
 void GbSave_SaveBattleMonRecord(BattleMon* arg0, GbPokemonNamedRecord* arg1);

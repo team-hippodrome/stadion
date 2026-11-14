@@ -503,7 +503,7 @@ void Gallery_FinalizeBackgroundLoad(void) {
 }
 
 void Gallery_LoadBackgroundSet(s32 arg0) {
-    MemoryBlock* sp1C;
+    MainPoolState* sp1C;
     void* sp18; // PORT: a code fragment from the archive, run by Port_CallFragmentLeaf (was FragmentEntry)
     u32* temp_v0;
     unk_D_8690A610_018* temp_v1;
@@ -547,7 +547,7 @@ void Gallery_LoadBackgroundSet(s32 arg0) {
 }
 
 void Gallery_InitBackgroundScene(void) {
-    MemoryBlock* sp2C;
+    MainPoolState* sp2C;
 
     GeoNode_CreateFog(0, &D_8690A610, 0x3C0, 0x3E8, 0xFF, 0xFF, 0xFF, 0xFF);
     GeoNode_CreateContainer(NULL, &D_8690A630);

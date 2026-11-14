@@ -1192,7 +1192,7 @@ s32 BattlePrep_ShowCastleClearOutro(void) {
 }
 
 void BattlePrep_InitScene(void) {
-    MemoryBlock* temp_v0;
+    MainPoolState* temp_v0;
     CameraNode* ptr;
     DisplayObject* ptr2;
     s32 i;

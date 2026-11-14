@@ -999,7 +999,7 @@ void Intro_FadeOutSequence(void) {
 }
 
 void Stage_LoadModels(void) {
-    MemoryBlock* sp34;
+    MainPoolState* sp34;
     UNUSED s32 pad;
     FragmentEntry sp2C;
     void* temp_v0_3;

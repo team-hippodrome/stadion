@@ -16,7 +16,7 @@ void main_pool_init(void* start, void* end) {
     sMemPool.available = (uintptr_t)sMemPool.end - (uintptr_t)sMemPool.start;
     sMemPool.mainState = NULL;
 
-    sMemPool.listHeadL = ((u8*)sMemPool.start - sizeof(MainPoolBlock));
+    sMemPool.listHeadL = (MainPoolBlock*)((u8*)sMemPool.start - sizeof(MainPoolBlock));
     sMemPool.listHeadL->prev = NULL;
     sMemPool.listHeadL->next = NULL;
     sMemPool.listHeadL->func = NULL;
@@ -188,7 +188,7 @@ void* main_pool_realloc(void* addr, size_t size) {
             s32 arg = prior->arg;
             AllocateFunc func = prior->func;
             main_pool_free(addr, FALSE); // do not run the func as we are merely reallocating it.
-            newaddr = main_pool_alloc_from_pool(size, MEMORY_POOL_LEFT);
+            newaddr = main_pool_alloc_from_pool((u32)size, MEMORY_POOL_LEFT);
             main_pool_set_func(newaddr, arg, func);
         }
     }
@@ -202,7 +202,7 @@ void* main_pool_realloc(void* addr, size_t size) {
 u32 main_pool_get_available(void) {
     // account for the block struct. Any newly allocated pools have this struct as its "true"
     // header, so subtract the size to get the real amount of available space.
-    s32 available = sMemPool.available - sizeof(MainPoolBlock);
+    s32 available = (s32)(sMemPool.available - sizeof(MainPoolBlock));
 
     // if it was less than 0, then we do not have enough to allocate a single pool. Floor the
     // practical amount of available space to 0.
@@ -251,7 +251,7 @@ u32 main_pool_push_state(u32 arg) {
         // now that the previous block's argument is set, set the newly allocated state's
         // fields.
         state->prev = sMemPool.mainState;
-        state->freeSpace = available;
+        state->freeSpace = (s32)available; // the pool is far below 2 GiB
         state->listHeadL = listHeadL;
         state->listHeadR = listHeadR;
 
@@ -390,10 +390,11 @@ void main_pool_set_func(void* block, s32 arg, AllocateFunc func) {
 /**
  * Get the distance offset from the block's state listHeadL pointer to the current block.
  */
-size_t main_pool_get_block_dist(MainPoolBlock* block) {
-    MainPoolState* state = ((u8*)block - sizeof(MainPoolBlock));
+size_t main_pool_get_block_dist(void* data) {
+    // PORT: the original read the header through a MainPoolState view; its listHeadL lines up with MainPoolBlock.next.
+    MainPoolBlock* node = (MainPoolBlock*)((u8*)data - sizeof(MainPoolBlock));
 
-    return (size_t)((uintptr_t)state->listHeadL - (uintptr_t)block);
+    return (size_t)((uintptr_t)node->next - (uintptr_t)data);
 }
 
 /**

@@ -52,7 +52,7 @@ typedef struct unk_D_800ABE10 {
 extern unk_D_800ABE10 D_800ABE10;
 
 void func_80018C40(unk_D_86002F34* arg0, arg1_func_80010CA8 arg1);
-Fragment* Jpeg_AllocAndDecodeFragment(MemoryBlock* arg0, PRESJPEG* arg1, PRESJPEG* arg2);
+Fragment* Jpeg_AllocAndDecodeFragment(MainPoolState* arg0, PRESJPEG* arg1, PRESJPEG* arg2);
 Fragment* Yay0_AllocAndDecompressFragment(MainPoolState* arg0, PERSSZP* arg1, PERSSZP* arg2);
 Fragment* Asset_AllocAndCopyFragment(MainPoolState* arg0, PERSSZP* arg1, s32 arg2, u32 arg3);
 Fragment* Fragment_LoadFromRomRange(MainPoolState* arg0, s32 start, s32 end, PERSSZP* arg3, s32 arg4);
@@ -63,8 +63,8 @@ Fragment* BinArchive_LoadFileFromRomRange(MainPoolState* arg0, BinArchive* arg1,
 Fragment* BinArchive_LoadFileFromLbaRange(MainPoolState* arg0, BinArchive* arg1, BinArchiveFile* arg2, uintptr_t arg3,
                                           s32 arg4);
 Fragment* BinArchive_LoadFileToPool(MainPoolState* arg0, BinArchive* arg1, s32 arg2, uintptr_t arg3, s32 arg4);
-ModelAnimationBank* Fragment_ProcessGeoLayout(MemoryBlock* arg0, Fragment* arg1, arg1_func_80010CA8 arg2);
-void Fragment_ProcessGeoLayoutList(MemoryBlock* arg0, arg1_func_80019420* arg1);
+ModelAnimationBank* Fragment_ProcessGeoLayout(MainPoolState* arg0, Fragment* arg1, arg1_func_80010CA8 arg2);
+void Fragment_ProcessGeoLayoutList(MainPoolState* arg0, arg1_func_80019420* arg1);
 void PokeIcon_LoadModelArchive(unk_func_80019600* arg0);
 void PokeIcon_LoadMultipleModels(unk_func_80019600* arg0);
 void PokeIcon_ThreadMain(UNUSED void* arg0);

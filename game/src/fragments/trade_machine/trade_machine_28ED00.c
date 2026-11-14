@@ -1094,7 +1094,7 @@ void Trade_DrawBoxMachineCursor(s16 arg0) {
 void Trade_InitBoxMachine(void) {
     UNUSED s32 pad;
     s32 i;
-    MemoryBlock* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
 
     D_82F210C8 = process_geo_layout(sp1C, D_82F13E8C);
     D_82F210CC = process_geo_layout(sp1C, D_82F13E58);

@@ -1118,7 +1118,7 @@ s32 BattlePrepRoster_InitDisplayObjects(unk_D_84B25A28* arg0, DisplayObject* arg
 }
 
 void BattlePrepRoster_Init(unk_D_84B25A28* arg0, CameraNode* arg1) {
-    MemoryBlock* temp_s1;
+    MainPoolState* temp_s1;
 
     arg0->unk_08 = arg1;
     arg0->unk_00 = 0;

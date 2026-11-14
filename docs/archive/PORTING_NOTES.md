@@ -104,7 +104,8 @@ Subsystems join the list as they are fixed:
 
 | Subsystem | Files | Check |
 |---|---|---|
-| Audio (sequencer, sound effects, streams, libnaudio, cries) | 41 | 22/22 replays, normal and ASan builds |
+| Audio (sequencer, sound effects, streams, libnaudio, cries) | 41 | 20/20 runnable replays (2 more need GB saves), normal and ASan builds |
+| Core runtime (main/memory pools, scheduler, storage queue, memmap, save banks, session, profiler) | 15 | 20/20 runnable replays, normal and ASan builds |
 
 Conventions used for these fixes:
 - ROM offsets stay 32-bit integers (`u32`/`uintptr_t`); a pointer-typed field that holds a ROM offset (libaudio's
@@ -114,6 +115,15 @@ Conventions used for these fixes:
 - Intrusive lists whose node is the first member (`ALLink node`) store `&x->node` and cast back explicitly.
 - Narrowing that was free on the 32-bit N64 (pointer differences into `s32`, `u64` frame counters into `u32`) gets an
   explicit cast, so the truncation is visible.
+- Integer messages go through `OS_MESG_32(x)` and come back with `OS_MESG_GET_32(msg)`; pointers use `OS_MESG_PTR(p)`
+  (2Ship's names; `src/port/sdk/ultra64.h` defines them for the game's `void*` `OSMesg`).
+- A header shared by several structs is a named struct embedded as the first member (`SchedClient client`), and the
+  API takes the header type: `Sched_AddClient(&D_800A6D20.client)`.
+- `ALIGN16(x)` and friends keep the type of `x`, as in 2Ship's `alignment.h`; cast a pointer to `uintptr_t` first.
+- A main-pool arena (`MainPool_AllocState`, `MainPool_AllocAligned`) is a `MainPoolState*` everywhere. Pool free
+  callbacks (`AllocateFunc`) get the block's data pointer and its tag: `void (*)(void* data, u32 arg)`.
+- Raw record buffers whose stride is decided at run time take `void*` and walk a local `u8*` (`Save_ClearRecord`,
+  `Deck_ReadEntries`).
 
 `tools/ptr_warnings.sh` lists the pointer-truncation subset (490 sites). When fixing these, pair a replay run
 (`tools/run_replays.py`) with an AddressSanitizer build (`cmake -DPORT_ASAN=ON`): a truncated pointer or a

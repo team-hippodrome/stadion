@@ -58,7 +58,7 @@ DeckHandle* Deck_OpenAndSetName(s32 arg0, s32 arg1, s32 arg2, intptr_t arg3, cha
 s32 Deck_CloseAndFlushBox(DeckHandle* arg0);
 s32 Deck_CloseAndFlush(DeckHandle* arg0);
 s32 Deck_SetCursor(DeckHandle*, s32);
-s32 Deck_ReadEntries(u8* arg0, s32 arg1, DeckHandle* arg2);
+s32 Deck_ReadEntries(void* entries, s32 arg1, DeckHandle* arg2);
 s32 Deck_WriteEntries(u8* arg0, s32 arg1, DeckHandle* arg2);
 void Text_LoadPlayerLabels(void);
 char* Text_GetPlayerLabel(s32 arg0);
@@ -72,7 +72,7 @@ s32 GbSave_ReadMainData(s32 arg0);
 s32 GbSave_InvalidateMainDataChecksum(s32 arg0);
 s32 GbSave_ReadBoxBank(s32 arg0, s32 arg1);
 s32 GbSave_WriteBoxBank(s32 arg0, s32 arg1);
-void GbSave_ReleasePortBuffers(UNUSED MainPoolBlock* arg0, u32 arg1);
+void GbSave_ReleasePortBuffers(UNUSED void* data, u32 arg1);
 void GbSave_CheckLocationFlag(s32 arg0);
 s32 GbSave_OpenMainData(s32 arg0);
 s32 GbSave_EnsureMainDataLoaded(s32 arg0);

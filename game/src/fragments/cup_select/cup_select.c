@@ -395,7 +395,7 @@ s32 CupSelect_Loop(void) {
 }
 
 void CupSelect_InitGeoLayouts(void) {
-    MemoryBlock* memory_block = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* memory_block = MainPool_AllocState(main_pool_get_available(), 0);
     s32 i;
     DisplayObject* cursor;
 

@@ -713,7 +713,7 @@ void BattleScene_InitializeParticipantPresentation(BattleSessionTeams* side, unk
 // triggers at the start of battle: bug boy in glc
 // Allocate thumbnail targets, load the mode/ruleset arena, and construct all three roots.
 void BattleScene_Init(unk_func_80007444* stage_context) {
-    MemoryBlock* layout_pool;
+    MainPoolState* layout_pool;
     u32* stage_layout;
     FragmentEntry arena_entry;
     unk_D_8690A610_018* fog_parameters;

@@ -91,7 +91,7 @@ void Minigame2SampleViewer_Loop(void) {
 }
 
 void Minigame2SampleViewer_Init(void) {
-    MemoryBlock* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
 
     D_82800534 = process_geo_layout(sp1C, D_828004D0);
     MainPool_FinalizeAllocation(sp1C);

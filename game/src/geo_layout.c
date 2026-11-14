@@ -46,7 +46,7 @@ static GeoLayoutCommandProc GeoLayoutJumpTable[] = {
     geo_layout_cmd_create_group,
 };
 
-static MemoryBlock* gGraphNodePool;
+static MainPoolState* gGraphNodePool;
 static GraphNode* gCurRootGraphNode;
 static uintptr_t gGeoLayoutStack[16]; // PORT64: holds return addresses (was u32)
 static GraphNode* gCurGraphNodeList[32];
@@ -448,7 +448,7 @@ static void Port_DumpGraph(GraphNode* n, int depth) {
     }
 }
 
-GraphNode* process_geo_layout(MemoryBlock* pool, void* segptr) {
+GraphNode* process_geo_layout(MainPoolState* pool, void* segptr) {
     // set by register_scene_graph_node when gCurGraphNodeIndex is 0
     // and gCurRootGraphNode is NULL
     gCurRootGraphNode = NULL;
