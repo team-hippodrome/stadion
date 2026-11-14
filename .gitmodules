@@ -1,7 +1,3 @@
 [submodule "libultraship"]
 	path = libultraship
 	url = https://github.com/team-hippodrome/libultraship
-[submodule "game"]
-	path = game
-	url = https://github.com/michiiik/pokestadium
-	branch = master

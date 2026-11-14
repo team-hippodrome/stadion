@@ -1,0 +1,575 @@
+#include "battle_engine.h"
+#include "src/math_util.h"
+
+void BattleAnim_SetupStrongElectricSpark(Particle* arg0) {
+    UNUSED s32 pad;
+    Vec3s sp2C;
+
+    Particle_FieldAC_GetS16_0C038(arg0);
+    Particle_Scale_SetScaled(arg0, 0.05f);
+    sp2C.x = ParticleMath_RandomRange(0x8000) - 0x4000;
+    sp2C.y = ParticleMath_RandomRange(0x10000);
+    sp2C.z = ParticleMath_RandomRange(0x800) - 0x400;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp2C);
+    Particle_AddPositionFromRotationTemplate1(arg0, ParticleMath_RandomRange(0xA));
+    Particle_Rotation_AddX(arg0, 0x4000);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, Particle_FieldCF_GetS16_0C058(arg0));
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Handles the continuous spark that appears when using Thunderpunch, thunderbolt, or thunder
+    As well as when getting hit by thunder punch
+*/
+void BattleAnim_RunStrongElectricSpark(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupStrongElectricSpark(arg0);
+            break;
+
+        case 2:
+            Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0);
+            break;
+
+        case 3:
+            Particle_PrimAlpha_ApproachAndStepState_0BC5C(arg0, 0, 0x40);
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+
+    Particle_Scale_Approach(arg0, 1.0f, 0.05f);
+    Particle_AddMotionOffsetFromRotationTemplate5(arg0);
+}
+
+void BattleAnim_ApplyThunderThunderboltUseRadialOffset(Particle* arg0) {
+    f32 sp1C = 0.0f;
+
+    switch (BattleAnim_GetOwnerSpecies(arg0->pokemon)) {
+        case 0x6:
+            sp1C = 15.0f;
+            break;
+
+        case 0x73:
+            sp1C = 15.0f;
+            break;
+
+        case 0x87:
+            sp1C = 10.0f;
+            break;
+
+        case 0x95:
+            sp1C = 10.0f;
+            break;
+
+        case 0x1F:
+            sp1C = 10.0f;
+            break;
+
+        case 0x22:
+            sp1C = 10.0f;
+            break;
+
+        case 0x71:
+            sp1C = 10.0f;
+            break;
+    }
+
+    Particle_Field38_AddXZFromField94YOffset180_08F38(arg0, sp1C);
+    Particle_PositionOffset_AddXZFromRotationYOffset90(arg0, 5.0f);
+}
+
+void BattleAnim_SetupThunderThunderboltUseEffect(Particle* arg0) {
+    Particle_Scale_SetScaled(arg0, 0.1f);
+    Particle_StepMagnitude_SetScaled(arg0, 0.0f);
+    BattleAnim_ApplyThunderThunderboltUseRadialOffset(arg0);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x17);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+void BattleAnim_RunThunderThunderboltUseEffect(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupThunderThunderboltUseEffect(arg0);
+            break;
+
+        case 2:
+            Particle_Scale_Approach(arg0, 4.0f, 0.5f);
+            Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0);
+            break;
+
+        case 3:
+            Particle_Scale_Approach(arg0, 0.1f, 0.5f);
+            Particle_PrimAlpha_ApproachAndStepState_0BC5C(arg0, 0, 0x20);
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+}
+
+void BattleAnim_SetupSharedDescriptor0FDelayedRisingColumnFade(Particle* arg0) {
+    s16 sp2E = Particle_FieldAC_GetS16_0C038(arg0);
+    Vec3s sp28;
+
+    Particle_PositionOffset_SetYScaled(arg0, 15.0f);
+    Particle_Scale_SetScaled(arg0, 0.1f);
+    Particle_StepMagnitude_SetScaled(arg0, 0.0f);
+    sp28.x = 0x4000 - ParticleMath_RandomRange(0x8000);
+    sp28.y = sp2E << 0xD;
+    sp28.z = 0;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp28);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, Particle_FieldCF_GetS16_0C058(arg0));
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Moves: Hyper Beam (hit), Thunder (use/hit), Thunder Shock (use/hit), Thunderbolt (use/hit)
+    TODO: Human contributor add screenshot
+*/
+void BattleAnim_RunDeterministicRotatingBoltOfLightning(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupSharedDescriptor0FDelayedRisingColumnFade(arg0);
+            break;
+
+        case 2:
+            if (Particle_TickDelayAndAdvanceLifecycle(arg0, Particle_FieldAC_GetS16_0C038(arg0)) != 0) {
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_Scale_Approach(arg0, 3.0f, 0.1f);
+            Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0);
+            break;
+
+        case 4:
+            Particle_PrimAlpha_ApproachAndStepState_0BC5C(arg0, 0, 0x40);
+            break;
+
+        case 5:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+
+    Particle_Rotation_AddY(arg0, 0x400);
+    Particle_AddMotionOffsetFromRotationTemplate1(arg0);
+}
+
+void BattleAnim_SetupSharedDescriptor0FDelayedRisingColumnRandomScale(Particle* arg0) {
+    s16 sp2E = Particle_FieldAC_GetS16_0C038(arg0);
+    Vec3s sp28;
+
+    Particle_PositionOffset_SetYScaled(arg0, 15.0f);
+    Particle_Scale_SetScaled(arg0, 0.1f);
+    Particle_StepMagnitude_SetScaled(arg0, MathUtil_Random_ZeroOne());
+    sp28.x = 0x3000 - ParticleMath_RandomRange(0x6000);
+    sp28.y = sp2E << 0xD;
+    sp28.z = 0;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp28);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, Particle_FieldCF_GetS16_0C058(arg0));
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Moves: Hyper Beam (hit), Thunder (use/hit), Thunder Shock (use/hit), Thunderbolt (use/hit)
+    TODO: Human contributor add screenshot
+*/
+void BattleAnim_RunRandomRotatingBoltOfLightning(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupSharedDescriptor0FDelayedRisingColumnRandomScale(arg0);
+            break;
+
+        case 2:
+            if (Particle_TickDelayAndAdvanceLifecycle(arg0, Particle_FieldAC_GetS16_0C038(arg0)) != 0) {
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_Scale_Approach(arg0, 3.5f, 0.1f);
+            Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0);
+            break;
+
+        case 4:
+            Particle_PrimAlpha_ApproachAndStepState_0BC5C(arg0, 0, 0x40);
+            break;
+
+        case 5:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+
+    Particle_Rotation_AddY(arg0, 0x400);
+    Particle_AddMotionOffsetFromRotationTemplate1(arg0);
+}
+
+void BattleAnim_SetupSharedDirectionalSprayFade(Particle* arg0) {
+    Vec3s sp28;
+
+    Particle_FieldAC_GetS16_0C038(arg0);
+    Particle_Scale_SetScaled(arg0, 0.5f);
+    Particle_StepMagnitude_SetScaled(arg0, 0.0f);
+    sp28.x = -0x4000;
+    sp28.y = 0;
+    sp28.z = (ParticleMath_RandomRange(0x10) << 0xB) - 0x4000;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp28);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, Particle_FieldCF_GetS16_0C058(arg0));
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Moves: Hyper Beam (hit), Thunder (use/hit), Thunder Shock (use/hit), Thunderbolt (use/hit)
+    TODO: Human contributor add screenshot
+*/
+void BattleAnim_RunRandomStationaryBoltOfLightning(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupSharedDirectionalSprayFade(arg0);
+            break;
+
+        case 2:
+            Particle_Scale_Approach(arg0, 2.0f, 0.2f);
+            Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0);
+            break;
+
+        case 3:
+            Particle_PrimAlpha_ApproachAndStepState_0BC5C(arg0, 0, 0x40);
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+    Particle_AddMotionOffsetFromRotationTemplate5(arg0);
+}
+
+void BattleAnim_SetupSharedDescriptor13DirectionalSprayScaledFade(Particle* arg0) {
+    UNUSED s32 pad;
+    Vec3s sp2C;
+
+    Particle_FieldAC_GetS16_0C038(arg0);
+    Particle_Scale_SetScaled(arg0, 0.5f);
+    Particle_SetScaleParameter20(arg0, (MathUtil_Random_ZeroOne() * 5.0f) + 1.0f);
+    Particle_SetScaleParameter24(arg0, 0.2f);
+    Particle_StepMagnitude_SetScaled(arg0, MathUtil_Random_ZeroOne() * 4.0f);
+    sp2C.x = -0x4000;
+    sp2C.y = 0;
+    sp2C.z = (ParticleMath_RandomRange(0x10) << 0xB) - 0x4000;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp2C);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, Particle_FieldCF_GetS16_0C058(arg0));
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Moves: Hyper Beam (hit), Thunder (use), Thunder Shock (use), Thunderbolt (use)
+    TODO: Human contributor add screenshot
+*/
+void BattleAnim_RunDeterministicStationaryBoltOfLightning(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupSharedDescriptor13DirectionalSprayScaledFade(arg0);
+            break;
+
+        case 2:
+            Particle_ApproachScaleUsingFields20And24(arg0);
+            Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0);
+            break;
+
+        case 3:
+            Particle_PrimAlpha_ApproachAndStepState_0BC5C(arg0, 0, 0x40);
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+
+    Particle_AddMotionOffsetFromRotationTemplate5(arg0);
+}
+
+void BattleAnim_SetupThunderShockOuterJolts(Particle* arg0) {
+    UNUSED s32 pad;
+    Vec3s sp2C;
+    UNUSED s32 pad2[2];
+
+    Particle_FieldAC_GetS16_0C038(arg0);
+    Particle_Scale_SetScaled(arg0, 0.1f);
+    Particle_SetScaleParameter20(arg0, 1.4f);
+    Particle_SetScaleParameter24(arg0, 0.1f);
+    MathUtil_Random_ZeroOne();
+    Particle_StepMagnitude_SetScaled(arg0, 0.0f);
+    sp2C.x = -0x4000;
+    sp2C.y = 0;
+    sp2C.z = (ParticleMath_RandomRange(0x10) << 0xB) - 0x4000;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp2C);
+    Particle_AddPositionFromRotationTemplate1(arg0, 150.0f);
+    Particle_Rotation_AddZConstant(arg0);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, Particle_FieldCF_GetS16_0C058(arg0));
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Handles the outer most jolts of lightening when using thunder shock
+*/
+void BattleAnim_RunThunderShockOuterJolts(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupThunderShockOuterJolts(arg0);
+            break;
+
+        case 2:
+            Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0);
+            break;
+
+        case 3:
+            Particle_PrimAlpha_ApproachAndStepState_0BC5C(arg0, 0, 0x10);
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+
+    Particle_ApproachScaleUsingFields20And24(arg0);
+    Particle_AddMotionOffsetFromRotationTemplate5(arg0);
+}
+
+void BattleAnim_SetupUnregisteredStraightDirectionalStreamFade(Particle* arg0) {
+    UNUSED s32 pad;
+    Vec3s sp2C;
+    UNUSED s32 pad2[2];
+
+    Particle_FieldAC_GetS16_0C038(arg0);
+    Particle_Scale_SetScaled(arg0, 0.1f);
+    Particle_SetScaleParameter20(arg0, 1.4f);
+    Particle_SetScaleParameter24(arg0, 0.1f);
+    MathUtil_Random_ZeroOne();
+    Particle_StepMagnitude_SetScaled(arg0, 0.0f);
+    sp2C.x = -0x4000;
+    sp2C.y = 0;
+    sp2C.z = 0;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp2C);
+    Particle_AddPositionFromRotationTemplate1(arg0, 150.0f);
+    Particle_Rotation_AddZConstant(arg0);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, Particle_FieldCF_GetS16_0C058(arg0));
+    Particle_AdvanceLifecycle(arg0);
+}
+
+void BattleAnim_CallbackUnregisteredStraightDirectionalStreamFade(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupUnregisteredStraightDirectionalStreamFade(arg0);
+            break;
+
+        case 2:
+            Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0);
+            break;
+
+        case 3:
+            Particle_PrimAlpha_ApproachAndStepState_0BC5C(arg0, 0, 0x10);
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+
+    Particle_ApproachScaleUsingFields20And24(arg0);
+    Particle_AddMotionOffsetFromRotationTemplate5(arg0);
+}
+
+void BattleAnim_SetupEndEffect28Descriptor10UpwardBurstFade(Particle* arg0) {
+    UNUSED s32 pad;
+    Vec3f sp30;
+    Vec3s sp28;
+
+    Particle_FieldAC_GetS16_0C038(arg0);
+    Particle_Scale_SetScaled(arg0, 0.1f);
+    Particle_SetScaleParameter20(arg0, 2.0f);
+    Particle_SetScaleParameter24(arg0, 0.1f);
+    sp28.x = 0;
+    sp28.y = 0;
+    sp28.z = -0x8000;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp28);
+    sp30.x = ParticleMath_RandomRange(0x64) + -50.0f;
+    sp30.y = 200.0f;
+    sp30.z = ParticleMath_RandomRange(0x64) + -50.0f;
+    Particle_PositionOffset_AddVecScaledFromVec3f(arg0, sp30);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, Particle_FieldCF_GetS16_0C058(arg0));
+    Particle_AdvanceLifecycle(arg0);
+}
+
+void BattleAnim_CallbackEndEffect28Descriptor10UpwardBurstFade(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupEndEffect28Descriptor10UpwardBurstFade(arg0);
+            break;
+
+        case 2:
+            Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0);
+            break;
+
+        case 3:
+            Particle_PrimAlpha_ApproachAndStepState_0BC5C(arg0, 0, 0x40);
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+
+    Particle_ApproachScaleUsingFields20And24(arg0);
+    Particle_AddMotionOffsetFromRotationTemplate5(arg0);
+}
+
+void BattleAnim_SetupEndEffect28Descriptor10WideScatterBurstFade(Particle* arg0) {
+    UNUSED s32 pad[4];
+    Vec3s sp28;
+
+    Particle_FieldAC_GetS16_0C038(arg0);
+    Particle_Scale_SetScaled(arg0, 0.1f);
+    Particle_SetScaleParameter20(arg0, 2.0f);
+    Particle_SetScaleParameter24(arg0, 0.1f);
+    sp28.x = -0x1000 - ParticleMath_RandomRange(0x6000);
+    sp28.y = ParticleMath_RandomRange(0x10000);
+    sp28.z = ParticleMath_RandomRange(0x800) - 0x400;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp28);
+    Particle_AddPositionFromRotationTemplate1(arg0, 200.0f);
+    Particle_Rotation_AddX(arg0, -0x4000);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, Particle_FieldCF_GetS16_0C058(arg0));
+    Particle_AdvanceLifecycle(arg0);
+}
+
+void BattleAnim_CallbackEndEffect28Descriptor10WideScatterBurstFade(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupEndEffect28Descriptor10WideScatterBurstFade(arg0);
+            break;
+
+        case 2:
+            Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0);
+            break;
+
+        case 3:
+            Particle_PrimAlpha_ApproachAndStepState_0BC5C(arg0, 0, 0x40);
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+
+    Particle_ApproachScaleUsingFields20And24(arg0);
+    Particle_AddMotionOffsetFromRotationTemplate5(arg0);
+}
+
+// initializes using thunderbolt or thunder
+void BattleAnim_InitializeThunderThunderboltUse(void) {
+    BattleAnim_SpawnCategory17MarkerSlot(0x64, 1);
+    BattleAnim_SpawnGlobalTintColorFadeDetach(0, 0x20, 3);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 3, 8, BattleAnim_RunStrongElectricSpark,
+                                                        &gBattleAnimParticleDescriptors[0x11], 8, 4, 2, 0, 0x25, 0);
+    BattleAnim_AddSpawnDelay(0x19);
+    BattleAnim_CreateEffectSlotForCurrentOwner(0, BattleAnim_RunThunderThunderboltUseEffect,
+                                               &gBattleAnimParticleDescriptors[0x15], 0xE, 1, 2, 0, 0x25, 0);
+    BattleAnim_CreateEffectSlotForCurrentOwner(0, BattleAnim_RunThunderThunderboltUseEffect,
+                                               &gBattleAnimParticleDescriptors[0x16], 0xE, 1, 2, 0, 0x25, 0);
+    BattleAnim_SpawnDescriptor25AlphaHoldFadeOut(8, 2, 8, 0xA, 0xFF);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(8, 4, 2, BattleAnim_RunDeterministicRotatingBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0xF], 0x14, 4, 7, 0, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(8, 4, 2, BattleAnim_RunRandomRotatingBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0xF], 0x14, 4, 7, 0, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(8, 4, 2, BattleAnim_RunDeterministicStationaryBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0x13], 0x14, 4, 7, 0, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(8, 4, 2, BattleAnim_RunRandomStationaryBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0x13], 0x14, 4, 7, 0, 0x25, 0);
+}
+
+// initializes being hit by thunder shock or thunderbolt
+void BattleAnim_InitializeThunderShockThunderboltHit(void) {
+    BattleAnim_SpawnDescriptor25AlphaHoldFadeOut(0x2C, 4, 0x10, 0xA, 0xFF);
+    BattleAnim_SpawnGlobalTintColorFadeDetach(0x30, 0x20, 0xA);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 8, 5, BattleAnim_RunRandomStationaryBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0x12], 8, 3, 3, 0, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 2, BattleAnim_RunDeterministicRotatingBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0xF], 0x14, 4, 3, 0, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 2, BattleAnim_RunRandomRotatingBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0xF], 0x14, 4, 3, 0, 0x25, 0);
+}
+
+// initializes getting hit by thunder
+void BattleAnim_InitializeThunderHit(void) {
+    BattleAnim_SpawnDescriptor25AlphaHoldFadeOut(0, 4, 8, 0xA, 0xC8);
+    BattleAnim_SpawnGlobalTintColorFadeDetach(0x30, 0x20, 0xA);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 8, 5, BattleAnim_RunRandomStationaryBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0x12], 8, 3, 3, 0, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 2, BattleAnim_RunDeterministicRotatingBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0xF], 0x14, 4, 3, 0, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 2, BattleAnim_RunRandomRotatingBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0xF], 0x14, 4, 3, 0, 0x25, 0);
+    BattleAnim_InitializeThunderHitSequence();
+}
+
+// initializes using thunder shock
+void BattleAnim_InitializeThunderShockUse(void) {
+    BattleAnim_SpawnCategory17MarkerSlot(0x64, 1);
+    BattleAnim_SpawnGlobalTintColorFadeDetach(0, 0x10, 3);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 8, 3, BattleAnim_RunThunderShockOuterJolts,
+                                                        &gBattleAnimParticleDescriptors[0x14], 2, 1, 2, 0, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 5, 5, BattleAnim_RunThunderShockOuterJolts,
+                                                        &gBattleAnimParticleDescriptors[0x13], 2, 1, 2, 0, 0x25, 0);
+    BattleAnim_AddSpawnDelay(0x23);
+    BattleAnim_SpawnDescriptor25AlphaHoldFadeOutFullAlpha(8, 4, 8, 0xA);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 2, BattleAnim_RunDeterministicStationaryBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0x13], 0x14, 4, 2, 0, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 5, 2, BattleAnim_RunRandomStationaryBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0x13], 0x14, 4, 2, 0, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 6, 2, BattleAnim_RunDeterministicRotatingBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0xF], 0x14, 2, 1, 0, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 2, BattleAnim_RunRandomRotatingBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0xF], 0x14, 2, 1, 0, 0x25, 0);
+}
+
+void BattleAnim_CreateBurstStreamEffect(void) {
+    BattleAnim_SpawnDescriptor25AlphaHoldFadeOutFullAlpha(0x22, 4, 0x10, 0xA);
+    BattleAnim_SpawnGlobalTintColorFadeDetach(0, 0x20, 3);
+    BattleAnim_SpawnGlobalTintColorFadeDetach(0x30, 0x20, 0xA);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 0xA, 2,
+                                                        BattleAnim_CallbackEndEffect28Descriptor10UpwardBurstFade,
+                                                        &gBattleAnimParticleDescriptors[0x10], 0xC, 1, 3, 0, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 5, 3,
+                                                        BattleAnim_CallbackEndEffect28Descriptor10WideScatterBurstFade,
+                                                        &gBattleAnimParticleDescriptors[0x10], 0xC, 2, 3, 0, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 8, 2, BattleAnim_RunThunderShockOuterJolts,
+                                                        &gBattleAnimParticleDescriptors[0x13], 0xC, 3, 3, 0, 0x25, 0);
+}
+
+// initializes using thunder punch
+void BattleAnim_InitializeThunderPunchUse(void) {
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 5, BattleAnim_RunStrongElectricSpark,
+                                                        &gBattleAnimParticleDescriptors[0x11], 8, 4, 0x10,
+                                                        gBattleAnimCurrentAnchor, 0x25, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 1, 0x24, BattleAnim_RunThunderPunchUseEffect,
+                                                        &gBattleAnimParticleDescriptors[0x15], 0, 1, 0x11,
+                                                        gBattleAnimCurrentAnchor, 0, 0);
+}
+
+// initializes getting hit by hyper beam
+void BattleAnim_InitializeHyperBeamHitSequence(void) {
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(8, 4, 2, BattleAnim_RunDeterministicStationaryBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0x13], 0x14, 4, 7, 0, 0x2C, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(8, 4, 2, BattleAnim_RunRandomStationaryBoltOfLightning,
+                                                        &gBattleAnimParticleDescriptors[0x13], 0x14, 3, 7, 0, 0xF, 0);
+    BattleAnim_CreateEffectSlotForCurrentOwner(8, BattleAnim_RunDeterministicRotatingBoltOfLightning,
+                                               &gBattleAnimParticleDescriptors[0xF], 0x14, 1, 7, 0, 0x2C, 0);
+    BattleAnim_CreateEffectSlotForCurrentOwner(8, BattleAnim_RunRandomRotatingBoltOfLightning,
+                                               &gBattleAnimParticleDescriptors[0xF], 0x14, 1, 7, 0, 0xF, 0);
+}
