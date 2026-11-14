@@ -181,8 +181,6 @@ Gfx* ModelRenderer_DrawStaticSegment(Gfx* gfx) {
     Vec3f scale;
     Vec3f translate;
 
-    Port_FixSlotTemplates(); // PORT: the static draw can run before any slot model was built; the raw N64 tables would
-                             // crash G_VTX
     if (D_8006F09C->objectType == 0x92) {
         segment = (ModelSegment*)&D_80077950;
     } else {

@@ -99,8 +99,6 @@ typedef struct StadiumModel {
 extern ModelSegment D_800777A8;
 extern ModelSegment D_80077950;
 
-void Port_FixSlotTemplates(void); // PORT: converts the slot-model templates to host layout (idempotent)
-
 void func_80033D1C(StadiumModel* model, MtxF* mtx);
 void Model_InitializeVertexPositions(ModelSegment*, MtxF*, ModelVertex*);
 void func_800357F4(StadiumModel* model);

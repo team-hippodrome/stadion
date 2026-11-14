@@ -186,47 +186,6 @@ ModelSegment D_80077950 = {
     (Gfx*)D_80077880,
 };
 
-// PORT: the two slot-model templates above are N64 data kept as u32 words: s16 tables (index, adjacency, height
-// class, remap), Vtx arrays and F3DEX2 display lists. Converted once to host order/layout before first use.
-static void Port_FixSlotTemplate(ModelSegment* seg, u32* vtx, s32 vtxCount, u32* dl, s32 dlCmds, u32** halves,
-                                 const s32* halfCounts) {
-    s32 i, k;
-    Gfx* gfx;
-
-    for (k = 0; k < 4; k++) {
-        for (i = 0; i < halfCounts[k]; i++) {
-            halves[k][i] = (halves[k][i] << 16) | (halves[k][i] >> 16); // two s16, first one in the high half
-        }
-    }
-    for (i = 0; i < vtxCount; i++) {
-        u32* v = &vtx[i * 4];
-        v[0] = (v[0] << 16) | (v[0] >> 16); // ob[0], ob[1]
-        v[1] = (v[1] << 16) | (v[1] >> 16); // ob[2], flag
-        v[2] = (v[2] << 16) | (v[2] >> 16); // tc[0], tc[1]
-        v[3] = Port_Swap32(v[3]);           // colour bytes r, g, b, a
-    }
-    gfx = calloc(dlCmds, sizeof(Gfx));
-    for (i = 0; i < dlCmds; i++) {
-        gfx[i].words.w0 = dl[i * 2];
-        gfx[i].words.w1 = dl[i * 2 + 1];
-    }
-    seg->displayList = gfx;
-}
-
-void Port_FixSlotTemplates(void) {
-    static s32 sDone;
-    static const s32 counts[4] = { 12, 22, 6, 6 };
-    u32* a[4] = { D_80077708, D_80077738, D_80077790, D_800776C0 };
-    u32* b[4] = { D_800778B0, D_800778E0, D_80077938, D_80077868 };
-
-    if (sDone) {
-        return;
-    }
-    sDone = 1;
-    Port_FixSlotTemplate(&D_800777A8, D_80077620, 10, D_800776D8, 6, a, counts);
-    Port_FixSlotTemplate(&D_80077950, D_800777C8, 10, D_80077880, 6, b, counts);
-}
-
 // .bss
 Vec3fCounter* D_800B2F50;
 PosBlend D_800B2F58[0x10];
@@ -500,7 +459,6 @@ void func_80033B2C(StadiumModel* model, void* arg1, void* arg2, void* arg3) {
     ModelSegment* segment;
     ModelSegment* temp_v0;
 
-    Port_FixSlotTemplates();
     model = Memmap_GetSegmentVaddr(model);
     arg1 = Memmap_GetSegmentVaddr(arg1);
     temp_s0 = Memmap_GetSegmentVaddr(arg2);
