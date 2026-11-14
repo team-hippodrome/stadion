@@ -9,6 +9,7 @@
 #include "src/cry.h"
 #include "src/audio_fade.h"
 #include "src/port_audio.h"
+#include "StadionPort.h"
 
 typedef struct unk_D_80077970 {
     /* 0x00 */ u8 unk_00;

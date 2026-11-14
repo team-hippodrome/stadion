@@ -4,6 +4,7 @@
 #include "rsp.h"
 #include "flash.h"
 #include "util.h"
+#include "StadionPort.h"
 
 // All from n64 programming manual section 27.2
 #define SRAM_START_ADDR 0x08000000

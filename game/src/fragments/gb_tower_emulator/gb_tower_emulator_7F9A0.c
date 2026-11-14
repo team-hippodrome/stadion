@@ -8,6 +8,7 @@
 #include "src/controller.h"
 #include "src/memory.h"
 #include "include/variables.h"
+#include "StadionPort.h"
 
 typedef struct GbEmuButtonBindings {
     /* 0x00 */ u8 startBinding;
@@ -1495,8 +1496,6 @@ void GbEmu_DrawTextCommands(u16* fb, u8* cmd) {
 
 // PORT: frame buffers and the decompressed graphics hold pixels in N64 byte order (the renderer and the frame
 // presentation read them that way); the pixel code below works on numeric RGBA5551 values, so loads and stores swap.
-void Port_GbPresent(void* frameBuffer, const void* statusStrip, const void* frameImage, int ox, int oy, int sy,
-                    int brightness, int frameBrightness); // PORT: src/port/gb_core.c
 // PORT: these tables are byte arrays holding big-endian words
 #define GB_BE32_AT(tbl, i)                                                                            \
     ((u32)(((u8*)(tbl))[(i)*4] << 24 | ((u8*)(tbl))[(i)*4 + 1] << 16 | ((u8*)(tbl))[(i)*4 + 2] << 8 | \

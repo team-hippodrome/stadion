@@ -17,6 +17,7 @@
 #include "src/controller.h"
 #include "src/memory.h"
 #include "src/stage_loader.h"
+#include "StadionPort.h"
 
 static TeamOrderState sTeamOrderStates[2];
 static BinArchive* sBackgroundArchive;
@@ -988,7 +989,6 @@ void BattleMenu_UndoSelections(BattleOrderInputState* order_state) {
     }
 }
 
-unsigned long long Port_ViTick(void);
 /* Maps slot buttons to picking or checking Pokemon and handles L-cancel. */
 void BattleMenu_HandleOrderSelectPanel_PartyInput(Controller* controller, BattleOrderInputState* input_state) {
     s32 r_held_down = BTN_IS_DOWN(controller, BTN_R);

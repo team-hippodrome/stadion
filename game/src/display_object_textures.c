@@ -9,6 +9,7 @@
 #include <PR/os_internal_reg.h>
 #include <PR/leo.h>
 #include "src/memory.h"
+#include "StadionPort.h"
 
 // .bss
 unk_D_800ABE10 D_800ABE10;
@@ -193,9 +194,6 @@ Fragment* BinArchive_LoadFileFromLbaRange(MainPoolState* arg0, BinArchive* arg1,
     Storage_SetByteRange(&sp1C, arg1->unk_04, arg2->offset, arg2->size);
     return Fragment_LoadFromLbaRange(arg0, &sp1C, arg3, arg4);
 }
-
-u32 Port_PtrToHandle(void* p);
-void* Port_HandleToPtr(u32 h);
 
 Fragment* BinArchive_LoadFileToPool(MainPoolState* arg0, BinArchive* arg1, s32 arg2, uintptr_t arg3, s32 arg4) {
     s32 pad[4];

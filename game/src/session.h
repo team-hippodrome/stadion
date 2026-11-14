@@ -13,6 +13,7 @@ TeamRoster* Trainer_Create(s32 port, s16 arg1, char* trainer_name, char* player_
 void Team_AddTrainer(s32 arg0, TeamRoster* arg1);
 void Trainer_AddPokemon(TeamRoster* arg0, BattleMon* arg1);
 BattleMon* Pokemon_CreateDefault(BattleMon* arg0, u8 arg1, s16 arg2);
+void Port_BattleMonFromBE(BattleMon* dst, const BattleMon* src);
 void Session_SetupDemoBattle(s16 arg0, s16 arg1, s16 arg2, s16 arg3);
 void Team_AddDeckTrainer(s32 arg0, s32 arg1, s32 arg2);
 void Team_BuildDeckOpponents(s32 arg0, s32 arg1, s32 arg2, s32 arg3);

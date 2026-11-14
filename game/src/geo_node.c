@@ -5,6 +5,7 @@
 #include "matrix.h"
 #include "util.h"
 #include "src/jpeg_stream.h"
+#include "StadionPort.h"
 
 void GeoNode_Init(GraphNode* arg0, u8 arg1) {
     if (arg0 != NULL) {

@@ -93,6 +93,8 @@ moves `latest` and creates the GitHub release, after asking. `--only macos,windo
 
 - `game/` — the decompiled game (C), vendored from the decomp with the port's changes folded in (see below)
 - `src/port/` — host layer: OS/threads, VI, controllers, sound (audio microcode, AI), Transfer Pak, flash saves, GB core
+- `src/port/StadionPort.h` — the game/port boundary: every function the game calls in the port, or implements for
+  it, is declared there once. Game files include it explicitly; do not declare `Port_*` functions with a local `extern`
 - `src/port/sdk/` — stand-ins for the N64 SDK headers the game includes (`ultra64.h`, `PR/*.h`, force-included `port_compat.h`)
 - `libultraship/`: submodule of [Team Hippodrome's fork](https://github.com/team-hippodrome/libultraship);
   the port's renderer changes are committed in the fork, not applied as a local patch

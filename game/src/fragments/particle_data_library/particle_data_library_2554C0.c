@@ -6,8 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "src/util.h"
-
-extern int Port_IsRawData(const void* p);
+#include "StadionPort.h"
 
 static uintptr_t Port_PdlAddr(u32 v) {
     if (v < 0x10000000U) {

@@ -22,6 +22,7 @@
 #include "src/stage_loader.h"
 #include "src/util.h"
 #include "src/gb_save.h"
+#include "StadionPort.h"
 
 extern u8 D_3000180[];
 extern u8 D_3000780[];

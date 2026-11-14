@@ -18,6 +18,7 @@
 #include "src/fragments/particle_math/particle_math.h"
 #include "src/memory.h"
 #include "src/stage_loader.h"
+#include "StadionPort.h"
 
 typedef struct unk_D_86A02700 {
     /* 0x00 */ u16 unk_00;

@@ -11,6 +11,7 @@
  **************************************************************************/
 
 #include "guint.h"
+#include "StadionPort.h"
 
 void guMtxF2L(float mf[4][4], Mtx *m)
 {
@@ -19,7 +20,7 @@ void guMtxF2L(float mf[4][4], Mtx *m)
 	int	*ai,*af;
 
 
-	{ extern void Port_LogF2L(float mf[4][4], Mtx *m); Port_LogF2L(mf, m); }
+	Port_LogF2L(mf, m); /* PORT: matrix log (PORT_MTXLOG, src/port/stubs.c) */
 	ai=(int *) m; /* PORT: Mtx.m is long[4][4] (8-byte longs on the host); the layout is 8 int words + 8 fraction words */
 	af=ai + 8;
 

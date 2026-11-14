@@ -8,6 +8,7 @@
 #include "src/dp_intro.h"
 #include "src/util.h"
 #include <PR/leo.h>
+#include "StadionPort.h"
 
 typedef enum {
     JPEG_MARKER_START_OF_FRAME = 0xC0,
@@ -142,7 +143,6 @@ void Jpeg_BuildDspOutput(unk_func_80003680_sp90* arg0, u8(arg1)[2][0x80], unk_fu
     arg0->unk_14 = (uintptr_t)&arg1[1];
 }
 
-extern void Port_TraceJpeg(const char* what, int a, int b, int c);
 s32 Jpeg_DecodeImage(uintptr_t addr, s32 arg1, u8* arg2) {
     UnkStruct80001380 sp318;
     unk_func_80003680_sp300 sp300;
@@ -612,13 +612,11 @@ ret_func_80004454 Fragment_Load(s32 arg0, u8* romStart, u8* romEnd) {
     Port_NoteLoadedFragment(arg0, romStart);
     {
         // the N64 reloads a fragment's .data/.bss from ROM on every load (see tools/gen_frag_sections.py)
-        extern void Port_FragmentResetData(void* entry);
         Port_FragmentResetData(Port_FragmentEntry(romStart));
     }
 #ifdef __EMSCRIPTEN__
     {
         // web build: a thunk of FragmentEntry's type (tools/gen_fragment_thunks.py)
-        extern void* Port_FragmentCallable(void* entry);
         return (ret_func_80004454)Port_FragmentCallable(Port_FragmentEntry(romStart));
     }
 #endif
@@ -673,7 +671,6 @@ void Port_NoteLoadedFragment(u32 slot, u8* romStart) {
     if (sTrace < 0)
         sTrace = getenv("PORT_TRACE_FRAGMENTS") != NULL;
     if (sTrace) {
-        extern unsigned long long Port_ViTick(void);
         const struct PortFragmentEntry* e = Port_FindFragment(romStart);
         fprintf(stderr, "[fragment] slot %u: %s @frame %llu\n", (unsigned)slot, e && e->name ? e->name : "?",
                 Port_ViTick());

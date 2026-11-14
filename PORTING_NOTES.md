@@ -1323,7 +1323,7 @@ touched. `PORT_NO_MARGIN_CLEAR=1` restores the old behaviour.
 Battle HUD at the widescreen edges: the status boxes, portraits and menus were laid out for the 4:3 frame and cut at
 its sides, so in 16:9 they slid in and out of the middle of the picture (from the 4:3 edge, the rest of the box
 missing) and sat inside it. The game now brackets each side's HUD with markers (`gDPPortAnchorLeft/Right/End` in
-port_compat.h, a G_NOOP of type 0x52): `Battle_RenderHud` around `BattleHud_DrawOwnSideStatus` (left: the player's
+StadionPort.h, a G_NOOP of type 0x52): `Battle_RenderHud` around `BattleHud_DrawOwnSideStatus` (left: the player's
 box, portrait frame, command bar and move menu) and `BattleHud_DrawOpponentSideStatus` (right, with its label bar),
 `Battle_DrawCompactStatusBoxesIfVisible` (the small boxes shown during moves), and `Battle_FillActivePokemonThumbnail`
 for the portraits, which are captured into a render target only when they change and blitted every frame at the
@@ -1338,7 +1338,7 @@ sunset sky is the one stage backdrop drawn as a texture (`Battle_DrawStageBackdr
 screen, each half its height), before the arena and with nothing 3D before it (the cup stadiums draw their crowd first
 in `BgStage_DrawFrame`), so the 2D-screen check (interpreter `s2DRectArea`: textured rectangles over 90% of the picture
 before any 3D) took the frame for a menu and kept all of it inside the 4:3 area. The backdrop now marks the frame as a
-3D scene's first (`gDPPort3DScene` in port_compat.h, a G_NOOP of type 0x53, sets the interpreter's `sSeen3DThisRun`), so
+3D scene's first (`gDPPort3DScene` in StadionPort.h, a G_NOOP of type 0x53, sets the interpreter's `sSeen3DThisRun`), so
 the sky is widened as the other stages' backdrops are and the arena fills the picture. Checked over all 18 stage files
 in 16:9 (`PORT_BOOT=battle PORT_BOOT_STAGE=n`: only 15 and 16 change) and the Castle's Elite Four and rival route; at
 4:3 the pictures are identical. `PORT_NO_3D_SCENE_MARK=1` ignores the marker.

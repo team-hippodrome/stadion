@@ -5,6 +5,7 @@
 #include "src/gb_data.h"
 #include "src/jpeg_stream.h"
 #include "src/memory.h"
+#include "StadionPort.h"
 
 static s16 D_800AE4E0;
 static SaveBank D_800AE4E8[4];
@@ -1135,9 +1136,6 @@ static u8* Save_PortFlashImage(s16 bank, u8* src, u32 size) {
     Save_PortSwapBank(bank, sFlashImage);
     return sFlashImage;
 }
-
-extern void Port_BeginFlashBankWrite(void);
-extern void Port_EndFlashBankWrite(void);
 
 static s32 Save_FlushBankPages(s16 arg0) {
     static u32 D_80073650[] = {

@@ -7,6 +7,7 @@
 #include "src/audio_cache.h"
 #include "src/3D140.h"
 #include "src/audio_commands.h"
+#include "StadionPort.h"
 
 static s32 D_800FF9B0;
 static s32 D_800FF9B4;

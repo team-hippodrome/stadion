@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "StadionPort.h"
 
 void PortA_Swap32(void* p, u32 count) {
     u32* w = (u32*)p;

@@ -37,6 +37,7 @@
 #include <SDL3/SDL.h>
 #include <thread>
 #include <vector>
+#include "StadionPort.h"
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 #endif
@@ -52,7 +53,6 @@ extern "C" void* Port_ResolveN64Address(uintptr_t addr);
 extern "C" double Port_Speed();
 extern "C" bool Port_DisplayPaced();
 extern "C" bool Port_Lockstep();
-extern "C" uint64_t Port_ViTick();
 extern "C" bool Port_FreezeCheckEnabled();
 extern "C" void Port_NotePictureHash(uint64_t hash);
 extern "C" void Port_GfxFrameDone(void);
@@ -409,9 +409,6 @@ static void ValidateList(const Gfx* g, int depth, const char* path) {
 
 // Debug aid (PORT_SCREENSHOT_DIR=dir): writes the presented frame as a PPM every 120 frames (the Metal readback
 // returns the previous frame as RGBA5551). Convert with tools/ppm2png.py.
-extern "C" int Port_XcheckAnimActive(void);
-extern "C" const char* Port_XcheckFramePath(void);
-extern "C" int Port_BattleBootActive(void);
 extern "C" const char* Port_BattleFramePath(int* w, int* h);
 extern "C" void Port_BattleFrameWritten(void);
 

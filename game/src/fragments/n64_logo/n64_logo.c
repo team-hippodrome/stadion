@@ -14,9 +14,7 @@
 #include "src/pokemon_stats.h"
 #include <stdio.h>
 #include <stdlib.h>
-
-extern int Port_PacedLogoHold(void);
-extern unsigned long long Port_ViTick(void);
+#include "StadionPort.h"
 
 /**
  * Draws the 128x112 RGBA16 "NINTENDO 64" logo (n64_logo_texture, loaded at segment 0x02)

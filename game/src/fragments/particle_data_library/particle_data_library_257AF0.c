@@ -5,6 +5,7 @@
 #include "src/gfx_buffer.h"
 #include "src/geo_render.h"
 #include "src/battle_hud.h"
+#include "StadionPort.h"
 
 // PORT: s16 pair then texture addresses (host addresses; indexed with & 7, past the 6 the original declares)
 typedef struct unk_arg1_func_81002830 {
@@ -22,8 +23,6 @@ typedef struct TextureState {
     PDL_NODE_WITH_DATA(u32*, textures);
     /* 0x18 */ Gfx* gfx;
 } TextureState; // size = 0x1C
-
-extern int Port_IsRawData(const void* p);
 
 // the frame record from ROM: two big-endian s16, then 32-bit addresses. Cached by host address with the raw bytes it
 // was made from (see Port_PdlWords): a model loaded where another one was must not get the old model's texture frames.

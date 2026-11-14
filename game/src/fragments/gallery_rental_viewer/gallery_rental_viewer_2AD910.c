@@ -5,6 +5,7 @@
 #include "src/pokemon_stats.h"
 #include "src/text_system.h"
 #include "src/jpeg_stream.h"
+#include "src/session.h"
 #include "src/gfx_buffer.h"
 #include "src/controller.h"
 #include "src/fragments/minigame_select/minigame_select.h"
@@ -268,7 +269,6 @@ s32 Gallery_RentalViewerMain(s32 arg0, s32 arg1) {
     // fragment61's Rental_LoadRoster. Unswapped, the count read as a huge number and the records' 16/32-bit fields
     // (stats, experience) were byte-swapped. The archive may hand out the same buffer again: the count tells.
     if ((D_8380565C != NULL) && (D_8380565C->unk_000 > 0x1000)) {
-        extern void Port_BattleMonFromBE(BattleMon * dst, const BattleMon* src);
         u32 n = Port_Swap32(D_8380565C->unk_000);
         u32 k;
 

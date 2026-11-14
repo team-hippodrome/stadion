@@ -4,6 +4,7 @@
 #include "dma.h"
 #include "rsp.h"
 #include "src/util.h"
+#include "StadionPort.h"
 
 extern s16 D_80083C1C;
 

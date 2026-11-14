@@ -1,5 +1,6 @@
 #include "global.h"
 #include "gb_tower_emulator.h"
+#include "StadionPort.h"
 
 // GB APU debug output. Dead data: the osSyncPrintf calls these fed were compiled
 // out, so nothing references them any more.
@@ -7024,7 +7025,6 @@ s32 GbAudio_UpdateFrame(void) {
     sGbAudioBufferIndex %= 3;
     idx = (sGbAudioBufferIndex + 2) % 3;
     {
-        extern u32 Port_GbAudioQueuedBytes(void); // PORT: bytes still queued in the host's sound output
         ai_length = Port_GbAudioQueuedBytes() >> 2;
     }
 

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "particle_math.h"
 #include "src/geo_render.h"
+#include "StadionPort.h"
 
 /*
  * Pool allocation, effect state, motion terms, and draw dispatch for particles.
@@ -2375,7 +2376,6 @@ void Particle_PrepareRender(Particle* particle) {
     }
 }
 
-extern unsigned long long Port_CamlogAnimFrame(void);
 extern ParticleDescriptor gBattleAnimParticleDescriptors[];
 
 /* For kind 1, optionally run per-particle setup then draw; kind 3 calls the direct render callback. */

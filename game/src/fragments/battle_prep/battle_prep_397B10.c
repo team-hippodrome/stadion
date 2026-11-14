@@ -8,6 +8,7 @@
 #include "src/matrix.h"
 #include "src/memory.h"
 #include "src/util.h"
+#include "StadionPort.h"
 
 s32 BattlePrep_BindCarouselSegment0(s32, unk_func_80011B94*);
 s32 BattlePrep_BindCarouselSegment1(s32, unk_func_80011B94*);

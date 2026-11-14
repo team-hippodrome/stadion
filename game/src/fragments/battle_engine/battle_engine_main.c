@@ -18,6 +18,7 @@
 #include "src/geo_layout.h"
 #include "src/memmap.h"
 #include "src/memory.h"
+#include "StadionPort.h"
 
 // Battle fragment entry, scene construction, and per-frame rendering.
 // Stage archive entries provide layouts 0/1/3, backdrop 2, and optional fog 4.
@@ -346,7 +347,6 @@ void Battle_RenderActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer*
         GfxImage_SetRenderTarget(&gDisplayListHead, thumbnail);
         GfxImage_FillCurrent(&gDisplayListHead, 0x10D);
         if (PORT_GETENV_ONCE("PORT_TRACE_BATTLE")) {
-            extern unsigned long long Port_ViTick(void);
             GraphNode* c = (GraphNode*)camera_node->node.children;
             fprintf(stderr, "[thumb] frame %llu image %p %dx%d children %p\n", Port_ViTick(), (void*)thumbnail->img_p,
                     thumbnail->width, thumbnail->height, (void*)c);
@@ -650,8 +650,6 @@ void Battle_SelectComRoster(void) {
     s32 i;
     s32 number_of_pokemon_picked;
 
-    extern int Port_BattleBootActive(void); // PORT: battle boot (src/port/xcheck.cpp)
-
     player_roster = gSessionContext.battleSides[0].tagTeamMember[0];
     // In Free Battle Team Battle, side 0 can have a second allied trainer in teamMember[1].
     player_teammate_roster = gSessionContext.battleSides[0].tagTeamMember[1];
@@ -770,7 +768,6 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
     }
 
     {
-        extern int Port_BattleBootArena(void); // PORT: battle boot (src/port/xcheck.cpp): the case's arena
         if (Port_BattleBootArena() >= 0) {
             arena_index = Port_BattleBootArena();
         }

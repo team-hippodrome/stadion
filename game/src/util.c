@@ -3,6 +3,7 @@
 #include "memory.h"
 #include "util.h"
 #include "src/memmap.h"
+#include "StadionPort.h"
 
 #define PORT_HEAP_SIZE (96 * 1024 * 1024)
 extern unsigned char gPortHeap[];
@@ -26,7 +27,6 @@ s32 StageContext_IsHighResolution(void);
  * Convert any valid address to its virtual (KSEG0) counterpart.
  */
 #ifdef __EMSCRIPTEN__
-int Port_IsHostFunction(uintptr_t addr); // web build: a function table index (port_platform.c)
 #endif
 
 uintptr_t Util_ConvertAddrToVirtAddr(uintptr_t addr) {

@@ -4,6 +4,7 @@
 #include "src/audio_cache.h"
 #include "src/audio_category_fade.h"
 #include "src/audio_commands.h"
+#include "StadionPort.h"
 
 u8* D_800FF9C0;
 

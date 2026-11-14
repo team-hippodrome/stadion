@@ -120,9 +120,6 @@ Fragment* BinArchive_LoadFileFromRom(BinArchive* arg0, BinArchiveFile* arg1);
 void* BinArchive_LoadFileBuffered(BinArchive* arg0, BinArchiveFile* arg1);
 void* BinArchive_GetFile(BinArchive* archive, s32 file_number);
 void* Port_ResolveCode(uintptr_t addr);
-#ifdef __EMSCRIPTEN__
-int Port_IsHostFunction(uintptr_t addr); // web build: a function table index (port_platform.c)
-#endif
 uintptr_t Port_CallFragmentLeaf(const void* code, s32 a0, s32 a1);
 void Port_NoteLoadedFragment(u32 slot, u8* romStart);
 extern int gPortRelocateDataBlob;
@@ -131,5 +128,6 @@ void Port_FixPresJpegHeader(PRESJPEG* h);
 void* BinArchive_GetCachedFile(BinArchive* archive, s32 file_number);
 u32 Port_PtrToHandle(void* p);
 void* Port_HandleToPtr(u32 h);
+void Port_FragmentFree(u8* romStart);
 
 #endif // _JPEG_STREAM_H_

@@ -2,6 +2,7 @@
 #include "gb_audio_render.h"
 #include "src/rom_device.h"
 #include "src/audio_commands.h"
+#include "StadionPort.h"
 
 typedef struct unk_D_800FD008 {
     /* 0x00 */ u16 unk_00[20];

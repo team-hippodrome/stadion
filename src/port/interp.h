@@ -4,14 +4,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "StadionPort.h" // Port_InterpBeginFrame, Port_InterpNode
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Game thread. The game starts building a frame in this display-list buffer (Gfx_SwapDisplayListBuffer).
-void Port_InterpBeginFrame(const void* dlStart);
-// The scene-graph node being drawn (geo_render.c): matrices that follow are identified by node and call site.
-void Port_InterpNode(const void* node);
 // A matrix put into the display list being built (gSPMatrix -> Port_GfxPrepareMtx), from that call site.
 void Port_InterpTagMtx(const void* mtx, const void* site);
 // The game's segment or fragment maps changed (Port_GfxFlushCache): addresses in older display lists may be stale.

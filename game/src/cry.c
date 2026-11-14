@@ -3,6 +3,7 @@
 #include "src/audio_stream.h"
 #include "src/rom_device.h"
 #include "src/3D140.h"
+#include "StadionPort.h"
 
 extern u8 D_80078400;
 

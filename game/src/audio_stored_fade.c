@@ -4,6 +4,7 @@
 #include "src/cry.h"
 #include "src/audio_cache.h"
 #include "libnumus/player.h"
+#include "StadionPort.h"
 
 // .data
 u8 D_80078A10[3] = { 0xFF, 0xFF, 0xFF };

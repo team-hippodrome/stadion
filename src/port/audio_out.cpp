@@ -27,8 +27,8 @@
 #include <cstring>
 #include <mutex>
 #include <string>
+#include "StadionPort.h"
 
-extern "C" uint64_t Port_ViTick(void);
 extern "C" double Port_Speed();
 extern "C" void Port_GbAudioSetFrequency(int32_t freq);
 

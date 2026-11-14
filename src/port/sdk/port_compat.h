@@ -154,52 +154,6 @@ OSPiHandle* port_osCartRomInit(void);
 void port_osCreateViManager(OSPri pri);
 s32 port_osEPiStartDma(OSPiHandle*, OSIoMesg*, s32);
 #define osSetTimer port_osSetTimer
-// The game's sound engine runs unless switched off (PORT_GAME_AUDIO=0, or replaying an input recording made before
-// the engine was ported: src/port/os_devices.cpp). Off, its entry points return at once as they did then.
-int Port_GameAudio(void);
-// The N64's loading time where the game's timing counts on it (the boot diorama's model loads, which the music is timed
-// around), as waits; off when replaying an input recording made before them (src/port/os_devices.cpp).
-int Port_LoadWaits(void);
-// The controllers plugged in, as osContInit's controller bits: 1 always, 2-4 as the launcher's Controls panel,
-// PORT_CONTROLLERS or a replayed recording say (src/port/os_devices.cpp).
-int Port_ControllerBits(void);
-// Blocks the calling game thread for that many retraces when Port_LoadWaits() is on (game/src/port_audio.c).
-void Port_LoadStall(int retraces);
-// A horizontal view half-angle (binary angle, 0x10000 = 360 degrees) widened for the picture's shape: unchanged at 4:3,
-// wider at 16:9 (src/port/Engine.cpp). For game checks of what the camera sees, which assume the N64's 4:3 picture.
-s16 Port_WidenViewAngle(s16 angle);
-// Horizontal camera spans follow the projection's width relative to the original 4:3 view.
-float Port_WidenViewSpan(float span);
-// N64 pixels beside the 4:3 frame on each side of a widescreen picture (0 at 4:3; src/port/Engine.cpp).
-int Port_WideMarginN64(void);
-// The x of a node of the battle's camera-facing effect grids (Hypnosis' swirl: Trail40, Trail40Variant, Trail40GridAlt)
-// for the picture's shape: unchanged at 4:3, wider in widescreen so the grid covers the whole picture.
-float Port_WidenEffectGridX(float x);
-// Full-screen 2D effects made for the 4:3 picture (the battle's strip wipe): the textured rectangles between these
-// markers are stretched over the whole width of a widescreen picture (libultraship fork, interpreter.cpp sWideRects).
-#define gDPPortWideRectsBegin(pkt) gDPNoOpTag3(pkt, 0x50, 0, 1)
-#define gDPPortWideRectsEnd(pkt) gDPNoOpTag3(pkt, 0x50, 0, 0)
-// The battle HUD in a widescreen picture: what is drawn between these markers moves to the left or right edge of the
-// picture (by the margin beside the 4:3 frame) and is not cut at the 4:3 sides (libultraship fork, interpreter.cpp
-// sAnchor), so the status boxes, portraits and menus slide in from the screen's edges. Nothing changes at 4:3.
-#define gDPPortAnchorLeft(pkt) gDPNoOpTag3(pkt, 0x52, 0, 1)
-#define gDPPortAnchorRight(pkt) gDPNoOpTag3(pkt, 0x52, 0, 2)
-#define gDPPortAnchorEnd(pkt) gDPNoOpTag3(pkt, 0x52, 0, 0)
-// Not moved, only not cut at the 4:3 sides (what runs off the N64 screen's edge runs on to the picture's edge); end it
-// with gDPPortAnchorEnd.
-#define gDPPortNoCut(pkt) gDPNoOpTag3(pkt, 0x52, 0, 3)
-// The battle's two portrait cameras (CameraNode*): their portraits are anchored like the HUD when drawn
-// (battle_engine_main.c Battle_FillActivePokemonThumbnail);
-// set by the battle every frame it draws its HUD; a registration older than a few frames no longer counts.
-void Port_SetHudAnchorCameras(const void* left, const void* right);
-int Port_HudAnchorSide(const void* camera); // -1 left, 1 right, 0 none
-// The main picture is a 3D scene's even where 2D drawing comes first: a backdrop of full-screen rectangles drawn before
-// any 3D (the Elite Four room's sky, battle_engine_main.c Battle_DrawStageBackdrop) must not make the frame a 2D screen,
-// which widescreen keeps inside the 4:3 area (libultraship fork, interpreter.cpp s2DRectArea). Nothing changes at 4:3.
-#define gDPPort3DScene(pkt) gDPNoOpTag3(pkt, 0x53, 0, 1)
-// Preserve the CPU pixels of the next colour image before a GPU blend (interpreter.cpp RttInitialize).
-#define gDPPortPreserveColorImage(pkt) gDPNoOpTag3(pkt, 0x51, 0, 1)
-#define PORT_AUDIO_OFF() (!Port_GameAudio())
 // Audio interface: a virtual DMA FIFO in game time, played through SDL3 (src/port/audio_out.cpp)
 s32 port_osAiSetNextBuffer(void* buf, u32 size);
 u32 port_osAiGetLength(void);
@@ -229,38 +183,6 @@ void port_osContGetReadData(OSContPad* pad);
 extern long long int rspbootTextStart[], rspbootTextEnd[];
 extern long long int aspMainTextStart[], aspMainTextEnd[];
 extern long long int aspMainDataStart[], aspMainDataEnd[];
-
-// Battle cross-check against the original game in ares (src/port/xcheck.cpp, tools/battle_xcheck.py); all off unless
-// PORT_XCHECK* is set
-int Port_XcheckEnabled(void);
-int Port_XcheckForcingRandom(void);
-int Port_XcheckCom(void);
-int Port_XcheckRandom(int fn, int arg, int* out, void* caller);
-int Port_XcheckHasCase(void);
-void Port_XcheckPatchMon(int side, int slot, void* battleMon);
-void Port_XcheckApplyCaseParties(void);
-int Port_XcheckWantDraw(void);
-int Port_XcheckNoMusic(void);
-void Port_XcheckGameFrame(void);
-void Port_XcheckSfx(int kind, unsigned a, int b, int c);
-unsigned long long Port_XcheckOsGetTime(void);
-void Port_XcheckWriteEvent(const char* name, const void* state0, const void* state1, const void* scene, unsigned damage,
-                           const void* messageQueues);
-void Port_XcheckBattleEvent(const char* name);
-void Port_XcheckMoveAnim(int side, int move);
-int Port_XcheckLoadWait(void);
-int Port_XcheckAnimActive(void);
-const char* Port_XcheckFramePath(void);
-
-// A debug switch from the environment, read once per call site: getenv scans the whole environment, and the port's
-// debug checks sit in per-frame and per-draw code (Font_DrawChar, the geo renderer, the battle HUD). The switches
-// are set before launch and never change while the game runs. (Statement expression: the game builds with clang.)
-#define PORT_GETENV_ONCE(name)                                                  \
-    ({                                                                          \
-        static const char* sPortEnvValue_ = (const char*)1; /* 1: not read */   \
-        if (sPortEnvValue_ == (const char*)1) sPortEnvValue_ = getenv(name);    \
-        sPortEnvValue_;                                                         \
-    })
 
 #ifdef __cplusplus
 }

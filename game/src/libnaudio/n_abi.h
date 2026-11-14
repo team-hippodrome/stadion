@@ -28,6 +28,8 @@
 
 #include <stdint.h>
 
+#include "StadionPort.h" // Port_AcmdAddr
+
 /*
  * PORT: addresses in the command list are host pointers, which do not fit the 24/32-bit fields. Every command that
  * carries one records the full pointer in a side table keyed by the command's slot (Port_AcmdAddr, audio_hle.cpp);
@@ -36,7 +38,6 @@
  */
 #define PORT_ACMD_NATIVE 0
 #define PORT_ACMD_BE 1
-unsigned int Port_AcmdAddr(void* cmd, uintptr_t addr, int kind);
 #define PORT_ACMD_ADDR(pkt, s, kind) Port_AcmdAddr((void*)(pkt), (uintptr_t)(s), kind)
 
 /*

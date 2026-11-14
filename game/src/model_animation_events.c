@@ -1,6 +1,7 @@
 #include "model_animation_events.h"
 #include "src/util.h"
 #include "src/memmap.h"
+#include "StadionPort.h"
 
 static unk_D_800ABD00 D_800ABD00[2];
 static s32 D_800ABD20;
@@ -108,7 +109,6 @@ void ModelAnim_GetEventAtFrame(unk_D_86002F34_alt11_018** arg0, unk_D_86002F34_a
         sEventRaw = ETD_RAW(sp1C->unk_04);
         if ((sp1C->unk_00 == 1) && (arg2 >= 0) && (arg2 < ETD_COUNT(sp1C->unk_04))) {
             // PORT: descriptors in ROM model data are 12 bytes apart (the host struct is larger): Port_DescAt
-            extern void* Port_DescAt(void* base, int idx, size_t hostStride);
             *arg0 =
                 Port_DescAt(arg1, ((u8*)sp1C->unk_0C)[ModelAnim_ResolveEventIndex(sp1C->unk_02, sp1C->unk_08, arg2)],
                             sizeof(unk_D_86002F34_alt11_018));

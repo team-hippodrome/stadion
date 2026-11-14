@@ -18,6 +18,7 @@
 #include "moves.h"
 #include "pokemon.h"
 #include "status.h"
+#include "StadionPort.h"
 
 static PokemonBattleCues sSide1BattleCues;
 static PokemonBattleCues sSide2BattleCues;

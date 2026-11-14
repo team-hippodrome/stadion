@@ -207,6 +207,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_S
              ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_fragment_entries.c)
 set_target_properties(stadium_game PROPERTIES C_STANDARD 11 C_EXTENSIONS ON)
 target_include_directories(stadium_game PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/port # StadionPort.h: the game/port boundary
   ${CMAKE_CURRENT_SOURCE_DIR}/game
   ${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk
   ${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/PR

@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "StadionPort.h"
+
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
@@ -24,8 +26,8 @@ typedef int8_t s8;
 typedef int32_t s32;
 
 // ---- the GB Tower's emulator context (game/include/global.h: unk_D_8122B2C0), fields this core uses ----
-// Field offsets, provided by the game side (gb_tower_emulator_7F9A0.c) where the struct type is known.
-extern const size_t Port_GbEmuOffsets[9];
+// Field offsets, provided by the game side (gb_tower_emulator_7F9A0.c) where the struct type is known
+// (Port_GbEmuOffsets, StadionPort.h).
 
 enum { OFF_ROM, OFF_SRAM, OFF_SRAM_SIZE, OFF_PAD, OFF_DIRTY, OFF_DELAY, OFF_VARIANT, OFF_STADIUM_DATA, OFF_BORDER_SHOWN };
 #define EMU_FIELD(emu, k) ((u8*)(emu) + Port_GbEmuOffsets[k])

@@ -1,5 +1,6 @@
 #include "src/port_audio.h"
 #include "audio_stream.h"
+#include "StadionPort.h"
 
 // GSM stream channel state for AudioStream_*: opening, DMA refill and decode, and sample
 // consumption. A separate file because the Japanese ROM pads AudioStream_DmaReadChunk's end

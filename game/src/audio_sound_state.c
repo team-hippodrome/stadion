@@ -5,6 +5,7 @@
 #include "src/audio_stream.h"
 #include "src/3D140.h"
 #include "src/audio_commands.h"
+#include "StadionPort.h"
 
 void Audio_IsSoundPlayingWrapper(s32 arg0) {
     if (PORT_AUDIO_OFF()) {
@@ -44,7 +45,6 @@ s32 Audio_GetActivityScore(void) {
         var_s1 += temp_v0 * 1000;
     }
     if (PORT_GETENV_ONCE("PORT_TRACE_ACTIVITY")) {
-        extern unsigned long long Port_ViTick(void);
         static unsigned long long last = 0;
         if (Port_ViTick() >= last + 60) {
             last = Port_ViTick();

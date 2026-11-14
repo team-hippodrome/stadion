@@ -20,6 +20,7 @@
 #include "src/audio_loop_point.h"
 #include "src/memory.h"
 #include "src/util.h"
+#include "StadionPort.h"
 
 typedef struct {
     /* 0x00 */ s16 unk_00;

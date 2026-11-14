@@ -2,6 +2,7 @@
 #include "src/geo_node.h"
 #include "src/matrix.h"
 #include "src/util.h"
+#include "StadionPort.h"
 
 static GeoLayoutCommandProc GeoLayoutJumpTable[] = {
     geo_layout_cmd_branch_and_link,
@@ -55,7 +56,6 @@ static s16 D_800ABDFC;
 static s16 gGeoLayoutReturnIndex;
 static u8* gGeoLayoutCommand;
 int gGeoPacked;
-extern int Port_IsRawData(const void* p);
 
 static void GeoSetCmd(u8* p) {
     gGeoLayoutCommand = p;

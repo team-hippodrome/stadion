@@ -3,6 +3,7 @@
 #include "src/memmap.h"
 #include "src/matrix.h"
 #include "src/model_animation_events.h"
+#include "StadionPort.h"
 
 typedef struct unk_func_80016B30_arg0 {
     /* 0x00 */ Vec3s vec;
@@ -15,7 +16,6 @@ static unk_D_800ABCC0 D_800ABCC0[2];
 // accessors below swap when it is set. ROM data is a model blob from an archive or data mapped as a segment or a
 // fragment (e.g. the Pikachu reward's _798CD0 follower animation, a fragment-linked address).
 static s32 sRaw;
-extern int Port_IsRawData(const void* p);
 #define ANIM_RAW(p) Port_IsRawData((const void*)(p))
 static inline u16 Anim_U16(const void* p) {
     const u8* b = (const u8*)p;

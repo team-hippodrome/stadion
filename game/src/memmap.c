@@ -2,13 +2,12 @@
 #include <stdlib.h>
 #include "global.h"
 #include "memmap.h"
+#include "StadionPort.h"
 
 struct MemoryMap {
     uintptr_t vaddr;
     size_t size;
 };
-
-extern void Port_GfxFlushCache(void);
 
 /*
  * PORT: virtual 32-bit address space for data blobs (models) that the game relocates into RAM and keeps several of at

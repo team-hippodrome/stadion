@@ -1,6 +1,7 @@
 #include "global.h"
 #include <macros.h>
 #include "memory.h"
+#include "StadionPort.h"
 
 static struct MainPool sMemPool;
 
@@ -69,7 +70,6 @@ void* main_pool_alloc_from_pool(u32 size, u32 side) {
         }
     }
     if (addr != NULL) { // PORT: a reused block is no longer a GPU render target (see interpreter.cpp)
-        extern void Port_GfxForgetRenderTargets(const void* start, size_t size);
         Port_GfxForgetRenderTargets(addr, size);
     }
     return addr;

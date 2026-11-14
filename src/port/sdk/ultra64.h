@@ -97,11 +97,7 @@ extern "C" {
 void* Port_GfxPrepareDL(uintptr_t dl);
 void* Port_GfxPrepareVtx(void* v, int n);
 void* Port_GfxPrepareMtx(void* m);
-void Port_GfxFlushCache(void);
 void Port_GfxFrameDone(void);
-// frame interpolation (src/port/interp.h): a new frame's display-list buffer, the scene-graph node being drawn
-void Port_InterpBeginFrame(const void* dlStart);
-void Port_InterpNode(const void* node);
 #ifdef __cplusplus
 }
 #endif

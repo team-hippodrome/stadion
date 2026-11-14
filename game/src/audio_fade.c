@@ -6,6 +6,7 @@
 #include "cry.h"
 #include "rom_device.h"
 #include "libnumus/player.h"
+#include "StadionPort.h"
 
 // D_800FC6F0 with its trailing per-file offset array.
 typedef struct unk_D_800FC6F0 {

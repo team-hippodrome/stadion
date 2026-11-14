@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../../src/port/port_platform.h"
+#include "port_platform.h"
 #include "global.h"
 #include <PR/os_internal_reg.h>
 #include "dp_intro.h"
@@ -9,6 +9,7 @@
 #include "crash_screen.h"
 #include "profiler.h"
 #include "memory.h"
+#include "StadionPort.h"
 
 extern u64 F3DEX2_data_bin[]; // F3DEX2_data.bin
 
@@ -58,7 +59,6 @@ void DisplayTask_Initialize(UnkStruct80001380* arg0) {
 }
 
 void DisplayTask_Submit(UnkStruct80001380* arg0, struct UnkArray4* arg1, s32 arg2) {
-    extern void Port_NoteFrameBuffer(const void* fb);
     // PORT: the renderer learns that this task draws a frame buffer before the buffer is first shown (os_devices.cpp)
     if (arg1->unk_0C != NULL) {
         Port_NoteFrameBuffer(arg1->unk_0C->img_p);

@@ -23,7 +23,6 @@
 BinArchive* D_84211B30;
 void* D_84211B34;
 RentalRoster* D_84211B38;
-void Port_BattleMonFromBE(BattleMon* dst, const BattleMon* src);
 char** sRentalSelectPokemonNames;
 char** sRentalSelectMoveNames;
 char** sRentalSelectTypeNames;

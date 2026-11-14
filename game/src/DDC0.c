@@ -12,6 +12,7 @@
 #include "src/audio_loop_point.h"
 #include "src/3D140.h"
 #include "src/port_audio.h"
+#include "StadionPort.h"
 
 typedef struct unk_D_800A8480 {
     /* 0x0000 */ OSThread thread;

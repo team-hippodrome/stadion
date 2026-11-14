@@ -44,10 +44,7 @@ PortSoundBank* PortA_Bank(const void* blob);
 // Blocks the calling thread for one frame (for loops that spin on the sound engine's state).
 void PortA_SpinWait(void);
 
-// The launcher's Sound volumes for the parts of the mix (src/port/sound_settings.h), Q15: 32768 = unchanged.
-#define PORT_SOUND_MUSIC 0
-#define PORT_SOUND_EFFECTS 1
-#define PORT_SOUND_VOICES 2
-int Port_SoundPartGainQ15(int part);
+// Blocks the calling game thread for that many retraces when Port_LoadWaits() is on.
+void Port_LoadStall(s32 retraces);
 
 #endif

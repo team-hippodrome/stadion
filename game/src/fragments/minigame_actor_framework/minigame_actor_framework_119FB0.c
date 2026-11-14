@@ -5,10 +5,10 @@
 #include "src/math_util.h"
 #include "src/memory.h"
 #include "src/geo_render.h"
+#include "StadionPort.h"
 
 // PORT: the MiniFx geo callbacks are named by ROM model layouts (through fragment 31's jump table): their callback data
 // is big-endian with 32-bit addresses; converted once (cached by source address).
-extern int Port_IsRawData(const void* p);
 
 static u32 Port_MiniFxBE32(const u8* p) {
     return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];

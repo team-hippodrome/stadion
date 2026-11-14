@@ -9,6 +9,7 @@
 #include "src/matrix.h"
 #include "src/memory.h"
 #include "stdarg.h"
+#include "StadionPort.h"
 
 FontContext* gFontContext;
 

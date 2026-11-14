@@ -10,6 +10,7 @@
 #include "pokemon.h"
 #include "moves.h"
 #include "status.h"
+#include "StadionPort.h"
 
 #define ACTION_ANIMATION_NORMAL 0
 #define ACTION_ANIMATION_MULTI_HIT 10

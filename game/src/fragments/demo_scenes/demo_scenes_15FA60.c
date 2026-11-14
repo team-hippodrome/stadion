@@ -9,6 +9,7 @@
 #include "src/save_data.h"
 #include "src/text_system.h"
 #include "src/jpeg_stream.h"
+#include "src/port_audio.h"
 #include "src/audio_loop_point.h"
 #include "src/gfx_rect.h"
 #include "src/matrix.h"

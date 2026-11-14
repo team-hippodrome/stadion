@@ -9,6 +9,7 @@
 #include "src/audio_stream.h"
 #include "src/gb_audio_render.h"
 #include "src/audio_loop_point.h"
+#include "StadionPort.h"
 
 typedef union {
     struct {

@@ -11,6 +11,7 @@
  **************************************************************************/
 
 #include "guint.h"
+#include "StadionPort.h"
 
 /*
  *  Return a pseudorandom 32 bit number
@@ -27,7 +28,6 @@ void Port_GuRandomSeed(unsigned int seed)
 }
 
 extern int gPortXcheckTraceGuRandom;              // PORT: battle cross-check (src/port/xcheck.cpp)
-extern void Port_XcheckGuRandomCalled(void* caller);
 
 int guRandom(void)
 {

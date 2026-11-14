@@ -24,6 +24,7 @@
 #include "src/memory.h"
 #include "src/stage_loader.h"
 #include "src/util.h"
+#include "StadionPort.h"
 
 typedef struct unk_D_8690A69C {
     /* 0x000 */ ModelLoadResult* unk_000;

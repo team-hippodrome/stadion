@@ -13,6 +13,7 @@
 #include <cstring>
 #include <mutex>
 #include <vector>
+#include "StadionPort.h"
 
 #if defined(_WIN32)
 #define NOMINMAX
@@ -20,8 +21,6 @@
 #include <windows.h>
 #include <timeapi.h>
 #endif
-
-extern "C" uint64_t Port_ViTick();
 
 extern "C" int64_t Port_SteadyNs(void) {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch())

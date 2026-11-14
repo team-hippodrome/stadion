@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "audio_stream.h"
+#include "StadionPort.h"
 
 u8 D_800785F0 = 0;
 
@@ -76,7 +77,6 @@ void AudioStream_Start(u32 arg0, u32 arg1, u32 arg2, u32 arg3) {
         }
 
         if (PORT_GETENV_ONCE("PORT_TRACE_SFX")) {
-            extern unsigned long long Port_ViTick(void);
             fprintf(stderr, "[stream] frame %llu start %u rom 0x%x vol %u delay %u\n", Port_ViTick(), (unsigned)arg0,
                     (unsigned)arg1, (unsigned)arg2, (unsigned)arg3);
         }

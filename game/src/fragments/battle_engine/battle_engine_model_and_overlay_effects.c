@@ -9,6 +9,7 @@
 #include "src/math_util.h"
 #include "pokemon.h"
 #include "moves.h"
+#include "StadionPort.h"
 
 /*
 This file covers these classes of moves:
@@ -79,7 +80,6 @@ As well as effects for these specific moves:
 // a 32-bit link address into the loaded model when it is a ROM model (they are reached through fragment 31's jump
 // table). Textures are used in place; the texture-pair records ({u8* tex; u8* tex2; s16 pad; s16 unk_0A}, big-endian
 // in ROM) are converted once.
-extern int Port_IsRawData(const void* p);
 
 static void* Port_CbTexture(void* arg) {
     return (void*)Util_ConvertAddrToVirtAddr((uintptr_t)arg);

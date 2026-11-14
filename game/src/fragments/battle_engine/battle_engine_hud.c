@@ -17,6 +17,7 @@
 #include "src/controller.h"
 #include "src/memmap.h"
 #include "src/memory.h"
+#include "StadionPort.h"
 
 Vec3f sEndBattleBannerPos;
 

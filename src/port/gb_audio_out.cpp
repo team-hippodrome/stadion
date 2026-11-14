@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
+#include "StadionPort.h"
 
 namespace {
 std::mutex gLock;
@@ -70,7 +71,6 @@ void OpenStream(int freq) {
 } // namespace
 
 extern "C" {
-uint64_t Port_ViTick(void);
 
 // osAiSetFrequency: the GB Tower sets its mixing rate here.
 void Port_GbAudioSetFrequency(int32_t freq) {

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "src/util.h"
+#include "StadionPort.h"
 
 /*
  * Particle RSP/RDP presets, vertex templates and descriptor-driven materials.
@@ -1339,7 +1340,6 @@ Gfx* ParticleGfx_AppendDescriptorMaterial(Gfx* gfx, ParticleMaterial* material) 
 /* Append the graph node's descriptor material only during render callback phase 5. */
 // PORT: material lists come from ROM models (the stadium's arena floor sets its detail texture through one): big-endian
 // records with 32-bit link addresses. They are converted once into native records (cached by source address).
-extern int Port_IsRawData(const void* p);
 
 static u32 Port_MatBE32(const u8* p) {
     return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];

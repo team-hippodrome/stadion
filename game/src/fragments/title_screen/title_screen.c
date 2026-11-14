@@ -6,6 +6,7 @@
 #include "src/text_system.h"
 #include "src/session.h"
 #include "src/jpeg_stream.h"
+#include "src/port_audio.h"
 #include "src/audio_sound_state.h"
 #include "src/audio_sfx.h"
 #include "src/audio_data.h"

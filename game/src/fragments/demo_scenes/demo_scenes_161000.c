@@ -1,5 +1,6 @@
 #include "demo_scenes.h"
 #include "src/matrix.h"
+#include "StadionPort.h"
 
 u16 Diorama_IsModelInCameraCone(CameraNode* camera, DisplayObject* arg1, s16 arg2, s16 arg3, f32 arg4, f32 arg5) {
     UNUSED s32 pad[6];

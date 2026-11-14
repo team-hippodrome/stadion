@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include "StadionPort.h"
 
 typedef u8* (*command_func_t)(channel_t*, u8*);
 typedef u8* (*api_func_t)(u8*);
@@ -749,7 +750,6 @@ s32 Audio_PlaySoundEffect(SoundBank* sample_bank_ptr, fx_t* fx_bank_ptr, s32 eff
     effect_handle = mus_current_handle;
     mus_current_handle++;
     if (PORT_GETENV_ONCE("PORT_TRACE_SFX")) {
-        extern unsigned long long Port_ViTick(void);
         fprintf(stderr, "[sfx] frame %llu handle %u effect %d table %p caller %p\n", Port_ViTick(),
                 (unsigned)effect_handle, (int)effect_id, (void*)fx_bank_ptr, __builtin_return_address(0));
     }
@@ -825,7 +825,6 @@ void Audio_QueueFadeSoundCommand(s32 channel_handle, u32 duration_frames) {
     u8* queue;
     u32 mask;
     if (PORT_GETENV_ONCE("PORT_TRACE_SFX")) {
-        extern unsigned long long Port_ViTick(void);
         fprintf(stderr, "[sfx] frame %llu fade handle %d over %u frames, caller %p\n", Port_ViTick(),
                 (int)channel_handle, (unsigned)duration_frames, __builtin_return_address(0));
     }

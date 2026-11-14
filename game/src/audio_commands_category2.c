@@ -7,6 +7,7 @@
 #include "src/audio_cache.h"
 #include "src/audio_commands.h"
 #include "src/audio_category_fade.h"
+#include "StadionPort.h"
 
 // PORT: battle cross-check: the announcer picks its lines with osGetTime() (CPU timing); with the cross-check's forced
 // randomness both sides get the same values instead (src/port/xcheck.cpp, tools/ares_ref/ares_ref.cpp)

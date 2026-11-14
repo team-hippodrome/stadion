@@ -13,6 +13,7 @@
 #include "src/dp_intro.h"
 #include "src/geo_layout.h"
 #include "src/memory.h"
+#include "StadionPort.h"
 
 intptr_t PokeIcon_CaptureGeoNode(s32 arg0, GraphNode* arg1);
 

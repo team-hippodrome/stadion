@@ -13,6 +13,7 @@
 #include "src/memory.h"
 #include "stdarg.h"
 #include "moves.h"
+#include "StadionPort.h"
 
 BattleMessageQueue* sBattleMessageQueues;
 

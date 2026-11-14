@@ -1,6 +1,7 @@
 #include "src/port_audio.h"
 #include "gb_audio.h"
 #include "gb_audio_render.h"
+#include "StadionPort.h"
 
 typedef struct unk_D_800FCD70 {
     /* 0x00 */ u8 unk_00;
