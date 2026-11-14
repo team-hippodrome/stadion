@@ -209,6 +209,22 @@ endif()
 execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_frag_sections.py
                         ${CMAKE_CURRENT_SOURCE_DIR}/game/src ${CMAKE_BINARY_DIR}/generated)
 include(${CMAKE_BINARY_DIR}/generated/frag_sections.cmake)
+# Type-safety ratchet: the files in cmake/strict_sources.txt are clean of the pointer/integer mismatches that break a
+# 64-bit build (int-conversion, incompatible pointer types, pointer/int casts, 64-to-32 truncation, missing returns) and
+# keep these as errors. Add a file once it compiles clean; when every game file is listed, the groups move into
+# STADION_GAME_WARNINGS and this list goes away. Appended after frag_sections.cmake, which sets COMPILE_OPTIONS.
+set(STADION_STRICT_GROUPS int-conversion incompatible-pointer-types incompatible-function-pointer-types
+    pointer-to-int-cast int-to-pointer-cast return-type shorten-64-to-32)
+set(STADION_STRICT_WARNINGS ${STADION_STRICT_GROUPS})
+if(CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+  list(TRANSFORM STADION_STRICT_WARNINGS PREPEND /clang:-Werror=)
+else()
+  list(TRANSFORM STADION_STRICT_WARNINGS PREPEND -Werror=)
+endif()
+file(STRINGS cmake/strict_sources.txt STADION_STRICT_SOURCES REGEX "^[^#]")
+list(TRANSFORM STADION_STRICT_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
+set_property(SOURCE ${STADION_STRICT_SOURCES} APPEND PROPERTY COMPILE_OPTIONS ${STADION_STRICT_WARNINGS})
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/strict_sources.txt)
 # the per-fragment options were set on the original paths: give them to the wrappers that replace those files
 list(LENGTH PORT_WRAPPED_SOURCES _n)
 if(_n GREATER 0)

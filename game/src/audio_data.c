@@ -6,7 +6,7 @@
 #include "src/audio_commands.h"
 #include "StadionPort.h"
 
-u8* D_800FF9C0;
+SoundBank* D_800FF9C0;
 
 s32 Audio_LoadWaveTablesAndMusic(u8* arg0) {
     UNUSED s32 pad[2];
@@ -16,15 +16,15 @@ s32 Audio_LoadWaveTablesAndMusic(u8* arg0) {
         return 0;
     }
     Audio_FadeCategoriesAndStreams(1);
-    D_800FF9C0 = arg0;
-    sp1C = D_800FF9C0 + 0x4120;
+    D_800FF9C0 = (SoundBank*)arg0;
+    sp1C = (u8*)D_800FF9C0 + 0x4120;
 
     if (1) {}
 
     Rom_DmaRead(D_800FC6E4->offset1, D_800FC6DC, D_800FC6E4->wave_tables_offset - D_800FC6E4->offset1);
     Audio_CopyDataWithCacheSync(D_800FC6DC, D_800FF9C0, 0x4120);
     Rom_DmaRead(D_800FC6E4->wave_tables_offset, sp1C, D_800FC6E4->files[0] - D_800FC6E4->wave_tables_offset);
-    Audio_RelocateSoundBankWrapper(D_800FF9C0, sp1C);
+    Audio_RelocateSoundBankWrapper(D_800FF9C0, (uintptr_t)sp1C);
     D_800FC820 |= 0x80000000;
     Rom_DmaRead(D_800FC6E4->files[0], D_800FC6DC, D_800FC6E4->files[1] - D_800FC6E4->files[0]);
     Audio_CopyDataWithCacheSync(D_800FC6DC, D_800FC680, 0x98D8);

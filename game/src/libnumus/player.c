@@ -651,7 +651,7 @@ s32 Audio_InitializeVoiceManager(musConfig* config) {
         Audio_ResetVoiceState(&mus_channels[i]);
     }
 
-    return heap.cur - heap.base;
+    return (s32)(heap.cur - heap.base);
 }
 
 /**
@@ -1026,7 +1026,7 @@ void Audio_QueueVoiceVolumeByte(u32 channel_handle, s32 tempo_scale_factor) {
     }
 }
 
-void Audio_RelocateSoundBankWrapper(intptr_t arg0, uintptr_t arg1) { // PORT: arg1 was s32
+void Audio_RelocateSoundBankWrapper(SoundBank* arg0, uintptr_t arg1) { // PORT: arg1 was s32
     Audio_RelocateSoundBank(arg0, arg1);
 }
 
@@ -2062,7 +2062,7 @@ void Audio_ReleaseVoice(channel_t* arg0) {
                     break;
 
                 case 2:
-                    temp_a0 = ((arg0->channel_frame - arg0->note_start_frame) >> 8) - arg0->env_attack_speed;
+                    temp_a0 = (u32)((arg0->channel_frame - arg0->note_start_frame) >> 8) - arg0->env_attack_speed;
                     if (temp_a0 < arg0->env_decay_speed) {
                         arg0->env_current_vol = arg0->env_max_vol + (s32)(arg0->env_decay_calc * temp_a0);
                     } else {
@@ -2089,7 +2089,7 @@ void Audio_ReleaseVoice(channel_t* arg0) {
 }
 
 void Audio_ResetPanModulation(channel_t* cp) {
-    cp->sweep_frame = cp->note_start_frame;
+    cp->sweep_frame = (u32)cp->note_start_frame;
     cp->sweep_counter = 0;
     cp->sweep_direction = cp->sweep_amount & 0x80;
 }
@@ -2240,7 +2240,7 @@ f32 Audio_ExpApproximation(f32 arg0) {
     }
 }
 
-void Audio_RelocateSoundBank(u8* arg0, uintptr_t arg1) { // PORT: arg1 (wave data address) was s32
+void Audio_RelocateSoundBank(void* arg0, uintptr_t arg1) { // PORT: arg1 (wave data address) was s32
     UNUSED s32 pad;
     u32 i;
     f32 var_fv0;
@@ -2384,7 +2384,7 @@ void Audio_FillBytes(u8* arg0, u8 arg1, u32 arg2) {
 }
 
 void Audio_RelocatePointerArray(u8* arg0, u32 arg1, u32 arg2) {
-    u32* ptr = arg0;
+    u32* ptr = (u32*)arg0;
     u32 i;
 
     for (i = 0; i < arg2; i++) {
@@ -2411,7 +2411,7 @@ void Audio_QueueFreeVoice(audio_voice_t* voice) {
         mus_free_voice_1 = mus_free_voice_2 = voice;
         voice->node.next = NULL;
     } else {
-        mus_free_voice_2->node.next = voice;
+        mus_free_voice_2->node.next = &voice->node;
         voice->node.next = NULL;
         mus_free_voice_2 = voice;
     }
@@ -2431,7 +2431,7 @@ audio_voice_t* Audio_DequeueFreeVoice(void) {
     }
 
     voice = mus_free_voice_1;
-    mus_free_voice_1 = mus_free_voice_1->node.next;
+    mus_free_voice_1 = (audio_voice_t*)mus_free_voice_1->node.next; // node is the first member
 
     mus_free_voices_count--;
     return voice;
@@ -2446,9 +2446,9 @@ void Audio_QueueActiveVoice(audio_voice_t* voice) {
         voice->node.next = NULL;
         voice->node.prev = NULL;
     } else {
-        mus_releasing_voice_4->node.next = voice;
+        mus_releasing_voice_4->node.next = &voice->node;
         voice->node.next = NULL;
-        voice->node.prev = mus_releasing_voice_4;
+        voice->node.prev = &mus_releasing_voice_4->node;
         mus_releasing_voice_4 = voice;
     }
 
@@ -2477,22 +2477,22 @@ void Audio_ReclaimExpiredVoices(void) {
                         var_s0->node.next->prev = var_s0->node.prev;
                     } else {
                         var_s0->node.prev->next = NULL;
-                        mus_releasing_voice_4 = var_s0->node.prev;
+                        mus_releasing_voice_4 = (audio_voice_t*)var_s0->node.prev;
                     }
                 } else if (var_s0->node.next != NULL) {
-                    mus_releasing_voice_3 = var_s0->node.next;
+                    mus_releasing_voice_3 = (audio_voice_t*)var_s0->node.next;
                     // FAKE
                     if (!var_s0) {}
                     mus_releasing_voice_3->node.prev = NULL;
                 } else {
                     mus_releasing_voice_3 = mus_releasing_voice_4 = NULL;
                 }
-                temp_s1 = var_s0->node.next;
+                temp_s1 = (audio_voice_t*)var_s0->node.next;
                 mus_releasing_voices_count -= 1;
                 Audio_QueueFreeVoice(var_s0);
                 var_s0 = temp_s1;
             } else {
-                var_s0 = var_s0->node.next;
+                var_s0 = (audio_voice_t*)var_s0->node.next;
             }
         } while (var_s0 != NULL);
     }

@@ -299,8 +299,8 @@ Acmd* _n_loadBuffer(ALFx* r, s16* curr_ptr, s32 buff, s32 count, Acmd* p) {
     updated_ptr = curr_ptr + count;
 
     if (updated_ptr > delay_end) {
-        after_end = updated_ptr - delay_end;
-        before_end = delay_end - curr_ptr;
+        after_end = (s32)(updated_ptr - delay_end);
+        before_end = (s32)(delay_end - curr_ptr);
 
 #ifndef N_MICRO
         aSetBuffer(ptr++, 0, buff, 0, before_end << 1);
@@ -341,8 +341,8 @@ Acmd* _n_saveBuffer(ALFx* r, s16* curr_ptr, s32 buff, Acmd* p) {
     updated_ptr = curr_ptr + FIXED_SAMPLE;
 
     if (updated_ptr > delay_end) { /* if the data wraps past end of r->base */
-        after_end = updated_ptr - delay_end;
-        before_end = delay_end - curr_ptr;
+        after_end = (s32)(updated_ptr - delay_end);
+        before_end = (s32)(delay_end - curr_ptr);
 
 #ifndef N_MICRO
         aSetBuffer(ptr++, 0, 0, buff, before_end << 1);

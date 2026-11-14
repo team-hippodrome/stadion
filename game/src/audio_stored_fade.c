@@ -25,7 +25,7 @@ s32 PlayMoveSoundEffect(UNUSED s32 side_index, u32 move_id, u32 species, u32 sou
     s32 size;
     MoveSoundEntry* var_a0;
     u8 sound_kind_flags;
-    u32* seq;
+    fx_t* seq;
     u8* entry;
     u8 is_partner_pikachu;
 
@@ -67,7 +67,7 @@ s32 PlayMoveSoundEffect(UNUSED s32 side_index, u32 move_id, u32 species, u32 sou
         size = ((u32*)D_800FC6FC)[species + 4] - romAddr;
     } else {
         romAddr = ((u32*)D_800FC6FC)[species + 3];
-        size = D_800FC6E8->seqArray[3].offset - romAddr;
+        size = (s32)((uintptr_t)D_800FC6E8->seqArray[3].offset - romAddr);
     }
     Rom_DmaRead(romAddr, D_800FC6DC, size);
     Audio_CopyDataWithCacheSync(D_800FC6DC, D_800FC6B0[slot], 0x3E8);
@@ -114,7 +114,7 @@ found:
 
 block_38:
     seq = D_800FC6B0[slot];
-    temp_v0 = *seq;
+    temp_v0 = seq->num_entries;
     if (!is_partner_pikachu && (species >= temp_v0)) {
         return 0;
     }

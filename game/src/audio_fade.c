@@ -467,7 +467,7 @@ s32 Effect_TriggerMoveVisual(u32 move_id, u32 species, u32 sound_kind) {
     if (move_id < sp->num_files - 1) {
         size = sp->files[move_id + 1] - sp->files[move_id];
     } else {
-        size = (uintptr_t)D_800FC6E8->seqArray[2].offset - sp->files[move_id];
+        size = (u32)((uintptr_t)D_800FC6E8->seqArray[2].offset - sp->files[move_id]);
     }
 
     Rom_DmaRead(sp->files[move_id], D_800FC6DC, size);

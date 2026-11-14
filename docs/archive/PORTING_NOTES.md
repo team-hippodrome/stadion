@@ -98,6 +98,23 @@ turned on (clang 21, Linux x86-64):
 | `incompatible-function-pointer-types` | off | 592 |
 | `incompatible-pointer-types` | off | 2,525 |
 
+Per-file ratchet: until a group is clean everywhere, the files listed in `cmake/strict_sources.txt` compile with
+all of the type groups above (plus `int-to-pointer-cast`) as errors (`STADION_STRICT_GROUPS` in CMakeLists.txt).
+Subsystems join the list as they are fixed:
+
+| Subsystem | Files | Check |
+|---|---|---|
+| Audio (sequencer, sound effects, streams, libnaudio, cries) | 41 | 22/22 replays, normal and ASan builds |
+
+Conventions used for these fixes:
+- ROM offsets stay 32-bit integers (`u32`/`uintptr_t`); a pointer-typed field that holds a ROM offset (libaudio's
+  `ALSeqFile.seqArray[].offset`) is converted with an explicit `(uintptr_t)` cast where it is read.
+- RAM destinations are pointers (`void*`), as in `Rom_DmaRead(uintptr_t romOffset, void* dest, u32 size)`.
+- Globals and parameters get the type of the data they hold (`SoundBank*`, `fx_t*`) instead of `u8*` plus casts.
+- Intrusive lists whose node is the first member (`ALLink node`) store `&x->node` and cast back explicitly.
+- Narrowing that was free on the 32-bit N64 (pointer differences into `s32`, `u64` frame counters into `u32`) gets an
+  explicit cast, so the truncation is visible.
+
 `tools/ptr_warnings.sh` lists the pointer-truncation subset (490 sites). When fixing these, pair a replay run
 (`tools/run_replays.py`) with an AddressSanitizer build (`cmake -DPORT_ASAN=ON`): a truncated pointer or a
 32-bit size can survive a normal replay by luck of heap layout and fail later on Windows or Android.

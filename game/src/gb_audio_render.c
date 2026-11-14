@@ -746,7 +746,7 @@ s16 func_8004A89C(void) {
         if (sampleId != D_800FCFD8.unk_04) {
             D_800FCFD8.unk_04 = sampleId;
             ent = (unk_D_800FC6CC*)((u32*)D_800FC6CC + (D_800FCFD8.unk_04 << 1));
-            Rom_DmaRead(ent->unk_00, (uintptr_t)D_800FC6D0, ent->unk_04);
+            Rom_DmaRead(ent->unk_00, D_800FC6D0, ent->unk_04);
         }
 
         D_800FCFD8.unk_08 = 0;
