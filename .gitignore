@@ -21,3 +21,4 @@ build_android/
 /build_web/
 # the web deployment's private settings (tools/deploy_web.sh)
 /deploy.local.env
+/build-win-llvm/*
