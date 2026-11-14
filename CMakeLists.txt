@@ -180,6 +180,10 @@ if(EMSCRIPTEN)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_fragment_thunks.py)
 endif()
 add_library(stadium_game STATIC ${STADIUM_GAME_SOURCES})
+if(WIN32)
+  # Keep Windows GDI declarations from colliding with game types.
+  target_compile_definitions(stadium_game PRIVATE NOGDI)
+endif()
 # Per-fragment data sections, restored whenever the game loads the fragment (see tools/gen_frag_sections.py)
 execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_frag_sections.py
                         ${CMAKE_CURRENT_SOURCE_DIR}/game/src ${CMAKE_BINARY_DIR}/generated)
