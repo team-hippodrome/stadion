@@ -18,7 +18,7 @@ How the two sides are made to play the same battle (see also src/port/xcheck.cpp
 - Input in battle: none. The opponent is the computer; the player's move time limit counts as run out at once, so
   the game itself picks its first usable move and first healthy replacement (PORT_XCHECK_COM / ARES_REF_XCHECK_COM).
 - Sync: on battle events, not frames: Battle_StartTurn ("turn"), Battle_ResolveMonAction on entry ("resolve") and
-  after it ("resolved"); each records both Pokemon's ActivePokemonState, the BattleScene, gBattleDamage and the
+  after it ("resolved"); each records both Pokemon's ActivePokemonState, the BattleScene, sBattleDamage and the
   message queues as raw bytes, which this script decodes with each side's byte order.
 - Animations: each move animation (BattleScene_EnterRow3StartMoveAnim / Row19) saves its frames on both sides; they
   are aligned in time (best offset of small thumbnails), scored with SSIM and put side by side.

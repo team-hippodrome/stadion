@@ -12,7 +12,7 @@ cd stadion
 ```
 
 ```bash
-tools/setup.sh                      # submodules + the port's game patches (patches/game/)
+tools/setup.sh                      # submodule (libultraship); the game is vendored in game/
 ```
 
 **macOS** (Homebrew):
@@ -91,7 +91,7 @@ moves `latest` and creates the GitHub release, after asking. `--only macos,windo
 
 ## Repository layout
 
-- `game/` — submodule: the decompiled game (C), unmodified; the port's changes are in `patches/game/` (see below)
+- `game/` — the decompiled game (C), vendored from the decomp with the port's changes folded in (see below)
 - `src/port/` — host layer: OS/threads, VI, controllers, sound (audio microcode, AI), Transfer Pak, flash saves, GB core
 - `src/port/sdk/` — stand-ins for the N64 SDK headers the game includes (`ultra64.h`, `PR/*.h`, force-included `port_compat.h`)
 - `libultraship/`: submodule of [Team Hippodrome's fork](https://github.com/team-hippodrome/libultraship);
@@ -117,21 +117,22 @@ backing up those edits. Then run `tools/setup.sh`: it synchronizes the submodule
 Git may refuse the update if old edits or untracked files would be overwritten; do not force it or delete files
 until you have verified your backup. A fresh clone avoids this migration step.
 
-## The game submodule
+## The vendored game
 
-`game/` is an unmodified commit of the decompilation, [michiiik/pokestadium](https://github.com/michiiik/pokestadium)
-(`master`). Everything the port changes in it (64-bit pointers, big-endian ROM data, sound, Game Boy, port hooks) is
-kept here as patches in `patches/game/`, one per area, and `tools/setup.sh` (and CI) applies them with
-`tools/game_patches.py apply`. Only `game/src`, `game/include` and the libultra files listed in
-`cmake/ultralib_sources.txt` are compiled; the rest of the decomp (asm, assets, tools) is unused.
+`game/` holds `src/`, `include/` and `lib/ultralib/` of the decompilation,
+[team-hippodrome/pokestadium](https://github.com/team-hippodrome/pokestadium), with everything the port changes
+(64-bit pointers, big-endian ROM data, sound, Game Boy, port hooks) edited in place. `game/UPSTREAM.md` records the
+decomp commit it was last synced with. Only `game/src`, `game/include` and the libultra files listed in
+`cmake/ultralib_sources.txt` are compiled. Game code is edited directly in `game/`; mark port-only code with `PORT`
+comments as before, and keep the decomp's names for decomp things, so the two trees stay comparable.
 
-To change game code: edit files in `game/`, then `python3 tools/game_patches.py export` and commit `patches/game`.
-To move to a newer decomp commit: `python3 tools/game_patches.py reset`, check out the new commit in `game/`, apply
-(fix the patches that no longer apply, e.g. with `git apply --3way` and the decomp's renames), export, and commit the
-submodule pointer together with `patches/game`. Then regenerate the tables in `src/port/generated/` with
-`tools/gen_func_table.py`, `tools/gen_fragment_entries.py` and `tools/gen_abs_syms.py`: they read the map of an
-unmodified decomp build of that same commit (`build/pokestadium-us.map`) in `$PORT_DECOMP_DIR`, by default
-`../pokestadium`.
+To move to a newer decomp commit, merge the decomp's changes since the recorded commit into `game/` (a three-way
+merge: base = the recorded commit, theirs = the new commit, ours = `game/`), format with the decomp's
+`.clang-format` (clang-format 14), build, and update `game/UPSTREAM.md`. Then regenerate the tables in
+`src/port/generated/` with `tools/gen_func_table.py`, `tools/gen_fragment_entries.py` and `tools/gen_abs_syms.py`
+(after one build, since they read `build/libstadium_game.a`; run them twice when names changed, as the old table is
+part of that library), and `tools/ares_ref/battle_engine.syms`. The generators read the map of an unmodified decomp
+build of the new commit (`build/pokestadium-us.map`) in `$PORT_DECOMP_DIR`, by default `../pokestadium`.
 
 ## Shader coverage
 

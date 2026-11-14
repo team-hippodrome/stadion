@@ -22,7 +22,7 @@
 //   PORT_EVID_SET=<fn>[#<n>][@exit]:<addr>:<size>[|]=<value>;...  ("|=": OR the value in)   at entry of function <fn> (image
 //                             offset; only its n-th entry, counted from 1, with #n; with @exit when that call returns), write <value> (size 1, 2 or 4, host byte order) at
 //                             <addr>: an image offset followed by steps "+<off>" (add) and "*" (load the pointer
-//                             there), e.g. the offset of gBattleUser, "*", "+0x5A" for gBattleUser->usedMove.
+//                             there), e.g. the offset of sBattleUser, "*", "+0x5A" for sBattleUser->usedMove.
 //                             tools/evidence/run.py --set translates symbol names. A forced condition: the game
 //                             state is no longer one the game produced itself, and records say so
 //   PORT_EVID_CALL=<fn>[#<n>][@exit]:<target>:<ret>:<args>;...  at entry of <fn> (n-th entry; with @exit when that call
@@ -352,8 +352,8 @@ static NOINST void Init(void) {
 static NOINST void Ctx(char* out, size_t n) {
     BattleScene* sc = sBattleScene.unk_00;
     snprintf(out, n, "%d/%d/%d:%d/%d/%u", sc ? sc->unk_1C : -1, sc ? (int)sc->unk_2C : -1,
-             gBattleUser ? gBattleUser->id : -1, gBattleUser ? gBattleUser->usedMove : -1,
-             gBattleTarget ? gBattleTarget->id : -1, (unsigned)gBattleDamage);
+             sBattleUser ? sBattleUser->id : -1, sBattleUser ? sBattleUser->usedMove : -1,
+             sBattleTarget ? sBattleTarget->id : -1, (unsigned)sBattleDamage);
 }
 
 static NOINST void Hex(FILE* f, const char* key, const void* p, size_t n) {
@@ -371,12 +371,12 @@ static NOINST void Watch(const char* what, uintptr_t fn, uintptr_t site) {
     if (sSeq == NULL) return;
     fprintf(sSeq, "W %s %llu %lx %lx", what, (unsigned long long)Port_ViTick(), (unsigned long)fn,
             (unsigned long)site);
-    Hex(sSeq, "user", gBattleUser, 0x64);
-    Hex(sSeq, "target", gBattleTarget, 0x64);
+    Hex(sSeq, "user", sBattleUser, 0x64);
+    Hex(sSeq, "target", sBattleTarget, 0x64);
     Hex(sSeq, "st0", sActivePokemon[0] ? (void*)&sActivePokemon[0]->state : NULL, 0xC8);
     Hex(sSeq, "st1", sActivePokemon[1] ? (void*)&sActivePokemon[1]->state : NULL, 0xC8);
     Hex(sSeq, "scene", sBattleScene.unk_00, 0xDC);
-    fprintf(sSeq, " dmg=%u\n", (unsigned)gBattleDamage);
+    fprintf(sSeq, " dmg=%u\n", (unsigned)sBattleDamage);
 }
 
 static NOINST int IsWatched(uintptr_t fn) {

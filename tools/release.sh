@@ -85,9 +85,9 @@ if [ -e "$SRC" ]; then
         die "$SRC holds another commit: remove it (git -C '$MAIN' worktree remove --force '$SRC') or pick another version"
 else
     git -C "$MAIN" worktree add -q --detach "$SRC" "$COMMIT"
-    # submodules borrow the objects of the main checkout's (no full download), then the port's patches
+    # the submodule borrows the objects of the main checkout's (no full download)
     # (a shallow clone cannot lend its objects: those are fetched from GitHub by setup.sh)
-    for sm in game libultraship; do
+    for sm in libultraship; do
         if [ -e "$MAIN/$sm/.git" ] && [ "$(git -C "$MAIN/$sm" rev-parse --is-shallow-repository)" = false ]; then
             git -C "$SRC" -c protocol.file.allow=always submodule update -q --init --reference "$MAIN/$sm" "$sm"
         fi

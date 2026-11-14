@@ -83,7 +83,7 @@ void func_80050BA0(void* src, void* dst) { Yay0_Decompress(src, dst); }
 
 // ---- TODO(port): hand-written assembly with no host implementation yet ------------------------------
 // GB Tower emulator core (src/fragments/gb_tower_emulator/gb_tower_emulator_code_asm.s).
-// (GbEmu_InitContext, GbCpu_Execute, GbCpu_InitOpcodeTables: native core in gb_core.c)
+// (GbEmu_InitContext, GbCpu_Execute, GbSgb_RenderBorder: native core in gb_core.c)
 // (libgsm speech decoder kernels, src/libgsm.s: game/src/libgsm/libgsm.c)
 void set_watch_lohi(s32 a) { (void)a; }
 

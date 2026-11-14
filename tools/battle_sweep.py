@@ -19,11 +19,11 @@ fix, without the cases that already match; a full run is still the check that no
 Frames and sound dumps are deleted after each case (XCHECK_KEEP_FRAMES=1 keeps them).
 
 Paths per move come from the decomp: the move table gMoveDataWithZeroth (effect, power, type, accuracy) and the
-type chart gTypeEffects decide which variants exist (crit, miss, super / not very effective, immune, secondary
+type chart sTypeEffects decide which variants exist (crit, miss, super / not very effective, immune, secondary
 effect lands / fails, multi-hit counts, two-turn, recharge, self-KO, Substitute, Metronome / Mirror Move, status on
 an already statused target, ...). Each variant is forced through the case file (src/port/xcheck.cpp has the format):
 the parties (user and target written when the battle engine is mapped) and forced random values per caller
-(Battle_Random@Battle_CheckCriticalHit 0 = critical hit, Battle_RandomAccuracy@func_843708CC 255 = miss, ...).
+(Battle_Random@Battle_CheckCriticalHit 0 = critical hit, Battle_RandomAccuracy@HandleMoveEffectFlags 255 = miss, ...).
 The player's lead knows up to four test moves with 1 PP each: the game's time-limit fallback (PORT_XCHECK_COM) uses
 them on consecutive turns. The opponent is a sturdy target (999 HP) that only knows Splash unless the path needs it
 to act (Substitute, Mirror Move, Counter, invulnerable turn).
@@ -102,8 +102,8 @@ def decomp_tables():
         g = [int(x, 0) for x in m.groups()[:8]]
         species[g[0]] = {"id": g[0], "hp": g[1], "atk": g[2], "def": g[3], "spd": g[4], "spc": g[5], "types": (g[6], g[7]),
                          "start": [int(x, 0) for x in m.group(9).split(",")]}
-    be = Path(ROOT, "game", "src", "fragments", "battle_engine", "battle_engine_359F90.c").read_text(encoding="utf-8")
-    body = be[be.index("u8 gTypeEffects[] = {"):]
+    be = Path(ROOT, "game", "src", "fragments", "battle_engine", "battle_engine_mechanics.c").read_text(encoding="utf-8")
+    body = be[be.index("u8 sTypeEffects[] = {"):]
     nums = [int(x, 0) for x in re.findall(r"0x[0-9A-Fa-f]+|\d+", body[body.index("{"):body.index("};")])]
     chart = {}
     for i in range(0, len(nums) - 2, 3):
@@ -130,7 +130,7 @@ def paths_for(mv, chart, species):
     if power > 0 and e not in NO_CRIT:
         out.append(("crit", "damaging move: Battle_CheckCriticalHit decides"))
     if targets_opponent and e not in NEVER_MISS and mv["acc"] < 0x100:
-        out.append(("miss", "accuracy check (func_843708CC: Battle_RandomAccuracy >= accuracy)"))
+        out.append(("miss", "accuracy check (HandleMoveEffectFlags: Battle_RandomAccuracy >= accuracy)"))
     if mv["id"] == COUNTER:  # damage from the last hit taken: no type chart, no critical hit
         return [o for o in out if o[0] in ("base", "miss")] + [("after_tackle", "the target hit the user with a Normal "
                                                                 "move first (Counter returns double)")]
@@ -152,7 +152,7 @@ def paths_for(mv, chart, species):
     if e in CHANCE:
         out.append(("effect_fails", "secondary effect chance roll fails"))
     if e == 0x1D:
-        out += [("hits_%d" % n, "Battle_Effect_MultiHit: %d hits" % n) for n in (2, 3, 4, 5)]
+        out += [("hits_%d" % n, "BattleEffect_MultiHit: %d hits" % n) for n in (2, 3, 4, 5)]
     if e in STATUS_ON_TARGET:
         out.append(("already_statused", "target already has the status (move fails)"))
         if e == 0x20:
@@ -246,9 +246,9 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
             user, user_why = (user_override, "--user") if user_override else pick_user(mv, species)
             tgt = {"species": target, "moves": [SPLASH], "spd": 20, "hp": 999, "status": 0}
             usr = {"species": user, "hp": 300, "status": 0}
-            rules = {"Battle_RandomAccuracy@func_843708CC": [0], "Battle_Random@Battle_CheckCriticalHit": [255]}
-            for caller in ("Battle_Effect_SecondaryStatusChance", "Battle_Effect_Flinch", "Battle_Effect_LowerStat",
-                           "Battle_Effect_ConfuseChance", "Battle_Effect_Poison"):
+            rules = {"Battle_RandomAccuracy@HandleMoveEffectFlags": [0], "Battle_Random@Battle_CheckCriticalHit": [255]}
+            for caller in ("BattleEffect_SecondaryStatusChance", "BattleEffect_Flinch", "BattleEffect_LowerStat",
+                           "BattleEffect_ConfuseChance", "BattleEffect_Poison"):
                 rules["Battle_Random@" + caller] = [0]
             turns = SOLO.get(e, 1)
             solo = e in SOLO or mid == COUNTER or path in ("recoil_faint", "invulnerable", "mirrors_tackle", "after_tackle",
@@ -257,14 +257,14 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
             if path == "crit":
                 rules["Battle_Random@Battle_CheckCriticalHit"] = [0]
             if path == "miss":
-                rules["Battle_RandomAccuracy@func_843708CC"] = [255]
+                rules["Battle_RandomAccuracy@HandleMoveEffectFlags"] = [255]
                 turns = min(turns, 2)
             if path == "effect_fails":
                 for k in list(rules):
                     if k.startswith("Battle_Random@Battle_Effect"):
                         rules[k] = [255]
             if path.startswith("hits_"):
-                rules["Battle_Random@Battle_Effect_MultiHit"] = {2: [0], 3: [1], 4: [2, 2], 5: [3, 3]}[int(path[5:])]
+                rules["Battle_Random@BattleEffect_MultiHit"] = {2: [0], 3: [1], 4: [2, 2], 5: [3, 3]}[int(path[5:])]
             if path == "already_statused":
                 tgt["status"] = 7 if e == 0x20 else STATUS_ON_TARGET[e][1]  # asleep for the whole case
             if path == "target_asleep":
@@ -294,11 +294,11 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
             if path == "base" and e == 0x53:
                 rules["Battle_Random@Battle_Effect_Metronome"] = [0x55]
             if e == 0x1B:
-                rules["Battle_Random@Battle_Effect_Thrash"] = [0]
+                rules["Battle_Random@BattleEffect_Thrash"] = [0]
             if e == 0x2A:
-                rules["Battle_Random@Battle_Effect_Trap"] = [0]
+                rules["Battle_Random@BattleEffect_Trap"] = [0]
             if e == 0x1A:
-                rules["Battle_Random@Battle_Effect_Bide"] = [0]
+                rules["Battle_Random@BattleEffect_Bide"] = [0]
             key = json.dumps([path if solo else "batch:" + path, tgt, usr["status"], usr["hp"], sorted(rules.items()),
                               mid if solo else None], sort_keys=True)
             c = open_group.get(key)
@@ -325,7 +325,7 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
             continue
         usr = {"species": 113, "hp": 300, "status": {"user_paralyzed": 0x40, "user_asleep": 3, "user_frozen": 0x20,
                                                       "struggle": 0}[gp]}
-        rules = {"Battle_RandomAccuracy@func_843708CC": [0], "Battle_Random@Battle_CheckCriticalHit": [255],
+        rules = {"Battle_RandomAccuracy@HandleMoveEffectFlags": [0], "Battle_Random@Battle_CheckCriticalHit": [255],
                  "Battle_Random@Battle_CheckMonCanAct": [0]}
         groups[gp] = {"path": gp, "target": {"species": 143, "moves": [SPLASH], "spd": 20, "hp": 999, "status": 0},
                       "user": usr, "rules": rules, "turns": 3 if gp != "struggle" else 2,
@@ -341,7 +341,7 @@ def plan(moves, species, chart, only_move=None, only_path=None, user_override=No
             groups["injured:%d" % mid] = {
                 "path": "injured", "target": {"species": 113, "moves": [SPLASH], "spd": 20, "hp": 999, "status": 0},
                 "user": {"species": user, "hp": 150, "status": 0},
-                "rules": {"Battle_RandomAccuracy@func_843708CC": [0], "Battle_Random@Battle_CheckCriticalHit": [255]},
+                "rules": {"Battle_RandomAccuracy@HandleMoveEffectFlags": [0], "Battle_Random@Battle_CheckCriticalHit": [255]},
                 "turns": 1, "uses": [{"move": mid, "path": "injured", "why": "healing succeeds with missing HP",
                                       "user": user, "user_why": user_why, "require_animation": True}]}
     cases = []

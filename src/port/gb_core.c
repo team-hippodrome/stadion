@@ -3,7 +3,7 @@
 // On the N64 the GB Tower runs a hand-written MIPS emulator (asm/us/fragments/gb_tower_emulator/
 // gb_tower_emulator_code_asm.s: CPU, memory, LCD, Super Game Boy) and a custom RSP microcode that turns the Game Boy
 // picture into the frame buffer. Neither can run on the host, so this file provides a C core behind the same entry
-// points (GbEmu_InitContext, GbCpu_Execute, GbCpu_InitOpcodeTables) plus the frame composition (Port_GbPresent).
+// points (GbEmu_InitContext, GbCpu_Execute, GbSgb_RenderBorder) plus the frame composition (Port_GbPresent).
 // The surrounding GB Tower code (decompiled C) still loads the cartridge through the Transfer Pak, writes the save RAM
 // back, draws the loading screen, the in-game menu and the status bar.
 //
@@ -11,7 +11,7 @@
 // maps, border, multiplayer detection). Cartridges with the Game Boy Color flag (header 0x143 bit 7, e.g. Pokémon
 // Yellow) run as a Game Boy Color instead, as on the N64 (the GB Tower picks its colour microcode by that flag): double
 // speed, VRAM/WRAM banks, HDMA, colour palettes and tile attributes; the tower then frames the picture with its own
-// border image. Sound: APU register writes go to the GB Tower's own sound emulation (func_81208C08), which mixes and outputs it.
+// border image. Sound: APU register writes go to the GB Tower's own sound emulation (GbApu_QueueRegisterWrite), which mixes and outputs it.
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -218,7 +218,7 @@ static void Write(u16 a, u8 v) {
 
 // The GB Tower's sound emulation (gb_tower_emulator_86CB0.c): register writes are queued with their time in machine
 // cycles within the frame and applied while mixing; NR52 reflects its channel state.
-extern void func_81208C08(u16 reg, u8 value, u16 time);
+extern void GbApu_QueueRegisterWrite(u16 reg, u8 value, u16 time);
 extern u8 GbMem_ReadIoRegister(u16 reg);
 
 static u8 ReadIo(u16 a) {
@@ -366,7 +366,7 @@ static void WriteIo(u16 a, u8 v) {
             if (r >= 0x10 && r < 0x40) {
                 // as the N64 emulator (0x8120B04C): the time runs over all the Game Boy frames of this call and is
                 // divided by the speed, so the tower's mixer plays them in one buffer (the music speeds up too)
-                func_81208C08((u16)(0xFF00 | r), v, (u16)(((G.soundBase + G.frameCycles) >> 2) / (G.speed ? G.speed : 1)));
+                GbApu_QueueRegisterWrite((u16)(0xFF00 | r), v, (u16)(((G.soundBase + G.frameCycles) >> 2) / (G.speed ? G.speed : 1)));
             }
             return;
     }
@@ -1255,7 +1255,7 @@ void GbEmu_InitContext(void* emu) {
     Reset(emu);
 }
 
-void GbCpu_InitOpcodeTables(void* emu, void* tables) {
+void GbSgb_RenderBorder(void* emu, void* tables) {
     (void)emu;
     (void)tables;
 }
@@ -1275,7 +1275,7 @@ static void FrameEnd(void* emu) {
     // as the N64 emulator's frame end (gb_tower_emulator_code_asm.s, 0x8120A010): the mask in effect follows MASK_EN,
     // after a cancel 4 frames late. When it changed to 0 after a border transfer, raise context byte 0x5404; the GB
     // Tower then starts its frame switching (slide from the Game Boy frame to the game's own border, Z cycles the
-    // Doduo/Dodrio layouts: gb_tower_emulator_7F9A0.c, D_8122C4E3)
+    // Doduo/Dodrio layouts: gb_tower_emulator_7F9A0.c, sSgbBorderReady)
     if (G.unmaskDelay) {
         G.unmaskDelay--;
     } else if (G.maskEn != G.maskShown) {

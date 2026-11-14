@@ -18,12 +18,14 @@ syms = {}
 for l in mp:
     m = sympat.match(l)
     if m: syms.setdefault(m.group(2), int(m.group(1), 16))
+# C symbols carry a leading underscore in Mach-O (macOS) object files, not in ELF (Linux)
+CPFX = "_" if __import__("sys").platform == "darwin" else ""
 lib = root / "build/libstadium_game.a"
 nm = subprocess.run(["nm", "-g", str(lib)], capture_output=True, text=True).stdout
 defined = set()
 for l in nm.splitlines():
     f = l.split()
-    if len(f) == 3 and f[1] == "T": defined.add(f[2][1:])
+    if len(f) == 3 and f[1] == "T": defined.add(f[2][len(CPFX):])
 rows = []
 for name in sorted(defined):
     a = syms.get(name)

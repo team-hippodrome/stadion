@@ -9,7 +9,7 @@ files; "src/" for the whole game with a whole-game call graph and build).
 
 With --build (the instrumented build directory, for its compile_commands.json) it also proposes a memory setting
 for each gate whose condition is a plain test of a global or of a field behind a global pointer
-("gSessionContext.mode == 0x10", "gBattleUser->unk_15 & 8", "!(x & 2)"): the field's offset and size come from a
+("gSessionContext.mode == 0x10", "sBattleUser->unk_15 & 8", "!(x & 2)"): the field's offset and size come from a
 probe compiled with the caller's own flags that includes the caller's source (statics resolve too); the setting is
 written at the caller's entry (PORT_EVID_SET through run.py --set). <out>/proposals.json: [{gate, set}].
 tools/evidence/try_gates.py runs them and keeps the ones that reach the callee.
@@ -20,7 +20,7 @@ Needs the runs' coverage.profraw (build with PORT_EVID_COVERAGE, cmake/evidence.
   nearest branch before the call site in the caller whose taken side never ran (llvm-cov branch counts), with the
   source text; the gate's "unlocks" are the unreached functions only reachable through it;
 - each condition is classed by what decides it: a battle random value (force it: queue / case rule), the rules mode
-  (D_8438AC60[0] is the constant 1: dead in the shipped game, reachable only by forcing memory), the battle state
+  (sBattleMechanicsSetting[0] is the constant 1: dead in the shipped game, reachable only by forcing memory), the battle state
   (moves, status, HP, flags: case mon lines or PORT_EVID_SET), session or save data (save editor, other routes),
   input, other globals;
 - line and branch coverage of the instrumented files.
@@ -30,8 +30,8 @@ import collections, json, os, re, subprocess, sys, shutil
 CLASSES = [
     ("hardware (64DD, Controller Pak, Rumble Pak)", r"Leo[A-Z]|LeoDrive|osPfs|osMotor|Rumble|ControllerPak"),
     ("random", r"Random|D_843C4DA2"),
-    ("rules mode (constant: dead code in the shipped game)", r"D_8438AC60\[0\]"),
-    ("battle state (moves, status, HP, flags)", r"gBattleUser|gBattleTarget|sActivePokemon|usedMove|moveCache|"
+    ("rules mode (constant: dead code in the shipped game)", r"sBattleMechanicsSetting\[0\]"),
+    ("battle state (moves, status, HP, flags)", r"sBattleUser|sBattleTarget|sActivePokemon|usedMove|moveCache|"
                                                r"runtime|->unk_1[45]\b|state\.|BattleMon"),
     ("session / save / mode", r"gSessionContext|gSave|D_800[0-9A-F]{5}|gGameMode|D_8007|D_800A|D_800B"),
     ("input", r"[Cc]ont|[Bb]utton|[Pp]ad|Input|stick|BTN_"),
