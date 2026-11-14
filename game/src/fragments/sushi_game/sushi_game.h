@@ -62,7 +62,7 @@ typedef struct unk_D_86807558 {
     /* 0x002 */ u16 unk_002;
     /* 0x004 */ s16 unk_004;
     /* 0x006 */ s16 unk_006;
-    /* 0x008 */ s32 unk_008;
+    /* 0x008 */ intptr_t unk_008; // PORT: pointer-sized like unk_D_868084D8_038.unk_008 (same objects); was s32
     /* 0x00C */ s16 unk_00C;
     /* 0x010 */ unk_D_868084D8* unk_010;
     /* 0x014 */ s16 unk_014;
@@ -118,7 +118,7 @@ typedef struct unk_D_86808808 {
     /* 0x002 */ s16 unk_002;
     /* 0x004 */ u16 unk_004;
     /* 0x006 */ s16 unk_006;
-    /* 0x008 */ s32 unk_008;
+    /* 0x008 */ intptr_t unk_008; // PORT: pointer-sized like unk_D_868084D8_038.unk_008 (same objects); was s32
     /* 0x00C */ Vec3f unk_00C;
     /* 0x018 */ unk_D_86808808_018 unk_018;
 } unk_D_86808808; // size = 0x180

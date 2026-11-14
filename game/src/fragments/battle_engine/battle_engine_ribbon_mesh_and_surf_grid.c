@@ -1252,6 +1252,8 @@ void SurfTerrainGrid_BuildCameraBounds(unk_D_843975E8* arg0, f32 arg1) {
 
     var_fs0 = Math_AbsF32(var_fs0);
     sp94 = spB4->perspective.unk_0C * var_fs0 * sp48 * 1.2f;
+    // PORT: the water panel covers the current camera's horizontal view.
+    sp94 = Port_WidenViewSpan(sp94);
 
     Vec3f_CrossProductComponents(sp84, sp80, sp7C, sp78, sp74, sp70, &sp68, &sp64, &sp60);
     Vec3f_CrossProductComponents(sp84, sp80, sp7C, sp68, sp64, sp60, &sp5C, &sp58, &sp54);

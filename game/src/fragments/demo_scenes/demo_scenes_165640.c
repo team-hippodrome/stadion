@@ -1,4 +1,5 @@
 #include "demo_scenes.h"
+#include "src/memmap.h"
 #include "src/geo_node.h"
 #include "src/geo_render.h"
 #include "src/model_animation_events.h"
@@ -128,7 +129,7 @@ static unk_D_8690A610 D_86B0F9D0;
 static DisplayNodeHeader D_86B0F9F0;
 static DisplayNodeHeader D_86B0FA08;
 static DisplayNodeHeader D_86B0FA20;
-static u32 D_86B0FA38;
+static uintptr_t D_86B0FA38; // PORT: holds the stadium file's return value (a host address too)
 static Color_RGBA8_u32 D_86B0FA3C;
 static u8 D_86B0FA40;
 static s16 D_86B0FA42;
@@ -155,7 +156,8 @@ static unk_D_70B10 D_86B10670;
 static TeamRoster* D_86B10690;
 static BattleSessionTeams* D_86B10694;
 
-static u32 sMiniCameraLayout[] = {
+static uintptr_t sMiniCameraLayout[] = {
+    // PORT64: holds addresses
     0x0C00FFFF,  0x05000000,
     0x0B00001E,  0x00000000,
     0x014000F0,  0x0000000F,
@@ -267,11 +269,11 @@ void Intro_LoadPokemonTextures(void) {
     u8* temp_a1;
     u8* sp1C;
 
-    temp_a1 = (u32)_70D3A0_ROM_START + (D_80075BD0[D_86B0FA78->unk_174 - 1] & 0xFFFFFF);
-    sp24 = (u32)_70D3A0_ROM_START +
-           ((((D_86B0FA78->unk_174 ^ 0) * sizeof(unk_D_70B10)) - sizeof(unk_D_70B10) + (u32)D_70B10) & 0xFFFFFF);
-    sp1C = (u32)_70D3A0_ROM_START +
-           (((D_86B0FA78->unk_174 * sizeof(unk_70D3A0)) - sizeof(unk_70D3A0) + (u32)D_70110) & 0xFFFFFF);
+    temp_a1 = (uintptr_t)_70D3A0_ROM_START + (D_80075BD0[D_86B0FA78->unk_174 - 1] & 0xFFFFFF);
+    sp24 = (uintptr_t)_70D3A0_ROM_START +
+           ((((D_86B0FA78->unk_174 ^ 0) * sizeof(unk_D_70B10)) - sizeof(unk_D_70B10) + (uintptr_t)D_70B10) & 0xFFFFFF);
+    sp1C = (uintptr_t)_70D3A0_ROM_START +
+           (((D_86B0FA78->unk_174 * sizeof(unk_70D3A0)) - sizeof(unk_70D3A0) + (uintptr_t)D_70110) & 0xFFFFFF);
 
     Dma_WriteChunks(D_86B0FA80, temp_a1, temp_a1 + 0xBC0, 0);
     Dma_WriteChunks(&D_86B10660, sp1C, sp1C + sizeof(unk_70D3A0), 0);
@@ -879,7 +881,7 @@ void Intro_DrawTextPanels(void) {
 void Intro_RenderFrame(void) {
     BgStage_DrawFrame();
 
-    if ((D_86B0FA38 == -1) || (D_86B0FA38 == 0)) {
+    if ((D_86B0FA38 == (uintptr_t)-1) || (D_86B0FA38 == 0xFFFFFFFF) || (D_86B0FA38 == 0)) {
         GfxImage_FillCurrent(&gDisplayListHead, 1);
     } else if (D_86B0FA38 < 0x10000) {
         GfxImage_FillCurrent(&gDisplayListHead, D_86B0FA38);
@@ -1043,7 +1045,9 @@ void Stage_LoadModels(void) {
 
     sp2C = BinArchive_GetFile(BinArchive_Open(stadium_models_ROM_START, _5C7A70_ROM_START, 1, 1), D_86B0FA42);
 
-    D_86B0FA4C = sp2C(2, 0);
+    // PORT: the stadium file is a small MIPS routine: run through Port_CallBlobEntry as in BattleScene_Init (calling it
+    // natively jumped into the data: crash at the stadium intro before a Gym Leader Castle leader battle)
+    D_86B0FA4C = (void*)Port_CallBlobEntry(sp2C, 2, 0);
     GeoNode_CreateFog(0, &D_86B0F9D0, 0x3C0, 0x3E8, 0xFF, 0xFF, 0xFF, 0xFF);
     GeoNode_CreateContainer(NULL, &D_86B0F9F0);
     GeoNode_CreateContainer(NULL, &D_86B0FA08);
@@ -1051,25 +1055,25 @@ void Stage_LoadModels(void) {
     sp34 = MainPool_AllocState(main_pool_get_available(), 0);
     D_87906050 = process_geo_layout(sp34, sMiniCameraLayout);
 
-    temp_v0_3 = sp2C(0, 0);
+    temp_v0_3 = (void*)Port_CallBlobEntry(sp2C, 0, 0);
     if (temp_v0_3 != NULL) {
         GraphNode_AppendChild(&D_86B0F9F0, process_geo_layout(sp34, temp_v0_3));
     }
 
-    temp_v0_3 = sp2C(1, 0);
+    temp_v0_3 = (void*)Port_CallBlobEntry(sp2C, 1, 0);
     if (temp_v0_3 != NULL) {
         GraphNode_AppendChild(&D_86B0FA08, process_geo_layout(sp34, temp_v0_3));
     }
 
-    temp_v0_3 = sp2C(3, 0);
+    temp_v0_3 = (void*)Port_CallBlobEntry(sp2C, 3, 0);
     if (temp_v0_3 != NULL) {
         GraphNode_AppendChild(&D_86B0FA20, process_geo_layout(sp34, temp_v0_3));
     }
 
-    D_86B0FA38 = sp2C(2, 0);
+    D_86B0FA38 = Port_CallBlobEntry(sp2C, 2, 0);
     MainPool_FinalizeAllocation(sp34);
 
-    temp_v0_6 = sp2C(4, 0);
+    temp_v0_6 = Port_VResolve(Port_CallBlobEntry(sp2C, 4, 0)); // (a pseudo address, as in BattleScene_Init)
     if (temp_v0_6 == NULL) {
         D_86B0F9D0.node.callbackArg = 0;
         D_86B0F9D0.node.flags &= ~1;

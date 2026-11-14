@@ -234,16 +234,11 @@ void Title_PickDemoMatchup(u8* arg0) {
                             Title_FindEligibleDemoEntry(sp38, arg0[2]));
 }
 
-static u8 gTitleAttractDemoScenarios[2][4] = {
-    { 4, 0, 1, 3 },
-    { 5, 0, 2, 9 },
-};
-
-static u8 D_82100E6C[4][4] = {
-    { 3, 3, 4, 13 },
-    { 6, 3, 8, 3 },
-    { 7, 4, 16, 9 },
-    { 0, 0, 32, 13 },
+// PORT: one array (the decomp splits it in two, D_82100E6C being rows 2-5): Title_StartAttractDemo indexes rows 0-5
+// through gTitleAttractDemoScenarios, which on the N64 run on into the second half; on a host the two need not be
+// adjacent (Android: the later attract rounds read past the end and loaded stadium file 23 of 18)
+static u8 gTitleAttractDemoScenarios[6][4] = {
+    { 4, 0, 1, 3 }, { 5, 0, 2, 9 }, { 3, 3, 4, 13 }, { 6, 3, 8, 3 }, { 7, 4, 16, 9 }, { 0, 0, 32, 13 },
 };
 
 s32 Title_StartAttractDemo(void) {
@@ -382,6 +377,10 @@ s32 Title_Main(UNUSED s32 arg0, s16* arg1) {
     Title_LoadAssets();
     Text_InitStringTables();
     sControllerErrorText = Text_GetStringTable(0x14);
+    // PORT: on the N64, loading the title screen (its code, pictures, and the music's wave tables) took about 20
+    // retraces more than here, behind the boot diorama's last picture; its music came that much later after the
+    // diorama's (measured against a console capture).
+    Port_LoadStall(20);
     Audio_LoadWaveTablesAndMusic(gTitleAudioBuffer);
     Title_FadeIn();
     sp24 = Title_Loop();

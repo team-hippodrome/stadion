@@ -160,7 +160,7 @@ def recipes(fixtures, output=None, backend='opengl'):
             state=40 if stem == 'battle_now' else 34 if stem.startswith('mewtwo') else 39)
         cases[-1]['expect'] = list({
             'castle_gym_clear': ('BattlePrep_ShowCastleClearOutro',),
-            'castle_e4_rival_clear': ('Glc_ClearInitState',),
+            'castle_e4_rival_clear': ('GymLeaderCastleClear_InitState',),
             'mewtwo_win': ('State_RunCredits', 'Credits_OutroLoop'),
             'mewtwo_loss_battle_again': ('BattlePrep_DrawQuitPrompt',),
             'mewtwo_loss_quit': ('BattlePrep_DrawQuitPrompt',),
@@ -195,7 +195,7 @@ def recipes(fixtures, output=None, backend='opengl'):
         save = 'event6.sav' if stem == 'event_battle' else 'gbv/party6.sav'
         add('', stem, save=save, state=18, env={'PORT_CONTROLLERS': '1,2'},
             frames=9000 if stem == 'event_battle' else None,
-            expect=('EventBattle_StartBattle', 'State_BattleFromEvent') if stem == 'event_battle' else ('EventBattle_RunSettingsPanel',),
+            expect=('EventBattle_ExitToBattle', 'State_BattleFromEvent') if stem == 'event_battle' else ('EventBattle_RunSettingsPanel',),
             extra=('--gb2', str(fixtures / 'yellow_de.gb') + '|' + str(fixtures / save)))
     for count in (3, 4):
         add('', f'pikachu_reward_{count}moves', save='pika' + str(count), natural=False,

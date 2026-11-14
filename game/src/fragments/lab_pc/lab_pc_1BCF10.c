@@ -18,7 +18,7 @@ typedef struct unk_func_8820BE14_02C_038_02C {
     /* 0x58 */ s32 unk_58;
 } unk_func_8820BE14_02C_038_02C; // size >= 0x5C
 
-void LabPC_InitTabWidget(unk_func_882149A0* arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6,
+void LabPC_InitTabWidget(unk_func_882149A0* arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, intptr_t arg5, s32 arg6,
                          Color_RGBA8 arg7, Color_RGBA8 arg8, Color_RGBA8 arg9) {
     ((func885007CC)Memmap_GetFragmentVaddr(WidgetTree_InitWidget))(arg0, sizeof(unk_func_882149A0));
 
@@ -617,10 +617,11 @@ void LabPC_BindGridDeckData(unk_func_8820BE14_02C_038* arg0, unk_func_8820BE14_0
     ((func88506EE4)Memmap_GetFragmentVaddr(WidgetTree_BindScrollableGridData))(arg0, &arg1->unk_04);
 }
 
-void LabPC_BindGridStridedData(unk_func_8820BE14_02C_038* arg0, s32* arg1, s32 arg2) {
-    arg0->unk_88 = arg1;
+void LabPC_BindGridStridedData(unk_func_8820BE14_02C_038* arg0, unk_func_8821421C_03C* arg1, s32 arg2) {
+    arg0->unk_88 = &arg1->unk_00;
     arg0->unk_8C = arg2;
-    ((func88506F50)Memmap_GetFragmentVaddr(WidgetTree_BindScrollableGridStridedData))(arg0, arg1 + 1);
+    // PORT64: the table follows the s32 (was `(s32*)arg1 + 1`, 4 bytes in; on the host it starts after padding)
+    ((func88506F50)Memmap_GetFragmentVaddr(WidgetTree_BindScrollableGridStridedData))(arg0, &arg1->unk_04);
 }
 
 void LabPC_InitPageCounterWidget(unk_func_882170A8* arg0, s32 arg1, s32 arg2, unk_func_8820BE14_02C_038* arg3,

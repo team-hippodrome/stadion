@@ -1260,6 +1260,8 @@ ThumbnailSettings sSideThumbnailSettings[2] = {
     },
 };
 
+// PORT: one array as in the ROM. BattleScene intro picks D_843847EC[0..4]; on the N64 entries 3 and 4 are
+// D_84384888[0..1], which follows directly.
 DioramaAnimData D_843847EC[] = {
     {
         0,
@@ -1318,8 +1320,7 @@ DioramaAnimData D_843847EC[] = {
         0.019999999552965164f,
         50.0f,
     },
-};
-DioramaAnimData D_84384888[] = {
+    // D_84384888
     {
         0,
         0,

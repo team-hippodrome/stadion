@@ -19,7 +19,7 @@
 
 s32 BattlePrep_StarfieldGeoCallback(s32, unk_D_86002F34_alt8*);
 
-unk_D_84B19910 D_84B19910[400];
+unk_D_84B19910 D_84B19910[401]; // PORT: BattlePrep_InitStarfield writes element [400] (arg0[i + 1] for the last star)
 s32 pad_D_84B1A590[2];
 unk_D_84B1A598 D_84B1A598;
 unk_D_84B259A8 D_84B259A8;
@@ -39,7 +39,8 @@ static u8* D_84B0FB10[] = {
     D_3015D00,
     D_3016300,
 };
-static u32 D_84B0FB20[] = {
+static uintptr_t D_84B0FB20[] = {
+    // PORT64: holds addresses
     0x0C000000,  0x05000000,  0x0B00002D, 0x00000000,  0x014000F0,
     0x00000000,  0xFEDF0000,  0x00000121, 0x05000000,  0x0D000000,
     0x05000000,  0x0F000000,  0x05000000, 0x20050000,  0x00000000,
@@ -252,7 +253,8 @@ void BattlePrep_DrawTrainerStatusIcon(DepthBuffer* arg0, s16 arg1, u8* arg2, u8*
         if (temp_v1->tagTeamMember[0]->isHuman & 2) {
             Gfx_DrawTextureRgba16(8, 4, 0x30, 0x10, &D_3016900, 0x30, 0x200000);
         } else if (temp_v1->tagTeamSize == 1) {
-            Gfx_DrawTextureRgba16(8, 4, 0x30, 0x10, D_84B0FB10[temp_v1->tagTeamMember[0]->controllerPort], 0x30, 0x200000);
+            Gfx_DrawTextureRgba16(8, 4, 0x30, 0x10, D_84B0FB10[temp_v1->tagTeamMember[0]->controllerPort], 0x30,
+                                  0x200000);
         } else {
             if (temp_v1->tagTeamMember[0]->controllerPort < temp_v1->tagTeamMember[1]->controllerPort) {
                 Gfx_DrawTextureRgba16(8, 4, 0x30, 0x10, D_84B0FB10[temp_v1->tagTeamMember[0]->controllerPort], 0x30,

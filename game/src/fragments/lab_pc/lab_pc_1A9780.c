@@ -163,9 +163,10 @@ void func_88201488(s32 arg0, s32 arg1, unk_func_88201488_arg2** arg2, s32 arg3, 
         gDPSetRenderMode(gDisplayListHead++, G_RM_NOOP, G_RM_NOOP2);
         gDPSetAlphaCompare(gDisplayListHead++, G_AC_THRESHOLD);
         gDPSetTexturePersp(gDisplayListHead++, G_TP_NONE);
-        gDPLoadTextureBlock(gDisplayListHead++, arg2 + 2, G_IM_FMT_RGBA, G_IM_SIZ_16b, 40, 40, 0,
-                            G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
-                            G_TX_NOLOD);
+        // PORT64: the entry's icon texture after the Pokémon pointer (was arg2 + 2, two 4-byte pointers on N64)
+        gDPLoadTextureBlock(gDisplayListHead++, ((unk_func_88201DA0_034*)arg2)->unk_008, G_IM_FMT_RGBA, G_IM_SIZ_16b,
+                            40, 40, 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
+                            G_TX_NOLOD, G_TX_NOLOD);
         gSPTextureRectangle(gDisplayListHead++, (arg0 + 0x30) << 2, (arg1 + 6) << 2, (arg0 + 0x57) << 2,
                             (arg1 + 0x2D) << 2, G_TX_RENDERTILE, 0, 0, 0x1000, 0x0400);
         gDPPipeSync(gDisplayListHead++);
@@ -317,7 +318,7 @@ s32 LabPC_CheckBox_HandleInput(unk_func_88201DA0* arg0, Controller* arg1) {
 
 void LabPC_CheckBox_ModalLoop(unk_func_88201DA0* arg0, Controller* arg1) {
     s32 var_s0;
-    s32 var_s1 = NULL;
+    intptr_t var_s1 = NULL;
 
     ((func88502C98)Memmap_GetFragmentVaddr(WidgetTree_OpenAnimatedPanel))(arg0->unk_2C);
 
@@ -369,6 +370,7 @@ s32 LabPC_BoxCountLabel_Draw(unk_func_8820253C* arg0, s32 arg1, s32 arg2) {
     if (arg0->unk_2C != NULL) {
         LabPC_DrawBoxCount(arg0->unk_2C, arg1, arg2);
     }
+    return 1; // PORT: the N64 returned the last call's nonzero v0, so WidgetTree_Draw skipped the children
 }
 
 void LabPC_BuildBoxPairSelector(unk_func_882025E0_1A9780* arg0, unk_func_88200FA0_030_030* arg1,
@@ -1436,11 +1438,12 @@ s32 func_882052F4(unk_func_88203ED8_064* arg0, Controller* arg1) {
                     case 3:
                         Audio_PlaySoundEffectById(SFX_MENU_CONFIRM);
                         tmp = (arg0->unk_24->unk_6C->unk_38 != 0 ? 1 : 2) << 0x10;
-                        LabPC_CheckBox_ShowBox(
-                            arg0->unk_24->unk_5C,
-                            (unk_func_88205880_00D0*)((s32*)arg0->unk_24->unk_6C->unk_24[0]
-                                                          ->unk_2C->unk_00)[arg0->unk_24->unk_6C->unk_24[0]->unk_38],
-                            tmp | arg0->unk_24->unk_6C->unk_24[0]->unk_38);
+                        LabPC_CheckBox_ShowBox(arg0->unk_24->unk_5C,
+                                               // PORT64: the grid's list of box pointers (unk_A030; was read through an
+                                               // s32*, which truncated the pointers)
+                                               ((unk_func_88205880_A030*)arg0->unk_24->unk_6C->unk_24[0]->unk_2C)
+                                                   ->unk_00[arg0->unk_24->unk_6C->unk_24[0]->unk_38],
+                                               tmp | arg0->unk_24->unk_6C->unk_24[0]->unk_38);
 
                         arg0->unk_24->unk_6C->unk_24[0]->unk_00.unk_24(arg0->unk_24->unk_6C->unk_24[0], 0x100);
                         LabPC_CheckBox_ModalLoop(arg0->unk_24->unk_5C, arg1);
@@ -1677,7 +1680,7 @@ void LabPC_ShowBoxes(FontContext* arg0) {
     sp68 = mem_pool_alloc(sp6C, sizeof(unk_func_88205880));
     LabPC_BuildBoxScreenWidget(sp68, 0, 0, arg0, sp6C, sp5C, sp58, sp54, sp50, sp4C, sp48, sp44, sp40);
 
-    sp60 = ALIGN16((u32)mem_pool_alloc(sp6C, sizeof(func_88002628_sp38)));
+    sp60 = ALIGN16((uintptr_t)mem_pool_alloc(sp6C, sizeof(func_88002628_sp38)));
 
     osCreateThread(&sp60->thread, 0x32, LabPC_BoxScreen_InputThread, sp68, sp64 + 0x1000, osGetThreadPri(NULL) - 1);
 

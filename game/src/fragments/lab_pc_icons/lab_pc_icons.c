@@ -523,7 +523,7 @@ s32 LabPC_DrawTypeListWidget(unk_func_88205880_0098_008_048* arg0, s32 arg1, s32
         Font_Printf(Font_MeasureTextExtent(0, 0, tmp) + arg1 + var_s4, arg2 + 4, "????");
     } else {
         s32 i;
-        char sp50[4];
+        char sp50[8]; // PORT: was [4]; "%d/" of a 3-digit value needs 5 bytes
 
         for (i = 0; i < 2; i++) {
             tmp = Species_GetMoveSlot(arg0->unk_2C, i);
@@ -850,8 +850,8 @@ s32 LabPC_DrawTrainerInfoWidget(unk_func_88205880_0098_008_054* arg0, s32 arg1, 
         char sp48[32];
         s32 sp44;
 
-        Text_SetNumberToken(
-            6, (char*)(LabPC_ComputeExpForLevel(arg0->unk_2C->species.id, sp6C) - arg0->unk_2C->unk_10));
+        Text_SetNumberToken(6,
+                            (char*)(LabPC_ComputeExpForLevel(arg0->unk_2C->species.id, sp6C) - arg0->unk_2C->unk_10));
         Text_GetString(sp48, sizeof(sp48), D_8861C510, 0x10);
         sp44 = Font_MeasureTextExtent(0, 0, sp48);
         Font_Printf(arg1 + 0xE8, arg2 + 0x44, sp48);

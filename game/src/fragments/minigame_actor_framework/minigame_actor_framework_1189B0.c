@@ -141,7 +141,7 @@ void MiniActor_UpdateAnimation(MiniActor* poke) {
             ModelAnim_SetAnimation(&poke->unk_000, poke->unk_24A);
             if (poke->unk_26C != 0) {
                 ModelAnim_BindTransformCurve(&poke->unk_000, 0, poke->unk_000.transformAnim.data, -0x10000);
-                ModelAnim_SetFrame(&poke->unk_000, poke->unk_000.transformAnim.data->endFrame - 1);
+                ModelAnim_SetFrame(&poke->unk_000, ModelAnim_GetEndFrame(&poke->unk_000) - 1);
             } else {
                 ModelAnim_BindTransformCurve(&poke->unk_000, 0, poke->unk_000.transformAnim.data, 0x10000);
                 ModelAnim_SetFrame(&poke->unk_000, poke->unk_26E);
@@ -176,7 +176,7 @@ void MiniActor_UpdateAnimation(MiniActor* poke) {
 }
 
 void MiniActor_SnapAnimToLastFrame(DisplayObject* arg0) {
-    ModelAnim_SetFrame(arg0, arg0->transformAnim.data->endFrame - 1);
+    ModelAnim_SetFrame(arg0, ModelAnim_GetEndFrame(arg0) - 1);
 }
 
 void MiniActor_ReadControllerInputs(void) {

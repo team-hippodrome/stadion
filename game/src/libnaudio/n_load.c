@@ -65,7 +65,8 @@ Acmd* n_alAdpcmPull(N_PVoice* filter, s16* outp, s32 outCount, Acmd* p) {
     inp = N_AL_DECODER_IN;
 #endif
 
-    aLoadADPCM(ptr++, f->dc_bookSize, K0_TO_PHYS(f->dc_table->waveInfo.adpcmWave.book->book));
+    aLoadADPCM(ptr++, f->dc_bookSize,
+               osVirtualToPhysical(f->dc_table->waveInfo.adpcmWave.book->book)); // PORT: was K0_TO_PHYS
 
     looped = (outCount + f->dc_sample > f->dc_loop.end) && (f->dc_loop.count != 0);
     if (looped) {
@@ -104,7 +105,7 @@ Acmd* n_alAdpcmPull(N_PVoice* filter, s16* outp, s32 outCount, Acmd* p) {
          * Now fix up state info to reflect the loop start point
          */
         f->dc_lastsam = f->dc_loop.start & 0xf;
-        f->dc_memin = (s32)f->dc_table->base + ADPCMFBYTES * ((s32)(f->dc_loop.start >> LFSAMPLES) + 1);
+        f->dc_memin = (intptr_t)f->dc_table->base + ADPCMFBYTES * ((s32)(f->dc_loop.start >> LFSAMPLES) + 1);
         f->dc_sample = f->dc_loop.start;
 
         bEnd = *outp;
@@ -171,7 +172,7 @@ Acmd* n_alAdpcmPull(N_PVoice* filter, s16* outp, s32 outCount, Acmd* p) {
      * overFlow is the number of bytes past the end
      * of the bitstream I try to generate
      */
-    overFlow = f->dc_memin + nbytes - ((s32)f->dc_table->base + f->dc_table->len);
+    overFlow = f->dc_memin + nbytes - ((intptr_t)f->dc_table->base + f->dc_table->len);
     if (overFlow < 0) {
         overFlow = 0;
     }
@@ -227,7 +228,7 @@ s32 n_alLoadParam(N_PVoice* filter, s32 paramID, void* param) {
     switch (paramID) {
         case (AL_FILTER_SET_WAVETABLE):
             a->dc_table = (ALWaveTable*)param;
-            a->dc_memin = (s32)a->dc_table->base;
+            a->dc_memin = (intptr_t)a->dc_table->base;
             a->dc_sample = 0;
             switch (a->dc_table->type) {
                 case (AL_ADPCM_WAVE):
@@ -269,7 +270,7 @@ s32 n_alLoadParam(N_PVoice* filter, s32 paramID, void* param) {
             /* sct 2/14/96 - Check table since it is initialized to null and */
             /* Get loop info according to table type. */
             if (a->dc_table) {
-                a->dc_memin = (s32)a->dc_table->base;
+                a->dc_memin = (intptr_t)a->dc_table->base;
                 if (a->dc_table->type == AL_ADPCM_WAVE) {
                     if (a->dc_table->waveInfo.adpcmWave.loop) {
                         a->dc_loop.count = a->dc_table->waveInfo.adpcmWave.loop->count;
@@ -289,7 +290,8 @@ s32 n_alLoadParam(N_PVoice* filter, s32 paramID, void* param) {
 }
 
 Acmd* _decodeChunk(Acmd* ptr, N_PVoice* f, s32 tsam, s32 nbytes, s16 outp, s16 inp, u32 flags) {
-    s32 dramAlign, dramLoc;
+    s32 dramAlign;
+    intptr_t dramLoc; // PORT: a host pointer (was s32)
 
     if (nbytes > 0) {
         dramLoc = (f->dc_dma)(f->dc_memin, nbytes, f->dc_dmaState);
@@ -303,21 +305,21 @@ Acmd* _decodeChunk(Acmd* ptr, N_PVoice* f, s32 tsam, s32 nbytes, s16 outp, s16 i
         aSetBuffer(ptr++, 0, inp, 0, nbytes + 8 - (nbytes & 0x7));
         aLoadBuffer(ptr++, dramLoc - dramAlign);
 #else
-        n_aLoadBuffer(ptr++, nbytes + 8 - (nbytes & 0x7), inp, dramLoc - dramAlign);
+        n_aLoadBufferKind(ptr++, nbytes + 8 - (nbytes & 0x7), inp, dramLoc - dramAlign, PORT_ACMD_BE); // sample data
 #endif
     } else {
         dramAlign = 0;
     }
 
     if (flags & A_LOOP) {
-        aSetLoop(ptr++, K0_TO_PHYS(f->dc_lstate));
+        aSetLoop(ptr++, osVirtualToPhysical(f->dc_lstate)); // PORT: was K0_TO_PHYS
     }
 
 #ifndef N_MICRO
     aSetBuffer(ptr++, 0, inp + dramAlign, outp, tsam << 1);
     aADPCMdec(ptr++, flags, K0_TO_PHYS(f->dc_state));
 #else
-    n_aADPCMdec(ptr++, K0_TO_PHYS(f->dc_state), flags, tsam << 1, dramAlign, outp);
+    n_aADPCMdec(ptr++, osVirtualToPhysical(f->dc_state), flags, tsam << 1, dramAlign, outp);           // PORT: was K0_TO_PHYS
 #endif
     f->dc_first = 0;
     return ptr;

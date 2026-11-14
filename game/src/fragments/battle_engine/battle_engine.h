@@ -661,9 +661,10 @@ typedef struct StatusConditionLabel {
     /* 0x04 */ Color_RGBA8 color;
 } StatusConditionLabel; // size = 0x8
 
+// PORT: a display-list graph node (unk_D_86002F34_alt7): the flat view put unk_18 (the node's display list) on the
+// host GraphNode's callback field. unk_14 was the node's callback data: node.callbackArg.
 typedef struct arg1_func_84344CE8 {
-    /* 0x00 */ char unk00[0x14];
-    /* 0x14 */ u8* unk_14;
+    /* 0x00 */ GraphNode node;
     /* 0x18 */ Gfx* unk_18;
 } arg1_func_84344CE8; // size >= 0x1C
 
@@ -1181,8 +1182,8 @@ typedef struct unk_func_8438220C {
 } unk_func_8438220C; // size = 0xBC
 
 typedef struct unk_func_8437F85C_arg3 {
-    /* 0x00 */ u8 unk_00[3][3];
-} unk_func_8437F85C_arg3; // size = 0x3
+    /* 0x00 */ u8 unk_00[8][3]; // PORT: 8 groups, as the callers use (sp78[0x18]); was [3][3]
+} unk_func_8437F85C_arg3;       // size = 0x18
 
 #define NINETY_DEGREES 0x4000
 
@@ -1197,8 +1198,8 @@ extern u8 sFarfetchD;
 extern u8 sDoduoEvoLine[];
 extern s16 sChargeMoveCues[];
 extern ThumbnailSettings sSideThumbnailSettings[2];
-extern DioramaAnimData D_843847EC[3];
-extern DioramaAnimData D_84384888[2];
+extern DioramaAnimData D_843847EC[5];
+#define D_84384888 (&D_843847EC[3]) // PORT: tail of D_843847EC (one array on the host, as in the N64 layout)
 extern DioramaAnimData sSwitchCameraPreset;
 extern DioramaAnimData D_84384924;
 extern DioramaAnimData D_84384958;
@@ -1240,7 +1241,7 @@ extern u8 sBattleCritFlag;
 extern u8 D_843C4DA9;
 extern u8 D_843C4DAA;
 extern s32 sTypeEffectiveness;
-// extern unk_D_843C4E44 D_843C4E44;
+// extern unk_D_843C4E44 sConfused;
 extern u8 sConfused;
 extern u8 sStatCanBeChangedFurther;
 extern u16 sBattleDamage;
@@ -1317,7 +1318,7 @@ s32 Battle_StageLightAngleCallbackB(s32 event, unk_D_86002F34_alt18* light);
 s32 Battle_StageMaterialTintCallback(s32 event, DisplayObject* object);
 void Battle_SetStageTintColor(u8 r, u8 g, u8 b);
 void Battle_SetStageScale(f32 scale);
-u16 Battle_TintTexel16(u16 color);
+u16 Battle_TintTexel16(uintptr_t color);
 void Battle_DrawStageBackdrop(void);
 void Battle_RenderActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer* thumbnail);
 void Battle_DrawClippedTextureRect(s32 x1, s32 y1, s32 x2, s32 y2);
@@ -1364,7 +1365,7 @@ s32 BattleScene_FindU16InByteArray(u16 lookup_value, u8* array, s32 array_length
 void Battle_MarkIllegalMoves(ActivePokemon* pokemon, u16 pokemon_id, SpeciesLearnsetBuffer* red_blue_learnset,
                              SpeciesLearnsetBuffer* yellow_learnset);
 void Battle_InitializeMoveIllegalityMask(ActivePokemon* active_pokemon);
-void Battle_DmaLoadLevelUpLearnset(u8 species, u32 destination);
+void Battle_DmaLoadLevelUpLearnset(u8 species, uintptr_t destination);
 void Battle_DmaLoadSpeciesLearnsets(s32 species_index, SpeciesLearnsetBuffer* red_blue_learnset,
                                     SpeciesLearnsetBuffer* yellow_learnset);
 void Battle_LoadAnimationAndMarkMoveIllegality(ActivePokemon* pokemon, s32 mark_move_illegality);
@@ -2672,7 +2673,7 @@ void BattleAnim_CallbackStartEffects12And129DelayedModelAnimWait(Particle* arg0)
 void BattleAnim_InitializeAmnesiaUse(void);
 void BattleAnim_ApplySpeciesMotionOffset(Particle* arg0);
 void BattleAnim_InitializeScreenMove(void);
-void BattleAnim_BuildReflectiveTextureDisplayList(Gfx* arg0, s32 arg1, u16 arg2);
+void BattleAnim_BuildReflectiveTextureDisplayList(Gfx* arg0, intptr_t arg1, u16 arg2);
 void BattleAnim_AllocateReflectiveTextureDisplayList(s32 arg0, arg1_func_84344CE8* arg1);
 void BattleAnim_ApplyEffect125ModelScaleOffset(Particle* arg0);
 void BattleAnim_InitEffect125Model(Particle* arg0, UNUSED s16 arg1);
@@ -2706,7 +2707,7 @@ void BattleAnim_SetupBlizzard(Particle* arg0);
 void BattleAnim_RunBlizzard(Particle* arg0);
 void BattleAnim_InitializeBlizzardUse(void);
 void BattleAnim_InitializeBlizzardHit(void);
-void ParticleEffect_DrawNode(Gfx* arg0, s32 arg1, u16 arg2);
+void ParticleEffect_DrawNode(Gfx* arg0, intptr_t arg1, u16 arg2);
 void ParticleEffect_CreateNodeDL(s32 arg0, arg1_func_84344CE8* arg1);
 void ParticleEffect_DrawNodeVariant(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 arg2);
 void ParticleEffect_CreateNodeVariantDL(s32 arg0, arg1_func_84344CE8* arg1);
@@ -2720,7 +2721,7 @@ void BattleAnim_InitializeDizzyPunchHit(void);
 void BattleAnim_InitEffect49Model(Particle* arg0);
 void BattleAnim_CallbackEndEffect49Model33Anim34WaitCleanup(Particle* arg0);
 void BattleAnim_RunHealthAbsorptionParticles(Particle* arg0);
-void BattleAnim_BuildEffect49DisplayList(Gfx* arg0, UNUSED s32 arg1, UNUSED u16 arg2);
+void BattleAnim_BuildEffect49DisplayList(Gfx* arg0, UNUSED intptr_t arg1, UNUSED u16 arg2);
 void BattleAnim_AllocateEffect49DisplayList(s32 arg0, arg1_func_84344CE8* arg1);
 void ParticleEffect_RegisterColorAnim(void);
 void ParticleEffect_RegisterModeSpecific(void);
@@ -2730,9 +2731,9 @@ void BattleAnim_InitializeFlyUse(void);
 void BattleAnim_SetupTeleportUseEffect(Particle* arg0);
 void BattleAnim_RunTeleportUseEffect(Particle* arg0);
 void BattleAnim_InitializeTeleportUse(void);
-void BattleAnim_BuildEffect63DisplayList(Gfx* arg0, s32 arg1, u16 arg2);
+void BattleAnim_BuildEffect63DisplayList(Gfx* arg0, intptr_t arg1, u16 arg2);
 void BattleAnim_AllocateEffect63DisplayList(s32 arg0, arg1_func_84344CE8* arg1);
-void BattleAnim_BuildEffect75DisplayList(Gfx* arg0, UNUSED s32 arg1, UNUSED u16 arg2);
+void BattleAnim_BuildEffect75DisplayList(Gfx* arg0, UNUSED intptr_t arg1, UNUSED u16 arg2);
 void BattleAnim_AllocateEffect75DisplayList(s32 arg0, arg1_func_84344CE8* arg1);
 void BattleAnim_InitEffects63And75Model(Particle* arg0);
 void BattleAnim_RunRaisingRock(Particle* arg0);
@@ -2741,7 +2742,7 @@ void BattleAnim_RunFallingRock(Particle* arg0);
 void BattleAnim_ApplyEffects63And75SpeciesScaleOffset(Particle* arg0);
 void BattleAnim_InitEffects63And75Model38(Particle* arg0);
 void BattleAnim_RunRockLiftingMotionEffect(Particle* arg0);
-void Gfx_DrawParticleAlpha(Gfx* arg0, s32 arg1, u16 arg2);
+void Gfx_DrawParticleAlpha(Gfx* arg0, intptr_t arg1, u16 arg2);
 void Particle_CreateDisplayList_Alpha(s32 arg0, arg1_func_84344CE8* arg1);
 void Gfx_DrawParticleTexture4b(Gfx* arg0, u8* arg1, UNUSED u16 arg2);
 void Particle_CreateDisplayList_Texture4b(s32 arg0, arg1_func_84344CE8* arg1);
@@ -2784,7 +2785,7 @@ void func_84348C6C(UNUSED s32 arg0, UNUSED s32 arg1);
 void ParticleEffect_Noop(UNUSED s32 arg0, UNUSED s32 arg1);
 void BattleAnim_SetupBitingEffect(Particle* arg0);
 void BattleAnim_RunBitingEffect(Particle* arg0);
-void Gfx_DrawParticleFromTempColors(Gfx* arg0, s32 arg1, u16 arg2);
+void Gfx_DrawParticleFromTempColors(Gfx* arg0, intptr_t arg1, u16 arg2);
 void Particle_CreateDisplayList_TempColors(s32 arg0, arg1_func_84344CE8* arg1);
 void BattleAnim_InitializeClampViceGripUse(void);
 void BattleAnim_InitializeGuillotineUse(void);
@@ -3481,7 +3482,7 @@ void BattleEffect_RunMoveEffect(void);
 void BattleEffect_ExecuteMoveEffect(void);
 
 //@src/fragments/battle_engine/battle_engine_com_decision_logic.c
-void BattleAI_LoadConfiguration(s32 arg0, u32 arg1);
+void BattleAI_LoadConfiguration(s32 arg0, uintptr_t arg1);
 void func_843767DC(void);
 s32 BattleAI_RandomBelowInclusive(s32 arg0);
 void BattleAI_SeedRandomState(u8 arg0);

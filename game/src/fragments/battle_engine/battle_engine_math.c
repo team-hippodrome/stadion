@@ -131,10 +131,14 @@ f32 BattleAnim_Distance2D(f32 x0, f32 y0, f32 x1, f32 y1) {
  * pick a random table entry.
  */
 //@src/math_util.c
-s32 BattleAnim_RandomIntWithWarmup(f32 count) {
+__attribute__((noinline)) s32 BattleAnim_RandomIntWithWarmup(f32 count) { // PORT: (as Battle_Random)
     s32 warmup_count;
     s32 index;
 
+    if (Port_XcheckRandom(4, (s32)count, &index,
+                          __builtin_return_address(0))) { // PORT: battle cross-check against ares (src/port/xcheck.cpp)
+        return index;
+    }
     warmup_count = osGetCount() & 0xFF;
     while (warmup_count-- > 0) {
         MathUtil_Random_ZeroOne();
@@ -155,7 +159,12 @@ s32 BattleAnim_RandomIntWithWarmup(f32 count) {
  */
 //@src/math_util.c
 //@src/fragments/battle_engine/battle_engine_battle_phases.c
-u16 BattleAnim_RandomRange(s32 range) {
+__attribute__((noinline)) u16 BattleAnim_RandomRange(s32 range) { // PORT: (as Battle_Random)
+    s32 forced;
+    if (Port_XcheckRandom(3, range, &forced,
+                          __builtin_return_address(0))) { // PORT: battle cross-check against ares (src/port/xcheck.cpp)
+        return forced;
+    }
     f32 random_value = (u32)MathUtil_Random16();
 
     return (random_value / 65535.0) * range;

@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "battle_engine.h"
 #include "src/geo_node.h"
 #include "src/model_animation.h"
@@ -117,7 +120,7 @@ void BattleScene_TickCameraSubstateDefault(CameraNode* camera) {
             break;
 
         case CAMERA_TRANSITION_STEP_COVER:
-            GeoCamera_SetBackgroundTexture(camera, 0x12C, 0xA, 2, Util_ConvertAddrToVirtAddr((u32)D_1000000));
+            GeoCamera_SetBackgroundTexture(camera, 0x12C, 0xA, 2, Util_ConvertAddrToVirtAddr((uintptr_t)D_1000000));
             GeoCamera_SetBackground(camera, 5, 0xA, 0, 0, 0);
             sBattleScene.scene->transitionStage = 0;
             sBattleScene.scene->transitionStep += 1;
@@ -144,7 +147,7 @@ void BattleScene_TickCameraSubstateDefault(CameraNode* camera) {
                 Battle_StopBeingGoldAfterHarden(sActivePokemon[0]);
                 Battle_StopBeingGoldAfterHarden(sActivePokemon[1]);
                 sBattleScene.scene->transitionStage = 2;
-                GeoCamera_SetBackgroundTexture(camera, 0xA, 0x12C, 2, Util_ConvertAddrToVirtAddr((u32)D_1000000));
+                GeoCamera_SetBackgroundTexture(camera, 0xA, 0x12C, 2, Util_ConvertAddrToVirtAddr((uintptr_t)D_1000000));
                 GeoCamera_SetBackground(camera, 4, 0xA, 0, 0, 0);
                 camera->perspective.verticalFieldOfView = 30.0f;
                 sBattleScene.scene->verticalFieldOfView = 30.0f;
@@ -282,6 +285,8 @@ u16 BattleScene_IsOwnerInViewWedge(ActivePokemon* owner, CameraNode* camera, Act
     f32 wedge_base_x;
     s32 inside_wedge = 0;
 
+    // PORT: half_angle is the half-angle of the 4:3 picture; at 16:9 the sides show more (Port_WidenViewAngle)
+    half_angle = Port_WidenViewAngle(half_angle);
     BattleAnim_CalculateDistanceAngles(&camera->view.targetPosition, &camera->view.eyePosition, &view_distance,
                                        &view_rotation_x, &view_rotation_y);
     wedge_base_z = (COSS((view_rotation_y - 0x8000)) * 50.0f) + camera->view.eyePosition.z;
@@ -328,6 +333,7 @@ u16 BattleScene_IsOwnerInViewWedgeAlt(ActivePokemon* owner, CameraNode* camera, 
     s32 inside_wedge;
 
     inside_wedge = 0;
+    half_angle = Port_WidenViewAngle(half_angle); // PORT: as in BattleScene_IsOwnerInViewWedge
     BattleAnim_CalculateDistanceAngles(&camera->view.targetPosition, &camera->view.eyePosition, &view_distance,
                                        &view_rotation_x, &view_rotation_y);
     base_position.z = (COSS((view_rotation_y - 0x8000)) * 30.0f) + camera->view.eyePosition.z;
@@ -716,7 +722,26 @@ void BattleScene_UpdateVisibilityAfterMode(CameraNode* camera) {
     BattleScene_HideAbsentParticipants();
 }
 
+unsigned long long Port_ViTick(void);
 void BattleScene_Update(CameraNode* camera) {
+    if (PORT_GETENV_ONCE("PORT_TRACE_BATTLE")) { // logs the scene director's phase fields whenever one changes
+        static int last[6] = { -99, -99, -99, -99, -99, -99 };
+        int now[6] = { (int)sBattleScene.scene->mode,
+                       (int)sBattleScene.scene->transitionStep,
+                       (int)sBattleScene.scene->transitionStage,
+                       (int)sBattleScene.scene->winner,
+                       (int)sBattleScene.scene->unk_44,
+                       (int)sBattleScene.scene->phaseStep };
+        if (memcmp(now, last, sizeof now) != 0) {
+            fprintf(stderr, "[battle] frame %llu phase %d sub %d u18 %d u40 %d u44 %d step %d\n", Port_ViTick(), now[0],
+                    now[1], now[2], now[3], now[4], now[5]);
+            memcpy(last, now, sizeof now);
+        }
+    }
+    { // PORT: battle boot (src/port/xcheck.cpp): the scene phase, for where the frame dump starts
+        extern void Port_BattleBootPhase(int phase);
+        Port_BattleBootPhase((int)sBattleScene.scene->mode);
+    }
     BattleScene_TickCameraSubstate(camera);
     BattleScene_ApplyCameraPhaseDefaults();
     BattleScene_UpdateVisibilityBeforeMode(camera);

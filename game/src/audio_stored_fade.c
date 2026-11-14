@@ -14,6 +14,9 @@ u8 D_80078A20[16] = { 0 };
 
 // Related to Partner Pikachu, probably makes it go Pika Pika
 s32 PlayMoveSoundEffect(UNUSED s32 side_index, u32 move_id, u32 species, u32 sound_kind) {
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     u32 i;
     u32 temp_v0;
     u32 slot;
@@ -75,7 +78,7 @@ s32 PlayMoveSoundEffect(UNUSED s32 side_index, u32 move_id, u32 species, u32 sou
     if (size & 1) {
         size++;
     }
-    Rom_DmaRead((u32)D_800FC700->seqArray[species].offset, D_800FC6DC, size);
+    Rom_DmaRead((uintptr_t)D_800FC700->seqArray[species].offset, D_800FC6DC, size);
     Audio_CopyDataWithCacheSync(D_800FC6DC, D_800FC6C0[slot], 0x44C);
 
 found:
@@ -129,6 +132,9 @@ block_38:
 }
 
 void Audio_FadeStoredSound(void) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     if (D_80078A1C[0] != 0) {
         Audio_QueueFadeSoundCommand(D_80078A18, (s32)D_80078A1C[0]);
     }

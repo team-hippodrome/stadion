@@ -1077,6 +1077,9 @@ static unk_D_80079070 D_80079070[151] = {
 u8 D_80079364 = 0;
 
 void Cry_Play(u32 species, u32 cry_mode) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     UNUSED s32 pad[2];
     u32 sp24;
     u32 var_a3;
@@ -1153,10 +1156,11 @@ void Cry_Play(u32 species, u32 cry_mode) {
             break;
 
         case 5:
-            if ((is_partner_pikachu != 0) &&
-                ((D_800FCB18[0] == NULL) || (D_800FCB18[1] == NULL) ||
-                 (((D_800FCB18[0]->pendingStatusCondition & 7) == 0) && ((D_800FCB18[1]->pendingStatusCondition & 7) == 0) &&
-                  !(D_800FCB18[0]->pendingStatusCondition & 0x20) && !(D_800FCB18[1]->pendingStatusCondition & 0x20)))) {
+            if ((is_partner_pikachu != 0) && ((D_800FCB18[0] == NULL) || (D_800FCB18[1] == NULL) ||
+                                              (((D_800FCB18[0]->pendingStatusCondition & 7) == 0) &&
+                                               ((D_800FCB18[1]->pendingStatusCondition & 7) == 0) &&
+                                               !(D_800FCB18[0]->pendingStatusCondition & 0x20) &&
+                                               !(D_800FCB18[1]->pendingStatusCondition & 0x20)))) {
                 species = 0x9A;
                 sp24 = 0x70;
             } else {
@@ -1165,9 +1169,11 @@ void Cry_Play(u32 species, u32 cry_mode) {
             break;
 
         case 6:
-            if ((is_partner_pikachu != 0) && (((D_800FCB18[0] == NULL) || (D_800FCB18[1] == NULL)) ||
-                                              (!(D_800FCB18[0]->pendingStatusCondition & 7) && !(D_800FCB18[1]->pendingStatusCondition & 7) &&
-                                               !(D_800FCB18[0]->pendingStatusCondition & 0x20) && !(D_800FCB18[1]->pendingStatusCondition & 0x20)))) {
+            if ((is_partner_pikachu != 0) &&
+                (((D_800FCB18[0] == NULL) || (D_800FCB18[1] == NULL)) ||
+                 (!(D_800FCB18[0]->pendingStatusCondition & 7) && !(D_800FCB18[1]->pendingStatusCondition & 7) &&
+                  !(D_800FCB18[0]->pendingStatusCondition & 0x20) &&
+                  !(D_800FCB18[1]->pendingStatusCondition & 0x20)))) {
                 species = 0x9B;
                 sp24 = 0x70;
             } else {
@@ -1240,5 +1246,8 @@ void Cry_Play(u32 species, u32 cry_mode) {
 }
 
 void Cry_PlayVariant4(u32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     Cry_Play(arg0, 4);
 }

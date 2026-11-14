@@ -228,7 +228,7 @@ void WidgetTree_SelectPage(unk_func_88500994* arg0, s32 arg1) {
     arg0->unk_2C = arg1;
 }
 
-void func_88500A74(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4) {
+void func_88500A74(s32 arg0, s32 arg1, s32 arg2, s32 arg3, intptr_t arg4) {
     s32 var_x;
     s32 var_y;
     s32 sp34;
@@ -1441,7 +1441,7 @@ s32 WidgetTree_DrawPagedGrid(unk_func_88200FA0_030_030* arg0, s32 arg1, s32 arg2
             if (arg0->unk_30 != 0) {
                 var_a2 = &((s8*)var_s2)[var_s5 * i];
             } else {
-                var_a2 = ((s32*)var_s2)[i];
+                var_a2 = ((void**)var_s2)[i]; // PORT64: a list of pointers (was read as s32)
             }
 
             var_v0 = arg0->unk_34[i];
@@ -1847,7 +1847,7 @@ s32 func_8850734C(unk_func_8821421C_038_034* arg0, s32 arg1, s32 arg2) {
             if (arg0->unk_00.unk_30 != 0) {
                 var_a2 = &((s8*)var_s3)[var_s6 * var_s0];
             } else {
-                var_a2 = ((s32*)var_s3)[var_s0];
+                var_a2 = ((void**)var_s3)[var_s0]; // PORT64: a list of pointers (was read as s32)
             }
 
             var_v0 = arg0->unk_00.unk_34[var_s0];
@@ -2488,7 +2488,7 @@ void WidgetTree_ResetMessagePanelAnimation(unk_func_88509F48* arg0) {
 
 void WidgetTree_RunMessagePanel(unk_func_88509F48* arg0, Controller* arg1, s32 arg2) {
     s32 temp_v0;
-    s32 var_s0 = 0;
+    intptr_t var_s0 = 0;
 
     WidgetTree_OpenMessagePanel(arg0);
 
@@ -3162,7 +3162,7 @@ void WidgetTree_SetChildSelectionProxyState(unk_func_8830867C_02C_048_000* arg0,
 }
 
 void WidgetTree_AppendChildSelectionProxyItem(unk_func_8830867C_02C_048_000* arg0, WidgetLinkHeader* arg1) {
-    WidgetTree_AppendChild(&arg0->unk_00.unk_00, arg1);
+    WidgetTree_AppendChild(&arg0->unk_00, arg1);
     arg0->unk_20++;
 }
 
@@ -3195,7 +3195,7 @@ void WidgetTree_InitChildWidgetGroup(unk_func_8850CD44* arg0, s32 arg1, MemoryPo
     arg0->unk_14 = WidgetTree_SetChildWidgetGroupState;
     arg0->unk_18 = 0;
     arg0->unk_20 = arg1;
-    arg0->unk_1C = mem_pool_alloc(arg2, arg1 * 4);
+    arg0->unk_1C = mem_pool_alloc(arg2, arg1 * sizeof(*arg0->unk_1C)); // was arg1 * 4: pointer array
 
     for (i = 0; i < arg1; i++) {
         arg0->unk_1C[i] = NULL;
@@ -3223,7 +3223,7 @@ void WidgetTree_SetChildWidgetGroupState(unk_func_8850CD44* arg0, s32 arg1) {
 
 void WidgetTree_RunChildWidgetGroup(unk_func_8850CD44* arg0, Controller* arg1) {
     s32 temp_v0;
-    s32 var_s0 = 0;
+    intptr_t var_s0 = 0;
 
     while (var_s0 == 0) {
         Ui_SendMessageAndPollInput(var_s0);

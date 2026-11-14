@@ -37,7 +37,7 @@ void FreeBattle_DrawFrame(void);
 void FreeBattle_FadeIn(void);
 void FreeBattle_FadeOut(void);
 void FreeBattle_SlideInPanel(void);
-void FreeBattle_SlideOutPanel(void);
+void FreeBattle_SlideOutPanel(s32 keepTitle);
 void FreeBattle_ApplySettings(void);
 s32 FreeBattle_SettingsLoop(void);
 s32 FreeBattle_SettingsMain(s32 arg0, s32 arg1);

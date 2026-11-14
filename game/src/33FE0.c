@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "global.h"
 #include "33FE0.h"
 #include "geo_render.h"
@@ -110,86 +111,121 @@ f32 D_800775D4[16] = {
 u32 D_80077614[3] = { 0, 0, 0 };
 
 Vtx D_80077620[10] = {
-    VTX(-50, 170, 0, 0, 0, 0xFF, 0xFF, 0x00, 0xFF),
-    VTX(-50, 120, 0, 0, 512, 0xFF, 0xFF, 0x00, 0xFF),
-    VTX(50, 120, 0, 1024, 512, 0xFF, 0xFF, 0x00, 0xFF),
-    VTX(50, 170, 0, 1024, 0, 0xFF, 0xFF, 0x00, 0xFF),
-    VTX(-50, 70, 0, 0, 1024, 0xFF, 0xFF, 0x00, 0xFF),
-    VTX(50, 70, 0, 1024, 1024, 0xFF, 0xFF, 0x00, 0xFF),
-    VTX(-50, 20, 0, 0, 1536, 0xFF, 0xFF, 0xC0, 0xFF),
-    VTX(50, 20, 0, 1024, 1536, 0xFF, 0xFF, 0xC0, 0xFF),
-    VTX(-50, -30, 0, 0, 2048, 0xFF, 0xFF, 0x80, 0xFF),
-    VTX(50, -30, 0, 1024, 2048, 0xFF, 0xFF, 0x80, 0xFF),
+    VTX(-50, 170, 0, 0, 0, 0xFF, 0xFF, 0x00, 0xFF),     VTX(-50, 120, 0, 0, 512, 0xFF, 0xFF, 0x00, 0xFF),
+    VTX(50, 120, 0, 1024, 512, 0xFF, 0xFF, 0x00, 0xFF), VTX(50, 170, 0, 1024, 0, 0xFF, 0xFF, 0x00, 0xFF),
+    VTX(-50, 70, 0, 0, 1024, 0xFF, 0xFF, 0x00, 0xFF),   VTX(50, 70, 0, 1024, 1024, 0xFF, 0xFF, 0x00, 0xFF),
+    VTX(-50, 20, 0, 0, 1536, 0xFF, 0xFF, 0xC0, 0xFF),   VTX(50, 20, 0, 1024, 1536, 0xFF, 0xFF, 0xC0, 0xFF),
+    VTX(-50, -30, 0, 0, 2048, 0xFF, 0xFF, 0x80, 0xFF),  VTX(50, -30, 0, 1024, 2048, 0xFF, 0xFF, 0x80, 0xFF),
 };
 s16 D_800776C0[12] = {
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0,
 };
 Gfx D_800776D8[6] = {
-    gsSPVertex(0x0E000000, 10, 0),
-    gsSP2Triangles(0, 1, 2, 0, 0, 2, 3, 0),
-    gsSP2Triangles(1, 4, 5, 0, 1, 5, 2, 0),
-    gsSP2Triangles(4, 6, 7, 0, 4, 7, 5, 0),
-    gsSP2Triangles(6, 8, 9, 0, 6, 9, 7, 0),
-    gsSPEndDisplayList(),
+    gsSPVertex(0x0E000000, 10, 0),          gsSP2Triangles(0, 1, 2, 0, 0, 2, 3, 0),
+    gsSP2Triangles(1, 4, 5, 0, 1, 5, 2, 0), gsSP2Triangles(4, 6, 7, 0, 4, 7, 5, 0),
+    gsSP2Triangles(6, 8, 9, 0, 6, 9, 7, 0), gsSPEndDisplayList(),
 };
 s16 D_80077708[24] = {
-    0, 1, 2, 0, 2, 3, 1, 4, 5, 1, 5, 2,
-    4, 6, 7, 4, 7, 5, 6, 8, 9, 6, 9, 7,
+    0, 1, 2, 0, 2, 3, 1, 4, 5, 1, 5, 2, 4, 6, 7, 4, 7, 5, 6, 8, 9, 6, 9, 7,
 };
 s16 D_80077738[44] = {
-    1, 2, 3, -1, 0, 2, 4, 5, -1, 0, 1, 3,
-    5, -1, 0, 2, -1, 1, 5, 6, 7, -1, 1, 4,
-    2, 7, -1, 4, 7, 8, 9, -1, 4, 6, 5, 9,
-    -1, 6, 9, -1, 6, 8, 7, -1,
+    1, 2, 3, -1, 0,  2, 4, 5, -1, 0,  1, 3, 5, -1, 0,  2, -1, 1,  5, 6, 7, -1,
+    1, 4, 2, 7,  -1, 4, 7, 8, 9,  -1, 4, 6, 5, 9,  -1, 6, 9,  -1, 6, 8, 7, -1,
 };
 s16 D_80077790[12] = {
     206, 203, 202, 205, 152, 151, 149, 148, 146, 145, 0, 0,
 };
 ModelSegment D_800777A8 = {
-    0x000A,          0x0000,          0x000A,          0x0008,          (u32)D_80077708,
-    (u32)D_80077738, (u32)D_80077790, (u32)D_800776C0, (u32)D_80077620, D_800776D8,
+    0x000A,
+    0x0000,
+    0x000A,
+    0x0008,
+    (uintptr_t)D_80077708,
+    (uintptr_t)D_80077738,
+    (uintptr_t)D_80077790,
+    (uintptr_t)D_800776C0,
+    (uintptr_t)D_80077620,
+    (Gfx*)D_800776D8,
 };
 
 Vtx D_800777C8[10] = {
-    VTX(-50, 200, 0, 0, 0, 0xFF, 0xFF, 0x00, 0xFF),
-    VTX(-50, 150, 0, 0, 512, 0xFF, 0xFF, 0x00, 0xFF),
-    VTX(50, 150, 0, 1024, 512, 0xFF, 0xFF, 0x00, 0xFF),
-    VTX(50, 200, 0, 1024, 0, 0xFF, 0xFF, 0x00, 0xFF),
-    VTX(-50, 100, 0, 0, 1024, 0xFF, 0xFF, 0x00, 0xFF),
-    VTX(50, 100, 0, 1024, 1024, 0xFF, 0xFF, 0x00, 0xFF),
-    VTX(-50, 50, 0, 0, 1536, 0xFF, 0xFF, 0xC0, 0xFF),
-    VTX(50, 50, 0, 1024, 1536, 0xFF, 0xFF, 0xC0, 0xFF),
-    VTX(-50, 0, 0, 0, 2048, 0xFF, 0xFF, 0x80, 0xFF),
-    VTX(50, 0, 0, 1024, 2048, 0xFF, 0xFF, 0x80, 0xFF),
+    VTX(-50, 200, 0, 0, 0, 0xFF, 0xFF, 0x00, 0xFF),     VTX(-50, 150, 0, 0, 512, 0xFF, 0xFF, 0x00, 0xFF),
+    VTX(50, 150, 0, 1024, 512, 0xFF, 0xFF, 0x00, 0xFF), VTX(50, 200, 0, 1024, 0, 0xFF, 0xFF, 0x00, 0xFF),
+    VTX(-50, 100, 0, 0, 1024, 0xFF, 0xFF, 0x00, 0xFF),  VTX(50, 100, 0, 1024, 1024, 0xFF, 0xFF, 0x00, 0xFF),
+    VTX(-50, 50, 0, 0, 1536, 0xFF, 0xFF, 0xC0, 0xFF),   VTX(50, 50, 0, 1024, 1536, 0xFF, 0xFF, 0xC0, 0xFF),
+    VTX(-50, 0, 0, 0, 2048, 0xFF, 0xFF, 0x80, 0xFF),    VTX(50, 0, 0, 1024, 2048, 0xFF, 0xFF, 0x80, 0xFF),
 };
 s16 D_80077868[12] = {
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0,
 };
 Gfx D_80077880[6] = {
-    gsSPVertex(0x0E000000, 10, 0),
-    gsSP2Triangles(0, 1, 2, 0, 0, 2, 3, 0),
-    gsSP2Triangles(1, 4, 5, 0, 1, 5, 2, 0),
-    gsSP2Triangles(4, 6, 7, 0, 4, 7, 5, 0),
-    gsSP2Triangles(6, 8, 9, 0, 6, 9, 7, 0),
-    gsSPEndDisplayList(),
+    gsSPVertex(0x0E000000, 10, 0),          gsSP2Triangles(0, 1, 2, 0, 0, 2, 3, 0),
+    gsSP2Triangles(1, 4, 5, 0, 1, 5, 2, 0), gsSP2Triangles(4, 6, 7, 0, 4, 7, 5, 0),
+    gsSP2Triangles(6, 8, 9, 0, 6, 9, 7, 0), gsSPEndDisplayList(),
 };
 s16 D_800778B0[24] = {
-    0, 1, 2, 0, 2, 3, 1, 4, 5, 1, 5, 2,
-    4, 6, 7, 4, 7, 5, 6, 8, 9, 6, 9, 7,
+    0, 1, 2, 0, 2, 3, 1, 4, 5, 1, 5, 2, 4, 6, 7, 4, 7, 5, 6, 8, 9, 6, 9, 7,
 };
 s16 D_800778E0[44] = {
-    1, 2, 3, -1, 0, 2, 4, 5, -1, 0, 1, 3,
-    5, -1, 0, 2, -1, 1, 5, 6, 7, -1, 1, 4,
-    2, 7, -1, 4, 7, 8, 9, -1, 4, 6, 5, 9,
-    -1, 6, 9, -1, 6, 8, 7, -1,
+    1, 2, 3, -1, 0,  2, 4, 5, -1, 0,  1, 3, 5, -1, 0,  2, -1, 1,  5, 6, 7, -1,
+    1, 4, 2, 7,  -1, 4, 7, 8, 9,  -1, 4, 6, 5, 9,  -1, 6, 9,  -1, 6, 8, 7, -1,
 };
 s16 D_80077938[12] = {
     206, 203, 202, 205, 152, 151, 149, 148, 146, 145, 0, 0,
 };
 ModelSegment D_80077950 = {
-    0x000B,          0x0000,          0x000A,          0x0008,          (u32)D_800778B0,
-    (u32)D_800778E0, (u32)D_80077938, (u32)D_80077868, (u32)D_800777C8, D_80077880,
+    0x000B,
+    0x0000,
+    0x000A,
+    0x0008,
+    (uintptr_t)D_800778B0,
+    (uintptr_t)D_800778E0,
+    (uintptr_t)D_80077938,
+    (uintptr_t)D_80077868,
+    (uintptr_t)D_800777C8,
+    (Gfx*)D_80077880,
 };
+
+// PORT: the two slot-model templates above are N64 data kept as u32 words: s16 tables (index, adjacency, height
+// class, remap), Vtx arrays and F3DEX2 display lists. Converted once to host order/layout before first use.
+static void Port_FixSlotTemplate(ModelSegment* seg, u32* vtx, s32 vtxCount, u32* dl, s32 dlCmds, u32** halves,
+                                 const s32* halfCounts) {
+    s32 i, k;
+    Gfx* gfx;
+
+    for (k = 0; k < 4; k++) {
+        for (i = 0; i < halfCounts[k]; i++) {
+            halves[k][i] = (halves[k][i] << 16) | (halves[k][i] >> 16); // two s16, first one in the high half
+        }
+    }
+    for (i = 0; i < vtxCount; i++) {
+        u32* v = &vtx[i * 4];
+        v[0] = (v[0] << 16) | (v[0] >> 16); // ob[0], ob[1]
+        v[1] = (v[1] << 16) | (v[1] >> 16); // ob[2], flag
+        v[2] = (v[2] << 16) | (v[2] >> 16); // tc[0], tc[1]
+        v[3] = Port_Swap32(v[3]);           // colour bytes r, g, b, a
+    }
+    gfx = calloc(dlCmds, sizeof(Gfx));
+    for (i = 0; i < dlCmds; i++) {
+        gfx[i].words.w0 = dl[i * 2];
+        gfx[i].words.w1 = dl[i * 2 + 1];
+    }
+    seg->displayList = gfx;
+}
+
+void Port_FixSlotTemplates(void) {
+    static s32 sDone;
+    static const s32 counts[4] = { 12, 22, 6, 6 };
+    u32* a[4] = { D_80077708, D_80077738, D_80077790, D_800776C0 };
+    u32* b[4] = { D_800778B0, D_800778E0, D_80077938, D_80077868 };
+
+    if (sDone) {
+        return;
+    }
+    sDone = 1;
+    Port_FixSlotTemplate(&D_800777A8, D_80077620, 10, D_800776D8, 6, a, counts);
+    Port_FixSlotTemplate(&D_80077950, D_800777C8, 10, D_80077880, 6, b, counts);
+}
 
 // .bss
 Vec3fCounter* D_800B2F50;
@@ -200,14 +236,14 @@ s32 func_800333E0(s32 arg0) {
     u8 stack[4];
     u8* ptr = stack;
 
-    return ((u8*)((s32)ptr + (arg0 * 0x94)) - ptr) + 0x170;
+    return ((u8*)((intptr_t)ptr + (arg0 * 0x94)) - ptr) + 0x170;
 }
 
 s32 func_80033410(s32 arg0) {
     u8 stack[4];
     u8* ptr = stack;
 
-    return ((u8*)(s32)ptr + (arg0 * 0x10)) - ptr;
+    return ((u8*)(intptr_t)ptr + (arg0 * 0x10)) - ptr;
 }
 
 f32 Math_FAbs(f32 value) {
@@ -464,6 +500,7 @@ void func_80033B2C(StadiumModel* model, void* arg1, void* arg2, void* arg3) {
     ModelSegment* segment;
     ModelSegment* temp_v0;
 
+    Port_FixSlotTemplates();
     model = Memmap_GetSegmentVaddr(model);
     arg1 = Memmap_GetSegmentVaddr(arg1);
     temp_s0 = Memmap_GetSegmentVaddr(arg2);
@@ -831,7 +868,7 @@ void Model_ApplyVertexTransforms(StadiumModel* model) {
     Model_ApplyTransformCommands(segment, mvtx, model, 1.0f);
 }
 
-void func_80034BD4(u32 modelSegment, StadiumTransform* xf, s32 index, ModelVertex* vertices) {
+void func_80034BD4(uintptr_t modelSegment, StadiumTransform* xf, s32 index, ModelVertex* vertices) {
     ModelBlendWeight* wt;
     ModelVertex* vtx;
     s32 pad0[3];

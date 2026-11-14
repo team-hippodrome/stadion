@@ -51,7 +51,8 @@ static unk_func_87801684 D_864028E4[] = {
     { 0x03040580, 18 }, { 0x03040980, 2 }, { 0x03040D80, 8 }, { 0x03040980, 2 }, { NULL, 0 },
 };
 
-static u32 D_8640290C[] = {
+static uintptr_t D_8640290C[] = {
+    // PORT64: holds addresses
     0x0C00FFFF, 0x05000000, 0x0B00001E, 0x00000000, 0x014000F0, 0x0000000F, 0x00000000, 0x00000000, 0x05000000,
     0x0D000000, 0x05000000, 0x14000000, 0x002B0012, 0xFFFFFF32, 0x16FFFFFF, 0x0F000003, 0x05000000, 0x1F00FFFF,
     0x00000000, 0x00000000, 0x00000000, 0x00640064, 0x00640000, 0x06000000, 0x05000000, 0x0A000000, &D_800AC840,
@@ -289,7 +290,7 @@ void DrowzeeGame_DrawPlayerOverlay(UNUSED s32 arg0) {
     for (i = 0; i < 4; i++) {
         D_864052C8 = &D_86404778[i];
 
-        temp_v0 = Gfx_AllocDisplayList(0x80);
+        temp_v0 = Gfx_AllocDisplayList(GFX_N64_BYTES(0x80));
         D_864052C8->unk_190->unk_18 = temp_v0;
 
         if ((D_864052C8->unk_010 == 0) || (D_864052C8->unk_00C == 1)) {
@@ -446,7 +447,7 @@ void DrowzeeGame_JudgePlayerTiming(void) {
 
     if ((D_8780FC92 == 0) && (D_8780FC94 == 0)) {
         D_864052CC->unk_16D = D_864052CC->unk_16C;
-        if (D_864052D6 < (D_864052CC->unk_004.transformAnim.data->endFrame / 2)) {
+        if (D_864052D6 < (ModelAnim_GetEndFrame(&D_864052CC->unk_004) / 2)) {
             D_864052CC->unk_16C = 0;
         } else {
             D_864052CC->unk_16C = 1;
@@ -630,8 +631,8 @@ void DrowzeeGame_DrawTutorialScreen(s32 arg0) {
         Font_SetLineHeight(0xC);
         Gfx_SetEnvColor(0xFF, 0xFF, 0xFF, 0xFF);
         Gfx_SetPrimColor(0xF9, 0xF4, 0, 0xFF);
-        Font_Printf(0xA0 - (Text_MeasureStringWidth(D_87B000E0, Text_GetString(NULL, 0, gMinigameText, 0x28)) / 2), 0x20,
-                    Text_GetString(NULL, 0, gMinigameText, 0x28));
+        Font_Printf(0xA0 - (Text_MeasureStringWidth(D_87B000E0, Text_GetString(NULL, 0, gMinigameText, 0x28)) / 2),
+                    0x20, Text_GetString(NULL, 0, gMinigameText, 0x28));
         Gfx_SetEnvColor(0xFF, 0xFF, 0xFF, 0xFF);
         Gfx_SetPrimColor(0xFF, 0xFF, 0xFF, 0xFF);
         Font_Printf(0x28, 0x34, temp_s2);
@@ -868,7 +869,7 @@ void DrowzeeGame_LoadAssets(void) {
         Model_InitDisplayObject(D_864052D0, 0, 0xC4, D_87B000E4->nodes[0]);
         D_864052C8->unk_004 = 0;
         ModelAnim_SetAnimation(D_864052D0, D_864052C8->unk_004);
-        ModelAnim_SetFrame(D_864052D0, MiniGame_RandomRange(D_864052D0->transformAnim.data->endFrame));
+        ModelAnim_SetFrame(D_864052D0, MiniGame_RandomRange(ModelAnim_GetEndFrame(D_864052D0)));
 
         D_864052D0->position.x = D_864027C0[i].unk_00;
         D_864052D0->position.y = D_864027C0[i].unk_04;
@@ -908,7 +909,7 @@ void DrowzeeGame_LoadAssets(void) {
     D_864052CC->unk_001 = D_864052CC->unk_000 = 0;
 
     ModelAnim_SetAnimation(D_864052D0, D_864052CC->unk_000);
-    ModelAnim_SetFrame(D_864052D0, D_864052D0->transformAnim.data->endFrame);
+    ModelAnim_SetFrame(D_864052D0, ModelAnim_GetEndFrame(D_864052D0));
 
     D_864052D0->position.y = 20.0f;
     D_864052D0->scale.x = 1.0f;
@@ -926,7 +927,7 @@ void DrowzeeGame_LoadAssets(void) {
         ModelRenderer_AttachDisplayObject(D_864052D0);
         Model_InitDisplayObject(D_864052D0, 0, 0xD2, D_87B000E4->nodes[0]);
         ModelAnim_SetAnimation(D_864052D0, 0);
-        ModelAnim_SetFrame(D_864052D0, D_864052D0->transformAnim.data->endFrame);
+        ModelAnim_SetFrame(D_864052D0, ModelAnim_GetEndFrame(D_864052D0));
 
         D_864052D0->position.x = D_864027C0[i].unk_00;
         D_864052D0->position.y = 25.0f;
@@ -965,5 +966,5 @@ s32 DrowzeeGame_Main(UNUSED s32 arg0, UNUSED s32 arg1) {
 
     main_pool_pop_state('MINI');
 
-    return Widget_PauseMenuGetResult();
+    return Widget_PauseMenuGetResult(); // PORT: the caller uses this result (on the N64 it was left in v0)
 }

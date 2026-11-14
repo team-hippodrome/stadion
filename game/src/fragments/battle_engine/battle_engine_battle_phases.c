@@ -406,6 +406,7 @@ void Battle_StartTurn(void) {
     ActivePokemonState* state2;
     BattleMonRuntime* runtime;
 
+    Port_XcheckBattleEvent("turn"); // PORT: battle cross-check against ares (src/port/xcheck.cpp)
     state1 = &sActivePokemon[0]->state;
     state2 = &sActivePokemon[1]->state;
     BattleScene_SetCameraSubstate(1, 1);
@@ -650,7 +651,8 @@ void BattleScene_CleanupActionAndAdvance(void) {
 s32 BattleScene_HandleFaintStatusCompletion(void) {
     BattleMonRuntime* non_acting_pokemon_runtime = &sNonActingPokemon->state.runtime;
 
-    if (((non_acting_pokemon_runtime->volatileStatusFlags & 0x80) || (non_acting_pokemon_runtime->pendingStatusCondition & 0x18)) &&
+    if (((non_acting_pokemon_runtime->volatileStatusFlags & 0x80) ||
+         (non_acting_pokemon_runtime->pendingStatusCondition & 0x18)) &&
         ((non_acting_pokemon_runtime->usedMove & 0xF0) == 0xF0)) {
         BattleAnim_ClearRockThrowingMoveFlag(sActivePokemon[sBattleScene.scene->actingSide]);
         Audio_FadeAndClearStoredSounds();
@@ -711,7 +713,8 @@ void BattleScene_UpdateDisplayedHpAndTransition(CameraNode* camera) {
         BattleScene_TransitionToRage(BATTLE_PHASE_RAGE);
     } else if (sBattleScene.scene->moveEffectKind == MOVE_PRESENTATION_RECOIL) {
         BattleScene_TransitionAndClearMoveEffect(BATTLE_PHASE_RECOIL);
-    } else if ((acting_pokemon_runtime->pendingStatusCondition & 0x18) || (acting_pokemon_runtime->volatileStatusFlags & 0x80)) {
+    } else if ((acting_pokemon_runtime->pendingStatusCondition & 0x18) ||
+               (acting_pokemon_runtime->volatileStatusFlags & 0x80)) {
         BattleScene_TransitionAndClearMoveEffect(BATTLE_PHASE_RESIDUAL_AFTER_MOVE);
     } else {
         BattleScene_ResolveDisplayedHpCompletion(camera);
@@ -1491,7 +1494,9 @@ void BattleScene_ActionSetupCameraStep(CameraNode* camera) {
             break;
 
         case 1:
-            if (BattleAnim_TryRegisterAssetTables(sActingPokemon) != 0) {
+            // PORT: battle cross-check (src/port/xcheck.cpp): the move's effect assets load at once here, the N64 can
+            // take game frames longer (DMA); PORT_XCHECK_LOAD_WAIT makes the port wait as long
+            if ((BattleAnim_TryRegisterAssetTables(sActingPokemon) != 0) && !Port_XcheckLoadWait()) {
                 sMultihitEffectCountdown = sMultihitCountdown = sMultihitCount;
                 BattleBox_Open(0);
                 BattleScene_ResetCameraFrameCounter();
@@ -2070,7 +2075,8 @@ void BattleScene_RunActionEffectHpTransition(CameraNode* camera) {
             sSide2HpConsistent = BattleScene_AnimateDisplayedHpToRuntime(sActingPokemon);
             camera_settled = BattleScene_FrameCamera(camera, sNonActingPokemon);
             if ((BattleScene_IsFireSpin(sActingPokemon) != 0) &&
-                ((sTypeEffectiveness < 0xA) || (sBattleMoveFailed != 0)) && !(target_runtime->pendingStatusCondition & 0x20)) {
+                ((sTypeEffectiveness < 0xA) || (sBattleMoveFailed != 0)) &&
+                !(target_runtime->pendingStatusCondition & 0x20)) {
                 hold_frames = 0x5A;
             } else {
                 hold_frames = 0xF;
@@ -2111,7 +2117,7 @@ void BattleScene_RunRepeatedHitHpTransition(CameraNode* camera) {
     if (sNonActingPokemon->displayObject.objectType == SUBSTITUTE_DOLL) {
         frames_left = 0xF;
     } else if (move_cue->frameCounter == 0xFF) {
-        frames_left = sActingPokemon->displayObject.transformAnim.data->endFrame - move_cue->currentFrame;
+        frames_left = ModelAnim_GetEndFrame(&sActingPokemon->displayObject) - move_cue->currentFrame;
     } else {
         frames_left = move_cue->frameCounter - move_cue->currentFrame;
     }

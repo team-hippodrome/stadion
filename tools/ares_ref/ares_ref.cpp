@@ -239,14 +239,14 @@ namespace xcheck {
 constexpr u32 kFragmentTable = 0x800A58F0; // gFragments[240] {vaddr, size}
 constexpr u32 kFragmentId = 51, kLinkBase = 0x84300000;
 constexpr u32 kActivePokemon = 0x84390010;  // sActivePokemon[2]
-constexpr u32 kMessageQueues = 0x843901A0;  // gBattleMessageQueues
+constexpr u32 kMessageQueues = 0x843901A0;  // sBattleMessageQueues
 constexpr u32 kBattleScene = 0x84390240;    // sBattleScene (first word: BattleScene*)
-constexpr u32 kBattleDamage = 0x843C4DC4;   // gBattleDamage (u16)
+constexpr u32 kBattleDamage = 0x843C4DC4;   // sBattleDamage (u16)
 constexpr u32 kSetFragmentMap = 0x800020B0; // Memmap_SetFragmentMap(id, vaddr, size): main code, not relocated
 constexpr u32 kGuRandom = 0x8005D1B0;       // guRandom (main code): its callers are traced with ARES_REF_XCHECK_GURANDOM
 constexpr u32 kGuRandomSeed = 0x8007A950;   // guRandom's xseed (lui 0x8008 / lw -0x56B0 in the ROM's guRandom)
 constexpr u32 kParticleMathId = 4, kParticleMathLink = 0x81400000; // particle_math fragment
-constexpr u32 kParticleFrameCounter = 0x8140E6B8; // gParticleFrameCounter (link address)
+constexpr u32 kParticleFrameCounter = 0x8140E6B8; // sParticleFrameCounter (link address)
 constexpr u32 kGeoFrameCounter = 0x8006F084; // D_8006F084 (u16, main code): GeoRender_AdvanceFrameCounter's scene frame counter
 constexpr u32 kModelTexCounter = 0x800AF7AE; // D_800AF7AE (s16, main code): one per Pokemon model drawn (model texture frames)
 constexpr u32 kPlayCommand = 0x800367A0;     // Audio_PlayCommand (main code): traced with ARES_REF_XCHECK_SFX
@@ -269,7 +269,7 @@ const Hooked kHooked[] = {
     { 0x84302A78, MoveAnim },    // BattleScene_EnterRow3StartMoveAnim
     { 0x843033E0, MoveAnimMid }, // BattleScene_EnterRow19StartMoveAnimMidFrame
     { 0x84300E88, GameFrame },   // BattleScene_UpdateFrame: once per battle game frame
-    { 0x8436DAC4, SixSlotTrailUpdateSlot }, // BattleAnim_SixSlotTrail_UpdateSlot: reads a stack word it never writes
+    { 0x8436DAC4, SixSlotTrailUpdateSlot }, // HyperBeamIceBeamTrail_UpdateSlot: reads a stack word it never writes
 };
 
 bool gOn = false, gForce = false, gCom = false, gStop = false;
@@ -494,8 +494,8 @@ bool hook(u32 address) {
         // (from the battle's first game frame and each animation start) instead of CPU time, for the functions that use it to choose (3D140_2.c and one pitch
         // variation in audio_commands_category2.c); every other caller gets the real time
         static const u32 kChoosers[][2] = { // [start, end) in main code (decomp symbol_addrs, US)
-            { 0x8003DB84, 0x8003EB40 }, { 0x8003EB40, 0x8003F1AC }, { 0x8003F1AC, 0x8003F4C0 }, // func_8003DB84 .. F1AC
-            { 0x8003F4C0, 0x8003F624 },                                                         // func_8003F4C0
+            { 0x8003DB84, 0x8003EB40 }, { 0x8003EB40, 0x8003F1AC }, { 0x8003F1AC, 0x8003F4C0 }, // AudioFrameUpdate .. F1AC
+            { 0x8003F4C0, 0x8003F624 },                                                         // PlayerDefeated
             { 0x80041EF4, 0x800420C0 },                                    // Audio_SelectSoundAvoidingRecent
             { 0x8004E304, 0x8004E810 } };                                  // Audio_PlayCategory12SoundCommand
         u32 ra = (u32)cpu.ipu.r[31].u64;
@@ -549,7 +549,7 @@ bool hook(u32 address) {
         return returnWith(asked ? 0 : 1);
     }
     case MoveAnim: case MoveAnimMid: {
-        u32 pm = rd32(kFragmentTable + kParticleMathId * 8); // gParticleFrameCounter, in the relocated particle_math
+        u32 pm = rd32(kFragmentTable + kParticleMathId * 8); // sParticleFrameCounter, in the relocated particle_math
         u32 pfcAddr = pm ? pm + (kParticleFrameCounter - kParticleMathLink) : 0, pfc = pfcAddr ? rd32(pfcAddr) : 0;
         u32 gfc = (u32)rd8(kGeoFrameCounter) << 8 | rd8(kGeoFrameCounter + 1);
         s16 mtc = (s16)((u32)rd8(kModelTexCounter) << 8 | rd8(kModelTexCounter + 1));

@@ -32,8 +32,8 @@ extern u32 sTransitionGradientTex[];
 extern DioramaObjectDef* sDioramaObjectDefs[];
 extern DioramaAnimData sDioramaAnimData[];
 extern DioramaPresetData sDioramaPresetData[];
-extern u32 sDioramaLandStageLayout[];
-extern u32 sDioramaSeaStageLayout[];
+extern uintptr_t sDioramaLandStageLayout[];
+extern uintptr_t sDioramaSeaStageLayout[];
 
 s32 Diorama_LogoRotateColorCallback(s32, GraphNode*);
 s32 Diorama_ScaleRotateCallbackA(s32, GraphNode*);
@@ -43,7 +43,8 @@ s32 Diorama_GroupStateCallback(s32, GraphNode*);
 static s16 D_86B0BBF0 = -0x3C6E;
 static s16 D_86B0BBF4 = 0x38E;
 
-static u32 sCompletionGeoLayoutCommands[] = {
+static uintptr_t sCompletionGeoLayoutCommands[] = {
+    // PORT64: holds addresses
     0x0C00FFFF,
     0x05000000,
     0x0B00001E,
@@ -134,7 +135,9 @@ static u8* D_86B0E5E8;
 static unk_D_86B0E5F0 D_86B0E5F0[4];
 static s32 D_86B0EBB0;
 static s32 D_86B0EBB4;
-static u16 D_86B0EBB8;
+// PORT: Save_GetModeSettings copies a whole ModeSettings into this; the original declared only the leading u16
+static ModeSettings D_86B0EBB8_full;
+#define D_86B0EBB8 (*(u16*)&D_86B0EBB8_full)
 
 s32 Diorama_LogoRotateColorCallback(s32 arg0, GraphNode* arg1) {
     if (arg0 == 2) {
@@ -428,6 +431,18 @@ void Diorama_InitSceneState(void) {
     D_86B0E5D4->unk_04.unk_48 = 0;
 }
 
+// PORT: on the N64, loading a model group stalls this loop for several frames while the music plays on, and the
+// diorama's music is timed around that: with instant loads the pictures ran up to ~0.9 s ahead of it. The game thread
+// waits as long as each group's load took on the N64 (measured with ares: when its first picture came, relative to
+// the music), in retraces. (Group 0's load comes before the music starts; its wait is the first frames' drawing.)
+static void Diorama_PortLoadStall(s32 group) {
+    static const u8 sRetraces[5] = { 6, 15, 21, 11, 5 };
+
+    if (group >= 0 && group < 5) {
+        Port_LoadStall(sRetraces[group]);
+    }
+}
+
 s32 Diorama_UpdateStateMachine(void) {
     // The Japanese build skips the diorama with A (0x8000) or B (0x4000) only; Start (0x1000) is
     // not tested (its code has no andi 0x1000 before the A/B tests).
@@ -469,6 +484,7 @@ s32 Diorama_UpdateStateMachine(void) {
             D_86B0E5D4->unk_04.unk_44++;
             Diorama_SetGroupCamera(D_86B0E5D4->unk_04.unk_44);
             Diorama_SwitchModelGroup(D_86B0E5D4->unk_04.unk_44);
+            Diorama_PortLoadStall(D_86B0E5D4->unk_04.unk_44);
             D_86B0E5D4->unk_04.unk_4C = 6;
             D_86B0E5D4->unk_04.unk_50 = 0;
             break;
@@ -514,6 +530,7 @@ s32 Diorama_UpdateStateMachine(void) {
                 D_86B0E5D4->unk_04.unk_50 = 0;
                 Diorama_LoadModelGroup(D_86B0E5D4->unk_04.unk_44);
                 Audio_StartMusicTrack(0x29);
+                Diorama_PortLoadStall(0);
             }
             break;
 
@@ -610,7 +627,7 @@ s32 Stage_ShowBootDiorama(void) {
 
     ASSET_LOAD(D_1000000, common_menu1_ui, 0);
     FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);
-    Fragment_Load((((u32)D_8D000000 & 0x0FF00000) >> 0x14) - 0x10, _5C7A70_ROM_START, _5C7A70_ROM_END);
+    Fragment_Load((((uintptr_t)D_8D000000 & 0x0FF00000) >> 0x14) - 0x10, _5C7A70_ROM_START, _5C7A70_ROM_END);
 
     Save_EnsureBankLoaded(2);
     Save_GetModeSettings(&D_86B0EBB8, 0);

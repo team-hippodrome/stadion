@@ -6,6 +6,7 @@
 #include "src/gb_save.h"
 #include "src/hal_libc.h"
 #include "src/memory.h"
+#include "src/pokemon_stats.h"
 
 static Gfx D_883176D0[] = {
     gsSPEndDisplayList(),
@@ -343,15 +344,23 @@ u32 D_883198A0[] = {
     0x435F435E, 0x435E435E,
 };
 
-s32 LabPCList_CompareByPointer(unk_func_88316128* arg0, unk_func_88316128* arg1) {
+s32 LabPCList_CompareByPointer(void* arg0, void* arg1) {
     return (arg0 == arg1) ? 0 : (arg0 < arg1) ? -1 : 1;
 }
 
+// PORT: the N64 compared the record's first word as one big-endian s32: species (0x00), the byte at 0x01, then the u16
+// at 0x02. Read through a host pointer the bytes are reversed and the list was sorted by the u16 first; the key is
+// built from the fields in the N64's order instead.
+static s32 LabPCList_SpeciesGroupKey(unk_func_8830867C_02C_0CC_000_008* arg0) {
+    return (s32)(((u32)arg0->unk_00 << 24) | ((u32)(u8)arg0->unk01[0] << 16) | arg0->unk_02);
+}
+
 s32 LabPCList_CompareBySpeciesGroup(unk_func_8830867C_02C_0CC* arg0, unk_func_8830867C_02C_0CC* arg1) {
-    s32 var_v1 = *(s32*)&arg0->unk_00[0]->unk_08.unk_00 - *(s32*)&arg1->unk_00[0]->unk_08.unk_00;
+    s32 var_v1 =
+        LabPCList_SpeciesGroupKey(&arg0->unk_00[0]->unk_08) - LabPCList_SpeciesGroupKey(&arg1->unk_00[0]->unk_08);
 
     if (var_v1 == 0) {
-        var_v1 = (s32)arg0->unk_00[1] - (s32)arg1->unk_00[1];
+        var_v1 = (intptr_t)arg0->unk_00[1] - (intptr_t)arg1->unk_00[1];
         if (var_v1 == 0) {
             var_v1 = arg0->unk_04 - arg1->unk_04;
         }
@@ -712,9 +721,9 @@ s32 LabPCList_FilterByCategoryBit(unk_func_88316128* arg0, u8* arg1) {
     return ((1 << D_8831A244[*arg1]) & ((D_8006FF00 + arg0->unk_08 - 1)->cupEligibilityFlags)) != 0;
 }
 
-typedef struct unk_func_883164C0 {
-    /* 0x00 */ char unk00[0x5C];
-} unk_func_883164C0; // size = 0x5C
+// PORT64: the slot LabPCList_LoadAllBoxes fills (pointer + s32 + BattleMon: 0x5C on the N64, 0x60 on the host);
+// was a char[0x5C] stand-in, so each slot's BattleMon ran 4 bytes into the next slot
+typedef unk_func_8830867C_02C_0CC_000_000_010_000_000 unk_func_883164C0;
 
 void LabPCList_AllocateBoxSlots(unk_func_8830867C_02C_0E4* arg0, s32 arg1, s32 arg2, MemoryPool* arg3) {
     s32 i;
@@ -916,8 +925,7 @@ void LabPCList_SaveDirtyBoxes(unk_func_8830867C_02C_144* arg0, s32 arg1) {
                 for (x = 0; x < var_s4->unk_10.unk_08; x++, var_s0++) {
                     Deck_WriteEntries(&var_s0->unk_00->unk_08, 1, temp_s3);
                     if ((var_s2->unk_00 == 0x20) || (var_s2->unk_00 == 0x21)) {
-                        if ((var_s0->unk_00->unk_08.species.id > 0) &&
-                            (var_s0->unk_00->unk_08.species.id < 0x98)) {
+                        if ((var_s0->unk_00->unk_08.species.id > 0) && (var_s0->unk_00->unk_08.species.id < 0x98)) {
                             GbSave_SetSeenOwnedBits(var_s2->unk_04, var_s0->unk_00->unk_08.species.id, 3);
                         }
                     }
@@ -939,7 +947,7 @@ void LabPCList_SaveDirtyBoxes(unk_func_8830867C_02C_144* arg0, s32 arg1) {
 void LabPCList_InitDeckCategories(unk_func_8830867C_02C_154* arg0, MemoryPool* arg1) {
     UNUSED s32 pad;
     s32 temp_s1;
-    char sp54[4];
+    UNUSED char sp54[4]; // PORT64: the name is read from sp48.unk_0C
     unk_func_8002D860 sp48;
     char sp38[16];
     s32 i;
@@ -966,7 +974,7 @@ void LabPCList_InitDeckCategories(unk_func_8830867C_02C_154* arg0, MemoryPool* a
         if ((Deck_IsSaveEntryPresent(0x12, i) != 0) && (Deck_GetSaveEntryCount(0x12, i) > 0)) {
             temp_s1 = Deck_GetSaveEntryTrainerId(0x12, i);
             Deck_GetSaveEntryName(0x12, i, &sp38);
-            if ((sp48.unk_08 == temp_s1) && (HAL_Strcmp(sp54, sp38) == 0)) {
+            if ((sp48.unk_08 == temp_s1) && (HAL_Strcmp(sp48.unk_0C, sp38) == 0)) {
                 break;
             }
         }
@@ -1039,8 +1047,10 @@ s32 LabPCList_IsSpecialTmItemId(s32* arg0) {
     return 0;
 }
 
-s32 LabPCList_CompareTmHmEntries(unk_func_88200FA0_030_038* arg0, unk_func_88200FA0_030_038* arg1) {
-    return (arg0->unk_08 - arg1->unk_08 != 0) ? arg0->unk_08 - arg1->unk_08 : (s32)arg0[1].unk_00 - (s32)arg1[1].unk_00;
+// PORT64: the entries are unk_func_8830867C_02C_1A8 (TM number, then source); the decomp read them through
+// unk_func_88200FA0_030_038, whose unk_08 / [1].unk_00 are the entry's 0x08 / 0x0C only with 4-byte pointers
+s32 LabPCList_CompareTmHmEntries(unk_func_8830867C_02C_1A8* arg0, unk_func_8830867C_02C_1A8* arg1) {
+    return (arg0->unk_08 - arg1->unk_08 != 0) ? arg0->unk_08 - arg1->unk_08 : arg0->unk_0C - arg1->unk_0C;
 }
 
 void LabPCList_BuildTmHmList(unk_func_88200FA0_030_038* arg0, unk_func_8830867C_02C_1A8* arg1,
@@ -1099,17 +1109,20 @@ void LabPCList_BuildTmHmList(unk_func_88200FA0_030_038* arg0, unk_func_8830867C_
         }
     }
 
-    arg0->unk_08 = ((s32)var_s1 - (s32)arg1) >> 4;
+    arg0->unk_08 = var_s1 - arg1; // PORT64: count of entries (was the byte difference >> 4, 16-byte N64 entries)
     PointerList_Sort(arg0, LabPCList_CompareTmHmEntries);
 }
 
+// PORT64: arg0 is the TM/HM list entry (item bytes, their box); the box's item list (u8* at 0x10 on the host) was
+// read at 0x0C, and its pointer truncated to s32
 void LabPCList_ConsumeUsedTmItem(unk_func_8830867C_04C_030_02C_000* arg0) {
-    if ((LabItem_IsQuantitylessItemForOperation(arg0->unk_00[0]->unk_00) != 0) || (arg0->unk_00[0]->unk_01 < 2)) {
-        s32 tmp = arg0->unk_00[1]->unk_0C.unk_00;
+    unk_func_8830867C_02C_1A8* entry = (unk_func_8830867C_02C_1A8*)arg0;
 
-        WordList_Remove(&arg0->unk_00[1]->unk_0C, ((s32)arg0->unk_00[0] - tmp) >> 1);
+    if ((LabItem_IsQuantitylessItemForOperation(entry->unk_00[0]) != 0) || (entry->unk_00[1] < 2)) {
+        WordList_Remove((unk_func_8830867C_04C_030_02C_000_000_00C*)&entry->unk_04->unk_0C,
+                        (entry->unk_00 - entry->unk_04->unk_0C) >> 1);
     } else {
-        arg0->unk_00[0]->unk_01--;
+        entry->unk_00[1]--;
     }
-    arg0->unk_00[1]->unk_08 = 1;
+    entry->unk_04->unk_08 = 1;
 }

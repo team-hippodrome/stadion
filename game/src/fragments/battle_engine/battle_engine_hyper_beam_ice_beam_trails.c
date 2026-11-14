@@ -179,7 +179,7 @@ void HyperBeamIceBeamTrail_ComputeRotatedOffset(f32 arg0, Vec3f* arg1, Vec3f* ar
 
 void HyperBeamIceBeamTrail_UpdateSlot(unk_D_843C3508* arg0) {
     unk_D_843C3508_0A4* var_s0;
-    s32 spA8;
+    s32 spA8 = 0; // PORT: never set in the original; the N64 reads a stale stack word (see below)
     s32 i;
     Vec3f sp98;
     UNUSED s32 pad;
@@ -191,6 +191,11 @@ void HyperBeamIceBeamTrail_UpdateSlot(unk_D_843C3508* arg0) {
     s32 temp_s3;
     s32 temp_s4;
 
+    // PORT: spA8 is never written in the original. The N64 reads whatever an earlier call left in that stack slot
+    // (addresses like 0x801B31F0, loop counters, 0), and clang folded the undefined value away: every sinf() below came
+    // out as sinf(0), and the strands (Hyper Beam, Ice Beam, ...) left the anchor flat instead of wavy. Any fixed value
+    // gives the same look: it only shifts the phase of the random (r % n) wave, and sinf's period makes a negative
+    // remainder the same as its positive one. The cross-check's ares driver writes 0 into that slot as well.
     var_s0 = &arg0->unk_0A4[0];
     for (i = 0; i < 20; i++, var_s0++) {
         if (var_s0->unk_00 > 0.0) {

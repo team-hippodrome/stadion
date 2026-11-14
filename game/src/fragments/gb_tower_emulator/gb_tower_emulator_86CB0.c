@@ -1,4 +1,5 @@
 #include "global.h"
+#include "gb_tower_emulator.h"
 
 // GB APU debug output. Dead data: the osSyncPrintf calls these fed were compiled
 // out, so nothing references them any more.
@@ -44,16 +45,21 @@ typedef struct GbApuChannelState {
     /* 0x38 */ u8 sweepShift;     // NR10 bits 0-2
     /* 0x39 */ u8 sweepDirection; // NR10 bit 3: 1 = decrease
     /* 0x3A */ u8 sweepEnabled;
-    /* 0x3B */ u8 duty; // waveform id for GbApu_GetWaveformSample: 0-3 duty, 6 noise, 7 wave RAM
+    /* 0x3B */ u8 duty;            // waveform id for GbApu_GetWaveformSample: 0-3 duty, 6 noise, 7 wave RAM
     /* 0x3C */ u8 outputAmplitude; // level actually applied; follows amplitude, decays to 0 when stopped
     /* 0x3D */ char unk3D[0x3];
-    /* 0x40 */ u32 activeStep;   // step in use (kept while a stopped note decays; noise: slews to step)
-    /* 0x44 */ u16 lastSample;   // wave only: previous output, averaged with the next one
+    /* 0x40 */ u32 activeStep; // step in use (kept while a stopped note decays; noise: slews to step)
+    /* 0x44 */ u16 lastSample; // wave only: previous output, averaged with the next one
     /* 0x46 */ u16 unk46;
     /* 0x48 */ u32 stepSlewRate; // noise only: how fast activeStep approaches step
     /* 0x4C */ u8 muted;         // period out of audible range (<= 0 or >= 0x7FF)
     /* 0x4D */ char unk4D[0x3];
 } GbApuChannelState; // size = 0x50
+
+// PORT: phase overlays a u16 on the s32 phase accumulator; on the big-endian N64 that u16 (phase.index) is its high
+// half (the duty / wave / noise-table position). Read and write that half explicitly.
+#define GBAPU_PHASE(ch) ((u16)((u32)(ch).phase.fixed >> 16))
+#define GBAPU_SET_PHASE(ch, v) ((ch).phase.fixed = (s32)(((u32)(ch).phase.fixed & 0xFFFF) | ((u32)(u16)(v) << 16)))
 
 // NR52 channel-status bits as seen by the CPU before the queued writes are rendered:
 // 2 = triggered since the last render (reads as on), 1 = switched off (reads as off), 0 = use the
@@ -134,6 +140,58 @@ typedef struct GbApuRegs {
 } GbApuRegs; // size = 0x18
 
 #define GB_APU_REGS (*(GbApuRegs*)sGbApuRegs)
+// PORT: GbApuRegs is a big-endian bitfield layout (IDO allocates fields from the most significant bit); read on the
+// host it gave the wrong bits for every field. The fields are read through these byte/shift accessors instead.
+#define GBAPU_sweepTime ((u32)((sGbApuRegs[0x00] >> 4) & 0x7))
+#define GBAPU_sweepDir ((u32)((sGbApuRegs[0x00] >> 3) & 0x1))
+#define GBAPU_sweepShift ((u32)((sGbApuRegs[0x00] >> 0) & 0x7))
+#define GBAPU_duty1 ((u32)((sGbApuRegs[0x01] >> 6) & 0x3))
+#define GBAPU_length1 ((u32)((sGbApuRegs[0x01] >> 0) & 0x3F))
+#define GBAPU_volume1 ((u32)((sGbApuRegs[0x02] >> 4) & 0xF))
+#define GBAPU_envDir1 ((u32)((sGbApuRegs[0x02] >> 3) & 0x1))
+#define GBAPU_envSweep1 ((u32)((sGbApuRegs[0x02] >> 0) & 0x7))
+#define GBAPU_freqLo1 ((u32)((sGbApuRegs[0x03] >> 0) & 0xFF))
+#define GBAPU_trigger1 ((u32)((sGbApuRegs[0x04] >> 7) & 0x1))
+#define GBAPU_counter1 ((u32)((sGbApuRegs[0x04] >> 6) & 0x1))
+#define GBAPU_freqHi1 ((u32)((sGbApuRegs[0x04] >> 0) & 0x7))
+#define GBAPU_duty2 ((u32)((sGbApuRegs[0x06] >> 6) & 0x3))
+#define GBAPU_length2 ((u32)((sGbApuRegs[0x06] >> 0) & 0x3F))
+#define GBAPU_volume2 ((u32)((sGbApuRegs[0x07] >> 4) & 0xF))
+#define GBAPU_envDir2 ((u32)((sGbApuRegs[0x07] >> 3) & 0x1))
+#define GBAPU_envSweep2 ((u32)((sGbApuRegs[0x07] >> 0) & 0x7))
+#define GBAPU_freqLo2 ((u32)((sGbApuRegs[0x08] >> 0) & 0xFF))
+#define GBAPU_trigger2 ((u32)((sGbApuRegs[0x09] >> 7) & 0x1))
+#define GBAPU_counter2 ((u32)((sGbApuRegs[0x09] >> 6) & 0x1))
+#define GBAPU_freqHi2 ((u32)((sGbApuRegs[0x09] >> 0) & 0x7))
+#define GBAPU_waveOn ((u32)((sGbApuRegs[0x0A] >> 7) & 0x1))
+#define GBAPU_length3 ((u32)((sGbApuRegs[0x0B] >> 0) & 0xFF))
+#define GBAPU_level3 ((u32)((sGbApuRegs[0x0C] >> 5) & 0x3))
+#define GBAPU_freqLo3 ((u32)((sGbApuRegs[0x0D] >> 0) & 0xFF))
+#define GBAPU_trigger3 ((u32)((sGbApuRegs[0x0E] >> 7) & 0x1))
+#define GBAPU_counter3 ((u32)((sGbApuRegs[0x0E] >> 6) & 0x1))
+#define GBAPU_freqHi3 ((u32)((sGbApuRegs[0x0E] >> 0) & 0x7))
+#define GBAPU_length4 ((u32)((sGbApuRegs[0x10] >> 0) & 0x3F))
+#define GBAPU_volume4 ((u32)((sGbApuRegs[0x11] >> 4) & 0xF))
+#define GBAPU_envDir4 ((u32)((sGbApuRegs[0x11] >> 3) & 0x1))
+#define GBAPU_envSweep4 ((u32)((sGbApuRegs[0x11] >> 0) & 0x7))
+#define GBAPU_shift4 ((u32)((sGbApuRegs[0x12] >> 4) & 0xF))
+#define GBAPU_width4 ((u32)((sGbApuRegs[0x12] >> 3) & 0x1))
+#define GBAPU_ratio4 ((u32)((sGbApuRegs[0x12] >> 0) & 0x7))
+#define GBAPU_trigger4 ((u32)((sGbApuRegs[0x13] >> 7) & 0x1))
+#define GBAPU_counter4 ((u32)((sGbApuRegs[0x13] >> 6) & 0x1))
+#define GBAPU_vinLeft ((u32)((sGbApuRegs[0x14] >> 7) & 0x1))
+#define GBAPU_leftVolume ((u32)((sGbApuRegs[0x14] >> 4) & 0x7))
+#define GBAPU_vinRight ((u32)((sGbApuRegs[0x14] >> 3) & 0x1))
+#define GBAPU_rightVolume ((u32)((sGbApuRegs[0x14] >> 0) & 0x7))
+#define GBAPU_noiseLeft ((u32)((sGbApuRegs[0x15] >> 7) & 0x1))
+#define GBAPU_waveLeft ((u32)((sGbApuRegs[0x15] >> 6) & 0x1))
+#define GBAPU_sq2Left ((u32)((sGbApuRegs[0x15] >> 5) & 0x1))
+#define GBAPU_sq1Left ((u32)((sGbApuRegs[0x15] >> 4) & 0x1))
+#define GBAPU_noiseRight ((u32)((sGbApuRegs[0x15] >> 3) & 0x1))
+#define GBAPU_waveRight ((u32)((sGbApuRegs[0x15] >> 2) & 0x1))
+#define GBAPU_sq2Right ((u32)((sGbApuRegs[0x15] >> 1) & 0x1))
+#define GBAPU_sq1Right ((u32)((sGbApuRegs[0x15] >> 0) & 0x1))
+#define GBAPU_power ((u32)((sGbApuRegs[0x16] >> 7) & 0x1))
 
 // Capacity of the APU register-write queue (sGbApuWriteQueue, created in GbApu_ResetChannels) and of
 // the sGbApuWriteBuffer buffer that GbApu_RenderBuffer drains it into.
@@ -156,8 +214,11 @@ typedef union GbApuMesg {
 } GbApuMesg;
 
 extern u8 gGbMemoryMap[];
-extern u16 D_8120EA86;
-extern u32 D_8120EA80;
+// PORT: D_8120EA80 / D_8120EA86 were interior aliases of the APU register block (big-endian u32 at 0x10 and u16 at
+// 0x16 of sGbApuRegs): read them byte-wise
+#define D_8120EA80 \
+    ((u32)((sGbApuRegs[0x10] << 24) | (sGbApuRegs[0x11] << 16) | (sGbApuRegs[0x12] << 8) | sGbApuRegs[0x13]))
+#define D_8120EA86 ((u16)((sGbApuRegs[0x16] << 8) | sGbApuRegs[0x17]))
 
 // .bss
 s16 sGbAudioLastSampleLeft;
@@ -227,18 +288,11 @@ s32 D_8120EA60 = 0;
 u8 D_8120EA64[0xC] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+// PORT: one block (GbApuRegs spans 0x18 bytes from sGbApuRegs; on the N64 sGbApuRegsFF20 followed directly).
 // sGbApuRegs + sGbApuRegsFF20 together mirror the sound registers 0xFF10-0xFF5F (NR10-NR52 and wave
-// RAM FF30-FF3F), indexed by address - 0xFF10; see GbApuRegs / GB_APU_REGS.
-u8 sGbApuRegs[0x10] = {
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
-// D_8120EA80 and D_8120EA86 are interior aliases (undefined_syms.ld).
-u8 sGbApuRegsFF20[0x40] = {
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
+// RAM FF30-FF3F), indexed by address - 0xFF10.
+u8 sGbApuRegs[0x50];
+#define sGbApuRegsFF20 (sGbApuRegs + 0x10)
 #if !defined(VERSION_JP)
 // Set by GbApu_SetKey1Speed: the divisor in GbApu_FreqToStep / GbApu_FreqToStep2x and the
 // time span GbApu_RenderBuffer spreads over one buffer. The Japanese build has no
@@ -542,7 +596,7 @@ u16 GbApu_UpdateSquare1Channel(void) {
         gGbApuSquare1.muted = 0U;
     }
     {
-        s32 wave_sample = GbApu_GetWaveformSample(gGbApuSquare1.duty, gGbApuSquare1.phase.index);
+        s32 wave_sample = GbApu_GetWaveformSample(gGbApuSquare1.duty, GBAPU_PHASE(gGbApuSquare1));
         gGbApuSquare1.phase.fixed += gGbApuSquare1.step;
         gGbApuSquare1.phase.fixed &= 0x1FFFFF;
         if (gGbApuSquare1.muted == 1) {
@@ -637,7 +691,7 @@ s32 GbApu_UpdateSquare2Channel(void) {
     } else {
         gGbApuSquare2.muted = 0U;
     }
-    wave_sample = GbApu_GetWaveformSample(gGbApuSquare2.duty, gGbApuSquare2.phase.index);
+    wave_sample = GbApu_GetWaveformSample(gGbApuSquare2.duty, GBAPU_PHASE(gGbApuSquare2));
     gGbApuSquare2.phase.fixed += gGbApuSquare2.step;
     gGbApuSquare2.phase.fixed &= 0x1FFFFF;
     if (gGbApuSquare2.muted == 1) {
@@ -726,7 +780,7 @@ u16 GbApu_UpdateWaveChannel(void) {
             }
         }
     }
-    sample = GbApu_GetWaveformSample(7, gGbApuWave.phase.index);
+    sample = GbApu_GetWaveformSample(7, GBAPU_PHASE(gGbApuWave));
     gGbApuWave.phase.fixed += gGbApuWave.step;
     gGbApuWave.phase.fixed &= 0x1FFFFF;
     if (gGbApuWave.muted - 1 == 0) {
@@ -788,10 +842,10 @@ u16 GbApu_UpdateNoiseChannel(void) {
         gGbApuNoise.amplitude = gGbApuNoise.outputAmplitude;
         gGbApuNoise.step = gGbApuNoise.activeStep;
     }
-    sample = GbApu_GetWaveformSample(6, gGbApuNoise.phase.index);
+    sample = GbApu_GetWaveformSample(6, GBAPU_PHASE(gGbApuNoise));
     gGbApuNoise.phase.fixed += current_step;
-    if (gGbApuNoise.phase.index >= (u32)sGbApuNoiseLoopEnd) {
-        gGbApuNoise.phase.index = sGbApuNoiseLoopStart;
+    if (GBAPU_PHASE(gGbApuNoise) >= (u32)sGbApuNoiseLoopEnd) {
+        GBAPU_SET_PHASE(gGbApuNoise, sGbApuNoiseLoopStart);
     }
     sample *= gGbApuNoise.outputAmplitude;
     if ((gGbApuNoise.outputAmplitude != gGbApuNoise.amplitude) && ((sGbApuNoiseSampleCount % 95) == 0)) {
@@ -854,8 +908,8 @@ typedef struct GbAudioStream {
     /* 0x4 */ s32 pos;
 } GbAudioStream; // size = 0x8
 
-// sGbAudioPendingMenuSound: pending stream to start; sGbAudioCurrentMenuSound: current stream; sGbAudioPreviousMenuSound: previous
-// stream, kept playing (at sGbAudioPreviousMenuSoundGain) under the new one.
+// sGbAudioPendingMenuSound: pending stream to start; sGbAudioCurrentMenuSound: current stream;
+// sGbAudioPreviousMenuSound: previous stream, kept playing (at sGbAudioPreviousMenuSoundGain) under the new one.
 GbAudioStream sGbAudioPendingMenuSound = { 0, 0 };
 GbAudioStream sGbAudioCurrentMenuSound = { 0, 0 };
 GbAudioStream sGbAudioPreviousMenuSound = { 0, 0 };
@@ -6418,30 +6472,20 @@ u8 sGbMenuSoundCancel[0x1CE8] = {
 u8 sGbMenuSoundSilence[0x8] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
-// s8* per menu sound id (0-8); raw per-version pointers.
-u8 sGbMenuSoundData[0x24] = {
-#if defined(VERSION_US_REV2)
-    0x81, 0x22, 0x86, 0xEC, 0x81, 0x22, 0x86, 0xEC, 0x81, 0x20, 0xEC, 0x34, 0x81, 0x21, 0x57, 0x74, 0x81, 0x21,
-    0xB2, 0x64, 0x81, 0x21, 0xDB, 0x34, 0x81, 0x21, 0xF6, 0x14, 0x81, 0x22, 0x37, 0xA4, 0x81, 0x22, 0x6A, 0x04,
-#elif defined(VERSION_US_REV1)
-    0x81, 0x22, 0x86, 0x7C, 0x81, 0x22, 0x86, 0x7C, 0x81, 0x20, 0xEB, 0xC4, 0x81, 0x21, 0x57, 0x04, 0x81, 0x21,
-    0xB1, 0xF4, 0x81, 0x21, 0xDA, 0xC4, 0x81, 0x21, 0xF5, 0xA4, 0x81, 0x22, 0x37, 0x34, 0x81, 0x22, 0x69, 0x94,
-#elif defined(VERSION_JP)
-    0x81, 0x25, 0x5A, 0xC4, 0x81, 0x25, 0x5A, 0xC4, 0x81, 0x23, 0xC0, 0x0C, 0x81, 0x24, 0x2B, 0x4C, 0x81, 0x24,
-    0x86, 0x3C, 0x81, 0x24, 0xAF, 0x0C, 0x81, 0x24, 0xC9, 0xEC, 0x81, 0x25, 0x0B, 0x7C, 0x81, 0x25, 0x3D, 0xDC,
-#else
-    0x81, 0x22, 0x86, 0x4C, 0x81, 0x22, 0x86, 0x4C, 0x81, 0x20, 0xEB, 0x94, 0x81, 0x21, 0x56, 0xD4, 0x81, 0x21,
-    0xB1, 0xC4, 0x81, 0x21, 0xDA, 0x94, 0x81, 0x21, 0xF5, 0x74, 0x81, 0x22, 0x37, 0x04, 0x81, 0x22, 0x69, 0x64,
-#endif
+// PORT: stream start pointers and byte sizes of the menu voice/sound samples (the ROM holds 32-bit N64 addresses and
+// big-endian sizes; entries 0 and 1 point at the 8-byte silent block sGbMenuSoundSilence).
+s8* sGbMenuSoundData[9] = {
+    (s8*)sGbMenuSoundSilence, (s8*)sGbMenuSoundSilence, (s8*)sGbMenuSoundOpen,
+    (s8*)sGbMenuSoundInvalid, (s8*)D_8121B1C4,          (s8*)sGbMenuSoundChange,
+    (s8*)sGbMenuSoundConfirm, (s8*)sGbMenuSoundCursor,  (s8*)sGbMenuSoundCancel,
 };
 // s32 length in bytes per menu sound id.
-u8 sGbMenuSoundSizes[0x24] = {
-    0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x6B, 0x40, 0x00, 0x00, 0x5A, 0xF0, 0x00, 0x00,
-    0x28, 0xD0, 0x00, 0x00, 0x1A, 0xE0, 0x00, 0x00, 0x41, 0x90, 0x00, 0x00, 0x32, 0x60, 0x00, 0x00, 0x1C, 0xE0,
+s32 sGbMenuSoundSizes[9] = {
+    0x8, 0x8, 0x6B40, 0x5AF0, 0x28D0, 0x1AE0, 0x4190, 0x3260, 0x1CE0,
 };
 
-#define GB_AUDIO_STREAM_DATA ((s8**)sGbMenuSoundData)
-#define GB_AUDIO_STREAM_SIZE ((s32*)sGbMenuSoundSizes)
+#define GB_AUDIO_STREAM_DATA sGbMenuSoundData
+#define GB_AUDIO_STREAM_SIZE sGbMenuSoundSizes
 
 /**
  * Applies one queued write to sound register 0xFF00 + reg (NR10-NR52, wave RAM 0x30-0x3F).
@@ -6457,7 +6501,7 @@ void GbApu_WriteRegister(u16 reg, u8 value) {
         }
     }
 
-    if ((reg < 0x24) && !GB_APU_REGS.power) {
+    if ((reg < 0x24) && !GBAPU_power) {
         return;
     }
 
@@ -6465,9 +6509,9 @@ void GbApu_WriteRegister(u16 reg, u8 value) {
 
     switch (reg) {
         case 0x10:
-            gGbApuSquare1.sweepPeriod = GB_APU_REGS.sweepTime * 400;
-            gGbApuSquare1.sweepDirection = GB_APU_REGS.sweepDir;
-            gGbApuSquare1.sweepShift = GB_APU_REGS.sweepShift;
+            gGbApuSquare1.sweepPeriod = GBAPU_sweepTime * 400;
+            gGbApuSquare1.sweepDirection = GBAPU_sweepDir;
+            gGbApuSquare1.sweepShift = GBAPU_sweepShift;
             if (gGbApuSquare1.sweepEnabled == 0) {
                 gGbApuSquare1.sweepCounter = 0;
             }
@@ -6478,32 +6522,32 @@ void GbApu_WriteRegister(u16 reg, u8 value) {
             }
             break;
         case 0x11:
-            gGbApuSquare1.duty = GB_APU_REGS.duty1;
-            gGbApuSquare1.length = 0x40 - GB_APU_REGS.length1;
+            gGbApuSquare1.duty = GBAPU_duty1;
+            gGbApuSquare1.length = 0x40 - GBAPU_length1;
             break;
         case 0x12:
-            gGbApuSquare1.initialVolume = GB_APU_REGS.volume1;
-            if ((GB_APU_REGS.volume1 == 0) && (GB_APU_REGS.envDir1 == 0)) {
+            gGbApuSquare1.initialVolume = GBAPU_volume1;
+            if ((GBAPU_volume1 == 0) && (GBAPU_envDir1 == 0)) {
                 gGbApuSquare1.enabled = 0;
             }
             break;
         case 0x13:
-            gGbApuSquare1.period = GB_APU_REGS.freqLo1 | (GB_APU_REGS.freqHi1 << 8);
+            gGbApuSquare1.period = GBAPU_freqLo1 | (GBAPU_freqHi1 << 8);
             gGbApuSquare1.step = GbApu_FreqToStep2x(gGbApuSquare1.period);
             break;
         case 0x14:
-            gGbApuSquare1.lengthEnabled = GB_APU_REGS.counter1;
-            gGbApuSquare1.period = GB_APU_REGS.freqLo1 | (GB_APU_REGS.freqHi1 << 8);
+            gGbApuSquare1.lengthEnabled = GBAPU_counter1;
+            gGbApuSquare1.period = GBAPU_freqLo1 | (GBAPU_freqHi1 << 8);
             gGbApuSquare1.step = GbApu_FreqToStep2x(gGbApuSquare1.period);
-            if ((s32)GB_APU_REGS.trigger1 == 1) {
+            if ((s32)GBAPU_trigger1 == 1) {
                 gGbApuSquare1.lengthTimer = gGbApuSquare1.length * 200;
                 gGbApuSquare1.amplitude = sGbApuSquareVolumeLevels[gGbApuSquare1.initialVolume];
                 gGbApuSquare1.envelopeCounter = 0;
                 gGbApuSquare1.sweepCounter = 0;
-                gGbApuSquare1.envelopeDirection = GB_APU_REGS.envDir1;
-                gGbApuSquare1.envelopePeriod = GB_APU_REGS.envSweep1 * 800;
+                gGbApuSquare1.envelopeDirection = GBAPU_envDir1;
+                gGbApuSquare1.envelopePeriod = GBAPU_envSweep1 * 800;
                 gGbApuSquare1.envelopeVolume = gGbApuSquare1.initialVolume;
-                if (GB_APU_REGS.power) {
+                if (GBAPU_power) {
                     gGbApuSquare1.enabled = 1;
                 }
             }
@@ -6514,60 +6558,60 @@ void GbApu_WriteRegister(u16 reg, u8 value) {
             }
             break;
         case 0x16:
-            gGbApuSquare2.duty = GB_APU_REGS.duty2;
-            gGbApuSquare2.length = 0x40 - GB_APU_REGS.length2;
+            gGbApuSquare2.duty = GBAPU_duty2;
+            gGbApuSquare2.length = 0x40 - GBAPU_length2;
             break;
         case 0x17:
-            gGbApuSquare2.initialVolume = GB_APU_REGS.volume2;
-            if ((GB_APU_REGS.volume2 == 0) && (GB_APU_REGS.envDir2 == 0)) {
+            gGbApuSquare2.initialVolume = GBAPU_volume2;
+            if ((GBAPU_volume2 == 0) && (GBAPU_envDir2 == 0)) {
                 gGbApuSquare2.enabled = 0;
             }
             break;
         case 0x18:
-            gGbApuSquare2.period = GB_APU_REGS.freqLo2 | (GB_APU_REGS.freqHi2 << 8);
+            gGbApuSquare2.period = GBAPU_freqLo2 | (GBAPU_freqHi2 << 8);
             gGbApuSquare2.step = GbApu_FreqToStep2x(gGbApuSquare2.period);
             break;
         case 0x19:
-            gGbApuSquare2.lengthEnabled = GB_APU_REGS.counter2;
-            gGbApuSquare2.period = GB_APU_REGS.freqLo2 | (GB_APU_REGS.freqHi2 << 8);
+            gGbApuSquare2.lengthEnabled = GBAPU_counter2;
+            gGbApuSquare2.period = GBAPU_freqLo2 | (GBAPU_freqHi2 << 8);
             gGbApuSquare2.step = GbApu_FreqToStep2x(gGbApuSquare2.period);
-            if ((s32)GB_APU_REGS.trigger2 == 1) {
+            if ((s32)GBAPU_trigger2 == 1) {
                 gGbApuSquare2.lengthTimer = gGbApuSquare2.length * 200;
                 gGbApuSquare2.phase.fixed = 0;
                 gGbApuSquare2.amplitude = sGbApuSquareVolumeLevels[gGbApuSquare2.initialVolume];
                 gGbApuSquare2.envelopeCounter = 0;
-                gGbApuSquare2.envelopeDirection = GB_APU_REGS.envDir2;
-                gGbApuSquare2.envelopePeriod = GB_APU_REGS.envSweep2 * 800;
+                gGbApuSquare2.envelopeDirection = GBAPU_envDir2;
+                gGbApuSquare2.envelopePeriod = GBAPU_envSweep2 * 800;
                 gGbApuSquare2.envelopeVolume = gGbApuSquare2.initialVolume;
-                if (GB_APU_REGS.power) {
+                if (GBAPU_power) {
                     gGbApuSquare2.enabled = 1;
                 }
             }
             break;
         case 0x1A:
-            if (GB_APU_REGS.waveOn == 0) {
-                gGbApuWave.enabled = GB_APU_REGS.waveOn;
+            if (GBAPU_waveOn == 0) {
+                gGbApuWave.enabled = GBAPU_waveOn;
             }
             break;
         case 0x1B:
-            gGbApuWave.length = 0x100 - GB_APU_REGS.length3;
+            gGbApuWave.length = 0x100 - GBAPU_length3;
             break;
         case 0x1C:
-            gGbApuWave.initialVolume = GB_APU_REGS.level3;
+            gGbApuWave.initialVolume = GBAPU_level3;
             gGbApuWave.amplitude = sGbApuWaveOutputLevels[gGbApuWave.initialVolume];
             break;
         case 0x1D:
-            gGbApuWave.period = GB_APU_REGS.freqLo3 | (GB_APU_REGS.freqHi3 << 8);
+            gGbApuWave.period = GBAPU_freqLo3 | (GBAPU_freqHi3 << 8);
             gGbApuWave.step = GbApu_FreqToStep(gGbApuWave.period);
             break;
         case 0x1E:
-            gGbApuWave.period = GB_APU_REGS.freqLo3 | (GB_APU_REGS.freqHi3 << 8);
+            gGbApuWave.period = GBAPU_freqLo3 | (GBAPU_freqHi3 << 8);
             gGbApuWave.step = GbApu_FreqToStep(gGbApuWave.period);
-            gGbApuWave.lengthEnabled = GB_APU_REGS.counter3;
-            if ((s32)GB_APU_REGS.trigger3 == 1) {
+            gGbApuWave.lengthEnabled = GBAPU_counter3;
+            if ((s32)GBAPU_trigger3 == 1) {
                 gGbApuWave.lengthTimer = gGbApuWave.length * 200;
                 gGbApuWave.retriggerTimer = 0x140;
-                if (GB_APU_REGS.power && ((s32)GB_APU_REGS.waveOn == 1)) {
+                if (GBAPU_power && ((s32)GBAPU_waveOn == 1)) {
                     gGbApuWave.enabled = 1;
                 }
             }
@@ -6592,17 +6636,17 @@ void GbApu_WriteRegister(u16 reg, u8 value) {
             sGbApuWaveSamples[(reg - 0x30) * 2 + 1] = sGbApuRegs[reg - 0x10] & 0xF;
             break;
         case 0x20:
-            gGbApuNoise.length = 0x40 - GB_APU_REGS.length4;
+            gGbApuNoise.length = 0x40 - GBAPU_length4;
             break;
         case 0x21:
-            gGbApuNoise.initialVolume = GB_APU_REGS.volume4;
-            if ((GB_APU_REGS.volume4 == 0) && (GB_APU_REGS.envDir4 == 0)) {
+            gGbApuNoise.initialVolume = GBAPU_volume4;
+            if ((GBAPU_volume4 == 0) && (GBAPU_envDir4 == 0)) {
                 gGbApuNoise.enabled = 0;
             }
             break;
         case 0x22:
-            gGbApuNoise.period = GB_APU_REGS.shift4;
-            gGbApuNoise.step = GbApu_ConfigureNoiseTable(GB_APU_REGS.shift4, GB_APU_REGS.width4, GB_APU_REGS.ratio4);
+            gGbApuNoise.period = GBAPU_shift4;
+            gGbApuNoise.step = GbApu_ConfigureNoiseTable(GBAPU_shift4, GBAPU_width4, GBAPU_ratio4);
             if (gGbApuNoise.enabled == 0) {
                 gGbApuNoise.activeStep = gGbApuNoise.step;
             }
@@ -6617,14 +6661,14 @@ void GbApu_WriteRegister(u16 reg, u8 value) {
             }
             break;
         case 0x23:
-            gGbApuNoise.lengthEnabled = GB_APU_REGS.counter4;
-            if ((s32)GB_APU_REGS.trigger4 == 1) {
+            gGbApuNoise.lengthEnabled = GBAPU_counter4;
+            if ((s32)GBAPU_trigger4 == 1) {
                 gGbApuNoise.lengthTimer = gGbApuNoise.length * 200;
                 if (gGbApuNoise.enabled == 0) {
                     gGbApuNoise.phase.fixed = 0;
                 }
                 gGbApuNoise.envelopeVolume = gGbApuNoise.initialVolume;
-                switch ((s32)GB_APU_REGS.width4) {
+                switch ((s32)GBAPU_width4) {
                     case 0:
                         gGbApuNoise.amplitude = sGbApuNoiseVolumeLevels15Bit[gGbApuNoise.envelopeVolume];
                         break;
@@ -6636,9 +6680,9 @@ void GbApu_WriteRegister(u16 reg, u8 value) {
                     gGbApuNoise.outputAmplitude = gGbApuNoise.amplitude;
                 }
                 gGbApuNoise.envelopeCounter = 0;
-                gGbApuNoise.envelopeDirection = GB_APU_REGS.envDir4;
-                gGbApuNoise.envelopePeriod = GB_APU_REGS.envSweep4 * 800;
-                if (GB_APU_REGS.power) {
+                gGbApuNoise.envelopeDirection = GBAPU_envDir4;
+                gGbApuNoise.envelopePeriod = GBAPU_envSweep4 * 800;
+                if (GBAPU_power) {
                     gGbApuNoise.enabled = 1;
                 }
             }
@@ -6691,8 +6735,16 @@ void GbApu_RenderBuffer(s32 sample_count, s16* out) {
     idx = 0;
     last_time = 0;
     while (TRUE) {
-        if (osRecvMesg(&sGbApuWriteQueue, (OSMesg*)&msg, OS_MESG_NOBLOCK) == -1) {
-            break;
+        { // PORT64: the message is the packed u32 itself; unpack it (a raw copy wrote 8 bytes, in host byte order)
+            OSMesg m;
+            u32 v;
+            if (osRecvMesg(&sGbApuWriteQueue, &m, OS_MESG_NOBLOCK) == -1) {
+                break;
+            }
+            v = (u32)(uintptr_t)m;
+            msg.reg = v >> 24;
+            msg.value = v >> 16;
+            msg.time = v;
         }
         if (first) {
             start_time = msg.time;
@@ -6700,7 +6752,9 @@ void GbApu_RenderBuffer(s32 sample_count, s16* out) {
         }
         if (msg.time < last_time) {
             if (start_time < sGbApuLastWriteTime) {
-                osJamMesg(&sGbApuWriteQueue, *(OSMesg*)&msg, OS_MESG_NOBLOCK);
+                osJamMesg(&sGbApuWriteQueue,
+                          (OSMesg)(uintptr_t)(((u32)msg.reg << 24) | ((u32)msg.value << 16) | msg.time),
+                          OS_MESG_NOBLOCK); // PORT64: repack (was a raw copy of the struct)
                 break;
             }
             start_time = 0;
@@ -6749,17 +6803,17 @@ void GbApu_RenderBuffer(s32 sample_count, s16* out) {
         wave = GbApu_UpdateWaveChannel();
         noise = GbApu_UpdateNoiseChannel();
 
-        noise_left = GB_APU_REGS.noiseLeft ? noise : 0;
-        noise_right = GB_APU_REGS.noiseRight ? noise : 0;
-        wave_left = GB_APU_REGS.waveLeft ? wave : 0;
-        wave_right = GB_APU_REGS.waveRight ? wave : 0;
-        square2_left = GB_APU_REGS.sq2Left ? sq2 : 0;
-        square2_right = GB_APU_REGS.sq2Right ? sq2 : 0;
-        square1_left = GB_APU_REGS.sq1Left ? sq1 : 0;
-        square1_right = GB_APU_REGS.sq1Right ? sq1 : 0;
+        noise_left = GBAPU_noiseLeft ? noise : 0;
+        noise_right = GBAPU_noiseRight ? noise : 0;
+        wave_left = GBAPU_waveLeft ? wave : 0;
+        wave_right = GBAPU_waveRight ? wave : 0;
+        square2_left = GBAPU_sq2Left ? sq2 : 0;
+        square2_right = GBAPU_sq2Right ? sq2 : 0;
+        square1_left = GBAPU_sq1Left ? sq1 : 0;
+        square1_right = GBAPU_sq1Right ? sq1 : 0;
 
-        right = (square1_right + square2_right + wave_right + noise_right) / (8 - GB_APU_REGS.rightVolume);
-        left = (square1_left + square2_left + wave_left + noise_left) / (8 - GB_APU_REGS.leftVolume);
+        right = (square1_right + square2_right + wave_right + noise_right) / (8 - GBAPU_rightVolume);
+        left = (square1_left + square2_left + wave_left + noise_left) / (8 - GBAPU_leftVolume);
         if (right >= 0x8000) {
             right = 0x7FFF;
         }
@@ -6870,7 +6924,7 @@ void GbApu_ResetChannels(void) {
 /**
  * noise_table: the decompressed noise waveforms (GbEmu_Init / GbEmu_InitContext).
  */
-void GbApu_Reset(s32 noise_table) {
+void GbApu_Reset(void* noise_table) { // PORT64: the noise table pointer (was s32, truncated on the host)
     sGbApuNoiseTable = noise_table;
     GbApu_ResetChannels();
 }
@@ -6903,7 +6957,7 @@ void GbAudio_RampToSilence(void) {
 }
 
 /**
- * Empty; called once from func_812033F4.
+ * Empty; called once from GbEmu_InitSession.
  */
 void func_81208F94(void) {
 }
@@ -6969,7 +7023,10 @@ s32 GbAudio_UpdateFrame(void) {
     sGbAudioBufferIndex++;
     sGbAudioBufferIndex %= 3;
     idx = (sGbAudioBufferIndex + 2) % 3;
-    ai_length = osAiGetLength() >> 2;
+    {
+        extern u32 Port_GbAudioQueuedBytes(void); // PORT: bytes still queued in the host's sound output
+        ai_length = Port_GbAudioQueuedBytes() >> 2;
+    }
 
     if (D_812346FC < 16) {
         len = &sGbAudioBufferLengths[idx];

@@ -1223,5 +1223,5 @@ s32 Gallery_AlbumMain(s32 arg0, s32 arg1) {
 
     main_pool_pop_state('ALBM');
 
-    return Gallery_AlbumGetResult(&D_83503FC8);
+    return Gallery_AlbumGetResult(&D_83503FC8); // PORT: the caller uses this result (on the N64 it was left in v0)
 }

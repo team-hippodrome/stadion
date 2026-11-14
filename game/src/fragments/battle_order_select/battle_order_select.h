@@ -35,7 +35,7 @@ typedef struct BattleOrderInputState {
     /* 0x0018 */ BattleMon* pokemon;
     /* 0x001C */ TeamRoster* roster;
     /* 0x0020 */ u16 pokemonIcon[6][1600]; // Six 40x40 RGBA16 icons.
-} BattleOrderInputState; // size = 0x4B20
+} BattleOrderInputState;                   // size = 0x4B20
 
 typedef struct PokemonTypeStyle {
     /* 0x00 */ Color_RGB8 color;

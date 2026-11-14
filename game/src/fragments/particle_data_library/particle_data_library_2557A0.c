@@ -13,16 +13,18 @@ void DisplayList_InitTwoSegmentChain(s32 arg0, DisplayListState* state) {
     DisplayListAddresses* addresses;
 
     if (arg0 == 2) {
-        addresses = state->addresses;
-        gfx = Gfx_AllocDisplayList(0x18);
+        addresses = (DisplayListAddresses*)Port_PdlWords(state->addresses);
+        gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0x18));
         state->gfx = gfx;
         DisplayList_BuildTwoSegmentChain(gfx, addresses);
     }
 }
 
-void DisplayList_BuildConditionalSegment(Gfx* gfx, s32* address) {
+// PORT64: the address list holds host pointers (Port_PdlWords); an s32* read kept the low 4 bytes of the first one,
+// so Ditto's surface list (texture generation + its texture) was never called and Ditto drew flat white
+void DisplayList_BuildConditionalSegment(Gfx* gfx, DisplayListAddresses* addresses) {
     if (D_8006F09C->textureMode == 0) {
-        gSPDisplayList(gfx++, *address);
+        gSPDisplayList(gfx++, addresses->segments[0]);
     }
     gSPEndDisplayList(gfx++);
 }
@@ -32,8 +34,8 @@ void DisplayList_InitConditionalSegment(s32 arg0, DisplayListState* state) {
     DisplayListAddresses* addresses;
 
     if (arg0 == 2) {
-        addresses = state->addresses;
-        gfx = Gfx_AllocDisplayList(0x50);
+        addresses = (DisplayListAddresses*)Port_PdlWords(state->addresses);
+        gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0x50));
         state->gfx = gfx;
         DisplayList_BuildConditionalSegment(gfx, addresses);
     }

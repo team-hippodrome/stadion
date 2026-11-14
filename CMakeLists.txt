@@ -124,12 +124,12 @@ endif()
 # Flags mirror tools/compile_flags.txt (used by tools/syntax_check.sh).
 # ---------------------------------------------------------------------------------------------
 file(GLOB_RECURSE STADIUM_GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/game/src/*.c)
-# game/ is the whole decomp (a submodule): of its libultra sources, only the ones listed are compiled
+# game/ is the vendored decomp (src, include, lib/ultralib): of its libultra sources, only the ones listed are compiled
 file(STRINGS cmake/ultralib_sources.txt PORT_ULTRALIB_SOURCES REGEX "^[^#]")
 list(TRANSFORM PORT_ULTRALIB_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/game/lib/ultralib/src/)
 list(APPEND STADIUM_GAME_SOURCES ${PORT_ULTRALIB_SOURCES})
 # tables generated from the decomp's link map (tools/gen_func_table.py, tools/gen_fragment_entries.py); they are compiled
-# with the game code but kept in the port, so the game sources are the decomp plus patches/game only
+# with the game code but kept in the port, so game/ holds only decomp code
 list(APPEND STADIUM_GAME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_func_table.c
      ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_fragment_entries.c)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ultralib_sources.txt)

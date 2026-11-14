@@ -11,6 +11,12 @@
 #include "src/gfx_rect.h"
 #include "src/memory.h"
 #include "src/stage_loader.h"
+#include "src/pokemon_stats.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+extern int Port_PacedLogoHold(void);
+extern unsigned long long Port_ViTick(void);
 
 /**
  * Draws the 128x112 RGBA16 "NINTENDO 64" logo (n64_logo_texture, loaded at segment 0x02)
@@ -130,8 +136,29 @@ s32 N64Logo_Main(UNUSED s32 arg0, UNUSED s32 arg1) {
 
     Audio_PlaySoundEffectById(SFX_N64_LOGO);
     sound_start_time = osGetTime();
+    u64 holdStart = Port_ViTick();
     N64Logo_ScanTransferPaks();
-    N64Logo_WaitForElapsed(sound_start_time);
+    u64 scanEnd = osGetTime();
+    int paced = Port_PacedLogoHold();
+    int trace = getenv("PORT_TRACE_PACING") != NULL;
+    if (trace)
+        fprintf(stderr, "[intro] logo hold begin\n");
+    if (paced) {
+        // The NTSC logo stays up for 60 retraces. Present through the normal
+        // frame queue so the scheduler and audio keep running during the hold.
+        while (Port_ViTick() - holdStart < 60) {
+            N64Logo_DrawFrame(0);
+            BgStage_AdvanceFrame();
+        }
+    } else {
+        N64Logo_WaitForElapsed(sound_start_time);
+    }
+    if (trace) {
+        fprintf(stderr, "[intro] Game Boy save scan: %llu us; logo hold after scan: %llu us (%llu retraces)\n",
+                (unsigned long long)OS_CYCLES_TO_USEC(scanEnd - sound_start_time),
+                (unsigned long long)OS_CYCLES_TO_USEC(osGetTime() - scanEnd),
+                (unsigned long long)(Port_ViTick() - holdStart));
+    }
     StageFade_Start(0x10);
     BgStage_RunUntilCondition(0x10, N64Logo_DrawFrame);
     StageContext_Deactivate();

@@ -18,8 +18,7 @@
 #include "src/pokemon_stats.h"
 
 typedef struct unk_D_88826A88 {
-    /* 0x00 */ char unk_00[1]; // unk size
-    /* 0x01 */ char unk01[0x2C];
+    /* 0x00 */ char unk_00[0x2D]; // PORT64: was [1] + unk01[0x2C]; sprintf fills it ("area unknown")
     /* 0x2D */ char unk_2D[15];
     /* 0x3C */ char unk_3C[15];
     /* 0x4B */ char unk_4B[15];
@@ -36,10 +35,8 @@ typedef struct unk_D_88826CF0_004 {
 typedef struct unk_D_88826CF0 {
     /* 0x00 */ s16 unk_00;
     /* 0x02 */ s16 unk_02;
-    /* 0x04 */ unk_D_88826CF0_004* unk_04[1];
-    /* 0x08 */ char unk08[0x10];
-    /* 0x18 */ s16 unk_18[1];
-    /* 0x1A */ char unk1A[0xA];
+    /* 0x04 */ unk_D_88826CF0_004* unk_04[5]; // PORT64: was [1] + unk08[0x10]; one per location, indexed by unk_02
+    /* 0x18 */ s16 unk_18[6];
 } unk_D_88826CF0; // size = 0x24
 
 typedef struct unk_D_88825ECC {
@@ -3347,13 +3344,13 @@ static s16 D_88826564[] = {
     0x21, 0xC,  0x22, 0x1B, 0x21, -1,   0xE,  0xE,  0xE,  0xE,  0xE,  0xE,  0xE,  0x1D, 0,    1,    4,    6, 9, 0xA,
     0x10, 0xF,  0xB,  0xD,  0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x1A, 0x1C, 0x1E, 0x1F, 0x20, 7, 8, 0,
 };
-static u32 D_888265DC[] = {
-    0x0C000001,       0x05000000, 0x0B00003C,       0x00000000, 0x014000F0,       0xFE700000,       0x00000000,
-    0x00000C80,       0x05000000, 0x0D000000,       0x05000000, 0x0E000000,       0x05000000,       0x10000000,
-    0x06000000,       0x1396C8FF, 0x03D903ED,       0x14000000, 0x002D0019,       0xFFFFFF32,       0x16FFFFFF,
-    0x0F000003,       0x05000000, 0x00000000,       0x8C000260, 0x07000000,       (u32)&D_888269C0, 0x07000000,
-    (u32)&D_888269E0, 0x07000000, (u32)&D_88826A00, 0x07000000, (u32)&D_88826A20, 0x06000000,       0x06000000,
-    0x06000000,       0x06000000, 0x01000000,       0x00000000,
+static uintptr_t D_888265DC[] = {
+    // PORT64: holds addresses (was u32 with raw node addresses)
+    0x0C000001,  0x05000000, 0x0B00003C,  0x00000000, 0x014000F0,  0xFE700000, 0x00000000,  0x00000C80,
+    0x05000000,  0x0D000000, 0x05000000,  0x0E000000, 0x05000000,  0x10000000, 0x06000000,  0x1396C8FF,
+    0x03D903ED,  0x14000000, 0x002D0019,  0xFFFFFF32, 0x16FFFFFF,  0x0F000003, 0x05000000,  0x00000000,
+    0x8C000260,  0x07000000, &D_888269C0, 0x07000000, &D_888269E0, 0x07000000, &D_88826A00, 0x07000000,
+    &D_88826A20, 0x06000000, 0x06000000,  0x06000000, 0x06000000,  0x01000000, 0x00000000,
 };
 
 s32 Pokedex_FindNextMapArea(s32 arg0) {
@@ -4095,7 +4092,67 @@ s32 Pokedex_CheckAreaMapExit(void) {
     return 0;
 }
 
-void func_88807D04(s32 arg0, MainPoolState* arg1, UNUSED s32 arg2, s32 arg3, s32 arg4, char* arg5, char** arg6) {
+// PORT: the area map model (pokedex_area_model, loaded at 0x8C000000) gives its two sea nodes callbacks that are MIPS
+// code in the blob (0x8C000118 and 0x8C000214, never decompiled). With no host function for them the nodes stayed
+// empty and the sea was not drawn. These are their host versions (Port_ResolveCode maps the blob addresses to them):
+// each frame they step the blob's wave counters (big-endian words at 0x8C000250..0x8C00025C) and build a list that
+// calls the sea's material list, sets the scrolled tile sizes and branches to its geometry.
+static u32 Pokedex_StepSeaWave(u32 addr, s32 step) {
+    u32* p = (u32*)Memmap_GetFragmentVaddr((void*)(uintptr_t)addr);
+    s32 v = (s32)PORT_BE32(*p) + step;
+
+    if (step < 0) {
+        if (v < 0) {
+            v = 0xFF; // counts 255..0
+        }
+    } else if (v >= 0x80) {
+        v = 0; // counts 0..127
+    }
+    *p = PORT_BE32(v);
+    return v;
+}
+
+static Gfx* Pokedex_AreaModelGfx(u32 addr) {
+    return (Gfx*)Memmap_GetFragmentVaddr((void*)(uintptr_t)addr);
+}
+
+s32 Pokedex_AreaSeaCallback0(s32 event, GraphNode* node) {
+    Gfx* gfx;
+    u32 s;
+    u32 t;
+
+    if (event == 2) {
+        gfx = Gfx_AllocDisplayList(sizeof(Gfx) * 4);
+        ((unk_func_80011B94*)node)->gfx = gfx;
+        s = Pokedex_StepSeaWave(0x8C000250, 1);
+        t = Pokedex_StepSeaWave(0x8C000254, 1);
+        gSPDisplayList(gfx++, Pokedex_AreaModelGfx(0x8C0549C0));
+        gDPSetTileSize(gfx++, G_TX_RENDERTILE, s, t, s + 124, t + 124);
+        gDPSetTileSize(gfx++, 1, s, 0, s + 124, 124);
+        gSPBranchList(gfx++, Pokedex_AreaModelGfx(0x8C054A60));
+    }
+    return 0;
+}
+
+s32 Pokedex_AreaSeaCallback1(s32 event, GraphNode* node) {
+    Gfx* gfx;
+    u32 s;
+    u32 t;
+
+    if (event == 2) {
+        gfx = Gfx_AllocDisplayList(sizeof(Gfx) * 3);
+        ((unk_func_80011B94*)node)->gfx = gfx;
+        s = Pokedex_StepSeaWave(0x8C000258, -2);
+        t = Pokedex_StepSeaWave(0x8C00025C, 1);
+        gSPDisplayList(gfx++, Pokedex_AreaModelGfx(0x8C055550));
+        gDPSetTileSize(gfx++, G_TX_RENDERTILE, s, t, s + 124, t + 124);
+        gSPBranchList(gfx++, Pokedex_AreaModelGfx(0x8C0555B8));
+    }
+    return 0;
+}
+
+void func_88807D04(intptr_t arg0, MainPoolState* arg1, UNUSED s32 arg2, uintptr_t arg3, s32 arg4, char* arg5,
+                   char** arg6) {
     s32 i;
     CameraNode* ptr;
     MemoryBlock* sp4C;
@@ -4124,7 +4181,7 @@ void func_88807D04(s32 arg0, MainPoolState* arg1, UNUSED s32 arg2, s32 arg3, s32
     Pokedex_LoadIcon(D_88826CD4, arg0);
 
     ASSET_LOAD(D_3000000, kanto_gb_map, 0);
-    Fragment_LoadAndRelocateFromRomRange(sp4C, (((u32)&D_8C000000 & 0x0FF00000) >> 0x14) - 0x10,
+    Fragment_LoadAndRelocateFromRomRange(sp4C, (((uintptr_t)&D_8C000000 & 0x0FF00000) >> 0x14) - 0x10,
                                          pokedex_area_model_ROM_START, pokedex_area_model_ROM_END, arg3, arg4);
 
     D_88826A48 = BinArchive_GetFile(ASSET_LOAD2(_6EB340, 1, 1), 0);

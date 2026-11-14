@@ -25,13 +25,11 @@ typedef struct unk_func_8001B1FC {
     /* 0x2C */ DepthBuffer* unk_2C;
 } unk_func_8001B1FC; // size = 0x30
 
+// PORT64: holds either a BattleMon* (ptr) or a species id; raw was u32 and cut the pointer. The species-id case reads
+// unk_02, the low half of the N64's big-endian word: kept as the low 16 bits of raw on the host.
 typedef union unk_func_8001A024_008_014 {
-    struct {
-        /* 0x00 */ s16 unk_00;
-        /* 0x02 */ s16 unk_02;
-    };
     u8* ptr;
-    u32 raw;
+    uintptr_t raw;
 } unk_func_8001A024_008_014; // size = 0x4
 
 typedef struct unk_func_8001A024_008 {

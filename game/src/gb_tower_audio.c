@@ -8,6 +8,7 @@
 #include "scheduler.h"
 #include "util.h"
 #include "src/fragments/gb_tower_emulator/gb_tower_emulator.h"
+#include "src/gb_tower.h"
 
 unk_D_800AA660* gGbTowerEmuThread;
 unk_D_800AA664* gGbTowerAudioThread;
@@ -63,11 +64,11 @@ void GbTower_EmuThread(UNUSED void* arg0) {
  * fragment and fonts, copies the session parameters and starts the emulator thread.
  */
 void GbTower_Start(GbTowerSessionParams* params) {
-    s32 font_archive;
+    intptr_t font_archive;
 
     main_pool_push_state('GBEM');
-    gGbTowerEmuThread = main_pool_alloc(0x2210, 0);
-    gGbTowerAudioThread = main_pool_alloc(0x21E0, 0);
+    gGbTowerEmuThread = main_pool_alloc(sizeof(unk_D_800AA660), 0); // PORT64: host struct sizes (were 0x2210 / 0x21E0)
+    gGbTowerAudioThread = main_pool_alloc(sizeof(unk_D_800AA664), 0);
 
     FRAGMENT_LOAD(FRAGMENT_GB_TOWER_EMULATOR);
     font_archive = ASSET_LOAD2(fonts, 1, 1);
@@ -76,8 +77,9 @@ void GbTower_Start(GbTowerSessionParams* params) {
     gGbTowerEmuThread->font2 = BinArchive_GetFile(font_archive, 1);
     gGbTowerEmuThread->session = *params;
     osCreateMesgQueue(&gGbTowerEmuThread->queue2, &gGbTowerEmuThread->mesg, 1);
-    osCreateThread(&gGbTowerAudioThread->thread, 10, GbTower_AudioThread, NULL, (u32)gGbTowerAudioThread + 0x21E0, 0x11);
-    osCreateThread(&gGbTowerEmuThread->thread, 8, GbTower_EmuThread, NULL, (u32)gGbTowerEmuThread + 0x21E0, 0xF);
+    osCreateThread(&gGbTowerAudioThread->thread, 10, GbTower_AudioThread, NULL, (uintptr_t)gGbTowerAudioThread + 0x21E0,
+                   0x11);
+    osCreateThread(&gGbTowerEmuThread->thread, 8, GbTower_EmuThread, NULL, (uintptr_t)gGbTowerEmuThread + 0x21E0, 0xF);
     sSavedPollMask = GbTower_SetPollMask(0);
     osStartThread(&gGbTowerEmuThread->thread);
 }

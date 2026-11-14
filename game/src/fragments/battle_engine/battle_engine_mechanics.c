@@ -124,32 +124,21 @@ u8 sTypeEffects[] = {
     5,    7,    0x14, 5,    0x19, 0x14, 8,    0,    0,    8,    0x18, 0,    0x14, 0x1A, 5,    0x15, 0x1A, 5,
     0x17, 0x1A, 5,    0x16, 0x1A, 5,    0x19, 0x1A, 0x14, 0x1A, 0x1A, 0x14, 0xFF, 0,    0,
 };
-static u32 D_8438ADEC[] = {
-    0x18191C2E,
-    0x2F313839,
-    0x40414243,
-    0x4F525455,
-};
-static u32 D_8438ADFC[] = {
-    0x1B000000,
-};
-static u32 D_8438AE00[] = {
-    0x28290000,
-};
-static u32 D_8438AE04[] = {
-    0x010A0B0C, 0x0D0E0F12, 0x13141516, 0x171A2032, 0x33343536, 0x373A3B3C, 0x3D3E3F00,
-};
-static u32 D_8438AE20[] = {
-    0x03070810,
-    0x1D1E2C30,
-    0x4D510000,
-};
-static u32 D_8438AE2C[] = {
-    0x03070810,
-    0x111D1E27,
-    0x28292B2C,
-    0x2D301B00,
-};
+static u8 D_8438ADEC[] = {
+    0x18, 0x19, 0x1C, 0x2E, 0x2F, 0x31, 0x38, 0x39, 0x40, 0x41, 0x42, 0x43, 0x4F, 0x52, 0x54, 0x55
+};                                                   // PORT: byte list (IsByteInArray), was u32 words: N64 byte order
+static u8 D_8438ADFC[] = { 0x1B, 0x00, 0x00, 0x00 }; // PORT: byte list (IsByteInArray), was u32 words: N64 byte order
+static u8 D_8438AE00[] = { 0x28, 0x29, 0x00, 0x00 }; // PORT: byte list (IsByteInArray), was u32 words: N64 byte order
+static u8 D_8438AE04[] = {
+    0x01, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x1A,
+    0x20, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x00
+}; // PORT: byte list (IsByteInArray), was u32 words: N64 byte order
+static u8 D_8438AE20[] = {
+    0x03, 0x07, 0x08, 0x10, 0x1D, 0x1E, 0x2C, 0x30, 0x4D, 0x51, 0x00, 0x00
+}; // PORT: byte list (IsByteInArray), was u32 words: N64 byte order
+static u8 D_8438AE2C[] = {
+    0x03, 0x07, 0x08, 0x10, 0x11, 0x1D, 0x1E, 0x27, 0x28, 0x29, 0x2B, 0x2C, 0x2D, 0x30, 0x1B, 0x00
+}; // PORT: byte list (IsByteInArray), was u32 words: N64 byte order
 static s32 D_8438AE3C = 0x4D2;
 static u32 D_8438AE40 = 0x1A85;
 static u32 D_8438AE44 = 0x3039;
@@ -161,10 +150,14 @@ void func_8436F6D0(void) {
 }
 
 /* Advance the battle RNG streams by a timer-derived count and return their XOR's low byte. */
-u8 Battle_Random(void) {
+__attribute__((noinline)) u8 Battle_Random(void) { // PORT: noinline: the cross-check names its caller
     u8 var_v1;
     s32 ret;
 
+    if (Port_XcheckRandom(0, 0, &ret,
+                          __builtin_return_address(0))) { // PORT: battle cross-check against ares (src/port/xcheck.cpp)
+        return ret;
+    }
     var_v1 = (osGetCount() & 0xFF0) >> 4;
 
     while (var_v1 > 0) {
@@ -181,10 +174,14 @@ u8 Battle_Random(void) {
 }
 
 /* Generate an accuracy roll using a separate pair of timer-stepped RNG streams. */
-u8 Battle_RandomAccuracy(void) {
+__attribute__((noinline)) u8 Battle_RandomAccuracy(void) { // PORT: (as Battle_Random)
     u8 var_v1;
     s32 ret;
 
+    if (Port_XcheckRandom(1, 0, &ret,
+                          __builtin_return_address(0))) { // PORT: battle cross-check against ares (src/port/xcheck.cpp)
+        return ret;
+    }
     var_v1 = (osGetCount() & 0xFF0) >> 4;
 
     while (var_v1 > 0) {
@@ -1861,24 +1858,57 @@ s32 Battle_CheckFaintAfterMove(void) {
     if ((sBattleUser->displayHp != 0) && (sBattleTarget->displayHp != 0) && (sBattleUser->currentHp == 0)) {
         Battle_CheckDefeatAtCurrentHp(sActivePokemon[sBattleScene.scene->actingSide]);
         return 0;
-    } else if ((sBattleUser->displayHp != 0) && (sBattleTarget->displayHp != 0) && (sBattleUser->pendingStatusCondition & 0x18) &&
-               (sBattleUser->unk_0E == 0)) {
+    } else if ((sBattleUser->displayHp != 0) && (sBattleTarget->displayHp != 0) &&
+               (sBattleUser->pendingStatusCondition & 0x18) && (sBattleUser->unk_0E == 0)) {
         Battle_CheckDefeatAtStatusHp(sActivePokemon[sBattleScene.scene->actingSide]);
         return 0;
-    } else if ((sBattleUser->displayHp != 0) && (sBattleTarget->displayHp != 0) && (sBattleUser->volatileStatusFlags & 0x80) &&
-               (sBattleUser->unk_10 == 0)) {
+    } else if ((sBattleUser->displayHp != 0) && (sBattleTarget->displayHp != 0) &&
+               (sBattleUser->volatileStatusFlags & 0x80) && (sBattleUser->unk_10 == 0)) {
         Battle_CheckDefeatAtSeedHp(sActivePokemon[sBattleScene.scene->actingSide]);
         return 0;
     }
 }
 
 /* Initialize one action's shared state, resolve its turn and residuals, then check defeat. */
+// PORT: battle cross-check against ares (src/port/xcheck.cpp): the state both traces record at an event (the ares
+// driver reads the same bytes from RDRAM at the same functions)
+void Port_XcheckBattleEvent(const char* name) {
+    if (!Port_XcheckEnabled() || sActivePokemon[0] == NULL || sActivePokemon[1] == NULL || sBattleScene.scene == NULL) {
+        return;
+    }
+    Port_XcheckWriteEvent(name, &sActivePokemon[0]->state, &sActivePokemon[1]->state, sBattleScene.scene, sBattleDamage,
+                          sBattleMessageQueues != NULL ? sBattleMessageQueues->buffer[0] : NULL);
+}
+
+// PORT: battle cross-check (src/port/xcheck.cpp): a case's parties, written when the battle engine is mapped (the
+// ares driver writes the same fields then): both sides' picked Pokemon and their roster info copies
+void Port_XcheckApplyCaseParties(void) {
+    s32 side, i;
+
+    if (!Port_XcheckHasCase()) {
+        return;
+    }
+    for (side = 0; side < 2; side++) {
+        TeamRoster* roster = gSessionContext.battleSides[side].tagTeamMember[0];
+        if (roster == NULL) {
+            continue;
+        }
+        for (i = 0; i < 6; i++) {
+            Port_XcheckPatchMon(side, i, &roster->pokemonPicked[i]);
+            if (roster->rosterInfo != NULL) {
+                Port_XcheckPatchMon(side, i, &roster->rosterInfo->battleMon[i]);
+            }
+        }
+    }
+}
+
 void Battle_ResolveMonAction(void) {
     BattleMonRuntime* sp1C = &sActivePokemon[sBattleScene.scene->actingSide]->state.runtime;
     BattleMonRuntime* sp18 = &sActivePokemon[!sBattleScene.scene->actingSide]->state.runtime;
     ActivePokemonState* ptr1 = &sActivePokemon[0]->state;
     ActivePokemonState* ptr2 = &sActivePokemon[1]->state;
 
+    Port_XcheckBattleEvent("resolve"); // PORT: battle cross-check against ares (src/port/xcheck.cpp)
     ptr1->moveSelectionLocked = 0;
     ptr2->moveSelectionLocked = 0;
 
@@ -1907,6 +1937,7 @@ void Battle_ResolveMonAction(void) {
     if (D_84390288 == 0) {
         Battle_CheckFaintAfterMove();
     }
+    Port_XcheckBattleEvent("resolved");
 }
 
 /* Initialize an entering participant's runtime and clear its transient battle state. */

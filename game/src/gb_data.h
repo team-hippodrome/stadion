@@ -51,9 +51,11 @@ typedef struct SpeciesData {
     /* 0x16 */ u8 padding;
 } SpeciesData; // size = 0x17
 
-extern PokemonStats gBaseStats[];
 // Indexed by species ID - 1: Bulbasaur through Mew, then the Substitute doll.
 extern SpeciesData gSpeciesData[152];
+// PORT: gBaseStats is an interior alias the original linker script places 0x1C bytes before gSpeciesData (1-based
+// species index into the base-stats table); the host has no linker alias, so it is spelled out.
+#define gBaseStats ((PokemonStats*)((u8*)gSpeciesData - 0x1C))
 
 typedef struct unk_D_80071D88 {
     /* 0x00 */ char* type_name;

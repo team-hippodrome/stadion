@@ -6,7 +6,7 @@ void DisplayList_InitToggledBlendModeSegment(s32 arg0, DisplayListState* state) 
     Gfx* gfx;
 
     if (arg0 == 2) {
-        gfx = (Gfx*)Gfx_AllocDisplayList(0x10);
+        gfx = (Gfx*)Gfx_AllocDisplayList(GFX_N64_BYTES(0x10));
         state->gfx = gfx;
         // Keep expanded GBI commands on one line for IDO matching.
         // clang-format off

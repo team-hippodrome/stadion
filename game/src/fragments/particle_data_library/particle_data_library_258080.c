@@ -5,6 +5,9 @@
 #include "src/gfx_buffer.h"
 #include "src/geo_render.h"
 #include "src/battle_hud.h"
+#include "src/graphics_textures.h"
+#include "src/text_system.h"
+#include "src/util.h"
 
 typedef struct {
     /* 0x00 */ u8 rgb0[3];    // start color
@@ -38,13 +41,13 @@ void DisplayList_InitScrollingIconSegment0(s32 arg0, DisplayListState* state) {
     Gfx* gfx;
     DisplayListAddresses* addresses;
 
-    addresses = state->addresses;
+    addresses = (DisplayListAddresses*)Port_PdlWords(state->addresses);
     switch (arg0) {
         case 0:
             D_81004B70 = 0;
             return;
         case 2:
-            gfx = Gfx_AllocDisplayList(0xA0);
+            gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0xA0));
             state->gfx = gfx;
             DisplayList_BuildScrollingIconSegment0(gfx, addresses->segments[0], addresses->segments[1]);
             D_81004B70 += 1;
@@ -67,13 +70,13 @@ void DisplayList_InitScrollingIconSegment1(s32 arg0, DisplayListState* state) {
     Gfx* gfx;
     DisplayListAddresses* addresses;
 
-    addresses = state->addresses;
+    addresses = (DisplayListAddresses*)Port_PdlWords(state->addresses);
     switch (arg0) { /* irregular */
         case 0:
             D_81004B80 = 0;
             return;
         case 2:
-            gfx = Gfx_AllocDisplayList(0xA0);
+            gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0xA0));
             state->gfx = gfx;
             DisplayList_BuildScrollingIconSegment1(gfx, addresses->segments[0], addresses->segments[1]);
             D_81004B80 += 1;
@@ -96,13 +99,13 @@ void DisplayList_InitScrollingIconSegment2(s32 arg0, DisplayListState* state) {
     Gfx* gfx;
     DisplayListAddresses* addresses;
 
-    addresses = state->addresses;
+    addresses = (DisplayListAddresses*)Port_PdlWords(state->addresses);
     switch (arg0) { /* irregular */
         case 0:
             D_81004B90 = 0;
             return;
         case 2:
-            gfx = Gfx_AllocDisplayList(0xA0);
+            gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0xA0));
             state->gfx = gfx;
             DisplayList_BuildScrollingIconSegment2(gfx, addresses->segments[0], addresses->segments[1]);
             D_81004B90 += 1;
@@ -125,13 +128,13 @@ void DisplayList_InitScrollingIconSegment3(s32 arg0, DisplayListState* state) {
     Gfx* gfx;
     DisplayListAddresses* addresses;
 
-    addresses = state->addresses;
+    addresses = (DisplayListAddresses*)Port_PdlWords(state->addresses);
     switch (arg0) { /* irregular */
         case 0:
             D_81004BA0 = 0;
             return;
         case 2:
-            gfx = Gfx_AllocDisplayList(0xA0);
+            gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0xA0));
             state->gfx = gfx;
             DisplayList_BuildScrollingIconSegment3(gfx, addresses->segments[0], addresses->segments[1]);
             D_81004BA0 += 1;
@@ -146,7 +149,7 @@ void DisplayList_InitPulsingRectSegment(s32 arg0, DisplayListState* state) {
     Gfx* gfx;
 
     if (arg0 == 2) {
-        gfx = Gfx_AllocDisplayList(0x10);
+        gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0x10));
         temp_a1 = D_81004190 * 3;
         temp_a2 = D_81004190 * -6;
         state->gfx = gfx;
@@ -320,7 +323,7 @@ void DisplayList_InitDigitDisplayBackground(s32 arg0, DisplayListState* state) {
     Gfx* gfx;
 
     if (arg0 == 2) {
-        gfx = Gfx_AllocDisplayList(0xF0);
+        gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0xF0));
         state->gfx = gfx;
         DisplayList_BuildDigitDisplayBackground(gfx);
     }
@@ -330,7 +333,7 @@ void DisplayList_InitDigitOrGlyphSegment(s32 arg0, DisplayListState* state) {
     Gfx* gfx;
 
     if (arg0 == 2) {
-        gfx = Gfx_AllocDisplayList(0xA0);
+        gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0xA0));
         state->gfx = gfx;
         func_81003A54(gfx);
     }

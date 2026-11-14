@@ -778,7 +778,7 @@ s32 Rental_MonMeetsCategoryFilter(BattleMon* arg0, s16 arg1, s16 arg2, s16 arg3)
     s32 sp1C = 0;
 
     if ((arg0->species.id > 0) && (arg0->species.id < 0x98)) {
-        if ((Rental_MonHasLegalMoveset(arg0) != 0) && (D_8006FEE8[arg0->species.id][8] & arg3)) {
+        if ((Rental_MonHasLegalMoveset(arg0) != 0) && (gSpeciesEligibilityFlags(arg0->species.id) & arg3)) {
             if ((arg0->level >= arg1) && (arg2 >= arg0->level)) {
                 sp1C = 1;
             }

@@ -111,7 +111,8 @@ void Cont_ReadInputs(void) {
             controller->rawStickY = controller->controllerData->stick_y;
             controller->buttonPressed =
                 controller->controllerData->button & (controller->controllerData->button ^ controller->buttonDown);
-            controller->buttonReleased = controller->buttonDown & (controller->controllerData->button ^ controller->buttonDown);
+            controller->buttonReleased =
+                controller->buttonDown & (controller->controllerData->button ^ controller->buttonDown);
             controller->buttonDown = controller->controllerData->button;
 
             Cont_AdjustAnalogStick(controller);
@@ -225,6 +226,7 @@ u8 Cont_SetupControllers(void) {
     osCreateMesgQueue(&gSIEventMesgQueue, gSIEventMesgBuf, 1);
     osSetEventMesg(OS_EVENT_SI, &gSIEventMesgQueue, NULL);
     osContInit(&gSIEventMesgQueue, &gControllerBits, &gControllerStatuses[0]);
+    gControllerBits = Port_ControllerBits(); // PORT: libultraship reports only controller 1
     gEepromProbe = osEepromProbe(&gSIEventMesgQueue);
     Cont_InitControllers();
     return gControllerBits;

@@ -15,11 +15,22 @@ typedef struct unk_D_8380565C {
 
 typedef struct unk_D_838067F0_0168_0000 {
     union {
+        // PORT: raw is used as the big-endian word unk_000..unk_003 (bit 31 = unk_000's top bit, a "slot being
+        // replaced" flag; raw & 7 = the low bits of unk_003, the species). On a little-endian host the bytes are
+        // declared in reverse so raw keeps those values; before, the flag tests hit the species byte, so a Pokémon
+        // with species >= 128 (Mew) was never "already chosen" and could be picked twice.
         struct {
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+            u8 unk_003;
+            u8 unk_002;
+            u8 unk_001;
+            u8 unk_000;
+#else
             /* 0x000 */ u8 unk_000;
             /* 0x001 */ u8 unk_001;
             /* 0x002 */ u8 unk_002;
             /* 0x003 */ u8 unk_003;
+#endif
         };
         s32 raw;
     };

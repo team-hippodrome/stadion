@@ -1,3 +1,8 @@
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include "src/text_system.h"
+#include "src/ui_graphics.h"
 #include "game_state.h"
 #include "include/functions.h"
 #include "src/input.h"
@@ -20,9 +25,10 @@
 #include "src/dp_intro.h"
 #include "src/gb_tower.h"
 #include "src/memory.h"
+#include "src/hal_libc.h"
 #include "src/rsp.h"
 #include "src/stage_loader.h"
-#include "lib/ultralib/include/PR/os_internal_reg.h"
+#include <PR/os_internal_reg.h>
 
 // .data
 u16 D_80073660[16][256] = {
@@ -378,11 +384,14 @@ s32 pad_D_800AE534[2];
 SessionContext gSessionContext;
 BinArchive* D_800AF738;
 
+extern void Port_FragmentFree(u8* romStart);
+extern u32 port_rom_read_u32(u32 romOffset); // PORT: cartridge ROM is not memory-mapped on the host
+
 s32 Game_DoCopyProtection(s32 state) {
     u32 intr = osSetIntMask(1);
 
     // if the 16-bit value at ROM offset 0xE38 is not 0x828A, make the state an invalid one.
-    if (!(HW_REG(PI_STATUS_REG, u32) & 3) && ((*(u32*)0xB0000E38 & 0xFFFF) != 0x828A)) {
+    if (!(HW_REG(PI_STATUS_REG, u32) & 3) && ((port_rom_read_u32(0xE38) & 0xFFFF) != 0x828A)) {
         state = -0x10;
     }
 
@@ -391,7 +400,7 @@ s32 Game_DoCopyProtection(s32 state) {
     return state;
 }
 
-s32 Fragment_LoadAndCall(s32 arg0, u8* romStart, u8* romEnd, u32 arg3, u32 arg4) {
+s32 Fragment_LoadAndCall(s32 arg0, u8* romStart, u8* romEnd, u32 arg3, uintptr_t arg4) {
     s32 result;
     FragmentEntry func;
 
@@ -399,7 +408,11 @@ s32 Fragment_LoadAndCall(s32 arg0, u8* romStart, u8* romEnd, u32 arg3, u32 arg4)
 
     result = func(arg3, arg4);
 
+#ifdef PORT_STATIC_FRAGMENTS
+    Port_FragmentFree(romStart); // func is the statically linked entry, not the loaded image
+#else
     main_pool_try_free(func);
+#endif
 
     return result;
 }
@@ -1055,6 +1068,95 @@ void State_BattleFromEvent(void) {
     gCurrentGameState = STATE_EVENT_BATTLE;
 }
 
+// PORT: battle boot (PORT_BATTLE=<case file>, src/port/xcheck.cpp). Sets up what the menus leave behind for the
+// battle engine and enters it, with no battle prep, order select or input:
+//  - the session: Session_SetMode (State_BattleNow's mode 9 / rule category 6 unless the case says otherwise),
+//    then per side Trainer_Create + Trainer_AddPokemon + Team_AddTrainer, as Team_BuildQuickBattleTeams does. A side
+//    with scripted actions is a player (Trainer_Create with a controller), the others the computer (controller -1:
+//    unk_000 bit 1, which makes BattleScene_CollectActions use BattleScene_CollectCpuAction);
+//  - each Pokemon: Pokemon_CreateDefault (species, level, stats) then the case's moves (Pokemon_PrepareBattleMon fills
+//    PP and HP) and the case's fields (Port_XcheckPatchMon: hp, status, PP, stats ...);
+//  - the arena (BattleScene_Init's stadium_models index), the computer's roster pick (Battle_SelectComRoster: skipped,
+//    the party is as written) and the scripted decisions are hooked in the battle engine.
+extern int Port_BattleBootActive(void);
+extern int Port_BattleBootMon(int side, int slot, int* species, int* level, char* nick);
+extern int Port_BattleBootHasField(int side, int slot, const char* name);
+extern const char* Port_BattleBootTrainer(int side);
+extern int Port_BattleBootScripted(int side);
+extern int Port_BattleBootMode(int* rule, int* ai);
+extern void Port_BattleBootFinished(void);
+extern void Port_XcheckPatchMon(int side, int slot, void* battleMon);
+
+static void PortBattle_BuildSide(int side) {
+    TeamRoster* trainer;
+    BattleMon mon;
+    char nick[12];
+    int slot, species, level, i;
+
+    // a player needs a controller (its menus are drawn; the scripted choice replaces its input), the computer -1
+    trainer = Trainer_Create(Port_BattleBootScripted(side) ? side : -1, 0, (char*)Port_BattleBootTrainer(side),
+                             Text_GetPlayerLabel(side == 0 ? 1 : 3));
+    for (slot = 0; slot < 6; slot++) {
+        if (!Port_BattleBootMon(side, slot, &species, &level, nick)) {
+            break;
+        }
+        bzero(&mon, sizeof(mon));
+        Pokemon_CreateDefault(&mon, species, level);
+        for (i = 0; i < 4; i++) {
+            mon.moves[i] = 0;
+            mon.pp[i] = 0;
+        }
+        Port_XcheckPatchMon(side, slot, &mon); // the moves and level first, then PP and HP are derived from them
+        Pokemon_PrepareBattleMon(&mon);
+        {
+            u16 patchedHp = mon.hp;
+            u8 patchedPp[4];
+            for (i = 0; i < 4; i++) {
+                patchedPp[i] = mon.pp[i];
+            }
+            Port_XcheckPatchMon(side, slot, &mon); // explicit stats, HP, status and PP win over the derived ones
+            if (!Port_BattleBootHasField(side, slot, "hp")) {
+                mon.hp = Port_BattleBootHasField(side, slot, "maxhp") ? mon.maxHp : patchedHp;
+            }
+            for (i = 0; i < 4; i++) {
+                if (!Port_BattleBootHasField(side, slot, i == 0 ? "p1" : i == 1 ? "p2" : i == 2 ? "p3" : "p4")) {
+                    mon.pp[i] = patchedPp[i];
+                }
+            }
+        }
+        if (nick[0] != '\0') {
+            bzero(mon.nickname, sizeof(mon.nickname));
+            HAL_Strcpy(mon.nickname, nick);
+        }
+        Trainer_AddPokemon(trainer, &mon);
+    }
+    Team_AddTrainer(side, trainer);
+}
+
+void State_PortBattle(void) {
+    int rule, ai, mode;
+
+    main_pool_push_state('QUIK');
+
+    D_800AF738 = BinArchive_Open(TRAINER_DATA_ROM_START, NULL, 1, 0);
+    mode = Port_BattleBootMode(&rule, &ai);
+    Session_SetMode(mode, rule, 0);
+    gSessionContext.aiDifficulty = ai;
+    PortBattle_BuildSide(0);
+    PortBattle_BuildSide(1);
+
+    main_pool_push_state('FIGT');
+
+    FRAGMENT_LOAD(FRAGMENT_PARTICLE_MATH);
+    FRAGMENT_LOAD_AND_CALL(FRAGMENT_BATTLE_ENGINE, 0, &gSessionContext);
+
+    main_pool_pop_state('FIGT');
+    main_pool_pop_state('QUIK');
+
+    Port_BattleBootFinished();
+    gCurrentGameState = STATE_TITLE_SCREEN;
+}
+
 void State_FastN64Logo(void) {
     void (*frag_43_entry)(void);
 
@@ -1130,8 +1232,65 @@ void Game_Thread(UNUSED LEODiskID* arg) {
         gCurrentGameState = STATE_FAST_N64_LOGO;
     }
 
+    // PORT battle boot (PORT_BATTLE=<case file>): the same initialisation as PORT_BOOT below, then State_PortBattle
+    if (Port_BattleBootActive()) {
+        gCurrentGameState = STATE_PORT_BATTLE;
+        fprintf(stderr, "[boot] PORT_BATTLE: battle boot\n");
+        Save_EnsureBankLoaded(2);
+        Text_InitStringTables();
+        Text_LoadPlayerLabels();
+        Text_LoadNameTable();
+    }
+    // PORT debug boot: PORT_BOOT=battle starts "Battle Now!" (quick-battle teams, straight into the battle),
+    // PORT_BOOT=menu the main menu, PORT_BOOT=<number> any game state (see variables.h); skips intro and title.
+    {
+        const char* boot = PORT_GETENV_ONCE("PORT_BOOT");
+        if (boot != NULL && *boot != '\0') {
+            if (strcmp(boot, "battle") == 0) {
+                gCurrentGameState = STATE_BATTLE_NOW_1P;
+            } else if (strcmp(boot, "battle2p") == 0) {
+                gCurrentGameState = STATE_BATTLE_NOW_2P;
+            } else if (strcmp(boot, "menu") == 0) {
+                gCurrentGameState = STATE_MENU_SELECT;
+            } else {
+                gCurrentGameState = (s32)strtol(boot, NULL, 0);
+            }
+            fprintf(stderr, "[boot] PORT_BOOT=%s -> game state 0x%x\n", boot, gCurrentGameState);
+            // what the skipped N64 logo intro initialises (n64_logo.c): save bank, text tables, player labels and the
+            // species names (without them every species name is a placeholder, so every Pokemon counts as nicknamed
+            // and gets a colour variant)
+            Save_EnsureBankLoaded(2);
+            Text_InitStringTables();
+            Text_LoadPlayerLabels();
+            Text_LoadNameTable();
+            if (strcmp(boot, "credits") == 0) { // PORT debug: the ending credits (normally after beating Mewtwo)
+                State_RunCredits();
+                gCurrentGameState = STATE_N64_LOGO_INTRO;
+            }
+            // PORT debug: PORT_BOOT=demo:<n> one demo scene (0x11 cup-clear ceremony, 0x15 / 0x1A completion,
+            // 0x16 / 0x17 first-clear bonus, 0x18 Mewtwo intro), PORT_BOOT=castle_clear the Gym Leader Castle ending
+            // (its clear fragment, then scenes 0x11 and 0x15, as after the rival is beaten)
+            if (strncmp(boot, "demo:", 5) == 0 || strcmp(boot, "castle_clear") == 0) {
+                main_pool_push_state('QUIK');
+                Team_BuildQuickBattleTeams(0); // (the showcase needs a picked team: Battle Now's)
+                if (boot[0] == 'd') {
+                    Stage_RunDemoScene((s16)strtol(boot + 5, NULL, 0));
+                } else {
+                    FRAGMENT_LOAD_AND_CALL(FRAGMENT_GYM_LEADER_CASTLE_CLEAR, 0, 0);
+                    Stage_RunDemoScene(0x11);
+                    Stage_RunDemoScene(0x15);
+                }
+                gCurrentGameState = STATE_N64_LOGO_INTRO;
+            }
+        }
+    }
+
     while (1) {
         state = Game_DoCopyProtection(gCurrentGameState);
+        {
+            extern void Port_TraceState(int);
+            Port_TraceState((int)state);
+        }
 
         switch (state) {
             case STATE_N64_LOGO_INTRO:
@@ -1193,6 +1352,9 @@ void Game_Thread(UNUSED LEODiskID* arg) {
                 break;
             case STATE_STUBBED_DEBUG:
                 State_StubbedDebug();
+                break;
+            case STATE_PORT_BATTLE:
+                State_PortBattle();
                 break;
             case STATE_FAST_BATTLE:
                 State_FastBattle();

@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "battle_engine.h"
 #include "src/model_animation.h"
 #include "src/model_animation_events.h"
@@ -31,7 +33,11 @@ ActivePokemon* sSide2ActivePokemon;
 static MovePresentationCue* sCurrentAnimation;
 ModelDimensions sPokemonModelDimensions[2];
 static SwayLayoutConfig sDefaultSwayLayout;
-static BattleSceneStateTickSlot sBattleSceneStateTickSlots[7];
+// PORT: one spare slot. Row enter callbacks (e.g. BattleScene_Row13PlaySequences14And21) clear
+// sBattleSceneStateTickSlots[sBattleSceneStateTickSlotIndex] while the index is still 7 from the last tick loop; on the
+// N64 that writes the unused D_843900A4, on the host it overwrote other battle data (later called as a tick callback:
+// crash after several turns). The loops use slots 0..6 only.
+static BattleSceneStateTickSlot sBattleSceneStateTickSlots[8];
 static s32 sBattleSceneStateTickSlotIndex;
 static s32 D_843900A4;
 f32 sCurrentPokemonHp[2];
@@ -472,12 +478,11 @@ void Battle_InitializeMoveIllegalityMask(ActivePokemon* active_pokemon) {
  * DMAs the 0x20-byte level-up learnset record for 1-based `species` from the
  * Red/Blue-based learnset table into `destination`.
  */
-void Battle_DmaLoadLevelUpLearnset(u8 species, u32 destination) {
-    u32 buffer_start = (u32)_70D3A0_ROM_START + ((u32)&D_72780[species - 1] & 0xFFFFFF);
+void Battle_DmaLoadLevelUpLearnset(u8 species, uintptr_t destination) {
+    u32 buffer_start = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)&D_72780[species - 1] & 0xFFFFFF);
 
     Dma_WriteChunks(destination, buffer_start, buffer_start + 0x20, 0);
 }
-
 /**
  * DMAs the Red/Blue-based and Yellow-based 0x20-byte learnset records for
  * 0-based `species_index` into their corresponding buffers.
@@ -487,10 +492,27 @@ void Battle_DmaLoadSpeciesLearnsets(s32 species_index, SpeciesLearnsetBuffer* re
     UNUSED s32 pad[3];
     u32 buffer_start;
 
-    buffer_start = (u32)_70D3A0_ROM_START + ((u32)&D_72780[species_index] & 0xFFFFFF);
+    buffer_start = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)&D_72780[species_index] & 0xFFFFFF);
     Dma_WriteChunks(red_blue_learnset, buffer_start, buffer_start + 0x20, 0);
-    buffer_start = (u32)_70D3A0_ROM_START + ((u32)&D_73A60[species_index] & 0xFFFFFF);
+    buffer_start = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)&D_73A60[species_index] & 0xFFFFFF);
     Dma_WriteChunks(yellow_learnset, buffer_start, buffer_start + 0x20, 0);
+}
+
+// PORT: the per-species records below are copied raw from the big-endian ROM: swap their f32 words and s16 halves.
+static void Port_SwapWords(void* p, s32 n) {
+    u32* w = p;
+    while (n-- > 0) {
+        *w = Port_Swap32(*w);
+        w++;
+    }
+}
+
+static void Port_SwapSpeciesModelTransform(SpeciesModelTransform* t) {
+    Port_SwapWords(&t->coordinates, 3);
+    t->rotationX = Port_Swap16(t->rotationX);
+    t->rotationY = Port_Swap16(t->rotationY);
+    t->unk_10 = Port_Swap16(t->unk_10);
+    t->idleTimer = Port_Swap16(t->idleTimer);
 }
 
 // D_80075BD0 holds one PokemonBattleCues ROM offset per species (indexed species - 1);
@@ -520,38 +542,44 @@ void Battle_LoadAnimationAndMarkMoveIllegality(ActivePokemon* pokemon, s32 mark_
     battle_mon = &pokemon->sessionTeams->tagTeamMember[pokemon->state.ownerTeamMemberIndex]
                       ->pokemonPicked[pokemon->state.actionChosen];
 
-    rom_address = (u32)_70D3A0_ROM_START + ((u32)D_80075BD0[species] & 0xFFFFFF);
+    rom_address = (uintptr_t)_70D3A0_ROM_START + ((u32)D_80075BD0[species] & 0xFFFFFF);
     if ((pokemon->displayObject.objectType == PIKACHU) && (battle_mon->unk_52 & 0x80)) {
-        rom_address = (u32)_70D3A0_ROM_START + ((u32)D_80075BD0[PARTNER_PIKACHU_CUE_BANK] & 0xFFFFFF);
+        rom_address = (uintptr_t)_70D3A0_ROM_START + ((u32)D_80075BD0[PARTNER_PIKACHU_CUE_BANK] & 0xFFFFFF);
     }
-    transform_end = ((u32)_70D3A0_ROM_START + ((u32)(D_6E910 + (species << 5)) & 0xFFFFFF)) + 0x20;
+    transform_end = ((uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_6E910 + (species << 5)) & 0xFFFFFF)) + 0x20;
     Dma_WriteChunks(sSideBattleCues[side_index], rom_address, rom_address + 0xBC0, 0);
 
-    rom_address = (u32)_70D3A0_ROM_START + ((u32)(D_6E910 + (species << 5)) & 0xFFFFFF);
+    rom_address = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_6E910 + (species << 5)) & 0xFFFFFF);
     Dma_WriteChunks(sSideCameraTransform[side_index], rom_address, transform_end, 0);
+    Port_SwapSpeciesModelTransform(sSideCameraTransform[side_index]);
 
     if (side_index == 1) {
-        rom_address = (u32)_70D3A0_ROM_START + ((u32)(D_6E910 + (species << 5)) & 0xFFFFFF);
+        rom_address = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_6E910 + (species << 5)) & 0xFFFFFF);
         Dma_WriteChunks(sSidePresentationTransform[side_index], rom_address, rom_address + 0x20, 0);
+        Port_SwapSpeciesModelTransform(sSidePresentationTransform[side_index]);
 
         model_transform = sSidePresentationTransform[side_index];
         if (model_transform->unk_10 != 0xFF) {
             linked_record_id = model_transform->unk_10;
 
             // FAKE: transform_end is reused as a scratch temp to match register allocation
-            rom_address = ((u32)_70D3A0_ROM_START) +
-                          (((u32)(D_6E910 + ((model_transform->unk_10 - (transform_end = 2)) * 0x20))) & 0xFFFFFF);
+            rom_address =
+                ((uintptr_t)_70D3A0_ROM_START) +
+                (((uintptr_t)(D_6E910 + ((model_transform->unk_10 - (transform_end = 2)) * 0x20))) & 0xFFFFFF);
             Dma_WriteChunks(model_transform, rom_address, rom_address + 0x20, 0);
+            Port_SwapSpeciesModelTransform(model_transform);
 
             sSidePresentationTransform[side_index]->unk_10 = linked_record_id;
         }
     } else {
-        rom_address = (u32)_70D3A0_ROM_START + ((u32)(D_6E910 + (species << 5)) & 0xFFFFFF);
+        rom_address = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_6E910 + (species << 5)) & 0xFFFFFF);
         Dma_WriteChunks(sSidePresentationTransform[side_index], rom_address, rom_address + 0x20, 0);
+        Port_SwapSpeciesModelTransform(sSidePresentationTransform[side_index]);
     }
 
-    rom_address = (u32)_70D3A0_ROM_START + ((u32)(D_70B10 + (species * 0x20)) & 0xFFFFFF);
+    rom_address = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_70B10 + (species * 0x20)) & 0xFFFFFF);
     Dma_WriteChunks(&sDefaultSwayLayout, rom_address, rom_address + 0x20, 0);
+    Port_SwapWords(&sDefaultSwayLayout, 6);
 
     BattleAnim_Vec3fCopy(&pokemon->modelTransform.layoutConfig.frontCameraShotOffset,
                          &sDefaultSwayLayout.frontCameraShotOffset);
@@ -566,10 +594,11 @@ void Battle_LoadAnimationAndMarkMoveIllegality(ActivePokemon* pokemon, s32 mark_
     pokemon->modelTransform.layoutConfig.frontCameraShotOffset.x *= pokemon->facingDirection;
     pokemon->modelTransform.layoutConfig.backCameraShotOffset.x *= pokemon->facingDirection;
 
-    rom_address = (u32)_70D3A0_ROM_START + ((u32)(D_70110 + (species << 4)) & 0xFFFFFF);
+    rom_address = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_70110 + (species << 4)) & 0xFFFFFF);
     Dma_WriteChunks(&sPokemonModelDimensions[side_index], rom_address, rom_address + 0x10, 0);
+    Port_SwapWords(&sPokemonModelDimensions[side_index], 4);
 
-    rom_address = (u32)_70D3A0_ROM_START + ((u32)(D_71E10 + (species * 0x10)) & 0xFFFFFF);
+    rom_address = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)(D_71E10 + (species * 0x10)) & 0xFFFFFF);
     Dma_WriteChunks(sPlayerTagTeam[side_index], rom_address, rom_address + 0x10, 0);
 
     Battle_DmaLoadSpeciesLearnsets(species, &pokemon->redBlueLearnsets[0], &pokemon->yellowLearnsets[0]);
@@ -622,6 +651,9 @@ void BattleScene_EnterRow3StartMoveAnim(ActivePokemon* active_pokemon) {
     s16 species_ob1;
     u8 side_byte;
 
+    if (Port_XcheckEnabled()) { // PORT: battle cross-check against ares (src/port/xcheck.cpp)
+        Port_XcheckMoveAnim(active_pokemon == sActivePokemon[0] ? 0 : 1, active_pokemon->state.runtime.usedMove);
+    }
     species_ob1 = active_pokemon->displayObject.objectType - 1;
     runtime = &active_pokemon->state.runtime;
     pokemon_state = &active_pokemon->state;
@@ -863,6 +895,9 @@ void BattleScene_EnterRow19StartMoveAnimMidFrame(ActivePokemon* active_pokemon) 
     ActivePokemonState* pokemon_state;
     BattleMonRuntime* runtime;
 
+    if (Port_XcheckEnabled()) { // PORT: battle cross-check against ares (src/port/xcheck.cpp)
+        Port_XcheckMoveAnim(active_pokemon == sActivePokemon[0] ? 0 : 1, active_pokemon->state.runtime.usedMove);
+    }
     pokemon_state = &active_pokemon->state;
     runtime = &active_pokemon->state.runtime;
     sCurrentAnimation =
@@ -1234,6 +1269,10 @@ void BattleScene_TickRow1PlayOwnerCry(ActivePokemon* active_pokemon) {
  */
 void BattleScene_TickRow16PlayCryAndSpeciesSound(ActivePokemon* active_pokemon) {
     UNUSED s32 pad;
+    if (PORT_GETENV_ONCE("PORT_TRACE_BATTLE"))
+        fprintf(stderr, "[battle] cry: battler %p roster %p teams %p idx %d\n", (void*)active_pokemon,
+                (void*)active_pokemon->teamRoster, (void*)active_pokemon->sessionTeams,
+                (int)active_pokemon->state.rosterIndex);
     BattleMon* party_pokemon_ptr = &active_pokemon->teamRoster->pokemonPicked[active_pokemon->state.rosterIndex];
     ActivePokemonState* state = &active_pokemon->state;
 
@@ -1324,8 +1363,9 @@ void BattleScene_TickAssetLoadQueueRowEffectList3(ActivePokemon* active_pokemon)
         active_pokemon->animationTimer = 0;
         BattleScene_QueueRowEffectList3(active_pokemon, sBattleSceneStateRowTable[animation_state].mode);
         Audio_PlayCommand(3, 0, 0);
-        active_pokemon->sessionTeams->unk_04 = &active_pokemon->sessionTeams->tagTeamMember[pokemon_state->teamMemberIndex]
-                                                    ->pokemonPicked[pokemon_state->actionChosen];
+        active_pokemon->sessionTeams->unk_04 =
+            &active_pokemon->sessionTeams->tagTeamMember[pokemon_state->teamMemberIndex]
+                 ->pokemonPicked[pokemon_state->actionChosen];
         sBattleSceneStateTickSlots[sBattleSceneStateTickSlotIndex].callback = sBattleSceneStateTickSentinel;
     }
 }
@@ -1870,7 +1910,7 @@ s32 BattleAnim_TrySetModelEventTrackFromRow(ActivePokemon* active_pokemon, s32 c
 
     ModelAnim_SetEventFrame(&active_pokemon->displayObject, 0);
     ModelAnim_SetEventTrack(&active_pokemon->displayObject, event_track);
-    ModelAnim_SetEventFrame(&active_pokemon->displayObject, active_pokemon->displayObject.eventTrack.data->endFrame);
+    ModelAnim_SetEventFrame(&active_pokemon->displayObject, ModelAnim_GetEventEndFrame(&active_pokemon->displayObject));
 
     active_pokemon->state.unk_36 = event_state;
     return 0;

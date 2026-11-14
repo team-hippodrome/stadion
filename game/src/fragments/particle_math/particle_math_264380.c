@@ -1,4 +1,7 @@
 #include "particle_math.h"
+#include <stdlib.h>
+#include <string.h>
+#include "src/util.h"
 
 /*
  * Particle RSP/RDP presets, vertex templates and descriptor-driven materials.
@@ -1278,10 +1281,11 @@ Gfx* ParticleGfx_AppendDescriptorMaterial(Gfx* gfx, ParticleMaterial* material) 
         if (var_a3->unk_14 != NULL) {
             if (var_a3->unk_14->unk_04 == 0) {
                 color.rgba = var_a3->unk_14->unk_00.color.rgba;
-                sp1c = color.rgba >> 0x18;
-                sp18 = color.rgba >> 0x10;
-                sp14 = color.rgba >> 0x8;
-                sp10 = color.rgba;
+                sp1c = PORT_BE32(color.rgba) >> 0x18; /* PORT: .rgba holds the bytes r,g,b,a in memory order; the
+                                                         numeric 0xRRGGBBAA form needs a swap on this host */
+                sp18 = PORT_BE32(color.rgba) >> 0x10;
+                sp14 = PORT_BE32(color.rgba) >> 0x8;
+                sp10 = PORT_BE32(color.rgba);
 
                 gDPPipeSync(gfx++);
                 gDPSetPrimColor(gfx++, 0, 0xFF, sp1c, sp18, sp14, sp10);
@@ -1297,7 +1301,7 @@ Gfx* ParticleGfx_AppendDescriptorMaterial(Gfx* gfx, ParticleMaterial* material) 
 
         if (var_a3->unk_18 != NULL) {
             if (var_a3->unk_18->unk_04 == 0) {
-                gDPSetColor(gfx++, G_SETENVCOLOR, var_a3->unk_18->unk_00.color.rgba);
+                gDPSetColor(gfx++, G_SETENVCOLOR, PORT_BE32(var_a3->unk_18->unk_00.color.rgba));
             } else {
                 ret = ParticleGfx_GetFrameDivisor(var_a3->unk_18->unk_06) % var_a3->unk_18->unk_04;
                 temp_v0 = &var_a3->unk_18->unk_00.ptr4[ret];
@@ -1333,10 +1337,133 @@ Gfx* ParticleGfx_AppendDescriptorMaterial(Gfx* gfx, ParticleMaterial* material) 
 }
 
 /* Append the graph node's descriptor material only during render callback phase 5. */
+// PORT: material lists come from ROM models (the stadium's arena floor sets its detail texture through one): big-endian
+// records with 32-bit link addresses. They are converted once into native records (cached by source address).
+extern int Port_IsRawData(const void* p);
+
+static u32 Port_MatBE32(const u8* p) {
+    return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
+}
+
+static s16 Port_MatBE16(const u8* p) {
+    return (s16)((p[0] << 8) | p[1]);
+}
+
+static void* Port_MatHost(u32 link) {
+    return link != 0 ? (void*)Util_ConvertAddrToVirtAddr(link) : NULL;
+}
+
+// Pointer field k of a record: a big-endian link address in ROM data, a native pointer in C data (the intro's sky
+// material lists are C arrays of pointers to big-endian byte records).
+static s32 sMatNative;
+static void* Port_MatPtr(const u8* rec, s32 k) {
+    if (sMatNative) {
+        return ((void* const*)rec)[k];
+    }
+    return Port_MatHost(Port_MatBE32(rec + k * 4));
+}
+
+// colour/frame animation record {u32 value or array; s16 count; s16 rate}; textures: the array holds texture addresses
+static ParticleValueSequence* Port_ConvertMatAnim(const void* src, int textures) {
+    const u8* a = src;
+    ParticleValueSequence* out;
+    s32 i;
+
+    if (a == NULL) {
+        return NULL;
+    }
+    out = calloc(1, sizeof(*out));
+    out->unk_04 = Port_MatBE16(a + (sMatNative ? sizeof(void*) : 4));
+    out->unk_06 = Port_MatBE16(a + (sMatNative ? sizeof(void*) : 4) + 2);
+    if (out->unk_04 == 0) {
+        memcpy(&out->unk_00.color, a, 4); // an inline colour: bytes r, g, b, a
+    } else if (textures) {
+        const u8* list = Port_MatPtr(a, 0);
+        out->unk_00.texture = calloc(out->unk_04, sizeof(u8*));
+        for (i = 0; list != NULL && i < out->unk_04; i++) {
+            out->unk_00.texture[i] = Port_MatPtr(list, i);
+        }
+    } else {
+        out->unk_00.ptr5 = Port_MatPtr(a, 0); // arrays of byte records
+    }
+    return out;
+}
+
+static ParticleMaterialState* Port_ConvertMatRecord(const void* src) {
+    const u8* q = src;
+    ParticleMaterialState* r;
+    const u8* t;
+    s32 i;
+
+    if (q == NULL) {
+        return NULL;
+    }
+    r = calloc(1, sizeof(*r));
+    r->unk_00 = Port_MatPtr(q, 0);
+    if ((t = Port_MatPtr(q, 1)) != NULL) {
+        s16* v = calloc(1, sizeof(*r->unk_04));
+        for (i = 0; i < 10; i++) {
+            v[i] = Port_MatBE16(t + i * 2);
+        }
+        r->unk_04 = (ParticleTextureFormat*)v;
+    }
+    if ((t = Port_MatPtr(q, 2)) != NULL) {
+        s16* v = calloc(1, sizeof(*r->unk_08));
+        for (i = 0; i < 5; i++) {
+            v[i] = Port_MatBE16(t + i * 2);
+        }
+        r->unk_08 = (ParticleTileScroll*)v;
+    }
+    r->unk_0C = Port_ConvertMatAnim(Port_MatPtr(q, 3), 1);
+    r->unk_10 = Port_MatPtr(q, 4); // combine mode: 16 bytes
+    r->unk_14 = Port_ConvertMatAnim(Port_MatPtr(q, 5), 0);
+    r->unk_18 = Port_ConvertMatAnim(Port_MatPtr(q, 6), 0);
+    if ((t = Port_MatPtr(q, 7)) != NULL) {
+        r->unk_1C = calloc(1, sizeof(*r->unk_1C));
+        r->unk_1C->unk_00 = (u16)Port_MatBE16(t);
+        r->unk_1C->unk_02 = (u16)Port_MatBE16(t + 2);
+    }
+    return r;
+}
+
+static ParticleMaterial* Port_ConvertMaterialList(void* arg) {
+    static struct {
+        void* src;
+        ParticleMaterial* out;
+    } sCache[64];
+    static s32 sCount;
+    const u8* p = (const u8*)Util_ConvertAddrToVirtAddr((uintptr_t)arg);
+    ParticleMaterial* out;
+    s32 i;
+
+    if (p == NULL) {
+        return NULL;
+    }
+    for (i = 0; i < sCount; i++) {
+        if (sCache[i].src == p) {
+            return sCache[i].out;
+        }
+    }
+    sMatNative = !Port_IsRawData(p);
+    out = calloc(1, sizeof(*out));
+    out->unk_00 = Port_ConvertMatRecord(Port_MatPtr(p, 0));
+    out->unk_04 = Port_ConvertMatRecord(Port_MatPtr(p, 1));
+    if (sCount < 64) {
+        sCache[sCount].src = (void*)p;
+        sCache[sCount].out = out;
+        sCount++;
+    }
+    return out;
+}
+
 void ParticleGfx_GraphNodeBuildDescriptorMaterialList(s32 callback_phase, arg1_func_87903D64* node) {
     if (callback_phase == 5) {
-        ParticleMaterial* tmp = node->unk_14;
+        // PORT: the material list is the node's callback data (GraphNode.callbackArg; the flat view's 0x14 is the N64
+        // offset), held as a ROM link address
+        ParticleMaterial* tmp = Port_ConvertMaterialList(((GraphNode*)node)->callbackArg);
 
-        gDisplayListHead = ParticleGfx_AppendDescriptorMaterial(gDisplayListHead, tmp);
+        if (tmp != NULL) {
+            gDisplayListHead = ParticleGfx_AppendDescriptorMaterial(gDisplayListHead, tmp);
+        }
     }
 }

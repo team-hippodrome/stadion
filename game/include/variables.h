@@ -34,7 +34,7 @@
 #define SFX_ZOOM_OUT 0x1A
 #define SFX_PAUSE 0x23
 #define SFX_RESUME 0x24
-#define SFX_PAK_CURSOR 0x25  // Transfer Pak and trade-machine port selection.
+#define SFX_PAK_CURSOR 0x25 // Transfer Pak and trade-machine port selection.
 #define SFX_FREE_BATTLE_RULE_CONFIRM 0x26
 #define SFX_PAGE_CHANGE 0x27 // Gallery pages and Pokemon boxes.
 #define SFX_TROPHY_APPEAR 0x28
@@ -83,6 +83,8 @@ typedef enum {
         0x81, // most likely the P97/P98 mode(s) and uses GB Pak 1 and 2 for the teams for an immediate battle; skips
               // even the VS screen and Battle Rule screen. However, the music/stadium used is probably set by some
               // other menu, because it seems to use the outdoor Free Battle area + Poke Cup 1-3, which isnt correct.
+    STATE_PORT_BATTLE =
+        0x90, // PORT: battle boot (PORT_BATTLE=<case file>, src/port/xcheck.cpp): straight into the battle engine
     STATE_KIDS_CLUB_TITLE = 0x82, // Kids Club, but it returns to the title screen. Possibly for a Kiosk/demo version.
 } GameState;
 
@@ -96,8 +98,8 @@ extern u8 gPool[];
 extern Gfx* gDisplayListHead;
 extern u64 _binary_assets_us_F3DEX2_bin_start[];
 
-extern f32 gSineTable[];
-extern f32 gCosineTable[0x1000];
+extern f32 gSineTable[0x1400];
+#define gCosineTable (gSineTable + 0x400) // PORT: see trig_tables.inc.c
 extern s16 gArctanTable[0x401];
 extern s32 D_B0000504;
 extern s32 D_B0000800;
@@ -904,15 +906,15 @@ typedef struct unk_D_8006FF00 {
     /* 0x01 */ u8 unk_01;
     /* 0x02 */ s16 unk_02;
     /* 0x04 */ char* name;
-    /* 0x08 */ s32 unk_08;
+    /* 0x08 */ intptr_t unk_08; // PORT64: holds the name pointer
     /* 0x0C */ u8 cupEligibilityFlags;
     /* 0x0D */ u8 unk_0D;
     /* 0x0E */ s16 unk_0E;
     /* 0x10 */ s16 unk_10; // Nickname color variant minimum; Model_ComputeNicknameColorVariant.
     /* 0x12 */ s16 unk_12; // Nickname color variant maximum.
     /* 0x14 */ u32 unk_14;
-    /* 0x18 */ u32 unk_18;
-} unk_D_8006FF00; // size = 0x1C
+    /* 0x18 */ uintptr_t unk_18; // PORT64: holds the name pointer
+} unk_D_8006FF00;                // size = 0x1C
 extern unk_D_8006FF00 D_8006FF00[152];
 
 typedef struct FontSet {
@@ -930,7 +932,7 @@ typedef struct FontContext {
     /* 0x51 */ s8 letterSpacing; // Added to the glyph advance.
     /* 0x52 */ u8 lineHeight;
     /* 0x53 */ u8 flags; // 0x1 two-cycle texturing, 0x2 auxiliary texture loaded, 0x4 suppress newline handling.
-} FontContext; // size = 0x54
+} FontContext;           // size = 0x54
 
 extern Gfx gUiTranslucentFillDL[];
 
@@ -947,7 +949,8 @@ extern s32 D_80078408;
 extern s32 D_80078E74;
 extern u8 D_80078E78;
 extern u8 D_80078E7C;
-extern u8 D_80078E80;
+extern u8 sLoopPointTable[0x3C]; // PORT: D_80078E80 is its first byte
+#define D_80078E80 (sLoopPointTable[0])
 extern s32 D_80078EC8;
 extern s32 D_80078ED4;
 extern s32 D_80078ED8;
@@ -989,7 +992,8 @@ typedef struct MoveData {
     /* 0x04 */ u8 accuracy;
     /* 0x05 */ u8 pp;
 } MoveData; // size = 0x6
-extern MoveData gMoveData[];
+extern MoveData gMoveDataWithZeroth[];
+#define gMoveData (&gMoveDataWithZeroth[1]) // PORT: see gb_data.c
 
 typedef struct unk_D_80072338 {
     /* 0x00 */ char unk00[0x1];
@@ -1000,8 +1004,9 @@ typedef struct unk_D_80072338 {
 } unk_D_80072338; // size = 0xC
 extern unk_D_80072338 gMoveDisplayInfo[];
 
-extern char D_8006FEE8[][0x1C];
-#define gSpeciesDataById D_8006FEE8
+// PORT: D_8006FEE8 was a byte view 0x18 before D_8006FF00 (0x1C-byte records, 1-based species); [species][8] is
+// D_8006FF00[species - 1].unk_0C, the cup eligibility flags. The host struct holds pointers, so the view is replaced.
+#define gSpeciesEligibilityFlags(species) (D_8006FF00[(species)-1].cupEligibilityFlags)
 
 typedef struct unk_rom_70D3A0_offset_72780 {
     /* 0x00 */ char unk00[0x20];

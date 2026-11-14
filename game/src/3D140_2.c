@@ -1,5 +1,5 @@
 #include "3D140.h"
-#include "lib/ultralib/include/PR/leo.h"
+#include <PR/leo.h>
 #include "src/audio_commands.h"
 #include "src/libnumus/player.h"
 #include "src/3D140.h"
@@ -9,6 +9,10 @@
 #include "src/audio_stream.h"
 #include "src/gb_audio_render.h"
 #include "src/audio_loop_point.h"
+
+// PORT: battle cross-check: the announcer picks its lines with osGetTime() (CPU timing); with the cross-check's forced
+// randomness both sides get the same values instead (src/port/xcheck.cpp, tools/ares_ref/ares_ref.cpp)
+#define osGetTime() Port_XcheckOsGetTime()
 
 typedef union {
     struct {
@@ -80,10 +84,17 @@ typedef struct unk_D_80078548 {
 // .data
 // global
 
-extern u8 D_800780B3[]; // needs addressing
-extern u16 D_80078410[1][9];
-extern u16 D_80078446[1][9];
-extern u16 D_800784EA[1][9];
+extern u16 D_800780A8[6];
+extern u8 D_800780B4[204 + 96 + 196];
+// PORT: D_800780B3 is the last byte of D_800780A8 (big-endian u16 array), followed by D_800780B4
+#define PORT_D_800780B3(i) ((i) == 0 ? (u8)(D_800780A8[5] & 0xFF) : D_800780B4[(i)-1])
+// PORT: u16 [][9] tables at interior addresses of sMusicSeqTables (0x80078410), kept as big-endian bytes
+extern u8 sMusicSeqTables[0x134];
+#define PORT_SEQ_TABLE(off, row, col) \
+    ((u16)((sMusicSeqTables[(off) + 2 * ((row)*9 + (col))] << 8) | sMusicSeqTables[(off) + 2 * ((row)*9 + (col)) + 1]))
+#define PORT_D_80078410(r, c) PORT_SEQ_TABLE(0x00, r, c)
+#define PORT_D_80078446(r, c) PORT_SEQ_TABLE(0x36, r, c)
+#define PORT_D_800784EA(r, c) PORT_SEQ_TABLE(0xDA, r, c)
 
 // .rodata
 
@@ -471,17 +482,30 @@ u16 D_80078014[4] = {
     0x000F,
     0x0000,
 };
-u8 D_8007801C[8] = {
-    0x00, 0x03, 0x01, 0x81, 0x01, 0x9D, 0x01, 0x9E,
+u16 D_8007801C[4] = {
+    // PORT: a sound list read as u16 (the decomp's bytes are in N64 order)
+    0x0003,
+    0x0181,
+    0x019D,
+    0x019E,
 };
-u8 D_80078024[12] = {
-    0x00, 0x04, 0x01, 0x7C, 0x01, 0x82, 0x01, 0x9D, 0x01, 0x9E, 0x00, 0x00,
+u16 D_80078024[6] = {
+    // PORT: a sound list read as u16 (the decomp's bytes are in N64 order)
+    0x0004, 0x017C, 0x0182, 0x019D, 0x019E, 0x0000,
 };
-u8 D_80078030[8] = {
-    0x00, 0x02, 0x01, 0x7C, 0x01, 0x9E, 0x00, 0x00,
+u16 D_80078030[4] = {
+    // PORT: a sound list read as u16 (the decomp's bytes are in N64 order)
+    0x0002,
+    0x017C,
+    0x019E,
+    0x0000,
 };
-u8 D_80078038[8] = {
-    0x00, 0x02, 0x01, 0x80, 0x01, 0x98, 0x00, 0x00,
+u16 D_80078038[4] = {
+    // PORT: a sound list read as u16 (the decomp's bytes are in N64 order)
+    0x0002,
+    0x0180,
+    0x0198,
+    0x0000,
 };
 u16 D_80078040[4] = {
     0x0002,
@@ -519,8 +543,13 @@ u16 D_80078068[4] = {
     0x0173,
     0x0174,
 };
-u8 D_80078070[8] = {
-    0x00, 0x03, 0x00, 0x71, 0x00, 0xA8, 0x00, 0xA9,
+// PORT: a sound list like its neighbours (count, then sound ids) read as u16: the decomp's byte array is in N64 order,
+// which on a little-endian host read as a count of 768 (the announcer's sound picker then ran far past it)
+u16 D_80078070[4] = {
+    0x0003,
+    0x0071,
+    0x00A8,
+    0x00A9,
 };
 u16 D_80078078[4] = {
     0x0002,
@@ -561,39 +590,508 @@ u16 D_800780A0[4] = {
 u16 D_800780A8[6] = {
     0x0005, 0x005B, 0x005C, 0x005D, 0x005E, 0x005F,
 };
-u8 D_800780B4[204] = {
-    0x00, 0x28, 0x00, 0x00, 0x32, 0x00, 0x1D, 0x0F, 0x00, 0x1D, 0x12, 0x00, 0x00, 0x50, 0x00, 0x10, 0x28, 0x00, 0x04,
-    0x4B, 0x14, 0x05, 0x4B, 0x19, 0x06, 0x4B, 0x17, 0x00, 0x28, 0x00, 0x00, 0x37, 0x00, 0x26, 0x01, 0x00, 0x27, 0x50,
-    0x00, 0x32, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00, 0x28, 0x00, 0x00, 0x23, 0x02, 0x1C, 0x00, 0x00, 0x2B, 0x46, 0x02,
-    0x2A, 0x0F, 0x00, 0x00, 0x50, 0x00, 0x00, 0x23, 0x16, 0x25, 0x41, 0x00, 0x2C, 0x1E, 0x01, 0x00, 0x78, 0x00, 0x2D,
-    0x46, 0x01, 0x25, 0x3C, 0x01, 0x16, 0x00, 0x00, 0x25, 0x46, 0x00, 0x00, 0x41, 0x00, 0x1D, 0x0F, 0x00, 0x26, 0x01,
-    0x00, 0x00, 0x23, 0x00, 0x24, 0x55, 0x00, 0x2A, 0x0F, 0x00, 0x30, 0x5A, 0x00, 0x1B, 0x5A, 0x00, 0x30, 0x64, 0x00,
-    0x13, 0x00, 0x00, 0x02, 0x0F, 0x03, 0x4D, 0x19, 0x07, 0x1D, 0x0E, 0x07, 0x13, 0x00, 0x00, 0x1F, 0x3C, 0x00, 0x12,
-    0x00, 0x00, 0x1C, 0x00, 0x00, 0x20, 0x00, 0x00, 0x31, 0x00, 0x00, 0x29, 0x01, 0x00, 0x56, 0x00, 0x00, 0x45, 0x28,
-    0x03, 0x04, 0x28, 0x14, 0x04, 0x5F, 0x14, 0x2E, 0x00, 0x19, 0x00, 0x28, 0x15, 0x00, 0x78, 0x15, 0x00, 0x5F, 0x15,
-    0x05, 0x5F, 0x19, 0x23, 0x78, 0x19, 0x4C, 0x41, 0x18, 0x46, 0x41, 0x15, 0x44, 0x41, 0x19, 0x50, 0x96, 0x00, 0x00,
-    0x23, 0x02, 0x00, 0x50, 0x02, 0x30, 0x50, 0x01, 0x25, 0x32, 0x01, 0x00, 0x01, 0x01,
-};
-u8 D_80078180[96] = {
-    0x29, 0x01, 0x01, 0x00, 0x50, 0x00, 0x03, 0x14, 0x16, 0x03, 0x28, 0x16, 0x54, 0x00, 0x16, 0x0D,
-    0x00, 0x00, 0x00, 0x37, 0x16, 0x27, 0x78, 0x16, 0x42, 0x00, 0x03, 0x43, 0x00, 0x16, 0x20, 0x00,
-    0x16, 0x1B, 0x46, 0x16, 0x14, 0x00, 0x07, 0x29, 0x01, 0x1A, 0x2A, 0x0F, 0x14, 0x06, 0x28, 0x17,
-    0x06, 0x5F, 0x17, 0x43, 0x00, 0x17, 0x06, 0x78, 0x17, 0x00, 0x32, 0x05, 0x00, 0x64, 0x04, 0x26,
-    0x01, 0x04, 0x27, 0x64, 0x04, 0x42, 0x00, 0x03, 0x4C, 0x32, 0x18, 0x47, 0x5A, 0x18, 0x20, 0x00,
-    0x18, 0x0A, 0x00, 0x18, 0x34, 0x00, 0x18, 0x00, 0x28, 0x00, 0x51, 0x14, 0x00, 0x1C, 0x00, 0x18,
-};
-u8 D_800781E0[196] = {
-    0x29, 0x00, 0x08, 0x52, 0x00, 0x00, 0x3B, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x38, 0x00, 0x00, 0x0B, 0x00, 0x00,
-    0x0F, 0x00, 0x00, 0x16, 0x00, 0x00, 0x31, 0x00, 0x08, 0x0B, 0x00, 0x15, 0x0B, 0x00, 0x00, 0x33, 0x00, 0x18,
-    0x40, 0x00, 0x18, 0x19, 0x00, 0x19, 0x41, 0x00, 0x18, 0x2F, 0x00, 0x00, 0x1A, 0x00, 0x00, 0x53, 0x00, 0x00,
-    0x09, 0x00, 0x02, 0x07, 0x82, 0x00, 0x00, 0x64, 0x00, 0x24, 0x14, 0x08, 0x21, 0x14, 0x03, 0x21, 0x41, 0x03,
-    0x1F, 0x41, 0x04, 0x22, 0x78, 0x14, 0x00, 0x50, 0x15, 0x2A, 0x23, 0x15, 0x11, 0x3C, 0x00, 0x27, 0x64, 0x00,
-    0x1D, 0x14, 0x00, 0x46, 0x0A, 0x00, 0x35, 0x00, 0x18, 0x16, 0x00, 0x18, 0x38, 0x00, 0x00, 0x2D, 0x55, 0x01,
-    0x43, 0x00, 0x00, 0x08, 0x64, 0x18, 0x42, 0x00, 0x03, 0x1D, 0x0F, 0x00, 0x03, 0x14, 0x07, 0x20, 0x00, 0x00,
-    0x27, 0x8C, 0x02, 0x39, 0x00, 0x00, 0x46, 0x14, 0x15, 0x00, 0x46, 0x00, 0x20, 0x00, 0x16, 0x16, 0x00, 0x00,
-    0x29, 0x01, 0x18, 0x55, 0x00, 0x00, 0x33, 0x00, 0x03, 0x00, 0x5A, 0x15, 0x07, 0xAA, 0x00, 0x1D, 0x12, 0x00,
-    0x2C, 0x32, 0x04, 0x38, 0x00, 0x18, 0x00, 0x4B, 0x05, 0x1F, 0x50, 0x00, 0x0A, 0x00, 0x00, 0x18, 0x00, 0x00,
-    0x00, 0x50, 0x00, 0x28, 0x01, 0x00, 0x00, 0x46, 0x00, 0x4F, 0x00, 0x00, 0x30, 0x32, 0x00, 0x00,
+// PORT: one table (effect, power, type for moves 1-165), which the decomp splits into D_800780B4, D_80078180 and
+// D_800781E0; Battle_EstimateMoveDamage indexes it as one, which on the N64 ran on into the next parts (on a host they
+// need not follow each other: Gym Leader Castle runs crashed with the audio manager overwritten nearby)
+u8 D_800780B4[204 + 96 + 196] = {
+    0x00,
+    0x28,
+    0x00,
+    0x00,
+    0x32,
+    0x00,
+    0x1D,
+    0x0F,
+    0x00,
+    0x1D,
+    0x12,
+    0x00,
+    0x00,
+    0x50,
+    0x00,
+    0x10,
+    0x28,
+    0x00,
+    0x04,
+    0x4B,
+    0x14,
+    0x05,
+    0x4B,
+    0x19,
+    0x06,
+    0x4B,
+    0x17,
+    0x00,
+    0x28,
+    0x00,
+    0x00,
+    0x37,
+    0x00,
+    0x26,
+    0x01,
+    0x00,
+    0x27,
+    0x50,
+    0x00,
+    0x32,
+    0x00,
+    0x00,
+    0x00,
+    0x32,
+    0x00,
+    0x00,
+    0x28,
+    0x00,
+    0x00,
+    0x23,
+    0x02,
+    0x1C,
+    0x00,
+    0x00,
+    0x2B,
+    0x46,
+    0x02,
+    0x2A,
+    0x0F,
+    0x00,
+    0x00,
+    0x50,
+    0x00,
+    0x00,
+    0x23,
+    0x16,
+    0x25,
+    0x41,
+    0x00,
+    0x2C,
+    0x1E,
+    0x01,
+    0x00,
+    0x78,
+    0x00,
+    0x2D,
+    0x46,
+    0x01,
+    0x25,
+    0x3C,
+    0x01,
+    0x16,
+    0x00,
+    0x00,
+    0x25,
+    0x46,
+    0x00,
+    0x00,
+    0x41,
+    0x00,
+    0x1D,
+    0x0F,
+    0x00,
+    0x26,
+    0x01,
+    0x00,
+    0x00,
+    0x23,
+    0x00,
+    0x24,
+    0x55,
+    0x00,
+    0x2A,
+    0x0F,
+    0x00,
+    0x30,
+    0x5A,
+    0x00,
+    0x1B,
+    0x5A,
+    0x00,
+    0x30,
+    0x64,
+    0x00,
+    0x13,
+    0x00,
+    0x00,
+    0x02,
+    0x0F,
+    0x03,
+    0x4D,
+    0x19,
+    0x07,
+    0x1D,
+    0x0E,
+    0x07,
+    0x13,
+    0x00,
+    0x00,
+    0x1F,
+    0x3C,
+    0x00,
+    0x12,
+    0x00,
+    0x00,
+    0x1C,
+    0x00,
+    0x00,
+    0x20,
+    0x00,
+    0x00,
+    0x31,
+    0x00,
+    0x00,
+    0x29,
+    0x01,
+    0x00,
+    0x56,
+    0x00,
+    0x00,
+    0x45,
+    0x28,
+    0x03,
+    0x04,
+    0x28,
+    0x14,
+    0x04,
+    0x5F,
+    0x14,
+    0x2E,
+    0x00,
+    0x19,
+    0x00,
+    0x28,
+    0x15,
+    0x00,
+    0x78,
+    0x15,
+    0x00,
+    0x5F,
+    0x15,
+    0x05,
+    0x5F,
+    0x19,
+    0x23,
+    0x78,
+    0x19,
+    0x4C,
+    0x41,
+    0x18,
+    0x46,
+    0x41,
+    0x15,
+    0x44,
+    0x41,
+    0x19,
+    0x50,
+    0x96,
+    0x00,
+    0x00,
+    0x23,
+    0x02,
+    0x00,
+    0x50,
+    0x02,
+    0x30,
+    0x50,
+    0x01,
+    0x25,
+    0x32,
+    0x01,
+    0x00,
+    0x01,
+    0x01,
+    // (D_80078180)
+    0x29,
+    0x01,
+    0x01,
+    0x00,
+    0x50,
+    0x00,
+    0x03,
+    0x14,
+    0x16,
+    0x03,
+    0x28,
+    0x16,
+    0x54,
+    0x00,
+    0x16,
+    0x0D,
+    0x00,
+    0x00,
+    0x00,
+    0x37,
+    0x16,
+    0x27,
+    0x78,
+    0x16,
+    0x42,
+    0x00,
+    0x03,
+    0x43,
+    0x00,
+    0x16,
+    0x20,
+    0x00,
+    0x16,
+    0x1B,
+    0x46,
+    0x16,
+    0x14,
+    0x00,
+    0x07,
+    0x29,
+    0x01,
+    0x1A,
+    0x2A,
+    0x0F,
+    0x14,
+    0x06,
+    0x28,
+    0x17,
+    0x06,
+    0x5F,
+    0x17,
+    0x43,
+    0x00,
+    0x17,
+    0x06,
+    0x78,
+    0x17,
+    0x00,
+    0x32,
+    0x05,
+    0x00,
+    0x64,
+    0x04,
+    0x26,
+    0x01,
+    0x04,
+    0x27,
+    0x64,
+    0x04,
+    0x42,
+    0x00,
+    0x03,
+    0x4C,
+    0x32,
+    0x18,
+    0x47,
+    0x5A,
+    0x18,
+    0x20,
+    0x00,
+    0x18,
+    0x0A,
+    0x00,
+    0x18,
+    0x34,
+    0x00,
+    0x18,
+    0x00,
+    0x28,
+    0x00,
+    0x51,
+    0x14,
+    0x00,
+    0x1C,
+    0x00,
+    0x18,
+    // (D_800781E0)
+    0x29,
+    0x00,
+    0x08,
+    0x52,
+    0x00,
+    0x00,
+    0x3B,
+    0x00,
+    0x00,
+    0x0F,
+    0x00,
+    0x00,
+    0x38,
+    0x00,
+    0x00,
+    0x0B,
+    0x00,
+    0x00,
+    0x0F,
+    0x00,
+    0x00,
+    0x16,
+    0x00,
+    0x00,
+    0x31,
+    0x00,
+    0x08,
+    0x0B,
+    0x00,
+    0x15,
+    0x0B,
+    0x00,
+    0x00,
+    0x33,
+    0x00,
+    0x18,
+    0x40,
+    0x00,
+    0x18,
+    0x19,
+    0x00,
+    0x19,
+    0x41,
+    0x00,
+    0x18,
+    0x2F,
+    0x00,
+    0x00,
+    0x1A,
+    0x00,
+    0x00,
+    0x53,
+    0x00,
+    0x00,
+    0x09,
+    0x00,
+    0x02,
+    0x07,
+    0x82,
+    0x00,
+    0x00,
+    0x64,
+    0x00,
+    0x24,
+    0x14,
+    0x08,
+    0x21,
+    0x14,
+    0x03,
+    0x21,
+    0x41,
+    0x03,
+    0x1F,
+    0x41,
+    0x04,
+    0x22,
+    0x78,
+    0x14,
+    0x00,
+    0x50,
+    0x15,
+    0x2A,
+    0x23,
+    0x15,
+    0x11,
+    0x3C,
+    0x00,
+    0x27,
+    0x64,
+    0x00,
+    0x1D,
+    0x14,
+    0x00,
+    0x46,
+    0x0A,
+    0x00,
+    0x35,
+    0x00,
+    0x18,
+    0x16,
+    0x00,
+    0x18,
+    0x38,
+    0x00,
+    0x00,
+    0x2D,
+    0x55,
+    0x01,
+    0x43,
+    0x00,
+    0x00,
+    0x08,
+    0x64,
+    0x18,
+    0x42,
+    0x00,
+    0x03,
+    0x1D,
+    0x0F,
+    0x00,
+    0x03,
+    0x14,
+    0x07,
+    0x20,
+    0x00,
+    0x00,
+    0x27,
+    0x8C,
+    0x02,
+    0x39,
+    0x00,
+    0x00,
+    0x46,
+    0x14,
+    0x15,
+    0x00,
+    0x46,
+    0x00,
+    0x20,
+    0x00,
+    0x16,
+    0x16,
+    0x00,
+    0x00,
+    0x29,
+    0x01,
+    0x18,
+    0x55,
+    0x00,
+    0x00,
+    0x33,
+    0x00,
+    0x03,
+    0x00,
+    0x5A,
+    0x15,
+    0x07,
+    0xAA,
+    0x00,
+    0x1D,
+    0x12,
+    0x00,
+    0x2C,
+    0x32,
+    0x04,
+    0x38,
+    0x00,
+    0x18,
+    0x00,
+    0x4B,
+    0x05,
+    0x1F,
+    0x50,
+    0x00,
+    0x0A,
+    0x00,
+    0x00,
+    0x18,
+    0x00,
+    0x00,
+    0x00,
+    0x50,
+    0x00,
+    0x28,
+    0x01,
+    0x00,
+    0x00,
+    0x46,
+    0x00,
+    0x4F,
+    0x00,
+    0x00,
+    0x30,
+    0x32,
+    0x00,
+    0x00,
 };
 u8 D_800782A4[228] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x01, 0x00, 0x00, 0x02, 0x02, 0x00,
@@ -704,6 +1202,9 @@ u8 D_80078568[24] = {
 };
 
 void BitArray_SetBit(u8* array, u8 index, u8 flag) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u8 offset = index / 8;
     u8 bitPosition = index % 8;
     u8 mask = (1 << bitPosition);
@@ -718,6 +1219,9 @@ void BitArray_SetBit(u8* array, u8 index, u8 flag) {
  * Checks if a bit is set in an array.
  */
 s32 BitArray_IsBitSet(u8* array, u8 index) {
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     u8 offset = index / 8;
     u8 bitPosition = index % 8;
     u8 flag = (array[offset] & (u8)(1 << bitPosition));
@@ -728,6 +1232,9 @@ s32 BitArray_IsBitSet(u8* array, u8 index) {
 }
 
 void Audio_SetVoiceEnabled(s32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     if (arg0 != 0) {
         D_80078388 = 1;
     } else {
@@ -736,6 +1243,9 @@ void Audio_SetVoiceEnabled(s32 arg0) {
 }
 
 void Audio_SetChannelGroupCounts(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     D_8007838C[0] = arg0;
     D_8007838C[1] = arg1;
     D_8007838C[2] = arg2;
@@ -743,6 +1253,9 @@ void Audio_SetChannelGroupCounts(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
 }
 
 void Audio_ResetChannelGroupState(u8 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     s32 i;
 
     if (arg0 < 3) {
@@ -777,6 +1290,9 @@ void Audio_ResetChannelGroupState(u8 arg0) {
 }
 
 void Audio_ConfigureChannelGroups(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     s32 i;
     s32 j;
 
@@ -804,6 +1320,9 @@ void Audio_ConfigureChannelGroups(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
 }
 
 void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     s32 pad[1];
     u8 sp1B = 0;
     u16 var_a0;
@@ -826,7 +1345,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
 
         if (arg1 < 0xC) {
             if (arg0 < 9) {
-                var_a0 = D_80078410[arg1][arg0];
+                var_a0 = PORT_D_80078410(arg1, arg0);
                 D_800783FC = 1;
                 D_80078400 = 1;
             } else {
@@ -834,7 +1353,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
             }
         } else if (arg1 == 0xC) {
             if ((arg0 < 0x21) && (arg0 != 0)) {
-                var_a0 = D_800784EA[(arg0 - 1) / 8][(arg0 - 1) % 8];
+                var_a0 = PORT_D_800784EA((arg0 - 1) / 8, (arg0 - 1) % 8);
                 D_800783FC = 1;
                 D_80078400 = 0;
             } else {
@@ -842,7 +1361,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
             }
         } else if (arg1 == 0xD) {
             if (arg0 < 6) {
-                var_a0 = D_80078446[arg1][arg0];
+                var_a0 = PORT_D_80078446(arg1, arg0);
                 D_800783FC = 1;
                 D_80078400 = 0;
             } else {
@@ -882,6 +1401,9 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
 }
 
 void AudioFrameUpdate(s32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     s8 var_t0;
     s8 var_t2;
     s8 var_t4;
@@ -1169,9 +1691,9 @@ void AudioFrameUpdate(s32 arg0) {
         }
 
         if ((D_800FCB18[0]->maxHp * 0.5f) < (D_800FCB48[0].unk_00[(D_800FCB48[0].unk_24 - 1) & 0xF] -
-                                          D_800FCB48[0].unk_00[D_800FCB48[0].unk_24 & 0xF])) {
+                                             D_800FCB48[0].unk_00[D_800FCB48[0].unk_24 & 0xF])) {
             if ((D_800FCB18[1]->maxHp * 0.5f) < (D_800FCB48[1].unk_00[(D_800FCB48[1].unk_24 - 1) & 0xF] -
-                                              D_800FCB48[1].unk_00[D_800FCB48[1].unk_24 & 0xF])) {
+                                                 D_800FCB48[1].unk_00[D_800FCB48[1].unk_24 & 0xF])) {
                 if (((((u32)D_800FCB18[0]->displayHp * 100) / D_800FCB18[0]->maxHp) < 0x14U) &&
                     ((((u32)D_800FCB18[1]->displayHp * 100) / D_800FCB18[1]->maxHp) < 0x14U)) {
                     Audio_QueueSoundAvoidingRecent(D_80077E60);
@@ -1208,7 +1730,8 @@ void AudioFrameUpdate(s32 arg0) {
         if (var_v0 < 0xA) {
             if ((D_800FCB18[0]->maxHp * 0.5) < D_800FCB18[0]->displayHp) {
                 if (((D_800FCB18[1]->maxHp * 0.5) < D_800FCB18[1]->displayHp) &&
-                    (D_800FCB18[0]->displayHp < D_800FCB18[0]->maxHp) && (D_800FCB18[1]->displayHp < D_800FCB18[1]->maxHp)) {
+                    (D_800FCB18[0]->displayHp < D_800FCB18[0]->maxHp) &&
+                    (D_800FCB18[1]->displayHp < D_800FCB18[1]->maxHp)) {
                     Audio_QueueSoundAvoidingRecent(D_80077E30);
                     return;
                 }
@@ -1276,6 +1799,9 @@ void AudioFrameUpdate(s32 arg0) {
 }
 
 void ProcessAudioInfo(s32 arg0, BattleMonRuntime* arg1) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u8 pad;
     u8 value;
     u8 side;
@@ -1457,6 +1983,9 @@ found_value:
 }
 
 void RemovePlayer(u32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u8 sp1F;
 
     if (arg0 == 0 || arg0 >= 5) {
@@ -1516,6 +2045,9 @@ void RemovePlayer(u32 arg0) {
 }
 
 void PlayerDefeated(u32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u8 temp_v0;
 
     if (arg0 == 0 || arg0 >= 5) {
@@ -1564,6 +2096,9 @@ void PlayerDefeated(u32 arg0) {
 }
 
 void Audio_QueuePendingSoundId(u32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     D_800FCCF0[D_80078544] = arg0;
     D_80078544++;
     if (D_80078544 >= 0xA) {
@@ -1572,6 +2107,9 @@ void Audio_QueuePendingSoundId(u32 arg0) {
 }
 
 void ProcessAudioCommandQueue(s32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u32 mask;
     u32 sp40;
     s32 sp3C;
@@ -1872,7 +2410,7 @@ void ProcessAudioCommandQueue(s32 arg0) {
                 return;
             case 0x19:
             case 0x1B:
-                if ((D_800780B3[D_800FCCAC * 3] == 0) &&
+                if ((PORT_D_800780B3(D_800FCCAC * 3) == 0) &&
                     ((D_800FCB18[temp_s0]->types[0] == 8) || (D_800FCB18[temp_s0]->types[1] == 8))) {
                     Audio_QueueSoundAvoidingRecent(&D_80077F24);
                 } else {
@@ -2136,6 +2674,9 @@ void ProcessAudioCommandQueue(s32 arg0) {
 }
 
 void HandleMoveEvent(BattleMonRuntime* arg0, s32 arg1, s32 arg2, s32 arg3) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     s32 i;
     s32 sp40;
     u32 temp_lo;
@@ -2398,6 +2939,9 @@ void HandleMoveEvent(BattleMonRuntime* arg0, s32 arg1, s32 arg2, s32 arg3) {
 }
 
 void QueuePlayerDefeatMessage(s32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u8 temp_v0;
 
     if (arg0 == 0 || arg0 >= 5U) {
@@ -2418,6 +2962,12 @@ void QueuePlayerDefeatMessage(s32 arg0) {
 }
 
 void Audio_StartBattleMusicSequence(void) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
+    if (Port_XcheckNoMusic()) { // PORT: battle cross-check (src/port/xcheck.cpp): sound effects without the music
+        return;
+    }
     if (D_80078E80 == 0) {
         Audio_StartMusicTrack(0x3D);
         Audio_PlayCommand(0x16, D_80078400, 0);
@@ -2450,11 +3000,17 @@ void Audio_StartBattleMusicSequence(void) {
 }
 
 void Audio_StartResultMusicSequence(void) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     Audio_PlayCommand(0x16, D_80078400, 0);
     Audio_QueueSequenceId(0x1A2);
 }
 
 void Audio_UpdateBattleAudioFrame(void) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u8* seq;
 
     if ((D_800783B4 < D_800783B8) && (D_80078388 != 0) && (AudioStream_IsPlaying(1) == 0)) {
@@ -2548,6 +3104,9 @@ void Audio_UpdateBattleAudioFrame(void) {
  * register-materialised store.
  */
 void func_80041A98(void) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     s32 i;
     s32 j;
 
@@ -2598,6 +3157,14 @@ void func_80041A98(void) {
 }
 
 void Audio_QueueSequenceId(u32 arg0) {
+    Port_XcheckSfx(2, arg0, 0, 0); // PORT: battle cross-check sound trace (src/port/xcheck.cpp)
+    if (Port_XcheckNoMusic()) { // PORT: battle cross-check: the announcer is silent with the music. A line starts when
+                                // the
+        return;                 // previous one has played out, in sound time, so the N64's slowdown moves it
+    }
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     OSIntMask mask;
 
     if ((D_80078388 != 0) && (D_800783FC != 0) && (arg0 != 0)) {
@@ -2609,6 +3176,9 @@ void Audio_QueueSequenceId(u32 arg0) {
 }
 
 void Audio_RemoveLastQueuedSequenceId(void) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     OSIntMask mask;
 
     if ((D_80078388 != 0) && (D_800783FC != 0)) {
@@ -2619,6 +3189,9 @@ void Audio_RemoveLastQueuedSequenceId(void) {
 }
 
 void Audio_SwapSoundCandidates(u8* arg0, u8* arg1) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u8 temp_v0 = *arg0;
     u8 temp_v1 = *arg1;
 
@@ -2629,6 +3202,9 @@ void Audio_SwapSoundCandidates(u8* arg0, u8* arg1) {
 }
 
 u16 Audio_FilterRecentSoundId(u16 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     s32 i;
 
     for (i = 0; i < 20; i++) {
@@ -2641,6 +3217,9 @@ u16 Audio_FilterRecentSoundId(u16 arg0) {
 }
 
 void Audio_RecordRecentSoundId(u16 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u16 i;
 
     for (i = 0; i < 19; i++) {
@@ -2651,6 +3230,9 @@ void Audio_RecordRecentSoundId(u16 arg0) {
 }
 
 void Audio_RemoveRecentSoundAt(u16 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u32 i;
 
     for (i = arg0; i > 0; i--) {
@@ -2661,6 +3243,9 @@ void Audio_RemoveRecentSoundAt(u16 arg0) {
 }
 
 u32 Audio_SelectSoundAvoidingRecent(u16* arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     u16 temp_v0 = *arg0;
     u32 i;
     u32 j;
@@ -2696,6 +3281,9 @@ u32 Audio_SelectSoundAvoidingRecent(u16* arg0) {
 }
 
 void Audio_QueueSoundAvoidingRecent(u16* arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u32 temp_v0 = Audio_SelectSoundAvoidingRecent(arg0);
 
     if (temp_v0 != 0) {
@@ -2704,6 +3292,9 @@ void Audio_QueueSoundAvoidingRecent(u16* arg0) {
 }
 
 void Audio_QueueSoundWithFallbackList(u16 arg0, u16* arg1, u8* arg2) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u8 temp_v0;
 
     if (*arg2 == 0) {
@@ -2718,12 +3309,18 @@ void Audio_QueueSoundWithFallbackList(u16 arg0, u16* arg1, u8* arg2) {
 }
 
 void func_800420F0_empty() {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
 }
 
 // Estimates the damage `moveId` would do from `attacker` to `defender`, for picking
 // commentary lines. Returns a small negative code for moves that are classified rather
 // than scored (see the effect switch below), otherwise a damage estimate capped at 0x7FFF.
 u32 Battle_EstimateMoveDamage(u32 moveId, BattleMonRuntime* attacker, BattleMonRuntime* defender) {
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     f32 var_f0;  // defense stat, then the STAB multiplier, then the defender's status multiplier
     f32 var_f2;  // attack stat, then the attacker's hp reference
     f32 var_f12; // multiplier for the defender's first type, then the attacker's boost
@@ -2932,6 +3529,9 @@ u32 Battle_EstimateMoveDamage(u32 moveId, BattleMonRuntime* attacker, BattleMonR
 }
 
 s32 Battle_MapCategoryIdToCompactIndex(u8 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     switch (arg0) {
         case 0:
             return 0;
@@ -2969,5 +3569,8 @@ s32 Battle_MapCategoryIdToCompactIndex(u8 arg0) {
 }
 
 void Audio_QueueSequenceIdWrapper(u32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     Audio_QueueSequenceId(arg0);
 }

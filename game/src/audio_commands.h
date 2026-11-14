@@ -55,7 +55,7 @@ typedef struct unk_D_800FC6D4 {
     /* 0x02 */ u16 num_entries;
     /* 0x04 */ u16 unk_04;
     /* 0x06 */ u16 unk_06;
-    /* 0x08 */ unk_D_800FC6D4_008* offset;
+    /* 0x08 */ u32 offset; // PORT: offset of the unk_D_800FC6D4_008 records from the table (was a pointer)
     /* 0x0C */ char unk_0C[0x4];
     /* 0x10 */ unk_D_800FC6D4_entry entries[ENTRY_SIZE];
 } unk_D_800FC6D4; // size = 0x10
@@ -68,7 +68,7 @@ typedef struct MoveSoundTable {
     MoveSoundEntry entries[1];
 } MoveSoundTable;
 
-extern u8 D_800B32A0[0x493E0];
+extern u8 D_800B32A0[0x493E0 * 2]; // PORT: doubled (audio_commands.c)
 extern u32* D_800FC680;
 extern u8* D_800FC684;
 extern u8* D_800FC688;
@@ -103,7 +103,7 @@ s32 Audio_PlayCommand(u32 command, s32 parameter, UNUSED s32 unused);
 s32 Audio_FadeCommand(s32 arg0, u32 arg1);
 void func_8003733C(void);
 void Audio_CreateFrameTaskWrapper(void* arg0);
-void Audio_RelocateOffsets(u32* arg0, u32 arg1, s32 arg2);
+void Audio_RelocateOffsets(u32* arg0, uintptr_t arg1, s32 arg2);
 s32 Audio_InitBanks(void);
 
 #endif // _373A0_H_

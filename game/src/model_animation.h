@@ -22,6 +22,7 @@ typedef struct unk_D_800ABCC0 {
     /* 0x0C */ s16* unk_0C;
     /* 0x10 */ s16* unk_10;
     /* 0x14 */ s16* unk_14;
+    s32 portRaw;  // PORT: the animation's data is big-endian ROM data
 } unk_D_800ABCC0; // size = 0x18
 
 f32 ModelAnim_EvaluateTranslationChannel(unk_D_800ABCC0* arg0, s32 arg1);
@@ -42,5 +43,6 @@ void ModelAnim_SetFrame(DisplayObject* display_object, s16 animation_timer);
 s32 ModelAnim_HasCrossedFrame(DisplayObject* arg0, s16 arg1);
 s32 ModelAnim_IsAnimationDone(DisplayObject* display_object);
 s32 ModelAnim_IsFinished(DisplayObject* arg0);
+u16 ModelAnim_GetEndFrame(DisplayObject* display_object);
 
 #endif // _17300_H_

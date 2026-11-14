@@ -24,7 +24,7 @@ class SweepPlanTests(unittest.TestCase):
             self.assertEqual(len(case['uses']), 1)
             self.assertLess(case['user']['hp'], 300)
             self.assertTrue(case['uses'][0]['require_animation'])
-        self.assertTrue(any(case['id'] == '104-105-106-107_base_208d0b10' for case in cases))
+        self.assertTrue(any(case['id'] == '104-105-106-107_base_597871bb' for case in cases))
 
     def test_required_healing_animation_cannot_pass_without_capture(self):
         self.assertTrue(sweep.classify({'used': True, 'require_animation': True}, 0).startswith('animation mismatch'))

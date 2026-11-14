@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include "../../src/port/port_platform.h"
 #include "global.h"
 #include <PR/os_internal_reg.h>
 #include "dp_intro.h"
@@ -33,7 +36,8 @@ u64 D_80085870[0x20000 / sizeof(u64)];
 
 // function prototypes
 void Display_ClearFramebufferLine(u16 color);
-void Display_SetBufferConfig(struct UnkArray4* arg0, u8 arg1, u8 arg2, u8 arg3, u8 arg4, s32 arg5, s32 arg6, s32 arg7);
+void Display_SetBufferConfig(struct UnkArray4* arg0, u8 arg1, u8 arg2, u8 arg3, u8 arg4, uintptr_t arg5, uintptr_t arg6,
+                             uintptr_t arg7);
 
 void DisplayTask_Initialize(UnkStruct80001380* arg0) {
     arg0->task.t.type = M_GFXTASK;
@@ -54,7 +58,12 @@ void DisplayTask_Initialize(UnkStruct80001380* arg0) {
 }
 
 void DisplayTask_Submit(UnkStruct80001380* arg0, struct UnkArray4* arg1, s32 arg2) {
-    arg0->task.t.data_ptr = (void*)(uintptr_t)arg1->unk_04;
+    extern void Port_NoteFrameBuffer(const void* fb);
+    // PORT: the renderer learns that this task draws a frame buffer before the buffer is first shown (os_devices.cpp)
+    if (arg1->unk_0C != NULL) {
+        Port_NoteFrameBuffer(arg1->unk_0C->img_p);
+    }
+    arg0->task.t.data_ptr = (void*)arg1->unk_04;
     arg0->task.t.data_size = arg1->unk_08;
     Sched_SubmitTask(arg0, arg2);
 }
@@ -110,6 +119,11 @@ void DisplayWorker_ProcessFrame(void) {
         sp20 = 1;
     }
 
+    if (D_80083CA0.unk_AAC.unk_00 > 4) {
+        static int shown = 0;
+        if (shown++ < 4)
+            fprintf(stderr, "[display] frame request waits %d retraces\n", D_80083CA0.unk_AAC.unk_00);
+    }
     for (i = 1; i < D_80083CA0.unk_AAC.unk_00; i++) {
         Sched_WaitClientQueue(&D_80083CA0);
     }
@@ -215,8 +229,11 @@ void Display_ClearFramebufferLine(u16 color) {
     s32 width = 640;
     u16* buf = (u16*)D_80083CA0.unk_9E0->img_p;
 
+    if (PORT_GETENV_ONCE("PORT_TRACE_VI"))
+        fprintf(stderr, "[line] clear color 0x%04x buf %p caller %p slide 0x%lx\n", color, (void*)buf,
+                __builtin_return_address(0), (unsigned long)Port_ImageSlide());
     while (width-- > 0) {
-        *(buf)++ = color;
+        *(buf)++ = (u16)((color << 8) | (color >> 8)); // PORT: frame buffers hold big-endian RGBA5551 (as N64 RDRAM)
     }
 
     osWritebackDCache(D_80083CA0.unk_9E0->img_p, 0x500);
@@ -224,7 +241,7 @@ void Display_ClearFramebufferLine(u16 color) {
 
 u16 Display_GetFramebufferClearColor(void) {
     u16* ptr = (u16*)D_80083CA0.unk_9E0->img_p;
-    return *ptr;
+    return (u16)((*ptr << 8) | (*ptr >> 8)); // PORT: stored big-endian (Display_ClearFramebufferLine)
 }
 
 s32 Display_IsCurrentFramebuffer(void) {
@@ -252,7 +269,8 @@ void Display_WaitForFrames(s32 arg0) {
     }
 }
 
-void Display_SetBufferConfig(struct UnkArray4* arg0, u8 arg1, u8 arg2, u8 arg3, u8 arg4, s32 arg5, s32 arg6, s32 arg7) {
+void Display_SetBufferConfig(struct UnkArray4* arg0, u8 arg1, u8 arg2, u8 arg3, u8 arg4, uintptr_t arg5, uintptr_t arg6,
+                             uintptr_t arg7) {
     arg0->unk_01 = arg1;
     arg0->unk_02 = arg2;
     arg0->unk_00 = arg3;
@@ -262,19 +280,28 @@ void Display_SetBufferConfig(struct UnkArray4* arg0, u8 arg1, u8 arg2, u8 arg3, 
     arg0->unk_0C = (struct unk_D_80068BB0*)(uintptr_t)arg7;
 }
 
-s32 Display_GetWorkerStatus(void) {
-    return (s32)D_80083CA0.unk_AAC.unk_0C;
+// PORT: returns the pointer (reset.c reads through it); was s32, which cut 64-bit host pointers
+void* Display_GetWorkerStatus(void) {
+    return (void*)D_80083CA0.unk_AAC.unk_0C;
 }
 
 void Display_ApplyPendingVideoMode(void) {
     Video_SetMode((s8)D_80083CA0.unk_AAC.unk_01, (s8)D_80083CA0.unk_AAC.unk_02);
 }
 
+void osYieldThread(void); // src/port/os_thread.cpp
+
 s32 Display_IsFrameReady(void) {
     s32 result = 1;
 
     if (D_80083CA0.unk_A9C.unk_04 != 0) {
         result = D_80083CA0.unk_A20.queue.validCount > 0;
+    }
+    if (!result) {
+        // PORT: callers spin on this (StageLoader_WaitForRetrace, jpeg_stream.c, poke_icon.c). On the N64 interrupts
+        // fill the queue meanwhile; here game threads take turns, so the spinning thread must let the scheduler thread
+        // run (on a slower host the frame was not submitted yet and the loop never ended).
+        osYieldThread();
     }
     return result;
 }

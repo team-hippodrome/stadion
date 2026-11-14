@@ -1,3 +1,4 @@
+#include "src/port_audio.h"
 #include "audio_stream.h"
 
 // GSM stream channel state for AudioStream_*: opening, DMA refill and decode, and sample
@@ -5,7 +6,10 @@
 // to 16 bytes before AudioStream_OpenChannel (0x800426E4 to 0x800426F0), a file boundary; the
 // US AudioStream_OpenChannel (0x800456D0) is already 16-byte aligned.
 
-void AudioStream_OpenChannel(unk_D_800FCED8* arg0, s32 arg1, s32 arg2) {
+void AudioStream_OpenChannel(unk_D_800FCED8* arg0, s32 arg1, unk_D_800FCED8_190 arg2) { // PORT: arg2 was s32
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     bzero(&arg0->unk_0000, sizeof(unk_D_800FCED8_0000));
 
     arg0->unk_0000.gsm.nrp = 0x28;
@@ -31,6 +35,9 @@ void AudioStream_OpenChannel(unk_D_800FCED8* arg0, s32 arg1, s32 arg2) {
 }
 
 void AudioStream_RefillAndDecode(unk_D_800FCED8* arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     s32 var_a2;
     s32 var_s2;
     u32 var_v1;
@@ -39,9 +46,10 @@ void AudioStream_RefillAndDecode(unk_D_800FCED8* arg0) {
 
     if ((arg0->unk_25D0 != 0) && (osRecvMesg(&arg0->unk_25A0, NULL, 0) >= 0)) {
         if (arg0->unk_25C4 == 0) {
-            arg0->unk_2598 = (arg0->unk_1598[0].unk_04 >> 0x10) & 0xFFFF;
-            arg0->unk_259A = arg0->unk_1598[0].unk_04 & 0xFFFF;
-            arg0->unk_259C = arg0->unk_15A0 & 0xFFFFFF;
+            // PORT: the stream header is big-endian
+            arg0->unk_2598 = (PortA_BE32(&arg0->unk_1598[0].unk_04) >> 0x10) & 0xFFFF;
+            arg0->unk_259A = PortA_BE32(&arg0->unk_1598[0].unk_04) & 0xFFFF;
+            arg0->unk_259C = PortA_BE32(&arg0->unk_15A0) & 0xFFFFFF;
             arg0->unk_25BC = 0x60;
         }
 
@@ -89,6 +97,9 @@ void AudioStream_RefillAndDecode(unk_D_800FCED8* arg0) {
 }
 
 u32 AudioStream_ConsumeSamples(unk_D_800FCED8* arg0, u32 arg1) {
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     u32 temp_v0;
     u32 var_a2;
 
@@ -110,11 +121,17 @@ u32 AudioStream_ConsumeSamples(unk_D_800FCED8* arg0, u32 arg1) {
 }
 
 void AudioStream_MarkLoaded(unk_D_800FCED8* arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     if (arg0->unk_25D1 == 2) {
         arg0->unk_25D1 = 3;
     }
 }
 
 void AudioStream_Abort(unk_D_800FCED8* arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     arg0->unk_25D1 = 4;
 }

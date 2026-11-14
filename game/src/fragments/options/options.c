@@ -25,7 +25,7 @@ void Options_DrawBackground(void) {
     gDPSetCombineLERP(gDisplayListHead++, ENVIRONMENT, PRIMITIVE, TEXEL0, PRIMITIVE, TEXEL0, 0, ENVIRONMENT, 0,
                       ENVIRONMENT, PRIMITIVE, TEXEL0, PRIMITIVE, TEXEL0, 0, ENVIRONMENT, 0);
     gDPSetRenderMode(gDisplayListHead++, G_RM_OPA_SURF, G_RM_OPA_SURF2);
-    gDPSetEnvColor(gDisplayListHead++, 0x32, 0x96, 0x50, 0xFF); // #329650
+    gDPSetEnvColor(gDisplayListHead++, 0x32, 0x96, 0x50, 0xFF);        // #329650
     gDPSetPrimColor(gDisplayListHead++, 0, 0, 0x14, 0x64, 0x32, 0xFF); // #146432
     gSPClearGeometryMode(gDisplayListHead++, G_ZBUFFER | G_LIGHTING);
 

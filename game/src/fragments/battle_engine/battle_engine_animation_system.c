@@ -5239,7 +5239,7 @@ void BattleAnim_BindModelAnim(DisplayObject* arg0, s16 arg1) {
 
 void BattleAnim_BindModelAnimReversed(DisplayObject* arg0, s16 arg1) {
     ModelAnim_BindTransformCurve(arg0, 0, sBattleAnimAssetPointers[arg1], -0x10000);
-    ModelAnim_SetFrame(arg0, arg0->transformAnim.data->endFrame - 1);
+    ModelAnim_SetFrame(arg0, ModelAnim_GetEndFrame(arg0) - 1);
 }
 
 s32 BattleAnim_IsModelAnimComplete(DisplayObject* arg0) {

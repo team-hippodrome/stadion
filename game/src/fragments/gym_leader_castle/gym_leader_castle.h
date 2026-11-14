@@ -6,7 +6,7 @@
 typedef struct GymLeaderCastleTrainer {
     /* 0x00 */ u8 loaded;
     /* 0x02 */ s16 portraitX;
-    /* 0x04 */ s32 portrait;
+    /* 0x04 */ u8* portrait; // PORT64: the portrait image (was s32)
     /* 0x08 */ char* name;
 } GymLeaderCastleTrainer; // size = 0xC
 

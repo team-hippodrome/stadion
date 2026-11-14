@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "particle_math.h"
 #include "src/geo_render.h"
 
@@ -103,13 +105,13 @@ Particle* Particle_AllocChain(u8 count) {
 
     sp28 = Particle_Alloc();
 
-    if ((u32)sp28 != -1) {
+    if ((uintptr_t)sp28 != -1) {
         var_s0 = sp28;
         count--;
 
         for (i = 0; i < count; i++) {
             temp_v0 = Particle_Alloc();
-            if ((u32)temp_v0 == -1) {
+            if ((uintptr_t)temp_v0 == -1) {
                 break;
             }
             var_s0->next = temp_v0;
@@ -124,10 +126,10 @@ Particle* Particle_AllocChain(u8 count) {
 /* Allocate a particle and copy its origin, rotation, callbacks, and per-emission metadata. */
 Particle* Particle_CreateAtTransform(f32 unk_28_value, Vec3f origin, Vec3s rotation,
                                      ParticleUpdateCallback update_callback, ParticleDescriptor* descriptor, s16 index,
-                                     s16 anchor_id, s16 metadata) {
+                                     s16 anchor_id, intptr_t metadata) {
     Particle* sp1C = Particle_New();
 
-    if ((u32)sp1C != -1) {
+    if ((uintptr_t)sp1C != -1) {
         sp1C->unk_28 = unk_28_value;
 
         ParticleMath_CopyVec3f(&sp1C->origin, &origin);
@@ -149,7 +151,7 @@ Particle* Particle_CreateFromObjectTransform(DisplayObject* object, ParticleUpda
                                              ParticleDescriptor* descriptor, s16 index, s16 anchor_id, s16 metadata) {
     Particle* sp1C = Particle_New();
 
-    if ((u32)sp1C != -1) {
+    if ((uintptr_t)sp1C != -1) {
         if (anchor_id == 0xFF) {
             sp1C->positionOffset.x = object->position.x;
             sp1C->positionOffset.y = object->position.y;
@@ -181,8 +183,8 @@ void Particle_EmitBurstAtTransform(f32 unk_28_value, Vec3f origin, Vec3s rotatio
     s32 i;
 
     for (i = 0; i < count; i++) {
-        if ((u32)Particle_CreateAtTransform(unk_28_value, origin, rotation, update_callback, descriptor, i, 0xFF,
-                                            NULL) == -1) {
+        if ((uintptr_t)Particle_CreateAtTransform(unk_28_value, origin, rotation, update_callback, descriptor, i, 0xFF,
+                                                  NULL) == -1) {
             break;
         }
     }
@@ -195,8 +197,8 @@ void Particle_EmitBurstAtTransformWithMetadata(f32 unk_28_value, Vec3f origin, V
     s32 i;
 
     for (i = 0; i < count; i++) {
-        if ((u32)Particle_CreateAtTransform(unk_28_value, origin, rotation, update_callback, descriptor, i, 0xFF,
-                                            metadata) == -1) {
+        if ((uintptr_t)Particle_CreateAtTransform(unk_28_value, origin, rotation, update_callback, descriptor, i, 0xFF,
+                                                  metadata) == -1) {
             break;
         }
     }
@@ -208,7 +210,7 @@ void Particle_EmitBurstFromObject(DisplayObject* object, ParticleUpdateCallback 
     s32 i;
 
     for (i = 0; i < count; i++) {
-        if ((u32)Particle_CreateFromObjectTransform(object, update_callback, descriptor, i, anchor_id, 0) == -1) {
+        if ((uintptr_t)Particle_CreateFromObjectTransform(object, update_callback, descriptor, i, anchor_id, 0) == -1) {
             break;
         }
     }
@@ -220,8 +222,8 @@ void Particle_EmitBurstFromObjectWithMetadata(DisplayObject* object, ParticleUpd
     s32 i;
 
     for (i = 0; i < count; i++) {
-        if ((u32)Particle_CreateFromObjectTransform(object, update_callback, descriptor, i, anchor_id, metadata) ==
-            -1) {
+        if ((uintptr_t)Particle_CreateFromObjectTransform(object, update_callback, descriptor, i, anchor_id,
+                                                          metadata) == -1) {
             break;
         }
     }
@@ -2223,70 +2225,70 @@ s16 Particle_FieldAA_GetS16_0C068(Particle* particle) {
 
 /* Store the parameter only when it differs from the field-specific sentinel. */
 void Particle_SetFieldOffsetACIfNotSentinel(Particle* particle, s16 value) {
-    if ((u32)particle != -1) {
+    if ((uintptr_t)particle != -1) {
         Particle_FieldAC_SetS16_0BED8(particle, value);
     }
 }
 
 /* Store the parameter only when it differs from the field-specific sentinel. */
 void Particle_SetFieldOffsetCFIfNotSentinel(Particle* particle, u8 value) {
-    if ((u32)particle != -1) {
+    if ((uintptr_t)particle != -1) {
         Particle_FieldCF_SetU8_0BEEC(particle, value);
     }
 }
 
 /* Store the parameter only when it differs from the field-specific sentinel. */
 void Particle_SetFieldOffsetA6IfNotSentinel(Particle* particle, s16 value) {
-    if ((u32)particle != -1) {
+    if ((uintptr_t)particle != -1) {
         Particle_FieldA6_SetS16_0BCA8(particle, value);
     }
 }
 
 /* Store the parameter only when it differs from the field-specific sentinel. */
 void Particle_SetFieldOffsetA8IfNotSentinel(Particle* particle, s16 value) {
-    if ((u32)particle != -1) {
+    if ((uintptr_t)particle != -1) {
         Particle_FieldA8_SetS16_0BE14(particle, value);
     }
 }
 
 /* Store the parameter only when it differs from the field-specific sentinel. */
 void Particle_SetFieldOffsetCEIfNotSentinel(Particle* particle, u8 value) {
-    if ((u32)particle != -1) {
+    if ((uintptr_t)particle != -1) {
         particle->unk_CE = value;
     }
 }
 
 /* Store the parameter only when it differs from the field-specific sentinel. */
 void Particle_SetFieldOffsetCDIfNotSentinel(Particle* particle, u8 value) {
-    if ((u32)particle != -1) {
+    if ((uintptr_t)particle != -1) {
         particle->unk_CD = value;
     }
 }
 
 /* Store the parameter only when it differs from the field-specific sentinel. */
 void Particle_SetFieldOffsetAAIfNotSentinel(Particle* particle, s16 value) {
-    if ((u32)particle != -1) {
+    if ((uintptr_t)particle != -1) {
         particle->unk_AA = value;
     }
 }
 
 /* Store the parameter only when it differs from the field-specific sentinel. */
 void Particle_SetPrimAlphaIfNotSentinel(Particle* particle, u8 alpha) {
-    if ((u32)particle != -1) {
+    if ((uintptr_t)particle != -1) {
         Particle_SetPrimAlpha(particle, alpha);
     }
 }
 
 /* Store the parameter only when it differs from the field-specific sentinel. */
 void Particle_SetFieldOffsetAEIfNotSentinel(Particle* particle, s16 value) {
-    if ((u32)particle != -1) {
+    if ((uintptr_t)particle != -1) {
         particle->unk_AE = value;
     }
 }
 
 /* Store the parameter only when it differs from the field-specific sentinel. */
 void Particle_SetFieldOffsetB0IfNotSentinel(Particle* particle, s16 value) {
-    if ((u32)particle != -1) {
+    if ((uintptr_t)particle != -1) {
         particle->unk_B0 = value;
     }
 }
@@ -2373,10 +2375,51 @@ void Particle_PrepareRender(Particle* particle) {
     }
 }
 
+extern unsigned long long Port_CamlogAnimFrame(void);
+extern ParticleDescriptor gBattleAnimParticleDescriptors[];
+
 /* For kind 1, optionally run per-particle setup then draw; kind 3 calls the direct render callback. */
 void Particle_DispatchDraw(Particle* particle, CameraNode* camera) {
     UNUSED s32 pad;
     ParticleDescriptorChild* sp18 = particle->descriptor->payload.a;
+
+    { // PORT_PARTLOG=<file>: one line per drawn particle (anim frame, descriptor, position-like vectors, scales)
+        static FILE* partlog;
+        static int partlogInit;
+        static void*
+            partSeen[4096]; // particles are numbered in the order they are first drawn (addresses differ per run)
+        static int partSeenCount;
+        int partId = 0;
+        if (!partlogInit) {
+            const char* path = getenv("PORT_PARTLOG");
+            partlogInit = 1;
+            if (path != NULL) {
+                partlog = fopen(path, "a");
+            }
+        }
+        if (partlog != NULL) {
+            for (partId = 0; partId < partSeenCount && partSeen[partId] != (void*)particle; partId++) {}
+            if (partId == partSeenCount && partSeenCount < 4096) {
+                partSeen[partSeenCount++] = (void*)particle;
+            }
+            fprintf(partlog,
+                    "%llu d%ld #%d 2C(%g %g %g) 38(%g %g %g) 50(%g %g %g) 5C(%g %g %g) 68(%g %g %g) 74 %g %g 7C(%g %g "
+                    "%g) 94(%d %d %d)",
+                    Port_CamlogAnimFrame(), (long)(particle->descriptor - gBattleAnimParticleDescriptors), partId,
+                    particle->worldPosition.x, particle->worldPosition.y, particle->worldPosition.z,
+                    particle->positionOffset.x, particle->positionOffset.y, particle->positionOffset.z,
+                    particle->motionOffset.x, particle->motionOffset.y, particle->motionOffset.z,
+                    particle->motionTarget.x, particle->motionTarget.y, particle->motionTarget.z, particle->origin.x,
+                    particle->origin.y, particle->origin.z, particle->stepMagnitude, particle->magnitudeStep,
+                    particle->motionStep.x, particle->motionStep.y, particle->motionStep.z, particle->rotation.x,
+                    particle->rotation.y, particle->rotation.z);
+            // appended after the original fields: scale, field 20, prim rgba, env rgb, texture frame (unk_C7)
+            fprintf(partlog, " X s=%g f20=%g prim=%d,%d,%d,%d env=%d,%d,%d tf=%d\n", particle->scale, particle->unk_20,
+                    particle->primRed, particle->primGreen, particle->primBlue, particle->primAlpha, particle->envRed,
+                    particle->envGreen, particle->envBlue, particle->textureFrame);
+            fflush(partlog);
+        }
+    }
 
     switch (particle->descriptor->kind) {
         case 1:

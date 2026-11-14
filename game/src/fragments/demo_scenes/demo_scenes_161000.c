@@ -20,6 +20,11 @@ u16 Diorama_IsModelInCameraCone(CameraNode* camera, DisplayObject* arg1, s16 arg
     f32 sp38;
     s32 sp34 = 0;
 
+    // PORT: arg2/arg3 are the camera's left/right half-angles for the 4:3 picture; at 16:9 the screen shows more at
+    // the sides, and the intro's line-up hid a Pokémon (Kabutops, Scyther) while it was still in view there
+    arg2 = Port_WidenViewAngle(arg2);
+    arg3 = Port_WidenViewAngle(arg3);
+
     Vec3f_CalculateDistanceAngles(&camera->view.targetPosition, &camera->view.eyePosition, &sp48, &sp46, &sp44);
     sp40 = (COSS(sp44 + 0x8000) * arg5) + camera->view.eyePosition.z;
     sp38 = (SINS(sp44 + 0x8000) * arg5) + camera->view.eyePosition.x;

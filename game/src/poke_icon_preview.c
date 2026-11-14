@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "poke_icon.h"
 #include "src/geo_node.h"
 #include "src/geo_render.h"
@@ -15,9 +17,9 @@
 static DisplayObject* D_800AC830;
 static s32 D_800AC834;
 
-s32 PokeIcon_CapturePreviewGeoNode(s32, GraphNode*);
+intptr_t PokeIcon_CapturePreviewGeoNode(s32 arg0, GraphNode* arg1);
 
-s32 PokeIcon_CapturePreviewGeoNode(s32 arg0, GraphNode* arg1) {
+intptr_t PokeIcon_CapturePreviewGeoNode(s32 arg0, GraphNode* arg1) {
     if (arg0 == 0) {
         D_800AC830 = arg1;
     }
@@ -25,7 +27,8 @@ s32 PokeIcon_CapturePreviewGeoNode(s32 arg0, GraphNode* arg1) {
 }
 
 void PokeIcon_InitPreviewScene(unk_func_8001B1FC* arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4) {
-    static u32 D_8006F3E0[] = {
+    static uintptr_t D_8006F3E0[] = {
+        // PORT64: holds addresses
         0x0C00FFFF, 0x05000000, 0x0B00001E, 0x00000000, 0x010000E0, 0x00000000, 0x0000000A,
         0x015404E2, 0x05000000, 0x0D000000, 0x05000000, 0x14000000, 0x002D013B, 0xFFFFFF32,
         0x14000000, 0xFFD30087, 0x80808032, 0x16646464, 0x0F000001, 0x05000000, 0x1F000000,
@@ -210,7 +213,7 @@ void PokeIcon_UpdatePreview(unk_func_8001B1FC* arg0) {
 
 void PokeIcon_DrawPreview(unk_func_8001B1FC* arg0) {
     s32 var_v0;
-    s32 var_s2;
+    intptr_t var_s2;
     s32 i;
 
     if (arg0->unk_0C == 0) {
@@ -218,7 +221,7 @@ void PokeIcon_DrawPreview(unk_func_8001B1FC* arg0) {
         return;
     }
 
-    var_s2 = arg0->unk_0C;
+    var_s2 = (intptr_t)arg0->unk_0C;
 
     gDPPipeSync(gDisplayListHead++);
     gDPSetCycleType(gDisplayListHead++, G_CYC_COPY);

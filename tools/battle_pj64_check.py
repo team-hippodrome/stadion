@@ -8,7 +8,7 @@ Start pj64-stadium with --agent first (or pass --exe to have it started, with th
 
 What it does: plays the route of tools/battle_xcheck.py (Poke Cup, first battle, Charmander leading), synchronised
 on loaded fragments instead of frame counts (Project64's timing differs), then patches the battle engine in RAM:
-Battle_RandomAccuracy returns 0 (Flamethrower hits) and both random calls of Battle_Effect_SecondaryStatusChance
+Battle_RandomAccuracy returns 0 (Flamethrower hits) and both random calls of BattleEffect_SecondaryStatusChance
 read 0 (the burn lands). Everything else stays as the game plays it. It chooses Flamethrower (A, C-up) and saves
 a screenshot of every second frame from the start of the move's animation (BattleScene_EnterRow3StartMoveAnim) as
 <out>/pj64_<frame>.png. Compare with the sweep's case sheet (build-xcheck-sweep/cases/053_base_*/sheet_053_k0.png).
@@ -18,7 +18,7 @@ import json, os, socket, subprocess, sys, time
 ROM = os.environ.get("ROM", "/Users/michael/Downloads/romis/Pokemon Stadium (USA).z64")
 ORDER_SELECT, BATTLE_ENGINE = 56, 51          # fragment ids (link address 0x84800000, 0x84300000)
 RANDOM_ACCURACY = 0x8436F788                  # Battle_RandomAccuracy
-STATUS_CHANCE_RANDOM_CALLS = (0x84373FAC, 0x84373FCC)  # jal Battle_Random in Battle_Effect_SecondaryStatusChance
+STATUS_CHANCE_RANDOM_CALLS = (0x84373FAC, 0x84373FCC)  # jal Battle_Random in BattleEffect_SecondaryStatusChance
 START_MOVE_ANIM = 0x84302A78                  # BattleScene_EnterRow3StartMoveAnim
 COLLECT_PLAYER_ACTION = 0x8430F794            # BattleScene_CollectPlayerAction
 JR_RA, LI_V0_0 = 0x03E00008, 0x34020000       # jr ra / ori v0, zero, 0

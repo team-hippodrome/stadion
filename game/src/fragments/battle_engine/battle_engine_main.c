@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <stdio.h>
 #include "battle_engine.h"
 #include "game_state.h"
 #include "src/geo_node.h"
@@ -68,7 +70,8 @@ static u8 sBattleModeDispatch[] = {
     // first bytes of sStageGeoLayout (0x0C, 0x00, 0xFF, 0xFF, 0x05, 0x00, 0x00).
     // Adding entries would shift .data and break ROM identity.
 };
-static u32 sStageGeoLayout[] = {
+static uintptr_t sStageGeoLayout[] = {
+    // PORT64: holds addresses
     0x0C00FFFF,
     0x05000000,
     0x07000000,
@@ -158,14 +161,16 @@ static u32 sStageGeoLayout[] = {
     0x06000000,
     0x01000000,
 };
-static u32 sSide1ThumbnailLayout[] = {
+static uintptr_t sSide1ThumbnailLayout[] = {
+    // PORT64: holds addresses
     0x0C00FFFF, 0x05000000, 0x07000000,  &sSide1ThumbnailCamera,
     0x05000000, 0x0D000001, 0x05000000,  0x14000000,
     0x002D0019, 0xFFFFFF28, 0x16FFFFFF,  0x0F000003,
     0x05000000, 0x0A000000, &D_800AC840, 0x06000000,
     0x06000000, 0x06000000, 0x06000000,  0x01000000,
 };
-static u32 sSide2ThumbnailLayout[] = {
+static uintptr_t sSide2ThumbnailLayout[] = {
+    // PORT64: holds addresses
     0x0C00FFFF, 0x05000000, 0x07000000,  &sSide2ThumbnailCamera,
     0x05000000, 0x0D000002, 0x05000000,  0x14000000,
     0x002D0019, 0xFFFFFF28, 0x16FFFFFF,  0x0F000003,
@@ -251,7 +256,7 @@ void Battle_SetStageScale(f32 scale) {
 
 // called every frame: bug boy in GLC
 // Expand RGBA5551 channels to eight bits for tinting, then repack with alpha set.
-u16 Battle_TintTexel16(u16 color) {
+u16 Battle_TintTexel16(uintptr_t color) {
     s32 r;
     s32 g;
     s32 b;
@@ -275,17 +280,17 @@ void Battle_DrawStageBackdrop(void) {
     s16 bottom;
     s16 texture_step_y;
 
-    if ((u32)sStageBackdrop == NULL) {
+    if ((uintptr_t)sStageBackdrop == NULL) {
         GfxImage_ClearDepthRectangle(&gDisplayListHead, 0, 0, 0x140, 0xF0);
         return;
     }
 
-    if ((u32)sStageBackdrop == -1) {
+    if ((uintptr_t)sStageBackdrop == -1) {
         GfxImage_FillCurrent(&gDisplayListHead, 1);
         return;
     }
 
-    if ((u32)sStageBackdrop < 0x10000) {
+    if ((uintptr_t)sStageBackdrop < 0x10000) {
         GfxImage_FillCurrent(&gDisplayListHead, Battle_TintTexel16(sStageBackdrop));
         return;
     }
@@ -297,6 +302,8 @@ void Battle_DrawStageBackdrop(void) {
     bottom = sStageCamera.viewport.height + top;
     texture_step_y = 0x10000 / (sStageCamera.viewport.height / 2);
 
+    // PORT: the sky comes before the arena: keep the frame a 3D scene's, at the whole width of a widescreen picture
+    gDPPort3DScene(gDisplayListHead++);
     if ((sStageCamera.viewport.width < 0x140) || (sStageCamera.viewport.height < 0xF0)) {
         GfxImage_FillCurrent(&gDisplayListHead, 1);
     } else {
@@ -338,6 +345,12 @@ void Battle_RenderActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer*
 
         GfxImage_SetRenderTarget(&gDisplayListHead, thumbnail);
         GfxImage_FillCurrent(&gDisplayListHead, 0x10D);
+        if (PORT_GETENV_ONCE("PORT_TRACE_BATTLE")) {
+            extern unsigned long long Port_ViTick(void);
+            GraphNode* c = (GraphNode*)camera_node->node.children;
+            fprintf(stderr, "[thumb] frame %llu image %p %dx%d children %p\n", Port_ViTick(), (void*)thumbnail->img_p,
+                    thumbnail->width, thumbnail->height, (void*)c);
+        }
         Geo_RenderRootNode(thumbnail_root);
 
         camera_node->node.flags &= ~0x10;
@@ -392,7 +405,7 @@ void Battle_FillActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer* t
     s32 y;
     CameraNode* camera_node = thumbnail_root->children;
     CameraViewport* viewport = &thumbnail_root->children->viewport;
-    s32 image_address;
+    intptr_t image_address;
 
     x = viewport->x;
     y = viewport->y;
@@ -400,6 +413,15 @@ void Battle_FillActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer* t
     camera_node++;
 
     gDPPipeSync(gDisplayListHead++);
+    // PORT: in a widescreen picture the portrait sits at its screen edge, with its side's HUD (Battle_RenderHud)
+    {
+        const int anchor = Port_HudAnchorSide(thumbnail_root->children);
+        if (anchor < 0) {
+            gDPPortAnchorLeft(gDisplayListHead++);
+        } else if (anchor > 0) {
+            gDPPortAnchorRight(gDisplayListHead++);
+        }
+    }
 
     gDPSetCycleType(gDisplayListHead++, G_CYC_1CYCLE);
     gDPSetRenderMode(gDisplayListHead++, G_RM_OPA_SURF, G_RM_OPA_SURF2);
@@ -417,6 +439,7 @@ void Battle_FillActivePokemonThumbnail(GraphNode* thumbnail_root, DepthBuffer* t
     Battle_DrawTexturedRectSegment(x, y + 30, 37, 7, image_address, 76);
 
     gDPPipeSync(gDisplayListHead++);
+    gDPPortAnchorEnd(gDisplayListHead++);
 
     gDPSetTexturePersp(gDisplayListHead++, G_TP_PERSP);
     gDPSetTextureFilter(gDisplayListHead++, G_TF_BILERP);
@@ -483,6 +506,7 @@ void func_84300E80(void) {
 s32 BattleScene_UpdateFrame(s32 fade_mode) {
     s32 battle_result;
 
+    Port_XcheckGameFrame(); // PORT: battle cross-check: one call per battle game frame (src/port/xcheck.cpp)
     GeoRender_AdvanceFrameCounter();
     ModelAnim_UpdateFrameChangeState();
     BattleScene_DispatchLifecycle(2, sBattleSides);
@@ -626,6 +650,8 @@ void Battle_SelectComRoster(void) {
     s32 i;
     s32 number_of_pokemon_picked;
 
+    extern int Port_BattleBootActive(void); // PORT: battle boot (src/port/xcheck.cpp)
+
     player_roster = gSessionContext.battleSides[0].tagTeamMember[0];
     // In Free Battle Team Battle, side 0 can have a second allied trainer in teamMember[1].
     player_teammate_roster = gSessionContext.battleSides[0].tagTeamMember[1];
@@ -639,6 +665,9 @@ void Battle_SelectComRoster(void) {
             } else {
                 number_of_pokemon_picked = 3;
             }
+            if (Port_BattleBootActive()) {
+                number_of_pokemon_picked = com_roster->rosterInfo->numberOfPokemonCanBePicked;
+            }
             func_843831A0(player_roster, player_teammate_roster, com_roster, gSessionContext.aiDifficulty,
                           order_of_picked_pokemon, gSessionContext.ruleCategory, number_of_pokemon_picked);
         } else {
@@ -647,8 +676,19 @@ void Battle_SelectComRoster(void) {
             } else {
                 number_of_pokemon_picked = 3;
             }
+            if (Port_BattleBootActive()) {
+                number_of_pokemon_picked = com_roster->rosterInfo->numberOfPokemonCanBePicked;
+            }
             func_843831A0(player_roster, NULL, com_roster, com_roster->unk_018 & 0xFF, order_of_picked_pokemon,
                           gSessionContext.ruleCategory, number_of_pokemon_picked);
+        }
+        if (Port_BattleBootActive()) {
+            // PORT: battle boot: the computer's AI is set up by the pick above (its team context, difficulty, random
+            // state), but the party is as the case file wrote it: all of it, in order
+            number_of_pokemon_picked = com_roster->rosterInfo->numberOfPokemonCanBePicked;
+            for (i = 0; i < 6; i++) {
+                order_of_picked_pokemon[i] = i;
+            }
         }
         Battle_CompleteRosterOrder(order_of_picked_pokemon, number_of_pokemon_picked);
         com_roster->numberOfPokemonBrought = number_of_pokemon_picked;
@@ -699,7 +739,7 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
     sBattleSides[1].unk_10 = PokeIcon_AllocFramebuffers(3);
     PokeIcon_OpenModelArchives();
 
-    thumbnail_depth = main_pool_alloc(0x10, 0);
+    thumbnail_depth = main_pool_alloc(sizeof(*thumbnail_depth), 0); // PORT64: host size (was 0x10)
     GfxImage_Initialize(thumbnail_depth, 0, 2, 0x4C, 0x4C, stage_context->unk_18[0]->depth_p->img_p);
     sSide1PokemonThumbnail = GfxImage_Allocate(0, 2, 0x4C, 0x4C, 0);
     sSide2PokemonThumbnail = GfxImage_Allocate(0, 2, 0x4C, 0x4C, 0);
@@ -729,8 +769,27 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
         }
     }
 
-    arena_entry = BinArchive_GetFile(ASSET_LOAD2(stadium_models, 1, 1), arena_index);
-    sStageBackdrop = arena_entry(2, 0);
+    {
+        extern int Port_BattleBootArena(void); // PORT: battle boot (src/port/xcheck.cpp): the case's arena
+        if (Port_BattleBootArena() >= 0) {
+            arena_index = Port_BattleBootArena();
+        }
+    }
+    if (PORT_GETENV_ONCE("PORT_BOOT_STAGE") != NULL) { // PORT debug: force a stage file of stadium_models
+        arena_index = atoi(PORT_GETENV_ONCE("PORT_BOOT_STAGE"));
+    }
+    {
+        BinArchive* arc = ASSET_LOAD2(stadium_models, 1, 1);
+        arena_entry = BinArchive_GetFile(arc, arena_index);
+        fprintf(stderr, "[stadium] archive %p flags 0x%x id 0x%x files %u -> file %d at %p\n", (void*)arc,
+                arc ? arc->unk_00 : 0, arc ? arc->unk_02 : 0, arc ? arc->num_files : 0, arena_index,
+                (void*)arena_entry);
+        if (arena_entry) {
+            for (int k = 0; k < 64; k++)
+                fprintf(stderr, "%02x%s", ((u8*)arena_entry)[k], (k % 16 == 15) ? "\n" : " ");
+        }
+    }
+    sStageBackdrop = (void*)Port_CallBlobEntry(arena_entry, 2, 0);
 
     model = Model_LoadByArchiveIndex(0x9A);
     Battle_SelectComRoster();
@@ -758,17 +817,17 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
     sSide2ThumbnailRoot = process_geo_layout(layout_pool, sSide2ThumbnailLayout);
 
     // Selectors 0, 1, and 3 each attach geometry beneath a stage tint/scale callback.
-    stage_layout = arena_entry(0, 0);
+    stage_layout = (void*)Port_CallBlobEntry(arena_entry, 0, 0);
     if (stage_layout != NULL) {
         GraphNode_AppendChild(&sStageLayout0, process_geo_layout(layout_pool, stage_layout));
     }
 
-    stage_layout = arena_entry(1, 0);
+    stage_layout = (void*)Port_CallBlobEntry(arena_entry, 1, 0);
     if (stage_layout != NULL) {
         GraphNode_AppendChild(&sStageLayout1, process_geo_layout(layout_pool, stage_layout));
     }
 
-    stage_layout = arena_entry(3, 0);
+    stage_layout = (void*)Port_CallBlobEntry(arena_entry, 3, 0);
     if (stage_layout != NULL) {
         GraphNode_AppendChild(&sStageLayout3, process_geo_layout(layout_pool, stage_layout));
     }
@@ -776,13 +835,15 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
     MainPool_FinalizeAllocation(layout_pool);
 
     // callbackArg records whether this arena supplied fog, for Battle_SetStageTintColor.
-    fog_parameters = arena_entry(4, 0);
+    fog_parameters =
+        Port_VResolve(Port_CallBlobEntry(arena_entry, 4, 0)); // PORT: the stage blob returns its pseudo address
     if (fog_parameters == NULL) {
         sStageFog.node.callbackArg = 0;
         sStageFog.node.flags &= ~1;
     } else {
-        sStageFog.unk_18.unk_00 = fog_parameters->unk_00;
-        sStageFog.unk_18.unk_02 = fog_parameters->unk_02;
+        // PORT: big-endian data inside the stage file
+        sStageFog.unk_18.unk_00 = (s16)((((u8*)&fog_parameters->unk_00)[0] << 8) | ((u8*)&fog_parameters->unk_00)[1]);
+        sStageFog.unk_18.unk_02 = (s16)((((u8*)&fog_parameters->unk_02)[0] << 8) | ((u8*)&fog_parameters->unk_02)[1]);
         sStageFog.unk_18.unk_04.rgba = fog_parameters->unk_04.rgba;
         sStageFog.node.callbackArg = 1;
     }

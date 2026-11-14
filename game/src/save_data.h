@@ -9,8 +9,9 @@ typedef struct GameOptions {
     /* 0x00 */ s16 gbTowerUnlockTier; // 0 = normal, 1 = Doduo, 2 = Dodrio.
     // Word carried into/out of GB Tower by State_GbTower; its pointer role is unknown.
     //@src/game_state.c
-    /* 0x04 */ struct GameOptions* unk_04;
-} GameOptions; // size = 0x8
+    /* 0x04 */ u32 unk_04; // PORT: a 32-bit word handed to/from the GB Tower (was a pointer, 8 bytes on the host,
+                           // which moved the progress array of SaveOptionsRecord from 0x0C to 0x18)
+} GameOptions;             // size = 0x8
 
 typedef struct ModeSettings {
     /* 0x00 */ u16 clearedModes; // Bit (1 << session mode); Mewtwo victory is bit 8.

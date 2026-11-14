@@ -1,3 +1,6 @@
+#include "src/util.h"
+#include <string.h>
+#include <stdlib.h>
 #include "battle_engine.h"
 #include "src/model_animation.h"
 #include "src/geo_render.h"
@@ -71,6 +74,47 @@ As well as effects for these specific moves:
     - explosion
     - sharpen
 */
+
+// PORT: callback data of these display-list nodes comes from geo layouts: a native pointer when the layout is C data,
+// a 32-bit link address into the loaded model when it is a ROM model (they are reached through fragment 31's jump
+// table). Textures are used in place; the texture-pair records ({u8* tex; u8* tex2; s16 pad; s16 unk_0A}, big-endian
+// in ROM) are converted once.
+extern int Port_IsRawData(const void* p);
+
+static void* Port_CbTexture(void* arg) {
+    return (void*)Util_ConvertAddrToVirtAddr((uintptr_t)arg);
+}
+
+static arg1_func_8434E21C* Port_CbTexPair(void* arg) {
+    static struct {
+        const u8* src;
+        arg1_func_8434E21C* out;
+    } sCache[64];
+    static s32 sCount;
+    const u8* p = (const u8*)Util_ConvertAddrToVirtAddr((uintptr_t)arg);
+    arg1_func_8434E21C* out;
+    s32 i;
+
+    if (p == NULL || !Port_IsRawData(p)) {
+        return (arg1_func_8434E21C*)p;
+    }
+    for (i = 0; i < sCount; i++) {
+        if (sCache[i].src == p) {
+            return sCache[i].out;
+        }
+    }
+    out = calloc(1, sizeof(*out));
+    out->unk_00 = (u8*)Util_ConvertAddrToVirtAddr(((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3]);
+    out->unk_04 = (u8*)Util_ConvertAddrToVirtAddr(((u32)p[4] << 24) | ((u32)p[5] << 16) | ((u32)p[6] << 8) | p[7]);
+    memcpy(out->unk08, p + 8, 2);
+    out->unk_0A = (s16)((p[10] << 8) | p[11]);
+    if (sCount < 64) {
+        sCache[sCount].src = p;
+        sCache[sCount].out = out;
+        sCount++;
+    }
+    return out;
+}
 
 static f32 D_84387B00[] = {
     0.0f, 1.0f,  1.0f,  1.3f, 0.8f, 0.9f, 1.3f,  0.8f,  1.0f,  0.9f,  0.6f, 1.2f,  1.2f, 0.6f,  0.9f, 1.5f, 0.8f,
@@ -655,7 +699,7 @@ void Gfx_DrawParticleTextureWithParams(Gfx* arg0, arg1_func_8434E21C* arg1, UNUS
 void ParticleEffect_AllocateGfxAndDraw(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_DrawParticleTextureWithParams(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_DrawParticleTextureWithParams(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -1544,7 +1588,7 @@ void BattleAnim_InitializeScreenMove(void) {
     }
 }
 
-void BattleAnim_BuildReflectiveTextureDisplayList(Gfx* arg0, s32 arg1, u16 arg2) {
+void BattleAnim_BuildReflectiveTextureDisplayList(Gfx* arg0, intptr_t arg1, u16 arg2) {
     BattleAnim_SetupReflectiveCamera();
 
     switch (BattleAnim_GetQueuedMoveId()) {
@@ -1575,7 +1619,8 @@ void BattleAnim_BuildReflectiveTextureDisplayList(Gfx* arg0, s32 arg1, u16 arg2)
 void BattleAnim_AllocateReflectiveTextureDisplayList(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        BattleAnim_BuildReflectiveTextureDisplayList(arg1->unk_18, arg1->unk_14, D_8006F084);
+        BattleAnim_BuildReflectiveTextureDisplayList(arg1->unk_18, (intptr_t)Port_CbTexture(arg1->node.callbackArg),
+                                                     D_8006F084);
     }
 }
 
@@ -1956,7 +2001,7 @@ void ParticleEffect_DrawSimple(Gfx* arg0, u8* arg1) {
 void ParticleEffect_CreateSimpleDL(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        ParticleEffect_DrawSimple(arg1->unk_18, arg1->unk_14);
+        ParticleEffect_DrawSimple(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg));
     }
 }
 
@@ -2062,7 +2107,7 @@ void BattleAnim_InitializeBlizzardHit(void) {
     BattleAnim_SpawnGlobalTintColorFadeDetach(0x32, 0x20, 0xA);
 }
 
-void ParticleEffect_DrawNode(Gfx* arg0, s32 arg1, u16 arg2) {
+void ParticleEffect_DrawNode(Gfx* arg0, intptr_t arg1, u16 arg2) {
     Particle* temp_v0 = BattleAnim_GetOwnerContextParticle(D_8006F09C);
 
     gDPPipeSync(arg0++);
@@ -2076,7 +2121,7 @@ void ParticleEffect_DrawNode(Gfx* arg0, s32 arg1, u16 arg2) {
 void ParticleEffect_CreateNodeDL(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        ParticleEffect_DrawNode(arg1->unk_18, arg1->unk_14, D_8006F084);
+        ParticleEffect_DrawNode(arg1->unk_18, (intptr_t)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -2089,7 +2134,7 @@ void ParticleEffect_DrawNodeVariant(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED 
 void ParticleEffect_CreateNodeVariantDL(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        ParticleEffect_DrawNodeVariant(arg1->unk_18, arg1->unk_14, D_8006F084);
+        ParticleEffect_DrawNodeVariant(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -2102,7 +2147,8 @@ void ParticleEffect_DrawSimpleOffsetTileNoCamera(Gfx* arg0, u8* arg1, UNUSED u16
 void ParticleEffect_CreateSimpleOffsetTileNoCameraDL(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        ParticleEffect_DrawSimpleOffsetTileNoCamera(arg1->unk_18, arg1->unk_14, D_8006F084);
+        ParticleEffect_DrawSimpleOffsetTileNoCamera(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg),
+                                                    D_8006F084);
     }
 }
 
@@ -2301,7 +2347,7 @@ void BattleAnim_RunHealthAbsorptionParticles(Particle* arg0) {
     }
 }
 
-void BattleAnim_BuildEffect49DisplayList(Gfx* arg0, UNUSED s32 arg1, UNUSED u16 arg2) {
+void BattleAnim_BuildEffect49DisplayList(Gfx* arg0, UNUSED intptr_t arg1, UNUSED u16 arg2) {
     Particle* temp_v0 = BattleAnim_GetOwnerContextParticle(D_8006F09C);
 
     gDPPipeSync(arg0++);
@@ -2315,7 +2361,7 @@ void BattleAnim_BuildEffect49DisplayList(Gfx* arg0, UNUSED s32 arg1, UNUSED u16 
 void BattleAnim_AllocateEffect49DisplayList(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        BattleAnim_BuildEffect49DisplayList(arg1->unk_18, arg1->unk_14, D_8006F084);
+        BattleAnim_BuildEffect49DisplayList(arg1->unk_18, (intptr_t)arg1->node.callbackArg, D_8006F084);
     }
 }
 
@@ -2425,7 +2471,7 @@ void BattleAnim_InitializeTeleportUse(void) {
     BattleAnim_SpawnInvisibility(0x2D, 0, 0xFF, 0x20);
 }
 
-void BattleAnim_BuildEffect63DisplayList(Gfx* arg0, s32 arg1, u16 arg2) {
+void BattleAnim_BuildEffect63DisplayList(Gfx* arg0, intptr_t arg1, u16 arg2) {
     UNUSED s32 pad;
     Particle* sp28 = BattleAnim_GetOwnerContextParticle(D_8006F09C);
 
@@ -2443,11 +2489,11 @@ void BattleAnim_BuildEffect63DisplayList(Gfx* arg0, s32 arg1, u16 arg2) {
 void BattleAnim_AllocateEffect63DisplayList(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        BattleAnim_BuildEffect63DisplayList(arg1->unk_18, arg1->unk_14, D_8006F084);
+        BattleAnim_BuildEffect63DisplayList(arg1->unk_18, (intptr_t)arg1->node.callbackArg, D_8006F084);
     }
 }
 
-void BattleAnim_BuildEffect75DisplayList(Gfx* arg0, UNUSED s32 arg1, UNUSED u16 arg2) {
+void BattleAnim_BuildEffect75DisplayList(Gfx* arg0, UNUSED intptr_t arg1, UNUSED u16 arg2) {
     Particle* temp_v0 = BattleAnim_GetOwnerContextParticle(D_8006F09C);
 
     gDPPipeSync(arg0++);
@@ -2461,7 +2507,7 @@ void BattleAnim_BuildEffect75DisplayList(Gfx* arg0, UNUSED s32 arg1, UNUSED u16 
 void BattleAnim_AllocateEffect75DisplayList(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        BattleAnim_BuildEffect75DisplayList(arg1->unk_18, arg1->unk_14, D_8006F084);
+        BattleAnim_BuildEffect75DisplayList(arg1->unk_18, (intptr_t)arg1->node.callbackArg, D_8006F084);
     }
 }
 
@@ -2670,7 +2716,7 @@ void BattleAnim_RunRockLiftingMotionEffect(Particle* arg0) {
     }
 }
 
-void Gfx_DrawParticleAlpha(Gfx* arg0, s32 arg1, u16 arg2) {
+void Gfx_DrawParticleAlpha(Gfx* arg0, intptr_t arg1, u16 arg2) {
     Particle* temp_v0 = BattleAnim_GetOwnerContextParticle(D_8006F09C);
 
     gDPPipeSync(arg0++);
@@ -2686,7 +2732,7 @@ void Gfx_DrawParticleAlpha(Gfx* arg0, s32 arg1, u16 arg2) {
 void Particle_CreateDisplayList_Alpha(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_DrawParticleAlpha(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_DrawParticleAlpha(arg1->unk_18, (intptr_t)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -2710,7 +2756,7 @@ void Gfx_DrawParticleTexture4b(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
 void Particle_CreateDisplayList_Texture4b(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_DrawParticleTexture4b(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_DrawParticleTexture4b(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -2734,7 +2780,7 @@ void Gfx_DrawParticleGreenPrim(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
 void Particle_CreateDisplayList_GreenPrim(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_DrawParticleGreenPrim(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_DrawParticleGreenPrim(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -2849,7 +2895,7 @@ void Gfx_DrawParticleCyanEnv(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 arg
 void Particle_CreateDisplayList_CyanEnv(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_DrawParticleCyanEnv(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_DrawParticleCyanEnv(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -2868,7 +2914,7 @@ void Gfx_DrawParticleBluePrim(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 ar
 void Particle_CreateDisplayList_BluePrim(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_DrawParticleBluePrim(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_DrawParticleBluePrim(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -3115,7 +3161,7 @@ void Gfx_DrawParticleCustomColors(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u1
 void Particle_CreateDisplayList_CustomColors(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_DrawParticleCustomColors(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_DrawParticleCustomColors(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -3494,7 +3540,7 @@ void BattleAnim_RunBitingEffect(Particle* arg0) {
     }
 }
 
-void Gfx_DrawParticleFromTempColors(Gfx* arg0, s32 arg1, u16 arg2) {
+void Gfx_DrawParticleFromTempColors(Gfx* arg0, intptr_t arg1, u16 arg2) {
     Particle* temp_v0 = BattleAnim_GetOwnerContextParticle(D_8006F09C);
 
     gDPPipeSync(arg0++);
@@ -3510,7 +3556,7 @@ void Gfx_DrawParticleFromTempColors(Gfx* arg0, s32 arg1, u16 arg2) {
 void Particle_CreateDisplayList_TempColors(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_DrawParticleFromTempColors(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_DrawParticleFromTempColors(arg1->unk_18, (intptr_t)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -3560,7 +3606,7 @@ void Gfx_DrawParticleDualTileDiagonal4(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
 void Particle_CreateDisplayList_DualTileDiagonal4(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_DrawParticleDualTileDiagonal4(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_DrawParticleDualTileDiagonal4(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -3574,7 +3620,7 @@ void Gfx_DrawParticleDualTileAntiDiagonal1(Gfx* arg0, u8* arg1, UNUSED u16 arg2)
 void Particle_CreateDisplayList_DualTileAntiDiagonal1(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_DrawParticleDualTileAntiDiagonal1(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_DrawParticleDualTileAntiDiagonal1(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -3861,13 +3907,13 @@ void Gfx_DrawParticlePaletteBased(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
 void Gfx_ParticlePaletteCallback(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_DrawParticlePaletteBased(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_DrawParticlePaletteBased(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
     }
 }
 
 void Gfx_ParticlePaletteDL(Gfx* arg0, UNUSED arg1_func_8434E21C* arg1, UNUSED u16 arg2) {
     DisplayObject* sp24 = D_8006F09C;
-    s32 tmp = BattleAnim_GetOwnerContextParticle(D_8006F09C);
+    intptr_t tmp = BattleAnim_GetOwnerContextParticle(D_8006F09C);
     UNUSED u8 sp1F;
     UNUSED u8 sp1E;
     u8 sp1D;
@@ -3926,7 +3972,7 @@ void Gfx_ParticlePaletteDL(Gfx* arg0, UNUSED arg1_func_8434E21C* arg1, UNUSED u1
 void Gfx_ParticlePaletteColorOnlyCallback(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_ParticlePaletteDL(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_ParticlePaletteDL(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -4078,7 +4124,7 @@ void Gfx_ParticleTextureTileCallback(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED
 void Gfx_ParticleTextureTileAllocCallback(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_ParticleTextureTileCallback(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_ParticleTextureTileCallback(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -4094,7 +4140,7 @@ void Gfx_ParticleRedPrimCallback(Gfx* arg0, UNUSED arg1_func_8434E21C* arg1, UNU
 void Gfx_ParticleRedPrimAllocCallback(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_ParticleRedPrimCallback(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_ParticleRedPrimCallback(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -4176,7 +4222,7 @@ void Gfx_PokemonPortraitCallback(Gfx* arg0, u8 arg1, UNUSED u16 arg2) {
 void Gfx_PokemonPortraitAllocCallback(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_PokemonPortraitCallback(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_PokemonPortraitCallback(arg1->unk_18, (u8)(uintptr_t)arg1->node.callbackArg, D_8006F084);
     }
 }
 
@@ -4593,7 +4639,7 @@ void Gfx_PaletteParticleDL(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
 void Gfx_PaletteParticleDLCallback(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_PaletteParticleDL(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_PaletteParticleDL(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -4786,7 +4832,7 @@ void Gfx_WaterAnimPrimEnvDL(Gfx* arg0, u8 arg1, UNUSED u16 arg2) {
 void Gfx_WaterAnimPrimEnvDLCallback(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_WaterAnimPrimEnvDL(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_WaterAnimPrimEnvDL(arg1->unk_18, (u8)(uintptr_t)arg1->node.callbackArg, D_8006F084);
     }
 }
 
@@ -4851,7 +4897,7 @@ void Gfx_WaterAnimDL(Gfx* arg0, u8* arg1, UNUSED u16 arg2) {
 void Gfx_WaterAnimDLCallback(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_WaterAnimDL(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_WaterAnimDL(arg1->unk_18, (void*)Port_CbTexture(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -5110,7 +5156,7 @@ void Gfx_SimpleNodeDL(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 arg2) {
 void Gfx_SimpleNodeDLCallback(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        Gfx_SimpleNodeDL(arg1->unk_18, arg1->unk_14, D_8006F084);
+        Gfx_SimpleNodeDL(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
     }
 }
 
@@ -5373,7 +5419,7 @@ void ParticleEffect_DrawQuad(Gfx* arg0, arg1_func_8434E21C* arg1, UNUSED u16 arg
 void ParticleEffect_AllocateDisplayList(s32 arg0, arg1_func_84344CE8* arg1) {
     if (arg0 == 2) {
         arg1->unk_18 = Gfx_AllocDisplayList(sizeof(Gfx) * 30);
-        ParticleEffect_DrawQuad(arg1->unk_18, arg1->unk_14, D_8006F084);
+        ParticleEffect_DrawQuad(arg1->unk_18, (void*)Port_CbTexPair(arg1->node.callbackArg), D_8006F084);
     }
 }
 

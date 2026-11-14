@@ -177,6 +177,13 @@ s32 BattleScene_UpdateResultPresentation(void) {
 }
 
 s32 BattleScene_IsActionSelectionTimerExpired(void) {
+    if (Port_XcheckCom()) { // PORT: battle cross-check (src/port/xcheck.cpp): the player's choices are made at once,
+        // as when the move time limit runs out (first usable move, first healthy replacement); every other query
+        // answers "not yet", so the menu a choice belongs to (e.g. the party after a faint) is opened first
+        static int sAsked;
+        sAsked = !sAsked;
+        return !sAsked;
+    }
     if (gSessionContext.timeLimitsEnabled == 0) {
         return 0;
     }
@@ -328,6 +335,73 @@ void BattleScene_AutoSelectAvailableMove(ActivePokemon* pokemon) {
     }
 }
 
+// PORT: battle boot (src/port/xcheck.cpp): a scripted side's decisions. The side's menu is up for `think` game frames
+// (the calls that return 0 let it run), then the next scripted choice is made as the move time limit would make it
+// (BattleScene_AutoSelectAvailableMove / BattleScene_AutoSelectReplacementMon): a move slot, or a switch to a party
+// slot (state 2, the party menu's result). An empty or unusable choice falls back to the first usable move / healthy
+// mon.
+extern int Port_BattleBootScripted(int side);
+extern int Port_BattleBootThink(void);
+extern int Port_BattleBootNextAction(int side, int consume, int* arg);
+
+static s32 BattleBoot_Switch(ActivePokemon* pokemon, s32 slot) {
+    ActivePokemonState* state = &pokemon->state;
+    TeamRoster* roster = pokemon->sessionTeams->tagTeamMember[0];
+
+    if ((slot < 0) || (slot >= roster->numberOfPokemonBrought) || (slot == state->rosterIndex) ||
+        (roster->pokemonPicked[slot].hp == 0)) {
+        return 0;
+    }
+    state->selectedCommand = 2;
+    state->showingCommandOptions = 0;
+    state->actionDelayTimer = 0;
+    state->selectedCommandOption = 3;
+    state->actionChosen = slot;
+    return 1;
+}
+
+void BattleScene_AutoSelectReplacementMon(ActivePokemon* pokemon);
+
+// returns 1 once the decision is made (replacement: a mon must come in)
+s32 BattleBoot_Decide(ActivePokemon* pokemon, s32 replacement) {
+    static s32 waited[2];
+    s32 side = BattleScene_GetParticipantSideIndex(pokemon);
+    s32 kind, arg;
+
+    if (!Port_BattleBootScripted(side)) {
+        return 0;
+    }
+    if (waited[side]++ < Port_BattleBootThink()) {
+        return 0;
+    }
+    waited[side] = 0;
+    kind = Port_BattleBootNextAction(side, 0, &arg);
+    if (replacement) {
+        if ((kind == 2) && BattleBoot_Switch(pokemon, arg)) {
+            Port_BattleBootNextAction(side, 1, &arg);
+            return 1;
+        }
+        BattleScene_AutoSelectReplacementMon(pokemon);
+        return 1;
+    }
+    if (kind != 0) {
+        Port_BattleBootNextAction(side, 1, &arg);
+    }
+    if ((kind == 2) && BattleBoot_Switch(pokemon, arg)) {
+        return 1;
+    }
+    if ((kind == 1) && (BattleScene_IsMoveUnavailable(pokemon, arg) == 0) &&
+        (BattleScene_SelectFallbackWhenNoUsableMoves(pokemon) == 0)) {
+        pokemon->state.selectedCommand = 1;
+        pokemon->state.selectedCommandOption = 3;
+        pokemon->state.moveIndex = arg;
+        pokemon->state.selectedMoveIndex = arg;
+        return 1;
+    }
+    BattleScene_AutoSelectAvailableMove(pokemon);
+    return 1;
+}
+
 void BattleScene_AutoSelectReplacementMon(ActivePokemon* pokemon) {
     s32 i;
     ActivePokemonState* state = &pokemon->state;
@@ -350,7 +424,8 @@ void BattleScene_SelectActiveController(ActivePokemon* pokemon) {
     ActivePokemonState* state = &pokemon->state;
 
     state->ownerTeamMemberIndex = state->teamMemberIndex;
-    state->controller = &gControllers[pokemon->sessionTeams->tagTeamMember[state->ownerTeamMemberIndex]->controllerPort];
+    state->controller =
+        &gControllers[pokemon->sessionTeams->tagTeamMember[state->ownerTeamMemberIndex]->controllerPort];
 }
 
 void BattleScene_HandleActionSelectionCancel(s32 side) {
@@ -711,8 +786,9 @@ void BattleScene_CommitPlayerSwitchAction(ActivePokemon* arg0) {
 }
 
 s32 BattleScene_ValidateSelectedPartyMember(ActivePokemon* arg0) {
-    if (arg0->sessionTeams->tagTeamMember[arg0->state.ownerTeamMemberIndex]->pokemonPicked[arg0->state.actionChosen].hp !=
-        0) {
+    if (arg0->sessionTeams->tagTeamMember[arg0->state.ownerTeamMemberIndex]
+            ->pokemonPicked[arg0->state.actionChosen]
+            .hp != 0) {
         return 1;
     }
 
@@ -1089,6 +1165,9 @@ s32 BattleScene_HandlePlayerActionInput(ActivePokemon* pokemon) {
         return 1;
     }
 
+    if (BattleBoot_Decide(pokemon, 0) != 0) { // PORT: battle boot (src/port/xcheck.cpp)
+        return 1;
+    }
     if (BattleScene_IsActionSelectionTimerExpired() != 0) {
         if (pokemon->state.selectedCommand == SELECTED_COMMAND_SWITCH) {
             BattleScene_AutoSelectReplacementMon(pokemon);
@@ -1125,6 +1204,9 @@ s32 BattleScene_HandlePlayerForcedActionState(ActivePokemon* pokemon1, ActivePok
             return 1;
         }
 
+        if (BattleBoot_Decide(pokemon1, 1) != 0) { // PORT: battle boot (src/port/xcheck.cpp)
+            return 1;
+        }
         if (BattleScene_IsActionSelectionTimerExpired() != 0) {
             BattleScene_AutoSelectReplacementMon(pokemon1);
             return 1;
@@ -1137,6 +1219,9 @@ s32 BattleScene_HandlePlayerForcedActionState(ActivePokemon* pokemon1, ActivePok
     }
 
     if (state1->replacementState == 0x10) {
+        if (BattleBoot_Decide(pokemon1, 1) != 0) { // PORT: battle boot (src/port/xcheck.cpp)
+            return 1;
+        }
         if (BattleScene_IsActionSelectionTimerExpired() != 0) {
             BattleScene_AutoSelectReplacementMon(pokemon1);
             return 1;

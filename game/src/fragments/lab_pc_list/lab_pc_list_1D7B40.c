@@ -152,7 +152,7 @@ void BattleMoveListWidget_DisableRestrictedMoves(unk_func_8830867C_04C_078* arg0
 
     for (i = 0; i < 4; i++) {
         for (j = 0; j < 5; j++) {
-            if (*(s32*)&arg0->unk_44[i].unk_00 == D_88317410[j]) {
+            if (arg0->unk_44[i].unk_00 == D_88317410[j]) {
                 arg0->unk_30->unk_34[i] |= 4;
                 break;
             }
@@ -268,7 +268,9 @@ void BattleInfoWidget_DrawIndicator(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
                         G_TX_RENDERTILE, 0, 0, 0x0400, 0x0400);
 }
 
-void BattleInfoWidget_DrawEntry(s32 arg0, s32 arg1, unk_func_88309C38_arg2* arg2, s32 arg3, s32 arg4,
+// PORT64: arg2 is a box (unk_func_8820BE14_06C_000_alt, its Pokemon list at 0x10); the decomp's view has the list's
+// capacity / count at 0x14 / 0x18 only with 4-byte pointers
+void BattleInfoWidget_DrawEntry(s32 arg0, s32 arg1, unk_func_8820BE14_06C_000_alt* arg2, s32 arg3, s32 arg4,
                                 unk_func_8830867C_034_03C_038* arg5) {
     static Color_RGBA8 D_88317424 = { 0xB2, 0xFF, 0xC3, 0xFF };
     static Color_RGBA8 D_88317428 = { 0xF0, 0xF0, 0xF0, 0xFF };
@@ -299,7 +301,8 @@ void BattleInfoWidget_DrawEntry(s32 arg0, s32 arg1, unk_func_88309C38_arg2* arg2
 
     Font_Printf(((arg0 + sp2C + sp28) - Font_MeasureTextExtent(0, 0, sp34)) + 0x2C, arg1 + 2, sp34);
     Font_EndTexturedTextRendering();
-    BattleInfoWidget_DrawIndicator((arg5->unk_00.unk_14.unk_00 + arg0) - 0x35, arg1 + 8, arg2->unk_18, arg2->unk_14);
+    BattleInfoWidget_DrawIndicator((arg5->unk_00.unk_14.unk_00 + arg0) - 0x35, arg1 + 8, arg2->unk_10.unk_08,
+                                   arg2->unk_10.unk_04);
 }
 
 s32 BattleInfoWidget_GetEntryWidth(void) {
@@ -540,7 +543,9 @@ void BattleInfoWidget_ApplyEntrySelection(unk_func_8830867C_034* arg0, s32 arg1)
     ptr2->unk_08 = (arg0->unk_30->unk_34[arg1] & 2) != 0;
 }
 
-void BattleInfoWidget_DrawStatusEntry(s32 arg0, s32 arg1, unk_func_88309C38_arg2* arg2, s32 arg3, s32 arg4,
+// PORT64: arg2 is a bank (unk_func_8830867C_02C_0E4: its box count and first box); the decomp's view read them at
+// 0x14 / 0x0C, which is unk_0C.unk_08 / unk_0C.unk_00 only with 4-byte pointers
+void BattleInfoWidget_DrawStatusEntry(s32 arg0, s32 arg1, unk_func_8830867C_02C_0E4* arg2, s32 arg3, s32 arg4,
                                       unk_func_88200FA0_030_030* arg5) {
     static Color_RGBA8 D_88317440 = { 0xF0, 0xF0, 0xF0, 0xFF };
 
@@ -559,9 +564,11 @@ void BattleInfoWidget_DrawStatusEntry(s32 arg0, s32 arg1, unk_func_88309C38_arg2
         Font_SetActive(8, 0);
         Font_Printf(arg0 + 0x2C, arg1 + 4, Text_GetString(NULL, 0, sPcListText, arg3 + 0x3B));
         Font_EndTexturedTextRendering();
-        if (arg2->unk_14 == 1) {
-            BattleInfoWidget_DrawIndicator((arg5->unk_00.unk_14.unk_00 + arg0) - 0x35, arg1 + 0xC, arg2->unk_0C->unk_18,
-                                           arg2->unk_0C->unk_14);
+        if (arg2->unk_0C.unk_08 == 1) {
+            unk_func_8820BE14_06C_000_alt* box = (unk_func_8820BE14_06C_000_alt*)arg2->unk_0C.unk_00;
+
+            BattleInfoWidget_DrawIndicator((arg5->unk_00.unk_14.unk_00 + arg0) - 0x35, arg1 + 0xC, box->unk_10.unk_08,
+                                           box->unk_10.unk_04);
         }
     }
 }
@@ -701,13 +708,13 @@ void BattleInfoWidget_Build(unk_func_8830867C_034* arg0, s32 arg1, s32 arg2, Wid
 }
 
 void BattleInfoWidget_BindData(unk_func_8830867C_034* arg0, unk_func_8830867C_02C_144* arg1) {
-    unk_func_8830867C_02C_144_000_alt* sp1C;
+    unk_func_8830867C_02C_0E4* sp1C; // PORT64: the banks themselves (was a view with N64 offsets, see lab_pc_list.h)
 
     ((func885063B8)Memmap_GetFragmentVaddr(WidgetTree_BindPagedGridStridedData))(arg0->unk_30, arg1);
 
     sp1C = arg1->unk_00;
     BattleInfoWidget_UpdateEntryFlags(arg0);
-    BattleInfoWidget_SetEntries(arg0->unk_3C, &sp1C->unk_2C, &sp1C->unk_4C);
+    BattleInfoWidget_SetEntries(arg0->unk_3C, &sp1C[1].unk_0C, &sp1C[2].unk_0C);
 }
 
 void BattleInfoWidget_SetWidgetState(unk_func_8830867C_034* arg0, s32 arg1) {
@@ -849,7 +856,7 @@ void BattleInfoWidget_SetCloseState(unk_func_8830867C_034* arg0) {
 }
 
 s32 BattleInfoWidget_RunSelectionModal(unk_func_8830867C_034* arg0, Controller* arg1) {
-    s32 var_s0 = 0;
+    intptr_t var_s0 = 0;
     s32 temp_v0;
 
     BattleInfoWidget_OpenPanels(arg0);
@@ -1035,7 +1042,7 @@ void BattleInfoWidget_CloseSelection(unk_func_8830867C_030* arg0) {
 
 u32 BattleInfoWidget_RunEntryModal(unk_func_8830867C_030* arg0, Controller* arg1, s32 arg2) {
     s32 var_s0;
-    s32 var_s1 = 0;
+    intptr_t var_s1 = 0;
 
     BattleInfoWidget_OpenSelectionAt(arg0, arg2);
 
@@ -1296,7 +1303,7 @@ s32 BattleInfoWidget_HandleStatusInput(unk_func_8830867C_038* arg0, Controller* 
 
 s32 BattleInfoWidget_RunStatusModal(unk_func_8830867C_038* arg0, Controller* arg1) {
     s32 temp_v0;
-    s32 var_s0;
+    intptr_t var_s0;
 
     var_s0 = NULL;
     arg0->unk_00.unk_24(&arg0->unk_00, 1);
@@ -1587,7 +1594,7 @@ s32 BattleInfoWidget_HandleLevelRangeInput(unk_func_8830867C_044* arg0, Controll
 s32 BattleInfoWidget_RunLevelRangeModal(unk_func_8830867C_044* arg0, Controller* arg1) {
     s32 temp_v0;
     s32 var_v0;
-    s32 var_s0 = 0;
+    intptr_t var_s0 = 0;
 
     ((func8850CB48)Memmap_GetFragmentVaddr(WidgetTree_SetGridMenuSelection))(arg0->unk_44, 0);
     ((func8850CD24)Memmap_GetFragmentVaddr(WidgetTree_SetChildSelectionProxySelection))(arg0->unk_40, 0);
@@ -1898,7 +1905,7 @@ void BattleInfoWidget_BuildTypePanel(unk_func_8830867C_03C* arg0, s32 arg1, s32 
     ((func8850068C)Memmap_GetFragmentVaddr(WidgetTree_AppendChild))(spA0, temp_s0_2);
     arg0->unk_50->unk_1C = temp_s0_2;
 
-    TableView_Initialize(&arg0->unk_D0, arg0->unk_58, 8, 0xF, 0xF);
+    TableView_Initialize(&arg0->unk_D0, arg0->unk_58, sizeof(unk_func_8830867C_03C_058), 0xF, 0xF); // PORT64: was 8
 
     for (i = 0; i < 15; i++) {
         arg0->unk_58[i].unk_00 = D_883174C8[i];
@@ -2010,7 +2017,7 @@ s32 BattleInfoWidget_HandleTypePanelInput(unk_func_8830867C_03C* arg0, Controlle
 s32 BattleInfoWidget_RunTypeSelectionModal(unk_func_8830867C_03C* arg0, Controller* arg1) {
     s32 temp_v0;
     s32 var_v0;
-    s32 var_s0 = 0;
+    intptr_t var_s0 = 0;
 
     ((func88507AE4)Memmap_GetFragmentVaddr(WidgetTree_SetScrollableGridIndex))(arg0->unk_54, 0);
     ((func8850CB48)Memmap_GetFragmentVaddr(WidgetTree_SetGridMenuSelection))(arg0->unk_50, 0);
@@ -2225,7 +2232,7 @@ void BattleInfoWidget_BuildMovePanel(unk_func_8830867C_040* arg0, s32 arg1, s32 
     WidgetNode* temp_s1_4;
     WidgetNode* temp_s2_2;
     unk_func_88507D4C* sp68[2];
-    s32* temp_s2_3;
+    void** temp_s2_3; // PORT64: pointer list (was s32*)
 
     arg0->unk_74 = Font_MeasureTextExtent(8, 0, "WWWWWWWWWWWW");
     spC4 = Font_MeasureTextExtent(4, 0, "000") + arg0->unk_74 + 0x18;
@@ -2319,7 +2326,7 @@ void BattleInfoWidget_BuildMovePanel(unk_func_8830867C_040* arg0, s32 arg1, s32 
     ((func8850068C)Memmap_GetFragmentVaddr(WidgetTree_AppendChild))(spA0, temp_s0_2);
     arg0->unk_60->unk_1C = temp_s0_2;
 
-    temp_s2_3 = mem_pool_alloc(arg4, sizeof(s32) * 0xA4);
+    temp_s2_3 = mem_pool_alloc(arg4, sizeof(void*) * 0xA4);
 
     for (i = 0; i < 0xA4; i++) {
         temp_s2_3[D_88317360[i]] = Move_GetDisplayInfo(i + 1);
@@ -2430,7 +2437,7 @@ s32 BattleInfoWidget_RunMovePanelModal(unk_func_8830867C_040* arg0, Controller* 
     s32 i;
     s32 temp_v0;
     s32 var_v0;
-    s32 var_s0 = 0;
+    intptr_t var_s0 = 0;
 
     ((func88507AE4)Memmap_GetFragmentVaddr(WidgetTree_SetScrollableGridIndex))(arg0->unk_64, 0);
     ((func8850CB48)Memmap_GetFragmentVaddr(WidgetTree_SetGridMenuSelection))(arg0->unk_60, 0);
@@ -2569,8 +2576,8 @@ void BattleInfoWidget_InitGamePakSlotLabel(unk_func_88310B70* arg0, s32 arg1, s3
 }
 
 s32 BattleInfoWidget_DrawGamePakSlotLabel(unk_func_88310B70* arg0) {
-    arg0->unk_30->unk_40 =
-        Text_GetString(NULL, 0, sItemDescriptionText, **(u8**)arg0->unk_2C->unk_2C->unk_00[arg0->unk_2C->unk_38].unk_00[0] - 1);
+    arg0->unk_30->unk_40 = Text_GetString(NULL, 0, sItemDescriptionText,
+                                          **(u8**)arg0->unk_2C->unk_2C->unk_00[arg0->unk_2C->unk_38].unk_00[0] - 1);
     return 0;
 }
 
@@ -3091,15 +3098,16 @@ void BattleInfoWidget_SetItemMenuMon(unk_func_8830867C_04C* arg0, BattleMon* arg
 void BattleInfoWidget_MarkIneligibleItems(unk_func_8830867C_04C* arg0) {
     s32 i;
     s32 var_v0;
-    unk_func_8830867C_04C_030_02C_000* var_s2 = arg0->unk_30->unk_2C->unk_00;
+    // PORT64: the list holds TM/HM list entries (was viewed with N64 offsets, unk_08 read the box pointer)
+    unk_func_8830867C_02C_1A8** var_s2 = (unk_func_8830867C_02C_1A8**)arg0->unk_30->unk_2C->unk_00;
 
     for (i = 0; i < arg0->unk_30->unk_2C->unk_08; i++) {
-        if (var_s2->unk_00[i]->unk_08 >= 0x64) {
-            var_v0 = LabPCList_CheckTmHmIneligibility(**(u8**)&var_s2->unk_00[i]->unk_00, arg0->unk_88);
-        } else if (var_s2->unk_00[i]->unk_08 >= 0x32) {
+        if (var_s2[i]->unk_08 >= 0x64) {
+            var_v0 = LabPCList_CheckTmHmIneligibility(*var_s2[i]->unk_00, arg0->unk_88);
+        } else if (var_s2[i]->unk_08 >= 0x32) {
             var_v0 = LabPCList_CheckPpUpIneligibility(arg0->unk_88);
         } else {
-            var_v0 = LabPCList_CheckVitaminIneligibility(**(u8**)&var_s2->unk_00[i]->unk_00, arg0->unk_88);
+            var_v0 = LabPCList_CheckVitaminIneligibility(*var_s2[i]->unk_00, arg0->unk_88);
         }
 
         if (var_v0 != 0) {
@@ -3143,7 +3151,9 @@ void BattleInfoWidget_SetItemMenuState(unk_func_8830867C_04C* arg0, s32 arg1) {
 
 s32 BattleInfoWidget_GetItemMenuActionType(unk_func_8830867C_04C* arg0, s32* arg1) {
     s32 sp1C = 0;
-    unk_func_8830867C_04C_030_02C_000_000* ptr = arg0->unk_30->unk_2C->unk_00[arg0->unk_30->unk_38].unk_00[0];
+    // PORT64: the TM/HM list entry (was viewed with N64 offsets)
+    unk_func_8830867C_02C_1A8* ptr =
+        (unk_func_8830867C_02C_1A8*)arg0->unk_30->unk_2C->unk_00[arg0->unk_30->unk_38].unk_00[0];
 
     if (ptr->unk_08 >= 0x64) {
         sp1C = 0;
@@ -3338,7 +3348,7 @@ void BattleInfoWidget_CloseItemMenu(unk_func_8830867C_04C* arg0) {
 
 s32 BattleInfoWidget_RunItemMenuModal(unk_func_8830867C_04C* arg0, Controller* arg1) {
     s32 temp_v0;
-    s32 var_s0 = 0;
+    intptr_t var_s0 = 0;
 
     if (arg0->unk_80->unk_00.unk_1C == 0) {
         BattleInfoWidget_OpenItemMenu(arg0);
@@ -3381,7 +3391,9 @@ s32 BattleInfoWidget_RunItemMenuModal(unk_func_8830867C_04C* arg0, Controller* a
     return var_s0 - 1;
 }
 
-void BattleInfoWidget_DrawSlotEntry(s32 arg0, s32 arg1, unk_func_88309160_arg2* arg2, s32 arg3, s32 arg4,
+// PORT64: arg2 is a box (unk_func_8820BE14_06C_000_alt, its Pokemon list at 0x10); the decomp's view has the list's
+// capacity / count at 0x14 / 0x18 only with 4-byte pointers
+void BattleInfoWidget_DrawSlotEntry(s32 arg0, s32 arg1, unk_func_8820BE14_06C_000_alt* arg2, s32 arg3, s32 arg4,
                                     unk_func_88200FA0_030_030_1CEA00* arg5) {
     static Color_RGBA8 D_8831764C = { 0xFF, 0xB2, 0xC3, 0xFF };
     static Color_RGBA8 D_88317650[] = {
@@ -3416,10 +3428,13 @@ void BattleInfoWidget_DrawSlotEntry(s32 arg0, s32 arg1, unk_func_88309160_arg2* 
                     8,
                 arg1 + 2, sp28);
     Font_EndTexturedTextRendering();
-    BattleInfoWidget_DrawIndicator((arg5->unk_00.unk_14.unk_00 + arg0) - 0x35, arg1 + 8, arg2->unk_18, arg2->unk_14);
+    BattleInfoWidget_DrawIndicator((arg5->unk_00.unk_14.unk_00 + arg0) - 0x35, arg1 + 8, arg2->unk_10.unk_08,
+                                   arg2->unk_10.unk_04);
 }
 
-void BattleInfoWidget_DrawLocationEntry(s32 arg0, s32 arg1, unk_func_88309160_arg2* arg2, s32 arg3, s32 arg4,
+// PORT64: arg2 is a bank (unk_func_8830867C_02C_0E4: its box count and first box); the decomp's view read them at
+// 0x14 / 0x0C, which is unk_0C.unk_08 / unk_0C.unk_00 only with 4-byte pointers
+void BattleInfoWidget_DrawLocationEntry(s32 arg0, s32 arg1, unk_func_8830867C_02C_0E4* arg2, s32 arg3, s32 arg4,
                                         unk_func_88200FA0_030_030_1CEA00* arg5) {
     static Color_RGBA8 D_8831765C[] = {
         { 0xF0, 0xF0, 0xF0, 0xFF },
@@ -3443,9 +3458,11 @@ void BattleInfoWidget_DrawLocationEntry(s32 arg0, s32 arg1, unk_func_88309160_ar
     Font_SetActive(8, 0);
     Font_Printf(arg0 + 8, arg1 + 4, Text_GetString(NULL, 0, sPcListText, arg3 + 0x3B));
     Font_EndTexturedTextRendering();
-    if (arg2->unk_14 == 1) {
-        BattleInfoWidget_DrawIndicator((arg5->unk_00.unk_14.unk_00 + arg0) - 0x35, arg1 + 0xC, arg2->unk_0C->unk_18,
-                                       arg2->unk_0C->unk_14);
+    if (arg2->unk_0C.unk_08 == 1) {
+        unk_func_8820BE14_06C_000_alt* box = (unk_func_8820BE14_06C_000_alt*)arg2->unk_0C.unk_00;
+
+        BattleInfoWidget_DrawIndicator((arg5->unk_00.unk_14.unk_00 + arg0) - 0x35, arg1 + 0xC, box->unk_10.unk_08,
+                                       box->unk_10.unk_04);
     }
 }
 
@@ -3633,31 +3650,25 @@ void BattleInfoWidget_BuildMoveDestinationMenu(unk_func_8830867C_048* arg0, s32 
 }
 
 void BattleInfoWidget_BindMoveDestinationData(unk_func_8830867C_048* arg0, unk_func_8830867C_02C_144* arg1) {
-    unk_func_8830867C_02C_144_000_alt* sp24;
+    unk_func_8830867C_02C_0E4* sp24; // PORT64: the banks themselves (was a view with N64 offsets, see lab_pc_list.h)
 
     ((func885063B8)Memmap_GetFragmentVaddr(WidgetTree_BindPagedGridStridedData))(arg0->unk_34, arg1);
     sp24 = arg1->unk_00;
-    ((func885063B8)Memmap_GetFragmentVaddr(WidgetTree_BindPagedGridStridedData))(arg0->unk_38[0], &sp24->unk_2C);
-    ((func885063B8)Memmap_GetFragmentVaddr(WidgetTree_BindPagedGridStridedData))(arg0->unk_38[1], &sp24->unk_4C);
+    ((func885063B8)Memmap_GetFragmentVaddr(WidgetTree_BindPagedGridStridedData))(arg0->unk_38[0], &sp24[1].unk_0C);
+    ((func885063B8)Memmap_GetFragmentVaddr(WidgetTree_BindPagedGridStridedData))(arg0->unk_38[1], &sp24[2].unk_0C);
 }
 
-typedef struct unk_func_88313894 {
-    /* 0x00 */ char unk00[0xC];
-    /* 0x0C */ unk_func_8830867C_02C_0CC_000_000* unk_0C;
-    /* 0x10 */ char unk10[0xC];
-    /* 0x1C */ s32 unk_1C;
-    /* 0x20 */ unk_func_88313894_020 unk_20;
-    /* 0x40 */ unk_func_88313894_020 unk_40;
-} unk_func_88313894; // size >= 0x60
-
+// PORT64: the decomp's unk_func_88313894 / unk_func_88313894_020 (char-padded views of the banks) are replaced by the
+// banks themselves (unk_func_8830867C_02C_0E4): their padding matched only 0x20-byte banks with 4-byte pointers, so on
+// the host the box capacity (unk_1C) and banks 1 and 2 were read from the wrong place
 void BattleInfoWidget_MarkFullBoxSlots(unk_func_88200FA0_030_030_1CEA00* arg0, unk_func_8830867C_02C_0CC_000* arg1,
-                                       unk_func_88313894_020* arg2) {
-    unk_func_8830867C_02C_0CC_000_000* sp24 = arg2->unk_0C;
+                                       unk_func_8830867C_02C_0E4* arg2) {
+    unk_func_8830867C_02C_0CC_000_000* sp24 = (unk_func_8830867C_02C_0CC_000_000*)arg2->unk_0C.unk_00;
     s32 i;
 
     ((func8850628C)Memmap_GetFragmentVaddr(WidgetTree_ClearEntryFlags))(arg0);
 
-    for (i = 0; i < arg2->unk_14; i++, sp24++) {
+    for (i = 0; i < arg2->unk_0C.unk_08; i++, sp24++) {
         if (sp24 == arg1->unk_00) {
             arg0->unk_34[i] |= 4;
         } else if (sp24->unk_10.unk_08 >= arg2->unk_1C) {
@@ -3669,21 +3680,21 @@ void BattleInfoWidget_MarkFullBoxSlots(unk_func_88200FA0_030_030_1CEA00* arg0, u
 void BattleInfoWidget_MarkIneligibleDestinations(unk_func_8830867C_048* arg0, unk_func_8830867C_02C_0CC_000* arg1) {
     u16* temp_v0_2;
     u16* temp_v0_3;
-    unk_func_88313894* temp_s1;
+    unk_func_8830867C_02C_0E4* temp_s1;
     unk_func_8830867C_02C_0CC_000_000* temp_v0;
 
     temp_s1 = arg0->unk_34->unk_2C->unk_00;
     ((func8850628C)Memmap_GetFragmentVaddr(WidgetTree_ClearEntryFlags))(arg0->unk_34);
 
-    temp_v0 = temp_s1->unk_0C;
+    temp_v0 = (unk_func_8830867C_02C_0CC_000_000*)temp_s1->unk_0C.unk_00;
     if (temp_v0 == arg1->unk_00) {
         arg0->unk_34->unk_34[0] |= 4;
     } else if (temp_v0->unk_10.unk_08 >= temp_s1->unk_1C) {
         arg0->unk_34->unk_34[0] |= 4;
     }
 
-    BattleInfoWidget_MarkFullBoxSlots(arg0->unk_38[0], arg1, &temp_s1->unk_20);
-    BattleInfoWidget_MarkFullBoxSlots(arg0->unk_38[1], arg1, &temp_s1->unk_40);
+    BattleInfoWidget_MarkFullBoxSlots(arg0->unk_38[0], arg1, &temp_s1[1]);
+    BattleInfoWidget_MarkFullBoxSlots(arg0->unk_38[1], arg1, &temp_s1[2]);
 }
 
 void BattleInfoWidget_FormatLocationName(char* arg0, s32 arg1, s32 arg2) {
@@ -3815,7 +3826,7 @@ s32 BattleInfoWidget_MoveDestinationSelectionInput(unk_func_8830867C_048_048* ar
 s32 BattleInfoWidget_RunMoveDestinationModal(unk_func_8830867C_048* arg0, Controller* arg1) {
     s32 temp_v0;
     s32 var_s0;
-    s32 var_s1 = 0;
+    intptr_t var_s1 = 0;
 
     BattleInfoWidget_OpenMoveDestinationMenu(arg0);
 
@@ -3918,7 +3929,7 @@ s32 BattleInfoWidget_HandleSaveConfirmInput(unk_func_8830867C_02C_0B4* arg0, Con
 s32 BattleInfoWidget_RunSaveConfirmModal(unk_func_8830867C_02C_0B4* arg0, Controller* arg1) {
     s32 temp_v0_3;
     s32 var_s0;
-    s32 var_s1 = 0;
+    intptr_t var_s1 = 0;
 
     ((func88506BFC)Memmap_GetFragmentVaddr(WidgetTree_SetPagedGridSelection))(arg0->unk_30, 0);
 
@@ -4268,8 +4279,9 @@ s32 LabPCList_DrawVitaminAnimWidget(unk_func_882173EC* arg0, s32 arg1, s32 arg2)
 
 void LabPCList_TextCrossfadeWidget_Start(unk_func_882173EC* arg0, char* arg1, char* arg2, WidgetPoint arg3) {
     arg0->unk_2C = 0;
-    *(char**)&arg0->unk_30 = arg1;
-    *(char**)&arg0->unk_34 = arg2;
+    // PORT64: the values are numbers (stat before / after) drawn as s32; char* stores ran 4 bytes past unk_34
+    *(s32*)&arg0->unk_30 = (s32)(intptr_t)arg1;
+    *(s32*)&arg0->unk_34 = (s32)(intptr_t)arg2;
     arg0->unk_00.unk_10 = arg3;
     arg0->unk_00.unk_28 |= 0x101;
 }

@@ -85,8 +85,7 @@
 #define IMMOBILIZED_FLINCHED \
     0x08 /* Set on the target by BattleEffect_Flinch; cleared at turn start and when it costs the action. */
 #define IMMOBILIZED_CHARGING 0x10 /* Set by BattleEffect_TwoTurnMove; cleared after the attack executes. */
-#define IMMOBILIZED_TRAPPING \
-    0x20 /* Set on the user by BattleEffect_Trap; locks the opponent's action. */
+#define IMMOBILIZED_TRAPPING 0x20 /* Set on the user by BattleEffect_Trap; locks the opponent's action. */
 #define IMMOBILIZED_SEMI_INVULNERABLE \
     0x40 /* Set with IMMOBILIZED_CHARGING for Dig and the 0x2B two-turn effect; cleared with it. */
 #define IMMOBILIZED_CONFUSED 0x80 /* Set by the confusion effects; duration in confusionTurnsLeft. */

@@ -645,7 +645,8 @@ void GymLeaderCastle_LoadTrainerPanels(void) {
     trainer_data = BinArchive_GetFile(sTrainerDataArchive, trainer_file_index);
 
     for (i = 0; i < trainer_count; i++) {
-        portrait_file_index = (trainer_data[i].gfx_file_index >> 8) & 0xFF;
+        // PORT: ROM data, big-endian: the high byte is the first one (a host u16 read gives the low byte here)
+        portrait_file_index = ((u8*)&trainer_data[i].gfx_file_index)[0];
         sCurrentNodeTrainers[i].loaded = 1;
         sCurrentNodeTrainers[i].portraitX = 640;
         sCurrentNodeTrainers[i].name = trainer_data[i].name1;

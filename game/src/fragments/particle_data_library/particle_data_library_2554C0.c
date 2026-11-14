@@ -3,6 +3,66 @@
 #include "src/geo_render.h"
 #include "src/battle_hud.h"
 #include "src/model_renderer_callbacks.h"
+#include <stdlib.h>
+#include <string.h>
+#include "src/util.h"
+
+extern int Port_IsRawData(const void* p);
+
+static uintptr_t Port_PdlAddr(u32 v) {
+    if (v < 0x10000000U) {
+        return v; // segmented address (or a plain value): resolved by the renderer
+    }
+    return Util_ConvertAddrToVirtAddr(v);
+}
+
+// PORT: converted lists are cached by host address, and each entry keeps the raw bytes it was made from: a model loaded
+// where another one was (the rental screen loads each Pokemon into the same block) has other addresses at the same
+// place, and a cache by address alone handed out the old model's (after Ponyta, Rapidash's flames used Ponyta's flame
+// textures). When the table is full, entries are reused in turn instead of converting into a new buffer on every call.
+uintptr_t* Port_PdlWords(void* arg) {
+    static struct {
+        const u8* src;
+        u8 raw[40];
+        uintptr_t* out;
+    } sCache[128];
+    static s32 sCount;
+    static s32 sNext;
+    const u8* p = (const u8*)Util_ConvertAddrToVirtAddr((uintptr_t)arg);
+    uintptr_t* out;
+    s32 i;
+    s32 slot = -1;
+
+    if (p == NULL || !Port_IsRawData(p)) {
+        return (uintptr_t*)p;
+    }
+    for (i = 0; i < sCount; i++) {
+        if (sCache[i].src == p) {
+            if (memcmp(sCache[i].raw, p, sizeof(sCache[i].raw)) == 0) {
+                return sCache[i].out;
+            }
+            slot = i; // same place, other data: convert again into this entry
+            break;
+        }
+    }
+    if (slot < 0) {
+        if (sCount < 128) {
+            slot = sCount++;
+            sCache[slot].out = calloc(10, sizeof(uintptr_t));
+        } else {
+            slot = sNext;
+            sNext = (sNext + 1) % 128;
+        }
+        sCache[slot].src = p;
+    }
+    out = sCache[slot].out;
+    memcpy(sCache[slot].raw, p, sizeof(sCache[slot].raw));
+    for (i = 0; i < 10; i++) {
+        out[i] =
+            Port_PdlAddr(((u32)p[i * 4] << 24) | ((u32)p[i * 4 + 1] << 16) | ((u32)p[i * 4 + 2] << 8) | p[i * 4 + 3]);
+    }
+    return out;
+}
 
 // The Japanese .rodata starts with D_810041D0; it has no "DUMMY NAME" string.
 #if !defined(VERSION_JP)
@@ -48,8 +108,8 @@ void DisplayList_InitIndexedTextureSegment(s32 arg0, DisplayListState* state) {
     DisplayListAddresses* addresses;
 
     if (arg0 == 2) {
-        addresses = state->addresses;
-        gfx = Gfx_AllocDisplayList(0x50);
+        addresses = (DisplayListAddresses*)Port_PdlWords(state->addresses);
+        gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0x50));
         state->gfx = gfx;
         DisplayList_BuildIndexedTextureSegment(gfx, addresses, D_8006F084 & 7);
     }
@@ -74,10 +134,10 @@ void DisplayList_InitAnimatedModelTexture(s32 arg0, DisplayListState* state) {
     DisplayListAddresses* addresses;
     u8 temp_v1;
 
-    temp_v1 = ModelRenderer_GetActiveMode(); //!bug: Installation can read a NULL D_8006F09C before the event check.
+    temp_v1 = ModelRenderer_GetActiveMode(); //! bug: Installation can read a NULL D_8006F09C before the event check.
     if (arg0 == 2) {
-        addresses = state->addresses;
-        gfx = Gfx_AllocDisplayList(0x140);
+        addresses = (DisplayListAddresses*)Port_PdlWords(state->addresses);
+        gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0x140));
         state->gfx = gfx;
         DisplayList_BuildAnimatedModelTexture(gfx, addresses, ((D_800AF7B0[temp_v1 & 1] * 3) + D_81003FD0) % 8);
         D_81003FD0 += 1;

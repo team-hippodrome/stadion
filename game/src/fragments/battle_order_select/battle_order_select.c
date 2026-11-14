@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "battle_order_select.h"
 #include "game_state.h"
 #include "src/geo_render.h"
@@ -67,20 +69,20 @@ static ComSelectionButtonPresses* sComButtonPressesByRosterSize[] = {
     sComButtonPressesRosterSize6,
 };
 static PokemonTypeStyle sPokemonTypeStyles[] = {
-    { { 0xF0, 0xF0, 0xF0 }, D_2017740 }, // #F0F0F0 
-    { { 0xF0, 0x96, 0x32 }, D_2019040 }, // #F09632 
+    { { 0xF0, 0xF0, 0xF0 }, D_2017740 }, // #F0F0F0
+    { { 0xF0, 0x96, 0x32 }, D_2019040 }, // #F09632
     { { 0x50, 0x96, 0xF0 }, D_20199A0 }, // #5096F0
-    { { 0xC8, 0x96, 0xF0 }, D_2019680 }, // #C896F0 
-    { { 0xF0, 0xC8, 0x78 }, D_2018D20 }, // #F0C878 
+    { { 0xC8, 0x96, 0xF0 }, D_2019680 }, // #C896F0
+    { { 0xF0, 0xC8, 0x78 }, D_2018D20 }, // #F0C878
     { { 0x64, 0xB4, 0xB4 }, D_2018A00 }, // #64B4B4
-    { { 0x50, 0x96, 0xF0 }, D_20199A0 }, // #5096F0 
-    { { 0xC8, 0xF0, 0x50 }, D_2019360 }, // #C8F050 
+    { { 0x50, 0x96, 0xF0 }, D_20199A0 }, // #5096F0
+    { { 0xC8, 0xF0, 0x50 }, D_2019360 }, // #C8F050
     { { 0xDC, 0xC8, 0xF0 }, D_2019FE0 }, // #DCC8F0
-    { { 0xF0, 0x64, 0x64 }, D_2017A60 }, // #F06464 
-    { { 0x46, 0xB4, 0xF0 }, D_2017D80 }, // #46B4F0 
+    { { 0xF0, 0x64, 0x64 }, D_2017A60 }, // #F06464
+    { { 0x46, 0xB4, 0xF0 }, D_2017D80 }, // #46B4F0
     { { 0x64, 0xC8, 0x64 }, D_20183C0 }, // #64C864
-    { { 0xF0, 0xF0, 0x32 }, D_20186E0 }, // #F0F032 
-    { { 0xF0, 0x8C, 0xB4 }, D_2019CC0 }, // #F08CB4 
+    { { 0xF0, 0xF0, 0x32 }, D_20186E0 }, // #F0F032
+    { { 0xF0, 0x8C, 0xB4 }, D_2019CC0 }, // #F08CB4
     { { 0xB4, 0xF0, 0xF0 }, D_20180A0 }, // #B4F0F0
     { { 0x64, 0xDC, 0xC8 }, D_201A300 }, // #64DCC8
 };
@@ -93,6 +95,8 @@ static Color_RGB8 sHelpTextGradientEnd = { 0x00, 0x00, 0xD2 };   // #0000D2
 static u8* sHumanPlayerLabelIcon[] = { gPlayer1LabelIcon, gPlayer2LabelIcon, D_3009E70 };
 static u8* D_84803690[] = { D_300A5C0, D_300AD10 };
 static u8* D_84803698[] = { D_300B9B8 };
+// PORT: [row][3] is read (BattleMenu_DrawOrderSlotIcon); on the N64 that is the next row's first entry, and for
+// the last row D_848036D8, which follows in the ROM: kept as a sixth row.
 static u8* D_8480369C[][3] = {
     {
         D_300C660,
@@ -119,8 +123,9 @@ static u8* D_8480369C[][3] = {
         D_3007D40,
         D_3008100,
     },
+    { D_30084C0, NULL, NULL },
 };
-static u8* D_848036D8 = D_30084C0;
+#define D_848036D8 (D_8480369C[5][0])
 
 /*
     Draws the instructions for the L and R button at the bottom of the screen
@@ -324,7 +329,7 @@ void BattleMenu_DrawTeamOrderSidebarTeam0(void) {
     poke_ball_y = y + 118;
     for (i = 0; i < 6; i++) {
         state->slotIconStates[i] = BattleMenu_DrawOrderSlotIcon(45, poke_ball_y - i * 23, state->slotIconStates[i],
-                                                                    state->slotIconDirections[i]);
+                                                                state->slotIconDirections[i]);
     }
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
@@ -361,7 +366,7 @@ void BattleMenu_DrawTeamOrderSidebarTeam1(void) {
     poke_ball_y = y + 12;
     for (i = 0; i < 6; i++) {
         state->slotIconStates[i] = BattleMenu_DrawOrderSlotIcon(45, poke_ball_y + i * 23, state->slotIconStates[i],
-                                                                    state->slotIconDirections[i]);
+                                                                state->slotIconDirections[i]);
     }
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
@@ -672,13 +677,15 @@ void BattleMenu_DrawOrderSelectPanel_MonDetail(BattleOrderInputState* input_stat
     }
 
     type_index = PokemonType_ToDisplayIndex(pokemon_to_summarize->type1);
-    Gfx_SetEnvColor(sPokemonTypeStyles[type_index].color.r, sPokemonTypeStyles[type_index].color.g, sPokemonTypeStyles[type_index].color.b, 0xFF);
+    Gfx_SetEnvColor(sPokemonTypeStyles[type_index].color.r, sPokemonTypeStyles[type_index].color.g,
+                    sPokemonTypeStyles[type_index].color.b, 0xFF);
     Font_Printf(x + 122, y + 47,
                 Text_GetString(NULL, 0, sTypeNameTable, PokemonType_ToDisplayIndex(pokemon_to_summarize->type1)));
 
     if (pokemon_to_summarize->type1 != pokemon_to_summarize->type2) {
         type_index = PokemonType_ToDisplayIndex(pokemon_to_summarize->type2);
-        Gfx_SetEnvColor(sPokemonTypeStyles[type_index].color.r, sPokemonTypeStyles[type_index].color.g, sPokemonTypeStyles[type_index].color.b, 0xFF);
+        Gfx_SetEnvColor(sPokemonTypeStyles[type_index].color.r, sPokemonTypeStyles[type_index].color.g,
+                        sPokemonTypeStyles[type_index].color.b, 0xFF);
         Font_Printf(x + 122, y + 67,
                     Text_GetString(NULL, 0, sTypeNameTable, PokemonType_ToDisplayIndex(pokemon_to_summarize->type2)));
     }
@@ -716,7 +723,8 @@ void BattleMenu_DrawOrderSelectPanel_MonDetail(BattleOrderInputState* input_stat
             break;
         }
         Gfx_DrawTextureRgba16(x + 310, (i * 20) + y + 7, 20, 20,
-                              sPokemonTypeStyles[gMoveDisplayInfo[pokemon_to_summarize->moves[i] - 1].type].iconTexture, 20, 0);
+                              sPokemonTypeStyles[gMoveDisplayInfo[pokemon_to_summarize->moves[i] - 1].type].iconTexture,
+                              20, 0);
     }
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
@@ -851,6 +859,13 @@ s32 BattleMenu_PicksExceedLevelCap(BattleOrderInputState* input_state) {
             level_sum += input_state->pokemon[input_state->pickedSlots[i]].level;
         }
 
+        if (PORT_GETENV_ONCE("PORT_TRACE_MENU")) {
+            fprintf(stderr, "[order] levelcap: rule %d picks %d sum %d levels", sSessionContext->ruleCategory,
+                    input_state->numberOfPokemonPicked, level_sum);
+            for (i = 0; i < 6; i++)
+                fprintf(stderr, " %d(sp %d)", input_state->pokemon[i].level, input_state->pokemon[i].species.id);
+            fputc('\n', stderr);
+        }
         if (sSessionContext->ruleCategory == RULE_CATEGORY_NINTENDO_CUP_99) {
             if ((input_state->numberOfPokemonPicked == 2) && (level_sum >= 106)) {
                 return 1;
@@ -885,7 +900,8 @@ s32 BattleMenu_PicksExceedLevelCap(BattleOrderInputState* input_state) {
 s32 BattleMenu_IsOrderSelectionComplete(BattleOrderInputState* input_state) {
     s8 number_of_picks_allowed;
 
-    if ((sSessionContext->ruleCategory != RULE_CATEGORY_ANYTHING_GOES) && (sSessionContext->ruleCategory != RULE_CATEGORY_VS_MEWTWO)) {
+    if ((sSessionContext->ruleCategory != RULE_CATEGORY_ANYTHING_GOES) &&
+        (sSessionContext->ruleCategory != RULE_CATEGORY_VS_MEWTWO)) {
         number_of_picks_allowed = 3;
     } else if (input_state->roster->isHuman & 0x2) {
         number_of_picks_allowed = input_state->rosterSize;
@@ -901,6 +917,11 @@ s32 BattleMenu_IsOrderSelectionComplete(BattleOrderInputState* input_state) {
 
 /* Opens a slot's details or adds it to the picked order and checks the result. */
 void BattleMenu_SelectSlotOrShowSummary(BattleOrderInputState* input_state, s8 selected_slot, s32 show_summary) {
+    if (PORT_GETENV_ONCE("PORT_TRACE_MENU"))
+        fprintf(stderr, "[order] slot %d of %d, picked %d, sub %d, lvlcap %d, sel %d\n", selected_slot,
+                input_state->rosterSize, input_state->numberOfPokemonPicked, input_state->panelMode,
+                (int)BattleMenu_PicksExceedLevelCap(input_state),
+                (int)BattleMenu_IsSlotAlreadySelected(input_state, selected_slot));
     if (selected_slot >= input_state->rosterSize) {
         Audio_PlaySoundEffectById(SFX_MENU_ERROR);
         return;
@@ -967,9 +988,13 @@ void BattleMenu_UndoSelections(BattleOrderInputState* order_state) {
     }
 }
 
+unsigned long long Port_ViTick(void);
 /* Maps slot buttons to picking or checking Pokemon and handles L-cancel. */
 void BattleMenu_HandleOrderSelectPanel_PartyInput(Controller* controller, BattleOrderInputState* input_state) {
     s32 r_held_down = BTN_IS_DOWN(controller, BTN_R);
+    if (PORT_GETENV_ONCE("PORT_TRACE_MENU") && controller->buttonPressed)
+        fprintf(stderr, "[order] frame %llu panel %p pressed 0x%04x down 0x%04x\n", Port_ViTick(), (void*)input_state,
+                controller->buttonPressed, controller->buttonDown);
 
     if (BTN_IS_PRESSED(controller, BTN_R)) {
         // clang-format off
@@ -1115,6 +1140,25 @@ s32 BattleMenu_UpdateOrderSelectPanel(s32 fade_mode, BattleOrderInputState* inpu
         controller = &gControllers[input_state->controllerPort];
     }
 
+    if (PORT_GETENV_ONCE("PORT_TRACE_MENU")) {
+        static s8 lastSub[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+        int k = (int)(input_state - sBattleOrderInputStates) & 7;
+        if (lastSub[k] != input_state->panelMode || (controller->buttonPressed && input_state->panelMode != 0))
+            fprintf(stderr, "[order] frame %llu panel %d sub %d (fade_mode %d) pressed 0x%04x\n", Port_ViTick(), k,
+                    input_state->panelMode, fade_mode, controller->buttonPressed);
+        lastSub[k] = input_state->panelMode;
+    }
+    // PORT debug boot (PORT_BOOT set): the player's picks are made automatically (first slots, then confirm) so a
+    // battle starts without input.
+    if (fade_mode == 0 && PORT_GETENV_ONCE("PORT_BOOT") != NULL && !(input_state->roster->isHuman & 2)) {
+        if (input_state->panelMode == 0) {
+            BattleMenu_SelectSlotOrShowSummary(input_state, input_state->numberOfPokemonPicked, 0);
+        } else if (input_state->panelMode == 1) {
+            input_state->redrawFrames = 2;
+            input_state->panelMode = 3;
+            input_state->readyPulseFrame = 0;
+        }
+    }
     if (fade_mode == 0) {
         switch (input_state->panelMode) {
             case 0:
@@ -1281,6 +1325,12 @@ void BattleMenu_AddOrderSelectPanel(s16 x, s16 y, TeamRoster* roster, s32 side_i
 
     for (i = 0; i < roster->rosterInfo->numberOfPokemonCanBePicked; i++) {
         pokemon = &roster->rosterInfo->battleMon[i];
+        if (PORT_GETENV_ONCE("PORT_TRACE_MENU")) {
+            fprintf(stderr, "[order] roster %p mon %d before prepare:", (void*)roster, i);
+            for (int k = 0; k < 0x30; k++)
+                fprintf(stderr, " %02x", ((u8*)pokemon)[k]);
+            fputc('\n', stderr);
+        }
         Pokemon_PrepareBattleMon(pokemon);
         pokemon->type1 = gSpeciesData[pokemon->species.id - 1].type1;
         pokemon->type2 = gSpeciesData[pokemon->species.id - 1].type2;

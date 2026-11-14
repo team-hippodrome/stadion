@@ -48,8 +48,8 @@ for 6s, no exception. Not verified visually (screenshot capture was unavailable)
 
 ## Stage 1 (done): all 347 game sources compile for the host
 `game/` started as a copy of the decomp's `src/` and `include/` (plus the SDK headers libultraship does not provide
-under `game/lib/ultralib/include`). It is now a submodule pinned at an unmodified decomp commit, with the port's changes
-applied from `patches/game/` (see README "The game submodule"). The SDK stand-in headers described below live in
+under `game/lib/ultralib/include`). It was then a submodule with the port's changes kept as patches; it is now
+vendored again, synced with the decomp at the commit in `game/UPSTREAM.md` (see docs/BUILDING.md "The vendored game"). The SDK stand-in headers described below live in
 `src/port/sdk/`. The decomp checkout in `../pokestadium` is untouched.
 
     tools/syntax_check.sh              # clang -fsyntax-only over all of game/src: 0 errors / 347 files
@@ -580,7 +580,7 @@ harmless ones (`Geo_NodeReference`, `main_pool_set_func`, 64DD code in rsp.c).
   variables.h). Runs stay deterministic (teams come from the game's own quick-battle builder).
 - `tools/replay.sh -` runs without a recording; combine with a stop frame or UNTIL='<regex>'.
 - Seen in the Battle Now scene: Psyduck renders green (another red-channel loss, not yet tracked down).
-- Nickname colours (cross-checked, game behaviour): `Model_ComputeSizeVariant` (model_renderer.c) gives a Pokémon a
+- Nickname colours (cross-checked, game behaviour): `Model_ComputeNicknameColorVariant` (model_renderer.c) gives a Pokémon a
   colour variant only when its nickname differs from the species name. The value lies in the species' range
   (`D_8006FF00[species-1].unk_10..unk_12`) and is picked by a checksum of OT ID + nickname + OT name; it is applied to
   the model's textures (`func_80018C40` → Color_AdjustRGB5551/RGBA8). Un-nicknamed Pokémon get 0 (normal colours).
@@ -612,11 +612,11 @@ harmless ones (`Geo_NodeReference`, `main_pool_set_func`, 64DD code in rsp.c).
 ## Per-species battle records (portraits, camera framing)
 `func_84302658` (battle_engine_2EC3C0.c) DMAs per-species records straight from the big-endian ROM; they are now swapped
 after each copy:
-- `SpeciesModelTransform` (`D_84384578` portrait framing, `D_84384580` move-camera framing; table `D_6E910`, 0x20 per
+- `SpeciesModelTransform` (`sSidePresentationTransform` portrait framing, `sSideCameraTransform` move-camera framing; table `D_6E910`, 0x20 per
   species): Vec3f offset + four s16 (yaw, pitch, alt-record index `unk_10` (0xFF = none), animation frame). Read raw,
   the portrait cameras (layers 1/2, `PresentationState.unk_168`) looked into empty space, so the portrait boxes were
   empty; it also drove the battle cameras' framing/zoom.
-- `D_84390028` (4 floats: model height etc., used to place models) and `D_84390048` (`SwayLayoutConfig`, 6 floats).
+- `sPokemonModelDimensions` (4 floats: model height etc., used to place models) and `D_84390048` (`SwayLayoutConfig`, 6 floats).
 - `BattleAI_LoadConfiguration` (battle_engine_361050.c): the three `AIDifficultyConfig` flag words (s32 at +0).
 The 0xBC0-byte `MovePresentationCue` block and `TagTeamPartners` are bytes only.
 
@@ -682,7 +682,7 @@ Fixes found this way:
   double speed, VRAM/WRAM banks, HDMA, colour palettes, tile attributes, CGB sprite priority. SGB packets still work
   (the tower is an SGB/CGB hybrid), so Yellow uses its GBC palettes (CGBBasePalettes) and sends its border; its border
   packets carry garbage on a GBC (its CGB palette update clobbers HL before the tile copy), so for cartridge variant 4
-  the tower takes Yellow's (US, "YELLOW") border from the start of its UI asset (`D_8122C748`, context +0x5C58) instead,
+  the tower takes Yellow's (US, "YELLOW") border from the start of its UI asset (`sUiGraphics`, context +0x5C58) instead,
   like the original emulator. `PORT_GB_NO_CGB=1` runs everything as a Super Game Boy (the cart's own SGB border and
   palettes, e.g. "GELB"). Without a game border the tower's own frame image (`unk_58`: 256 RGBA5551 palette entries,
   then 256x224 indices; Game Boy device / Stadium borders) is drawn. SGB *_TRN transfers sample VRAM one frame later.
@@ -703,7 +703,7 @@ Fixes found this way:
   Pokémon Center position; Stadium reads that fine, but the Game Boy game keeps tileset/sprite state in the save too,
   so for continuing on the GB use `--base` with a save the game wrote (gb/base/yellow_de_newgame.sav: new game saved
   in the bedroom) and only names/party/Pokédex are replaced.
-- Sound: the native core forwards every write to 0xFF10-0xFF3F to the tower's own APU mixer (func_81208C08, time =
+- Sound: the native core forwards every write to 0xFF10-0xFF3F to the tower's own APU mixer (GbApu_QueueRegisterWrite, time =
   CPU cycles in the frame / 4) and reads NR52 back from it. The mixer's buffers go to src/port/gb_audio_out.cpp (an
   SDL3 stream at 48 kHz, opened on the first buffer; off in replay / `PORT_SPEED=max` unless `PORT_GB_SOUND=1`;
   `PORT_GB_WAV=<file>` dumps the raw 16-bit stereo PCM). Two big-endian layouts made it silent / wrong on the host:
@@ -1134,9 +1134,9 @@ sample count after every VI frame).
   - widget_toolkit_2.c: D_8780FCCC[2] + D_8780FCD0[4] are one 6-entry array (pause menu grid, mini-games).
   - clefairy_game.c: the arrow (12x10, drawn 11x11) and 8x8 (drawn 9x9) textures got the bytes that follow them on
     the N64 (gsSPEndDisplayList, then the next texture's start) as an extra row.
-  - gb_tower_emulator_7F9A0.c: D_8122C500[0x1F] + D_8122C51F one 32-byte block (Transfer Pak register writes);
-    D_8122B1E0/D_8122B1E4 one array (indexed as (&D_8122B1E0)[i]).
-  - gb_tower_emulator_86920.c: the APU setup filled D_812346EC up to &D_812346F2: now the three entries directly.
+  - gb_tower_emulator_7F9A0.c: sGbPakRegisterFill[0x1F] + D_8122C51F one 32-byte block (Transfer Pak register writes);
+    sFramebuffer0/sFramebuffer1 one array (indexed as (&sFramebuffer0)[i]).
+  - gb_tower_emulator_86920.c: the APU setup filled sGbAudioBufferLengths up to &D_812346F2: now the three entries directly.
   - battle_engine_3591E0.c: a ribbon effect without a free auxiliary-effect slot keeps index -1; Draw/Spawn/Update
     read element -1 (unrelated memory): negative indices are inactive now.
   Normal-build pictures of all these routes are unchanged (Clefairy's arrow edge by <0.05).
@@ -1148,9 +1148,9 @@ sample count after every VI frame).
   logo and camera framing), Rattata's Run shown only on the port (matched ares in mg_r0c2), one battle strip-wipe
   frame mid-transition. Viewed the worst and mid-range pairs: no rendering faults.
 - Battle move effects (found via a crash in the attract-mode demo battle after the intro, frame ~12300): the effect
-  lists checked byte by byte by func_8436FD54 (D_8438ADEC/ADFC/AE00/AE04/AE20/AE2C, Gen 1 effect ids such as 0x28
+  lists checked byte by byte by IsByteInArray (D_8438ADEC/ADFC/AE00/AE04/AE20/AE2C, Gen 1 effect ids such as 0x28
   Super Fang, 0x29 fixed damage) were u32 words, so the host read their bytes in reverse order: short lists matched
-  effect 0 (no effect), so Battle_RunMoveEffect called gMoveEffectHandlers[-1] (crash), and listed effects were
+  effect 0 (no effect), so BattleEffect_RunMoveEffect called gMoveEffectHandlers[-1] (crash), and listed effects were
   missed. They are byte arrays in N64 order now. Changes battle outcomes to the N64's (boot_battle_move: the turn now
   ends with PIKACHU at 1/115). Scanned all game sources for other word arrays passed as byte pointers
   (-Wincompatible-pointer-types without -w): only textures and image buffers, which the renderer handles.
@@ -1647,7 +1647,7 @@ or the libultraship fork. The generic rules below are what each scene ran into.
 | scene cuts | per-matrix cuts (60 degrees, 300 units, projection scale) left the matrices that survived a cut (small objects near the camera) blending into the old scene | `Plan`: a projection cut, a third of the matched matrices cut, or most matrices new makes the whole frame a cut: no in-between movement at all |
 | data the game rewrites in place | the in-between and final pictures are drawn after the game was told the frame is done (`PumpRspTasks` posts `OS_EVENT_DP` after the first drawing) and builds the next frame meanwhile; anything the list reads outside the double-buffered display-list buffer may already hold the next frame's state. The test harness (`PORT_INTERP_IMMEDIATE=1`) drew all pictures before posting, so it never saw this. | every recorded matrix is pinned to the value the first drawing used, in every picture (`Build`); `PORT_INTERP_IMMEDIATE=late` draws the pictures only after the game has built the next frame (the real-time worst case) for tests. Checked: the ceremony with `late` gives byte-identical pictures, i.e. no scene found so far rewrites vertices or textures in place |
 | frames submitted again / out of order | a display list drawn again (or an older one) became the "newer" frame and blended backwards | frame records carry a build serial; only a newer frame is blended, and only a newer one becomes the reference |
-| CPU-built geometry, particles under an identity matrix, texture animation | battle effects build their vertices on the CPU each frame under a shared identity modelview (`BattleAnim_*_Draw`, `RibbonMesh_DrawPool`); texture cycles (Moltres' wings, flames) | unchanged by design: shown at the game's rate while the camera moves smoothly around them (interpolating them would need per-effect game changes) |
+| CPU-built geometry, particles under an identity matrix, texture animation | battle effects build their vertices on the CPU each frame under a shared identity modelview (`BattleAnim_*_Draw`, `MistHaze_DrawPool`); texture cycles (Moltres' wings, flames) | unchanged by design: shown at the game's rate while the camera moves smoothly around them (interpolating them would need per-effect game changes) |
 | 2D | rectangles paired by texture/size/texcoords and moved in between | unchanged (`Interp2DPrepare`); its cut rules (48 pixels, new rectangles) already fall back to the exact place |
 
 **Checked** (scripts in `tools/interp_check`: `sweep.sh`, `pacing.sh`; a machine shared with other builds, load 40-50):
@@ -1925,10 +1925,10 @@ How the two sides play the same battle:
   "not yet" then "expired" for each decision, so the game's own time-limit fallback picks the player's first usable move
   and first healthy replacement (answering "expired" at once skipped the party menu that sets the action to "switch":
   both games stalled after the first faint). Making side 0 a computer player instead does not work: the AI only keeps
-  state for its own side; its switch picked garbage slots (port crash in func_84370B7C, N64 stuck).
+  state for its own side; its switch picked garbage slots (port crash in Battle_InitPokemonRuntimeState, N64 stuck).
 - Events: Battle_StartTurn ("turn"), Battle_ResolveMonAction entry ("resolve") and return ("resolved"; ares hooks the
   caller's return address). Each records both ActivePokemonState (0..0xC8: header, the BattleMonRuntime with HP,
-  status, moves, PP, stat stages, used move), the BattleScene up to its camera pointer, gBattleDamage and the message
+  status, moves, PP, stat stages, used move), the BattleScene up to its camera pointer, sBattleDamage and the message
   queues as raw bytes; the script decodes them with each side's byte order (the layouts are pointer-free and the
   same) and compares per event, reporting the first difference with the previous event and the random calls before it.
   Fields that follow frame timing (ActivePokemonState.unk_36: the model's idle-animation state) and the camera floats are
@@ -1955,7 +1955,7 @@ Thrash x3, Body Slam x2, Blizzard):
   That range is the noise floor of this metric. Blizzard is the outlier (0.53, minimum 0.26 in its radial-streak
   phase): candidate for a closer look (the streak texture may come from the unforced main-code MathUtil_Random16).
 - The longer N64 turns (above) are outside these 200 frames: the next step is capturing until the next event.
-- Effect frame counter: gParticleFrameCounter (particle_math, gParticleFrameMod8 and the rest) counts battle game
+- Effect frame counter: sParticleFrameCounter (particle_math, sParticleFrameMod8 and the rest) counts battle game
   frames and picks effect texture frames, e.g. Thundershock's eight bolt frames (asset 0x13 + Mod8 * 0x600). The N64
   can spend a game frame more before an animation than the port (the move's effect assets load by DMA: Dragon Rage
   loads two resources, then starts at gf 480 in ares vs 479 in the port), and every later animation then ran one texture
@@ -1996,7 +1996,7 @@ Thrash x3, Body Slam x2, Blizzard):
   records it as load_wait. Not a port bug: the N64's DMA time. (The model texture counter reset below fixes Fire
   Spin's wing texture on its own; the wait also lines up everything else that runs through the load, like the mesh,
   and needs no per-state reset.)
-- Strands (BattleAnim_SixSlotTrail_UpdateSlot: Hyper Beam, Ice Beam): a real port bug. The function reads a local
+- Strands (HyperBeamIceBeamTrail_UpdateSlot: Hyper Beam, Ice Beam): a real port bug. The function reads a local
   (spA8, the wave phase of each strand node) that it never writes; on the N64 it is whatever an earlier call left in
   that stack slot (addresses like 0x801B31F0, 159, 143, ... from some loop, 0 on seed frames), and clang folded the
   undefined value so every sinf() term was sinf(0): the strands left the mouth without their wave. The port sets it
@@ -2008,7 +2008,7 @@ Thrash x3, Body Slam x2, Blizzard):
   __osSetFpcCsr(0x01000C01): round toward zero (and flush denormal results, trap invalid / divide by zero). The port's
   __osSetFpcCsr was a stub, so the game's float math rounded to nearest and inexact results came out 1 ULP higher
   half the time. The flare is start effect 47's descriptor 0x53 sprite (BattleAnim_CallbackSharedDescriptor53Scale-
-  PulseCycle: IA8 starburst, frame 1, scale pulsing between 0.2 and 0.7 x gParticleRenderContext.y in steps of 0.1 x y).
+  PulseCycle: IA8 starburst, frame 1, scale pulsing between 0.2 and 0.7 x sParticleRenderContext.y in steps of 0.1 x y).
   With truncation the N64's scale ended 1 ULP short of its (also truncated) target, so ParticleMath_ApproachFloat
   reported "reached" one frame later at the top of each swing: a 12 game frame period on the N64, 11 in the port,
   and by frame 84 the pulse was 2 frames out of phase (big starburst in the port where ares showed a small glow).
@@ -2033,8 +2033,8 @@ Thrash x3, Body Slam x2, Blizzard):
   moves of those battles unchanged (~27-37). tools/run_replays.py: all 20 identical (none of their stop frames uses noise).
 - Sound mismatches (8 moves in the full sweep of 34f5e46, 9 in f4f43b7, envelope correlation 0.22-0.57 with level and
   spectrum within ~4 dB) were not wrong move sounds: the periodic "background" sound was the announcer. Its lines
-  (Audio_QueueSequenceId, queued by func_8003F660 & co. from the battle events) are chosen with osGetTime() % n
-  (3D140_2.c: func_8003DB84, func_8003EB40, func_8003F1AC, func_8003F4C0, Audio_SelectSoundAvoidingRecent's
+  (Audio_QueueSequenceId, queued by ProcessAudioCommandQueue & co. from the battle events) are chosen with osGetTime() % n
+  (3D140_2.c: AudioFrameUpdate, ProcessAudioInfo, RemovePlayer, PlayerDefeated, Audio_SelectSoundAvoidingRecent's
   shuffle), so the two games said different lines on the same game frames (0x5b vs 0x5d, 0x258 vs 0x28e, ...). And
   a line starts when the previous one has played out, in sound time, so the N64's slowdown moves it in game frames
   (Leech Seed's turn: the line at gf 1761 in the port, 1756 in ares). Now, in the cross-check only:

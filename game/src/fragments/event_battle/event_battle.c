@@ -147,8 +147,8 @@ void EventBattle_DrawSelectionCorners(s16 x, s16 y, s16 width, s16 height) {
     Gfx_DrawTextureIa8(x + pulse, y + pulse, 16, 16, gBottomLeftSelectionCorner, 16, 0);
     Gfx_DrawTextureIa8(x + pulse, ((y + height) - pulse) - 16, 16, 16, gTopLeftSelectionCorner, 16, 0);
     Gfx_DrawTextureIa8(((x + width) - pulse) - 16, y + pulse, 16, 16, gBottomRightSelectionCorner, 16, 0);
-    Gfx_DrawTextureIa8(((x + width) - pulse) - 16, ((y + height) - pulse) - 16, 16, 16, gTopRightSelectionCorner,
-                       16, 0);
+    Gfx_DrawTextureIa8(((x + width) - pulse) - 16, ((y + height) - pulse) - 16, 16, 16, gTopRightSelectionCorner, 16,
+                       0);
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 
@@ -197,32 +197,34 @@ void EventBattle_DrawWarningPanelBackground(s16 x, s16 y, s16 width, s16 height,
     gDPLoadTextureBlock_4b(gDisplayListHead++, D_20288E0, G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
-    Gfx_DrawTexturedRectClipped(x, y, width_adjustment, height_adjustment, 0, 0, 0x4000 / width_adjustment, 0x4000 / height_adjustment, 0);
+    Gfx_DrawTexturedRectClipped(x, y, width_adjustment, height_adjustment, 0, 0, 0x4000 / width_adjustment,
+                                0x4000 / height_adjustment, 0);
 
     gDPLoadTextureBlock_4b(gDisplayListHead++, D_2028960, G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
-    Gfx_DrawTexturedRectClipped((x + width) - width_adjustment, y, width_adjustment, height_adjustment, 0, 0, 0x4000 / width_adjustment, 0x4000 / height_adjustment,
-                                0);
+    Gfx_DrawTexturedRectClipped((x + width) - width_adjustment, y, width_adjustment, height_adjustment, 0, 0,
+                                0x4000 / width_adjustment, 0x4000 / height_adjustment, 0);
 
     gDPLoadTextureBlock_4b(gDisplayListHead++, D_20287E0, G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
-    Gfx_DrawTexturedRectClipped(x, (y + height) - height_adjustment, width_adjustment, height_adjustment, 0, 0, 0x4000 / width_adjustment, 0x4000 / height_adjustment,
-                                0);
+    Gfx_DrawTexturedRectClipped(x, (y + height) - height_adjustment, width_adjustment, height_adjustment, 0, 0,
+                                0x4000 / width_adjustment, 0x4000 / height_adjustment, 0);
 
     gDPLoadTextureBlock_4b(gDisplayListHead++, D_2028860, G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
-    Gfx_DrawTexturedRectClipped((x + width) - width_adjustment, (y + height) - height_adjustment, width_adjustment, height_adjustment, 0, 0, 0x4000 / width_adjustment,
-                                0x4000 / height_adjustment, 0);
+    Gfx_DrawTexturedRectClipped((x + width) - width_adjustment, (y + height) - height_adjustment, width_adjustment,
+                                height_adjustment, 0, 0, 0x4000 / width_adjustment, 0x4000 / height_adjustment, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiTranslucentFillDL);
 
     if ((inner_width > 0) && (inner_height > 0)) {
         Gfx_FillRectRgba(x + width_adjustment, y, inner_width, height_adjustment, r, g, b, alpha);
         Gfx_FillRectRgba(x, y + width_adjustment, width, inner_height, r, g, b, alpha);
-        Gfx_FillRectRgba(x + width_adjustment, y + width_adjustment + inner_height, inner_width, height_adjustment, r, g, b, alpha);
+        Gfx_FillRectRgba(x + width_adjustment, y + width_adjustment + inner_height, inner_width, height_adjustment, r,
+                         g, b, alpha);
     } else if (inner_width > 0) {
         Gfx_FillRectRgba(x + width_adjustment, y, inner_width, height, r, g, b, alpha);
     } else if (inner_height > 0) {
@@ -259,32 +261,34 @@ void EventBattle_DrawDescriptionBackground(s16 x, s16 y, s16 width, s16 height, 
     gDPLoadTextureBlock_4b(gDisplayListHead++, gUiPanelTopLeftTexture, G_IM_FMT_I, 16, 8, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
-    Gfx_DrawTexturedRectClipped(x, y, corner_width, corner_height, 0, 0, 0x2000 / corner_width, 0x2000 / corner_height, 0);
+    Gfx_DrawTexturedRectClipped(x, y, corner_width, corner_height, 0, 0, 0x2000 / corner_width, 0x2000 / corner_height,
+                                0);
 
     gDPLoadTextureBlock_4b(gDisplayListHead++, gUiPanelTopRightTexture, G_IM_FMT_I, 16, 8, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
-    Gfx_DrawTexturedRectClipped((x + width) - corner_width, y, corner_width, corner_height, 0, 0, 0x2000 / corner_width, 0x2000 / corner_height,
-                                0);
+    Gfx_DrawTexturedRectClipped((x + width) - corner_width, y, corner_width, corner_height, 0, 0, 0x2000 / corner_width,
+                                0x2000 / corner_height, 0);
 
     gDPLoadTextureBlock_4b(gDisplayListHead++, gUiPanelBottomLeftTexture, G_IM_FMT_I, 16, 8, 0,
                            G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
-    Gfx_DrawTexturedRectClipped(x, (y + height) - corner_height, corner_width, corner_height, 0, 0, 0x2000 / corner_width, 0x2000 / corner_height,
-                                0);
+    Gfx_DrawTexturedRectClipped(x, (y + height) - corner_height, corner_width, corner_height, 0, 0,
+                                0x2000 / corner_width, 0x2000 / corner_height, 0);
 
     gDPLoadTextureBlock_4b(gDisplayListHead++, gUiPanelBottomRightTexture, G_IM_FMT_I, 16, 8, 0,
                            G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
-    Gfx_DrawTexturedRectClipped((x + width) - corner_width, (y + height) - corner_height, corner_width, corner_height, 0, 0, 0x2000 / corner_width,
-                                0x2000 / corner_height, 0);
+    Gfx_DrawTexturedRectClipped((x + width) - corner_width, (y + height) - corner_height, corner_width, corner_height,
+                                0, 0, 0x2000 / corner_width, 0x2000 / corner_height, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiTranslucentFillDL);
 
     if ((inner_width > 0) && (inner_height > 0)) {
         Gfx_FillRectRgba(x + corner_width, y, inner_width, corner_height, r, g, b, alpha);
         Gfx_FillRectRgba(x, y + corner_width, width, inner_height, r, g, b, alpha);
-        Gfx_FillRectRgba(x + corner_width, (y + corner_width) + inner_height, inner_width, corner_height, r, g, b, alpha);
+        Gfx_FillRectRgba(x + corner_width, (y + corner_width) + inner_height, inner_width, corner_height, r, g, b,
+                         alpha);
     } else if (inner_width > 0) {
         Gfx_FillRectRgba(x + corner_width, y, inner_width, height, r, g, b, alpha);
     } else if (inner_height > 0) {
@@ -344,7 +348,7 @@ void EventBattle_DrawTitleBar(void) {
     Color_RGBA8 env_color;
     Color_RGBA8 prim_color;
 
-    Color_SetRGB(&env_color, 0x64, 0x64, 0xC8); // #6464C8
+    Color_SetRGB(&env_color, 0x64, 0x64, 0xC8);  // #6464C8
     Color_SetRGB(&prim_color, 0x28, 0x28, 0x8C); // #28288C
     EventBattle_DrawTitleBarBackground(72, 40, 520, &env_color, &prim_color);
     EventBattle_DrawTitlePokeBall(48, 32);
@@ -374,7 +378,8 @@ void EventBattle_DrawDescriptionPanel(EventBattleDescriptionPanel* panel) {
             Font_SetActive(0x08, 0);
             Font_SetLineHeight(24);
             Font_Printf(x + 32, y + 8,
-                        Text_GetString(NULL, 0, sEventBattleText, sSelectionOptions[sEventBattleMenuState.cursorPosition].descriptionTextId));
+                        Text_GetString(NULL, 0, sEventBattleText,
+                                       sSelectionOptions[sEventBattleMenuState.cursorPosition].descriptionTextId));
             Font_EndTexturedTextRendering();
         }
     }
@@ -454,7 +459,8 @@ void EventBattle_DrawSelectionOption(EventBattleSelectionOption* selection_optio
             Font_SetActive(0x04, 0);
             // Cup Level Range Color
             Gfx_SetEnvColor(0x92, 0xC1, 0xFF, 0xFF); // #92C1FF
-            sprintf(format, "%s%d~%d", Text_GetString(NULL, 0, sPokemonDetailText, 21), selection_option->minLevel, selection_option->maxLevel);
+            sprintf(format, "%s%d~%d", Text_GetString(NULL, 0, sPokemonDetailText, 21), selection_option->minLevel,
+                    selection_option->maxLevel);
             Font_Printf((x - (s16)Font_MeasureTextExtent(0x04, 0, format)) + 234, y + 32, format);
         } else {
             Font_SetActive(0x08, 0);
@@ -497,7 +503,8 @@ void EventBattle_UpdateSelectionOptionSlide(EventBattleSelectionOption* option) 
 }
 
 /* Initialize a hidden card and derive cup levels and both-party eligibility for a supplied ruleset. */
-void EventBattle_InitSelectionOption(EventBattleSelectionOption* option, s16 x, s16 y, u8* icon, s8* text, s16 rule_category, s16 description_text_id) {
+void EventBattle_InitSelectionOption(EventBattleSelectionOption* option, s16 x, s16 y, u8* icon, s8* text,
+                                     s16 rule_category, s16 description_text_id) {
     option->slideState = 0;
     option->slideOffsetSteps = 10;
     option->restingX = x;
@@ -561,8 +568,9 @@ void EventBattle_DrawLevelCapWarning(EventBattleTrainerParty* trainer_card, s16 
     s16 alpha;
 
     if (trainer_card->levelCapCompliancePossible == 0) {
-        alpha = (trainer_card->levelCapWarningPhase >= 0) ? (s16)(SINS((s16)(SINS(trainer_card->levelCapWarningPhase) * 16384.0f)) * 127.0f) + 127
-                                     : (s16)(SINS(trainer_card->levelCapWarningPhase) * 127.0f) + 127;
+        alpha = (trainer_card->levelCapWarningPhase >= 0)
+                    ? (s16)(SINS((s16)(SINS(trainer_card->levelCapWarningPhase) * 16384.0f)) * 127.0f) + 127
+                    : (s16)(SINS(trainer_card->levelCapWarningPhase) * 127.0f) + 127;
 
         Gfx_FillRectWithDisplayState(x + 120, y + 4, 396, 88, 0x64, 0x1E, 0x1E, (alpha * 2) / 3); // #641E1E
         Font_BeginTranslucentTextRendering();
@@ -614,7 +622,8 @@ void EventBattle_DrawTrainerCard(EventBattleTrainerParty* trainer_card) {
 
         Font_BeginTranslucentTextRendering();
         Font_SetActive(0x08, 0);
-        Font_Printf((x - (Font_MeasureTextExtent(0x08, 0, trainer_card->trainerName) / 2)) + 62, y + 47, trainer_card->trainerName);
+        Font_Printf((x - (Font_MeasureTextExtent(0x08, 0, trainer_card->trainerName) / 2)) + 62, y + 47,
+                    trainer_card->trainerName);
         Font_SetActive(0x04, 0);
         Font_Printf((x - (Font_MeasureTextExtent(0x04, 0, "ID  00000") / 2)) + 62, y + 70, "ID  %05d",
                     trainer_card->trainerId);
@@ -631,7 +640,8 @@ void EventBattle_DrawTrainerCard(EventBattleTrainerParty* trainer_card) {
         for (i = 0; i < 6; i++) {
             pokemon_name_x = sPokemonPartySlotXOffsets[i] + x + 44;
             pokemon_name_y = sPokemonPartySlotYOffsets[i] + y + 23;
-            Font_Printf(pokemon_name_x, pokemon_name_y, "%s%d", Text_GetString(NULL, 0, sPokemonDetailText, 21), trainer_card->pokemon[i].level);
+            Font_Printf(pokemon_name_x, pokemon_name_y, "%s%d", Text_GetString(NULL, 0, sPokemonDetailText, 21),
+                        trainer_card->pokemon[i].level);
         }
 
         Font_EndTexturedTextRendering();
@@ -771,7 +781,8 @@ u8 EventBattle_CheckPartyEligibility(EventBattleTrainerParty* trainer_card, s16 
 
     trainer_card->allPokemonEligible = j == 6;
     if (trainer_card->allPokemonEligible) {
-        trainer_card->levelCapCompliancePossible = sCupRules[rule_category - 1].levelCap >= (lowest_levels[0] + lowest_levels[1] + lowest_levels[2]);
+        trainer_card->levelCapCompliancePossible =
+            sCupRules[rule_category - 1].levelCap >= (lowest_levels[0] + lowest_levels[1] + lowest_levels[2]);
     } else {
         trainer_card->levelCapCompliancePossible = 1;
     }
@@ -805,7 +816,8 @@ void EventBattle_DrawPartyEligibilityBanner(EventBattleDescriptionPanel* warning
                                 G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK,
                                 G_TX_NOLOD, G_TX_NOLOD);
 
-            Gfx_DrawTexturedRectClipped(x, y + (i * slice_height), 100, slice_height, 0, 0, 0x400, 0x3800 / slice_height, 0);
+            Gfx_DrawTexturedRectClipped(x, y + (i * slice_height), 100, slice_height, 0, 0, 0x400,
+                                        0x3800 / slice_height, 0);
         }
 
         if ((warning->bothPartiesEligible == 0) && (warning->height == 56)) {
@@ -882,8 +894,7 @@ void EventBattle_DrawActionLabel(EventBattleActionLabel* option) {
         if (option->height == 48) {
             Font_BeginTranslucentTextRendering();
             Font_SetActive(0x10, 0);
-            Font_Printf((x - ((s16)Font_MeasureTextExtent(0x10, 0, option->text) / 2)) + 76, y + 11,
-                        option->text);
+            Font_Printf((x - ((s16)Font_MeasureTextExtent(0x10, 0, option->text) / 2)) + 76, y + 11, option->text);
             Font_EndTexturedTextRendering();
         }
     }
@@ -918,7 +929,8 @@ void EventBattle_InitActionLabel(EventBattleActionLabel* option, s16 x, s16 y, s
 }
 
 /* Draw a row's label and optional formatted value using its selection and enabled-state colors. */
-void EventBattle_DrawSettingsRow(EventBattleSettingsPanel* settings_window, s16 option_index, s16 label_text_id, s16 value_text_id, s16 value_number) {
+void EventBattle_DrawSettingsRow(EventBattleSettingsPanel* settings_window, s16 option_index, s16 label_text_id,
+                                 s16 value_text_id, s16 value_number) {
     char text[64];
     UNUSED s32 pad; // FAKE: unused stack padding retained for matching.
 
@@ -930,7 +942,8 @@ void EventBattle_DrawSettingsRow(EventBattleSettingsPanel* settings_window, s16 
         Gfx_SetEnvColor(0xFF, 0xFF, 0xFF, 0xFF); // #FFFFFF
     }
 
-    Font_Printf(settings_window->x + 52, settings_window->y + option_index * 33 + 47, Text_GetString(NULL, 0, sEventBattleText, label_text_id));
+    Font_Printf(settings_window->x + 52, settings_window->y + option_index * 33 + 47,
+                Text_GetString(NULL, 0, sEventBattleText, label_text_id));
 
     if (value_text_id >= 0) {
         Text_SetNumberToken(2, value_number);
@@ -998,7 +1011,7 @@ void EventBattle_DrawSettingsPanel(EventBattleSettingsPanel* settings_window) {
         Ui_DrawBorderedPanelNoFill(x, y, 446, opening_progress);
 
         if (opening_progress == 186) {
-            EventBattle_DrawFilledPanel(x + 7, y + 7, 432, 32, 0x82, 0x1E, 0x1E, 0xFF); // #821E1E
+            EventBattle_DrawFilledPanel(x + 7, y + 7, 432, 32, 0x82, 0x1E, 0x1E, 0xFF);   // #821E1E
             EventBattle_DrawFilledPanel(x + 7, y + 39, 432, 140, 0x1E, 0x1E, 0x64, 0xFF); // #1E1E64
             Ui_DrawAnimatedTextureMarker(x + 14, y + (settings_window->cursorPosition * 33) + 49);
 
@@ -1006,11 +1019,13 @@ void EventBattle_DrawSettingsPanel(EventBattleSettingsPanel* settings_window) {
 
             if (settings_window->timeLimitsEnabled == 1) {
                 if (settings_window->cursorPosition == 1) {
-                    EventBattle_DrawTimeSettingArrows(x + 260, y + 45, settings_window->cursorPosition, settings_window->battleLimitMinutes);
+                    EventBattle_DrawTimeSettingArrows(x + 260, y + 45, settings_window->cursorPosition,
+                                                      settings_window->battleLimitMinutes);
                 }
 
                 if (settings_window->cursorPosition == 2) {
-                    EventBattle_DrawTimeSettingArrows(x + 260, y + 45, settings_window->cursorPosition, settings_window->orderLimitSeconds);
+                    EventBattle_DrawTimeSettingArrows(x + 260, y + 45, settings_window->cursorPosition,
+                                                      settings_window->orderLimitSeconds);
                 }
             }
 
@@ -1161,12 +1176,12 @@ void EventBattle_DrawBackground(void) {
     gDPSetCombineLERP(gDisplayListHead++, ENVIRONMENT, PRIMITIVE, TEXEL0, PRIMITIVE, TEXEL0, 0, ENVIRONMENT, 0,
                       ENVIRONMENT, PRIMITIVE, TEXEL0, PRIMITIVE, TEXEL0, 0, ENVIRONMENT, 0);
     gDPSetRenderMode(gDisplayListHead++, G_RM_OPA_SURF, G_RM_OPA_SURF2);
-    gDPSetEnvColor(gDisplayListHead++, 0x8C, 0xBE, 0xC8, 0xFF); // #8CBEC8
+    gDPSetEnvColor(gDisplayListHead++, 0x8C, 0xBE, 0xC8, 0xFF);        // #8CBEC8
     gDPSetPrimColor(gDisplayListHead++, 0, 0, 0x6E, 0xA0, 0xAA, 0xFF); // #6EA0AA
     gSPClearGeometryMode(gDisplayListHead++, G_ZBUFFER | G_LIGHTING);
 
-    gDPLoadTextureBlock_4b(gDisplayListHead++, gEventBattleBackground, G_IM_FMT_I, 128, 64, 0, G_TX_NOMIRROR | G_TX_WRAP,
-                           G_TX_NOMIRROR | G_TX_WRAP, 7, 6, G_TX_NOLOD, G_TX_NOLOD);
+    gDPLoadTextureBlock_4b(gDisplayListHead++, gEventBattleBackground, G_IM_FMT_I, 128, 64, 0,
+                           G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 7, 6, G_TX_NOLOD, G_TX_NOLOD);
 
     Gfx_DrawTexturedRectClipped(0, 0, 640, 480, 0, 0, 0x400, 0x400, 0);
 
@@ -1196,7 +1211,8 @@ void EventBattle_DrawFrame(s16 selection_index) {
 
     if (selection_index >= 0) {
         EventBattle_DrawSelectionCorners(sSelectionEntries[selection_index].x, sSelectionEntries[selection_index].y,
-                                         sSelectionEntries[selection_index].width, sSelectionEntries[selection_index].height);
+                                         sSelectionEntries[selection_index].width,
+                                         sSelectionEntries[selection_index].height);
     }
 
     BgStage_AdvanceFrame();
@@ -1348,8 +1364,10 @@ void EventBattle_EnterPartyReview(EventBattleMenuState* state) {
     }
 
     Audio_PlayCategory11SoundCommand(0x01100001, 0, 0);
-    state->mayProceedToBattle = EventBattle_ShowTrainerCardForRules(&sTrainerCards[0], sSelectionEntries[state->cursorPosition].ruleCategory);
-    state->mayProceedToBattle &= EventBattle_ShowTrainerCardForRules(&sTrainerCards[1], sSelectionEntries[state->cursorPosition].ruleCategory);
+    state->mayProceedToBattle =
+        EventBattle_ShowTrainerCardForRules(&sTrainerCards[0], sSelectionEntries[state->cursorPosition].ruleCategory);
+    state->mayProceedToBattle &=
+        EventBattle_ShowTrainerCardForRules(&sTrainerCards[1], sSelectionEntries[state->cursorPosition].ruleCategory);
     EventBattle_OpenPartyEligibilityBanner(&sPartyEligibilityBanner, state->mayProceedToBattle);
 
     first_action_index = !state->mayProceedToBattle;
@@ -1409,8 +1427,10 @@ void EventBattle_ResumePartyReview(EventBattleMenuState* state) {
     s16 j;
 
     Audio_PlayCategory11SoundCommand(0x01100001, 0, 0);
-    state->mayProceedToBattle = EventBattle_ShowTrainerCardForRules(&sTrainerCards[0], sSelectionEntries[state->cursorPosition].ruleCategory);
-    state->mayProceedToBattle &= EventBattle_ShowTrainerCardForRules(&sTrainerCards[1], sSelectionEntries[state->cursorPosition].ruleCategory);
+    state->mayProceedToBattle =
+        EventBattle_ShowTrainerCardForRules(&sTrainerCards[0], sSelectionEntries[state->cursorPosition].ruleCategory);
+    state->mayProceedToBattle &=
+        EventBattle_ShowTrainerCardForRules(&sTrainerCards[1], sSelectionEntries[state->cursorPosition].ruleCategory);
     EventBattle_OpenPartyEligibilityBanner(&sPartyEligibilityBanner, state->mayProceedToBattle);
 
     first_action_index = !state->mayProceedToBattle;
@@ -1446,7 +1466,8 @@ void EventBattle_MarkPartnerPikachu(BattleMon* pokemon, s16 controller_port) {
 /* Create a session trainer, mark partner Pikachu, and add all six party Pokemon to its battle side. */
 void EventBattle_AddPartyToSession(EventBattleTrainerParty* trainer_card) {
     s16 i;
-    TeamRoster* trainer = Trainer_Create(trainer_card->controllerPort, trainer_card->trainerId, trainer_card->trainerName, Text_GetPlayerLabel(1));
+    TeamRoster* trainer = Trainer_Create(trainer_card->controllerPort, trainer_card->trainerId,
+                                         trainer_card->trainerName, Text_GetPlayerLabel(1));
 
     for (i = 0; i < 6; i++) {
         EventBattle_MarkPartnerPikachu(&trainer_card->pokemon[i], trainer_card->controllerPort);
@@ -1671,12 +1692,18 @@ void EventBattle_InitSelectionScreen(EventBattleMenuState* state, s16 selection_
     EventBattle_InitTrainerCard(&sTrainerCards[0], 64, 92, 0);
     EventBattle_InitTrainerCard(&sTrainerCards[1], 64, 248, 1);
 
-    EventBattle_InitSelectionOption(&sSelectionOptions[0], 68, 132, D_3028E00, Text_GetString(NULL, 0, sEventBattleText, 21), 3, 0);
-    EventBattle_InitSelectionOption(&sSelectionOptions[1], 324, 132, D_3029A80, Text_GetString(NULL, 0, sEventBattleText, 24), 4, 1);
-    EventBattle_InitSelectionOption(&sSelectionOptions[2], 68, 200, D_302A700, Text_GetString(NULL, 0, sEventBattleText, 26), 6, 5);
-    EventBattle_InitSelectionOption(&sSelectionOptions[3], 324, 200, D_302B380, Text_GetString(NULL, 0, sEventBattleText, 25), 5, 3);
-    EventBattle_InitSelectionOption(&sSelectionOptions[4], 68, 268, NULL, Text_GetString(NULL, 0, sEventBattleText, 27), 0, 6);
-    EventBattle_InitSelectionOption(&sSelectionOptions[5], 324, 268, NULL, Text_GetString(NULL, 0, sEventBattleText, 28), 0, 7);
+    EventBattle_InitSelectionOption(&sSelectionOptions[0], 68, 132, D_3028E00,
+                                    Text_GetString(NULL, 0, sEventBattleText, 21), 3, 0);
+    EventBattle_InitSelectionOption(&sSelectionOptions[1], 324, 132, D_3029A80,
+                                    Text_GetString(NULL, 0, sEventBattleText, 24), 4, 1);
+    EventBattle_InitSelectionOption(&sSelectionOptions[2], 68, 200, D_302A700,
+                                    Text_GetString(NULL, 0, sEventBattleText, 26), 6, 5);
+    EventBattle_InitSelectionOption(&sSelectionOptions[3], 324, 200, D_302B380,
+                                    Text_GetString(NULL, 0, sEventBattleText, 25), 5, 3);
+    EventBattle_InitSelectionOption(&sSelectionOptions[4], 68, 268, NULL, Text_GetString(NULL, 0, sEventBattleText, 27),
+                                    0, 6);
+    EventBattle_InitSelectionOption(&sSelectionOptions[5], 324, 268, NULL,
+                                    Text_GetString(NULL, 0, sEventBattleText, 28), 0, 7);
 
     EventBattle_InitActionLabel(&sActionLabels[0], 80, 385, Text_GetString(NULL, 0, sEventBattleText, 29));
     EventBattle_InitActionLabel(&sActionLabels[1], 244, 385, Text_GetString(NULL, 0, sEventBattleText, 30));
@@ -1718,7 +1745,8 @@ s16 EventBattle_RunSelectionScreen(void) {
     return sEventBattleMenuState.nextGameState;
 }
 
-/* Own the event-battle stage and text resources, alternating selection with rental rules until another state is returned. */
+/* Own the event-battle stage and text resources, alternating selection with rental rules until another state is
+ * returned. */
 s32 EventBattle_Main(UNUSED s32 arg0, UNUSED s32 arg1) {
     s16 next_game_state = STATE_EVENT_BATTLE;
 

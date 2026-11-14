@@ -1,5 +1,5 @@
 #include "3D140.h"
-#include "lib/ultralib/include/PR/leo.h"
+#include <PR/leo.h>
 #include "src/audio_commands.h"
 #include "src/libnumus/player.h"
 #include "src/3D140.h"
@@ -222,6 +222,9 @@ u8 D_80077DE8[8] = {
 void Audio_UpdateBattleAudioFrame(void);
 
 void amCreateAudioMgr(ALSynConfig* c, amConfig* amc, u32 num_dma_buffers, s32 arg3, s32 arg4) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u32 i;
     f32 fsize;
 
@@ -283,7 +286,10 @@ void amCreateAudioMgr(ALSynConfig* c, amConfig* amc, u32 num_dma_buffers, s32 ar
     AudioStream_Init(c->heap, minFrameSize, maxFrameSize);
 }
 
-s32 __amDMA(s32 addr, s32 len, void* state) {
+intptr_t __amDMA(intptr_t addr, s32 len, void* state) { // PORT: returns a host pointer (was s32)
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     void* foundBuffer;
     s32 delta;
     AMDMABuffer* sp34;
@@ -294,6 +300,12 @@ s32 __amDMA(s32 addr, s32 len, void* state) {
     s32 buffEnd;
 
     if (D_800FC820 & 0x80000000) {
+        // PORT: wave data in RAM (title screen). A voice still playing a ROM wave passes a ROM offset, which the
+        // N64 read as (unmapped) RDRAM; read silence instead.
+        static u8 sPortSilence[0x1000] __attribute__((aligned(16)));
+        if ((uintptr_t)addr < 0x100000000ull) {
+            return osVirtualToPhysical(sPortSilence);
+        }
         return osVirtualToPhysical(addr);
     }
 
@@ -360,6 +372,9 @@ s32 __amDMA(s32 addr, s32 len, void* state) {
 }
 
 OSTask* Audio_CreateFrameTask(OSTask* arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return NULL;
+    }
     s16* audioPtr;
     Acmd* cmdp;
     s32 cmdLen;
@@ -371,7 +386,7 @@ OSTask* Audio_CreateFrameTask(OSTask* arg0) {
 
     info = __am.audioInfo[audFrameCt % 3];
     audioPtr = osVirtualToPhysical(info->data);
-    samplesLeft = HW_REG(AI_LEN_REG, u32) >> 2;
+    samplesLeft = osAiGetLength() >> 2; // PORT: AI_LEN_REG
 
     if ((D_80077DA8 == 0) && (lastInfo != NULL)) {
         osAiSetNextBuffer(lastInfo->data, lastInfo->frameSamples << 2);
@@ -397,7 +412,7 @@ OSTask* Audio_CreateFrameTask(OSTask* arg0) {
 
     sp38.t.type = M_AUDTASK;
     sp38.t.ucode_boot = &rspbootTextStart;
-    sp38.t.ucode_boot_size = (s32)_binary_assets_us_F3DEX2_bin_start - (s32)rspbootTextStart;
+    sp38.t.ucode_boot_size = (intptr_t)_binary_assets_us_F3DEX2_bin_start - (intptr_t)rspbootTextStart;
     sp38.t.flags = 0;
     sp38.t.ucode = &aspMainTextStart;
     sp38.t.ucode_data = &aspMainDataStart;
@@ -477,6 +492,9 @@ OSTask* Audio_CreateFrameTask(OSTask* arg0) {
 }
 
 ALDMAproc __amDmaNew(AMDMAState** state) {
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     if (!dmaState.initialized) {
         dmaState.firstUsed = NULL;
         dmaState.firstFree = &dmaBuffs[0];
@@ -491,6 +509,9 @@ ALDMAproc __amDmaNew(AMDMAState** state) {
 #define FRAME_LAG 1
 
 void __clearAudioDMA(void) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     s32 i;
     void* sp40;
     AMDMABuffer* var_s0_2;
@@ -527,6 +548,9 @@ void __clearAudioDMA(void) {
 }
 
 void Cry_SetEnabled(s32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     const f32 D_8007C7C0 = 0.8000000119f;
     if (arg0 != 0) {
         func_800498A8(0x7D00, 0x78, 0x640);
@@ -538,6 +562,9 @@ void Cry_SetEnabled(s32 arg0) {
 }
 
 void Cry_PlayFromPokedex(s32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     if (D_80077D90[0] == 0) {
         func_800498A8(0x7D00, 0x78, 0x320);
         D_80077D90[0] = 1;
@@ -550,6 +577,9 @@ void Cry_PlayFromPokedex(s32 arg0) {
 }
 
 void func_8003D32C(void) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     switch (D_80077D9C[0]) {
         case 1:
             Audio_StartVolumeTransition(D_80078E70, 0x50, 0x18, 3);
@@ -595,10 +625,16 @@ void func_8003D32C(void) {
 }
 
 s32 Cry_IsPlaying(void) {
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     return D_80077D90[0];
 }
 
 s32 Audio_SetEnabled(s32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     if (arg0 == 0) {
         if (mus_free_voices_count != D_800FCAD8) {
             return 0;
@@ -614,6 +650,9 @@ s32 Audio_SetEnabled(s32 arg0) {
 }
 
 s32 Audio_GetDiskReadyStatus(u8* arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     if (D_80077DAC == 0) {
         *arg0 = 7;
         return 8;
@@ -623,6 +662,9 @@ s32 Audio_GetDiskReadyStatus(u8* arg0) {
 }
 
 void Audio_SetDiskReadyPolling(s32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     if (arg0 == 1) {
         D_80077DAC = 1;
         return;

@@ -148,7 +148,7 @@ void Trade_DrawFilledFrame(s16 arg0, s16 arg1, s16 arg2, s16 arg3, u8 arg4, u8 a
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 }
 
-void Trade_DrawMovingSheen(s16 arg0, s16 arg1, s32 arg2) {
+void Trade_DrawMovingSheen(s16 arg0, s16 arg1, u8* arg2) { // PORT64: arg2 was s32
     s32 temp_v0_3;
     s16 var_a3;
     s16 i;
@@ -301,11 +301,11 @@ void Trade_DrawInfoBox(unk_D_82F20A10* arg0) {
         Font_SetActive(0x10, 0);
         Font_Printf(arg0->unk_04 + 0x10, arg0->unk_06 + 6, sp11C->nickname);
         Font_SetActive(0x10, 0);
-        Font_Printf(arg0->unk_04 + 0xA0, arg0->unk_06 + 6, "%s%d", Text_GetString(NULL, 0, sTradePokemonDetailText, 0x15),
-                    sp11C->level);
+        Font_Printf(arg0->unk_04 + 0xA0, arg0->unk_06 + 6, "%s%d",
+                    Text_GetString(NULL, 0, sTradePokemonDetailText, 0x15), sp11C->level);
         Font_SetActive(8, 0);
-        Font_Printf(arg0->unk_04 + 0x12E, arg0->unk_06 + 8, "%s%03d", Text_GetString(NULL, 0, sTradePokemonDetailText, 0x16),
-                    sp11C->species.id);
+        Font_Printf(arg0->unk_04 + 0x12E, arg0->unk_06 + 8, "%s%03d",
+                    Text_GetString(NULL, 0, sTradePokemonDetailText, 0x16), sp11C->species.id);
         Font_SetActive(8, 0);
         Font_Printf(arg0->unk_04 + 0x19C, arg0->unk_06 + 8, Trade_GetSpeciesName(sp11C->species.id));
 

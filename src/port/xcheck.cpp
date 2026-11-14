@@ -3,7 +3,7 @@
 //   PORT_XCHECK=<file>            the battle trace: one line per forced random value
 //                                 ("R <function> <call> <arg> <value> caller=<function>") and per battle event
 //                                 ("E <n> <event> ..." with the raw bytes of both Pokemon's ActivePokemonState, the
-//                                 BattleScene, gBattleDamage and the message queues)
+//                                 BattleScene, sBattleDamage and the message queues)
 //   PORT_XCHECK_VI_TIMING=<file>  observed "game-frame retrace" pairs; comparison-only mixer-clock pacing
 //   PORT_XCHECK_RNG=<seed>        the battle's random functions (Battle_Random, Battle_RandomAccuracy,
 //                                 BattleAI_RandomBelowInclusive, BattleAnim_RandomRange, BattleAnim_RandomIntWithWarmup)
@@ -56,7 +56,7 @@ extern "C" void Port_XcheckWaitRetraces(uint64_t retraces);
 extern "C" unsigned long long osGetTime(void);         // libultra (port_os)
 extern "C" void Port_GuRandomSeed(unsigned int seed); // game/lib/ultralib/src/gu/random.c
 extern "C" int gPortXcheckTraceGuRandom;              // (below)
-extern "C" unsigned int gParticleFrameCounter;        // particle_math: free-running effect frame counter
+extern "C" unsigned int sParticleFrameCounter;        // particle_math: free-running effect frame counter
 extern "C" unsigned short D_8006F084;                 // geo_render: the scene frame counter (GeoRender_AdvanceFrameCounter)
 extern "C" short D_800AF7AE;                          // battle_hud: the model texture counter (one per Pokemon model drawn)
 
@@ -378,7 +378,7 @@ int Port_XcheckRandom(int fn, int arg, int* out, void* caller) {
 }
 
 // a case's party fields for this BattleMon (side 0: player, 1: opponent; the TeamRoster's pokemonPicked and the
-// roster info copy alike), in the port's byte order; game side: Port_XcheckApplyCaseParties (battle_engine_359F90.c)
+// roster info copy alike), in the port's byte order; game side: Port_XcheckApplyCaseParties (battle_engine_mechanics.c)
 void Port_XcheckPatchMon(int side, int slot, void* battleMon) {
     Init();
     uint8_t* b = (uint8_t*)battleMon;
@@ -406,7 +406,7 @@ int Port_XcheckHasCase(void) {
 }
 
 // the battle state at an event, as raw bytes in the port's (little-endian) layout; game side:
-// Port_XcheckBattleEvent (battle_engine_359F90.c)
+// Port_XcheckBattleEvent (battle_engine_mechanics.c)
 void Port_XcheckWriteEvent(const char* name, const void* state0, const void* state1, const void* scene, unsigned damage,
                            const void* messageQueues) {
     Init();
@@ -430,15 +430,15 @@ void Port_XcheckMoveAnim(int side, int move) {
     Init();
     if (g.out) {
         fprintf(g.out, "A %d move=%d side=%d frame=%llu gf=%llu pfc=%u gfc=%u mtc=%d\n", g.animCount, move, side,
-                Port_ViTick(), g.gameFrame, gParticleFrameCounter, (unsigned)D_8006F084, (int)D_800AF7AE);
+                Port_ViTick(), g.gameFrame, sParticleFrameCounter, (unsigned)D_8006F084, (int)D_800AF7AE);
         fflush(g.out);
     }
     // guRandom (MathUtil_Random16: the effects' particles) from the same state on both sides, as the ares driver does
     if (g.force) Port_GuRandomSeed(174823885);
-    // and the effects' frame counter (gParticleFrameMod8 etc. pick texture frames, e.g. Thundershock's bolts). It counts
+    // and the effects' frame counter (sParticleFrameMod8 etc. pick texture frames, e.g. Thundershock's bolts). It counts
     // battle game frames, and the N64 can spend a frame more before an animation (its effect assets load by DMA), which
     // put the bolts one texture frame out of phase after Dragon Rage. The ares driver does the same.
-    if (g.force) gParticleFrameCounter = 0;
+    if (g.force) sParticleFrameCounter = 0;
     // and the two other texture-frame counters, for the same reason. D_800AF7AE goes up for every Pokemon model drawn
     // and is only cleared when a model is set up; animated model parts take their texture frame and scroll from it
     // (DisplayList_InitAnimatedFrameSegment: Rapidash's mane, Moltres's wings). D_8006F084 counts game frames since boot,

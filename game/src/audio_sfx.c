@@ -16,6 +16,10 @@ static s32 D_80078A4C = 0;
 static u8 D_80078A50 = 0;
 
 s32 Audio_PlaySoundEffectById(u32 sfx) {
+    Port_XcheckSfx(1, sfx, 0, 0); // PORT: battle cross-check sound trace (src/port/xcheck.cpp)
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     u32 temp_v0_3;
     s32 sp28;
     f32 sp24;

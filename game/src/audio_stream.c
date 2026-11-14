@@ -1,3 +1,6 @@
+#include "src/port_audio.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include "audio_stream.h"
 
 u8 D_800785F0 = 0;
@@ -23,6 +26,9 @@ OSMesgQueue D_800FCF40;
 OSMesg D_800FCF58;
 
 void AudioStream_Init(ALHeap* arg0, u32 arg1, u32 arg2) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     s32 i;
 
     D_800FCEE8 = arg1 >> 1;
@@ -32,7 +38,7 @@ void AudioStream_Init(ALHeap* arg0, u32 arg1, u32 arg2) {
         D_800FCED8[i] = alHeapDBAlloc(NULL, 0, arg0, 1, sizeof(unk_D_800FCED8));
         D_800FCF28[i] = alHeapDBAlloc(NULL, 0, arg0, sizeof(*D_800FCF28[0]) / 2, 2);
 
-        D_800FCEE0[i] = (u32)D_800FCED8[i] + 0x198;
+        D_800FCEE0[i] = (s16*)D_800FCED8[i]->unk_0198.unk_0000; // PORT: was + 0x198 (the N64 layout)
         D_800FCF30[i] = 0;
         D_800FCF38[i] = 0x400;
         D_800FCEF0[i] = 2;
@@ -51,6 +57,9 @@ void AudioStream_Init(ALHeap* arg0, u32 arg1, u32 arg2) {
 }
 
 void AudioStream_Start(u32 arg0, u32 arg1, u32 arg2, u32 arg3) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u32 temp_a0;
 
     if ((arg0 < 2) && (D_800785F0 == 0)) {
@@ -66,6 +75,11 @@ void AudioStream_Start(u32 arg0, u32 arg1, u32 arg2, u32 arg3) {
             D_800FCEF0[arg0] = 3;
         }
 
+        if (PORT_GETENV_ONCE("PORT_TRACE_SFX")) {
+            extern unsigned long long Port_ViTick(void);
+            fprintf(stderr, "[stream] frame %llu start %u rom 0x%x vol %u delay %u\n", Port_ViTick(), (unsigned)arg0,
+                    (unsigned)arg1, (unsigned)arg2, (unsigned)arg3);
+        }
         D_800FCEF8[arg0] = arg1;
         D_800FCF10[arg0] = arg3;
         D_800FCF08[arg0] = arg2;
@@ -75,6 +89,9 @@ void AudioStream_Start(u32 arg0, u32 arg1, u32 arg2, u32 arg3) {
 }
 
 void AudioStream_Stop(u32 arg0, u32 arg1) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     u32 temp_a0;
 
     if (arg0 < 2) {
@@ -92,6 +109,9 @@ void AudioStream_Stop(u32 arg0, u32 arg1) {
 }
 
 s32 AudioStream_IsPlaying(u32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     if (D_800FCEF0[arg0] == 2) {
         return 0;
     }
@@ -99,6 +119,9 @@ s32 AudioStream_IsPlaying(u32 arg0) {
 }
 
 void AudioStream_SetEnabled(s32 arg0) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     if (arg0 != 0) {
         D_800785F0 = 0;
     } else {
@@ -107,6 +130,9 @@ void AudioStream_SetEnabled(s32 arg0) {
 }
 
 void func_80044EA4(void) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     UNUSED s32 pad;
     u32 j;
     u32 var_s7;
@@ -152,8 +178,13 @@ void func_80044EA4(void) {
             AudioStream_ConsumeSamples(D_800FCED8[i], var_s7);
 
             temp_a2 = D_800FCED8[i]->unk_25C8 - var_s7;
+            // PORT: launcher > Sound > Voices (cries and the announcer play through these streams; unchanged at 100 %)
+            const s32 voiceGain = Port_SoundPartGainQ15(PORT_SOUND_VOICES);
             for (j = 0; j < var_s7; j++) {
                 sample = (D_800FCEE0[i][(temp_a2 + j) % 2560] * D_800FCF00[i]) >> 7;
+                if (voiceGain < 0x8000) {
+                    sample = (s16)(((s32)sample * voiceGain) >> 15);
+                }
                 D_800FCF28[i]->unk_000[(D_800FCF38[i] + (j << 1) + 1) % 2208] = sample;
                 D_800FCF28[i]->unk_000[(D_800FCF38[i] + (j << 1)) % 2208] = sample;
             }
@@ -202,11 +233,14 @@ void func_80044EA4(void) {
     }
 }
 
-void AudioStream_DmaReadChunk(u32 arg0, u32 arg1, u32 arg2, OSMesgQueue* arg3) {
+void AudioStream_DmaReadChunk(uintptr_t arg0, uintptr_t arg1, u32 arg2, OSMesgQueue* arg3) { // PORT: arg1 was u32
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     OSIoMesg sp48;
     u32 var_s1;
     u32 var_s2;
-    u32 var_s3;
+    uintptr_t var_s3; // PORT: a host pointer (was u32)
 
     var_s2 = arg0;
     var_s3 = arg1;

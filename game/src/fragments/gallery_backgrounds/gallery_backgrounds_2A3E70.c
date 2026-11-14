@@ -18,9 +18,10 @@ char* Gallery_CopyUiString(char* arg0, s32 arg1, s32 arg2) {
 }
 
 char* Gallery_GetCommonUiString(s32 arg0) {
-    Text_GetString(NULL, 0, sTeamEntryText, arg0);
+    // PORT: the decomp left out the return (the N64 build returned Text_GetString's v0 by accident)
+    return Text_GetString(NULL, 0, sTeamEntryText, arg0);
 }
 
 char* Gallery_CopyCommonUiString(char* arg0, s32 arg1, u32 arg2) {
-    Text_GetString(arg0, arg1, sTeamEntryText, arg2);
+    return Text_GetString(arg0, arg1, sTeamEntryText, arg2); // PORT: return added, as above
 }

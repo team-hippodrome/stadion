@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "battle_engine.h"
 #include "moves.h"
 #include "src/text_system.h"
@@ -131,7 +132,8 @@ static MoveEffectCallback sMoveEffectHandlers[] = {
 
 /* Rebuild one modified stat from its base value and 1-based stage, clamped to 1-999. */
 u16 BattleEffect_ApplyStatStageMultiplier(u16* stat_ptr, u16 base_stat, u8 stat_stage) {
-    *stat_ptr = (base_stat * sStatStageMultipliers[stat_stage - 1].multiplier) / sStatStageMultipliers[stat_stage - 1].divisor;
+    *stat_ptr =
+        (base_stat * sStatStageMultipliers[stat_stage - 1].multiplier) / sStatStageMultipliers[stat_stage - 1].divisor;
 
     if (*stat_ptr == 0) {
         *stat_ptr = 1;
@@ -178,7 +180,8 @@ void BattleEffect_Sleep(void) {
     }
 
 block_9:
-    if ((Battle_SleepClauseInEffect(sActivePokemon[!sBattleScene.scene->actingSide]) != 0) && (sBattleMechanicsSetting[0] != 2)) {
+    if ((Battle_SleepClauseInEffect(sActivePokemon[!sBattleScene.scene->actingSide]) != 0) &&
+        (sBattleMechanicsSetting[0] != 2)) {
         sConfused = 0;
         Text_SetStringToken(0x19, Battle_GetActiveMonNickname(sActivePokemon[!sBattleScene.scene->actingSide]));
         Battle_QueueMessage(sBattleMessageQueues->buffer[1], -0x7F);
@@ -204,7 +207,8 @@ block_9:
 void BattleEffect_Poison(void) {
     char* buffer = sBattleMessageQueues->buffer[1];
 
-    if (!(sBattleTarget->volatileStatusFlags & VOLATILE_STATUS_SUBSTITUTE) && (sBattleTarget->pendingStatusCondition == 0) && (sBattleTarget->types[0] != POISON) &&
+    if (!(sBattleTarget->volatileStatusFlags & VOLATILE_STATUS_SUBSTITUTE) &&
+        (sBattleTarget->pendingStatusCondition == 0) && (sBattleTarget->types[0] != POISON) &&
         (sBattleTarget->types[1] != POISON)) {
         switch (sBattleUser->moveCache.effect) {
             case EFFECT_POISON_20_PERCENT:
@@ -381,7 +385,7 @@ void BattleEffect_ApplyStatBoost(void) {
     if (sBattleUser->statChanges[move_effect_index] != 13) {
         sBattleUser->statChanges[move_effect_index] += increase_amount;
         if (sBattleUser->statChanges[move_effect_index] >= 14) {
-            //!bug The original code clamps increase_amount's entry instead of move_effect_index's.
+            //! bug The original code clamps increase_amount's entry instead of move_effect_index's.
             sBattleUser->statChanges[increase_amount] = 13;
         }
 
@@ -414,8 +418,9 @@ void BattleEffect_ApplyStatBoost(void) {
             }
 
             if (*stat_value != 999) {
-                *stat_value = (*unmodified_stat_value * sStatStageMultipliers[sBattleUser->statChanges[move_effect_index] - 1].multiplier) /
-                        sStatStageMultipliers[sBattleUser->statChanges[move_effect_index] - 1].divisor;
+                *stat_value = (*unmodified_stat_value *
+                               sStatStageMultipliers[sBattleUser->statChanges[move_effect_index] - 1].multiplier) /
+                              sStatStageMultipliers[sBattleUser->statChanges[move_effect_index] - 1].divisor;
                 if (*stat_value >= 1000) {
                     *stat_value = 999;
                 }
@@ -507,8 +512,10 @@ void BattleEffect_RaiseOwnStat(void) {
             }
 
             if (*modified_stat_value != 999) {
-                *modified_stat_value = (*unmodified_stat_value * sStatStageMultipliers[sBattleUser->statChanges[move_effect_index] - 1].multiplier) /
-                        sStatStageMultipliers[sBattleUser->statChanges[move_effect_index] - 1].divisor;
+                *modified_stat_value =
+                    (*unmodified_stat_value *
+                     sStatStageMultipliers[sBattleUser->statChanges[move_effect_index] - 1].multiplier) /
+                    sStatStageMultipliers[sBattleUser->statChanges[move_effect_index] - 1].divisor;
                 if (*modified_stat_value >= 1000) {
                     *modified_stat_value = 999;
                 }
@@ -624,8 +631,10 @@ void BattleEffect_LowerStat(void) {
                 }
 
                 if (*modified_stat_value != 1) {
-                    *modified_stat_value = (*unmodified_stat_value * sStatStageMultipliers[sBattleTarget->statChanges[move_effect_index] - 1].multiplier) /
-                            sStatStageMultipliers[sBattleTarget->statChanges[move_effect_index] - 1].divisor;
+                    *modified_stat_value =
+                        (*unmodified_stat_value *
+                         sStatStageMultipliers[sBattleTarget->statChanges[move_effect_index] - 1].multiplier) /
+                        sStatStageMultipliers[sBattleTarget->statChanges[move_effect_index] - 1].divisor;
                     if (*modified_stat_value == 0) {
                         *modified_stat_value = 1;
                     }
@@ -892,7 +901,8 @@ void BattleEffect_Recoil(void) {
 
 /* Roll secondary confusion and initialize its duration unless Substitute blocks it. */
 void BattleEffect_ConfuseChance(void) {
-    if (!(sBattleTarget->volatileStatusFlags & VOLATILE_STATUS_SUBSTITUTE) && (Battle_Random() < 26) && !(sBattleTarget->immobilizedReason & IMMOBILIZED_CONFUSED)) {
+    if (!(sBattleTarget->volatileStatusFlags & VOLATILE_STATUS_SUBSTITUTE) && (Battle_Random() < 26) &&
+        !(sBattleTarget->immobilizedReason & IMMOBILIZED_CONFUSED)) {
         sBattleScene.scene->hitReactionKind = BATTLE_HIT_REACTION_SECONDARY;
         sStatCanBeChangedFurther = 0;
         sBattleTarget->immobilizedReason |= IMMOBILIZED_CONFUSED;
@@ -1106,7 +1116,8 @@ void BattleEffect_Haze(void) {
     pokemon_runtime2->modifiedSpeed = pokemon_runtime2->unmodifiedSpeed;
     pokemon_runtime2->modifiedSpecial = pokemon_runtime2->unmodifiedSpecial;
 
-    if ((sBattleTarget->pendingStatusCondition & (STATUS_FREEZE | STATUS_SLEEP_MASK)) && !(sBattleTarget->immobilizedReason & IMMOBILIZED_CHARGING)) {
+    if ((sBattleTarget->pendingStatusCondition & (STATUS_FREEZE | STATUS_SLEEP_MASK)) &&
+        !(sBattleTarget->immobilizedReason & IMMOBILIZED_CHARGING)) {
         sBattleTarget->usedMove = 0xFE;
     }
 
@@ -1118,10 +1129,12 @@ void BattleEffect_Haze(void) {
     pokemon_runtime1->disabledMoveState = pokemon_runtime2->disabledMoveState = 0;
     pokemon_runtime1->disabledMove = pokemon_runtime2->disabledMove = 0;
     pokemon_runtime1->immobilizedReason &= ~IMMOBILIZED_CONFUSED;
-    pokemon_runtime1->volatileStatusFlags &= (0x08 | VOLATILE_STATUS_RECHARGE | VOLATILE_STATUS_SUBSTITUTE | VOLATILE_STATUS_RAGE);
+    pokemon_runtime1->volatileStatusFlags &=
+        (0x08 | VOLATILE_STATUS_RECHARGE | VOLATILE_STATUS_SUBSTITUTE | VOLATILE_STATUS_RAGE);
     pokemon_runtime1->uniqueStatusFlags &= UNIQUE_STATUS_TRANSFORM;
     pokemon_runtime2->immobilizedReason &= ~IMMOBILIZED_CONFUSED;
-    pokemon_runtime2->volatileStatusFlags &= (0x08 | VOLATILE_STATUS_RECHARGE | VOLATILE_STATUS_SUBSTITUTE | VOLATILE_STATUS_RAGE);
+    pokemon_runtime2->volatileStatusFlags &=
+        (0x08 | VOLATILE_STATUS_RECHARGE | VOLATILE_STATUS_SUBSTITUTE | VOLATILE_STATUS_RAGE);
     pokemon_runtime2->uniqueStatusFlags &= UNIQUE_STATUS_TRANSFORM;
     sBattleUser->scaleResize = 0;
     sBattleTarget->scaleResize = 0;
@@ -1149,8 +1162,10 @@ void BattleEffect_Heal(void) {
             if (pending_status_condition != 0) {
                 if (sBattleMechanicsSetting[0] == 1) {
                     sBattleUser->uniqueStatusFlags &= ~UNIQUE_STATUS_TOXIC;
-                    BattleEffect_ApplyStatStageMultiplier(&sBattleUser->modifiedAttack, sBattleUser->unmodifiedAttack, sBattleUser->statChanges[0]);
-                    BattleEffect_ApplyStatStageMultiplier(&sBattleUser->modifiedSpeed, sBattleUser->unmodifiedSpeed, sBattleUser->statChanges[2]);
+                    BattleEffect_ApplyStatStageMultiplier(&sBattleUser->modifiedAttack, sBattleUser->unmodifiedAttack,
+                                                          sBattleUser->statChanges[0]);
+                    BattleEffect_ApplyStatStageMultiplier(&sBattleUser->modifiedSpeed, sBattleUser->unmodifiedSpeed,
+                                                          sBattleUser->statChanges[2]);
                 }
                 Text_SetStringToken(0x19, Battle_GetActiveMonNickname(sActivePokemon[sBattleScene.scene->actingSide]));
                 Battle_QueueMessage(sBattleMessageQueues->buffer[1], -0x35);
@@ -1187,8 +1202,9 @@ void BattleEffect_Transform(void) {
     pokemon1_state = &sActivePokemon[sBattleScene.scene->actingSide]->state;
     pokemon2_state = &sActivePokemon[!sBattleScene.scene->actingSide]->state;
 
-    if ((sBattleMechanicsSetting[0] == STADIUM) && ((((sBattleTarget->uniqueStatusFlags & 8) == 0) && (sBattleTarget->id == 0x84)) ||
-                                 (((sBattleTarget->uniqueStatusFlags & 8) != 0) && (pokemon2_state->transformedIntoSpecies == 0x84)))) {
+    if ((sBattleMechanicsSetting[0] == STADIUM) &&
+        ((((sBattleTarget->uniqueStatusFlags & 8) == 0) && (sBattleTarget->id == 0x84)) ||
+         (((sBattleTarget->uniqueStatusFlags & 8) != 0) && (pokemon2_state->transformedIntoSpecies == 0x84)))) {
         sBattleScene.scene->moveEffectKind = MOVE_PRESENTATION_NO_ACTION;
         Text_SetStringToken(0x1B, Battle_GetActiveMonNickname(sActivePokemon[!sBattleScene.scene->actingSide]));
         Battle_QueueMessage(sBattleMessageQueues->buffer[1], BATTLE_MSG_TRANSFORM_DITTO_BLOCKED);
@@ -1197,7 +1213,8 @@ void BattleEffect_Transform(void) {
 
     user = sBattleUser;
     if (!(user->immobilizedReason & IMMOBILIZED_SEMI_INVULNERABLE) &&
-        ((sBattleMechanicsSetting[0] != STADIUM) || (sBattleTarget->moves[0] != TRANSFORM) || (sBattleTarget->moves[1] != 0))) {
+        ((sBattleMechanicsSetting[0] != STADIUM) || (sBattleTarget->moves[0] != TRANSFORM) ||
+         (sBattleTarget->moves[1] != 0))) {
         sBattleScene.scene->moveEffectKind = MOVE_PRESENTATION_TRANSFORM;
         Text_SetStringToken(0x1B, Battle_GetActiveMonNickname(sActivePokemon[!sBattleScene.scene->actingSide]));
         Battle_QueueMessage(sBattleMessageQueues->buffer[4], -0x31);

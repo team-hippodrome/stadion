@@ -17,10 +17,25 @@
  *  try the RAND macro too
  *   
  */
+static unsigned int xseed = 174823885; // PORT: file scope, for Port_GuRandomSeed
+
+// PORT: battle cross-check (src/port/xcheck.cpp): both games restart the generator at each move animation, so the
+// particles that draw from it match
+void Port_GuRandomSeed(unsigned int seed)
+{
+    xseed = seed;
+}
+
+extern int gPortXcheckTraceGuRandom;              // PORT: battle cross-check (src/port/xcheck.cpp)
+extern void Port_XcheckGuRandomCalled(void* caller);
+
 int guRandom(void)
 {
-    static unsigned int xseed = 174823885;
     unsigned int x;
+
+    if (gPortXcheckTraceGuRandom) {
+        Port_XcheckGuRandomCalled(__builtin_return_address(0));
+    }
 
     x = (xseed<<2) + 2;
 

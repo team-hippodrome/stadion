@@ -32,7 +32,7 @@ typedef struct BattleMonRuntime {
     /* 0x1F */ u8 moves[4];
     /* 0x23 */ char unk23[0x1];
     /* 0x24 */ u16 unk_24; // Packed determinant values; copied by Transform.
-    /* 0x26 */ u8 unk_26; // Level used by damage calculation.
+    /* 0x26 */ u8 unk_26;  // Level used by damage calculation.
     /* 0x28 */ u16 maxHp;
     /* 0x2A */ u16 modifiedAttack;
     /* 0x2C */ u16 modifiedDefense;
@@ -53,7 +53,7 @@ typedef struct BattleMonRuntime {
     /* 0x4E */ u8 uniqueStatusFlags;
     /* 0x4F */ u8 effectTurnsLeft; // Shared by Bide, Thrash, trapping and multi-hit.
     /* 0x50 */ u8 confusionTurnsLeft;
-    /* 0x51 */ u8 toxicCounter; // Also used by Leech Seed while Toxic is active.
+    /* 0x51 */ u8 toxicCounter;      // Also used by Leech Seed while Toxic is active.
     /* 0x52 */ u8 disabledMoveState; // High nibble: slot + 1; low nibble: turns left.
     /* 0x53 */ u8 unk_53;
     /* 0x54 */ u16 effectCounter; // Bide damage accumulator or total multi-hit count.
@@ -64,7 +64,7 @@ typedef struct BattleMonRuntime {
     /* 0x5A */ u8 usedMove;
     /* 0x5B */ u8 unk_5B;
     /* 0x5C */ u8 statChanges[8]; // Six named stages, then two unnamed entries; 7 = neutral.
-} BattleMonRuntime; // size = 0x64
+} BattleMonRuntime;               // size = 0x64
 
 typedef struct amConfig {
     /* 0x00 */ u32 outputRate;

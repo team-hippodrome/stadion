@@ -38,8 +38,8 @@ static unk_func_8001B1FC* D_88826920;
 static StageContext* D_88826924;
 static StageContext* D_88826928;
 static ModelLoadContext* D_8882692C;
-static s32 D_88826930;
-static s32 D_88826934;
+static uintptr_t D_88826930; // PORT64: frame-buffer memory reused as a pool (was s32)
+static uintptr_t D_88826934; // PORT64: ... and as a decompression buffer (was s32)
 static s32 D_88826938;
 static s32 D_8882693C;
 static unk_func_888044BC* D_88826940;
@@ -461,6 +461,7 @@ s32 Pokedex_DrawSortOrderLabel(unk_func_888044BC_040_030* arg0, s32 arg1, s32 ar
 
     gDPPipeSync(gDisplayListHead++);
     gDPSetAlphaCompare(gDisplayListHead++, G_AC_NONE);
+    return 1; // PORT: the N64 returned the last call's nonzero v0, so WidgetTree_Draw skipped the children
 }
 
 void Pokedex_ToggleSortOrderLabel(unk_func_888044BC_040_030* arg0) {
@@ -6190,8 +6191,8 @@ void Pokedex_EnterAreaMapScreen(void) {
     StageContext_SaveAndSwitch(D_88826928);
     StageLoader_RunFrames(2);
     sp2C = Pokedex_GetSelectedSpeciesIndex(D_88826940->unk_38->unk_2C) + 1;
-    func_88807D04(sp2C, D_88826930, 0x70800, D_88826934, 0x4B000, Text_GetString(NULL, 0, sPokemonNameTable, sp2C - 1),
-                  sPokedexAreaText);
+    func_88807D04(sp2C, (MainPoolState*)D_88826930, 0x70800, D_88826934, 0x4B000,
+                  Text_GetString(NULL, 0, sPokemonNameTable, sp2C - 1), sPokedexAreaText);
     StageFade_Start(8);
     BgStage_RunUntilCondition(0xA, Pokedex_DrawAreaMapFrame);
 }
@@ -6276,9 +6277,9 @@ s32 Pokedex_GetHighestSeenSpeciesIndex(void) {
 }
 
 void Pokedex_InitFramebuffers(void) {
-    u32 sp34;
-    u32 sp30;
-    u32 sp2C;
+    uintptr_t sp34; // PORT64: frame-buffer addresses (were u32)
+    uintptr_t sp30;
+    uintptr_t sp2C;
     DepthBuffer* sp28;
 
     sp28 = main_pool_alloc(sizeof(DepthBuffer), 0);

@@ -723,24 +723,25 @@ void LabPCList_InitDeckSlots(unk_func_8830867C_02C* arg0, MemoryPool* arg1) {
     arg0->unk_0E4[0].unk_04 = GbSave_GetActivePort();
     arg0->unk_0E4[0].unk_08 = 0;
     arg0->unk_0E4[0].unk_1C = 6;
-    ByteMatrix_Allocate(&arg0->unk_0E4[0].unk_0C, 0x1C, 1, arg1);
+    // PORT64: record size from the host struct (was 0x1C, its N64 size)
+    ByteMatrix_Allocate(&arg0->unk_0E4[0].unk_0C, sizeof(unk_func_8820BE14_06C_000_alt), 1, arg1);
     LabPCList_AllocateBoxSlots(&arg0->unk_0E4[0], 6, 1, arg1);
 
     arg0->unk_0E4[1].unk_00 = 0x21;
     arg0->unk_0E4[1].unk_04 = arg0->unk_0E4[0].unk_04;
     arg0->unk_0E4[1].unk_08 = 1;
     arg0->unk_0E4[1].unk_1C = 0x14;
-    ByteMatrix_Allocate(&arg0->unk_0E4[1].unk_0C, 0x1C, 0xC, arg1);
+    ByteMatrix_Allocate(&arg0->unk_0E4[1].unk_0C, sizeof(unk_func_8820BE14_06C_000_alt), 0xC, arg1);
     LabPCList_AllocateBoxSlots(&arg0->unk_0E4[1], 0x14, 0, arg1);
 
     arg0->unk_0E4[2].unk_00 = 0x11;
     arg0->unk_0E4[2].unk_04 = 0;
     arg0->unk_0E4[2].unk_08 = 2;
     arg0->unk_0E4[2].unk_1C = 0x14;
-    ByteMatrix_Allocate(&arg0->unk_0E4[2].unk_0C, 0x1C, 0xC, arg1);
+    ByteMatrix_Allocate(&arg0->unk_0E4[2].unk_0C, sizeof(unk_func_8820BE14_06C_000_alt), 0xC, arg1);
     LabPCList_AllocateBoxSlots(&arg0->unk_0E4[2], 0x14, 0, arg1);
 
-    TableView_Initialize(&arg0->unk_144, arg0->unk_0E4, 0x20, 3, 3);
+    TableView_Initialize(&arg0->unk_144, arg0->unk_0E4, sizeof(unk_func_8830867C_02C_0E4), 3, 3); // PORT64: was 0x20
 }
 
 void LabPCList_InitPageHeader(unk_func_88302D98* arg0, s32 arg1, s32 arg2, unk_func_8830867C_02C* arg3) {
@@ -894,14 +895,15 @@ void LabPCList_BuildListScreen(unk_func_8830867C_02C* arg0, s32 arg1, s32 arg2, 
                                unk_func_8830867C_03C* arg7, unk_func_8830867C_040* arg8, unk_func_8830867C_044* arg9,
                                unk_func_8830867C_048* argA, unk_func_8830867C_04C* argB, unk_func_889000C4* argC,
                                FragmentEntry argD, unk_func_8830867C_054* argE, MemoryPool* argF, FontContext* arg10) {
+    // PORT64: one table; the list's column widths are read past the first three into the next arrays, which the N64
+    // lays out back to back (separate statics are not adjacent on the host)
     static s32 D_8831721C[] = {
-        0x0000005C,
-        0x00000034,
-        0x0000004C,
+        0x0000005C, 0x00000034, 0x0000004C, 0x38, 0x48, 0x48, 0x69, 0x69,
+        0x69,       0x69,       0x46,       0x46, 0x46, 0x46, 0x46, 0x46,
     };
-    static s32 D_88317228[] = { 0x38, 0x48, 0x48 };
-    static s32 D_88317234[] = { 0x69, 0x69, 0x69, 0x69 };
-    static s32 D_88317244[] = { 0x46, 0x46, 0x46, 0x46, 0x46, 0x46 };
+    s32* D_88317228 = &D_8831721C[3];
+    s32* D_88317234 = &D_8831721C[6];
+    s32* D_88317244 = &D_8831721C[10];
     static s32 D_8831725C[] = {
         0x00000000,
         0x00000006,
@@ -1218,7 +1220,11 @@ Color_RGBA8 D_88317280 = { 0xF0, 0xD2, 0x8C, 0xFF };
 Color_RGBA8 D_88317284 = { 0x96, 0xDC, 0xB4, 0xFF };
 
 void LabPCList_DrawAreaCell(s32 arg0, s32 arg1, s32 arg2, unk_func_88304850_arg2* arg3) {
-    LabPCList_DrawLocationCaption(arg0, arg1, arg2, 0x14, *(s32*)arg3->unk_00[0], arg3->unk_00[1], 0xFF);
+    // PORT64: arg3->unk_00 is the slot's box record: its bank pointer (whose first word is the deck type) and box
+    // number were read as unk_00[0] / unk_00[1], i.e. as two s32s (the pointer is 8 bytes on the host)
+    unk_func_8830867C_02C_0CC_000_000* box = (unk_func_8830867C_02C_0CC_000_000*)arg3->unk_00;
+
+    LabPCList_DrawLocationCaption(arg0, arg1, arg2, 0x14, *(s32*)box->unk_00, box->unk_04, 0xFF);
 }
 
 void LabPCList_DrawPlainText(s32 arg0, s32 arg1, s8* arg2, s32 arg3) {
@@ -1610,7 +1616,7 @@ void LabPCList_PerformMoveMon(unk_func_8830867C_02C* arg0, unk_func_8830867C_02C
 
     LabPCList_SwitchColumnPage(arg0);
 
-    sp78.unk_00 = arg0->unk_0DC->unk_08 + (s32)arg0->unk_0DC->unk_00 + arg0->unk_0DC->unk_04 + 0x84;
+    sp78.unk_00 = arg0->unk_0DC->unk_08 + arg0->unk_0DC->unk_00 + arg0->unk_0DC->unk_04 + 0x84;
     sp78.unk_02 = arg0->unk_034->unk_5C - arg0->unk_034->unk_58;
 
     LabPCList_LocationCrossfadeWidget_Start(arg0->unk_0C8, sp80, sp7C, sp78);
@@ -1845,7 +1851,8 @@ void LabPCList_RunPartySelectionModal(unk_func_8830867C_02C* arg0, Controller* a
 }
 
 void func_88305F28(unk_func_8830867C_02C* arg0) {
-    unk_func_8830867C_04C_030_02C_000_000* spDC;
+    unk_func_8830867C_02C_1A8*
+        spDC; // PORT64: the TM/HM list entry (was viewed with N64 offsets, unk_08 read a pointer)
     unk_func_8830867C_02C_0CC_000* spD8;
     s32 spD4;
     s32 spD0;
@@ -1865,7 +1872,7 @@ void func_88305F28(unk_func_8830867C_02C* arg0) {
     s32 sp40;
     unk_func_8830867C_02C_0CC_000_008* sp34;
 
-    spDC = arg0->unk_0AC->unk_30->unk_2C->unk_00->unk_00[arg0->unk_0AC->unk_30->unk_38];
+    spDC = (unk_func_8830867C_02C_1A8*)arg0->unk_0AC->unk_30->unk_2C->unk_00->unk_00[arg0->unk_0AC->unk_30->unk_38];
     spD8 = arg0->unk_034->unk_00.unk_2C->unk_00[arg0->unk_034->unk_00.unk_38];
     spD0 = arg0->unk_034->unk_00.unk_38;
     spCC = arg0->unk_034->unk_00.unk_38 - (arg0->unk_034->unk_58 / arg0->unk_034->unk_00.unk_3E);
@@ -1873,18 +1880,18 @@ void func_88305F28(unk_func_8830867C_02C* arg0) {
     if (spDC->unk_08 >= 0x64) {
         sp34 = &spD8->unk_08;
         spC0 = BattleMon_CountMoves(sp34);
+        // PORT64: the move in slot spC0 is sp34->unk_09[spC0]; the decomp read it as unk_11 of spD8 + spC0, which
+        // is that byte only while unk_08 sits at 0x08 (4-byte unk_00 pointer)
         if (spC0 < 4) {
             LabPCList_ClearMovesFrom(sp34, spC0);
             spBC = -1;
-            sp34 = (u8*)spD8 + spC0;
         } else {
             do {
                 spC0 = arg0->unk_0AC->unk_78->unk_30->unk_38;
             } while (0);
-            sp34 = (u8*)spD8 + spC0;
-            spBC = sp34->unk_11;
+            spBC = sp34->unk_09[spC0];
         }
-        LabPCList_TeachTmMove(spD8, spDC, spC0);
+        LabPCList_TeachTmMove(spD8, (unk_func_8830867C_04C_030_02C_000*)spDC, spC0);
 
         temp_v0_4 = ((func88500A6C)Memmap_GetFragmentVaddr(WidgetTree_SelectPage));
         arg0->unk_CD0 = 1;
@@ -1893,7 +1900,7 @@ void func_88305F28(unk_func_8830867C_02C* arg0) {
         spC8.unk_00 = (arg0->unk_0DC->unk_18 * spC0) + 0x84;
         spC8.unk_02 = arg0->unk_034->unk_5C - arg0->unk_034->unk_58;
 
-        LabPCList_TextFadeWidget_Start(arg0->unk_0BC, spBC, sp34->unk_11, spC8);
+        LabPCList_TextFadeWidget_Start(arg0->unk_0BC, spBC, sp34->unk_09[spC0], spC8);
         LabPCList_SwitchColumnPage(arg0);
         ((func8850CF00)Memmap_GetFragmentVaddr(WidgetTree_RunChildWidgetGroup))(arg0->unk_0B8, gPlayer1Controller);
         LabPCList_ApplyFiltersAndSort(arg0);
@@ -1904,7 +1911,7 @@ void func_88305F28(unk_func_8830867C_02C* arg0) {
                                                                                                 spCC);
             Text_SetStringToken(0x1A, spD8->unk_38);
             Text_SetStringToken(0x1D, Text_GetString(NULL, 0, sPcListMoveNames, spBC - 1));
-            Text_SetStringToken(0x1E, Text_GetString(NULL, 0, sPcListMoveNames, sp34->unk_11 - 1));
+            Text_SetStringToken(0x1E, Text_GetString(NULL, 0, sPcListMoveNames, sp34->unk_09[spC0] - 1));
             Text_GetString(arg0->unk_CCC->unk_40, 0x140, sPcListText, 0x5D);
             ((func8850A10C)Memmap_GetFragmentVaddr(WidgetTree_SetMessagePanelText))(arg0->unk_090, arg0->unk_CCC, 0, 0);
             ((func8850A3CC)Memmap_GetFragmentVaddr(WidgetTree_RunMessagePanelWithSound))(arg0->unk_090,
@@ -1915,7 +1922,7 @@ void func_88305F28(unk_func_8830867C_02C* arg0) {
         }
     } else if (spDC->unk_08 >= 0x32) {
         spB4 = arg0->unk_0AC->unk_78->unk_30->unk_38;
-        LabPCList_ApplyPpUpItem(spD8, spDC, spB4, &spB0, &spAC);
+        LabPCList_ApplyPpUpItem(spD8, (unk_func_8830867C_04C_030_02C_000*)spDC, spB4, &spB0, &spAC);
 
         temp_v0_4 = ((func88500A6C)Memmap_GetFragmentVaddr(WidgetTree_SelectPage));
         arg0->unk_CD0 = 1;
@@ -1929,7 +1936,7 @@ void func_88305F28(unk_func_8830867C_02C* arg0) {
     } else {
         sp4C = *spD8;
 
-        sp40 = LabPCList_ApplyVitaminItem(&sp4C, spDC, &sp48, &sp44);
+        sp40 = LabPCList_ApplyVitaminItem(&sp4C, (unk_func_8830867C_04C_030_02C_000*)spDC, &sp48, &sp44);
 
         temp_v0_4 = ((func88500A6C)Memmap_GetFragmentVaddr(WidgetTree_SelectPage));
         arg0->unk_CD0 = 2;
@@ -2409,9 +2416,10 @@ void LabPCList_MarkIneligibleEntries(unk_func_8830867C_02C* arg0) {
     s32 i;
     s32 var_v0;
     unk_func_8830867C_02C_0CC_000** temp_v0_2;
-    unk_func_8830867C_04C_030_02C_000_000* temp_s1;
+    unk_func_8830867C_02C_1A8* temp_s1; // PORT64: the TM/HM list entry (was viewed with N64 offsets)
 
-    temp_s1 = arg0->unk_0AC->unk_30->unk_2C->unk_00[arg0->unk_0AC->unk_30->unk_38].unk_00[0];
+    temp_s1 =
+        (unk_func_8830867C_02C_1A8*)arg0->unk_0AC->unk_30->unk_2C->unk_00[arg0->unk_0AC->unk_30->unk_38].unk_00[0];
     temp_v0_2 = arg0->unk_034->unk_00.unk_2C->unk_00;
 
     for (i = 0; i < arg0->unk_034->unk_00.unk_2C->unk_08; i++) {
@@ -2419,11 +2427,11 @@ void LabPCList_MarkIneligibleEntries(unk_func_8830867C_02C* arg0) {
             arg0->unk_034->unk_00.unk_34[i] |= 4;
         } else {
             if (temp_s1->unk_08 >= 0x64) {
-                var_v0 = LabPCList_CheckTmHmIneligibility(**(u8**)&temp_s1->unk_00, &temp_v0_2[i]->unk_08);
+                var_v0 = LabPCList_CheckTmHmIneligibility(*temp_s1->unk_00, &temp_v0_2[i]->unk_08);
             } else if (temp_s1->unk_08 >= 0x32) {
                 var_v0 = LabPCList_CheckPpUpIneligibility(&temp_v0_2[i]->unk_08);
             } else {
-                var_v0 = LabPCList_CheckVitaminIneligibility(**(u8**)&temp_s1->unk_00, &temp_v0_2[i]->unk_08);
+                var_v0 = LabPCList_CheckVitaminIneligibility(*temp_s1->unk_00, &temp_v0_2[i]->unk_08);
             }
 
             if (var_v0 != 0) {
@@ -3174,12 +3182,13 @@ s32 LabPCList_ShowListScreen(UNUSED s32 arg0, UNUSED s32 arg1) {
 
     sp48 = main_pool_alloc(0x1000, 0);
 
-    sp50 = mem_pool_try_init(0x18000, 0);
+    // PORT64: twice the N64 size; the 720 box slots, pointer arrays and widgets are larger on the host and ran out
+    sp50 = mem_pool_try_init(0x18000 * 2, 0);
 
     sp4C = mem_pool_alloc(sp50, sizeof(unk_func_8830867C));
     LabPCList_BuildWidget(sp4C, 0, 0, sp50, sp54, sp40, sp3C, sp38, sp34, sp30);
 
-    sp44 = ALIGN16((u32)mem_pool_alloc(sp50, sizeof(func_88002628_sp38)));
+    sp44 = ALIGN16((uintptr_t)mem_pool_alloc(sp50, sizeof(func_88002628_sp38)));
 
     osCreateThread(&sp44->thread, 0x32, LabPCList_ScreenThreadEntry, sp4C, sp48 + 0x1000, osGetThreadPri(NULL) - 1);
 

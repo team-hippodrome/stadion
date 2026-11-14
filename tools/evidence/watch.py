@@ -6,7 +6,7 @@
       forces <value> at it (later calls continue the seeded stream unchanged: the stream index counts queued calls)
   tools/evidence/watch.py diff <run dir> <function> [--max N]
       each watched call of <function>: caller, frame, and the battle fields that changed from entry to exit
-      (BattleMonRuntime of user and target, both ActivePokemonState, BattleScene, gBattleDamage; decoded with
+      (BattleMonRuntime of user and target, both ActivePokemonState, BattleScene, sBattleDamage; decoded with
       tools/battle_xcheck.py's layouts)
   tools/evidence/watch.py randoms <run dir> [--around FRAME]
       the forced random calls (function, call index, argument, value, frame), to pick the call to force

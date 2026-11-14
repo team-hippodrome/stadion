@@ -34,7 +34,8 @@ static unk_D_832027C8 D_832027C8;
 static s32 D_83201F50 = 0;
 static s32 D_83201F54 = -1;
 static char* D_83201F58 = NULL;
-static u32 D_83201F5C[] = {
+static uintptr_t D_83201F5C[] = {
+    // PORT64: holds addresses
     0x0C000000,  0x05000000, 0x0B00001E, 0x00000000, 0x014000F0, 0x00000320,
     0x00000000,  0x000005DC, 0x05000000, 0x0D000000, 0x05000000, 0x0E000002,
     0x05000000,  0x22010000, 0x8C200060, 0x06000000, 0x14000000, 0x002B0012,
@@ -74,7 +75,8 @@ s32 PikachuReward_CheckEligibleForSurf(BattleMon* arg0, s16 arg1, s16 arg2, s16 
     s32 sp1C = 0;
 
     if ((arg0->species.id > 0) && (arg0->species.id < 0x98)) {
-        if ((PikachuReward_CheckNoSpecialMove(arg0) != 0) && (D_8006FF00[arg0->species.id - 1].cupEligibilityFlags & arg3)) {
+        if ((PikachuReward_CheckNoSpecialMove(arg0) != 0) &&
+            (D_8006FF00[arg0->species.id - 1].cupEligibilityFlags & arg3)) {
             if ((arg0->level >= arg1) && (arg2 >= arg0->level)) {
                 sp1C = 1;
             }
@@ -582,7 +584,8 @@ s32 PikachuReward_ResolveMoveSlot(void) {
                     D_83201F54 = 0;
                     Effect_TriggerMoveVisual(0x85, 0x19, 0);
                     PikachuReward_ShowTextWaitForA(Text_GetString(NULL, 0, sPikachuSurfText, 0xB), 1);
-                    Text_SetStringToken(0x1D, Text_GetString(NULL, 0, sMoveNameTable, D_832027C8.unk_04.moves[spAC] - 1));
+                    Text_SetStringToken(0x1D,
+                                        Text_GetString(NULL, 0, sMoveNameTable, D_832027C8.unk_04.moves[spAC] - 1));
                     Text_GetString(sp2C, sizeof(sp2C), sPikachuSurfText, 0xC);
                     Audio_StopMusic(0x3C);
                     PikachuReward_ScrollTextIn(sp2C);

@@ -908,5 +908,5 @@ s32 Gallery_FilmSelectMain(s32 arg0, UNUSED s32 arg1) {
 
     main_pool_pop_state('FILM');
 
-    return Gallery_FilmSelectFinalize(&D_83603300);
+    return Gallery_FilmSelectFinalize(&D_83603300); // PORT: the caller uses this result (on the N64 it was left in v0)
 }

@@ -23,7 +23,7 @@ typedef struct ParticleSetupArgumentPointer {
 } ParticleSetupArgumentPointer;
 
 typedef union ParticleSetupArgument {
-    intptr_t arg;
+    intptr_t arg; // PORT64: widened so the union can hold the pointer form
     ParticleSetupArgumentPointer* s;
 } ParticleSetupArgument;
 

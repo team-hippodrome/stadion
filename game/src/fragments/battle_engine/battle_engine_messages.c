@@ -133,10 +133,13 @@ void Battle_DrawCompactStatusBoxesIfVisible(void) {
     ActivePokemon* pokemon2 = sActivePokemon[1];
 
     if ((gSessionContext.mode != SESSION_MODE_ATTRACT_DEMO_BATTLE) && (sBattleScene.scene->transitionStep == 0)) {
+        gDPPortAnchorLeft(gDisplayListHead++); // PORT: at the screen's edges in widescreen
         BattleHud_DrawCompactMonStatusBox(
             pokemon1, 21, 15, pokemon1->sessionTeams->tagTeamMember[pokemon1->thumbnail.tagTeam]->controllerPort);
+        gDPPortAnchorRight(gDisplayListHead++);
         BattleHud_DrawCompactMonStatusBox(
             pokemon2, 225, 15, pokemon2->sessionTeams->tagTeamMember[pokemon2->thumbnail.tagTeam]->controllerPort);
+        gDPPortAnchorEnd(gDisplayListHead++);
     }
 }
 
@@ -804,10 +807,16 @@ void Battle_RenderHud(void) {
         Battle_DrawDemoStadiumLogo();
     }
 
+    // PORT: in a widescreen picture each side's HUD sits at its screen edge (the portraits too, geo_render.c)
+    Port_SetHudAnchorCameras(sActivePokemon[0]->thumbnail.camera, sActivePokemon[1]->thumbnail.camera);
+
     switch (sBattleScene.scene->mode) {
         case 1:
+            gDPPortAnchorLeft(gDisplayListHead++);
             BattleHud_DrawOwnSideStatus(sActivePokemon[0], side1_state);
+            gDPPortAnchorRight(gDisplayListHead++);
             BattleHud_DrawOpponentSideStatus(sActivePokemon[1], side2_state);
+            gDPPortAnchorEnd(gDisplayListHead++);
             BattleScene_RevealParticipantMessageChars(sActivePokemon[0]);
             BattleScene_RevealParticipantMessageChars(sActivePokemon[1]);
             BattleScene_TickHudTimers();

@@ -21,7 +21,7 @@ typedef struct unk_D_8423D3A8 {
     /* 0x0C */ s16 unk_0C;
     /* 0x0E */ Rectangle unk_0E;
     /* 0x16 */ Rectangle unk_16;
-    /* 0x20 */ u8* unk_20;
+    /* 0x20 */ u8* unk_20; // PORT64: the preview image (PokeIcon_RenderPreview), was s32
     /* 0x24 */ ModelLoadContext* unk_24;
     /* 0x28 */ unk_func_8001B1FC* unk_28;
     /* 0x2C */ unk_D_838067F0_0168_0000* unk_2C;
@@ -128,8 +128,9 @@ typedef struct unk_D_84229EB0 {
     /* 0x0001F */ u8 unk_0001F;
     /* 0x00020 */ u8 unk_00020;
     /* 0x00024 */ unk_D_84229EB0_00024* unk_00024;
-    /* 0x00028 */ unk_D_84229EB0_00024 unk_00028[3];
-    /* 0x0E7B8 */ char unk0E7B8[0x4D30];
+    // PORT64: the four entries of the team ring (unk_4D24/unk_4D28 link [i] to [(i +- 1) & 3]), was [3] followed
+    // by char unk0E7B8[0x4D30], the N64 size of the fourth: the larger 64-bit entry ran into unk_134E8.
+    /* 0x00028 */ unk_D_84229EB0_00024 unk_00028[4];
     /* 0x134E8 */ RentalTeamTray* unk_134E8;
     /* 0x134EC */ RentalCarouselState* unk_134EC;
     /* 0x134F0 */ unk_D_8423D3A8* unk_134F0;
@@ -172,7 +173,7 @@ void TeamSelection_DrawRegistrationHeaderBackdrop(s16 arg0, s16 arg1);
 void TeamSelection_DrawCategoryBanner(s16 arg0, s16 arg1, s16 arg2);
 void TeamSelection_DrawGradientPanel(s16 arg0, s16 arg1, s16 arg2, Color_RGBA8* arg3, Color_RGBA8* arg4);
 void TeamSelection_DrawTitleHeader(void);
-void TeamSelection_DrawCategoryRow(s16 arg0, s16 arg1, s16 arg2, s32 arg3);
+void TeamSelection_DrawCategoryRow(s16 arg0, s16 arg1, s16 arg2, intptr_t arg3);
 void TeamSelection_DrawCategoryScreen(s16 arg0, s16 arg1, s16 arg2);
 void TeamSelection_WaitForConfirm(void);
 s32 TeamSelection_HandleConfirmInput(void);
@@ -279,7 +280,7 @@ s32 Rental_CarouselIsIdle(RentalCarouselState*);
 void TeamSelection_Preview_DrawOptionText(s16 arg0, s16 arg1, s16 arg2, s16 arg3, s8* arg4);
 void TeamSelection_Preview_DrawHeader(s16 arg0, s16 arg1, s16 arg2, s16 arg3);
 void TeamSelection_Preview_DrawTypeIcon(s16 arg0, s16 arg1, s16 arg2);
-void TeamSelection_Preview_DrawMovePanel(s16 arg0, s16 arg1, s32 arg2);
+void TeamSelection_Preview_DrawMovePanel(s16 arg0, s16 arg1, u8* arg2);
 s16 TeamSelection_Preview_CenterMoveText(s16 arg0, s16 arg1, char* arg2);
 void TeamSelection_Preview_DrawPokemonDetails(unk_D_8423D3A8* arg0, s32 arg1);
 void func_8420C360(unk_D_8423D3A8* arg0);

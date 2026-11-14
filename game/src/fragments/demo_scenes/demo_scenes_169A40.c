@@ -16,7 +16,8 @@
 #include "src/memory.h"
 #include "src/stage_loader.h"
 
-static u32 sStageGeoLayoutCommands[] = {
+static uintptr_t sStageGeoLayoutCommands[] = {
+    // PORT64: holds addresses
     0x0C00FFFF, 0x05000000, 0x0B00001E,  0x00000000, 0x014000F0, 0x00000032, 0x00000000, 0x00000118,
     0x05000000, 0x0D000000, 0x05000000,  0x14000000, 0x002B0012, 0xFFFFFF32, 0x16FFFFFF, 0x0F000003,
     0x05000000, 0x0A000000, &D_800AC840, 0x06000000, 0x06000000, 0x06000000, 0x06000000, 0x01000000,
@@ -99,6 +100,7 @@ s32 MewtwoIntro_UpdateFade(void) {
     if (var_v0) {
         return 1;
     }
+    return 0; // PORT: the N64 returned v0, which holds 0 here; the host fell off the end and always returned 1
 }
 
 void MewtwoIntro_RunLoop(void) {

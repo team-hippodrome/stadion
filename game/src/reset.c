@@ -1,6 +1,7 @@
 #include "global.h"
 #include "reset.h"
 #include "scheduler.h"
+#include "src/dp_intro.h"
 
 // this file handles the soft reset effect.
 typedef struct UnkStruct800A6D20 {
@@ -17,14 +18,12 @@ typedef struct UnkStruct4 {
     /* 0x00 */ s32 unk_00;
     /* 0x04 */ u16 unk_04;
     /* 0x06 */ u16 unk_06;
-    /* 0x08 */ s32 unk_08;
+    /* 0x08 */ u16* unk_08; // Framebuffer supplied by Display_GetWorkerStatus.
+    //@src/dp_intro.c
 } UnkStruct4; // size >= 0xC
 
+// The wipe helpers and reset thread share this state through the host structure.
 UnkStruct800A6D20 D_800A6D20;
-extern u32 gSoftResetLineNum;
-extern s32 gSoftResetRed;
-extern s32 gSoftResetGreen;
-extern s32 gSoftResetBlue;
 
 /**
  * Perform the horizontal framebuffer wipe across 15 different lines for a
@@ -33,9 +32,9 @@ extern s32 gSoftResetBlue;
 void SoftReset_ClearLines320(u16* buf) {
     int i, j;
 
-    if (gSoftResetLineNum <= 15) {
+    if (D_800A6D20.gSoftResetLineNum <= 15) {
         // where is the framebuffer starting, based on the line number of the effect?
-        u16* ptr = buf + gSoftResetLineNum * 320;
+        u16* ptr = buf + D_800A6D20.gSoftResetLineNum * 320;
 
         // iterate over and clear the 15 lines of the next frame during the effect.
         for (j = 0; j < 15; j++) {
@@ -56,9 +55,9 @@ void SoftReset_ClearLines320(u16* buf) {
 void SoftReset_ClearLines640(u16* buf) {
     int i, j;
 
-    if (gSoftResetLineNum <= 15) {
+    if (D_800A6D20.gSoftResetLineNum <= 15) {
         // where is the framebuffer starting, based on the line number of the effect?
-        u16* ptr = buf + gSoftResetLineNum * (640 * 2);
+        u16* ptr = buf + D_800A6D20.gSoftResetLineNum * (640 * 2);
 
         // iterate over and clear the 15 lines of the next frame during the effect.
         for (j = 0; j < 15; j++) {
@@ -75,21 +74,21 @@ void SoftReset_ClearLines640(u16* buf) {
 // not enough information to name this function. seems to get some unknown
 // color from dp_intro.c and then only writes a single line to the framebuffer???
 void func_8000559C(void) {
-    if (gSoftResetLineNum <= 15) {
-        if (gSoftResetLineNum == 0) {
+    if (D_800A6D20.gSoftResetLineNum <= 15) {
+        if (D_800A6D20.gSoftResetLineNum == 0) {
             u16 color = Display_GetFramebufferClearColor();
             // decoding a 5551 value back to the raw R/G/B values.
-            gSoftResetRed = (color >> 11) & 31;  // masked red?
-            gSoftResetGreen = (color >> 6) & 31; // masked green?
-            gSoftResetBlue = (color >> 1) & 31;  // masked blue?
+            D_800A6D20.gSoftResetRed = (color >> 11) & 31;  // masked red?
+            D_800A6D20.gSoftResetGreen = (color >> 6) & 31; // masked green?
+            D_800A6D20.gSoftResetBlue = (color >> 1) & 31;  // masked blue?
         }
         // this function is supposed to only take 1 argument. huh?
         // this function packs 3 values into a RGBA5551 format.
-        Display_ClearFramebufferLine(((((gSoftResetRed * (15 - gSoftResetLineNum)) >> 4) << 11) |
-                                      (((gSoftResetGreen * (15 - gSoftResetLineNum)) >> 4) << 6) |
-                                      (((gSoftResetBlue * (15 - gSoftResetLineNum)) >> 4) << 1) | 1) &
-                                         0xFFFF,
-                                     gSoftResetLineNum);
+        Display_ClearFramebufferLine(((((D_800A6D20.gSoftResetRed * (15 - D_800A6D20.gSoftResetLineNum)) >> 4) << 11) |
+                                      (((D_800A6D20.gSoftResetGreen * (15 - D_800A6D20.gSoftResetLineNum)) >> 4) << 6) |
+                                      (((D_800A6D20.gSoftResetBlue * (15 - D_800A6D20.gSoftResetLineNum)) >> 4) << 1) |
+                                      1) &
+                                     0xFFFF);
     }
 }
 
@@ -142,6 +141,7 @@ void SoftReset_Thread(void* unused) {
 void SoftReset_CreateThread(void) {
     Sched_InitClientQueue(&D_800A6D20.thread, 2, 1);
     D_800A6D20.gSoftResetLineNum = 0;
-    osCreateThread(&D_800A6D20.thread, THREAD_ID_RESET, SoftReset_Thread, NULL, &gSoftResetLineNum, THREAD_PRI_RESET);
+    osCreateThread(&D_800A6D20.thread, THREAD_ID_RESET, SoftReset_Thread, NULL, &D_800A6D20.gSoftResetLineNum,
+                   THREAD_PRI_RESET);
     osStartThread(&D_800A6D20.thread);
 }

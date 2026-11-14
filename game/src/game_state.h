@@ -191,7 +191,7 @@ extern SessionContext gSessionContext;
 extern BinArchive* D_800AF738;
 
 s32 Game_DoCopyProtection(s32 state);
-s32 Fragment_LoadAndCall(s32 arg0, u8* romStart, u8* romEnd, u32 arg3, u32 arg4);
+s32 Fragment_LoadAndCall(s32 arg0, u8* romStart, u8* romEnd, u32 arg3, uintptr_t arg4);
 void Fragment_QueueCall(s32 arg0, u8* arg1, u8* arg2, s32 arg3, s32 arg4);
 TeamRoster* Trainer_GetSlots(void);
 s32 GbSave_GetActivePort(void);
@@ -223,6 +223,7 @@ void State_BattleNow(s32 arg0);
 void State_BattleFromEvent(void);
 void State_FastN64Logo(void);
 void State_FastBattle(void);
+void State_PortBattle(void);
 void func_8002B244(void);
 void State_KidsClubTitle(void);
 void Game_ShutdownAndLoadFragment(s32 arg0, s32 arg1);

@@ -465,7 +465,7 @@ static unk_D_86002F34_000_014 sDioramaTileAttrSet = {
     sDioramaTileAttrTable1,
 };
 
-static u32 sDioramaLandTileLayout[] = {
+static uintptr_t sDioramaLandTileLayout[] = {
     0x09000000,
     0x05000000,
     0x09000000,
@@ -475,23 +475,24 @@ static u32 sDioramaLandTileLayout[] = {
     0x13000005,
     0x03E303E8,
     0x2309FFFF,
-    (u32)sDioramaLandGfxSetupDL,
+    (uintptr_t)sDioramaLandGfxSetupDL,
     0x0000FFFF,
     0xFFFFFFFF,
     0x22050000,
     0x00000000,
     0x08000000,
     0x810001D0,
-    (u32)&sDioramaTileAttrSet,
+    (uintptr_t)&sDioramaTileAttrSet,
     0x22050000,
-    (u32)sDioramaLandTileDrawDL,
+    (uintptr_t)sDioramaLandTileDrawDL,
     0x06000000,
     0x06000000,
     0x06000000,
     0x04000000,
 };
 
-u32 sDioramaLandStageLayout[] = {
+uintptr_t sDioramaLandStageLayout[] = {
+    // PORT64: holds addresses
     0x17000001,
     0x00000010,
     &sDioramaLandGfxTileParams,
@@ -639,7 +640,8 @@ static unk_D_86002F34_000_014 sDioramaSeaTileAttrSet = {
     sDioramaTileAttrTable2,
     sDioramaTileAttrTable3,
 };
-static u32 sDioramaSeaTileLayout[] = {
+static uintptr_t sDioramaSeaTileLayout[] = {
+    // PORT64: holds addresses
     0x09000000,
     0x05000000,
     0x09000000,
@@ -664,7 +666,8 @@ static u32 sDioramaSeaTileLayout[] = {
     0x06000000,
     0x04000000,
 };
-u32 sDioramaSeaStageLayout[] = {
+uintptr_t sDioramaSeaStageLayout[] = {
+    // PORT64: holds addresses
     0x17000001,
     0x00000010,
     &sDioramaSeaGfxTileParams,
@@ -801,7 +804,8 @@ static unk_D_86B0DBCC sDioramaObjPresetTable[] = {
     { 1200.0f, 0.0f, 27.0f, 0.0f },
 };
 
-static u32 sCompletionGeoLayout[] = {
+static uintptr_t sCompletionGeoLayout[] = {
+    // PORT64: holds addresses
     0x0C00FFFF, 0x05000000,
     0x0B00001E, 0x00000000,
     0x014000F0, 0x0000000F,
@@ -831,8 +835,15 @@ static char** sPokemonNameTable;
 static unk_D_86B0EBD8* D_86B0EBD8;
 static unk_D_86B0EBDC* D_86B0EBDC;
 static unk_D_86B0EBE0* D_86B0EBE0;
-static u8 D_86B0EBE8[0xA60];
-static u8 D_86B0F648[0x180];
+// PORT: one block, as in the N64's bss: Completion_LoadModels DMAs a 0xBC0-byte animation record into D_86B0EBE8 that
+// continues into D_86B0F648 (read through *D_86B0F648). As separate host arrays the DMA ran over the statics after
+// D_86B0EBE8 (the geo root D_86B0EBC0: crash in Completion_InitCamera) and D_86B0F648 never got its part.
+static struct {
+    u8 head[0xA60];
+    u8 tail[0x180];
+} sCompletionAnimRecord;
+#define D_86B0EBE8 (sCompletionAnimRecord.head)
+#define D_86B0F648 (sCompletionAnimRecord.tail)
 static s8 D_86B0F7C8[0x100];
 static s8 D_86B0F8C8[0x100];
 static s32 D_86B0F9C8;
@@ -1211,7 +1222,8 @@ void Completion_UpdateGiftDialogWithExisting(void) {
                     for (i = 0; i < 255; i++) { D_86B0F8C8[i] = 0; }
                     // clang-format on
 
-                    sprintf(D_86B0F7C8, Text_GetString(NULL, 0, sBattleMessagesTable, sCompletionMsgId_ConfirmWithExisting));
+                    sprintf(D_86B0F7C8,
+                            Text_GetString(NULL, 0, sBattleMessagesTable, sCompletionMsgId_ConfirmWithExisting));
                     D_86B0EBE0->unk_00++;
                 }
             }
@@ -1229,7 +1241,8 @@ void Completion_UpdateGiftDialogWithExisting(void) {
                     for (i = 0; i < 255; i++) { D_86B0F8C8[i] = 0; }
                     // clang-format on
 
-                    sprintf(D_86B0F7C8, Text_GetString(NULL, 0, sBattleMessagesTable, sCompletionMsgId_SuccessWithExisting));
+                    sprintf(D_86B0F7C8,
+                            Text_GetString(NULL, 0, sBattleMessagesTable, sCompletionMsgId_SuccessWithExisting));
                     D_86B0EBE0->unk_00++;
                 }
             }
@@ -1713,13 +1726,13 @@ void Completion_InitScene(void) {
     MainPool_FinalizeAllocation(sp1C);
     ModelRenderer_InitDisplayRoots();
 
-    D_86B0EBE0 = main_pool_alloc(0x20, 0);
+    D_86B0EBE0 = main_pool_alloc(sizeof(unk_D_86B0EBE0), 0); // PORT64: host sizes (were 0x20 / 0x30C / 0x4C)
     bzero(D_86B0EBE0, 0x20);
 
-    D_86B0EBDC = main_pool_alloc(0x30C, 0);
+    D_86B0EBDC = main_pool_alloc(sizeof(unk_D_86B0EBDC), 0);
     bzero(D_86B0EBDC, 0x30C);
 
-    D_86B0EBD8 = main_pool_alloc(0x4C, 0);
+    D_86B0EBD8 = main_pool_alloc(sizeof(unk_D_86B0EBD8), 0);
     bzero(D_86B0EBD8, 0x4C);
 
     Completion_SelectBonusPokemon();
@@ -1744,7 +1757,7 @@ s32 Stage_ShowCompletionScene(void) {
     ASSET_LOAD(D_3000000, cup_clear_ui, 0);
 
     FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);
-    Fragment_Load((((u32)D_8D000000 & 0x0FF00000) >> 0x14) - 0x10, _5C7A70_ROM_START, _5C7A70_ROM_END);
+    Fragment_Load((((uintptr_t)D_8D000000 & 0x0FF00000) >> 0x14) - 0x10, _5C7A70_ROM_START, _5C7A70_ROM_END);
 
     Text_InitStringTables();
 

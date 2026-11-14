@@ -114,7 +114,7 @@ void BattleScene_IntroRevealFirstMon(CameraNode* camera) {
     Battle_QueueMessage(sBattleMessageQueues->buffer[1], 0x21, D_84386D84_jp,
                         roster->pokemonPicked[pokemon_state->actionChosen].nickname);
 #else
-    Text_SetStringToken(0x19, (u32)roster->pokemonPicked[pokemon_state->actionChosen].nickname);
+    Text_SetStringToken(0x19, (uintptr_t)roster->pokemonPicked[pokemon_state->actionChosen].nickname);
     Battle_QueueMessage(sBattleMessageQueues->buffer[1], 0x21);
 #endif
     BattleBox_Open(0xC);
@@ -158,7 +158,8 @@ void BattleScene_IntroRevealSecondMon(CameraNode* camera) {
     Battle_QueueMessage(sBattleMessageQueues->buffer[1], 0x21, D_84386D84_jp,
                         second_trainer_roster->pokemonPicked[second_pokemon_state->actionChosen].nickname);
 #else
-    Text_SetStringToken(0x19, (u32)second_trainer_roster->pokemonPicked[second_pokemon_state->actionChosen].nickname);
+    Text_SetStringToken(0x19,
+                        (uintptr_t)second_trainer_roster->pokemonPicked[second_pokemon_state->actionChosen].nickname);
     Battle_QueueMessage(sBattleMessageQueues->buffer[1], 0x21);
 #endif
     if (gSessionContext.mode != 8) {

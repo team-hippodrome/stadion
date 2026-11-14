@@ -181,6 +181,8 @@ Gfx* ModelRenderer_DrawStaticSegment(Gfx* gfx) {
     Vec3f scale;
     Vec3f translate;
 
+    Port_FixSlotTemplates(); // PORT: the static draw can run before any slot model was built; the raw N64 tables would
+                             // crash G_VTX
     if (D_8006F09C->objectType == 0x92) {
         segment = (ModelSegment*)&D_80077950;
     } else {
@@ -201,8 +203,8 @@ Gfx* ModelRenderer_DrawStaticSegment(Gfx* gfx) {
     // clang-format off
     {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDA380002;    _gfx->words.w1 = mtxL;    }
     gfx = ModelRenderer_SetupSlotColors(gfx);
-    {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDB060038;    _gfx->words.w1 = (s32) segment->vertexSegment;    }
-    {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = (s32) segment->displayList;    }
+    {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDB060038;    _gfx->words.w1 = (uintptr_t) segment->vertexSegment; /* PORT64: was (s32) */    }
+    {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = (intptr_t) segment->displayList;    }
     {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xD8380002;    _gfx->words.w1 = 0x40;    }
     {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = &D_800762B0;    }
     // clang-format on
@@ -235,8 +237,8 @@ Gfx* ModelRenderer_RenderActiveSlot(Gfx* gfx) {
                 ModelSegment* segment = (ModelSegment*)(&D_800AFFC8[mode][*var_v1].model.unkSegment);
                 // Keep expanded GBI commands on one line for IDO matching.
                 // clang-format off
-                {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDB060038;    _gfx->words.w1 = (s32) segment->vertexSegment;    }
-                {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = (s32) segment->displayList;    }
+                {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDB060038;    _gfx->words.w1 = (uintptr_t) segment->vertexSegment; /* PORT64: was (s32) */    }
+                {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = (intptr_t) segment->displayList;    }
                 {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = &D_800762B0;    }
                 // clang-format on
             }

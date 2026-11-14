@@ -2,12 +2,13 @@
 
 // Bump allocator for the GB Tower audio output buffers. Same shape and semantics as libultra's
 // ALHeap (base, cur, len, count) and alHeapInit/alHeapDBAlloc, but with plain integer addresses.
+// PORT64: base/cur are addresses (were s32)
 typedef struct GbAudioHeap {
-    /* 0x00 */ s32 base;  // 16-byte aligned start of the arena
-    /* 0x04 */ s32 cur;   // next free address
-    /* 0x08 */ s32 len;   // usable size in bytes
-    /* 0x0C */ s32 count; // number of successful allocations
-} GbAudioHeap; // size = 0x10
+    /* 0x00 */ uintptr_t base; // 16-byte aligned start of the arena
+    /* 0x04 */ uintptr_t cur;  // next free address
+    /* 0x08 */ s32 len;        // usable size in bytes
+    /* 0x0C */ s32 count;      // number of successful allocations
+} GbAudioHeap;                 // size = 0x10
 
 typedef struct unk_D_812346E0 {
     /* 0x00 */ s16 unk_00;
@@ -50,13 +51,13 @@ GbAudioOutputConfig sGbAudioOutputConfig;
 volatile s32 sGbAudioFrameCount; // incremented by every GbAudio_UpdateFrame call
 s32 D_812346CC;
 s32 D_812346D0;
-s32 sGbAudioBufferIndex; // sGbAudioBuffers slot rendered most recently (0..2)
-f32 D_812346D8; // set to 16.713 (ms per frame?) by GbAudio_InitOutput, never read
-s32 sGbAudioFrameRate; // 60; divides the AI rate into samplesPerFrame
+s32 sGbAudioBufferIndex;      // sGbAudioBuffers slot rendered most recently (0..2)
+f32 D_812346D8;               // set to 16.713 (ms per frame?) by GbAudio_InitOutput, never read
+s32 sGbAudioFrameRate;        // 60; divides the AI rate into samplesPerFrame
 s16* sGbAudioBuffers[3];      // triple-buffered interleaved stereo s16 output, 0xFC0 bytes each
 s16 sGbAudioBufferLengths[3]; // stereo sample pairs rendered into each buffer
-s16 D_812346F2; // only used as the end address of sGbAudioBufferLengths
-u32 D_812346F4; // folded from osGetCount and rendered samples each frame, never read
+s16 D_812346F2;               // only used as the end address of sGbAudioBufferLengths
+u32 D_812346F4;               // folded from osGetCount and rendered samples each frame, never read
 s32 D_812346F8;
 volatile s32 D_812346FC; // once nonzero, counts up per frame and stops AI submission after 16
 s32 D_81234700;
@@ -67,10 +68,10 @@ s32 D_8123470C;
 /**
  * Like alHeapDBAlloc: carves a 16-byte aligned block and zeroes it. Returns 0 when the arena is full.
  */
-u32 GbApu_AllocZeroed(GbAudioHeap* heap, s32 size) {
+uintptr_t GbApu_AllocZeroed(GbAudioHeap* heap, s32 size) {
     s32 aligned_size;
-    u32 allocation;
-    u32 cursor;
+    uintptr_t allocation;
+    uintptr_t cursor;
     aligned_size = ALIGN16(size);
     allocation = heap->cur;
     if ((heap->base + heap->len) >= (allocation + aligned_size)) {
@@ -89,8 +90,8 @@ u32 GbApu_AllocZeroed(GbAudioHeap* heap, s32 size) {
 /**
  * GbApu_AllocZeroed without the clear.
  */
-s32 GbApu_Alloc(GbAudioHeap* heap, s32 size) {
-    s32 allocation;
+uintptr_t GbApu_Alloc(GbAudioHeap* heap, s32 size) {
+    uintptr_t allocation;
     u32 aligned_size;
 
     aligned_size = ALIGN16(size);
@@ -107,7 +108,7 @@ s32 GbApu_Alloc(GbAudioHeap* heap, s32 size) {
 /**
  * Like alHeapInit.
  */
-void GbApu_InitAllocator(GbAudioHeap* heap, s32 base, s32 len) {
+void GbApu_InitAllocator(GbAudioHeap* heap, intptr_t base, s32 len) {
     heap->base = ALIGN16(base);
     heap->cur = ALIGN16(base);
     heap->len = (s32)(len - (base & 0xF));
@@ -120,7 +121,6 @@ void GbApu_InitAllocator(GbAudioHeap* heap, s32 base, s32 len) {
  */
 void GbAudio_InitOutput(void) {
     u64* bss_cursor;
-    s16* length_cursor;
     s32 sample_index;
     u32 remaining;
     s16* buffer_cursor;
@@ -131,7 +131,8 @@ void GbAudio_InitOutput(void) {
         sGbAudioHeapMemory[i] = 0;
     }
     bss_cursor = D_81234650;
-    remaining = (u32)((s32)&D_81234700 - (s32)D_81234650) >> 3;
+    // PORT: cleared D_81234650 up to D_81234700 (the variables that follow it on the N64); host layout differs
+    remaining = (u32)(sizeof(D_81234650) >> 3) - 1;
     if ((s32)remaining >= 0) {
         do {
             remaining--;
@@ -146,16 +147,16 @@ void GbAudio_InitOutput(void) {
     sGbAudioOutputConfig.frequency = 0xBB80;
     sGbAudioOutputConfig.actualFrequency = osAiSetFrequency(sGbAudioOutputConfig.frequency);
     sGbAudioOutputConfig.samplesPerFrame = (s16)(((sGbAudioOutputConfig.frequency / sGbAudioFrameRate) + 0xF) & ~0xF);
-    length_cursor = (s16*)&sGbAudioBufferLengths;
     sGbAudioOutputConfig.minSamplesPerFrame = (s16)(sGbAudioOutputConfig.samplesPerFrame - 0x10);
     sGbAudioOutputConfig.maxSamplesPerFrame = (s16)(sGbAudioOutputConfig.samplesPerFrame + 0x10);
-    do {
-        *length_cursor = 0xA0;
-        length_cursor++;
-    } while (length_cursor < (s16*)&D_812346F2);
+    // PORT: was a loop from &sGbAudioBufferLengths up to &D_812346F2 (adjacent on the N64; separate host globals, so
+    // it wrote past the array)
+    for (i = 0; i < 3; i++) {
+        sGbAudioBufferLengths[i] = 0xA0;
+    }
     sGbAudioFrameCount = 0;
     sGbAudioBufferIndex = 0;
-    GbApu_InitAllocator(&sGbAudioHeap, (s32)sGbAudioHeapMemory, D_812286F0);
+    GbApu_InitAllocator(&sGbAudioHeap, (intptr_t)sGbAudioHeapMemory, D_812286F0);
     for (i = 0; i < 3; i++) {
         sGbAudioBuffers[i] = (s16*)GbApu_Alloc(&sGbAudioHeap, 0xFC0);
         buffer_cursor = sGbAudioBuffers[i];

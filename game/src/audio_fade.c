@@ -188,6 +188,9 @@ u8 D_800789FC[4] = { 0 };
 u8 D_80078A00[16] = { 0 };
 
 s32 Effect_TriggerMoveVisual(u32 move_id, u32 species, u32 sound_kind) {
+    if (PORT_AUDIO_OFF()) {
+        return 0;
+    }
     s32 var;
     unk_D_800FC6F0* sp;
     s32 ret;
@@ -226,7 +229,7 @@ s32 Effect_TriggerMoveVisual(u32 move_id, u32 species, u32 sound_kind) {
                 case 0x35:
                 case 0x52:
                 case 0x53:
-                    if (D_800786FD[species * 5] == 1) {
+                    if ((species != 0 && D_80078700[species - 1].unk_02 == 1) /* PORT: D_800786FD[species * 5] */) {
                         var = 0;
                     } else {
                         var = 4;
@@ -378,7 +381,7 @@ s32 Effect_TriggerMoveVisual(u32 move_id, u32 species, u32 sound_kind) {
                 case 0x35:
                 case 0x52:
                 case 0x53:
-                    if (D_800786FD[species * 5] == 1) {
+                    if ((species != 0 && D_80078700[species - 1].unk_02 == 1) /* PORT: D_800786FD[species * 5] */) {
                         var = 0;
                     } else {
                         var = 4;
@@ -463,7 +466,7 @@ s32 Effect_TriggerMoveVisual(u32 move_id, u32 species, u32 sound_kind) {
     if (move_id < sp->num_files - 1) {
         size = sp->files[move_id + 1] - sp->files[move_id];
     } else {
-        size = (u32)D_800FC6E8->seqArray[2].offset - sp->files[move_id];
+        size = (uintptr_t)D_800FC6E8->seqArray[2].offset - sp->files[move_id];
     }
 
     Rom_DmaRead(sp->files[move_id], D_800FC6DC, size);
@@ -495,8 +498,12 @@ s32 Effect_TriggerMoveVisual(u32 move_id, u32 species, u32 sound_kind) {
                 break;
         }
     }
+    return ret; // PORT: missing in the decomp (v0 is whatever the last call left)
 }
 void Audio_FadeAndClearStoredSounds(void) {
+    if (PORT_AUDIO_OFF()) {
+        return;
+    }
     Audio_QueueFadeSoundCommand(D_800789F8, 0x5A);
     Audio_QueueFadeSoundCommand(D_800789F4, 0x5A);
     D_800789F8 = 0;

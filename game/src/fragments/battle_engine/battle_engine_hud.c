@@ -1,4 +1,10 @@
+#include <stdlib.h>
 #include "battle_engine.h"
+#include "src/util.h"
+
+// PORT: tables of texture addresses in ROM data are big-endian 32-bit words (segment or link addresses), not host
+// pointers; this reads entry i as an address the display list code accepts.
+#define PORT_BE_ADDR(tbl, i) ((u8*)(uintptr_t)PORT_BE32(((u32*)(tbl))[i]))
 #include "src/graphics_textures.h"
 #include "src/ui_graphics.h"
 #include "src/status_icons.h"
@@ -140,7 +146,7 @@ void BattleHud_DrawTranslucentShadowRect(s32 x, s32 y, s32 width, s32 height, s3
     viewport = Gfx_AllocDisplayList(sizeof(Vp) * 1);
     Gfx_SetViewportDimensions(viewport, depth_buffer->width, depth_buffer->height);
 
-    gSPViewport(gDisplayListHead++, (u32)viewport & 0x1FFFFFFF);
+    gSPViewport(gDisplayListHead++, (uintptr_t)viewport);
 
     guOrtho(matrix, 0.5f, depth_buffer->width - 0.5f, depth_buffer->height - 0.5f, 0.5f, -2.0f, 2.0f, 1.0f);
 
@@ -155,9 +161,9 @@ void BattleHud_DrawTranslucentShadowRect(s32 x, s32 y, s32 width, s32 height, s3
     gDPSetCombineMode(gDisplayListHead++, G_CC_SHADE, G_CC_SHADE);
     gDPSetRenderMode(gDisplayListHead++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
     gSPPerspNormalize(gDisplayListHead++, 0xFFFF);
-    gSPMatrix(gDisplayListHead++, (u32)matrix & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
-    gSPMatrix(gDisplayListHead++, (u32)&gIdentityMtx & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    gSPVertex(gDisplayListHead++, (u32)vertex & 0x1FFFFFFF, 4, 0);
+    gSPMatrix(gDisplayListHead++, (uintptr_t)matrix, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
+    gSPMatrix(gDisplayListHead++, (uintptr_t)&gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    gSPVertex(gDisplayListHead++, (uintptr_t)vertex, 4, 0);
     gSP2Triangles(gDisplayListHead++, 0, 2, 3, 0, 0, 3, 1, 0);
 }
 
@@ -173,7 +179,7 @@ void BattleHud_DrawGradientRect(s32 x, s32 y, s32 width, s32 height, Color_RGB8*
     viewport = Gfx_AllocDisplayList(sizeof(Vp) * 1);
     Gfx_SetViewportDimensions(viewport, depth_buffer->width, depth_buffer->height);
 
-    gSPViewport(gDisplayListHead++, (u32)viewport & 0x1FFFFFFF);
+    gSPViewport(gDisplayListHead++, (uintptr_t)viewport);
 
     guOrtho(matrix, 0.5f, depth_buffer->width - 0.5f, depth_buffer->height - 0.5f, 0.5f, -2.0f, 2.0f, 1.0f);
     Gfx_SetVertexAttributes(&vertex[0], x, y, -1, 0, 0, start_color->r, start_color->g, start_color->b, 0xFF);
@@ -188,9 +194,9 @@ void BattleHud_DrawGradientRect(s32 x, s32 y, s32 width, s32 height, Color_RGB8*
     gDPSetCombineMode(gDisplayListHead++, G_CC_SHADE, G_CC_SHADE);
     gDPSetRenderMode(gDisplayListHead++, G_RM_OPA_SURF, G_RM_OPA_SURF2);
     gSPPerspNormalize(gDisplayListHead++, 0xFFFF);
-    gSPMatrix(gDisplayListHead++, (u32)matrix & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
-    gSPMatrix(gDisplayListHead++, (u32)&gIdentityMtx & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    gSPVertex(gDisplayListHead++, (u32)vertex & 0x1FFFFFFF, 4, 0);
+    gSPMatrix(gDisplayListHead++, (uintptr_t)matrix, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
+    gSPMatrix(gDisplayListHead++, (uintptr_t)&gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    gSPVertex(gDisplayListHead++, (uintptr_t)vertex, 4, 0);
     gSP2Triangles(gDisplayListHead++, 0, 2, 3, 0, 0, 3, 1, 0);
 }
 
@@ -258,7 +264,8 @@ void BattleHud_Noop(void) {
 void BattleHud_DrawLevelNumber(s32 x, s32 y, s32 level) {
     UNUSED s32 pad[2]; // might be a fake? string_buffer should be 4 bytes
     s8* level_string;
-    s8 string_buffer[2]; //!bug: Levels 10..100 need 3..4 bytes including the terminator.
+    s8 string_buffer[4]; // PORT: was [2] (!bug: levels 10..100 need 3..4 bytes including the terminator; spilled into
+                         // padding on N64)
     u8** level_digits;
 
     level_string = &string_buffer;
@@ -269,16 +276,16 @@ void BattleHud_DrawLevelNumber(s32 x, s32 y, s32 level) {
 
     if (level >= 100) {
         x -= 2;
-        Gfx_DrawTextureRgba16(x, y, 8, 6, level_digits[string_buffer[0] - '0'], 8, 0);
+        Gfx_DrawTextureRgba16(x, y, 8, 6, PORT_BE_ADDR(level_digits, string_buffer[0] - '0'), 8, 0);
         x += 8;
         level_string = &string_buffer[1];
     } else {
-        Gfx_DrawTextureRgba16(x, y, 4, 6, level_digits[11], 4, 0);
+        Gfx_DrawTextureRgba16(x, y, 4, 6, PORT_BE_ADDR(level_digits, 11), 4, 0);
         x += 5;
     }
 
     while (*level_string != 0) {
-        Gfx_DrawTextureRgba16(x, y, 8, 6, level_digits[*level_string - '0'], 8, 0);
+        Gfx_DrawTextureRgba16(x, y, 8, 6, PORT_BE_ADDR(level_digits, *level_string - '0'), 8, 0);
         x += 8;
         level_string++;
     }
@@ -288,29 +295,30 @@ void BattleHud_DrawLevelNumber(s32 x, s32 y, s32 level) {
 
 void BattleHud_DrawHpFractionText(s32 x, s32 y, s32 current_hp, s32 max_hp) {
     UNUSED s32 pad[2];
-    s8 string_buffer[7];
+    s8 string_buffer[8]; // PORT: was [7]; "%3d/%3d" writes 8 bytes with the terminator
     UNUSED s32 pad2;
     u8** hp_digits;
     u8* current_char;
     s32 i;
 
     hp_digits = Memmap_GetSegmentVaddr(gHudGlyphTable);
-    sprintf(string_buffer, "%3d/%3d", current_hp, max_hp); //!bug: Eight bytes including NUL, but string_buffer has seven.
+    sprintf(string_buffer, "%3d/%3d", current_hp,
+            max_hp); //! bug: Eight bytes including NUL, but string_buffer has seven.
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-    for (i = 0; i < sizeof(string_buffer); i++) {
+    for (i = 0; i < 7 /* PORT: the 7 characters, as with the original sp70[7] */; i++) {
         switch (string_buffer[i]) {
             case ' ':
                 current_char = NULL;
                 break;
 
             case '/':
-                current_char = hp_digits[10];
+                current_char = PORT_BE_ADDR(hp_digits, 10);
                 break;
 
             default:
-                current_char = hp_digits[string_buffer[i] - '0'];
+                current_char = PORT_BE_ADDR(hp_digits, string_buffer[i] - '0');
                 break;
         }
 
@@ -336,6 +344,12 @@ void BattleHud_DrawTrainerNameLabel(s16 x, s16 y, s32 port, char* name, s32 has_
         Gfx_SetEnvColor(0xFF, 0x64, 0xFF, 0xFF); // #FF64FF
     }
     Font_SetActive(2, 0);
+    if (PORT_GETENV_ONCE("PORT_TRACE_HUD")) { // PORT debug
+        fprintf(stderr, "[hud] label:");
+        for (int k = 0; k < 12 && name[k]; k++)
+            fprintf(stderr, " %02x", (u8)name[k]);
+        fputc('\n', stderr);
+    }
     Font_Printf((x - (Font_MeasureTextExtent(2, 0, name) / 2)) + 0x23, y + 2, name);
     Font_EndTexturedTextRendering();
 }
@@ -422,6 +436,13 @@ void BattleHud_DrawMonInfoPanel(ActivePokemon* active_pokemon, BattleMon* pokemo
     Font_BeginTranslucentTextRendering();
     Font_SetActive(2, 0);
 
+    if (PORT_GETENV_ONCE("PORT_TRACE_HUD")) { // PORT debug
+        const u8* nn = (const u8*)Battle_GetActiveMonNickname(active_pokemon);
+        fprintf(stderr, "[hud] nick:");
+        for (int k = 0; k < 12 && nn[k]; k++)
+            fprintf(stderr, " %02x", nn[k]);
+        fputc('\n', stderr);
+    }
     name_length = Font_MeasureTextExtent(2, 0, Battle_GetActiveMonNickname(active_pokemon)) / 2;
     Font_Printf((x - name_length) + 35, y + 2, Battle_GetActiveMonNickname(active_pokemon));
     name_length =
@@ -455,6 +476,16 @@ s32 BattleHud_DrawBorderTile(s32 x, s32 y, s32 width, s32 height, u8* texture) {
     if (height < 9) { texture_step_y = 0x400; } else { texture_step_y = 0; }
     // clang-format on
 
+    if (PORT_GETENV_ONCE("PORT_SKIP_BORDER"))
+        return 0;                             // PORT debug
+    if (PORT_GETENV_ONCE("PORT_TRACE_HUD")) { // PORT debug
+        const u8* t = (const u8*)Util_ConvertAddrToVirtAddr((uintptr_t)texture);
+        static int n;
+        if (t != NULL && n++ < 40)
+            fprintf(stderr, "[border] %p -> %p %02x%02x %02x%02x %02x%02x %02x%02x | %02x%02x %02x%02x\n",
+                    (void*)texture, (const void*)t, t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[64], t[65], t[66],
+                    t[67]);
+    }
     gDPLoadTextureBlock(gDisplayListHead++, texture, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, G_TX_NOMIRROR | G_TX_CLAMP,
                         G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
 
@@ -570,7 +601,8 @@ void BattleHud_DrawPartyBallRow(ActivePokemon* pokemon, s16 x, s16 y) {
                  teammate1_index++) {
                 if (pokemon->sessionTeams->tagTeamMember[0]->pokemonPicked[teammate1_index].hp == 0) {
                     pokemon_status = 2;
-                } else if (pokemon->sessionTeams->tagTeamMember[0]->pokemonPicked[teammate1_index].statusCondition != 0) {
+                } else if (pokemon->sessionTeams->tagTeamMember[0]->pokemonPicked[teammate1_index].statusCondition !=
+                           0) {
                     pokemon_status = 1;
                 } else {
                     pokemon_status = 0;
@@ -582,7 +614,8 @@ void BattleHud_DrawPartyBallRow(ActivePokemon* pokemon, s16 x, s16 y) {
                  teammate1_index++) {
                 if (pokemon->sessionTeams->tagTeamMember[0]->pokemonPicked[teammate1_index].hp == 0) {
                     pokemon_status = 2;
-                } else if (pokemon->sessionTeams->tagTeamMember[0]->pokemonPicked[teammate1_index].statusCondition != 0) {
+                } else if (pokemon->sessionTeams->tagTeamMember[0]->pokemonPicked[teammate1_index].statusCondition !=
+                           0) {
                     pokemon_status = 1;
                 } else {
                     pokemon_status = 0;
@@ -594,7 +627,8 @@ void BattleHud_DrawPartyBallRow(ActivePokemon* pokemon, s16 x, s16 y) {
                  teammate2_index++) {
                 if (pokemon->sessionTeams->tagTeamMember[1]->pokemonPicked[teammate2_index].hp == 0) {
                     pokemon_status = 2;
-                } else if (pokemon->sessionTeams->tagTeamMember[1]->pokemonPicked[teammate2_index].statusCondition != 0) {
+                } else if (pokemon->sessionTeams->tagTeamMember[1]->pokemonPicked[teammate2_index].statusCondition !=
+                           0) {
                     pokemon_status = 1;
                 } else {
                     pokemon_status = 0;
@@ -611,7 +645,8 @@ void BattleHud_DrawPartyBallRow(ActivePokemon* pokemon, s16 x, s16 y) {
                  teammate1_index++) {
                 if (pokemon->sessionTeams->tagTeamMember[0]->pokemonPicked[teammate1_index].hp == 0) {
                     pokemon_status = 2;
-                } else if (pokemon->sessionTeams->tagTeamMember[0]->pokemonPicked[teammate1_index].statusCondition != 0) {
+                } else if (pokemon->sessionTeams->tagTeamMember[0]->pokemonPicked[teammate1_index].statusCondition !=
+                           0) {
                     pokemon_status = 1;
                 } else {
                     pokemon_status = 0;
@@ -623,7 +658,8 @@ void BattleHud_DrawPartyBallRow(ActivePokemon* pokemon, s16 x, s16 y) {
                  teammate1_index++) {
                 if (pokemon->sessionTeams->tagTeamMember[0]->pokemonPicked[teammate1_index].hp == 0) {
                     pokemon_status = 2;
-                } else if (pokemon->sessionTeams->tagTeamMember[0]->pokemonPicked[teammate1_index].statusCondition != 0) {
+                } else if (pokemon->sessionTeams->tagTeamMember[0]->pokemonPicked[teammate1_index].statusCondition !=
+                           0) {
                     pokemon_status = 1;
                 } else {
                     pokemon_status = 0;
@@ -635,7 +671,8 @@ void BattleHud_DrawPartyBallRow(ActivePokemon* pokemon, s16 x, s16 y) {
                  teammate2_index++) {
                 if (pokemon->sessionTeams->tagTeamMember[1]->pokemonPicked[teammate2_index].hp == 0) {
                     pokemon_status = 2;
-                } else if (pokemon->sessionTeams->tagTeamMember[1]->pokemonPicked[teammate2_index].statusCondition != 0) {
+                } else if (pokemon->sessionTeams->tagTeamMember[1]->pokemonPicked[teammate2_index].statusCondition !=
+                           0) {
                     pokemon_status = 1;
                 } else {
                     pokemon_status = 0;
@@ -900,13 +937,14 @@ void Battle_DrawRightAlignedText(s32 x, s32 y, char* string) {
 
 s32 BattleHud_DrawMovePpTextLTR(s32 x, s32 y, s32 current_pp, s32 max_pp) {
     UNUSED s32 pad[2];
-    s8 string_buffer[7];
+    s8 string_buffer[8]; // PORT: was [7]; "%3d/%3d" writes 8 bytes with the terminator
     s32 i;
     u8** pp_digits;
     u8* digit;
 
     pp_digits = Memmap_GetSegmentVaddr(gHudGlyphTable);
-    sprintf(string_buffer, "%3d/%3d", current_pp & 0x3F, max_pp); //!bug: The terminator overruns the seven-byte buffer.
+    sprintf(string_buffer, "%3d/%3d", current_pp & 0x3F, max_pp); //! bug: The terminator overruns the seven-byte
+                                                                  //! buffer.
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
@@ -919,12 +957,12 @@ s32 BattleHud_DrawMovePpTextLTR(s32 x, s32 y, s32 current_pp, s32 max_pp) {
                 break;
 
             case '/':
-                digit = pp_digits[10];
+                digit = PORT_BE_ADDR(pp_digits, 10);
                 break;
 
             default:
                 if ((c >= '0') && (c < ':')) {
-                    digit = pp_digits[c - '0'];
+                    digit = PORT_BE_ADDR(pp_digits, c - '0');
                 } else {
                     digit = NULL;
                 }
@@ -944,13 +982,14 @@ s32 BattleHud_DrawMovePpTextLTR(s32 x, s32 y, s32 current_pp, s32 max_pp) {
 
 s32 BattleHud_DrawMovePpTextRTL(s32 x, s32 y, s32 current_pp, s32 max_pp) {
     UNUSED s32 pad[2];
-    s8 string_buffer[7];
+    s8 string_buffer[8]; // PORT: was [7]; "%3d/%3d" writes 8 bytes with the terminator
     s32 i;
     u8** pp_digits;
     u8* digit;
 
     pp_digits = Memmap_GetSegmentVaddr(gHudGlyphTable);
-    sprintf(string_buffer, "%3d/%3d", current_pp & 0x3F, max_pp); //!bug: The terminator overruns the seven-byte buffer.
+    sprintf(string_buffer, "%3d/%3d", current_pp & 0x3F, max_pp); //! bug: The terminator overruns the seven-byte
+                                                                  //! buffer.
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
@@ -963,12 +1002,12 @@ s32 BattleHud_DrawMovePpTextRTL(s32 x, s32 y, s32 current_pp, s32 max_pp) {
                 break;
 
             case '/':
-                digit = pp_digits[10];
+                digit = PORT_BE_ADDR(pp_digits, 10);
                 break;
 
             default:
                 if ((c >= '0') && (c < ':')) {
-                    digit = pp_digits[c - '0'];
+                    digit = PORT_BE_ADDR(pp_digits, c - '0');
                 } else {
                     digit = NULL;
                 }
@@ -1720,7 +1759,7 @@ void Battle_DrawGradientTextureRect(u8* texture, s32 x, s32 y, s32 width, s32 he
 
     Gfx_SetViewportDimensions(viewport, image->width, image->height);
 
-    gSPViewport(gDisplayListHead++, (u32)viewport & 0x1FFFFFFF);
+    gSPViewport(gDisplayListHead++, (uintptr_t)viewport);
 
     guOrtho(projection, 0.5f, image->width - 0.5f, image->height - 0.5f, 0.5f, -2.0f, 2.0f, 1.0f);
 
@@ -1748,9 +1787,9 @@ void Battle_DrawGradientTextureRect(u8* texture, s32 x, s32 y, s32 width, s32 he
                        G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
 
     gSPPerspNormalize(gDisplayListHead++, 0xFFFF);
-    gSPMatrix(gDisplayListHead++, (u32)projection & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
-    gSPMatrix(gDisplayListHead++, (u32)&gIdentityMtx & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    gSPVertex(gDisplayListHead++, (u32)vertices & 0x1FFFFFFF, 4, 0);
+    gSPMatrix(gDisplayListHead++, (uintptr_t)projection, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
+    gSPMatrix(gDisplayListHead++, (uintptr_t)&gIdentityMtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    gSPVertex(gDisplayListHead++, (uintptr_t)vertices, 4, 0);
     gSP2Triangles(gDisplayListHead++, 0, 2, 3, 0, 0, 3, 1, 0);
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
     gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF);
@@ -1823,11 +1862,12 @@ void BattleHud_DrawOwnSideStatus(ActivePokemon* active_pokemon, ActivePokemonSta
                                 higher_port_member = 1;
                             }
                             BattleHud_DrawTeamStatusList(
-                                active_pokemon, active_pokemon->sessionTeams->tagTeamMember[higher_port_member], 96, 0xF,
-                                active_pokemon->sessionTeams->tagTeamMember[higher_port_member]->controllerPort);
+                                active_pokemon, active_pokemon->sessionTeams->tagTeamMember[higher_port_member], 96,
+                                0xF, active_pokemon->sessionTeams->tagTeamMember[higher_port_member]->controllerPort);
                             BattleHud_DrawTeamStatusList(
-                                active_pokemon, active_pokemon->sessionTeams->tagTeamMember[higher_port_member == 0], 198,
-                                0xF, active_pokemon->sessionTeams->tagTeamMember[higher_port_member == 0]->controllerPort);
+                                active_pokemon, active_pokemon->sessionTeams->tagTeamMember[higher_port_member == 0],
+                                198, 0xF,
+                                active_pokemon->sessionTeams->tagTeamMember[higher_port_member == 0]->controllerPort);
                         } else if (active_pokemon->teamRoster->numberOfPokemonBrought < 4) {
                             BattleHud_DrawTeamStatusList(active_pokemon, active_pokemon->sessionTeams->tagTeamMember[0],
                                                          96, 0xF, roster->controllerPort);
@@ -1888,8 +1928,8 @@ void BattleHud_DrawOpponentSideStatus(ActivePokemon* active_pokemon, ActivePokem
                                 higher_port_member = 1;
                             }
                             BattleHud_DrawTeamStatusList(
-                                active_pokemon, active_pokemon->sessionTeams->tagTeamMember[higher_port_member == 0], 0x16,
-                                0x79,
+                                active_pokemon, active_pokemon->sessionTeams->tagTeamMember[higher_port_member == 0],
+                                0x16, 0x79,
                                 active_pokemon->sessionTeams->tagTeamMember[higher_port_member == 0]->controllerPort);
                             BattleHud_DrawTeamStatusList(
                                 active_pokemon, active_pokemon->sessionTeams->tagTeamMember[higher_port_member], 0x7C,

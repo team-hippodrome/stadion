@@ -64,12 +64,12 @@ static u8 D_86908A80[] = {
 
 static s32 gCameraTutorialTextIds[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xB, 0xFF };
 
-static unk_D_8690A610 D_8690A610;
+static unk_D_8690A610 D_8690A610; // PORT: tentative definitions, referenced by the layout below
 static DisplayNodeHeader D_8690A630;
 static DisplayNodeHeader D_8690A648;
 static DisplayNodeHeader D_8690A660;
-
-static u32 D_86908ABC[] = {
+static uintptr_t D_86908ABC[] = {
+    // PORT64: holds addresses (the raw 0x869... node/callback addresses are now symbols)
     0x0C00FFFF,  0x05000000,
     0x0B00001E,  0x00000000,
     0x014000F0,  0x0000000F,
@@ -432,18 +432,25 @@ void Gallery_SetBackgroundTint(u8 arg0, u8 arg1, u8 arg2) {
 
 void Gallery_LoadPhotoTextures(void) {
     UNUSED s32 pad[2];
-    u8* temp_a1 = (u32)_70D3A0_ROM_START + (D_80075BD0[D_8690A69C->unk_16C - 1] & 0xFFFFFF);
-    u8* sp20 = (u32)_70D3A0_ROM_START +
-               (((D_8690A69C->unk_16C * sizeof(unk_70D3A0)) - sizeof(unk_70D3A0) + (u32)D_70110) & 0xFFFFFF);
+    u8* temp_a1 = (uintptr_t)_70D3A0_ROM_START + (D_80075BD0[D_8690A69C->unk_16C - 1] & 0xFFFFFF);
+    u8* sp20 = (uintptr_t)_70D3A0_ROM_START +
+               (((D_8690A69C->unk_16C * sizeof(unk_70D3A0)) - sizeof(unk_70D3A0) + (uintptr_t)D_70110) & 0xFFFFFF);
     u8* sp1C = sp20 + sizeof(unk_70D3A0);
 
     if (D_8690A69C->unk_16C == 153) {
-        sp20 = (u32)_70D3A0_ROM_START + ((u32)D_70290 & 0xFFFFFF);
+        sp20 = (uintptr_t)_70D3A0_ROM_START + ((uintptr_t)D_70290 & 0xFFFFFF);
         sp1C = sp20 + sizeof(unk_70D3A0);
     }
 
     Dma_WriteChunks(&D_8690A718->unk_00, temp_a1, temp_a1 + 0xBC0, 0);
     Dma_WriteChunks(&D_8690B2F8, sp20, sp1C, 0);
+    { // PORT: the four floats come from ROM in big-endian order
+        u32* w = (u32*)&D_8690B2F8;
+        s32 i;
+        for (i = 0; i < 4; i++) {
+            w[i] = PORT_BE32(w[i]);
+        }
+    }
 }
 
 ModelLoadResult* Gallery_LoadSurfingPikachuIcon(BattleMon* arg0) {
@@ -496,7 +503,7 @@ void Gallery_FinalizeBackgroundLoad(void) {
 
 void Gallery_LoadBackgroundSet(s32 arg0) {
     MemoryBlock* sp1C;
-    FragmentEntry sp18;
+    void* sp18; // PORT: a code fragment from the archive, run by Port_CallFragmentLeaf (was FragmentEntry)
     u32* temp_v0;
     unk_D_8690A610_018* temp_v1;
 
@@ -505,31 +512,32 @@ void Gallery_LoadBackgroundSet(s32 arg0) {
     sp18 = BinArchive_GetFile(D_8690A698, D_86908A80[arg0]);
     sp1C = MainPool_AllocState(main_pool_get_available(), 0);
 
-    temp_v0 = sp18(0, 0);
+    temp_v0 = (void*)Port_CallFragmentLeaf(sp18, 0, 0);
     if (temp_v0 != NULL) {
         GraphNode_AppendChild(&D_8690A630, process_geo_layout(sp1C, temp_v0));
     }
 
-    temp_v0 = sp18(1, 0);
+    temp_v0 = (void*)Port_CallFragmentLeaf(sp18, 1, 0);
     if (temp_v0 != NULL) {
         GraphNode_AppendChild(&D_8690A648, process_geo_layout(sp1C, temp_v0));
     }
 
-    temp_v0 = sp18(3, 0);
+    temp_v0 = (void*)Port_CallFragmentLeaf(sp18, 3, 0);
     if (temp_v0 != NULL) {
         GraphNode_AppendChild(&D_8690A660, process_geo_layout(sp1C, temp_v0));
     }
 
-    D_8690A688 = sp18(2, 0);
+    D_8690A688 = (u32)Port_CallFragmentLeaf(sp18, 2, 0); // the fill colour (values >= 0x10000 select the default)
     MainPool_FinalizeAllocation(sp1C);
 
-    temp_v1 = sp18(4, 0);
+    temp_v1 = (void*)Port_CallFragmentLeaf(sp18, 4, 0);
     if (temp_v1 == NULL) {
         D_8690A610.node.callbackArg = 0;
         D_8690A610.node.flags &= ~1;
     } else {
-        D_8690A610.unk_18.unk_00 = temp_v1->unk_00;
-        D_8690A610.unk_18.unk_02 = temp_v1->unk_02;
+        // PORT: big-endian data inside the background file
+        D_8690A610.unk_18.unk_00 = (s16)((((u8*)&temp_v1->unk_00)[0] << 8) | ((u8*)&temp_v1->unk_00)[1]);
+        D_8690A610.unk_18.unk_02 = (s16)((((u8*)&temp_v1->unk_02)[0] << 8) | ((u8*)&temp_v1->unk_02)[1]);
         D_8690A610.unk_18.unk_04.rgba = temp_v1->unk_04.rgba;
         D_8690A610.node.callbackArg = 1;
     }
@@ -1038,8 +1046,16 @@ void Gallery_CameraDraw(void) {
     Geo_RenderRootNode(D_87906050);
     Gallery_DrawFrameMarkers();
     Gallery_CameraDrawHelpBalloon();
-    Gallery_DrawPhotoCounterReel();
-    Gallery_DrawPhotoCounterReelExit();
+    { // PORT: in widescreen the film reel runs on to the picture's right edge (not cut at the 4:3 side; the game's own
+      // clip rectangle, the N64 screen, is widened by the margin while it draws)
+        const s16 right = D_800A7440.right;
+        D_800A7440.right = right + Port_WideMarginN64();
+        gDPPortNoCut(gDisplayListHead++);
+        Gallery_DrawPhotoCounterReel();
+        Gallery_DrawPhotoCounterReelExit();
+        gDPPortAnchorEnd(gDisplayListHead++);
+        D_800A7440.right = right;
+    }
     Gallery_DrawTutorialTextBox();
     Gallery_DrawNicknameBanner(D_8690A6A0.nickname);
     Gallery_DrawBackgroundSelectMenu(D_8690A710->unk_00C);
