@@ -125,7 +125,7 @@
 #define BONE_CLUB 0x7D
 #define FIRE_BLAST 0x7E
 #define WATERFALL 0x7F
-#define CLAMP 0x80
+#define MOVE_CLAMP 0x80 // PORT: renamed from CLAMP, which collides with CLAMP(x, min, max) in macros.h
 #define SWIFT 0x81
 #define SKULL_BASH 0x82
 #define SPIKE_CANNON 0x83

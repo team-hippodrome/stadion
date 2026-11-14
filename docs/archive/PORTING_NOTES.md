@@ -72,9 +72,42 @@ What was changed to get there:
   `uintptr_t` (script-like data in fragments), `ModelSegment` segment fields, `unk_D_8006FF00.unk_08/unk_18`,
   `unk_D_8140E728_01C_00C.arg`. Readers of these tables still assume 4-byte words; each needs an audit
   (find them with `grep -rn PORT64 game`). `tools/widen_addr_tables.py` produced most of them.
-- The flags in `tools/compile_flags.txt` keep `-Wno-int-conversion -Wno-incompatible-pointer-types` etc. from
-  the original build and `-w`; "compiles" does not mean pointer-correct. Truncating `(u32)ptr`/`(s32)ptr`
-  casts (553 `(u32)` casts in the sources) still compile and will misbehave at runtime.
+- The flags in `tools/compile_flags.txt` still keep `-Wno-int-conversion -Wno-incompatible-pointer-types` etc.
+  from the original build; "compiles" does not mean pointer-correct. Truncating `(u32)ptr`/`(s32)ptr`
+  casts (553 `(u32)` casts in the sources) still compile and will misbehave at runtime. See "Game diagnostics"
+  below for what is reported now and the plan to turn these into errors.
+
+## Game diagnostics
+The game (`stadium_game`) and the libultra runtime layer (`port_os`) build with `-Wall -Wextra` (clang-cl: `/W4`),
+without `-Werror`. `STADION_GAME_WARNINGS` in CMakeLists.txt, mirrored in `tools/compile_flags.txt`, follows
+2Ship2Harkinian's list: it turns off the warnings decompiled code produces by design (unused parameters and
+variables, stack pads, flat initialisers, parentheses, sign compares). The vendored libultra sources
+(`cmake/ultralib_sources.txt`) stay at `-w`, like 2Ship's libultra copy.
+
+Ratchets: a group is still off while it has hits, and becomes `-Werror=<group>` once its count reaches zero, so
+it can't come back. Counts are unique sites in `game/src` from a full `stadium_game` build with each group
+turned on (clang 21, Linux x86-64):
+
+| Group | Status | Sites |
+|---|---|---|
+| `implicit-function-declaration` | `-Werror` | 0 |
+| `return-type` | off | 20 |
+| `shorten-64-to-32` | off | 136 |
+| `pointer-to-int-cast` | on (warning) | 343 |
+| `int-conversion` | off | 1,698 (same as `tools/intconv.sh`) |
+| `incompatible-function-pointer-types` | off | 592 |
+| `incompatible-pointer-types` | off | 2,525 |
+
+`tools/ptr_warnings.sh` lists the pointer-truncation subset (490 sites). When fixing these, pair a replay run
+(`tools/run_replays.py`) with an AddressSanitizer build (`cmake -DPORT_ASAN=ON`): a truncated pointer or a
+32-bit size can survive a normal replay by luck of heap layout and fail later on Windows or Android.
+
+Printing fixed-width integers: `uint64_t` is `unsigned long` on 64-bit Linux but `unsigned long long` on Windows
+and macOS, so `%llu` with a bare `uint64_t` warns on one of them. Cast at the call site
+(`(unsigned long long)x` with `%llu`) or use the `<inttypes.h>` macros (`PRIu64`, `PRIxPTR`).
+
+Before changing a header or a struct type in `game/`, ask: is this also wrong on the N64? If yes, fix it in the
+pokestadium decomp too, so the two copies don't drift apart.
 
 ## Link surface of libstadium_game.a (1305 undefined symbols, measured with nm)
 - 856 `D_<hex>`: segment/virtual-address asset symbols (D_1000000, D_3000000, ...; defined in the original by the

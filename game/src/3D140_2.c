@@ -13,6 +13,7 @@
 
 // PORT: battle cross-check: the announcer picks its lines with osGetTime() (CPU timing); with the cross-check's forced
 // randomness both sides get the same values instead (src/port/xcheck.cpp, tools/ares_ref/ares_ref.cpp)
+#undef osGetTime // port_compat.h maps it to port_osGetTime
 #define osGetTime() Port_XcheckOsGetTime()
 
 typedef union {
