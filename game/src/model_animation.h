@@ -28,7 +28,7 @@ typedef struct unk_D_800ABCC0 {
 f32 ModelAnim_EvaluateTranslationChannel(unk_D_800ABCC0* arg0, s32 arg1);
 s16 ModelAnim_EvaluateRotationChannel(unk_D_800ABCC0* arg0, s32 arg1);
 f32 ModelAnim_EvaluateScaleChannel(unk_D_800ABCC0* arg0, s32 arg1);
-f32 ModelAnim_InterpolateKeyframe(Vec3s* arg0, s16 arg1, s16 arg2);
+f32 ModelAnim_InterpolateKeyframe(s16* arg0, s16 arg1, s16 arg2);
 f32 ModelAnim_EvaluateTranslationCurve(unk_D_800ABCC0* arg0, s32 arg1);
 s16 ModelAnim_EvaluateRotationCurve(unk_D_800ABCC0* arg0, s32 arg1);
 f32 ModelAnim_EvaluateScaleCurve(unk_D_800ABCC0* arg0, s32 arg1);

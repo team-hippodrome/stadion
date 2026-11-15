@@ -106,6 +106,7 @@ Subsystems join the list as they are fixed:
 |---|---|---|
 | Audio (sequencer, sound effects, streams, libnaudio, cries) | 41 | 20/20 runnable replays (2 more need GB saves), normal and ASan builds |
 | Core runtime (main/memory pools, scheduler, storage queue, memmap, save banks, session, profiler) | 15 | 20/20 runnable replays, normal and ASan builds |
+| Geo/model rendering (scene graph, geo layouts, model draw/animation, display-list buffers, textures) | 11 | 20/20 runnable replays, normal and ASan builds |
 
 Conventions used for these fixes:
 - ROM offsets stay 32-bit integers (`u32`/`uintptr_t`); a pointer-typed field that holds a ROM offset (libaudio's
@@ -124,6 +125,11 @@ Conventions used for these fixes:
   callbacks (`AllocateFunc`) get the block's data pointer and its tag: `void (*)(void* data, u32 arg)`.
 - Raw record buffers whose stride is decided at run time take `void*` and walk a local `u8*` (`Save_ClearRecord`,
   `Deck_ReadEntries`).
+- Segmented and fragment addresses become pointers through `SEGMENTED_TO_VIRTUAL(addr)` (`memmap.h`, the
+  HarbourMasters name) and `ADDR_TO_VIRTUAL(addr)` (`util.h`); both return `void*`, so no cast is needed at the use.
+- Scene-graph nodes that start with a `GraphNode node` are passed as `&x->node`. A `(GraphNode*)` cast stays where
+  the value may be NULL (`register_graph_node(GeoNode_Create...(...))`, as in the SM64 decomp) or where the node is a
+  separate decomp type with the same layout (`DisplayNodeHeader`, `ModelNodeView`) until those types are merged.
 
 `tools/ptr_warnings.sh` lists the pointer-truncation subset (490 sites). When fixing these, pair a replay run
 (`tools/run_replays.py`) with an AddressSanitizer build (`cmake -DPORT_ASAN=ON`): a truncated pointer or a

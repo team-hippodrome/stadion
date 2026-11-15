@@ -4,6 +4,8 @@
 extern u32 gExpansionRAMStart;
 
 uintptr_t Util_ConvertAddrToVirtAddr(uintptr_t addr);
+// Util_ConvertAddrToVirtAddr for a pointer result: segmented, physical, fragment-space or host address in, pointer out.
+#define ADDR_TO_VIRTUAL(addr) ((void*)Util_ConvertAddrToVirtAddr((uintptr_t)(addr)))
 void Util_Memcpy(u32* dest, u32* src, int size);
 void Util_InitMainPools(void);
 void* Util_Malloc(s32 size);

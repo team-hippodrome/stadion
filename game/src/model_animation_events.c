@@ -21,9 +21,9 @@ static s16 ETD_S16(const EventTrackData* d, s32 off) {
 #define ETD_FLAGS(d) ETD_S16(d, 0x00)
 static void* ETD_PTR(const EventTrackData* d, s32 which) {
     if (ETD_RAW(d)) {
-        return Util_ConvertAddrToVirtAddr(PORT_BE32(*(const u32*)((const u8*)d + 0x0C + which * 4)));
+        return ADDR_TO_VIRTUAL(PORT_BE32(*(const u32*)((const u8*)d + 0x0C + which * 4)));
     }
-    return Util_ConvertAddrToVirtAddr(which ? (uintptr_t)d->frameValues : (uintptr_t)d->trackTable);
+    return ADDR_TO_VIRTUAL(which ? (uintptr_t)d->frameValues : (uintptr_t)d->trackTable);
 }
 static s32 sEventRaw;
 
@@ -122,7 +122,7 @@ void ModelAnim_ClearEventTrack(DisplayObject* arg0) {
 }
 
 s16 ModelAnim_BindEventTrack(DisplayObject* arg0, s16 arg1, intptr_t arg2) { // PORT: arg2 is an address (was s32)
-    EventTrackData* temp_v0 = Util_ConvertAddrToVirtAddr(arg2);
+    EventTrackData* temp_v0 = ADDR_TO_VIRTUAL(arg2);
     EventTrackState* ptr = &arg0->eventTrack;
 
     if ((temp_v0 != ptr->data) || (arg1 != ptr->trackId)) {

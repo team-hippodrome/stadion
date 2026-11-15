@@ -17,8 +17,9 @@
 #include "src/geo_render.h"
 #include "StadionPort.h"
 
-struct DisplayNodeHeader D_800AC840;
-struct DisplayNodeHeader D_800AC858;
+// Display roots: GeoNode_CreateContainer nodes that DisplayObjects are appended under.
+GraphNode D_800AC840;
+GraphNode D_800AC858;
 
 void ModelRenderer_InitDisplayRoots(void) {
     GeoNode_CreateContainer(0, &D_800AC840);
@@ -27,19 +28,20 @@ void ModelRenderer_InitDisplayRoots(void) {
 
 void ModelRenderer_AttachDisplayObject(DisplayObject* display_object) {
     GeoNode_CreateModelPart(NULL, display_object, 0, &D_8006F050, &D_8006F05C, &D_8006F064);
-    GraphNode_AppendChild(&D_800AC840, &display_object->node);
+    GraphNode_AppendChild(&D_800AC840, (GraphNode*)&display_object->node);
     display_object->effectSlot = 0;
     display_object->node.flags &= ~1;
 }
 
 void ModelRenderer_AttachSecondaryDisplayObject(DisplayObject* arg0) {
     GeoNode_CreateModelPart(NULL, arg0, 0, &D_8006F050, &D_8006F05C, &D_8006F064);
-    GraphNode_AppendChild(&D_800AC858, &arg0->node);
+    GraphNode_AppendChild(&D_800AC858, (GraphNode*)&arg0->node);
     arg0->node.flags &= ~1;
 }
 
 void Model_InitDisplayObject(DisplayObject* display_object, s16 root_id, s16 object_type, ModelNodeView* child) {
-    GraphNode_AppendChild(&display_object->node, child);
+    // DisplayNodeHeader and ModelNodeView share GraphNode's layout but are separate decomp types.
+    GraphNode_AppendChild((GraphNode*)&display_object->node, (GraphNode*)child);
     MtxF_Identity(&display_object->matrix);
     display_object->rootId = root_id;
     display_object->objectType = object_type;
@@ -152,7 +154,7 @@ s32 ModelAnim_SetEventTrack(DisplayObject* display_object, s32 track_id) {
 }
 
 void Model_SetMaterialColor(DisplayObject* display_object, u8 r, u8 g, u8 b, u8 alpha) {
-    Color_SetRGBA(&display_object->fogColor, r, g, b, alpha);
+    Color_SetRGBA((Color_RGBA8*)&display_object->fogColor, r, g, b, alpha); // union over the same RGBA bytes
 }
 
 void Model_SetMaterialAlpha(DisplayObject* arg0, u8 arg1) {

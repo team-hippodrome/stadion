@@ -195,14 +195,14 @@ s32 func_800333E0(s32 arg0) {
     u8 stack[4];
     u8* ptr = stack;
 
-    return ((u8*)((intptr_t)ptr + (arg0 * 0x94)) - ptr) + 0x170;
+    return (s32)((u8*)((intptr_t)ptr + (arg0 * 0x94)) - ptr) + 0x170;
 }
 
 s32 func_80033410(s32 arg0) {
     u8 stack[4];
     u8* ptr = stack;
 
-    return ((u8*)(intptr_t)ptr + (arg0 * 0x10)) - ptr;
+    return (s32)(((u8*)(intptr_t)ptr + (arg0 * 0x10)) - ptr);
 }
 
 f32 Math_FAbs(f32 value) {
@@ -380,10 +380,10 @@ void Model_BuildVertexRuntimeData(StadiumModel* model, MtxF* mtx) {
     s32 var_s3;
     UNUSED s32 pad[8];
 
-    segment = Memmap_GetSegmentVaddr(model->modelSegment);
+    segment = SEGMENTED_TO_VIRTUAL(model->modelSegment);
     base = &model->mvtx;
     mvtx = base;
-    vtx = Memmap_GetSegmentVaddr(segment->vertexSegment);
+    vtx = SEGMENTED_TO_VIRTUAL(segment->vertexSegment);
 
     for (var_a0 = 0; var_a0 < segment->vertexCount; var_a0++) {
 
@@ -411,7 +411,7 @@ void Model_BuildVertexRuntimeData(StadiumModel* model, MtxF* mtx) {
     var_s3 = 0;
     i = 0;
     while (var_s3 < 0x10) {
-        temp_s2 = Memmap_GetSegmentVaddr(segment->tableSegment);
+        temp_s2 = SEGMENTED_TO_VIRTUAL(segment->tableSegment);
         for (i = 0; i < segment->vertexCount; i++) {
             u16 temp_v0 = Model_GetVertexJoint(temp_s2, i);
             if (var_s3 == temp_v0) {
@@ -424,7 +424,7 @@ void Model_BuildVertexRuntimeData(StadiumModel* model, MtxF* mtx) {
 
     mvtx = base;
     var_a1 = 0;
-    indexTable = Memmap_GetSegmentVaddr(segment->unk_0C);
+    indexTable = SEGMENTED_TO_VIRTUAL(segment->unk_0C);
     for (i = 0; i < segment->vertexCount; i++) {
         mvtx->childIndex = var_a1;
         do {
@@ -459,16 +459,16 @@ void func_80033B2C(StadiumModel* model, void* arg1, void* arg2, void* arg3) {
     ModelSegment* segment;
     ModelSegment* temp_v0;
 
-    model = Memmap_GetSegmentVaddr(model);
-    arg1 = Memmap_GetSegmentVaddr(arg1);
-    temp_s0 = Memmap_GetSegmentVaddr(arg2);
-    temp_v0 = Memmap_GetSegmentVaddr(arg3);
+    model = SEGMENTED_TO_VIRTUAL(model);
+    arg1 = SEGMENTED_TO_VIRTUAL(arg1);
+    temp_s0 = SEGMENTED_TO_VIRTUAL(arg2);
+    temp_v0 = SEGMENTED_TO_VIRTUAL(arg3);
     segment = &model->unkSegment;
     D_800B2F50 = arg1;
     *segment = *temp_v0;
     model->unk_00 = 1;
     model->unk_02 = 0;
-    model->modelSegment = segment;
+    model->modelSegment = (uintptr_t)segment;
     sp40 = temp_s0->xx;
     sp3C = temp_s0->yx;
     sp38 = temp_s0->zx;
@@ -611,8 +611,8 @@ void func_80034254(StadiumModel* model) {
     ModelVertex* var_a2;
     ModelBlendWeight* var_a0;
 
-    segment = Memmap_GetSegmentVaddr(model->modelSegment);
-    indexTable = Memmap_GetSegmentVaddr(segment->remapSegment);
+    segment = SEGMENTED_TO_VIRTUAL(model->modelSegment);
+    indexTable = SEGMENTED_TO_VIRTUAL(segment->remapSegment);
     temp_a1 = &model->mvtx;
     var_a2 = temp_a1;
     for (i = 0; i < segment->vertexCount; i++) {
@@ -659,8 +659,8 @@ void func_80034348(ModelSegment* segment, ModelVertex* vertices) {
 
     triangleCount = segment->triangleCount;
     vertexCount = segment->vertexCount;
-    indices = Memmap_GetSegmentVaddr(segment->indexSegment);
-    remap = Memmap_GetSegmentVaddr(segment->remapSegment);
+    indices = SEGMENTED_TO_VIRTUAL(segment->indexSegment);
+    remap = SEGMENTED_TO_VIRTUAL(segment->remapSegment);
     counter = D_800B2F50;
     for (i = 0; i < vertexCount; i++) {
         counter->x = 0.0f;
@@ -752,8 +752,8 @@ void func_80034824(ModelSegment* segment, StadiumTransform* xf, s32 index, Model
     PosBlend* temp_v0_2;
 
     temp_s6 = segment->vertexCount;
-    spA0 = Memmap_GetSegmentVaddr(segment->remapSegment);
-    temp_v0 = Memmap_GetSegmentVaddr(segment->tableSegment);
+    spA0 = SEGMENTED_TO_VIRTUAL(segment->remapSegment);
+    temp_v0 = SEGMENTED_TO_VIRTUAL(segment->tableSegment);
     x0 = xf->x0;
     y0 = xf->y0;
     z0 = xf->z0;
@@ -814,7 +814,7 @@ void Model_ApplyVertexTransforms(StadiumModel* model) {
     s32 i;
     ModelVertex* mvtx;
 
-    segment = Memmap_GetSegmentVaddr(model->modelSegment);
+    segment = SEGMENTED_TO_VIRTUAL(model->modelSegment);
     mvtx = &model->mvtx;
     count = model->unk_02;
 
@@ -826,7 +826,7 @@ void Model_ApplyVertexTransforms(StadiumModel* model) {
     Model_ApplyTransformCommands(segment, mvtx, model, 1.0f);
 }
 
-void func_80034BD4(uintptr_t modelSegment, StadiumTransform* xf, s32 index, ModelVertex* vertices) {
+void func_80034BD4(ModelSegment* modelSegment, StadiumTransform* xf, s32 index, ModelVertex* vertices) {
     ModelBlendWeight* wt;
     ModelVertex* vtx;
     s32 pad0[3];
@@ -878,10 +878,10 @@ void func_80034BD4(uintptr_t modelSegment, StadiumTransform* xf, s32 index, Mode
     s32 i;
     PosBlend* temp_v0_2;
 
-    temp_v0 = Memmap_GetSegmentVaddr(modelSegment);
+    temp_v0 = SEGMENTED_TO_VIRTUAL(modelSegment);
     spCA = temp_v0->vertexCount;
-    temp_s1 = Memmap_GetSegmentVaddr(temp_v0->remapSegment);
-    spC0 = Memmap_GetSegmentVaddr(temp_v0->tableSegment);
+    temp_s1 = SEGMENTED_TO_VIRTUAL(temp_v0->remapSegment);
+    spC0 = SEGMENTED_TO_VIRTUAL(temp_v0->tableSegment);
     mtx = xf->mtx;
     guMtxXFMF(mtx->mf, xf->x0, xf->y0, xf->z0, &sp180, &sp17C, &sp178);
     guMtxXFMF(mtx->mf, xf->x1, xf->y1, xf->z1, &sp174, &sp170, &sp16C);
@@ -977,8 +977,8 @@ void Model_InitializeVertexPositions(ModelSegment* segment, MtxF* mtx, ModelVert
     PosBlend* position;
     ModelVertex* tmp;
 
-    indexTable = Memmap_GetSegmentVaddr(segment->tableSegment);
-    vtx = Memmap_GetSegmentVaddr(segment->vertexSegment);
+    indexTable = SEGMENTED_TO_VIRTUAL(segment->tableSegment);
+    vtx = SEGMENTED_TO_VIRTUAL(segment->vertexSegment);
     Memmap_GetSegmentVaddr(segment->remapSegment);
     tmp = mvtx;
 
@@ -1018,9 +1018,9 @@ void func_80035248(ModelSegment* segment, MtxF* mtx, ModelVertex* mvtx) {
     s16* var_s7;
     s32 i;
     s16* temp_s5;
-    temp_s5 = Memmap_GetSegmentVaddr(segment->tableSegment);
-    vtx = Memmap_GetSegmentVaddr(segment->vertexSegment);
-    var_s7 = Memmap_GetSegmentVaddr(segment->remapSegment);
+    temp_s5 = SEGMENTED_TO_VIRTUAL(segment->tableSegment);
+    vtx = SEGMENTED_TO_VIRTUAL(segment->vertexSegment);
+    var_s7 = SEGMENTED_TO_VIRTUAL(segment->remapSegment);
     tmp = mvtx;
 
     for (i = 0; i < segment->vertexCount; i++) {
@@ -1169,12 +1169,12 @@ void func_800357F4(StadiumModel* model) {
     ModelTransformCmd* cmd;
     ModelVertex* mvtx;
 
-    segment = Memmap_GetSegmentVaddr(model->modelSegment);
+    segment = SEGMENTED_TO_VIRTUAL(model->modelSegment);
     sp40 = segment;
-    temp_s3 = Memmap_GetSegmentVaddr(segment->tableSegment);
-    sp70 = Memmap_GetSegmentVaddr(sp40->remapSegment);
-    temp_fp = Memmap_GetSegmentVaddr(sp40->vertexSegment);
-    sp68 = Memmap_GetSegmentVaddr(sp40->unk_0C);
+    temp_s3 = SEGMENTED_TO_VIRTUAL(segment->tableSegment);
+    sp70 = SEGMENTED_TO_VIRTUAL(sp40->remapSegment);
+    temp_fp = SEGMENTED_TO_VIRTUAL(sp40->vertexSegment);
+    sp68 = SEGMENTED_TO_VIRTUAL(sp40->unk_0C);
     mvtx = &model->mvtx;
     sp48 = mvtx;
     for (i = 0; i < sp40->vertexCount; i++) {
@@ -1311,8 +1311,8 @@ void Model_OffsetVertexHeights(ModelSegment* segment, ModelVertex* vertices, f32
     s32 i;
     ModelVertex* tmp;
 
-    indexTable = Memmap_GetSegmentVaddr(segment->tableSegment);
-    remap = Memmap_GetSegmentVaddr(segment->remapSegment);
+    indexTable = SEGMENTED_TO_VIRTUAL(segment->tableSegment);
+    remap = SEGMENTED_TO_VIRTUAL(segment->remapSegment);
     tmp = vertices;
     for (i = 0; i < segment->vertexCount; i++) {
         if ((Model_GetVertexClass(indexTable, i) != 0) && (i == *remap)) {
@@ -1331,8 +1331,8 @@ void func_80035D08(ModelSegment* segment, ModelVertex* vertices, f32 yOffset) {
     s32 i;
     PosBlend* temp_v0_2;
 
-    indexTable = Memmap_GetSegmentVaddr(segment->tableSegment);
-    var_s2 = Memmap_GetSegmentVaddr(segment->remapSegment);
+    indexTable = SEGMENTED_TO_VIRTUAL(segment->tableSegment);
+    var_s2 = SEGMENTED_TO_VIRTUAL(segment->remapSegment);
     tmp = vertices;
     for (i = 0; i < segment->vertexCount; i++) {
         if ((Model_GetVertexClass(indexTable, i) != 0) && (i == *var_s2)) {
@@ -1363,8 +1363,8 @@ void func_80035E2C(ModelSegment* segment, ModelVertex* vertices, f32 arg2, Stadi
     f32 one = 1.0f;
     f32 quarter = 0.25f;
 
-    indexTable = Memmap_GetSegmentVaddr(segment->tableSegment);
-    remap = Memmap_GetSegmentVaddr(segment->remapSegment);
+    indexTable = SEGMENTED_TO_VIRTUAL(segment->tableSegment);
+    remap = SEGMENTED_TO_VIRTUAL(segment->remapSegment);
     vertex = vertices;
     for (i = 0; i < segment->vertexCount; i++) {
         if ((Model_GetVertexClass(indexTable, i) != 0) && (i == *remap)) {
@@ -1397,8 +1397,8 @@ void func_80035FA8(ModelSegment* segment, ModelVertex* vertices) {
     ModelVertex* vertex;
 
     vertex = vertices;
-    indexTable = Memmap_GetSegmentVaddr(segment->tableSegment);
-    remap = Memmap_GetSegmentVaddr(segment->remapSegment);
+    indexTable = SEGMENTED_TO_VIRTUAL(segment->tableSegment);
+    remap = SEGMENTED_TO_VIRTUAL(segment->remapSegment);
     for (i = 0; i < segment->vertexCount; i++) {
         position = &vertex->position;
         if ((Model_GetVertexClass(indexTable, i) != 0) && (i == *remap)) {
@@ -1439,7 +1439,7 @@ void func_800361C4(StadiumModel* model, MtxF* mtx) {
     s32 var_v1;
 
     ModelVertex* mvtx = &model->mvtx;
-    ModelSegment* segment = Memmap_GetSegmentVaddr(model->modelSegment);
+    ModelSegment* segment = SEGMENTED_TO_VIRTUAL(model->modelSegment);
     switch (segment->type) {
         case 3:
             func_80035248(segment, mtx, mvtx);
@@ -1499,7 +1499,7 @@ void func_800361C4(StadiumModel* model, MtxF* mtx) {
             return;
     }
     {
-        s16* var_a0 = Memmap_GetSegmentVaddr(segment->remapSegment);
+        s16* var_a0 = SEGMENTED_TO_VIRTUAL(segment->remapSegment);
         for (var_v1 = 0; var_v1 < segment->vertexCount; var_v1++) {
             s16 segment_2 = *var_a0;
             if (segment_2 != var_v1) {
@@ -1516,7 +1516,7 @@ void Model_WriteVtxBuffer(StadiumModel* model, Vtx* vtxBuf) {
     Vtx* vtx;
     s32 i;
 
-    segment = Memmap_GetSegmentVaddr(model->modelSegment);
+    segment = SEGMENTED_TO_VIRTUAL(model->modelSegment);
     if ((s32)segment->type >= 0xC) {
         return;
     }
@@ -1540,7 +1540,7 @@ void Model_WriteVtxBuffer(StadiumModel* model, Vtx* vtxBuf) {
 Gfx* Model_Draw(Gfx* gfx, StadiumModel* model, Vtx* vtxBuf) {
     ModelSegment* segment;
 
-    segment = Memmap_GetSegmentVaddr(model->modelSegment);
+    segment = SEGMENTED_TO_VIRTUAL(model->modelSegment);
     if ((s32)segment->type >= 0xC) {
         return gfx;
     }

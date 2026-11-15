@@ -47,7 +47,7 @@ void Font_UnloadSizes(s32 arg0);
 void Font_SetActive(s32 mask, s32 letter_spacing);
 s32 Font_GetSetInfo(s32 arg0, FontSet* arg1);
 s16 Font_DrawChar(s16 arg0, s16 arg1, s16 arg2);
-char* String_CopyBytesAndAdvance(char* buffer, const char* data, u32 size);
+char* String_CopyBytesAndAdvance(char* buffer, const char* data, size_t size);
 void Font_Printf(s32 x, s32 y, const char* fmt, ...);
 void Font_DrawCharAt(s32 x, s32 y, s32 char_index);
 void Gfx_SetEnvColor(s32 r, s32 g, s32 b, s32 alpha);

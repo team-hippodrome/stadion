@@ -75,12 +75,12 @@ void Gfx_ApplyScissorRect(Gfx** gfx_p) {
     }
 }
 
-void GfxImage_Initialize(DepthBuffer* arg0, s32 fmt, s32 size, s32 width, s32 height, uintptr_t img_p) {
+void GfxImage_Initialize(DepthBuffer* arg0, s32 fmt, s32 size, s32 width, s32 height, void* img_p) {
     arg0->fmt = fmt;
     arg0->size = size;
     arg0->width = width;
     arg0->height = height;
-    arg0->img_p = (u8*)ALIGN64(img_p);
+    arg0->img_p = (u8*)ALIGN64((uintptr_t)img_p);
     arg0->depth_p = NULL;
 }
 
@@ -150,7 +150,7 @@ void GfxImage_SetRenderTarget(Gfx** gfx_p, DepthBuffer* arg1) {
     *gfx_p = gfx;
 }
 
-void GfxImage_FillRectangle(Gfx** gfx_p, s32 arg1, s32 arg2, s32 arg3, s32 arg4, uintptr_t fill_color) {
+void GfxImage_FillRectangle(Gfx** gfx_p, s32 arg1, s32 arg2, s32 arg3, s32 arg4, u32 fill_color) {
     if (D_80068BB0 != NULL) {
         Gfx* gfx = *gfx_p;
 

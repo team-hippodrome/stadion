@@ -525,8 +525,7 @@ s32 PokeIcon_RequestFrameLoadWithVariant(ModelLoadContext* arg0, u16 arg1, arg1_
     return 0;
 }
 
-s32 PokeIcon_RequestBackgroundLoad(ModelLoadContext* arg0, s16* arg1,
-                                   intptr_t arg2) { // PORT: arg2 carries a pointer (was s32)
+s32 PokeIcon_RequestBackgroundLoad(ModelLoadContext* arg0, s16* arg1, arg1_func_80019420* arg2) {
     s32 sp1C = 0;
     sp18_func_800198E4* temp_v0;
 
@@ -536,8 +535,8 @@ s32 PokeIcon_RequestBackgroundLoad(ModelLoadContext* arg0, s16* arg1,
             temp_v0->unk_00 = 2;
             temp_v0->unk_02 = 0;
             temp_v0->unk_04 = &arg0->backgroundQueue;
-            temp_v0->unk_08 = arg2;
-            temp_v0->unk_0C = arg1;
+            temp_v0->unk_08 = (uintptr_t)arg2;
+            temp_v0->unk_0C = (uintptr_t)arg1;
             temp_v0->unk_10 = arg0->backgroundBuffer;
             temp_v0->unk_14 = 0x18000;
 

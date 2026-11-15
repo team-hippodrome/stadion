@@ -34,6 +34,9 @@ typedef s32 (*FragmentEntry)(s32, intptr_t); // PORT64: UI callbacks pass a poin
 void Memmap_SetSegmentMap(u32 id, uintptr_t vaddr, size_t size);
 uintptr_t Memmap_GetSegmentBaseVaddr(u32 id);
 uintptr_t Memmap_GetSegmentVaddr(uintptr_t mask);
+// Segment table lookup for a pointer result (HarbourMasters' name). Accepts a segmented address held in an integer
+// field or a pointer; anything that is not segmented (a host pointer, a KSEG0 address) comes back unchanged.
+#define SEGMENTED_TO_VIRTUAL(addr) ((void*)Memmap_GetSegmentVaddr((uintptr_t)(addr)))
 u32 Memmap_GetSegmentVaddrMask(u32 i, uintptr_t addr);
 void Memmap_ClearSegmentMemmap(u32 id);
 void Memmap_SetSegments(Gfx** gfxDl);
