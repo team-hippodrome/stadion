@@ -1341,14 +1341,6 @@ Gfx* ParticleGfx_AppendDescriptorMaterial(Gfx* gfx, ParticleMaterial* material) 
 // PORT: material lists come from ROM models (the stadium's arena floor sets its detail texture through one): big-endian
 // records with 32-bit link addresses. They are converted once into native records (cached by source address).
 
-static u32 Port_MatBE32(const u8* p) {
-    return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
-}
-
-static s16 Port_MatBE16(const u8* p) {
-    return (s16)((p[0] << 8) | p[1]);
-}
-
 static void* Port_MatHost(u32 link) {
     return link != 0 ? (void*)Util_ConvertAddrToVirtAddr(link) : NULL;
 }
@@ -1360,7 +1352,7 @@ static void* Port_MatPtr(const u8* rec, s32 k) {
     if (sMatNative) {
         return ((void* const*)rec)[k];
     }
-    return Port_MatHost(Port_MatBE32(rec + k * 4));
+    return Port_MatHost(Port_ReadBE32(rec + k * 4));
 }
 
 // colour/frame animation record {u32 value or array; s16 count; s16 rate}; textures: the array holds texture addresses
@@ -1373,8 +1365,8 @@ static ParticleValueSequence* Port_ConvertMatAnim(const void* src, int textures)
         return NULL;
     }
     out = calloc(1, sizeof(*out));
-    out->unk_04 = Port_MatBE16(a + (sMatNative ? sizeof(void*) : 4));
-    out->unk_06 = Port_MatBE16(a + (sMatNative ? sizeof(void*) : 4) + 2);
+    out->unk_04 = (s16)Port_ReadBE16(a + (sMatNative ? sizeof(void*) : 4));
+    out->unk_06 = (s16)Port_ReadBE16(a + (sMatNative ? sizeof(void*) : 4) + 2);
     if (out->unk_04 == 0) {
         memcpy(&out->unk_00.color, a, 4); // an inline colour: bytes r, g, b, a
     } else if (textures) {
@@ -1403,14 +1395,14 @@ static ParticleMaterialState* Port_ConvertMatRecord(const void* src) {
     if ((t = Port_MatPtr(q, 1)) != NULL) {
         s16* v = calloc(1, sizeof(*r->unk_04));
         for (i = 0; i < 10; i++) {
-            v[i] = Port_MatBE16(t + i * 2);
+            v[i] = (s16)Port_ReadBE16(t + i * 2);
         }
         r->unk_04 = (ParticleTextureFormat*)v;
     }
     if ((t = Port_MatPtr(q, 2)) != NULL) {
         s16* v = calloc(1, sizeof(*r->unk_08));
         for (i = 0; i < 5; i++) {
-            v[i] = Port_MatBE16(t + i * 2);
+            v[i] = (s16)Port_ReadBE16(t + i * 2);
         }
         r->unk_08 = (ParticleTileScroll*)v;
     }
@@ -1420,8 +1412,8 @@ static ParticleMaterialState* Port_ConvertMatRecord(const void* src) {
     r->unk_18 = Port_ConvertMatAnim(Port_MatPtr(q, 6), 0);
     if ((t = Port_MatPtr(q, 7)) != NULL) {
         r->unk_1C = calloc(1, sizeof(*r->unk_1C));
-        r->unk_1C->unk_00 = (u16)Port_MatBE16(t);
-        r->unk_1C->unk_02 = (u16)Port_MatBE16(t + 2);
+        r->unk_1C->unk_00 = Port_ReadBE16(t);
+        r->unk_1C->unk_02 = Port_ReadBE16(t + 2);
     }
     return r;
 }

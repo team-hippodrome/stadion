@@ -19,7 +19,7 @@ static s32 sRaw;
 #define ANIM_RAW(p) Port_IsRawData((const void*)(p))
 static inline u16 Anim_U16(const void* p) {
     const u8* b = (const u8*)p;
-    return sRaw ? (u16)((b[0] << 8) | b[1]) : *(const u16*)p;
+    return sRaw ? Port_ReadBE16(b) : *(const u16*)p;
 }
 static inline s16 Anim_S16(const void* p) {
     return (s16)Anim_U16(p);
@@ -52,7 +52,7 @@ static s16 Anim_PackedBitsReadSigned(s16* packed, s32 offset, s32 length) {
     } else {
         // same as PackedBits_ReadSigned on big-endian 16-bit words
         const u8* w = (const u8*)&packed[(offset * length) / 16];
-        s32 v = (s32)(((u32)w[0] << 24) | ((u32)w[1] << 16) | ((u32)w[2] << 8) | w[3]);
+        s32 v = (s32)Port_ReadBE32(w);
         v <<= ((offset * length) % 16);
         v >>= (32 - length);
         return (s16)v;

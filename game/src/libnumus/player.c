@@ -421,7 +421,7 @@ u8* Audio_SkipVoiceCommandWord(UNUSED channel_t* cp, u8* ptr) {
 u8* Audio_SetVoiceSubEnvelopePointer(channel_t* cp, u8* ptr) {
     u8* addr =
         (u8*)&cp->song_addr->num_channels +
-        (s32)PortA_BE32(PORT_BLOB_AT(cp->song_addr, cp->song_addr->drum_table) + 4 * *ptr++); // PORT: big-endian table
+        (s32)Port_ReadBE32(PORT_BLOB_AT(cp->song_addr, cp->song_addr->drum_table) + 4 * *ptr++); // PORT: big-endian table
 
     cp->pdrums = addr;
     return ptr;
@@ -1042,9 +1042,9 @@ void Audio_RelocateSoundBankTable(bank_remap_descriptor_t* descriptor) {
         return;
     }
 
-    PortA_Swap32(descriptor, 4);
+    Port_SwapWords(descriptor, 4);
     ptr = (u32*)PORT_BLOB_AT(descriptor, descriptor->fx_data);
-    PortA_Swap32(ptr, descriptor->num_entries);
+    Port_SwapWords(ptr, descriptor->num_entries);
 
     descriptor->flags |= 2;
 }
@@ -1058,14 +1058,14 @@ u32 Audio_PortRelocateSong(song_t* song) {
     u32 n;
 
     if (song->channel_data >= 0x10000) {
-        PortA_Swap32(song, 6);
+        Port_SwapWords(song, 6);
         n = song->num_channels;
-        PortA_Swap32(PORT_BLOB_AT(song, song->channel_data), n);
+        Port_SwapWords(PORT_BLOB_AT(song, song->channel_data), n);
         if (song->volume_data != song->channel_data) {
-            PortA_Swap32(PORT_BLOB_AT(song, song->volume_data), n);
+            Port_SwapWords(PORT_BLOB_AT(song, song->volume_data), n);
         }
         if (song->pitchbend_data != song->channel_data && song->pitchbend_data != song->volume_data) {
-            PortA_Swap32(PORT_BLOB_AT(song, song->pitchbend_data), n);
+            Port_SwapWords(PORT_BLOB_AT(song, song->pitchbend_data), n);
         }
     }
     return song->num_channels;

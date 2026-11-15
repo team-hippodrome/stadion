@@ -93,7 +93,7 @@ s32 Gsm_Decode(gsm_state* state, unk_arg1_func_80045D60* arg1, s16 signal[160]) 
 }
 
 // PORT: the bit stream is big-endian 32-bit words
-#define GSM_STREAM_WORD(state, pos) PortA_BE32(&((u32*)(state)->unk_1598)[((pos) >> 5) & 0x3FF])
+#define GSM_STREAM_WORD(state, pos) Port_ReadBE32(&((u32*)(state)->unk_1598)[((pos) >> 5) & 0x3FF])
 
 #define READ_BITS(dst, n)                                                \
     if (bitsLeft > (n)) {                                                \

@@ -806,7 +806,7 @@ s16 func_8004A89C(void) {
 
     ent = (unk_D_800FC6CC*)((u32*)D_800FC6CC + (D_800FCFD8.unk_04 << 1));
     if (1) {}
-    sample = (s16)PortA_BE16((u8*)D_800FC6D0 + 2 * D_800FCFD8.unk_08); // PORT: big-endian samples from ROM
+    sample = (s16)Port_ReadBE16((u8*)D_800FC6D0 + 2 * D_800FCFD8.unk_08); // PORT: big-endian samples from ROM
     D_800FCFD8.unk_10 += 1.0f;
     if (D_800FCFD8.unk_0C <= D_800FCFD8.unk_10) {
         D_800FCFD8.unk_08++;

@@ -700,7 +700,7 @@ uintptr_t Port_CallFragmentLeaf(const void* code, s32 a0, s32 a1) {
     r[5] = (u32)a1;
     r[29] = 0x7FFFFF00u; // scratch stack: stores at sp go to 'stack'
     r[31] = 0xFFFFFFF0u; // return marker
-    insn = ((u32)host[0] << 24) | ((u32)host[1] << 16) | ((u32)host[2] << 8) | host[3];
+    insn = Port_ReadBE32(host);
     if ((insn >> 26) != 2) {
         return 0; // not a "j entry" header
     }
@@ -716,7 +716,7 @@ uintptr_t Port_CallFragmentLeaf(const void* code, s32 a0, s32 a1) {
         if ((uintptr_t)p < 0x100000000ULL) {
             return 0;
         }
-        insn = ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
+        insn = Port_ReadBE32(p);
         op = insn >> 26;
         rs = (insn >> 21) & 31;
         rt = (insn >> 16) & 31;
@@ -824,7 +824,7 @@ uintptr_t Port_CallFragmentLeaf(const void* code, s32 a0, s32 a1) {
                     }
                 }
                 if (op == 0x23)
-                    r[rt] = ((u32)m[0] << 24) | ((u32)m[1] << 16) | ((u32)m[2] << 8) | m[3];
+                    r[rt] = Port_ReadBE32(m);
                 else if (op == 0x21)
                     r[rt] = (u32)(s16)((m[0] << 8) | m[1]);
                 else if (op == 0x25)
@@ -939,7 +939,7 @@ void* Port_ResolveCode(uintptr_t addr) {
         uintptr_t host = Memmap_GetFragmentVaddr((void*)addr);
         if (host >= 0x100000000ULL) {
             const u8* p = (const u8*)host;
-            u32 insn = ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
+            u32 insn = Port_ReadBE32(p);
             if ((insn >> 26) == 2) {
                 // (all 60 targets read their callback data ROM-aware: big-endian records with 32-bit addresses)
                 u32 target = (u32)((addr & 0xF0000000) | ((insn & 0x03FFFFFF) << 2));
@@ -989,14 +989,6 @@ void* Port_HandleToPtr(u32 h) {
 
 // PORT: ROM data is big-endian. Archive headers and file tables are arrays of u32 (the first word holds two u16
 // flags that are zero in the ROM), so byte-swapping them as words is exact.
-static void Port_SwapWords(void* p, u32 count) {
-    u32* w = (u32*)p;
-    while (count-- > 0) {
-        u32 v = *w;
-        *w++ = (v >> 24) | ((v >> 8) & 0xFF00) | ((v << 8) & 0xFF0000) | (v << 24);
-    }
-}
-
 static void BinArchive_SwapHeader(BinArchive* a) {
     u8* b = (u8*)a;
     // the first word is two big-endian u16 (flags, fragment slot id), the other header words are u32

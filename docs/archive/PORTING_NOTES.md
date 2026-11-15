@@ -129,6 +129,12 @@ Conventions used for these fixes:
 (`tools/run_replays.py`) with an AddressSanitizer build (`cmake -DPORT_ASAN=ON`): a truncated pointer or a
 32-bit size can survive a normal replay by luck of heap layout and fail later on Windows or Android.
 
+Byte order: N64 data (ROM, cartridge saves, fragment blobs) is big-endian. `game/include/port_endian.h` (included by
+`macros.h`, so every game file has it) is the one place for the helpers: `Port_ReadBE32`/`Port_ReadBE16` read a value
+from memory, `Port_SwapWords`/`Port_SwapHalves` swap an array in place (any alignment), `Port_Swap32`/`Port_Swap16`
+swap a value already loaded. They use libultraship's `BE32SWAP`/`BE16SWAP`, as the HarbourMasters ports do.
+`tools/check_port_decls.py` fails when a `Port*_` helper is defined in more than one file.
+
 Printing fixed-width integers: `uint64_t` is `unsigned long` on 64-bit Linux but `unsigned long long` on Windows
 and macOS, so `%llu` with a bare `uint64_t` warns on one of them. Cast at the call site
 (`(unsigned long long)x` with `%llu`) or use the `<inttypes.h>` macros (`PRIu64`, `PRIxPTR`).

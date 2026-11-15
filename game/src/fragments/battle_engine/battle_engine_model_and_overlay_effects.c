@@ -104,8 +104,8 @@ static arg1_func_8434E21C* Port_CbTexPair(void* arg) {
         }
     }
     out = calloc(1, sizeof(*out));
-    out->unk_00 = (u8*)Util_ConvertAddrToVirtAddr(((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3]);
-    out->unk_04 = (u8*)Util_ConvertAddrToVirtAddr(((u32)p[4] << 24) | ((u32)p[5] << 16) | ((u32)p[6] << 8) | p[7]);
+    out->unk_00 = (u8*)Util_ConvertAddrToVirtAddr(Port_ReadBE32(p));
+    out->unk_04 = (u8*)Util_ConvertAddrToVirtAddr(Port_ReadBE32(p + 4));
     memcpy(out->unk08, p + 8, 2);
     out->unk_0A = (s16)((p[10] << 8) | p[11]);
     if (sCount < 64) {

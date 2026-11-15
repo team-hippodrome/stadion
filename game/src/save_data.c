@@ -1032,35 +1032,19 @@ s32 Save_ContinueRecordExists(void) {
 // flash (Save_AllocateBank) and on a copy of the bank when it is programmed (Save_FlushBank). Swapping is its own
 // inverse, so one routine serves both directions. Pokemon entries (GbPokemonNamedRecord) and the gallery's
 // particle slot data are byte arrays in a fixed order and are not touched; the checksum is a byte sum and does
-// not depend on the order.
-static void Save_PortSwap16(u8* p) {
-    u8 t = p[0];
-
-    p[0] = p[1];
-    p[1] = t;
-}
-
-static void Save_PortSwap32(u8* p) {
-    u8 t0 = p[0];
-    u8 t1 = p[1];
-
-    p[0] = p[3];
-    p[1] = p[2];
-    p[2] = t1;
-    p[3] = t0;
-}
+// not depend on the order. Single fields use Port_SwapHalves/Port_SwapWords (port_endian.h) with a count of 1.
 
 // Footer: 'PO' 'KE' (or 'XX' 'XX') and the checksum, three u16 at the end of the record.
 static void Save_PortSwapFooter(u8* rec, s32 size) {
-    Save_PortSwap16(rec + size - 6);
-    Save_PortSwap16(rec + size - 4);
-    Save_PortSwap16(rec + size - 2);
+    Port_SwapHalves(rec + size - 6, 1);
+    Port_SwapHalves(rec + size - 4, 1);
+    Port_SwapHalves(rec + size - 2, 1);
 }
 
 // Registered team, Lab box and item box: DeckRecordHeader trainer ID (0x0C) and count (0x0E).
 static void Save_PortSwapDeckRecord(u8* rec, s32 size) {
-    Save_PortSwap16(rec + 0x0C);
-    Save_PortSwap16(rec + 0x0E);
+    Port_SwapHalves(rec + 0x0C, 1);
+    Port_SwapHalves(rec + 0x0E, 1);
     Save_PortSwapFooter(rec, size);
 }
 
@@ -1072,13 +1056,13 @@ static void Save_PortSwapPhotoRecord(u8* rec, s32 size, s32 count) {
     for (i = 0; i < count; i++) {
         u8* photo = rec + 2 + i * 0x8C;
 
-        Save_PortSwap32(photo + 0x00); // f32 model Y
-        Save_PortSwap16(photo + 0x06); // s16 animation frame
+        Port_SwapWords(photo + 0x00, 1); // f32 model Y
+        Port_SwapHalves(photo + 0x06, 1); // s16 animation frame
         for (k = 0; k < 6; k++) {
-            Save_PortSwap32(photo + 0x50 + k * 4); // Vec3f unk_50, unk_5C
+            Port_SwapWords(photo + 0x50 + k * 4, 1); // Vec3f unk_50, unk_5C
         }
-        Save_PortSwap32(photo + 0x68); // u32
-        Save_PortSwap16(photo + 0x70); // u16 OT ID
+        Port_SwapWords(photo + 0x68, 1); // u32
+        Port_SwapHalves(photo + 0x70, 1); // u16 OT ID
     }
     Save_PortSwapFooter(rec, size);
 }
@@ -1103,22 +1087,22 @@ static void Save_PortSwapBank(s16 bank, void* bank_data) {
 
             rec = buf + 0x0DC0; // Victory Palace: u16 OT ID of each 0x1A entry
             for (i = 0; i < 151; i++) {
-                Save_PortSwap16(rec + 2 + i * 0x1A + 0x02);
+                Port_SwapHalves(rec + 2 + i * 0x1A + 0x02, 1);
             }
             Save_PortSwapFooter(rec, 0xF60);
 
             rec = buf + 0x1D20; // saved battle: session trainer ID, team count
-            Save_PortSwap16(rec + 0x02 + 0x0E);
-            Save_PortSwap16(rec + 0x22);
+            Port_SwapHalves(rec + 0x02 + 0x0E, 1);
+            Port_SwapHalves(rec + 0x22, 1);
             Save_PortSwapFooter(rec, 0x180);
 
             rec = buf + 0x1EA0; // options and progress
-            Save_PortSwap16(rec + 0x02);
-            Save_PortSwap16(rec + 0x04);
-            Save_PortSwap32(rec + 0x08);
-            Save_PortSwap16(rec + 0x0C);
-            Save_PortSwap16(rec + 0x14);
-            Save_PortSwap16(rec + 0x1C);
+            Port_SwapHalves(rec + 0x02, 1);
+            Port_SwapHalves(rec + 0x04, 1);
+            Port_SwapWords(rec + 0x08, 1);
+            Port_SwapHalves(rec + 0x0C, 1);
+            Port_SwapHalves(rec + 0x14, 1);
+            Port_SwapHalves(rec + 0x1C, 1);
             Save_PortSwapFooter(rec, 0x28);
 
             Save_PortSwapPhotoRecord(buf + 0x1EC8, 0x13B8, 36);

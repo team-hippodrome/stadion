@@ -10,10 +10,6 @@
 // PORT: the MiniFx geo callbacks are named by ROM model layouts (through fragment 31's jump table): their callback data
 // is big-endian with 32-bit addresses; converted once (cached by source address).
 
-static u32 Port_MiniFxBE32(const u8* p) {
-    return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
-}
-
 static unk_D_86002F34_000_014* Port_MiniFxTexPair(void* arg) {
     static struct {
         const u8* src;
@@ -33,8 +29,8 @@ static unk_D_86002F34_000_014* Port_MiniFxTexPair(void* arg) {
         }
     }
     out = calloc(1, sizeof(*out));
-    out->unk_00 = (u8*)Util_ConvertAddrToVirtAddr(Port_MiniFxBE32(p));
-    out->unk_04 = (u8*)Util_ConvertAddrToVirtAddr(Port_MiniFxBE32(p + 4));
+    out->unk_00 = (u8*)Util_ConvertAddrToVirtAddr(Port_ReadBE32(p));
+    out->unk_04 = (u8*)Util_ConvertAddrToVirtAddr(Port_ReadBE32(p + 4));
     if (sCount < 16) {
         sCache[sCount].src = p;
         sCache[sCount].out = out;

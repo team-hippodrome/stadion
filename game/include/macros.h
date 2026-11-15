@@ -2,6 +2,7 @@
 #define _MACROS_H_
 
 #include "fragments.h"
+#include "port_endian.h"
 
 #define true 1
 #define false 0
@@ -88,14 +89,5 @@ extern void* port_hw_reg(unsigned long addr);
 
 #define ASSET_LOAD2(rom, arg0, arg1) (BinArchive_Open(rom##_ROM_START, rom##_ROM_END, arg0, arg1))
 
-// PORT: ROM-resident data is big-endian. Four-character tags and header words read from it as u32 must be byte
-// swapped before they are compared with numeric constants or used as sizes.
-static inline u32 Port_Swap32(u32 v) {
-    return (v >> 24) | ((v >> 8) & 0xFF00) | ((v << 8) & 0xFF0000) | (v << 24);
-}
-#define PORT_BE32(x) Port_Swap32((u32)(x))
-static inline u16 Port_Swap16(u16 v) {
-    return (u16)((v >> 8) | (v << 8));
-}
 
 #endif

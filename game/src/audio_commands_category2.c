@@ -1119,7 +1119,7 @@ s32 Audio_DispatchSoundBankCommand(s32 arg0, s32 arg1, s32 arg2) {
 
         Rom_DmaRead(sp24, D_800FC798, 0xC);
 
-        PortA_Swap32(D_800FC798, 3); // PORT: big-endian header
+        Port_SwapWords(D_800FC798, 3); // PORT: big-endian header
         Audio_RelocateOffsets(D_800FC798, sp24, 3);
         Rom_DmaRead(D_800FC798[0], D_800FC6DC, D_800FC798[1] - D_800FC798[0]);
         Audio_CopyDataWithCacheSync(D_800FC6DC, D_800FC6A8, 0xBB8);
@@ -1237,7 +1237,7 @@ s32 Audio_PlayDirectSoundCommand(s32 arg0, UNUSED s32 arg1, UNUSED s32 arg2) {
 
         Rom_DmaRead(sp34, &D_800FC798[0], 0xC);
 
-        PortA_Swap32(D_800FC798, 3); // PORT: big-endian header
+        Port_SwapWords(D_800FC798, 3); // PORT: big-endian header
         Audio_RelocateOffsets(D_800FC798, sp34, 3);
         sp34 = D_800FC798[1] - D_800FC798[0];
         Rom_DmaRead(D_800FC798[0], D_800FC6DC, (u32)sp34);
@@ -1308,7 +1308,7 @@ s32 Audio_PlayCategory11SoundCommand(s32 arg0, s32 arg1, s32 arg2) {
 
         Rom_DmaRead(sp2C, D_800FC798, 0xC);
 
-        PortA_Swap32(D_800FC798, 3); // PORT: big-endian header
+        Port_SwapWords(D_800FC798, 3); // PORT: big-endian header
         Audio_RelocateOffsets(D_800FC798, sp2C, 3);
         Rom_DmaRead(D_800FC798[0], D_800FC6DC, D_800FC798[1] - D_800FC798[0]);
         Audio_CopyDataWithCacheSync(D_800FC6DC, D_800FC6A8, 0xBB8);
@@ -1444,7 +1444,7 @@ s32 Audio_PlayCategory12SoundCommand(s32 arg0, UNUSED s32 arg1, UNUSED s32 arg2)
 
         Rom_DmaRead(sp3C, D_800FC798, 0xC);
 
-        PortA_Swap32(D_800FC798, 3); // PORT: big-endian header
+        Port_SwapWords(D_800FC798, 3); // PORT: big-endian header
         Audio_RelocateOffsets(D_800FC798, sp3C, 3);
         Rom_DmaRead(D_800FC798[0], D_800FC6DC, D_800FC798[1] - D_800FC798[0]);
         Audio_CopyDataWithCacheSync(D_800FC6DC, D_800FC6A8, 0xBB8);

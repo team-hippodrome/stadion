@@ -131,7 +131,7 @@ u32 Port_RelocateDataBlob(struct Fragment* f) {
         u32 reloc = PORT_BE32(tbl->relocations[i]);
         if (((reloc & 0x7F000000) >> 24) == R_MIPS_32) {
             u8* w = (u8*)f + (reloc & 0xFFFFFF);
-            u32 v = ((u32)w[0] << 24) | ((u32)w[1] << 16) | ((u32)w[2] << 8) | w[3];
+            u32 v = Port_ReadBE32(w);
             if ((v & 0xFFF00000) == link) {
                 v = vbase + (v & 0xFFFFF);
                 w[0] = v >> 24;
@@ -416,7 +416,7 @@ static u32 Port_BlobLoad32(struct Fragment* f, u32 link, u32 addr, int* ok) {
         *ok = 0;
         return 0;
     }
-    return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
+    return Port_ReadBE32(p);
 }
 
 uintptr_t Port_CallBlobEntry(void* frag, s32 a0, s32 a1) {

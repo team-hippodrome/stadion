@@ -11,16 +11,7 @@
 #include "global.h"
 #include <PR/libaudio.h>
 
-static inline u32 PortA_BE32(const void* p) {
-    const u8* b = (const u8*)p;
-    return ((u32)b[0] << 24) | ((u32)b[1] << 16) | ((u32)b[2] << 8) | b[3];
-}
-static inline u16 PortA_BE16(const void* p) {
-    const u8* b = (const u8*)p;
-    return (u16)((b[0] << 8) | b[1]);
-}
-void PortA_Swap32(void* p, u32 count); // big-endian u32 words -> host order, in place
-void PortA_Swap16(void* p, u32 count);
+// Byte-order helpers (Port_ReadBE32, Port_SwapWords, ...) are in port_endian.h, included through global.h.
 
 // 32-bit ids for pointers that the game stores in 32-bit fields (the player's command queue)
 u32 PortA_PtrId(const void* p);
