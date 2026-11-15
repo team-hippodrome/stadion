@@ -29,6 +29,7 @@
 #include "src/rsp.h"
 #include "src/stage_loader.h"
 #include <PR/os_internal_reg.h>
+#include "StadionPort.h"
 
 // .data
 u16 D_80073660[16][256] = {
@@ -384,7 +385,6 @@ s32 pad_D_800AE534[2];
 SessionContext gSessionContext;
 BinArchive* D_800AF738;
 
-extern void Port_FragmentFree(u8* romStart);
 extern u32 port_rom_read_u32(u32 romOffset); // PORT: cartridge ROM is not memory-mapped on the host
 
 s32 Game_DoCopyProtection(s32 state) {
@@ -404,7 +404,8 @@ s32 Fragment_LoadAndCall(s32 arg0, u8* romStart, u8* romEnd, u32 arg3, uintptr_t
     s32 result;
     FragmentEntry func;
 
-    func = Fragment_Load(arg0, romStart, romEnd);
+    // Fragment_Load returns the entry point untyped; fragments started this way take (s32, intptr_t).
+    func = (FragmentEntry)Fragment_Load(arg0, romStart, romEnd);
 
     result = func(arg3, arg4);
 
@@ -1078,14 +1079,6 @@ void State_BattleFromEvent(void) {
 //    PP and HP) and the case's fields (Port_XcheckPatchMon: hp, status, PP, stats ...);
 //  - the arena (BattleScene_Init's stadium_models index), the computer's roster pick (Battle_SelectComRoster: skipped,
 //    the party is as written) and the scripted decisions are hooked in the battle engine.
-extern int Port_BattleBootActive(void);
-extern int Port_BattleBootMon(int side, int slot, int* species, int* level, char* nick);
-extern int Port_BattleBootHasField(int side, int slot, const char* name);
-extern const char* Port_BattleBootTrainer(int side);
-extern int Port_BattleBootScripted(int side);
-extern int Port_BattleBootMode(int* rule, int* ai);
-extern void Port_BattleBootFinished(void);
-extern void Port_XcheckPatchMon(int side, int slot, void* battleMon);
 
 static void PortBattle_BuildSide(int side) {
     TeamRoster* trainer;
@@ -1288,7 +1281,6 @@ void Game_Thread(UNUSED LEODiskID* arg) {
     while (1) {
         state = Game_DoCopyProtection(gCurrentGameState);
         {
-            extern void Port_TraceState(int);
             Port_TraceState((int)state);
         }
 

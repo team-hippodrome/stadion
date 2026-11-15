@@ -2,6 +2,7 @@
 #include "audio_stream.h"
 #include "libnumus/player.h"
 #include "3D140.h"
+#include "StadionPort.h"
 
 #ifdef VERSION_JP
 // The Japanese release stops no audio streams here: it only queues the category fade.

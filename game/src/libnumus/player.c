@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include "StadionPort.h"
 
 typedef u8* (*command_func_t)(channel_t*, u8*);
 typedef u8* (*api_func_t)(u8*);
@@ -420,7 +421,7 @@ u8* Audio_SkipVoiceCommandWord(UNUSED channel_t* cp, u8* ptr) {
 u8* Audio_SetVoiceSubEnvelopePointer(channel_t* cp, u8* ptr) {
     u8* addr =
         (u8*)&cp->song_addr->num_channels +
-        (s32)PortA_BE32(PORT_BLOB_AT(cp->song_addr, cp->song_addr->drum_table) + 4 * *ptr++); // PORT: big-endian table
+        (s32)Port_ReadBE32(PORT_BLOB_AT(cp->song_addr, cp->song_addr->drum_table) + 4 * *ptr++); // PORT: big-endian table
 
     cp->pdrums = addr;
     return ptr;
@@ -650,7 +651,7 @@ s32 Audio_InitializeVoiceManager(musConfig* config) {
         Audio_ResetVoiceState(&mus_channels[i]);
     }
 
-    return heap.cur - heap.base;
+    return (s32)(heap.cur - heap.base);
 }
 
 /**
@@ -749,7 +750,6 @@ s32 Audio_PlaySoundEffect(SoundBank* sample_bank_ptr, fx_t* fx_bank_ptr, s32 eff
     effect_handle = mus_current_handle;
     mus_current_handle++;
     if (PORT_GETENV_ONCE("PORT_TRACE_SFX")) {
-        extern unsigned long long Port_ViTick(void);
         fprintf(stderr, "[sfx] frame %llu handle %u effect %d table %p caller %p\n", Port_ViTick(),
                 (unsigned)effect_handle, (int)effect_id, (void*)fx_bank_ptr, __builtin_return_address(0));
     }
@@ -825,7 +825,6 @@ void Audio_QueueFadeSoundCommand(s32 channel_handle, u32 duration_frames) {
     u8* queue;
     u32 mask;
     if (PORT_GETENV_ONCE("PORT_TRACE_SFX")) {
-        extern unsigned long long Port_ViTick(void);
         fprintf(stderr, "[sfx] frame %llu fade handle %d over %u frames, caller %p\n", Port_ViTick(),
                 (int)channel_handle, (unsigned)duration_frames, __builtin_return_address(0));
     }
@@ -1027,7 +1026,7 @@ void Audio_QueueVoiceVolumeByte(u32 channel_handle, s32 tempo_scale_factor) {
     }
 }
 
-void Audio_RelocateSoundBankWrapper(intptr_t arg0, uintptr_t arg1) { // PORT: arg1 was s32
+void Audio_RelocateSoundBankWrapper(SoundBank* arg0, uintptr_t arg1) { // PORT: arg1 was s32
     Audio_RelocateSoundBank(arg0, arg1);
 }
 
@@ -1043,9 +1042,9 @@ void Audio_RelocateSoundBankTable(bank_remap_descriptor_t* descriptor) {
         return;
     }
 
-    PortA_Swap32(descriptor, 4);
+    Port_SwapWords(descriptor, 4);
     ptr = (u32*)PORT_BLOB_AT(descriptor, descriptor->fx_data);
-    PortA_Swap32(ptr, descriptor->num_entries);
+    Port_SwapWords(ptr, descriptor->num_entries);
 
     descriptor->flags |= 2;
 }
@@ -1059,14 +1058,14 @@ u32 Audio_PortRelocateSong(song_t* song) {
     u32 n;
 
     if (song->channel_data >= 0x10000) {
-        PortA_Swap32(song, 6);
+        Port_SwapWords(song, 6);
         n = song->num_channels;
-        PortA_Swap32(PORT_BLOB_AT(song, song->channel_data), n);
+        Port_SwapWords(PORT_BLOB_AT(song, song->channel_data), n);
         if (song->volume_data != song->channel_data) {
-            PortA_Swap32(PORT_BLOB_AT(song, song->volume_data), n);
+            Port_SwapWords(PORT_BLOB_AT(song, song->volume_data), n);
         }
         if (song->pitchbend_data != song->channel_data && song->pitchbend_data != song->volume_data) {
-            PortA_Swap32(PORT_BLOB_AT(song, song->pitchbend_data), n);
+            Port_SwapWords(PORT_BLOB_AT(song, song->pitchbend_data), n);
         }
     }
     return song->num_channels;
@@ -2063,7 +2062,7 @@ void Audio_ReleaseVoice(channel_t* arg0) {
                     break;
 
                 case 2:
-                    temp_a0 = ((arg0->channel_frame - arg0->note_start_frame) >> 8) - arg0->env_attack_speed;
+                    temp_a0 = (u32)((arg0->channel_frame - arg0->note_start_frame) >> 8) - arg0->env_attack_speed;
                     if (temp_a0 < arg0->env_decay_speed) {
                         arg0->env_current_vol = arg0->env_max_vol + (s32)(arg0->env_decay_calc * temp_a0);
                     } else {
@@ -2090,7 +2089,7 @@ void Audio_ReleaseVoice(channel_t* arg0) {
 }
 
 void Audio_ResetPanModulation(channel_t* cp) {
-    cp->sweep_frame = cp->note_start_frame;
+    cp->sweep_frame = (u32)cp->note_start_frame;
     cp->sweep_counter = 0;
     cp->sweep_direction = cp->sweep_amount & 0x80;
 }
@@ -2241,7 +2240,7 @@ f32 Audio_ExpApproximation(f32 arg0) {
     }
 }
 
-void Audio_RelocateSoundBank(u8* arg0, uintptr_t arg1) { // PORT: arg1 (wave data address) was s32
+void Audio_RelocateSoundBank(void* arg0, uintptr_t arg1) { // PORT: arg1 (wave data address) was s32
     UNUSED s32 pad;
     u32 i;
     f32 var_fv0;
@@ -2385,7 +2384,7 @@ void Audio_FillBytes(u8* arg0, u8 arg1, u32 arg2) {
 }
 
 void Audio_RelocatePointerArray(u8* arg0, u32 arg1, u32 arg2) {
-    u32* ptr = arg0;
+    u32* ptr = (u32*)arg0;
     u32 i;
 
     for (i = 0; i < arg2; i++) {
@@ -2412,7 +2411,7 @@ void Audio_QueueFreeVoice(audio_voice_t* voice) {
         mus_free_voice_1 = mus_free_voice_2 = voice;
         voice->node.next = NULL;
     } else {
-        mus_free_voice_2->node.next = voice;
+        mus_free_voice_2->node.next = &voice->node;
         voice->node.next = NULL;
         mus_free_voice_2 = voice;
     }
@@ -2432,7 +2431,7 @@ audio_voice_t* Audio_DequeueFreeVoice(void) {
     }
 
     voice = mus_free_voice_1;
-    mus_free_voice_1 = mus_free_voice_1->node.next;
+    mus_free_voice_1 = (audio_voice_t*)mus_free_voice_1->node.next; // node is the first member
 
     mus_free_voices_count--;
     return voice;
@@ -2447,9 +2446,9 @@ void Audio_QueueActiveVoice(audio_voice_t* voice) {
         voice->node.next = NULL;
         voice->node.prev = NULL;
     } else {
-        mus_releasing_voice_4->node.next = voice;
+        mus_releasing_voice_4->node.next = &voice->node;
         voice->node.next = NULL;
-        voice->node.prev = mus_releasing_voice_4;
+        voice->node.prev = &mus_releasing_voice_4->node;
         mus_releasing_voice_4 = voice;
     }
 
@@ -2478,22 +2477,22 @@ void Audio_ReclaimExpiredVoices(void) {
                         var_s0->node.next->prev = var_s0->node.prev;
                     } else {
                         var_s0->node.prev->next = NULL;
-                        mus_releasing_voice_4 = var_s0->node.prev;
+                        mus_releasing_voice_4 = (audio_voice_t*)var_s0->node.prev;
                     }
                 } else if (var_s0->node.next != NULL) {
-                    mus_releasing_voice_3 = var_s0->node.next;
+                    mus_releasing_voice_3 = (audio_voice_t*)var_s0->node.next;
                     // FAKE
                     if (!var_s0) {}
                     mus_releasing_voice_3->node.prev = NULL;
                 } else {
                     mus_releasing_voice_3 = mus_releasing_voice_4 = NULL;
                 }
-                temp_s1 = var_s0->node.next;
+                temp_s1 = (audio_voice_t*)var_s0->node.next;
                 mus_releasing_voices_count -= 1;
                 Audio_QueueFreeVoice(var_s0);
                 var_s0 = temp_s1;
             } else {
-                var_s0 = var_s0->node.next;
+                var_s0 = (audio_voice_t*)var_s0->node.next;
             }
         } while (var_s0 != NULL);
     }

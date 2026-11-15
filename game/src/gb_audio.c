@@ -1,6 +1,7 @@
 #include "src/port_audio.h"
 #include "gb_audio.h"
 #include "gb_audio_render.h"
+#include "StadionPort.h"
 
 typedef struct unk_D_800FCD70 {
     /* 0x00 */ u8 unk_00;
@@ -1085,16 +1086,16 @@ void func_80044A50(unk_D_800FC6D4* arg0) {
     unk_80044A50_008* temp_v0;
     if (arg0->flags != 0)
         return;
-    PortA_Swap16(arg0, 4);
-    PortA_Swap32(&arg0->offset, 1);
+    Port_SwapHalves(arg0, 4);
+    Port_SwapWords(&arg0->offset, 1);
     for (i = 0; i < arg0->num_entries; i++) {
-        PortA_Swap16(&arg0->entries[i].unk_00, 1);
+        Port_SwapHalves(&arg0->entries[i].unk_00, 1);
     }
     end = arg0->unk_04;
     records = (u8*)arg0 + arg0->offset;
     for (i = 0; i != (end * 3); i++) {
         temp_v0 = (unk_80044A50_008*)(records + i * 8);
-        PortA_Swap32(&temp_v0->unk_00, 1);
+        Port_SwapWords(&temp_v0->unk_00, 1);
     }
     arg0->flags = 1;
 }

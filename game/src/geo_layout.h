@@ -361,6 +361,6 @@ void geo_layout_cmd_create_shadow_texture(void);      // cmd 35
 void geo_layout_cmd_create_anchor(void);              // cmd 36
 void geo_layout_cmd_set_node_flag4(void);             // cmd 37
 void geo_layout_cmd_create_group(void);               // cmd 38
-GraphNode* process_geo_layout(MemoryBlock*, void*);
+GraphNode* process_geo_layout(MainPoolState*, void*);
 
 #endif // _18480_H_

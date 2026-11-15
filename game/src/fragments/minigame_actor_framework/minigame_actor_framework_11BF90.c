@@ -5,14 +5,10 @@
 #include "src/model_renderer.h"
 #include "src/geo_render.h"
 #include "src/memory.h"
+#include "StadionPort.h"
 
 // PORT: the MiniFx geo callbacks are named by ROM model layouts (through fragment 31's jump table): their callback data
 // is big-endian with 32-bit addresses; converted once (cached by source address).
-extern int Port_IsRawData(const void* p);
-
-static u32 Port_MiniFxBE32(const u8* p) {
-    return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
-}
 
 static arg1_func_87903D64_014* Port_MiniFxColorRamp(void* arg) {
     static struct {
@@ -33,14 +29,14 @@ static arg1_func_87903D64_014* Port_MiniFxColorRamp(void* arg) {
         }
     }
     out = calloc(1, sizeof(*out));
-    out->unk_00 = (s32)Port_MiniFxBE32(p);
+    out->unk_00 = (s32)Port_ReadBE32(p);
     // colour arrays (5-byte prim and 4-byte env entries) are bytes: used in place
-    out->unk_04 = (void*)Util_ConvertAddrToVirtAddr(Port_MiniFxBE32(p + 0x04));
-    out->unk_08 = (void*)Util_ConvertAddrToVirtAddr(Port_MiniFxBE32(p + 0x08));
-    out->unk_0C = (void*)Util_ConvertAddrToVirtAddr(Port_MiniFxBE32(p + 0x0C));
-    out->unk_10 = (void*)Util_ConvertAddrToVirtAddr(Port_MiniFxBE32(p + 0x10));
-    out->unk_14 = (void*)Util_ConvertAddrToVirtAddr(Port_MiniFxBE32(p + 0x14));
-    out->unk_18 = (void*)Util_ConvertAddrToVirtAddr(Port_MiniFxBE32(p + 0x18));
+    out->unk_04 = (void*)Util_ConvertAddrToVirtAddr(Port_ReadBE32(p + 0x04));
+    out->unk_08 = (void*)Util_ConvertAddrToVirtAddr(Port_ReadBE32(p + 0x08));
+    out->unk_0C = (void*)Util_ConvertAddrToVirtAddr(Port_ReadBE32(p + 0x0C));
+    out->unk_10 = (void*)Util_ConvertAddrToVirtAddr(Port_ReadBE32(p + 0x10));
+    out->unk_14 = (void*)Util_ConvertAddrToVirtAddr(Port_ReadBE32(p + 0x14));
+    out->unk_18 = (void*)Util_ConvertAddrToVirtAddr(Port_ReadBE32(p + 0x18));
     if (sCount < 16) {
         sCache[sCount].src = p;
         sCache[sCount].out = out;

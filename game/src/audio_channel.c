@@ -2,6 +2,7 @@
 #include "src/audio_sfx.h"
 #include "src/libnumus/player.h"
 #include "src/3D140.h"
+#include "StadionPort.h"
 
 void Audio_SetChannelVolume(s32 arg0, u32 arg1) {
     if (PORT_AUDIO_OFF()) {

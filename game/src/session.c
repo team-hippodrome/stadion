@@ -203,8 +203,8 @@ BattleMon* Pokemon_CreateDefault(BattleMon* arg0, u8 arg1, s16 arg2) {
 
 void Session_SetupDemoBattle(s16 arg0, s16 arg1, s16 arg2, s16 arg3) {
     s16 spD6;
-    intptr_t spD0;
-    intptr_t spCC;
+    TeamRoster* spD0;
+    TeamRoster* spCC;
     BattleMon sp78;
     BattleMon sp24;
 
@@ -254,9 +254,9 @@ void Team_AddDeckTrainer(s32 arg0, s32 arg1, s32 arg2) {
     char sp34[11];
 
     GbSave_EnsureMainDataLoaded(arg2);
-    GbSave_GetPlayerName(arg2, &sp34);
+    GbSave_GetPlayerName(arg2, sp34);
 
-    temp_s4 = Trainer_Create(arg1, 0, &sp34, Text_GetPlayerLabel(1));
+    temp_s4 = Trainer_Create(arg1, 0, sp34, Text_GetPlayerLabel(1));
     temp_v0 = Deck_Open(0x20, arg2, 0, 0);
 
     if (temp_v0 != NULL) {
@@ -563,7 +563,7 @@ void Session_SaveContinueData(void) {
     sp20.unk_0E = gSessionContext.battleSides[0].tagTeamMember[0]->unk_018;
 
     _bcopy(gSessionContext.opponentHistory[0], &sp20.unk_05, 8);
-    Text_TranscodeNameWrapper(&sp20.unk_10, &gSessionContext.battleSides[0].tagTeamMember[0]->trainerName);
+    Text_TranscodeNameWrapper(sp20.unk_10, gSessionContext.battleSides[0].tagTeamMember[0]->trainerName);
     Session_SaveContinueRecord(&sp20, sp1C->battleMon, sp1C->numberOfPokemonCanBePicked);
     Save_CommitTypedRecord(0x15, 0);
 }

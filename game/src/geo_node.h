@@ -24,9 +24,9 @@ void GeoNode_Init(GraphNode* arg0, u8 arg1);
 void GeoNode_SetCallback(GraphNode* arg0, GraphNodeCallback arg1, void* arg2);
 GraphNode* GeoNode_CreateContainer(MainPoolState* arg0, GraphNode* arg1);
 unk_D_86002F34_alt2* GeoNode_CreateWithReference(MainPoolState* arg0, unk_D_86002F34_alt2* arg1, GraphNode* arg2);
-CameraNode* GeoNode_CreateCamera(MemoryBlock* arg0, CameraNode* arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5);
-unk_D_86002F34_alt13* GeoNode_CreateType3(MemoryBlock* arg0, unk_D_86002F34_alt13* arg1, s16 arg2);
-unk_D_86002F34_alt1* GeoNode_CreateType4(MemoryBlock* arg0, unk_D_86002F34_alt1* arg1, s16 arg2);
+CameraNode* GeoNode_CreateCamera(MainPoolState* arg0, CameraNode* arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5);
+unk_D_86002F34_alt13* GeoNode_CreateType3(MainPoolState* arg0, unk_D_86002F34_alt13* arg1, s16 arg2);
+unk_D_86002F34_alt1* GeoNode_CreateType4(MainPoolState* arg0, unk_D_86002F34_alt1* arg1, s16 arg2);
 unk_D_86002F34_alt14* GeoNode_CreateOrtho(MainPoolState* arg0, unk_D_86002F34_alt14* arg1, s16 arg2);
 unk_D_86002F34_alt15* GeoNode_CreatePerspective(MainPoolState* arg0, unk_D_86002F34_alt15* arg1, s16 arg2);
 unk_D_86002F34_alt16* GeoNode_CreateBackground(MainPoolState* arg0, unk_D_86002F34_alt16* arg1, u8 arg2, u8 arg3,

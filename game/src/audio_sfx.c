@@ -4,6 +4,7 @@
 #include "src/audio_commands_category2.h"
 #include "src/audio_commands.h"
 #include "src/audio_data.h"
+#include "StadionPort.h"
 
 static s32 D_80078A30 = 0;
 static s32 scroll_sfx = 0;

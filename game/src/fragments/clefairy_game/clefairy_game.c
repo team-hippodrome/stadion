@@ -2273,7 +2273,7 @@ void ClefairyGame_WaitForExit(void) {
 
 void ClefairyGame_LoadAssets(void) {
     s32 i;
-    MemoryBlock* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
 
     D_861054B8 = D_8780FA38;
 

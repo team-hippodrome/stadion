@@ -2,6 +2,7 @@
 #include "controller.h"
 #include "gb_tower.h"
 #include "math_util.h"
+#include "StadionPort.h"
 
 Controller* gPlayer1Controller = &gControllers[0];
 Controller* gPlayer2Controller = &gControllers[1];

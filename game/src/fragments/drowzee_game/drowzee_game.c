@@ -832,7 +832,7 @@ void DrowzeeGame_InitCamera(void) {
 
 void DrowzeeGame_InitPlayerOverlays(void) {
     u8 i;
-    MemoryBlock* temp_s5 = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* temp_s5 = MainPool_AllocState(main_pool_get_available(), 0);
 
     for (i = 0; i < 4; i++) {
         D_864052C8 = &D_86404778[i];
@@ -847,7 +847,7 @@ void DrowzeeGame_LoadAssets(void) {
     u8 i;
     u8 x;
     u8 y;
-    MemoryBlock* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
 
     D_87B000E8 = process_geo_layout(temp_v0, D_8640290C);
     MainPool_FinalizeAllocation(temp_v0);

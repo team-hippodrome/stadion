@@ -8,6 +8,7 @@
 #include "src/dp_intro.h"
 #include "src/util.h"
 #include <PR/leo.h>
+#include "StadionPort.h"
 
 typedef enum {
     JPEG_MARKER_START_OF_FRAME = 0xC0,
@@ -142,7 +143,6 @@ void Jpeg_BuildDspOutput(unk_func_80003680_sp90* arg0, u8(arg1)[2][0x80], unk_fu
     arg0->unk_14 = (uintptr_t)&arg1[1];
 }
 
-extern void Port_TraceJpeg(const char* what, int a, int b, int c);
 s32 Jpeg_DecodeImage(uintptr_t addr, s32 arg1, u8* arg2) {
     UnkStruct80001380 sp318;
     unk_func_80003680_sp300 sp300;
@@ -258,7 +258,8 @@ void Dma_ReadChunks(u8* arg0, s32 arg1, s32 arg2, s32 arg3) {
     }
 }
 
-s32 Flash_ProgramPages(u8* arg0, s16 arg1, s16 arg2, s32 arg3) {
+s32 Flash_ProgramPages(void* record, s16 arg1, s16 arg2, s32 arg3) {
+    u8* arg0 = record;
     OSMesg sp44;
     OSMesgQueue* mesq = &D_800A62C0;
 
@@ -481,11 +482,11 @@ void Storage_PrefetchLbaRange(s32 arg0, s32 arg1, s32 arg2) {
     Storage_LoadAssetByLbaRange(&sp1C, arg2);
 }
 
-void Memmap_ClearSegmentOnBlockFree(uintptr_t block_addr, u32 addr) {
+void Memmap_ClearSegmentOnBlockFree(void* block, u32 addr) {
     u32 base = addr & 0xFF000000;
     u32 sp1C = addr & 0xFFFFFF;
 
-    if ((base == 0x82000000) && (Memmap_GetSegmentBaseVaddr(sp1C) == block_addr)) {
+    if ((base == 0x82000000) && (Memmap_GetSegmentBaseVaddr(sp1C) == (uintptr_t)block)) {
         Memmap_ClearSegmentMemmap(sp1C);
     }
 }
@@ -513,14 +514,14 @@ MainPoolBlock* Asset_LoadToSegmentByLbaRange(s32 arg0, s32 arg1, s32 arg2, s32 a
     return temp_v0;
 }
 
-void Fragment_FreeCallback(uintptr_t base_addr, u32 addr) {
-    Port_VFree((void*)base_addr);
+void Fragment_FreeCallback(void* base, u32 addr) {
+    Port_VFree(base);
     u32 sp1C;
     u32 temp_a0;
 
     if ((addr & 0xFF000000) == 0x81000000) {
         sp1C = addr & 0xFFFFFF;
-        if (Memmap_GetFragmentBaseVaddr(sp1C) == base_addr) {
+        if (Memmap_GetFragmentBaseVaddr(sp1C) == (uintptr_t)base) {
             Memmap_ClearFragmentMemmap(sp1C);
         }
     }
@@ -612,13 +613,11 @@ ret_func_80004454 Fragment_Load(s32 arg0, u8* romStart, u8* romEnd) {
     Port_NoteLoadedFragment(arg0, romStart);
     {
         // the N64 reloads a fragment's .data/.bss from ROM on every load (see tools/gen_frag_sections.py)
-        extern void Port_FragmentResetData(void* entry);
         Port_FragmentResetData(Port_FragmentEntry(romStart));
     }
 #ifdef __EMSCRIPTEN__
     {
         // web build: a thunk of FragmentEntry's type (tools/gen_fragment_thunks.py)
-        extern void* Port_FragmentCallable(void* entry);
         return (ret_func_80004454)Port_FragmentCallable(Port_FragmentEntry(romStart));
     }
 #endif
@@ -673,7 +672,6 @@ void Port_NoteLoadedFragment(u32 slot, u8* romStart) {
     if (sTrace < 0)
         sTrace = getenv("PORT_TRACE_FRAGMENTS") != NULL;
     if (sTrace) {
-        extern unsigned long long Port_ViTick(void);
         const struct PortFragmentEntry* e = Port_FindFragment(romStart);
         fprintf(stderr, "[fragment] slot %u: %s @frame %llu\n", (unsigned)slot, e && e->name ? e->name : "?",
                 Port_ViTick());
@@ -702,7 +700,7 @@ uintptr_t Port_CallFragmentLeaf(const void* code, s32 a0, s32 a1) {
     r[5] = (u32)a1;
     r[29] = 0x7FFFFF00u; // scratch stack: stores at sp go to 'stack'
     r[31] = 0xFFFFFFF0u; // return marker
-    insn = ((u32)host[0] << 24) | ((u32)host[1] << 16) | ((u32)host[2] << 8) | host[3];
+    insn = Port_ReadBE32(host);
     if ((insn >> 26) != 2) {
         return 0; // not a "j entry" header
     }
@@ -718,7 +716,7 @@ uintptr_t Port_CallFragmentLeaf(const void* code, s32 a0, s32 a1) {
         if ((uintptr_t)p < 0x100000000ULL) {
             return 0;
         }
-        insn = ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
+        insn = Port_ReadBE32(p);
         op = insn >> 26;
         rs = (insn >> 21) & 31;
         rt = (insn >> 16) & 31;
@@ -826,7 +824,7 @@ uintptr_t Port_CallFragmentLeaf(const void* code, s32 a0, s32 a1) {
                     }
                 }
                 if (op == 0x23)
-                    r[rt] = ((u32)m[0] << 24) | ((u32)m[1] << 16) | ((u32)m[2] << 8) | m[3];
+                    r[rt] = Port_ReadBE32(m);
                 else if (op == 0x21)
                     r[rt] = (u32)(s16)((m[0] << 8) | m[1]);
                 else if (op == 0x25)
@@ -941,7 +939,7 @@ void* Port_ResolveCode(uintptr_t addr) {
         uintptr_t host = Memmap_GetFragmentVaddr((void*)addr);
         if (host >= 0x100000000ULL) {
             const u8* p = (const u8*)host;
-            u32 insn = ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
+            u32 insn = Port_ReadBE32(p);
             if ((insn >> 26) == 2) {
                 // (all 60 targets read their callback data ROM-aware: big-endian records with 32-bit addresses)
                 u32 target = (u32)((addr & 0xF0000000) | ((insn & 0x03FFFFFF) << 2));
@@ -991,14 +989,6 @@ void* Port_HandleToPtr(u32 h) {
 
 // PORT: ROM data is big-endian. Archive headers and file tables are arrays of u32 (the first word holds two u16
 // flags that are zero in the ROM), so byte-swapping them as words is exact.
-static void Port_SwapWords(void* p, u32 count) {
-    u32* w = (u32*)p;
-    while (count-- > 0) {
-        u32 v = *w;
-        *w++ = (v >> 24) | ((v >> 8) & 0xFF00) | ((v << 8) & 0xFF0000) | (v << 24);
-    }
-}
-
 static void BinArchive_SwapHeader(BinArchive* a) {
     u8* b = (u8*)a;
     // the first word is two big-endian u16 (flags, fragment slot id), the other header words are u32

@@ -1,4 +1,5 @@
 #include "battle_engine.h"
+#include "StadionPort.h"
 
 /*
 This file covers these classes of moves:

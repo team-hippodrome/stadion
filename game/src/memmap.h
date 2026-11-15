@@ -40,8 +40,6 @@ void Memmap_SetSegments(Gfx** gfxDl);
 void Memmap_RelocateFragment(u32 id, struct Fragment* fragment);
 u32 Port_VAlloc(void* host, u32 size, u32 link);
 void Port_VFree(void* host);
-void* Port_VResolve(uintptr_t addr);
-int Port_VIsRaw(const void* p);
 u32 Port_VLinkOf(uintptr_t addr);
 u32 Port_VAddrOfLink(void* host, u32 linkAddr);
 u32 Port_RelocateDataBlob(struct Fragment* f);
@@ -52,6 +50,6 @@ uintptr_t Memmap_GetFragmentBaseVaddr(u32 id);
 uintptr_t Memmap_GetFragmentVaddr(void* addr);
 u32 Memmap_GetFragmentVaddrMask(u32 i, uintptr_t addr);
 void Memmap_ClearFragmentMemmap(u32 id);
-uintptr_t Memmap_GetLoadedFragmentVaddr(uintptr_t addr);
+u32 Memmap_GetLoadedFragmentVaddr(uintptr_t addr);
 
 #endif // _MEMMAP_H_

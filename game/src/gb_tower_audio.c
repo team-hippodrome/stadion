@@ -24,11 +24,11 @@ void GbTower_AudioThread(UNUSED void* arg0) {
     void (*tick_func)(void*) = Util_ConvertAddrToVirtAddr(&GbEmu_AudioVideoTick);
 
     __osSetFpcCsr(0x01000C01);
-    Sched_InitClientQueue(gGbTowerAudioThread, 0, 1);
-    Sched_AddClient(gGbTowerAudioThread);
+    Sched_InitClientQueue(&gGbTowerAudioThread->client, 0, 1);
+    Sched_AddClient(&gGbTowerAudioThread->client);
 
     while (1) {
-        Sched_WaitClientQueue(gGbTowerAudioThread);
+        Sched_WaitClientQueue(&gGbTowerAudioThread->client);
         if (D_800A62E0.unk_A38 >= 0x15) {
             continue;
         }
@@ -45,13 +45,13 @@ void GbTower_EmuThread(UNUSED void* arg0) {
     void (*run_frame_func)(void* func) = Util_ConvertAddrToVirtAddr(&GbEmu_RunFrame);
 
     __osSetFpcCsr(0x01000C01);
-    Sched_InitClientQueue(gGbTowerEmuThread, 0, 1);
-    Sched_AddClient(gGbTowerEmuThread);
+    Sched_InitClientQueue(&gGbTowerEmuThread->client, 0, 1);
+    Sched_AddClient(&gGbTowerEmuThread->client);
     init_func(gGbTowerEmuThread);
-    osStartThread(&gGbTowerAudioThread->thread);
+    osStartThread(&gGbTowerAudioThread->client.thread);
 
     while (1) {
-        Sched_WaitClientQueue(gGbTowerEmuThread);
+        Sched_WaitClientQueue(&gGbTowerEmuThread->client);
         if (D_800A62E0.unk_A38 >= 0x15) {
             continue;
         }
@@ -77,21 +77,21 @@ void GbTower_Start(GbTowerSessionParams* params) {
     gGbTowerEmuThread->font2 = BinArchive_GetFile(font_archive, 1);
     gGbTowerEmuThread->session = *params;
     osCreateMesgQueue(&gGbTowerEmuThread->queue2, &gGbTowerEmuThread->mesg, 1);
-    osCreateThread(&gGbTowerAudioThread->thread, 10, GbTower_AudioThread, NULL, (uintptr_t)gGbTowerAudioThread + 0x21E0,
+    osCreateThread(&gGbTowerAudioThread->client.thread, 10, GbTower_AudioThread, NULL, (uintptr_t)gGbTowerAudioThread + 0x21E0,
                    0x11);
-    osCreateThread(&gGbTowerEmuThread->thread, 8, GbTower_EmuThread, NULL, (uintptr_t)gGbTowerEmuThread + 0x21E0, 0xF);
+    osCreateThread(&gGbTowerEmuThread->client.thread, 8, GbTower_EmuThread, NULL, (uintptr_t)gGbTowerEmuThread + 0x21E0, 0xF);
     sSavedPollMask = GbTower_SetPollMask(0);
-    osStartThread(&gGbTowerEmuThread->thread);
+    osStartThread(&gGbTowerEmuThread->client.thread);
 }
 
 /**
  * Blocks until the emulator reports its exit code.
  */
-OSMesg* GbTower_RecvExitMesg(void) {
+s32 GbTower_RecvExitMesg(void) {
     OSMesg mesg;
 
     osRecvMesg(&gGbTowerEmuThread->queue2, &mesg, OS_MESG_BLOCK);
-    return mesg;
+    return (s32)OS_MESG_GET_32(mesg); // the emulator posts its exit code
 }
 
 /**
@@ -103,9 +103,9 @@ void GbTower_Stop(GbTowerSessionParams* params) {
     GbTower_SetPollMask(sSavedPollMask);
     osViBlack(1U);
     Display_ApplyPendingVideoMode();
-    Sched_RemoveClient(gGbTowerEmuThread);
-    Sched_RemoveClient(gGbTowerAudioThread);
-    osDestroyThread(&gGbTowerEmuThread->thread);
-    osDestroyThread(&gGbTowerAudioThread->thread);
+    Sched_RemoveClient(&gGbTowerEmuThread->client);
+    Sched_RemoveClient(&gGbTowerAudioThread->client);
+    osDestroyThread(&gGbTowerEmuThread->client.thread);
+    osDestroyThread(&gGbTowerAudioThread->client.thread);
     main_pool_pop_state('GBEM');
 }

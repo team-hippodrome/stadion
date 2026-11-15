@@ -9,7 +9,8 @@
 
 struct MainPoolBlock;
 
-typedef void (*AllocateFunc)(struct MainPoolBlock*, u32);
+// Called with the block's data pointer (just past the MainPoolBlock header) and the tag set via main_pool_set_func.
+typedef void (*AllocateFunc)(void* data, u32 arg);
 
 typedef struct MainPoolBlock {
     /* 0x00 */ struct MainPoolBlock* prev;
@@ -64,20 +65,26 @@ u32 main_pool_push_state(u32 arg);
 u32 main_pool_pop_state(u32 arg);
 void* main_pool_search(uintptr_t addr, s32* argPtr);
 void main_pool_set_func(void* block, s32 arg, AllocateFunc func);
-size_t main_pool_get_block_dist(MainPoolBlock* block);
+size_t main_pool_get_block_dist(void* data);
 MainPool* main_pool_get_pool(void);
 
 // memory.c
 MemoryPool* mem_pool_try_init(u32 size, s32 side);
-MainPool* mem_pool_init(MainPool* pool, s32 size);
+MemoryPool* mem_pool_init(void* memory, s32 size);
 void* mem_pool_alloc(MemoryPool* node, s32 size);
 
 void mem_pool_free(MemoryPool* pool, void* addr);
-void* MainPool_AllocState(u32 size, s32 side);
+MainPoolState* MainPool_AllocState(u32 size, s32 side);
 void MainPool_FinalizeAllocation(struct MainPoolState* state);
-void* MainPool_InitState(struct MainPoolState* block, s32 size);
+MainPoolState* MainPool_InitState(void* memory, s32 size);
 void* MainPool_AllocAligned(struct MainPoolState* state, s32 arg1, s32 arg2);
 void MainPool_ResetStateToOffset(struct MainPoolState* state, s32 size);
 void MainPool_ResetState(struct MainPoolState* state);
+
+// Bytes handed out by MainPool_AllocAligned since the state was initialised or reset. The decomp read this
+// through a MemoryBlock view of the state as "->size"; in an arena state listHeadL holds this count.
+static inline s32 MainPool_GetUsedSize(struct MainPoolState* state) {
+    return (s32)(uintptr_t)state->listHeadL;
+}
 
 #endif /* _MEMORY_H_ */

@@ -19,7 +19,7 @@ typedef struct unk_arg1_func_80045D60 {
 void Decoding_of_the_coded_Log_Area_Ratios(gsm_state* state, s16 LARc[8], s16 drp[40], s16 signal[160]) {
     s16* LARpp;
 
-    LARpp = &state->LARpp[state->frame_index];
+    LARpp = state->LARpp[state->frame_index];
     LARpp[0] = STEP(LARc[0], -32, 0, 13107);
     LARpp[1] = STEP(LARc[1], -32, 0, 13107);
     LARpp[2] = STEP(LARc[2], -16, -4096, 13107);
@@ -47,7 +47,7 @@ void Gsm_Decoder(gsm_state* state, s16* LARc, s16* Ncr, s16* bcr, s16* Mcr, s16*
         xMcr++;
     }
 
-    Decoding_of_the_coded_Log_Area_Ratios(state, LARc, state, signal);
+    Decoding_of_the_coded_Log_Area_Ratios(state, LARc, (s16*)state, signal); // drp: the sample history at the start of the state
 }
 
 // Unused
@@ -88,12 +88,12 @@ s32 Gsm_Decode(gsm_state* state, unk_arg1_func_80045D60* arg1, s16 signal[160]) 
         sp48[i].unkC = (arg1[i + 1].unk4 >> 3) & 7;
         sp48[i].unkD = arg1[i + 1].unk4 & 7;
     }
-    Gsm_Decoder(state, &LARpp, spC8, spB8, spC0, spB0, sp48, signal);
+    Gsm_Decoder(state, LARpp, spC8, spB8, spC0, spB0, sp48, signal);
     return 0;
 }
 
 // PORT: the bit stream is big-endian 32-bit words
-#define GSM_STREAM_WORD(state, pos) PortA_BE32(&((u32*)(state)->unk_1598)[((pos) >> 5) & 0x3FF])
+#define GSM_STREAM_WORD(state, pos) Port_ReadBE32(&((u32*)(state)->unk_1598)[((pos) >> 5) & 0x3FF])
 
 #define READ_BITS(dst, n)                                                \
     if (bitsLeft > (n)) {                                                \

@@ -6,6 +6,7 @@
 #include "controller.h"
 #include "moves.h"
 #include "status.h"
+#include "StadionPort.h"
 
 #define SELECTED_COMMAND_NONE 0
 #define SELECTED_COMMAND_FIGHT 1
@@ -340,9 +341,6 @@ void BattleScene_AutoSelectAvailableMove(ActivePokemon* pokemon) {
 // (BattleScene_AutoSelectAvailableMove / BattleScene_AutoSelectReplacementMon): a move slot, or a switch to a party
 // slot (state 2, the party menu's result). An empty or unusable choice falls back to the first usable move / healthy
 // mon.
-extern int Port_BattleBootScripted(int side);
-extern int Port_BattleBootThink(void);
-extern int Port_BattleBootNextAction(int side, int consume, int* arg);
 
 static s32 BattleBoot_Switch(ActivePokemon* pokemon, s32 slot) {
     ActivePokemonState* state = &pokemon->state;

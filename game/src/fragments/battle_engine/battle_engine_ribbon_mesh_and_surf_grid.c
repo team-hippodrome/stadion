@@ -3,6 +3,7 @@
 #include "src/gfx_buffer.h"
 #include "src/math_util.h"
 #include "include/math.h"
+#include "StadionPort.h"
 
 typedef struct unk_D_843951D0_1010 {
     /* 0x00 */ f32 unk_00;

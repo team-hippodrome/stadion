@@ -466,7 +466,7 @@ void BattlePrepBadgeAward_StartScatter(unk_D_84B25A90* arg0) {
 }
 
 void BattlePrepBadgeAward_Init(unk_D_84B25A90* arg0) {
-    MemoryBlock* temp_v0;
+    MainPoolState* temp_v0;
 
     arg0->unk_00 = 0;
     arg0->unk_01 = 0;

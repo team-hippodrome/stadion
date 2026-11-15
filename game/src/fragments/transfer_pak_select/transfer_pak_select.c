@@ -859,7 +859,7 @@ void TransferPak_InitPortModels(void) {
 }
 
 void TransferPak_InitScene(void) {
-    MemoryBlock* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
 
     D_8130464C = process_geo_layout(sp1C, &D_81303CB4);
     D_81304648 = process_geo_layout(sp1C, &D_81303EC0);

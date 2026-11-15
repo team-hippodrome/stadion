@@ -376,7 +376,7 @@ void Gallery_RentalViewerUpdatePortIcons(void) {
 }
 
 void Gallery_RentalViewerInitScene(void) {
-    MemoryBlock* temp_s1;
+    MainPoolState* temp_s1;
     s32 i;
     ModelNodeView* temp_v0_2;
     DisplayObject* ptr;

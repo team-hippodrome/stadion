@@ -12,7 +12,7 @@
  * Return NULL if there is not enough space in the main pool.
  */
 MemoryPool* mem_pool_try_init(u32 size, s32 side) {
-    MainPoolBlock* block;
+    void* block;
     MemoryPool* ret;
 
     size = ALIGN4(size);
@@ -30,10 +30,10 @@ MemoryPool* mem_pool_try_init(u32 size, s32 side) {
 // TODO: This function is strange, it cant be using MemoryPool, as it allocates
 // more variables than the MemoryPool struct, and it doesnt line up. Whats going
 // on with these structs?
-MainPool* mem_pool_init(MainPool* mainPool, s32 size) {
+MemoryPool* mem_pool_init(void* memory, s32 size) {
     // PORT: the original wrote through the MainPool view of the same memory, relying on 32-bit pointer offsets
     // (the first free block started at offset 0x28). Build the MemoryPool layout explicitly instead.
-    MemoryPool* pool = (MemoryPool*)mainPool;
+    MemoryPool* pool = memory;
     struct MemoryBlock* first = (struct MemoryBlock*)((u8*)pool + ALIGN16(sizeof(MemoryPool)));
     s32 usable = ALIGN4(size - 3) - (s32)ALIGN16(sizeof(MemoryPool));
 
@@ -45,7 +45,7 @@ MainPool* mem_pool_init(MainPool* mainPool, s32 size) {
     pool->freeList.size = 0;
     osCreateMesgQueue(&pool->queue, &pool->msgs[0], 1);
     osSendMesg(&pool->queue, NULL, 0);
-    return mainPool;
+    return pool;
 }
 
 /**
@@ -58,7 +58,7 @@ void* mem_pool_alloc(MemoryPool* node, s32 size) {
     osRecvMesg(&node->queue, NULL, 1);
 
     addr = NULL;
-    size = ALIGN4(size) + sizeof(struct MemoryBlock);
+    size = ALIGN4(size) + (s32)sizeof(struct MemoryBlock);
     freeBlock = &node->freeList;
 
     while (freeBlock->next != NULL) {
@@ -127,17 +127,16 @@ void mem_pool_free(MemoryPool* pool, void* addr) {
     }
 }
 
-void* MainPool_AllocState(u32 size, s32 side) {
-    MainPoolBlock* block;
-    void* ptr = NULL;
+MainPoolState* MainPool_AllocState(u32 size, s32 side) {
+    void* block;
+    MainPoolState* state = NULL;
 
     size = ALIGN4(size);
-    ptr = 0;
     block = main_pool_alloc(size, side);
     if (block != NULL) {
-        ptr = MainPool_InitState(block, size);
+        state = MainPool_InitState(block, size);
     }
-    return ptr;
+    return state;
 }
 
 // PORT: the arena helpers below view the same memory as MainPoolState and MemoryBlock, which only lines up with
@@ -145,21 +144,21 @@ void* MainPool_AllocState(u32 size, s32 side) {
 // pointer-width arithmetic. In this state listHeadL is the number of bytes handed out (not a pointer),
 // listHeadR is the base, prev is the bump pointer.
 void MainPool_FinalizeAllocation(struct MainPoolState* state) {
-    s32 size = ALIGN16((uintptr_t)state->listHeadL + sizeof(struct MainPoolState));
+    s32 size = (s32)ALIGN16((uintptr_t)state->listHeadL + sizeof(struct MainPoolState));
 
     main_pool_realloc(state, size);
     state->freeSpace = size - sizeof(struct MainPoolState);
 }
 
-void* MainPool_InitState(struct MainPoolState* block, s32 size) {
-    void* temp_v1 = (void*)((u8*)block +
-                            sizeof(struct MainPoolState)); // PORT: header is 0x20 bytes with 64-bit pointers (was 0x10)
+MainPoolState* MainPool_InitState(void* memory, s32 size) {
+    MainPoolState* state = memory;
+    void* data = (u8*)state + sizeof(MainPoolState); // PORT: header is 0x20 bytes with 64-bit pointers (was 0x10)
 
-    block->listHeadL = 0;
-    block->freeSpace = ((size & ~3) - sizeof(struct MainPoolState)); // this doesnt match an ALIGN4 macro or whatnot
-    block->listHeadR = temp_v1;
-    block->prev = temp_v1;
-    return block;
+    state->listHeadL = 0;
+    state->freeSpace = (s32)((size & ~3) - sizeof(MainPoolState)); // this doesnt match an ALIGN4 macro or whatnot
+    state->listHeadR = data;
+    state->prev = data;
+    return state;
 }
 
 void* MainPool_AllocAligned(struct MainPoolState* state, s32 arg1, s32 arg2) {

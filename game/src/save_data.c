@@ -5,11 +5,12 @@
 #include "src/gb_data.h"
 #include "src/jpeg_stream.h"
 #include "src/memory.h"
+#include "StadionPort.h"
 
 static s16 D_800AE4E0;
 static SaveBank D_800AE4E8[4];
 
-void Save_ResetBank(UNUSED MainPoolBlock* arg0, u32 arg1) {
+void Save_ResetBank(UNUSED void* data, u32 arg1) {
     u32 bank_num = arg1 - 'BNK0';
     SaveBank* temp_v0 = &D_800AE4E8[bank_num];
 
@@ -20,7 +21,8 @@ void Save_ResetBank(UNUSED MainPoolBlock* arg0, u32 arg1) {
     }
 }
 
-u16 Save_Checksum(u8* arg0, s32 arg1) {
+u16 Save_Checksum(void* record, s32 arg1) {
+    u8* arg0 = record;
     u16 var_v1 = 0;
 
     while (arg1-- > 2) {
@@ -29,8 +31,9 @@ u16 Save_Checksum(u8* arg0, s32 arg1) {
     return var_v1;
 }
 
-s32 Save_RecordIsValid(u8* arg0, s32 arg1) {
-    u16* temp_v1 = arg1 + arg0;
+s32 Save_RecordIsValid(void* record, s32 arg1) {
+    u8* arg0 = record;
+    u16* temp_v1 = (u16*)(arg0 + arg1);
 
     temp_v1 -= 3;
 
@@ -49,18 +52,19 @@ s32 Save_RecordIsValid(u8* arg0, s32 arg1) {
     return 1;
 }
 
-void Save_WriteFooter(u8* arg0, s32 arg1, s32 arg2) {
+void Save_WriteFooter(void* record, s32 arg1, s32 arg2) {
+    u8* arg0 = record;
     u16* temp_v1;
 
     if (arg2 != 0) {
-        temp_v1 = arg1 + arg0;
+        temp_v1 = (u16*)(arg0 + arg1);
 
         temp_v1 -= 3;
         *temp_v1++ = 'PO';
         *temp_v1++ = 'KE';
         *temp_v1++ = Save_Checksum(arg0, arg1);
     } else {
-        temp_v1 = arg1 + arg0;
+        temp_v1 = (u16*)(arg0 + arg1);
         temp_v1 -= 3;
 
         *temp_v1++ = 'XX';
@@ -69,12 +73,13 @@ void Save_WriteFooter(u8* arg0, s32 arg1, s32 arg2) {
     }
 }
 
-void Save_WriteRecord(u8* arg0, u8* arg1, s32 arg2, s32 arg3) {
+void Save_WriteRecord(void* arg0, void* arg1, s32 arg2, s32 arg3) {
     _bcopy(arg0, arg1, arg2);
     D_800AE4E8[arg3].unk_00 |= 2;
 }
 
-void Save_CommitRecord(u8* arg0, s32 arg1, s32 arg2) {
+void Save_CommitRecord(void* record, s32 arg1, s32 arg2) {
+    u8* arg0 = record;
     if (*arg0 & 2) {
         *arg0 &= ~2;
         Save_WriteFooter(arg0, arg1, 1);
@@ -82,20 +87,23 @@ void Save_CommitRecord(u8* arg0, s32 arg1, s32 arg2) {
     }
 }
 
-void Save_InvalidateRecord(u8* arg0, s32 arg1, s32 arg2) {
+void Save_InvalidateRecord(void* record, s32 arg1, s32 arg2) {
+    u8* arg0 = record;
     if (*arg0 & 2) {
         Save_WriteFooter(arg0, arg1, 0);
         D_800AE4E8[arg2].unk_00 |= 2;
     }
 }
 
-void Save_RestoreRecord(u8* arg0, s32 arg1, s32 arg2) {
-    u32 tmp = arg0 - (u8*)D_800AE4E8[arg2].unk_04.unk1;
+void Save_RestoreRecord(void* record, s32 arg1, s32 arg2) {
+    u8* arg0 = record;
+    u32 tmp = (u32)(arg0 - (u8*)D_800AE4E8[arg2].unk_04.unk1); // offset into the bank
 
     _bcopy(tmp + (u8*)D_800AE4E8[arg2].unk_08.unk1, arg0, arg1);
 }
 
-void Save_ClearRecord(u8* arg0, s32 arg1, s32 arg2) {
+void Save_ClearRecord(void* record, s32 arg1, s32 arg2) {
+    u8* arg0 = record;
     bzero(arg0, arg1);
     *arg0 |= 2;
     D_800AE4E8[arg2].unk_00 |= 2;
@@ -184,7 +192,7 @@ void Save_LoadWithRepair(s32 arg0, s32 arg1) {
 }
 
 void GbSave_LoadBattleMonRecord(BattleMon* arg0, GbPokemonNamedRecord* arg1) {
-    Pokemon_FromGbRecord(arg0, arg1);
+    Pokemon_FromGbRecord(arg0, &arg1->unk_00);
     Pokemon_RecalcStats(arg0);
 
     arg0->unk_52 = 0;
@@ -1024,35 +1032,19 @@ s32 Save_ContinueRecordExists(void) {
 // flash (Save_AllocateBank) and on a copy of the bank when it is programmed (Save_FlushBank). Swapping is its own
 // inverse, so one routine serves both directions. Pokemon entries (GbPokemonNamedRecord) and the gallery's
 // particle slot data are byte arrays in a fixed order and are not touched; the checksum is a byte sum and does
-// not depend on the order.
-static void Save_PortSwap16(u8* p) {
-    u8 t = p[0];
-
-    p[0] = p[1];
-    p[1] = t;
-}
-
-static void Save_PortSwap32(u8* p) {
-    u8 t0 = p[0];
-    u8 t1 = p[1];
-
-    p[0] = p[3];
-    p[1] = p[2];
-    p[2] = t1;
-    p[3] = t0;
-}
+// not depend on the order. Single fields use Port_SwapHalves/Port_SwapWords (port_endian.h) with a count of 1.
 
 // Footer: 'PO' 'KE' (or 'XX' 'XX') and the checksum, three u16 at the end of the record.
 static void Save_PortSwapFooter(u8* rec, s32 size) {
-    Save_PortSwap16(rec + size - 6);
-    Save_PortSwap16(rec + size - 4);
-    Save_PortSwap16(rec + size - 2);
+    Port_SwapHalves(rec + size - 6, 1);
+    Port_SwapHalves(rec + size - 4, 1);
+    Port_SwapHalves(rec + size - 2, 1);
 }
 
 // Registered team, Lab box and item box: DeckRecordHeader trainer ID (0x0C) and count (0x0E).
 static void Save_PortSwapDeckRecord(u8* rec, s32 size) {
-    Save_PortSwap16(rec + 0x0C);
-    Save_PortSwap16(rec + 0x0E);
+    Port_SwapHalves(rec + 0x0C, 1);
+    Port_SwapHalves(rec + 0x0E, 1);
     Save_PortSwapFooter(rec, size);
 }
 
@@ -1064,18 +1056,19 @@ static void Save_PortSwapPhotoRecord(u8* rec, s32 size, s32 count) {
     for (i = 0; i < count; i++) {
         u8* photo = rec + 2 + i * 0x8C;
 
-        Save_PortSwap32(photo + 0x00); // f32 model Y
-        Save_PortSwap16(photo + 0x06); // s16 animation frame
+        Port_SwapWords(photo + 0x00, 1); // f32 model Y
+        Port_SwapHalves(photo + 0x06, 1); // s16 animation frame
         for (k = 0; k < 6; k++) {
-            Save_PortSwap32(photo + 0x50 + k * 4); // Vec3f unk_50, unk_5C
+            Port_SwapWords(photo + 0x50 + k * 4, 1); // Vec3f unk_50, unk_5C
         }
-        Save_PortSwap32(photo + 0x68); // u32
-        Save_PortSwap16(photo + 0x70); // u16 OT ID
+        Port_SwapWords(photo + 0x68, 1); // u32
+        Port_SwapHalves(photo + 0x70, 1); // u16 OT ID
     }
     Save_PortSwapFooter(rec, size);
 }
 
-static void Save_PortSwapBank(s16 bank, u8* buf) {
+static void Save_PortSwapBank(s16 bank, void* bank_data) {
+    u8* buf = bank_data;
     s32 i;
     u8* rec;
 
@@ -1094,22 +1087,22 @@ static void Save_PortSwapBank(s16 bank, u8* buf) {
 
             rec = buf + 0x0DC0; // Victory Palace: u16 OT ID of each 0x1A entry
             for (i = 0; i < 151; i++) {
-                Save_PortSwap16(rec + 2 + i * 0x1A + 0x02);
+                Port_SwapHalves(rec + 2 + i * 0x1A + 0x02, 1);
             }
             Save_PortSwapFooter(rec, 0xF60);
 
             rec = buf + 0x1D20; // saved battle: session trainer ID, team count
-            Save_PortSwap16(rec + 0x02 + 0x0E);
-            Save_PortSwap16(rec + 0x22);
+            Port_SwapHalves(rec + 0x02 + 0x0E, 1);
+            Port_SwapHalves(rec + 0x22, 1);
             Save_PortSwapFooter(rec, 0x180);
 
             rec = buf + 0x1EA0; // options and progress
-            Save_PortSwap16(rec + 0x02);
-            Save_PortSwap16(rec + 0x04);
-            Save_PortSwap32(rec + 0x08);
-            Save_PortSwap16(rec + 0x0C);
-            Save_PortSwap16(rec + 0x14);
-            Save_PortSwap16(rec + 0x1C);
+            Port_SwapHalves(rec + 0x02, 1);
+            Port_SwapHalves(rec + 0x04, 1);
+            Port_SwapWords(rec + 0x08, 1);
+            Port_SwapHalves(rec + 0x0C, 1);
+            Port_SwapHalves(rec + 0x14, 1);
+            Port_SwapHalves(rec + 0x1C, 1);
             Save_PortSwapFooter(rec, 0x28);
 
             Save_PortSwapPhotoRecord(buf + 0x1EC8, 0x13B8, 36);
@@ -1135,9 +1128,6 @@ static u8* Save_PortFlashImage(s16 bank, u8* src, u32 size) {
     Save_PortSwapBank(bank, sFlashImage);
     return sFlashImage;
 }
-
-extern void Port_BeginFlashBankWrite(void);
-extern void Port_EndFlashBankWrite(void);
 
 static s32 Save_FlushBankPages(s16 arg0) {
     static u32 D_80073650[] = {
@@ -1223,14 +1213,14 @@ s32 Save_FlushDirtyBanks(void) {
 
 s32 Save_AllocateBank(s16 arg0, u32 arg1) {
     s32 sp2C = 0;
-    u8* sp28;
+    void* sp28;
 
     if (D_800AE4E8[arg0].unk_04.unk1 == NULL) {
         sp28 = main_pool_alloc_with_func(arg1 * 2, 0, 'BNK0' + arg0, Save_ResetBank);
         if (sp28 != NULL) {
             bzero(sp28, arg1 * 2);
             D_800AE4E8[arg0].unk_04.unk1 = sp28;
-            D_800AE4E8[arg0].unk_08.unk1 = sp28 + arg1;
+            D_800AE4E8[arg0].unk_08.unk1 = (void*)((u8*)sp28 + arg1);
             Flash_ProgramPages(sp28, arg0 << 7, arg1 >> 7, 0);
             Flash_ProgramPages(D_800AE4E8[arg0].unk_08.unk1, (arg0 << 7) + 0x200, arg1 >> 7, 0);
             Save_PortSwapBank(arg0, sp28); // PORT: flash (N64) order -> host order

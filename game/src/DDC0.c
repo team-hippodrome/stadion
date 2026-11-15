@@ -12,10 +12,11 @@
 #include "src/audio_loop_point.h"
 #include "src/3D140.h"
 #include "src/port_audio.h"
+#include "StadionPort.h"
 
 typedef struct unk_D_800A8480 {
-    /* 0x0000 */ OSThread thread;
-    /* 0x01B0 */ char unk01B0[0x2030];
+    /* 0x0000 */ SchedClient client;
+    /* 0x01E0 */ char stack[0x2000];
 } unk_D_800A8480; // size = 0x21E0
 
 static s32 D_800A83A0;
@@ -101,8 +102,8 @@ void Audio_Enable(void) {
 
 void Audio_ThreadMain(void* unused) {
     __osSetFpcCsr(0x01000C01);
-    Sched_InitClientQueue(&D_800A8480.thread, 1, 1);
-    Sched_AddClient(&D_800A8480.thread);
+    Sched_InitClientQueue(&D_800A8480.client, 1, 1);
+    Sched_AddClient(&D_800A8480.client);
     D_800A83A0 = 1;
     D_800A847C = -1;
     D_800A8478 = 0;
@@ -118,7 +119,7 @@ void Audio_ThreadMain(void* unused) {
 
     // thread loop
     while (1) {
-        Sched_WaitClientQueue(&D_800A8480.thread);
+        Sched_WaitClientQueue(&D_800A8480.client);
         profiler_log_thread4_time();
         if ((D_800A83A0 != 0) && (D_800A62E0.unk_A38 < 0x15)) {
             if (!PORT_AUDIO_OFF()) {
@@ -137,6 +138,6 @@ void Audio_StartThread(void) {
     if (PORT_AUDIO_OFF()) {
         Audio_PortInitDummyQueue();
     }
-    osCreateThread(&D_800A8480.thread, 4, Audio_ThreadMain, NULL, &gGbTowerEmuThread, 0x50);
-    osStartThread(&D_800A8480.thread);
+    osCreateThread(&D_800A8480.client.thread, 4, Audio_ThreadMain, NULL, &gGbTowerEmuThread, 0x50);
+    osStartThread(&D_800A8480.client.thread);
 }

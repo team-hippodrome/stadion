@@ -2491,7 +2491,7 @@ void MiniGameSelect_MainLoop(s16 arg0, s16 arg1) {
 }
 
 void MiniGameSelect_LoadScene(void) {
-    MemoryBlock* temp_v0;
+    MainPoolState* temp_v0;
 
     D_82508AF8 = &D_82508B00;
     temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);

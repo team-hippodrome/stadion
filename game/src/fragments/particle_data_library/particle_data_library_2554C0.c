@@ -6,8 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "src/util.h"
-
-extern int Port_IsRawData(const void* p);
+#include "StadionPort.h"
 
 static uintptr_t Port_PdlAddr(u32 v) {
     if (v < 0x10000000U) {
@@ -59,7 +58,7 @@ uintptr_t* Port_PdlWords(void* arg) {
     memcpy(sCache[slot].raw, p, sizeof(sCache[slot].raw));
     for (i = 0; i < 10; i++) {
         out[i] =
-            Port_PdlAddr(((u32)p[i * 4] << 24) | ((u32)p[i * 4 + 1] << 16) | ((u32)p[i * 4 + 2] << 8) | p[i * 4 + 3]);
+            Port_PdlAddr(Port_ReadBE32(p + i * 4));
     }
     return out;
 }

@@ -41,6 +41,7 @@
 #include <vector>
 #include <algorithm>
 #include <sys/stat.h>
+#include "StadionPort.h"
 #if defined(_WIN32)
 #include <direct.h>
 #define mkdir(path, mode) _mkdir(path)
@@ -51,10 +52,8 @@ extern "C" const unsigned gPortHostSymbolCount;
 #include <dlfcn.h>
 #endif
 
-extern "C" unsigned long long Port_ViTick(void);
 extern "C" void Port_XcheckWaitRetraces(uint64_t retraces);
 extern "C" unsigned long long osGetTime(void);         // libultra (port_os)
-extern "C" void Port_GuRandomSeed(unsigned int seed); // game/lib/ultralib/src/gu/random.c
 extern "C" int gPortXcheckTraceGuRandom;              // (below)
 extern "C" unsigned int sParticleFrameCounter;        // particle_math: free-running effect frame counter
 extern "C" unsigned short D_8006F084;                 // geo_render: the scene frame counter (GeoRender_AdvanceFrameCounter)
@@ -369,7 +368,7 @@ int Port_XcheckRandom(int fn, int arg, int* out, void* caller) {
         case 4: r = arg <= 0 ? 0 : v % (uint32_t)arg; break;                    // 0..arg-1
     }
     if (g.out) {
-        fprintf(g.out, "R %s %u %d %u frame=%llu gf=%llu caller=%s\n", kRandomNames[fn], k, arg, r, Port_ViTick(),
+        fprintf(g.out, "R %s %u %d %u frame=%llu gf=%llu caller=%s\n", kRandomNames[fn], k, arg, r, (unsigned long long)Port_ViTick(),
                 g.gameFrame, from);
         fflush(g.out);
     }
@@ -412,13 +411,13 @@ void Port_XcheckWriteEvent(const char* name, const void* state0, const void* sta
     Init();
     EndCapture(); // a move animation is captured up to the next event
     if (strcmp(name, "turn") == 0 && g.stopTurns > 0 && g.turns++ >= g.stopTurns) {
-        if (g.out) fprintf(g.out, "S turns=%d frame=%llu gf=%llu\n", g.stopTurns, Port_ViTick(), g.gameFrame);
+        if (g.out) fprintf(g.out, "S turns=%d frame=%llu gf=%llu\n", g.stopTurns, (unsigned long long)Port_ViTick(), g.gameFrame);
         if (g.out) fflush(g.out);
-        fprintf(stderr, "[xcheck] %d turns done, stopping at frame %llu\n", g.stopTurns, Port_ViTick());
+        fprintf(stderr, "[xcheck] %d turns done, stopping at frame %llu\n", g.stopTurns, (unsigned long long)Port_ViTick());
         _exit(0);
     }
     if (!g.out) return;
-    fprintf(g.out, "E %u %s frame=%llu gf=%llu st0=%s st1=%s scene=%s dmg=%u mq=%s\n", g.events++, name, Port_ViTick(),
+    fprintf(g.out, "E %u %s frame=%llu gf=%llu st0=%s st1=%s scene=%s dmg=%u mq=%s\n", g.events++, name, (unsigned long long)Port_ViTick(),
             g.gameFrame,
             Hex(state0, 0xC8).c_str(), Hex(state1, 0xC8).c_str(), Hex(scene, 0xDC).c_str(), damage,
             messageQueues ? Hex(messageQueues, 0x480).c_str() : "");
@@ -430,7 +429,7 @@ void Port_XcheckMoveAnim(int side, int move) {
     Init();
     if (g.out) {
         fprintf(g.out, "A %d move=%d side=%d frame=%llu gf=%llu pfc=%u gfc=%u mtc=%d\n", g.animCount, move, side,
-                Port_ViTick(), g.gameFrame, sParticleFrameCounter, (unsigned)D_8006F084, (int)D_800AF7AE);
+                (unsigned long long)Port_ViTick(), g.gameFrame, sParticleFrameCounter, (unsigned)D_8006F084, (int)D_800AF7AE);
         fflush(g.out);
     }
     // guRandom (MathUtil_Random16: the effects' particles) from the same state on both sides, as the ares driver does
@@ -664,7 +663,7 @@ void Port_XcheckGameFrame(void) {
     }
     // "V <battle game frame> <VI frame>", as the ares driver. The runner can replay its retrace gaps so sound
     // commands run on the observed N64 timeline while the mixer retains its original sample clock.
-    if (g.out) fprintf(g.out, "V %llu %llu\n", g.gameFrame, Port_ViTick());
+    if (g.out) fprintf(g.out, "V %llu %llu\n", g.gameFrame, (unsigned long long)Port_ViTick());
 }
 
 // Engine.cpp, once per presented frame: where to write this frame (null: not captured); the first presented frame of

@@ -1648,7 +1648,7 @@ void SushiGame_UpdateNameTagSpringEffect(UNUSED unk_D_86807558* arg0, unk_D_8680
 
 void SushiGame_InitPlayerSlots(s32 arg0) {
     s32 i;
-    MemoryBlock* temp_v0;
+    MainPoolState* temp_v0;
 
     for (i = 0; i < 4; i++) {
         D_86808438[i] = 0;

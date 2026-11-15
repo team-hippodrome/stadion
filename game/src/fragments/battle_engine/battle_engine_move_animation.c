@@ -18,6 +18,7 @@
 #include "moves.h"
 #include "pokemon.h"
 #include "status.h"
+#include "StadionPort.h"
 
 static PokemonBattleCues sSide1BattleCues;
 static PokemonBattleCues sSide2BattleCues;
@@ -499,14 +500,6 @@ void Battle_DmaLoadSpeciesLearnsets(s32 species_index, SpeciesLearnsetBuffer* re
 }
 
 // PORT: the per-species records below are copied raw from the big-endian ROM: swap their f32 words and s16 halves.
-static void Port_SwapWords(void* p, s32 n) {
-    u32* w = p;
-    while (n-- > 0) {
-        *w = Port_Swap32(*w);
-        w++;
-    }
-}
-
 static void Port_SwapSpeciesModelTransform(SpeciesModelTransform* t) {
     Port_SwapWords(&t->coordinates, 3);
     t->rotationX = Port_Swap16(t->rotationX);

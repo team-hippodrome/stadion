@@ -1,0 +1,18 @@
+# Fast source checks on every pull request (seconds, no build). The full builds stay manual in build.yml.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  port-boundary:
+    # Port_* functions are declared once, in src/port/StadionPort.h; game code includes it instead of declaring them
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/check_port_decls.py

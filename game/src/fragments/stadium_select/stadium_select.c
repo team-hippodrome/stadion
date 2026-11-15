@@ -917,7 +917,7 @@ void StadiumSelect_InitGeoLayouts(void) {
     s32 i;
     DisplayObject* ptr;
     DisplayObject* ptr2;
-    MemoryBlock* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
 
     D_84103454 = process_geo_layout(temp_v0, sMenuGeoLayoutRoot);
     D_84103CE8 = process_geo_layout(temp_v0, sMenuBarGeoLayout);

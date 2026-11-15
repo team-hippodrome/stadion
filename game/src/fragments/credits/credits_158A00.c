@@ -18,6 +18,7 @@
 #include "src/fragments/particle_math/particle_math.h"
 #include "src/memory.h"
 #include "src/stage_loader.h"
+#include "StadionPort.h"
 
 typedef struct unk_D_86A02700 {
     /* 0x00 */ u16 unk_00;
@@ -201,7 +202,7 @@ void Credits_SetBackgroundTint(u8 r, u8 g, u8 b) {
 }
 
 void Credits_LoadBackgroundScene(s8 arg0, u8 arg1) {
-    MemoryBlock* sp2C;
+    MainPoolState* sp2C;
     FragmentEntry sp28;
     u32* temp_v0;
     unk_D_8690A610_018* temp_v0_4;
@@ -1498,8 +1499,8 @@ void Credits_InitCamera(void) {
 }
 
 void Credits_InitScene(s32 arg0) {
-    MemoryBlock* sp2C;
-    MemoryBlock* temp_v0;
+    MainPoolState* sp2C;
+    MainPoolState* temp_v0;
 
     D_86A061DC = ASSET_LOAD2(stadium_models, 1, 1);
     GeoNode_CreateFog(0, &D_86A06170, 0x3C0, 0x3E8, 0xFF, 0xFF, 0xFF, 0xFF);

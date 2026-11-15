@@ -173,7 +173,7 @@ void BattlePrep_StartTrophyModelShrink(unk_D_84B26640_010* arg0) {
 }
 
 void BattlePrep_InitTrophyModel(unk_D_84B26640_010* arg0, u8 arg1) {
-    MemoryBlock* sp2C;
+    MainPoolState* sp2C;
 
     arg0->unk_00 = 0;
     arg0->unk_01 = 0;

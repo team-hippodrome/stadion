@@ -3,6 +3,7 @@
 #include "src/audio_stream.h"
 #include "src/rom_device.h"
 #include "src/3D140.h"
+#include "StadionPort.h"
 
 extern u8 D_80078400;
 
@@ -1094,7 +1095,7 @@ void Cry_Play(u32 species, u32 cry_mode) {
     }
 
     if (D_80079364 == 1) {
-        Rom_DmaRead(D_800FC704->seqArray[0].offset, D_800FC708, 0x4BC);
+        Rom_DmaRead((uintptr_t)D_800FC704->seqArray[0].offset, D_800FC708, 0x4BC);
         alSeqFileNew(D_800FC708, D_800FC704->seqArray[0].offset);
         D_80079364 = 0;
     }
@@ -1242,7 +1243,7 @@ void Cry_Play(u32 species, u32 cry_mode) {
             break;
     }
 
-    AudioStream_Start(0, D_800FC708->seqArray[species - 1].offset, sp24, var_a3);
+    AudioStream_Start(0, (u32)(uintptr_t)D_800FC708->seqArray[species - 1].offset, sp24, var_a3); // ROM offset
 }
 
 void Cry_PlayVariant4(u32 arg0) {

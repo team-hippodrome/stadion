@@ -172,7 +172,7 @@ Acmd* n_alAdpcmPull(N_PVoice* filter, s16* outp, s32 outCount, Acmd* p) {
      * overFlow is the number of bytes past the end
      * of the bitstream I try to generate
      */
-    overFlow = f->dc_memin + nbytes - ((intptr_t)f->dc_table->base + f->dc_table->len);
+    overFlow = (s32)(f->dc_memin + nbytes - ((intptr_t)f->dc_table->base + f->dc_table->len));
     if (overFlow < 0) {
         overFlow = 0;
     }
@@ -287,6 +287,7 @@ s32 n_alLoadParam(N_PVoice* filter, s32 paramID, void* param) {
         default:
             break;
     }
+    return 0; // PORT: no return value in the original; every caller ignores it
 }
 
 Acmd* _decodeChunk(Acmd* ptr, N_PVoice* f, s32 tsam, s32 nbytes, s16 outp, s16 inp, u32 flags) {

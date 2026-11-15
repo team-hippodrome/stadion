@@ -1,5 +1,6 @@
 #include "src/port_audio.h"
 #include "audio_stream.h"
+#include "StadionPort.h"
 
 // GSM stream channel state for AudioStream_*: opening, DMA refill and decode, and sample
 // consumption. A separate file because the Japanese ROM pads AudioStream_DmaReadChunk's end
@@ -47,9 +48,9 @@ void AudioStream_RefillAndDecode(unk_D_800FCED8* arg0) {
     if ((arg0->unk_25D0 != 0) && (osRecvMesg(&arg0->unk_25A0, NULL, 0) >= 0)) {
         if (arg0->unk_25C4 == 0) {
             // PORT: the stream header is big-endian
-            arg0->unk_2598 = (PortA_BE32(&arg0->unk_1598[0].unk_04) >> 0x10) & 0xFFFF;
-            arg0->unk_259A = PortA_BE32(&arg0->unk_1598[0].unk_04) & 0xFFFF;
-            arg0->unk_259C = PortA_BE32(&arg0->unk_15A0) & 0xFFFFFF;
+            arg0->unk_2598 = (Port_ReadBE32(&arg0->unk_1598[0].unk_04) >> 0x10) & 0xFFFF;
+            arg0->unk_259A = Port_ReadBE32(&arg0->unk_1598[0].unk_04) & 0xFFFF;
+            arg0->unk_259C = Port_ReadBE32(&arg0->unk_15A0) & 0xFFFFFF;
             arg0->unk_25BC = 0x60;
         }
 

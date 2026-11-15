@@ -3164,7 +3164,7 @@ void Pak_PollPortStatus(void) {
 
 void TransferPak_InitMenuGraphics(void) {
     s32 i;
-    MemoryBlock* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
     DisplayObject* var_s1;
 
     D_82D09FF0 = process_geo_layout(temp_v0, &D_82D06FA4);

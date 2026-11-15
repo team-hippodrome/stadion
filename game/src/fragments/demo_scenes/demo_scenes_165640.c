@@ -22,6 +22,7 @@
 #include "src/stage_loader.h"
 #include "src/util.h"
 #include "src/gb_save.h"
+#include "StadionPort.h"
 
 extern u8 D_3000180[];
 extern u8 D_3000780[];
@@ -998,7 +999,7 @@ void Intro_FadeOutSequence(void) {
 }
 
 void Stage_LoadModels(void) {
-    MemoryBlock* sp34;
+    MainPoolState* sp34;
     UNUSED s32 pad;
     FragmentEntry sp2C;
     void* temp_v0_3;

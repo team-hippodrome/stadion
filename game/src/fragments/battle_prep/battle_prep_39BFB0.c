@@ -1189,7 +1189,7 @@ void BattlePrepTeamIcons_LoadIconTexturesDouble(unk_D_84B25A58* arg0) {
 }
 
 void BattlePrepTeamIcons_Init(unk_D_84B25A58* arg0) {
-    MemoryBlock* sp2C;
+    MainPoolState* sp2C;
     s32 i;
 
     arg0->unk_00 = 0;

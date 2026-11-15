@@ -21,6 +21,7 @@
 #include <cstring>
 #include <thread>
 #include <csignal>
+#include "StadionPort.h"
 #if defined(_WIN32)
 #include <exception>
 #include <io.h>
@@ -41,7 +42,6 @@
 #endif
 
 extern "C" void Main(void);
-extern "C" uint64_t Port_ViTick();
 extern "C" void Port_InputFinish(); // game entry (src/main.c): starts libultra and the idle thread
 extern "C" void Port_ReserveLowAddressSpace(void);
 

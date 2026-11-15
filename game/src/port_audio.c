@@ -3,22 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-void PortA_Swap32(void* p, u32 count) {
-    u32* w = (u32*)p;
-    u32 i;
-    for (i = 0; i < count; i++) {
-        w[i] = PortA_BE32(&w[i]);
-    }
-}
-
-void PortA_Swap16(void* p, u32 count) {
-    u16* h = (u16*)p;
-    u32 i;
-    for (i = 0; i < count; i++) {
-        h[i] = PortA_BE16(&h[i]);
-    }
-}
+#include "StadionPort.h"
 
 // ---- pointer ids ----------------------------------------------------------------------------------------------
 #define PORTA_MAX_IDS 4096
@@ -127,9 +112,9 @@ PortSoundBank* PortA_RelocateSoundBank(void* blobv, uintptr_t waveRomBase) {
     if (*flags & 1) {
         return NULL; // already relocated (host order)
     }
-    *flags = PortA_BE32(flags) | 1;
-    count = (s32)PortA_BE32(blob + SB_COUNT);
-    waveListOff = PortA_BE32(blob + SB_WAVELIST);
+    *flags = Port_ReadBE32(flags) | 1;
+    count = (s32)Port_ReadBE32(blob + SB_COUNT);
+    waveListOff = Port_ReadBE32(blob + SB_WAVELIST);
     if (count < 0 || count > 0x1000) {
         fprintf(stderr, "[audio] bad sound bank %p (count %d)\n", (void*)blob, (int)count);
         return NULL;
@@ -138,7 +123,7 @@ PortSoundBank* PortA_RelocateSoundBank(void* blobv, uintptr_t waveRomBase) {
     hash = HashBytes(2166136261u, &waveRomBase, sizeof(waveRomBase));
     hash = HashBytes(hash, blob + SB_COUNT, 16);
     for (i = 0; i < count; i++) {
-        u32 off = PortA_BE32(blob + waveListOff + 4 * i);
+        u32 off = Port_ReadBE32(blob + waveListOff + 4 * i);
         hash = HashBytes(hash, &off, 4);
         if (off != 0) {
             hash = HashBytes(hash, blob + off, 20);
@@ -154,11 +139,11 @@ PortSoundBank* PortA_RelocateSoundBank(void* blobv, uintptr_t waveRomBase) {
     if (bank == NULL) {
         bank = calloc(1, sizeof(PortSoundBank));
         bank->count = count;
-        bank->basenote = blob + PortA_BE32(blob + SB_BASENOTE);
-        bank->detune = (f32*)(blob + PortA_BE32(blob + SB_DETUNE));
+        bank->basenote = blob + Port_ReadBE32(blob + SB_BASENOTE);
+        bank->detune = (f32*)(blob + Port_ReadBE32(blob + SB_DETUNE));
         bank->wave_list = calloc(count > 0 ? count : 1, sizeof(ALWaveTable*));
         for (i = 0; i < count; i++) {
-            u32 off = PortA_BE32(blob + waveListOff + 4 * i);
+            u32 off = Port_ReadBE32(blob + waveListOff + 4 * i);
             const u8* w = blob + off;
             s32 j;
             ALWaveTable* wt = NULL;
@@ -166,18 +151,18 @@ PortSoundBank* PortA_RelocateSoundBank(void* blobv, uintptr_t waveRomBase) {
                 continue;
             }
             for (j = 0; j < i; j++) { // wave tables shared between entries stay shared
-                if (PortA_BE32(blob + waveListOff + 4 * j) == off) {
+                if (Port_ReadBE32(blob + waveListOff + 4 * j) == off) {
                     wt = bank->wave_list[j];
                     break;
                 }
             }
             if (wt == NULL) {
-                u32 base = PortA_BE32(w + 0);
-                u32 loop = PortA_BE32(w + 12);
-                u32 book = PortA_BE32(w + 16);
+                u32 base = Port_ReadBE32(w + 0);
+                u32 loop = Port_ReadBE32(w + 12);
+                u32 book = Port_ReadBE32(w + 16);
                 wt = calloc(1, sizeof(ALWaveTable));
                 wt->base = (u8*)(((base & 0xFF000000) != 0xFF000000) ? (uintptr_t)base + waveRomBase : (uintptr_t)base);
-                wt->len = (s32)PortA_BE32(w + 4);
+                wt->len = (s32)Port_ReadBE32(w + 4);
                 wt->type = w[8];
                 wt->flags = 1;
                 wt->waveInfo.adpcmWave.loop = loop != 0 ? (ALADPCMloop*)(blob + loop) : NULL;
@@ -200,25 +185,25 @@ PortSoundBank* PortA_RelocateSoundBank(void* blobv, uintptr_t waveRomBase) {
     // loops and books live in the (freshly loaded, big-endian) blob: byte-swap them in place
     swapped = calloc(2 * (count > 0 ? count : 1), sizeof(u32));
     for (i = 0; i < count; i++) {
-        u32 off = PortA_BE32(blob + waveListOff + 4 * i);
+        u32 off = Port_ReadBE32(blob + waveListOff + 4 * i);
         const u8* w = blob + off;
         u32 loop, book;
         if (off == 0) {
             continue;
         }
-        loop = PortA_BE32(w + 12);
-        book = PortA_BE32(w + 16);
+        loop = Port_ReadBE32(w + 12);
+        book = Port_ReadBE32(w + 16);
         if (loop != 0 && MarkSwapped(swapped, &numSwapped, 2 * count, loop)) {
-            PortA_Swap32(blob + loop, 3);
+            Port_SwapWords(blob + loop, 3);
             if (w[8] == AL_ADPCM_WAVE) {
-                PortA_Swap16(blob + loop + 12, 16);
+                Port_SwapHalves(blob + loop + 12, 16);
             }
         }
         if (w[8] == AL_ADPCM_WAVE && book != 0 && MarkSwapped(swapped, &numSwapped, 2 * count, book)) {
             ALADPCMBook* b = (ALADPCMBook*)(blob + book);
-            PortA_Swap32(b, 2);
+            Port_SwapWords(b, 2);
             if (b->order > 0 && b->order <= 16 && b->npredictors > 0 && b->npredictors <= 16) {
-                PortA_Swap16(b->book, (u32)(b->order * b->npredictors * 8));
+                Port_SwapHalves(b->book, (u32)(b->order * b->npredictors * 8));
             } else {
                 fprintf(stderr, "[audio] bank %p: odd ADPCM book %d x %d\n", (void*)blob, (int)b->order,
                         (int)b->npredictors);

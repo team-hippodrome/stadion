@@ -770,7 +770,7 @@ void TeamSelection_TrainerSlots_PollGameBoySaves(void) {
 
 s32 TeamSelection_TrainerSlots_Initialize(s16 arg0) {
     s32 i;
-    MemoryBlock* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
     DisplayObject* var_s2;
 
     D_8423D400 = process_geo_layout(temp_v0, D_84210DF4);

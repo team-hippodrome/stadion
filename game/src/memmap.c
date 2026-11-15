@@ -2,13 +2,12 @@
 #include <stdlib.h>
 #include "global.h"
 #include "memmap.h"
+#include "StadionPort.h"
 
 struct MemoryMap {
     uintptr_t vaddr;
     size_t size;
 };
-
-extern void Port_GfxFlushCache(void);
 
 /*
  * PORT: virtual 32-bit address space for data blobs (models) that the game relocates into RAM and keeps several of at
@@ -132,7 +131,7 @@ u32 Port_RelocateDataBlob(struct Fragment* f) {
         u32 reloc = PORT_BE32(tbl->relocations[i]);
         if (((reloc & 0x7F000000) >> 24) == R_MIPS_32) {
             u8* w = (u8*)f + (reloc & 0xFFFFFF);
-            u32 v = ((u32)w[0] << 24) | ((u32)w[1] << 16) | ((u32)w[2] << 8) | w[3];
+            u32 v = Port_ReadBE32(w);
             if ((v & 0xFFF00000) == link) {
                 v = vbase + (v & 0xFFFFF);
                 w[0] = v >> 24;
@@ -181,7 +180,7 @@ uintptr_t Memmap_GetSegmentVaddr(uintptr_t mask) {
     if ((mask >> 0x1C) == 0) {
         u32 id = (mask & 0x0F000000) >> 0x18;
         u32 value = (mask & 0x00FFFFFF) >> 0x00;
-        if (gSegments[id].vaddr != NULL) {
+        if (gSegments[id].vaddr != 0) {
             mask = gSegments[id].vaddr + value;
         }
     }
@@ -199,7 +198,7 @@ u32 Memmap_GetSegmentVaddrMask(u32 i, uintptr_t addr) {
     if (diff >= entry->size) {
         return 0;
     }
-    return (i << 0x18) | diff;
+    return (i << 0x18) | (u32)diff;
 }
 
 /*
@@ -207,7 +206,7 @@ u32 Memmap_GetSegmentVaddrMask(u32 i, uintptr_t addr) {
  */
 void Memmap_ClearSegmentMemmap(u32 id) {
     Port_GfxFlushCache(); // PORT: translated display lists depend on these maps
-    gSegments[id].vaddr = NULL;
+    gSegments[id].vaddr = 0;
     gSegments[id].size = 0;
 }
 
@@ -280,14 +279,14 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
             case R_MIPS_32:
                 // Handles 32-bit address relocation, used for things such as jump tables and pointers in data.
                 // Just relocate the full address.
-                *relocDataP = Memmap_GetFragmentVaddr(*relocDataP);
+                *relocDataP = (u32)Memmap_GetFragmentVaddr((void*)(uintptr_t)*relocDataP);
                 break;
             case R_MIPS_26:
                 // Handles 26-bit address relocation, used for jumps and jals.
                 // Extract the address from the target field of the J-type MIPS instruction.
                 // Relocate the address and update the instruction.
                 *relocDataP =
-                    (((u32)(Memmap_GetFragmentVaddr(((*relocDataP * 4) & 0x0FFFFFFC) + 0x80000000) & 0x0FFFFFFF) >> 2) |
+                    (((u32)(Memmap_GetFragmentVaddr((void*)(uintptr_t)(((*relocDataP * 4) & 0x0FFFFFFC) + 0x80000000)) & 0x0FFFFFFF) >> 2) |
                      (*relocDataP & 0xFC000000));
                 break;
             case R_MIPS_HI16:
@@ -306,7 +305,7 @@ void Memmap_RelocateFragment(u32 id, struct Fragment* fragment) {
                 luiInstRef = luiRefs[(*relocDataP >> 0x15) & 0x1F];
                 regValP = &luiVals[(*relocDataP >> 0x15) & 0x1F];
 
-                temp_v0_5 = Memmap_GetFragmentVaddr((*regValP << 0x10) + (s16)*relocDataP);
+                temp_v0_5 = (u32)Memmap_GetFragmentVaddr((void*)(uintptr_t)((*regValP << 0x10) + (s16)*relocDataP));
                 isLoNeg = (temp_v0_5 & 0x8000) ? 1 : 0;
                 *luiInstRef = (u32)((*luiInstRef & 0xFFFF0000) | ((temp_v0_5 >> 16) + isLoNeg));
                 *relocDataP = (u32)((*relocDataP & 0xFFFF0000) | (temp_v0_5 & 0xFFFF));
@@ -358,8 +357,8 @@ uintptr_t Memmap_GetFragmentVaddr(void* addr) {
         u32 id = (((uintptr_t)addr & 0x0FF00000) >> 0x14) - 0x10;
         u32 value = (((uintptr_t)addr & 0x000FFFFF));
 
-        if (gFragments[id].vaddr != NULL) {
-            addr = gFragments[id].vaddr + value;
+        if (gFragments[id].vaddr != 0) {
+            return gFragments[id].vaddr + value;
         }
     }
     return (uintptr_t)addr;
@@ -376,7 +375,7 @@ u32 Memmap_GetFragmentVaddrMask(u32 i, uintptr_t addr) {
     if (diff >= entry->size) {
         return 0;
     }
-    return ((i + 0x10) << 0x14) | 0x80000000 | diff;
+    return ((i + 0x10) << 0x14) | 0x80000000 | (u32)diff;
 }
 
 /*
@@ -384,7 +383,7 @@ u32 Memmap_GetFragmentVaddrMask(u32 i, uintptr_t addr) {
  */
 void Memmap_ClearFragmentMemmap(u32 id) {
     Port_GfxFlushCache(); // PORT: translated display lists depend on these maps
-    gFragments[id].vaddr = NULL;
+    gFragments[id].vaddr = 0;
     gFragments[id].size = 0;
 }
 
@@ -392,7 +391,7 @@ void Memmap_ClearFragmentMemmap(u32 id) {
  * Given a specified address, check to see if it is located inside of a fragment
  * currently loaded. Return a calculated address.
  */
-uintptr_t Memmap_GetLoadedFragmentVaddr(uintptr_t addr) {
+u32 Memmap_GetLoadedFragmentVaddr(uintptr_t addr) {
     struct MemoryMap* fraglist = gFragments;
     int i, UNUSED j;
 
@@ -400,7 +399,7 @@ uintptr_t Memmap_GetLoadedFragmentVaddr(uintptr_t addr) {
         if (addr >= fraglist->vaddr) {
             size_t diff = addr - fraglist->vaddr;
             if (diff < fraglist->size) {
-                return ((i + 0x10) << 0x14) | 0x80000000 | diff;
+                return ((i + 0x10) << 0x14) | 0x80000000 | (u32)diff;
             }
         }
     }
@@ -417,7 +416,7 @@ static u32 Port_BlobLoad32(struct Fragment* f, u32 link, u32 addr, int* ok) {
         *ok = 0;
         return 0;
     }
-    return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
+    return Port_ReadBE32(p);
 }
 
 uintptr_t Port_CallBlobEntry(void* frag, s32 a0, s32 a1) {

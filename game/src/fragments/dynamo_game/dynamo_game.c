@@ -734,7 +734,7 @@ void DynamoGame_InitCamera(void) {
 void DynamoGame_LoadAssets(void) {
     u8 j;
     u8 i;
-    MemoryBlock* temp_v0;
+    MainPoolState* temp_v0;
 
     temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
     D_87B000E8 = process_geo_layout(temp_v0, D_86502DE4);

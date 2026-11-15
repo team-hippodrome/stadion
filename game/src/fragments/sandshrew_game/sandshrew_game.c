@@ -2605,7 +2605,7 @@ void SandshrewGame_ShowResultText(void) {
 
 void SandshrewGame_LoadAssets(void) {
     s32 i;
-    MemoryBlock* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
     unk_D_86002F30* temp_s1;
 
     D_87906050 = process_geo_layout(temp_v0, D_86F0B004);

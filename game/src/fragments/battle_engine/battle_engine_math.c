@@ -1,5 +1,6 @@
 #include "battle_engine.h"
 #include "src/math_util.h"
+#include "StadionPort.h"
 
 /**
  * Converts the vector from `from` to `to` into spherical form.

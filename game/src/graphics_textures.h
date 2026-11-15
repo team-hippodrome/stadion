@@ -36,8 +36,8 @@ void Gfx_SetVertexAttributes(Vtx* vertex, s16 x, s16 y, s16 z, s16 texture_x, s1
 void Gfx_SetViewportDimensions(Vp* viewport, s16 width, s16 height);
 u8 Font_MapGlyphCode(u16 arg0);
 u8 Font_GetGlyphAdvance(FontSet* arg0, u16 arg1);
-void Font_ResetContext(UNUSED s32 arg0, UNUSED s32 arg1);
-void Font_FreeSetAsset(UNUSED s32 arg0, s32 arg1);
+void Font_ResetContext(UNUSED void* data, UNUSED u32 arg);
+void Font_FreeSetAsset(UNUSED void* data, u32 arg1);
 s32 Font_GetSetIndexFromMask(s32 mask);
 void Font_LoadSet(s32 arg0, s32 arg1, s32 arg2);
 FontContext* Font_Init(s32 load_size, s32 side);

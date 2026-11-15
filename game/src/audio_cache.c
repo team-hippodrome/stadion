@@ -1,4 +1,5 @@
 #include "global.h"
+#include "StadionPort.h"
 
 void Audio_CopyDataWithCacheSync(void* arg0, void* arg1, s32 arg2) { // PORT: arg0 was s32
     if (PORT_AUDIO_OFF()) {

@@ -1,4 +1,5 @@
 #include "global.h"
+#include "StadionPort.h"
 
 /**
  * The fragment's private copy of libultra's osAiSetNextBuffer (same body, including the
@@ -54,7 +55,6 @@ s32 osGbSetNextBuffer(void* bufPtr, u32 size) {
     IO_WRITE(AI_LEN_REG, size);
     {
         // PORT: the audio interface is the host's sound output (src/port/gb_audio_out.cpp)
-        extern void Port_GbAudioSubmit(const void* samples, u32 bytes);
         Port_GbAudioSubmit(bufPtr, size);
     }
     return 0;

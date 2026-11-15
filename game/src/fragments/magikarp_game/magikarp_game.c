@@ -1141,9 +1141,9 @@ void MagikarpGame_WaitForExit(void) {
 
 void MagikarpGame_InitActors(void) {
     s32 i;
-    MemoryBlock* temp_v0;
+    MainPoolState* temp_v0;
 
-    temp_v0 = (MemoryBlock*)MainPool_AllocState(main_pool_get_available(), 0);
+    temp_v0 = (MainPoolState*)MainPool_AllocState(main_pool_get_available(), 0);
     D_86002F34 = (unk_D_86002F34*)process_geo_layout(temp_v0, D_86002B18);
     MainPool_FinalizeAllocation(temp_v0);
     ModelRenderer_InitDisplayRoots();

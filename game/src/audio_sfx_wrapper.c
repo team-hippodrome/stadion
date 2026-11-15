@@ -1,5 +1,6 @@
 #include "audio_sfx_wrapper.h"
 #include "src/audio_sfx.h"
+#include "StadionPort.h"
 
 void Audio_PlaySoundEffectByIdWrapper(s32 arg0) {
     if (PORT_AUDIO_OFF()) {

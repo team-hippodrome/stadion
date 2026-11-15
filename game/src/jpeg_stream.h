@@ -83,6 +83,7 @@ typedef struct unk_func_80003680_sp90 {
     /* 0x14 */ uintptr_t unk_14; // V quantization table
 } unk_func_80003680_sp90;        // size >= 0x18
 
+// Untyped fragment entry point; callers cast it to the entry's real signature (see FragmentEntry in memmap.h).
 typedef void (*ret_func_80004454)(void);
 
 s32 Jpeg_ReadBigEndianU16(u8* arg0);
@@ -94,7 +95,7 @@ s32 Jpeg_DecodeImage(uintptr_t addr, s32 arg1, u8* arg2);
 void Dma_InitializeCompletionQueue(void);
 void Yay0_DecompressAndRelocate(u8* in_header, u8* memory);
 void Dma_ReadChunks(u8* arg0, s32 arg1, s32 arg2, s32 arg3);
-s32 Flash_ProgramPages(u8* arg0, s16 arg1, s16 arg2, s32 arg3);
+s32 Flash_ProgramPages(void* record, s16 arg1, s16 arg2, s32 arg3);
 s32 Flash_EraseSectorByIndex(s16 arg0);
 void Dma_WriteChunks(uintptr_t write_start, uintptr_t buffer_start, uintptr_t buffer_end, s32 arg3);
 void Dma_CopyChunks(u8* arg0, u8* arg1, u8* arg2);
@@ -106,10 +107,10 @@ void* Storage_LoadAssetByLbaRange(unk_func_800041C0* arg0, s32 arg1);
 unk_func_800041C0* Storage_SetLbaRange(unk_func_800041C0* arg0, s32 arg1, s32 arg2);
 unk_func_800041C0* Storage_SetByteRange(unk_func_800041C0* arg0, u32 arg1, u32 offset, u32 size);
 void Storage_PrefetchLbaRange(s32 arg0, s32 arg1, s32 arg2);
-void Memmap_ClearSegmentOnBlockFree(uintptr_t block_addr, u32 addr);
+void Memmap_ClearSegmentOnBlockFree(void* block, u32 addr);
 u8* Asset_LoadToSegment(s32 id, u8* rom_start, u8* rom_end, s32 arg3);
 MainPoolBlock* Asset_LoadToSegmentByLbaRange(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
-void Fragment_FreeCallback(uintptr_t base_addr, u32 addr);
+void Fragment_FreeCallback(void* base, u32 addr);
 void Fragment_Register(s32 arg0, Fragment* addr);
 ret_func_80004454 Fragment_Load(s32 arg0, u8* romStart, u8* romEnd);
 void* Fragment_LoadByLbaRange(s32 arg0, s32 arg1, s32 arg2);
@@ -120,9 +121,6 @@ Fragment* BinArchive_LoadFileFromRom(BinArchive* arg0, BinArchiveFile* arg1);
 void* BinArchive_LoadFileBuffered(BinArchive* arg0, BinArchiveFile* arg1);
 void* BinArchive_GetFile(BinArchive* archive, s32 file_number);
 void* Port_ResolveCode(uintptr_t addr);
-#ifdef __EMSCRIPTEN__
-int Port_IsHostFunction(uintptr_t addr); // web build: a function table index (port_platform.c)
-#endif
 uintptr_t Port_CallFragmentLeaf(const void* code, s32 a0, s32 a1);
 void Port_NoteLoadedFragment(u32 slot, u8* romStart);
 extern int gPortRelocateDataBlob;
@@ -131,5 +129,6 @@ void Port_FixPresJpegHeader(PRESJPEG* h);
 void* BinArchive_GetCachedFile(BinArchive* archive, s32 file_number);
 u32 Port_PtrToHandle(void* p);
 void* Port_HandleToPtr(u32 h);
+void Port_FragmentFree(u8* romStart);
 
 #endif // _JPEG_STREAM_H_

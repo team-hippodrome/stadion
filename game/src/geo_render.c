@@ -13,6 +13,7 @@
 #include "src/memmap.h"
 #include "src/util.h"
 #include "variables.h"
+#include "StadionPort.h"
 
 typedef void (*func_D_8006F0A4)(GraphNode* arg0);
 
@@ -489,7 +490,6 @@ void Geo_NodeCamera(GraphNode* arg0) {
     { // PORT_CAMLOG=<file>: one line per camera node drawn (gf anim vi vp eye at up fov near far)
         static FILE* camlog;
         static int camlogInit;
-        extern unsigned long long Port_CamlogGameFrameNo(void), Port_CamlogAnimFrame(void), Port_ViTick(void);
         if (!camlogInit) {
             const char* path = getenv("PORT_CAMLOG");
             camlogInit = 1;
@@ -940,8 +940,6 @@ void Geo_NodeDisplayList(GraphNode* arg0) {
     }
     Geo_ProcessNodeChildren(arg0);
 }
-
-extern void* Port_DescAt(void* base, int idx, size_t hostStride);
 
 void Geo_NodeShadowTexture(GraphNode* arg0) {
     Color_RGBA8_u32 sp44;
@@ -1468,9 +1466,6 @@ void GeoRender_SubmitDisplayList(Gfx* arg0, s32 arg1) {
         }
     }
 }
-
-extern void* Port_ConvertDesc(void* link);
-extern void* Port_DescAt(void* base, int idx, size_t hostStride);
 
 void GeoRender_SetMaterialParams(Color_RGBA8_u32 arg0, u8 arg1, u32 arg2) {
     D_800ABB10.unk_08.rgba = arg0.rgba;

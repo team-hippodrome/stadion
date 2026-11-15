@@ -36,8 +36,8 @@ void PokeIcon_InitPreviewScene(unk_func_8001B1FC* arg0, s16 arg1, s16 arg2, s16 
         0x00000000, 0x06000000, 0x06000000, 0x06000000, 0x06000000, 0x01000000, 0x00000000,
         0x00000000,
     };
-    MemoryBlock* sp24;
-    MemoryBlock* temp_v0;
+    MainPoolState* sp24;
+    MainPoolState* temp_v0;
 
     sp24 = MainPool_AllocState(main_pool_get_available(), 0);
     arg0->unk_20 = process_geo_layout(sp24, D_8006F3E0);

@@ -203,7 +203,7 @@ void Minigame_Sample7Viewer_EndingLoop(void) {
 }
 
 void Minigame_Sample7Viewer_Init(void) {
-    MemoryBlock* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
 
     D_86600944 = process_geo_layout(sp1C, &D_86600850);
     MainPool_FinalizeAllocation(sp1C);

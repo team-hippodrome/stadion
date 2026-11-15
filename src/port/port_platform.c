@@ -1,5 +1,6 @@
 // Platform helpers that need a single definition (see port_platform.h for the inline ones).
 #include "port_platform.h"
+#include "StadionPort.h"
 
 // The port tells N64 addresses (segment / fragment / pseudo addresses, all below 4 GB) from host pointers by their
 // value. macOS and Linux place 64-bit programs above 4 GB; Windows may hand out heap and DLL memory below it, so the

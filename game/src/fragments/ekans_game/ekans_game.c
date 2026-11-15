@@ -3460,7 +3460,7 @@ void ekansMinigameUpdate(void) {
 }
 
 void EkansGame_LoadAssets(void) {
-    MemoryBlock* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
     unk_D_86002F30* temp_s1;
     s32 i;
 

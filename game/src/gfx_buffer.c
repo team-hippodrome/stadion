@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../../src/port/port_platform.h"
+#include "port_platform.h"
 #include "global.h"
 #include "gfx_buffer.h"
 #include "src/memory.h"
+#include "StadionPort.h"
 
 // PORT: the original kept two 32-bit buffer addresses and indexed them through an s32*. Rewritten with real
 // pointers, and the buffers are twice the requested size because a host Gfx command is 16 bytes (N64: 8).
@@ -46,7 +47,6 @@ void Gfx_GetDisplayListRange(uintptr_t* arg0, uintptr_t* arg1) {
     *arg0 = (uintptr_t)D_800A7428.buf[D_800A7428.unk10];
 }
 
-extern void Port_LogAlloc(void* p, int n, void* caller);
 void* Gfx_AllocDisplayList(s32 size) {
     u8* newLimit;
     void* ret;

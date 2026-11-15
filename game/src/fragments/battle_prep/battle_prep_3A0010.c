@@ -633,7 +633,7 @@ void BattlePrepStarBurst_StartExit(unk_D_84B25AC0* arg0) {
 
 void BattlePrepStarBurst_Init(unk_D_84B25AC0* arg0, s8 arg1, s8 arg2) {
     GraphNode* var_v0;
-    MemoryBlock* temp_v0;
+    MainPoolState* temp_v0;
 
     arg0->unk_5A0 = 0;
     arg0->unk_5A1 = 0;

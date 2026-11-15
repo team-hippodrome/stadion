@@ -66,7 +66,7 @@ void StageContext_Activate(StageContext* arg0);
 void StageContext_Deactivate(void);
 void StageLoader_WaitForRetrace(void);
 void StageLoader_UpdateSegments(void);
-s32 BgStage_AdvanceFrame(void);
+void BgStage_AdvanceFrame(void);
 void StageLoader_RunFrames(s32 timer);
 s32 BgStage_RunUntilCondition(u32 timer, s32 (*f)(u8));
 s32 BgStage_WaitForCondition(s32 (*arg0)(u8), s32 arg1, s32 arg2);

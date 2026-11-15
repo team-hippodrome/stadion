@@ -72,9 +72,75 @@ What was changed to get there:
   `uintptr_t` (script-like data in fragments), `ModelSegment` segment fields, `unk_D_8006FF00.unk_08/unk_18`,
   `unk_D_8140E728_01C_00C.arg`. Readers of these tables still assume 4-byte words; each needs an audit
   (find them with `grep -rn PORT64 game`). `tools/widen_addr_tables.py` produced most of them.
-- The flags in `tools/compile_flags.txt` keep `-Wno-int-conversion -Wno-incompatible-pointer-types` etc. from
-  the original build and `-w`; "compiles" does not mean pointer-correct. Truncating `(u32)ptr`/`(s32)ptr`
-  casts (553 `(u32)` casts in the sources) still compile and will misbehave at runtime.
+- The flags in `tools/compile_flags.txt` still keep `-Wno-int-conversion -Wno-incompatible-pointer-types` etc.
+  from the original build; "compiles" does not mean pointer-correct. Truncating `(u32)ptr`/`(s32)ptr`
+  casts (553 `(u32)` casts in the sources) still compile and will misbehave at runtime. See "Game diagnostics"
+  below for what is reported now and the plan to turn these into errors.
+
+## Game diagnostics
+The game (`stadium_game`) and the libultra runtime layer (`port_os`) build with `-Wall -Wextra` (clang-cl: `/W4`),
+without `-Werror`. `STADION_GAME_WARNINGS` in CMakeLists.txt, mirrored in `tools/compile_flags.txt`, follows
+2Ship2Harkinian's list: it turns off the warnings decompiled code produces by design (unused parameters and
+variables, stack pads, flat initialisers, parentheses, sign compares). The vendored libultra sources
+(`cmake/ultralib_sources.txt`) stay at `-w`, like 2Ship's libultra copy.
+
+Ratchets: a group is still off while it has hits, and becomes `-Werror=<group>` once its count reaches zero, so
+it can't come back. Counts are unique sites in `game/src` from a full `stadium_game` build with each group
+turned on (clang 21, Linux x86-64):
+
+| Group | Status | Sites |
+|---|---|---|
+| `implicit-function-declaration` | `-Werror` | 0 |
+| `return-type` | off | 20 |
+| `shorten-64-to-32` | off | 136 |
+| `pointer-to-int-cast` | on (warning) | 343 |
+| `int-conversion` | off | 1,698 (same as `tools/intconv.sh`) |
+| `incompatible-function-pointer-types` | off | 592 |
+| `incompatible-pointer-types` | off | 2,525 |
+
+Per-file ratchet: until a group is clean everywhere, the files listed in `cmake/strict_sources.txt` compile with
+all of the type groups above (plus `int-to-pointer-cast`) as errors (`STADION_STRICT_GROUPS` in CMakeLists.txt).
+Subsystems join the list as they are fixed:
+
+| Subsystem | Files | Check |
+|---|---|---|
+| Audio (sequencer, sound effects, streams, libnaudio, cries) | 41 | 20/20 runnable replays (2 more need GB saves), normal and ASan builds |
+| Core runtime (main/memory pools, scheduler, storage queue, memmap, save banks, session, profiler) | 15 | 20/20 runnable replays, normal and ASan builds |
+
+Conventions used for these fixes:
+- ROM offsets stay 32-bit integers (`u32`/`uintptr_t`); a pointer-typed field that holds a ROM offset (libaudio's
+  `ALSeqFile.seqArray[].offset`) is converted with an explicit `(uintptr_t)` cast where it is read.
+- RAM destinations are pointers (`void*`), as in `Rom_DmaRead(uintptr_t romOffset, void* dest, u32 size)`.
+- Globals and parameters get the type of the data they hold (`SoundBank*`, `fx_t*`) instead of `u8*` plus casts.
+- Intrusive lists whose node is the first member (`ALLink node`) store `&x->node` and cast back explicitly.
+- Narrowing that was free on the 32-bit N64 (pointer differences into `s32`, `u64` frame counters into `u32`) gets an
+  explicit cast, so the truncation is visible.
+- Integer messages go through `OS_MESG_32(x)` and come back with `OS_MESG_GET_32(msg)`; pointers use `OS_MESG_PTR(p)`
+  (2Ship's names; `src/port/sdk/ultra64.h` defines them for the game's `void*` `OSMesg`).
+- A header shared by several structs is a named struct embedded as the first member (`SchedClient client`), and the
+  API takes the header type: `Sched_AddClient(&D_800A6D20.client)`.
+- `ALIGN16(x)` and friends keep the type of `x`, as in 2Ship's `alignment.h`; cast a pointer to `uintptr_t` first.
+- A main-pool arena (`MainPool_AllocState`, `MainPool_AllocAligned`) is a `MainPoolState*` everywhere. Pool free
+  callbacks (`AllocateFunc`) get the block's data pointer and its tag: `void (*)(void* data, u32 arg)`.
+- Raw record buffers whose stride is decided at run time take `void*` and walk a local `u8*` (`Save_ClearRecord`,
+  `Deck_ReadEntries`).
+
+`tools/ptr_warnings.sh` lists the pointer-truncation subset (490 sites). When fixing these, pair a replay run
+(`tools/run_replays.py`) with an AddressSanitizer build (`cmake -DPORT_ASAN=ON`): a truncated pointer or a
+32-bit size can survive a normal replay by luck of heap layout and fail later on Windows or Android.
+
+Byte order: N64 data (ROM, cartridge saves, fragment blobs) is big-endian. `game/include/port_endian.h` (included by
+`macros.h`, so every game file has it) is the one place for the helpers: `Port_ReadBE32`/`Port_ReadBE16` read a value
+from memory, `Port_SwapWords`/`Port_SwapHalves` swap an array in place (any alignment), `Port_Swap32`/`Port_Swap16`
+swap a value already loaded. They use libultraship's `BE32SWAP`/`BE16SWAP`, as the HarbourMasters ports do.
+`tools/check_port_decls.py` fails when a `Port*_` helper is defined in more than one file.
+
+Printing fixed-width integers: `uint64_t` is `unsigned long` on 64-bit Linux but `unsigned long long` on Windows
+and macOS, so `%llu` with a bare `uint64_t` warns on one of them. Cast at the call site
+(`(unsigned long long)x` with `%llu`) or use the `<inttypes.h>` macros (`PRIu64`, `PRIxPTR`).
+
+Before changing a header or a struct type in `game/`, ask: is this also wrong on the N64? If yes, fix it in the
+pokestadium decomp too, so the two copies don't drift apart.
 
 ## Link surface of libstadium_game.a (1305 undefined symbols, measured with nm)
 - 856 `D_<hex>`: segment/virtual-address asset symbols (D_1000000, D_3000000, ...; defined in the original by the
@@ -1323,7 +1389,7 @@ touched. `PORT_NO_MARGIN_CLEAR=1` restores the old behaviour.
 Battle HUD at the widescreen edges: the status boxes, portraits and menus were laid out for the 4:3 frame and cut at
 its sides, so in 16:9 they slid in and out of the middle of the picture (from the 4:3 edge, the rest of the box
 missing) and sat inside it. The game now brackets each side's HUD with markers (`gDPPortAnchorLeft/Right/End` in
-port_compat.h, a G_NOOP of type 0x52): `Battle_RenderHud` around `BattleHud_DrawOwnSideStatus` (left: the player's
+StadionPort.h, a G_NOOP of type 0x52): `Battle_RenderHud` around `BattleHud_DrawOwnSideStatus` (left: the player's
 box, portrait frame, command bar and move menu) and `BattleHud_DrawOpponentSideStatus` (right, with its label bar),
 `Battle_DrawCompactStatusBoxesIfVisible` (the small boxes shown during moves), and `Battle_FillActivePokemonThumbnail`
 for the portraits, which are captured into a render target only when they change and blitted every frame at the
@@ -1338,7 +1404,7 @@ sunset sky is the one stage backdrop drawn as a texture (`Battle_DrawStageBackdr
 screen, each half its height), before the arena and with nothing 3D before it (the cup stadiums draw their crowd first
 in `BgStage_DrawFrame`), so the 2D-screen check (interpreter `s2DRectArea`: textured rectangles over 90% of the picture
 before any 3D) took the frame for a menu and kept all of it inside the 4:3 area. The backdrop now marks the frame as a
-3D scene's first (`gDPPort3DScene` in port_compat.h, a G_NOOP of type 0x53, sets the interpreter's `sSeen3DThisRun`), so
+3D scene's first (`gDPPort3DScene` in StadionPort.h, a G_NOOP of type 0x53, sets the interpreter's `sSeen3DThisRun`), so
 the sky is widened as the other stages' backdrops are and the arena fills the picture. Checked over all 18 stage files
 in 16:9 (`PORT_BOOT=battle PORT_BOOT_STAGE=n`: only 15 and 16 change) and the Castle's Elite Four and rival route; at
 4:3 the pictures are identical. `PORT_NO_3D_SCENE_MARK=1` ignores the marker.

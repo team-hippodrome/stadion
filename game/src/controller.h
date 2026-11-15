@@ -3,6 +3,8 @@
 
 #include "global.h"
 
+// PORT: libultraship's libultra/controller.h already defines these with the same values
+#ifndef BTN_A
 #define BTN_A 0x8000
 #define BTN_B 0x4000
 #define BTN_Z 0x2000
@@ -17,6 +19,7 @@
 #define BTN_CDOWN 0x0004
 #define BTN_CLEFT 0x0002
 #define BTN_CRIGHT 0x0001
+#endif
 
 #define BTN_IS_PRESSED(controller, combo) (((controller)->buttonPressed & (combo)) != 0)
 #define BTN_IS_DOWN(controller, combo) (((controller)->buttonDown & (combo)) != 0)

@@ -31,6 +31,7 @@
 #include <vector>
 #include <unordered_map>
 #include <unistd.h>
+#include "StadionPort.h"
 
 extern "C" void port_PostEvent(OSEvent event);
 extern "C" void port_PostMesgFromIrq(OSMesgQueue* mq, OSMesg msg);
@@ -459,7 +460,6 @@ double Port_Speed() {
 } // extern "C"
 
 // Only every n-th frame is drawn when running fast (PORT_RENDER_EVERY overrides); the game cannot tell.
-extern "C" int Port_XcheckWantDraw(void);
 
 static uint64_t Port_RenderEvery() {
     static uint64_t n = getenv("PORT_RENDER_EVERY") ? (uint64_t)std::max(1, atoi(getenv("PORT_RENDER_EVERY")))

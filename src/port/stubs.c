@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include "StadionPort.h"
 
 typedef uint8_t u8;
 typedef uint32_t u32;
@@ -132,10 +133,9 @@ void* port_hw_reg(unsigned long addr) { return &sHwPage[addr & 0xFFFFFC]; }
 int64_t __ll_mul(int64_t a, int64_t b) { return a * b; }
 u64 __ull_div(u64 a, u64 b) { return b ? a / b : 0; }
 
-unsigned long long Port_ViTick(void);
 void Port_TraceState(int state) {
     static int last = -1;
-    if (state != last && getenv("PORT_TRACE_STATE")) fprintf(stderr, "[state] %d @frame %llu\n", state, Port_ViTick());
+    if (state != last && getenv("PORT_TRACE_STATE")) fprintf(stderr, "[state] %d @frame %llu\n", state, (unsigned long long)Port_ViTick());
     last = state;
 }
 

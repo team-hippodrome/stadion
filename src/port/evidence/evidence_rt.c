@@ -58,14 +58,13 @@
 #include <sys/wait.h>
 #endif
 #include "fragments/battle_engine/battle_engine.h"
+#include "../StadionPort.h"
 
 #define NOINST __attribute__((no_instrument_function))
 
 static NOINST void Hex(FILE* f, const char* key, const void* p, size_t n);
 int __llvm_profile_write_file(void) __attribute__((weak));
 void __llvm_profile_set_filename(const char*) __attribute__((weak));
-
-uint64_t Port_ViTick(void);
 
 enum { kPathDepth = 10, kStackMax = 512, kSiteSlots = 1 << 18, kPathSlots = 1 << 18, kProbe = 512, kWatchMax = 64 };
 

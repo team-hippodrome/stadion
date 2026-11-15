@@ -2,6 +2,7 @@
 #include "src/geo_node.h"
 #include "src/matrix.h"
 #include "src/util.h"
+#include "StadionPort.h"
 
 static GeoLayoutCommandProc GeoLayoutJumpTable[] = {
     geo_layout_cmd_branch_and_link,
@@ -45,7 +46,7 @@ static GeoLayoutCommandProc GeoLayoutJumpTable[] = {
     geo_layout_cmd_create_group,
 };
 
-static MemoryBlock* gGraphNodePool;
+static MainPoolState* gGraphNodePool;
 static GraphNode* gCurRootGraphNode;
 static uintptr_t gGeoLayoutStack[16]; // PORT64: holds return addresses (was u32)
 static GraphNode* gCurGraphNodeList[32];
@@ -55,7 +56,6 @@ static s16 D_800ABDFC;
 static s16 gGeoLayoutReturnIndex;
 static u8* gGeoLayoutCommand;
 int gGeoPacked;
-extern int Port_IsRawData(const void* p);
 
 static void GeoSetCmd(u8* p) {
     gGeoLayoutCommand = p;
@@ -448,7 +448,7 @@ static void Port_DumpGraph(GraphNode* n, int depth) {
     }
 }
 
-GraphNode* process_geo_layout(MemoryBlock* pool, void* segptr) {
+GraphNode* process_geo_layout(MainPoolState* pool, void* segptr) {
     // set by register_scene_graph_node when gCurGraphNodeIndex is 0
     // and gCurRootGraphNode is NULL
     gCurRootGraphNode = NULL;

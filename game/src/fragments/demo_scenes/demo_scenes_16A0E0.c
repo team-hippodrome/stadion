@@ -447,7 +447,7 @@ void FirstClearBonus_RunLoop(void) {
 }
 
 void FirstClearBonus_InitScene(void) {
-    MemoryBlock* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
 
     D_86B10848 = process_geo_layout(temp_v0, &sFirstClearBonusGeoLayout);
     MainPool_FinalizeAllocation(temp_v0);

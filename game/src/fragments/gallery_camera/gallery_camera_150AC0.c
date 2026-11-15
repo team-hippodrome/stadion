@@ -5,6 +5,7 @@
 #include "src/gfx_buffer.h"
 #include "src/gfx_rect.h"
 #include "src/matrix.h"
+#include "StadionPort.h"
 
 const char D_8690A520[] = "FREE BATTLE";
 const char D_8690A52C[] = "POK\xE9 CUP";

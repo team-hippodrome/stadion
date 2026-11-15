@@ -10,6 +10,7 @@
 #include "src/memory.h"
 #include "src/util.h"
 #include "status.h"
+#include "StadionPort.h"
 
 #define VISIBILITY_PHASE_HIDE_OPPONENT 21
 
@@ -722,7 +723,6 @@ void BattleScene_UpdateVisibilityAfterMode(CameraNode* camera) {
     BattleScene_HideAbsentParticipants();
 }
 
-unsigned long long Port_ViTick(void);
 void BattleScene_Update(CameraNode* camera) {
     if (PORT_GETENV_ONCE("PORT_TRACE_BATTLE")) { // logs the scene director's phase fields whenever one changes
         static int last[6] = { -99, -99, -99, -99, -99, -99 };
@@ -739,7 +739,6 @@ void BattleScene_Update(CameraNode* camera) {
         }
     }
     { // PORT: battle boot (src/port/xcheck.cpp): the scene phase, for where the frame dump starts
-        extern void Port_BattleBootPhase(int phase);
         Port_BattleBootPhase((int)sBattleScene.scene->mode);
     }
     BattleScene_TickCameraSubstate(camera);

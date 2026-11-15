@@ -15,6 +15,7 @@
 #include "dp_intro.h"
 #include "hal_libc.h"
 #include "src/geo_render.h"
+#include "StadionPort.h"
 
 struct DisplayNodeHeader D_800AC840;
 struct DisplayNodeHeader D_800AC858;

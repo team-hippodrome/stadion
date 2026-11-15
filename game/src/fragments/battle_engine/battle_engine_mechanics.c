@@ -4,6 +4,7 @@
 #include "src/matrix.h"
 #include "moves.h"
 #include "status.h"
+#include "StadionPort.h"
 
 /*
  * Turn resolution, damage calculation, status continuations and runtime setup.

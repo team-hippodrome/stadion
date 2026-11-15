@@ -670,7 +670,7 @@ void SushiGame_MainLoop(void) {
 
 void SushiGame_LoadAssets(void) {
     UNUSED s32 pad;
-    MemoryBlock* sp18;
+    MainPoolState* sp18;
 
     sp18 = MainPool_AllocState(main_pool_get_available(), 0);
     D_86807500 = (GraphNode*)process_geo_layout(sp18, &D_86806CD0);

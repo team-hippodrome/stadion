@@ -494,7 +494,7 @@ void StageLoader_UpdateSegments(void) {
     Memmap_SetSegments(&gDisplayListHead);
 }
 
-s32 BgStage_AdvanceFrame(void) {
+void BgStage_AdvanceFrame(void) {
     StageLoader_BeginFrame();
     Display_QueueFramebufferRequest(&D_800A7450);
     Display_WaitForCompletion();

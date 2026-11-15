@@ -1386,7 +1386,9 @@ s32 Deck_SetCursor(DeckHandle* arg0, s32 arg1) {
     return var_v1;
 }
 
-s32 Deck_ReadEntries(u8* arg0, s32 arg1, DeckHandle* arg2) {
+// Entries are written back to back, arg2->unk_05 bytes apart.
+s32 Deck_ReadEntries(void* entries, s32 arg1, DeckHandle* arg2) {
+    u8* arg0 = entries;
     s32 var_s3;
     s32 var_s4;
     s32 var_v1;
@@ -1790,7 +1792,7 @@ s32 GbSave_WriteBoxBank(s32 arg0, s32 arg1) {
     return 0;
 }
 
-void GbSave_ReleasePortBuffers(UNUSED MainPoolBlock* arg0, u32 arg1) {
+void GbSave_ReleasePortBuffers(UNUSED void* data, u32 arg1) {
     GbSavePort* ptr;
 
     if ((arg1 >= 'DAT0') && (arg1 < 'DAT4')) {

@@ -9,6 +9,7 @@
 #include "src/audio_stream.h"
 #include "src/gb_audio_render.h"
 #include "src/audio_loop_point.h"
+#include "StadionPort.h"
 
 typedef union {
     struct {
@@ -306,7 +307,7 @@ intptr_t __amDMA(intptr_t addr, s32 len, void* state) { // PORT: returns a host 
         if ((uintptr_t)addr < 0x100000000ull) {
             return osVirtualToPhysical(sPortSilence);
         }
-        return osVirtualToPhysical(addr);
+        return osVirtualToPhysical((void*)addr);
     }
 
     sp2C = D_800FCB08[0];
@@ -325,7 +326,7 @@ intptr_t __amDMA(intptr_t addr, s32 len, void* state) { // PORT: returns a host 
         }
 
         lastDmaPtr = dmaPtr;
-        dmaPtr = dmaPtr->node.next;
+        dmaPtr = (AMDMABuffer*)dmaPtr->node.next; // node is the first member
     }
 
     dmaPtr = dmaState.firstFree;
@@ -333,7 +334,7 @@ intptr_t __amDMA(intptr_t addr, s32 len, void* state) { // PORT: returns a host 
         return osVirtualToPhysical(dmaState.firstUsed);
     }
 
-    dmaState.firstFree = dmaPtr->node.next;
+    dmaState.firstFree = (AMDMABuffer*)dmaPtr->node.next;
     alUnlink(&dmaPtr->node);
 
     if (lastDmaPtr != NULL) {
@@ -342,7 +343,7 @@ intptr_t __amDMA(intptr_t addr, s32 len, void* state) { // PORT: returns a host 
         lastDmaPtr = dmaState.firstUsed;
 
         dmaState.firstUsed = dmaPtr;
-        dmaPtr->node.next = lastDmaPtr;
+        dmaPtr->node.next = &lastDmaPtr->node;
         dmaPtr->node.prev = NULL;
 
         lastDmaPtr->node.prev = &dmaPtr->node;
@@ -355,13 +356,13 @@ intptr_t __amDMA(intptr_t addr, s32 len, void* state) { // PORT: returns a host 
     foundBuffer = dmaPtr->ptr;
     delta = addr & 1;
     addr -= delta;
-    dmaPtr->startAddr = addr;
+    dmaPtr->startAddr = (u32)addr; // ROM offset
     dmaPtr->lastFrame = audFrameCt;
 
     ioMesg = audDMAIOMesgBuf + nextDMA++;
     ioMesg->hdr.pri = OS_MESG_PRI_HIGH;
     ioMesg->hdr.retQueue = &audDMAMessageQ;
-    ioMesg->devAddr = addr;
+    ioMesg->devAddr = (u32)addr;
     ioMesg->dramAddr = foundBuffer;
     ioMesg->size = dmaBufferLen;
 
@@ -385,7 +386,7 @@ OSTask* Audio_CreateFrameTask(OSTask* arg0) {
     AMAudioMgr* mgr;
 
     info = __am.audioInfo[audFrameCt % 3];
-    audioPtr = osVirtualToPhysical(info->data);
+    audioPtr = (s16*)osVirtualToPhysical(info->data);
     samplesLeft = osAiGetLength() >> 2; // PORT: AI_LEN_REG
 
     if ((D_80077DA8 == 0) && (lastInfo != NULL)) {
@@ -407,15 +408,15 @@ OSTask* Audio_CreateFrameTask(OSTask* arg0) {
     }
 
     cmdp = alAudioFrame(__am.ACMDList[curAcmdList], &cmdLen, audioPtr, info->frameSamples);
-    sp38.t.data_ptr = __am.ACMDList[curAcmdList];
-    sp38.t.data_size = (cmdp - __am.ACMDList[curAcmdList]) * sizeof(Acmd);
+    sp38.t.data_ptr = (u64*)__am.ACMDList[curAcmdList];
+    sp38.t.data_size = (u32)((cmdp - __am.ACMDList[curAcmdList]) * sizeof(Acmd));
 
     sp38.t.type = M_AUDTASK;
-    sp38.t.ucode_boot = &rspbootTextStart;
-    sp38.t.ucode_boot_size = (intptr_t)_binary_assets_us_F3DEX2_bin_start - (intptr_t)rspbootTextStart;
+    sp38.t.ucode_boot = (u64*)rspbootTextStart;
+    sp38.t.ucode_boot_size = (u32)((intptr_t)_binary_assets_us_F3DEX2_bin_start - (intptr_t)rspbootTextStart);
     sp38.t.flags = 0;
-    sp38.t.ucode = &aspMainTextStart;
-    sp38.t.ucode_data = &aspMainDataStart;
+    sp38.t.ucode = (u64*)aspMainTextStart;
+    sp38.t.ucode_data = (u64*)aspMainDataStart;
     sp38.t.ucode_data_size = SP_UCODE_DATA_SIZE;
     sp38.t.dram_stack = NULL;
     sp38.t.dram_stack_size = 0;
@@ -527,13 +528,13 @@ void __clearAudioDMA(void) {
 
         if ((var_s0_2->lastFrame + FRAME_LAG) < audFrameCt) {
             if (var_s0_2 == dmaState.firstUsed) {
-                dmaState.firstUsed = var_s0_2->node.next;
+                dmaState.firstUsed = (AMDMABuffer*)var_s0_2->node.next;
             }
 
-            alUnlink(var_s0_2);
+            alUnlink(&var_s0_2->node);
 
             if (dmaState.firstFree != NULL) {
-                alLink(var_s0_2, dmaState.firstFree);
+                alLink(&var_s0_2->node, &dmaState.firstFree->node);
             } else {
                 dmaState.firstFree = var_s0_2;
                 var_s0_2->node.next = NULL;
@@ -541,7 +542,7 @@ void __clearAudioDMA(void) {
             }
         }
 
-        var_s0_2 = node;
+        var_s0_2 = (AMDMABuffer*)node;
     }
 
     nextDMA = 0;

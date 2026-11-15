@@ -595,7 +595,7 @@ void GymLeaderCastleClear_RunLoop(void) {
 
 void GymLeaderCastleClear_InitGraphics(void) {
     unk_D_83101F00* ptr;
-    MemoryBlock* var_v0 = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* var_v0 = MainPool_AllocState(main_pool_get_available(), 0);
     s32 i;
 
     D_83101EF4 = process_geo_layout(var_v0, D_83101E1C);

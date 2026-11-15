@@ -21,7 +21,7 @@ typedef struct unk_D_800FCED8_01598 {
 } unk_D_800FCED8_01598; // size = 0x8
 
 // PORT: the parameter types match AudioStream_DmaReadChunk (the calls went through the mismatched prototype)
-typedef void (*unk_D_800FCED8_190)(uintptr_t, uintptr_t, u32, OSMesgQueue*);
+typedef void (*unk_D_800FCED8_190)(uintptr_t, void*, u32, OSMesgQueue*);
 
 typedef struct unk_D_800FCED8 {
     /* 0x0000 */ unk_D_800FCED8_0000 unk_0000;

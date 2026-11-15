@@ -121,7 +121,7 @@ void MewtwoIntro_RunLoop(void) {
 }
 
 void MewtwoIntro_InitScene(void) {
-    MemoryBlock* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* sp1C = MainPool_AllocState(main_pool_get_available(), 0);
 
     D_86B106B4 = process_geo_layout(sp1C, &sStageGeoLayoutCommands);
 

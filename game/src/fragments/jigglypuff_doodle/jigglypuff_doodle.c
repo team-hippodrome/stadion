@@ -524,7 +524,7 @@ void JigglypuffGame_WaitForExit(void) {
 
 void JigglypuffGame_Init(void) {
     s32 i;
-    MemoryBlock* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
+    MainPoolState* temp_v0 = MainPool_AllocState(main_pool_get_available(), 0);
 
     D_86301714 = process_geo_layout(temp_v0, &D_86301650);
     MainPool_FinalizeAllocation(temp_v0);

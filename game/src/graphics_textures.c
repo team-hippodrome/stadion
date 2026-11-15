@@ -9,6 +9,7 @@
 #include "src/matrix.h"
 #include "src/memory.h"
 #include "stdarg.h"
+#include "StadionPort.h"
 
 FontContext* gFontContext;
 
@@ -342,11 +343,11 @@ u8 Font_GetGlyphAdvance(FontSet* font_set, u16 index) {
     return font_set->glyphWidths[idx];
 }
 
-void Font_ResetContext(UNUSED s32 arg0, UNUSED s32 arg1) {
+void Font_ResetContext(UNUSED void* data, UNUSED u32 arg) {
     gFontContext = NULL;
 }
 
-void Font_FreeSetAsset(UNUSED s32 arg0, s32 arg1) {
+void Font_FreeSetAsset(UNUSED void* data, u32 arg1) {
     if (gFontContext != NULL) {
         gFontContext->unk_00[arg1].glyphWidths = 0;
         gFontContext->unk_00[arg1].texture = 0;

@@ -2,6 +2,7 @@
 #define _373A0_H_
 
 #include "global.h"
+#include "src/libnumus/player.h"
 
 #ifdef M2C
 #define ENTRY_SIZE 1
@@ -69,16 +70,16 @@ typedef struct MoveSoundTable {
 } MoveSoundTable;
 
 extern u8 D_800B32A0[0x493E0 * 2]; // PORT: doubled (audio_commands.c)
-extern u32* D_800FC680;
-extern u8* D_800FC684;
-extern u8* D_800FC688;
-extern u8* D_800FC68C;
-extern u8* D_800FC690;
-extern u8* D_800FC698[3];
-extern u8* D_800FC6A4;
-extern u8* D_800FC6A8;
-extern u8* D_800FC6AC;
-extern u8* D_800FC6B0[3];
+extern song_t* D_800FC680;
+extern SoundBank* D_800FC684;
+extern fx_t* D_800FC688;
+extern SoundBank* D_800FC68C;
+extern SoundBank* D_800FC690;
+extern fx_t* D_800FC698[3];
+extern SoundBank* D_800FC6A4;
+extern fx_t* D_800FC6A8;
+extern SoundBank* D_800FC6AC;
+extern fx_t* D_800FC6B0[3];
 extern MoveSoundTable* D_800FC6C0[3];
 extern unk_D_800FC6CC* D_800FC6CC;
 extern u8* D_800FC6D0;

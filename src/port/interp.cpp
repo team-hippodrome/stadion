@@ -37,8 +37,8 @@
 #include <mutex>
 #include <unordered_map>
 #include <vector>
+#include "StadionPort.h"
 
-extern "C" uint64_t Port_ViTick();
 extern "C" double Port_Speed();
 extern "C" bool Port_RspTaskPending();
 extern "C" int64_t Port_ClockLagNs();
