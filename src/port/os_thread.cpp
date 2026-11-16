@@ -34,6 +34,8 @@ static void DumpStack(const char* what, int id) {
     for (int i = 2; i < n; i++) fprintf(stderr, " %p", frames[i]);
     fputc('\n', stderr);
 }
+extern "C" void port_NotifyMaybeIdle(void); // os_devices.cpp: wakes the lockstep clock
+
 #define TRACE(...) do { if (TraceOn()) { fprintf(stderr, "[os] " __VA_ARGS__); fputc('\n', stderr); } } while (0)
 
 namespace {
@@ -107,6 +109,8 @@ void Reschedule(bool force) {
     gCurrent = best;
     if (best != nullptr) {
         best->cv.notify_all();
+    } else {
+        port_NotifyMaybeIdle(); // every game thread is blocked: the lockstep clock may go on (os_devices.cpp)
     }
 }
 
