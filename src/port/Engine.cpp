@@ -51,6 +51,7 @@ extern "C" void Port_FragmentLoadRanges(const char* text);
 extern "C" void* Port_ResolveN64Address(uintptr_t addr);
 
 extern "C" double Port_Speed();
+extern "C" int64_t Port_NextRetraceNs(void);
 extern "C" bool Port_DisplayPaced();
 extern "C" bool Port_Lockstep();
 extern "C" bool Port_FreezeCheckEnabled();
@@ -781,6 +782,24 @@ bool PumpFrame() {
     }
     if (!WindowIsRunning()) {
         return false;
+    }
+    // The window loop (main.cpp) comes here about once per millisecond while it waits for the game. Pumping the
+    // window's events and polling the controllers that often cost several times what drawing the game does (Cocoa's
+    // event pump: ~85% of the window thread's busy time). They are needed before the game's next retrace, when the
+    // clock takes the pads (LatchPads), and now and then for the window: so they run once per retrace, shortly
+    // before it, and at least every 4 ms.
+    {
+        static int64_t sLastPumpNs = 0;
+        const int64_t now = Port_SteadyNs();
+        bool due = now - sLastPumpNs >= 4000000;
+        const int64_t retrace = Port_NextRetraceNs();
+        if (!due && retrace != 0 && retrace - now <= 1500000 && sLastPumpNs < retrace - 2000000) {
+            due = true;
+        }
+        if (!due) {
+            return true;
+        }
+        sLastPumpNs = now;
     }
     Port_ProcessControllerInitRequests();
     sWindow->HandleEvents();

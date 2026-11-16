@@ -543,6 +543,18 @@ extern "C" bool Port_Lockstep() {
     return on;
 }
 
+// Steady-clock time of the last VI retrace (both clocks), for Port_NextRetraceNs.
+static std::atomic<int64_t> gLastRetraceNs{ 0 };
+
+// When the next VI retrace is expected (steady clock, ns), or 0 when retraces do not follow real time (PORT_SPEED=max,
+// none yet). The window thread polls input just before it (Engine.cpp, PumpFrame).
+extern "C" int64_t Port_NextRetraceNs() {
+    const double periodNs = 16666667.0 / Port_Speed();
+    const int64_t last = gLastRetraceNs.load(std::memory_order_relaxed);
+    if (last == 0 || periodNs < 1000000.0) return 0;
+    return last + (int64_t)periodNs;
+}
+
 extern "C" uint64_t Port_ViTick() {
     return gTick.load();
 }
@@ -1058,6 +1070,7 @@ void LockstepClock() {
             gCountBump = 0;
         }
         gTick = ++tick;
+        gLastRetraceNs = Port_SteadyNs();
         LatchPads(tick);
         if (Port_FreezeCheckEnabled()) { // freeze report: the picture has not changed for PORT_FREEZE_FRAMES game frames
             static const uint64_t limit = getenv("PORT_FREEZE_FRAMES") ? strtoull(getenv("PORT_FREEZE_FRAMES"), nullptr, 10) : 300;
@@ -1192,6 +1205,7 @@ void port_osCreateViManager(OSPri) {
                 every = gViEvery;
             }
             gTick = ++tick;
+            gLastRetraceNs = Port_SteadyNs();
             if (q && (tick % every) == 0) {
                 port_PostMesgFromIrq(q, m);
             }
