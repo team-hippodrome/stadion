@@ -145,7 +145,6 @@ build_windows() { # $1: x64 or arm64
         [ $KEEP = 1 ] || rm -rf \"\$B\"
     "
     cp "$SRC/README.md" "$stage/README.md"
-    cp "$SRC/PORTING_NOTES.md" "$stage/PORTING_NOTES.md"
     mkdir -p "$stage/docs"
     cp "$SRC/docs/BUILDING.md" "$stage/docs/BUILDING.md"
     rm -f "$DIST/pokestadium-windows-$arch-v$VERSION.zip"
