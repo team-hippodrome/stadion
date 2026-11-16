@@ -12,6 +12,8 @@
 #endif
 
 #include <SDL3/SDL_messagebox.h>
+#include <SDL3/SDL_filesystem.h>
+#include <filesystem>
 
 #include <string>
 
@@ -312,7 +314,33 @@ static bool CheckAbsSymbols() {
 }
 #endif
 
+// PORT_LOG_FILE=<file>: everything the game writes to stderr (the PORT_TRACE_* and PORT_INTERP_LOG output, crash
+// reports) goes into that file, without a shell redirect. Testers on Windows got empty files from "2> log.txt": in
+// PowerShell neither "set" (a PowerShell variable) nor the redirect reaches a windowed program, and a batch file run
+// from another folder (or as administrator: System32) does not find the game. A relative name is next to the game
+// executable (SDL_GetBasePath; Resources in the macOS app). The first line names the file.
+static void OpenLogFile() {
+    const char* name = getenv("PORT_LOG_FILE");
+    if (name == nullptr || *name == '\0') return;
+    std::filesystem::path path = std::filesystem::u8path(name);
+    if (path.is_relative()) {
+        if (const char* base = SDL_GetBasePath()) path = std::filesystem::u8path(base) / path;
+    }
+#if defined(_WIN32)
+    FILE* f = _wfreopen(path.wstring().c_str(), L"w", stderr);
+#else
+    FILE* f = freopen(path.string().c_str(), "w", stderr);
+#endif
+    if (f == nullptr) return;
+    setvbuf(stderr, nullptr, _IONBF, 0);
+#if defined(_WIN32)
+    SetStdHandle(STD_ERROR_HANDLE, (HANDLE)_get_osfhandle(_fileno(stderr))); // (code writing to the handle itself)
+#endif
+    fprintf(stderr, "[log] PORT_LOG_FILE: %s\n", Port::PathUtf8(path).c_str());
+}
+
 static int RunGame(int argc, char** argv) {
+    OpenLogFile();
 #if defined(__EMSCRIPTEN__)
     if (!CheckAbsSymbols()) {
         return 1;

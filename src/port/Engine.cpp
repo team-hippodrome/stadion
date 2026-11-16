@@ -663,9 +663,17 @@ uint64_t FramesDrawn() {
 
 // PORT debug: PORT_DEBUG_DRAW_MS=<ms> makes every drawn frame (in-between frames too) take that much longer, as on a
 // slow GPU (an Intel HD 520 needs ~20-25 ms per battle frame), to test pacing and sound when drawing falls behind
+// PORT_DEBUG_VSYNC_HZ=<hz> then waits for the next refresh of a simulated display at that rate, as a present with
+// VSync blocks on Windows/OpenGL/DXGI (with PORT_NO_DISPLAY_VBLANK=1 on macOS: the Windows pacing, whose 1/60 s clock
+// drifts against the display's real refresh)
 static void DebugDrawDelay() {
     static const double sDrawDelayMs = getenv("PORT_DEBUG_DRAW_MS") ? atof(getenv("PORT_DEBUG_DRAW_MS")) : 0.0;
     if (sDrawDelayMs > 0) std::this_thread::sleep_for(std::chrono::microseconds((long long)(sDrawDelayMs * 1000)));
+    static const double sVsyncHz = getenv("PORT_DEBUG_VSYNC_HZ") ? atof(getenv("PORT_DEBUG_VSYNC_HZ")) : 0.0;
+    if (sVsyncHz > 0) {
+        const int64_t period = (int64_t)(1e9 / sVsyncHz), now = Port_SteadyNs();
+        std::this_thread::sleep_for(std::chrono::nanoseconds(period - now % period));
+    }
 }
 
 bool RunFrame(void* gfxCommands) {
