@@ -1,6 +1,6 @@
 # Smooth motion checks
 
-Scripts used for the frame interpolator's design review (PORTING_NOTES.md, "Frame interpolation" > "Design review
+Scripts used for the frame interpolator's design review (docs/archive/PORTING_NOTES.md, "Frame interpolation" > "Design review
 (2026-11)"). They run the game headless (hidden window) from `build/pokestadium` (or `PORT_BIN`) with the ROM in
 `PORT_ROM`, and need bash, a C compiler and ffmpeg.
 
@@ -23,6 +23,6 @@ Reading the results:
 Keep runs small: pictures are saved at 1/8 size by default (`SCALE`), and a Retina window doubles them; a full run at
 `SCALE=2` takes gigabytes. Other builds on the machine make real-time numbers noisy: compare on and off in one run.
 
-Useful game switches (see PORTING_NOTES): `PORT_INTERP_LOG=1/2/3`, `PORT_INTERP_IMMEDIATE=1` (all pictures drawn at
+Useful game switches (see docs/archive/PORTING_NOTES.md): `PORT_INTERP_LOG=1/2/3`, `PORT_INTERP_IMMEDIATE=1` (all pictures drawn at
 once) / `late` (drawn after the game has built the next frame, the real-time worst case), `PORT_INTERP_BUDGET=0`,
 `PORT_INTERP_MATCH=index` (the old pairing), `PORT_BOOT=demo:<n>` / `PORT_BOOT=castle_clear`.
