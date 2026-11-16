@@ -60,7 +60,11 @@ its `vulkan` feature (vcpkg leaves it out by default) for the Vulkan renderer. K
 vcpkg's debug libraries are linked, and the debug SDL3 stops DirectX 11 at startup with an assertion dialog
 (`SDL_IsMainThread` in `SDL_PumpEventsInternal`). `pokestadium.exe` is a
 window-only program (no console window; set `PORT_CONSOLE=1` to open one) with the icon and version information of
-`src/port/pokestadium.rc.in`.
+`src/port/pokestadium.rc.in`. For logs from testers, `PORT_LOG_FILE=<file>` makes the game write its stderr (the
+`PORT_TRACE_*` and `PORT_INTERP_LOG` output, crash reports) to that file itself, next to the executable for a relative
+name: `2> log.txt` came back empty on a tester's machine (in PowerShell, `set` makes no environment variable and the
+redirect does not reach a windowed program). `tools/windows/smooth_motion_trace.bat`, put next to `pokestadium.exe`
+and double-clicked, runs the game that way with the Smooth motion trace and leaves `smooth_motion_log.txt`.
 
 **Android** (64-bit ARM, Android 10 or newer; tested target: AYN Thor). Needs JDK 17 or 21, the Android SDK with NDK
 29.0.14206865, platform 36 and build-tools 36 (`sdkmanager "platforms;android-36" "build-tools;36.0.0"

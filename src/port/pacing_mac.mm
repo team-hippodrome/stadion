@@ -127,6 +127,9 @@ void Port_MacFollowDisplay(double x, double y) {
 }
 
 extern "C" bool Port_DisplayVblank(int64_t* periodNs, int64_t* vblankNs) {
+    // PORT debug: PORT_NO_DISPLAY_VBLANK=1 reports no vblank, as on Windows and Linux (the 1/60 s clock everywhere)
+    static const bool sOff = getenv("PORT_NO_DISPLAY_VBLANK") != nullptr;
+    if (sOff) return false;
     int64_t anchor;
     double period;
     {
