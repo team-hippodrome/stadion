@@ -196,6 +196,8 @@ set(STADION_GAME_WARNINGS
   -Wno-sign-compare
   -Wno-int-conversion -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types
   -Wno-return-mismatch -Wno-return-type # older clang (macOS CI) rejects missing return values the decomp keeps
+  -Wno-error=format-security    # the Android NDK adds -Werror=format-security, which -Wno-error does not undo: the
+                                # game's sprintf(buf, Text_GetString(...)) in the demo scenes stopped the APK build
   -Werror=implicit-function-declaration)
 # The vendored libultra sources stay silent, as 2Ship2Harkinian does for its libultra copy: they are upstream SDK
 # code, not maintained here.
