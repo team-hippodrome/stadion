@@ -34,9 +34,18 @@ typedef s32 (*FragmentEntry)(s32, intptr_t); // PORT64: UI callbacks pass a poin
 void Memmap_SetSegmentMap(u32 id, uintptr_t vaddr, size_t size);
 uintptr_t Memmap_GetSegmentBaseVaddr(u32 id);
 uintptr_t Memmap_GetSegmentVaddr(uintptr_t mask);
-// Segment table lookup for a pointer result (HarbourMasters' name). Accepts a segmented address held in an integer
-// field or a pointer; anything that is not segmented (a host pointer, a KSEG0 address) comes back unchanged.
-#define SEGMENTED_TO_VIRTUAL(addr) ((void*)Memmap_GetSegmentVaddr((uintptr_t)(addr)))
+// Segment table lookup for a pointer result (HarbourMasters' name). Anything that is not segmented (a host pointer, a
+// KSEG0 address) comes back unchanged. These are functions rather than casting macros so the strict type groups still
+// check the argument: SEGMENTED_TO_VIRTUAL takes an address held in an integer, SEGMENTED_PTR_TO_VIRTUAL a pointer
+// field that may hold a segmented address.
+static inline void* Memmap_SegmentedToVirtual(uintptr_t addr) {
+    return (void*)Memmap_GetSegmentVaddr(addr);
+}
+static inline void* Memmap_SegmentedPtrToVirtual(const void* addr) {
+    return (void*)Memmap_GetSegmentVaddr((uintptr_t)addr);
+}
+#define SEGMENTED_TO_VIRTUAL(addr) Memmap_SegmentedToVirtual(addr)
+#define SEGMENTED_PTR_TO_VIRTUAL(addr) Memmap_SegmentedPtrToVirtual(addr)
 u32 Memmap_GetSegmentVaddrMask(u32 i, uintptr_t addr);
 void Memmap_ClearSegmentMemmap(u32 id);
 void Memmap_SetSegments(Gfx** gfxDl);

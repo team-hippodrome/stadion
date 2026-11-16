@@ -1430,7 +1430,7 @@ s32 BattlePrep_BadgeCarouselGlowCallback2(s32 arg0, unk_func_80011B94* arg1) {
     return 0;
 }
 
-void BattlePrep_RenderBadgeGlowTexture(intptr_t arg0) {
+void BattlePrep_RenderBadgeGlowTexture(u8* arg0) {
     DepthBuffer sp40;
     uintptr_t sp3C = Util_ConvertAddrToVirtAddr(&D_3017F00);
 
