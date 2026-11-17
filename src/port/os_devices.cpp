@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include "StadionPort.h"
 
+extern "C" uint32_t* port_ThreadCsrSlot(uint32_t* fallback); // os_thread.cpp
 extern "C" void port_PostEvent(OSEvent event);
 extern "C" void port_PostMesgFromIrq(OSMesgQueue* mq, OSMesg msg);
 
@@ -295,7 +296,8 @@ void __osSetCount(u32) {}
 // drifted out of phase. The FP environment is per host thread and each OSThread is one (os_thread.cpp), so this only
 // changes game code. Only the rounding mode is mirrored (no traps; denormal results are rare enough to leave).
 u32 __osSetFpcCsr(u32 csr) {
-    static thread_local u32 sCsr = 0x01000800; // libultra's boot value: round to nearest, flush, trap invalid
+    static thread_local u32 sHostCsr = 0x01000800; // libultra's boot value: round to nearest, flush, trap invalid
+    u32& sCsr = *port_ThreadCsrSlot(&sHostCsr); // (one per OSThread, which may be a fiber of a shared host thread)
     static const int kModes[4] = { FE_TONEAREST, FE_TOWARDZERO, FE_UPWARD, FE_DOWNWARD };
     u32 old = sCsr;
     sCsr = csr;
