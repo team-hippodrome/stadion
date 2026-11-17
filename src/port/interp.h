@@ -24,6 +24,8 @@ namespace Port {
 void RunGameFrame(void* gfxCommands, bool exact);
 // Draws the next in-between frame when its refresh has come (main loop).
 void PumpInterpolation();
+// When PumpInterpolation next has something to draw (steady clock, ns), or INT64_MAX with no in-between frame pending.
+int64_t NextInterpolationDueNs();
 // Something else was shown (a CPU-drawn frame, a frame drawn for its state only): no more in-between frames.
 void CancelInterpolation();
 } // namespace Port
