@@ -1,6 +1,8 @@
 #include "Engine.h"
 #include "rom_check.h"
 #include "interp.h"
+#include "pacing.h"
+#include <algorithm>
 #include "port_platform.h"
 #include "launcher.h"
 #include "launcher_files.h"
@@ -529,17 +531,25 @@ static int RunGame(int argc, char** argv) {
 #endif
     // The window must be driven from the process's main thread; game threads run on host threads.
     while (Port::PumpFrame()) {
-        // up to 1 ms, less when the game queues an RSP task: a scene's 300 JPEG tasks each waited a full loop pass
-        // (a 0.35 s pause at the title-to-menu change). Tasks queued right after one another (those JPEG tasks: the
-        // game submits the next when the last is done) are run for up to 4 ms before the window's events are pumped
-        // again: the event pump (Cocoa) costs about as much as a task, and paying it 300 times held up the screen
-        // changes by 15-30 ms (with or without Smooth motion). Events are still handled every 4 ms or so.
+        // PORT: sleeps until the earliest thing that needs this thread: a queued RSP task (the game's JPEG tasks: a
+        // scene's 300 of them each waited a full loop pass, a 0.35 s pause at the title-to-menu change), a frame buffer
+        // to show or a retrace (both wake it), the next in-between picture, PumpFrame's next event pump, at most 16 ms.
+        // It polled every millisecond before: ~1000 wakeups a second to do nothing. Tasks queued right after one
+        // another are run for up to 4 ms before the window's events are pumped again: the event pump (Cocoa) costs
+        // about as much as a task, and paying it 300 times held up the screen changes by 15-30 ms.
         const auto burstStart = std::chrono::steady_clock::now();
+        bool more;
         do {
+            const uint64_t epoch = Port::WindowWakeEpoch();
             Port::PumpRspTasks();
             Port::PumpInterpolation();
-        } while (Port::WaitForRspTasks(std::chrono::milliseconds(1)) &&
-                 std::chrono::steady_clock::now() - burstStart < std::chrono::milliseconds(4));
+            const int64_t now = Port_SteadyNs();
+            int64_t until = std::min({ Port::NextInterpolationDueNs(), Port::NextPumpDueNs(), now + 16000000 });
+            // A long sleep wakes late (the OS merges timers: a few ms on a busy machine, and the pads are read just
+            // before the retrace). So a deadline more than 1.5 ms away is slept to in two steps, the last short.
+            if (until - now > 1500000) until -= 1500000;
+            more = Port::WaitForWindowWork(until, epoch);
+        } while (more && std::chrono::steady_clock::now() - burstStart < std::chrono::milliseconds(4));
     }
     Port::StopDevices();
     // Window closed: end the process at once, as on SIGTERM. Returning from main ran the static destructors while
