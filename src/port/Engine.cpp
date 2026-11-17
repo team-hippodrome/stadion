@@ -794,15 +794,24 @@ bool PumpFrame() {
     // The window loop (main.cpp) comes here about once per millisecond while it waits for the game. Pumping the
     // window's events and polling the controllers that often cost several times what drawing the game does (Cocoa's
     // event pump: ~85% of the window thread's busy time). They are needed before the game's next retrace, when the
-    // clock takes the pads (LatchPads), and now and then for the window: so they run once per retrace, shortly
-    // before it, and at least every 4 ms.
+    // clock takes the pads (LatchPads), and now and then for the window: so they run shortly before each retrace,
+    // in the middle of a frame that has had none since the last retrace (the one before the retrace can be missed
+    // while a picture is drawn: the pads would then be a frame old), and at least every 33 ms (two frames: the window
+    // stays responsive while the game loads or when retraces do not follow real time, PORT_SPEED=max). A 4 ms floor
+    // pumped ~250 times a second, still twice the cost of drawing the game.
     {
         static int64_t sLastPumpNs = 0;
         const int64_t now = Port_SteadyNs();
-        bool due = now - sLastPumpNs >= 4000000;
+        bool due = now - sLastPumpNs >= 33000000;
         const int64_t retrace = Port_NextRetraceNs();
-        if (!due && retrace != 0 && retrace - now <= 1500000 && sLastPumpNs < retrace - 2000000) {
-            due = true;
+        if (!due && retrace != 0) {
+            const int64_t period = (int64_t)(16666667.0 / Port_Speed());
+            const int64_t last = retrace - period;
+            if (retrace - now <= 1500000 && sLastPumpNs < retrace - 2000000) {
+                due = true; // shortly before the retrace
+            } else if (sLastPumpNs < last && now - last >= period / 2) {
+                due = true; // none since the last retrace
+            }
         }
         if (!due) {
             return true;
