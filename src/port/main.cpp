@@ -24,11 +24,11 @@
 #include <thread>
 #include <csignal>
 #include "StadionPort.h"
+#include <spdlog/spdlog.h>
 #if defined(_WIN32)
 #include <exception>
 #include <io.h>
 #include <SDL3/SDL_process.h>
-#include <spdlog/spdlog.h>
 #else
 #include <sys/ucontext.h>
 #include <unistd.h>
@@ -463,6 +463,9 @@ static int RunGame(int argc, char** argv) {
         std::ofstream marker(recovery); marker << "graphics\n";
     }
     const auto configPath = std::filesystem::u8path(Port::AppPath("pokestadium.cfg.json"));
+    // An empty or cut-off config (a save that was interrupted) used to stop the game here with a message box.
+    const std::string configRecovery = Port::RecoverConfigFile(configPath);
+    if (!configRecovery.empty()) fprintf(stderr, "[config] %s\n", configRecovery.c_str());
     if (std::filesystem::is_regular_file(configPath)) {
         if (getenv("PORT_SAFE_MODE") != nullptr) {
             // Recovery changes only graphics/Auto-play, and keeps an untouched copy of the original JSON.
@@ -473,18 +476,10 @@ static int RunGame(int argc, char** argv) {
                 copied = std::filesystem::copy_file(configPath, copy, std::filesystem::copy_options::none, ec); break;
             }
             if (!copied) { fprintf(stderr, "Cannot preserve config before recovery. No settings changed.\n"); clearRecovery(); return 1; }
-        } else {
-            try {
-                std::ifstream input(configPath);
-                if (!nlohmann::json::parse(input).is_object()) throw std::runtime_error("Config must be an object");
-            } catch (const std::exception&) {
-                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Cannot read launcher settings",
-                    "The config JSON is invalid and has been preserved. Start with --safe-mode to create working settings and keep a recovery copy.", nullptr);
-                clearRecovery(); return 1;
-            }
         }
     }
     if (!Port::Init()) { return 1; }
+    if (!configRecovery.empty()) SPDLOG_WARN("[config] {}", configRecovery);
     if (interactive) { std::ofstream marker(recovery); marker << "game\n"; }
     InstallSignalHandlers();
     if (romPath.empty()) {
