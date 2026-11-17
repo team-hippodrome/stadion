@@ -6,10 +6,17 @@
 // all other host threads sleep on their own condition variable. Switches happen at libultra calls
 // (and when interrupt-like events post messages while no thread holds the token), so game code never
 // runs concurrently with other game code, matching the single-CPU assumptions in the decomp.
+//
+// Where fibers are available (fiber.h) the OSThreads are not host threads at all but fibers run one at a time by a
+// single "carrier" host thread: handing the token over is then a user-mode stack switch instead of a pair of host
+// context switches (a wake-up and a sleep, ~11 per game frame in a cup match). The scheduling decisions are the same
+// either way, so runs stay deterministic. PORT_FIBERS=0 selects the host thread per OSThread implementation.
 #include <ultra64.h>
 #include <port_compat.h>
 
+#include <cfenv>
 #include <condition_variable>
+#include "fiber.h"
 #include <deque>
 #include <mutex>
 #include <thread>
@@ -54,6 +61,9 @@ struct Thread {
     bool dead = false;
     uint64_t seq = 0;          // FIFO order among equal priorities
     std::condition_variable cv;
+    PortFiber* fiber = nullptr; // fiber mode: this thread's stack and registers
+    int fpRound = FE_TONEAREST; // fiber mode: the FP rounding mode (per host thread on the N64's behalf, see __osSetFpcCsr)
+    uint32_t csr = 0x01000800;  // the thread's FPU control/status register as the game last set it (__osSetFpcCsr)
     OSMesgQueue* waitingOn = nullptr;
     bool waitForRecv = false;
     void* blockedAt[16] = {};   // where the thread last blocked (for the stall report)
@@ -72,8 +82,22 @@ std::unordered_map<OSMesgQueue*, QueueWaiters> gWaiters;
 std::unordered_map<OSMesgQueue*, std::vector<void*>> gQueueStorage;
 Thread* gCurrent = nullptr;  // token holder; nullptr when every thread is blocked
 uint64_t gSeq = 0;
-thread_local Thread* tlsSelf = nullptr;
+thread_local Thread* tlsSelf = nullptr; // the running OSThread (fiber mode: set by the carrier at every switch)
 bool gShuttingDown = false;
+
+// Fiber mode state (gLock). The carrier sleeps on gCarrierCv while every thread is blocked.
+#ifdef PORT_HAVE_FIBERS
+constexpr size_t kFiberStack = 4u << 20; // address space only: pages are committed as they are touched
+bool UseFibers() {
+    static const bool on = !(getenv("PORT_FIBERS") && atoi(getenv("PORT_FIBERS")) == 0);
+    return on;
+}
+#else
+bool UseFibers() { return false; }
+#endif
+PortFiber* gSched = nullptr;
+bool gCarrierStarted = false;
+std::condition_variable gCarrierCv;
 
 Thread* Lookup(OSThread* t) {
     if (t == nullptr) {
@@ -108,7 +132,11 @@ void Reschedule(bool force) {
     }
     gCurrent = best;
     if (best != nullptr) {
-        best->cv.notify_all();
+        if (!UseFibers()) {
+            best->cv.notify_all();
+        } else if (tlsSelf == nullptr) {
+            gCarrierCv.notify_one(); // not called from a fiber: the carrier may be asleep
+        }
     } else {
         port_NotifyMaybeIdle(); // every game thread is blocked: the lockstep clock may go on (os_devices.cpp)
     }
@@ -118,9 +146,58 @@ void Reschedule(bool force) {
 void WaitForToken(std::unique_lock<std::mutex>& lk, Thread* me) {
     Reschedule(true);
     while (gCurrent != me && !gShuttingDown) {
-        me->cv.wait(lk);
+        if (UseFibers()) { // back to the carrier, which runs whichever thread holds the token now
+            lk.unlock();
+            Port_FiberSwitch(me->fiber, gSched);
+            lk.lock();
+        } else {
+            me->cv.wait(lk);
+        }
     }
 }
+
+#ifdef PORT_HAVE_FIBERS
+// The host thread that runs every OSThread in fiber mode, one at a time: whichever one holds the token.
+void CarrierMain() {
+    Port_AltSignalStack();
+    gSched = Port_FiberForHostThread();
+    std::unique_lock<std::mutex> lk(gLock);
+    for (;;) {
+        while (gCurrent == nullptr && !gShuttingDown) {
+            gCarrierCv.wait(lk);
+        }
+        if (gShuttingDown) {
+            return;
+        }
+        Thread* t = gCurrent;
+        lk.unlock();
+        tlsSelf = t;
+        std::fesetround(t->fpRound);
+        Port_FiberSwitch(gSched, t->fiber);
+        t->fpRound = std::fegetround();
+        std::fesetround(FE_TONEAREST);
+        tlsSelf = nullptr;
+        lk.lock();
+    }
+}
+
+void FiberMain(void* arg) {
+    Thread* t = static_cast<Thread*>(arg);
+    t->entry(t->arg);
+    std::unique_lock<std::mutex> lk(gLock);
+    t->dead = true;
+    t->state = State::Stopped;
+    if (gCurrent == t) {
+        gCurrent = nullptr;
+    }
+    Reschedule(false);
+    for (;;) { // never scheduled again
+        lk.unlock();
+        Port_FiberSwitch(t->fiber, gSched);
+        lk.lock();
+    }
+}
+#endif
 
 void ThreadMain(Thread* t) {
     tlsSelf = t;
@@ -211,8 +288,19 @@ void osStartThread(OSThread* t) {
     th->seq = ++gSeq;
     if (!th->hostStarted) {
         th->hostStarted = true;
-        th->host = std::thread(ThreadMain, th);
-        th->host.detach();
+#ifdef PORT_HAVE_FIBERS
+        if (UseFibers()) {
+            th->fiber = Port_FiberCreate(FiberMain, th, kFiberStack);
+            if (!gCarrierStarted) {
+                gCarrierStarted = true;
+                std::thread(CarrierMain).detach();
+            }
+        } else
+#endif
+        {
+            th->host = std::thread(ThreadMain, th);
+            th->host.detach();
+        }
     }
     if (tlsSelf != nullptr) {
         WaitForToken(lk, tlsSelf);
@@ -253,7 +341,13 @@ void osDestroyThread(OSThread* t) {
     // crashed the game. A dead thread is never scheduled again, so its host thread just waits for the process to end.
     if (th == tlsSelf) {
         for (;;) {
-            th->cv.wait(lk);
+            if (UseFibers()) {
+                lk.unlock();
+                Port_FiberSwitch(th->fiber, gSched);
+                lk.lock();
+            } else {
+                th->cv.wait(lk);
+            }
         }
     }
 }
@@ -280,7 +374,13 @@ void osSetThreadPri(OSThread* t, OSPri pri) {
         th->state = State::Stopped;
         WaitForToken(lk, th);
         while (!gShuttingDown) {
-            th->cv.wait(lk);
+            if (UseFibers()) {
+                lk.unlock();
+                Port_FiberSwitch(th->fiber, gSched);
+                lk.lock();
+            } else {
+                th->cv.wait(lk);
+            }
         }
         return;
     }
@@ -477,6 +577,11 @@ int port_ThreadsIdle(void) {
     return gCurrent == nullptr && PickBest() == nullptr;
 }
 
+// The calling OSThread's FPU control/status register (see __osSetFpcCsr), 'fallback' for host threads that are not one.
+uint32_t* port_ThreadCsrSlot(uint32_t* fallback) {
+    return tlsSelf != nullptr ? &tlsSelf->csr : fallback;
+}
+
 void port_DumpThreads(void) {
     std::lock_guard<std::mutex> g(gLock);
     fprintf(stderr, "[threads] token: %d\n", gCurrent ? (int)gCurrent->id : -1);
@@ -501,6 +606,7 @@ void port_ShutdownThreads(void) {
     for (auto& kv : gThreads) {
         kv.second->cv.notify_all();
     }
+    gCarrierCv.notify_all();
 }
 
 } // extern "C"
