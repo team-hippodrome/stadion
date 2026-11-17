@@ -14,7 +14,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifdef __clang__
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wclobbered" // (getcontext only seeds the context; it never returns twice here)
+#endif
 
 struct PortFiber {
     ucontext_t uc;

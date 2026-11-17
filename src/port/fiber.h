@@ -4,6 +4,9 @@
 #define PORT_FIBER_H
 
 #include <stddef.h>
+#if defined(__linux__)
+#include <features.h> // (defines __GLIBC__: no header before this one may have pulled it in)
+#endif
 
 #if defined(__APPLE__) || (defined(__linux__) && defined(__GLIBC__))
 #define PORT_HAVE_FIBERS 1
