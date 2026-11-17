@@ -87,6 +87,7 @@ std::atomic<uint64_t> gMapGen{ 0 };
 std::shared_ptr<Frame> gPrev;
 uint64_t gPrevTick = 0;
 struct Pending {
+    bool late = false; // something in this series came late (NoteLate): counted in the budget's window
     void* dl = nullptr;
     std::shared_ptr<Frame> a, b;
     std::vector<PlanEntry> plan;
@@ -104,19 +105,34 @@ bool gHavePending = false;
 // the catch-up (PumpRspTasks) skips whole game frames, and the screen freezes and then jumps several frames ahead
 // ("fast-forward"; measured with PORT_DEBUG_DRAW_MS=25: 92 freezes over 50 ms and 37 jumps in 15 s, none without
 // Smooth motion). So the pictures are budgeted: when a series overran (a picture finished after the next game frame
-// was due, the first picture alone took two refreshes, or pictures were dropped in 3 frames in a row), the next frames
-// get one picture
-// each, exactly as without Smooth motion, for a hold time that doubles on each new overrun (2 s up to 5 min) and halves
-// again after long calm stretches; then in-between pictures are tried again.
+// was due, the first picture alone took two refreshes, or an in-between picture dropped while behind) in at least half of
+// the last 16 series (CountSeries), the next frames get one picture each, exactly as without Smooth motion, for a hold
+// time that doubles on each new overrun (2 s up to 1 min) and halves again after long calm stretches; then in-between
+// pictures are tried again.
 struct Budget {
     int maxPictures = 8;
     uint64_t hold = 0;     // game frames left at one picture
     uint64_t backoff = 60; // the next hold
     uint64_t calm = 0;     // game frames at full budget without an overrun
-    int dropsInRow = 0;    // game frames in a row whose last pictures were dropped
+    int dropsInRow = 0;    // game frames in a row whose last pictures were dropped (PORT_INTERP_OLD_BUDGET)
     bool overran = false;
     uint64_t overruns = 0;
+    uint32_t window = 0;   // the last kWindow series of in-between pictures, one bit each: 1 = something came late
+    int windowFill = 0;
+    int lateRun = 0;       // late series in a row
+    int probation = 0;     // series left after a hold in which kProbationRun late ones in a row start the next hold
 } gBudget;
+
+// The budget's evidence (2026-11-17), from an Intel HD 520 (Windows, v0.0.15) that draws a picture in ~12 ms and holds
+// 60 pictures per second without the budget (1794 of 1799 in a 30 s ceremony): a single heavy game frame every 25-30
+// frames (loading, texture uploads: the game busy 45-48 ms) gave a late picture and one or two drops while game time
+// caught up. Counted per event ("two late pictures within a second", "drops in 3 frames in a row") these isolated
+// hitches started 4-6 holds per 30 s. A GPU too slow for the pictures is late in most series; a hitch in one or two.
+// So: an overrun when at least half of the last 16 series had something late, or 5 in a row (the HD 520 traces: at most
+// 3 in a row, 3 in any 16). After a hold, in-between pictures are on probation for 16 series: 2 late in a row start the
+// next hold at once, so a GPU that is really too slow pays two late series per retry, not eight (pacing.sh at 25 ms
+// per picture: 26 freezes in 15 s with the window alone).
+constexpr int kWindow = 16, kWindowLate = 8, kLateRun = 5, kProbationRun = 2;
 
 bool BudgetDisabled() {
     static const bool v = getenv("PORT_INTERP_IMMEDIATE") != nullptr ||
@@ -126,10 +142,50 @@ bool BudgetDisabled() {
 
 void NoteOverrun(const char* why);
 
+bool OldBudget() {
+    static const bool v = getenv("PORT_INTERP_OLD_BUDGET") != nullptr; // the rules of v0.0.13 (comparisons)
+    return v;
+}
+
+// Something in the pending series came late (a picture that ended after the next game frame was due, a first picture
+// over two refreshes, an in-between picture dropped while behind). Counted once per series, when it ends (EndPending).
+void NoteLate(const char* why) {
+    if (BudgetDisabled() || !gHavePending) return;
+    if (!gPending.late && getenv("PORT_INTERP_LOG")) {
+        fprintf(stderr, "[interp] late at frame %llu: %s\n", (unsigned long long)Port_ViTick(), why);
+    }
+    gPending.late = true;
+}
+
+// A series ended: its bit goes into the window; at least kWindowLate late ones among the last kWindow is an overrun.
+void CountSeries(bool late) {
+    if (BudgetDisabled() || OldBudget()) return;
+    Budget& b = gBudget;
+    b.window = (b.window << 1) | (late ? 1u : 0u);
+    if (b.windowFill < kWindow) b.windowFill++;
+    b.lateRun = late ? b.lateRun + 1 : 0;
+    const bool onProbation = b.probation > 0;
+    if (b.probation > 0) b.probation--;
+    const int lateCount = __builtin_popcount(b.window & ((1u << kWindow) - 1));
+    char why[96];
+    if (lateCount >= kWindowLate) {
+        snprintf(why, sizeof why, "%d of the last %d series of pictures came late", lateCount, b.windowFill);
+        NoteOverrun(why);
+    } else if (b.lateRun >= (onProbation ? kProbationRun : kLateRun)) {
+        snprintf(why, sizeof why, "%d series of pictures in a row came late%s", b.lateRun,
+                 onProbation ? " (after a hold)" : "");
+        NoteOverrun(why);
+    }
+}
+
 // A late picture counts as an overrun only when another came within the last second of game time: a GPU too slow for
 // the pictures is late on every frame, while a lone late picture (a scene loading, a shader built, the host busy for
 // a moment) put the menus on 30 pictures per second for 2 s and doubled the next hold.
 void NoteLatePicture(const char* why) {
+    if (!OldBudget()) {
+        NoteLate(why);
+        return;
+    }
     static uint64_t sLastLate = 0;
     const uint64_t tick = Port_ViTick();
     static const bool sOld = getenv("PORT_INTERP_OLD_BUDGET") != nullptr; // the rules before 2026-11-13 (comparisons)
@@ -159,11 +215,12 @@ int PicturesAllowed() {
     // frame of a slow GPU renewed the hold below, so the budget never left one picture per game frame: an Intel HD 520
     // showed the game's own 20 per second in the title, where v0.0.12 showed 60)
     static const bool sOld = getenv("PORT_INTERP_OLD_BUDGET") != nullptr;
-    bool lagging = Port_ClockLagNs() > (sOld ? 4000000 : 16666667);
+    // (two refreshes: after a heavy frame game time lags a refresh or so while it catches up; HD 520: 17-28 ms)
+    bool lagging = Port_ClockLagNs() > (sOld ? 4000000 : 33333333);
     if (b.overran) { // (a lag alone is not ours: loading stalls the game too; dropped pictures count, FinishPending)
         if (b.maxPictures > 1) {
             b.hold = b.backoff;
-            b.backoff = std::min<uint64_t>(b.backoff * 2, 9000);
+            b.backoff = std::min<uint64_t>(b.backoff * 2, sOld ? 9000 : 1800); // (at most a minute)
             b.overruns++;
             if (getenv("PORT_INTERP_LOG")) {
                 fprintf(stderr, "[interp] budget: one picture per game frame for %llu frames (overrun %llu)\n",
@@ -174,6 +231,9 @@ int PicturesAllowed() {
         b.overran = false;
         b.calm = 0;
         b.dropsInRow = 0;
+        b.window = 0; // (a fresh start when in-between pictures are tried again)
+        b.windowFill = 0;
+        b.lateRun = 0;
     } else if (b.maxPictures == 1) {
         if (lagging) {
             b.hold = std::max(b.hold, (uint64_t)30); // the game lags without in-between pictures too: wait
@@ -181,6 +241,7 @@ int PicturesAllowed() {
             b.hold--;
         } else {
             b.maxPictures = 8; // try again
+            b.probation = kWindow;
         }
     } else if (++b.calm >= 1800) { // a minute without an overrun
         b.calm = 0;
@@ -566,6 +627,7 @@ std::shared_ptr<Fast::Interpreter> Interp() {
 void EndPending() {
     if (gHavePending) {
         if (auto interp = Interp()) interp->ReplayEnd();
+        CountSeries(gPending.late);
     }
     gHavePending = false;
     gPending = Pending();
@@ -587,7 +649,11 @@ void FinishPending(bool countDrop = true, bool behind = false) {
     static const bool sOld = getenv("PORT_INTERP_OLD_BUDGET") != nullptr;
     const bool late = sOld || behind || (gHavePending && Port_SteadyNs() > Due(gPending, gPending.next));
     if (gHavePending && gPending.next < gPending.k && countDrop && late) {
-        if (++gBudget.dropsInRow >= 3) NoteOverrun("pictures dropped in 3 game frames in a row");
+        if (!OldBudget()) {
+            NoteLate(behind ? "an in-between picture dropped: game time behind" : "an in-between picture dropped late");
+        } else if (++gBudget.dropsInRow >= 3) {
+            NoteOverrun("pictures dropped in 3 game frames in a row");
+        }
     } else if (gHavePending) {
         gBudget.dropsInRow = 0;
     }
@@ -721,6 +787,7 @@ void RunGameFrame(void* gfxCommands, bool exact) {
                 st.sceneCut ? " SCENE CUT" : "", st.maxMove);
     }
     if (k >= 2 && (repaint || restore)) {
+        gPending.late = false;
         gPending.dl = gfxCommands;
         gPending.a = gPrev;
         gPending.b = cur;
@@ -741,8 +808,8 @@ void RunGameFrame(void* gfxCommands, bool exact) {
         RunFrameWith(gfxCommands, &r, false);
         Shot(tick, 0, k);
         // the first picture alone took two refreshes (a present that waits for the vblank takes up to one): no room
-        if (Port_SteadyNs() - gPending.start > gPending.period * 2) NoteLatePicture("the first picture took two refreshes");
         gHavePending = true;
+        if (Port_SteadyNs() - gPending.start > gPending.period * 2) NoteLatePicture("the first picture took two refreshes");
         if (immediate && !late) {
             while (gHavePending) DrawNext();
         }

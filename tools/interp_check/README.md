@@ -10,6 +10,7 @@ Scripts used for the frame interpolator's design review (PORTING_NOTES.md, "Fram
 | `sweep.sh <out> [16:9\|4:3]` | the ceremonies (`PORT_BOOT=demo:<n>`), the Gym Leader Castle ending (`PORT_BOOT=castle_clear`), battles with sleep Zs, Psychic and Fire Blast in arenas 2, 11 (Koga) and 15 (Elite Four), and eight replays; each in-between picture scored against its neighbours (`tri.c`), the worst three per scene kept as pictures, matching statistics per scene in `<out>/summary.txt` |
 | `pacing.sh <out> [trials]` | real time, 15 s of the cup-clear ceremony: freezes and frame jumps with Smooth motion on and off, on this GPU and a simulated slow one (`PORT_DEBUG_DRAW_MS`) |
 | `sheet.sh <out.png> <columns> <width> <pictures...>` | a contact sheet |
+| `budget_replay.py <trace.txt>...` | what the picture budget's window rule makes of a `PORT_INTERP_LOG=1` trace (a tester's `smooth_motion_log.txt`; best taken with `PORT_INTERP_BUDGET=0`): late series, the worst 16, overruns |
 
 Reading the results:
 
