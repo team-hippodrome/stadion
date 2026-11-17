@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include "StadionPort.h"
 
+extern "C" uint32_t* port_ThreadCsrSlot(uint32_t* fallback); // os_thread.cpp
 extern "C" void port_PostEvent(OSEvent event);
 extern "C" void port_PostMesgFromIrq(OSMesgQueue* mq, OSMesg msg);
 
@@ -295,7 +296,8 @@ void __osSetCount(u32) {}
 // drifted out of phase. The FP environment is per host thread and each OSThread is one (os_thread.cpp), so this only
 // changes game code. Only the rounding mode is mirrored (no traps; denormal results are rare enough to leave).
 u32 __osSetFpcCsr(u32 csr) {
-    static thread_local u32 sCsr = 0x01000800; // libultra's boot value: round to nearest, flush, trap invalid
+    static thread_local u32 sHostCsr = 0x01000800; // libultra's boot value: round to nearest, flush, trap invalid
+    u32& sCsr = *port_ThreadCsrSlot(&sHostCsr); // (one per OSThread, which may be a fiber of a shared host thread)
     static const int kModes[4] = { FE_TONEAREST, FE_TOWARDZERO, FE_UPWARD, FE_DOWNWARD };
     u32 old = sCsr;
     sCsr = csr;
@@ -350,6 +352,8 @@ void* port_osViGetCurrentFramebuffer(void) {
     return gViCurrent;
 }
 
+static void WakeWindowThread();
+
 void port_osViSwapBuffer(void* fb) {
     {
         std::lock_guard<std::mutex> v(gViFbLock);
@@ -357,6 +361,7 @@ void port_osViSwapBuffer(void* fb) {
     }
     std::unique_lock<std::mutex> g(gSwapLock);
     gViPending = fb;
+    WakeWindowThread(); // PORT: the window loop sleeps until its next deadline; the frame is presented from it
     // In lockstep mode the swap completes when the main thread has looked at it (as a graphics task does), so each
     // CPU-drawn frame is shown and frame numbers stay deterministic.
     if (Port_Lockstep()) {
@@ -847,6 +852,7 @@ std::mutex gTaskLock;
 std::condition_variable gTaskDoneCv;
 uint64_t gTasksSubmitted = 0, gTasksProcessed = 0;
 std::condition_variable gTaskQueuedCv; // the window loop waits on it (Port::WaitForRspTasks)
+std::atomic<uint64_t> gWindowWake{ 0 }; // bumped by what the window loop must see besides a queued task (WakeWindowThread)
 std::deque<OSTask*> gTasks;
 OSTask* gLoaded = nullptr;
 
@@ -1071,6 +1077,7 @@ void LockstepClock() {
         }
         gTick = ++tick;
         gLastRetraceNs = Port_SteadyNs();
+        WakeWindowThread(); // PORT: the next retrace moved the window loop's event-pump deadlines
         LatchPads(tick);
         if (Port_FreezeCheckEnabled()) { // freeze report: the picture has not changed for PORT_FREEZE_FRAMES game frames
             static const uint64_t limit = getenv("PORT_FREEZE_FRAMES") ? strtoull(getenv("PORT_FREEZE_FRAMES"), nullptr, 10) : 300;
@@ -1117,6 +1124,14 @@ void LockstepClock() {
     }
 }
 } // namespace
+
+// Wakes the window loop (Port::WaitForWindowWork) for something it must see that is not an RSP task. The lock is
+// taken so a wake cannot fall between the loop's predicate check and its sleep.
+static void WakeWindowThread() {
+    gWindowWake.fetch_add(1);
+    { std::lock_guard<std::mutex> g(gTaskLock); }
+    gTaskQueuedCv.notify_one();
+}
 
 extern "C" void port_NotifyMaybeIdle(void) {
     NotifyMaybeIdle();
@@ -1206,6 +1221,7 @@ void port_osCreateViManager(OSPri) {
             }
             gTick = ++tick;
             gLastRetraceNs = Port_SteadyNs();
+            WakeWindowThread();
             if (q && (tick % every) == 0) {
                 port_PostMesgFromIrq(q, m);
             }
@@ -1577,6 +1593,19 @@ void Port::PumpRspTasks() {
         NotifyMaybeIdle();
     }
     TryPresentCpuFrame(); // a frame buffer swapped while the tasks above ran
+}
+
+uint64_t Port::WindowWakeEpoch() {
+    return gWindowWake.load();
+}
+
+bool Port::WaitForWindowWork(int64_t untilNs, uint64_t epoch) {
+    const int64_t waitNs = untilNs - Port_SteadyNs();
+    std::unique_lock<std::mutex> g(gTaskLock);
+    if (waitNs <= 0) return !gTasks.empty() && !gStop;
+    return gTaskQueuedCv.wait_for(g, std::chrono::nanoseconds(waitNs),
+                                  [&] { return !gTasks.empty() || gStop || gWindowWake.load() != epoch; }) &&
+           !gTasks.empty() && !gStop;
 }
 
 bool Port::WaitForRspTasks(std::chrono::milliseconds timeout) {

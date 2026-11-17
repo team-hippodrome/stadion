@@ -778,6 +778,26 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
 
 extern "C" void Port_ProcessControllerInitRequests(void);
 
+// When PumpFrame next has to pump (steady clock, ns); at or before now: it is due. The window loop (main.cpp) sleeps
+// until the earliest such deadline instead of waking every millisecond to find out.
+static int64_t sLastPumpNs = 0;
+
+int64_t NextPumpDueNs() {
+    int64_t due = sLastPumpNs + 33000000;
+    const int64_t retrace = Port_NextRetraceNs();
+    if (retrace != 0) {
+        const int64_t period = (int64_t)(16666667.0 / Port_Speed());
+        const int64_t last = retrace - period;
+        if (sLastPumpNs < retrace - 2000000) {
+            due = std::min(due, retrace - 1500000); // shortly before the retrace
+        }
+        if (sLastPumpNs < last) {
+            due = std::min(due, last + period / 2); // none since the last retrace
+        }
+    }
+    return due;
+}
+
 bool PumpFrame() {
     static bool saveFailureShown = false;
     if (!saveFailureShown) {
@@ -800,20 +820,8 @@ bool PumpFrame() {
     // stays responsive while the game loads or when retraces do not follow real time, PORT_SPEED=max). A 4 ms floor
     // pumped ~250 times a second, still twice the cost of drawing the game.
     {
-        static int64_t sLastPumpNs = 0;
         const int64_t now = Port_SteadyNs();
-        bool due = now - sLastPumpNs >= 33000000;
-        const int64_t retrace = Port_NextRetraceNs();
-        if (!due && retrace != 0) {
-            const int64_t period = (int64_t)(16666667.0 / Port_Speed());
-            const int64_t last = retrace - period;
-            if (retrace - now <= 1500000 && sLastPumpNs < retrace - 2000000) {
-                due = true; // shortly before the retrace
-            } else if (sLastPumpNs < last && now - last >= period / 2) {
-                due = true; // none since the last retrace
-            }
-        }
-        if (!due) {
+        if (NextPumpDueNs() > now) {
             return true;
         }
         sLastPumpNs = now;

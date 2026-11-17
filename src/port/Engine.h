@@ -76,8 +76,15 @@ size_t RomSize();
 void PumpRspTasks();
 // Waits until an RSP task is queued, at most the given time.
 bool WaitForRspTasks(std::chrono::milliseconds timeout); // true: a task is queued
+// Window loop: sleeps until an RSP task is queued, a frame buffer waits to be shown, the clock took a retrace
+// (WakeWindowThread) or untilNs (steady clock) comes; true: a task is queued. epoch is WindowWakeEpoch() read before the
+// deadlines were worked out, so a wake in between is not lost.
+bool WaitForWindowWork(int64_t untilNs, uint64_t epoch);
+uint64_t WindowWakeEpoch();
 // Pumps window events; returns false once the window is closed.
 bool PumpFrame();
+// When PumpFrame next pumps (steady clock, ns).
+int64_t NextPumpDueNs();
 void StopDevices();
 // Called with the latest pad state read on the window thread; game threads see it via osContGetReadData.
 void PublishPads(const void* pads);
