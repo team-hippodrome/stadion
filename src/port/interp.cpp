@@ -757,6 +757,10 @@ void RunGameFrame(void* gfxCommands, bool exact) {
     }
 }
 
+int64_t NextInterpolationDueNs() {
+    return gHavePending ? Due(gPending, gPending.next) : INT64_MAX;
+}
+
 void PumpInterpolation() {
     if (!gHavePending) return;
     if (gMapGen.load() != gPending.mapGen) { // the game unloaded or moved data the display list may use

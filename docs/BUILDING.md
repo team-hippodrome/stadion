@@ -153,3 +153,12 @@ on the same backend with `--shader-verify DIR --reference-dir CAPTURE/ref`. Veri
 and checks for first-draw compilation, new recipes and changes to the final captured image. It covers only the
 game paths exercised by those replays. Use `--gb-dir DIR` for the optional Game Boy Tower fixtures and
 `--replay-dir DIR` for additional recordings and their `replays.txt` manifest.
+
+Vulkan pipelines also depend on the anti-aliasing setting (the sample count is part of a pipeline), so the shipped
+`src/port/vulkan_pipeline_warmup.txt` stores it as 0 ("the MSAA setting") or 1 (a single-sampled buffer) and the
+warm-up builds each recipe at the player's setting. Capture at 2x, which tells the two apart:
+`PORT_TEST_MSAA=2 PORT_VK_NO_PREBUILD=1 tools/run_replays.py --all --backend vulkan --shader-capture --out DIR`, then
+`tools/vulkan_pipeline_list.py --msaa 2 DIR/shader-recipes/*/vulkan_pipelines.txt` adds the new pipelines to the list
+(files recorded at another or unknown setting: `--msaa N` before them; a profile's `vulkan_pipelines.txt` works too).
+`tools/vulkan_pipeline_list.py --check --msaa 2 FILE` counts the pipelines of a recording a fresh profile would still
+build on first draw.
