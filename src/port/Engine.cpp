@@ -681,6 +681,26 @@ bool RunFrame(void* gfxCommands) {
     return RunFrameWith(gfxCommands, nullptr, false);
 }
 
+bool DrawIntoNextPicture(void* gfxCommands, const void* mtxReplacements) {
+    if (!WindowIsRunning()) {
+        return false;
+    }
+    auto interp = sWindow->GetInterpreterWeak().lock();
+    if (!interp) return false;
+    sWindow->StartFrame();
+    interp->mReplayPass = true;
+    sWindow->RunCommandsIntoNextPicture(static_cast<Gfx*>(gfxCommands),
+                                        *static_cast<const std::unordered_map<Mtx*, MtxF>*>(mtxReplacements));
+    interp->mReplayPass = false;
+    return true;
+}
+
+void EndOpenPicture() {
+    if (sWindow && sWindow->PictureOpen()) {
+        sWindow->EndOpenPicture();
+    }
+}
+
 // mtxReplacements: interpolated matrices (interp.cpp); subFrame: an in-between frame, the display list drawn again
 bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame, bool readBack) {
     static const std::unordered_map<Mtx*, MtxF> sNone;
@@ -732,7 +752,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
             fprintf(stderr, "[quit] window close at frame %llu\n", (unsigned long long)Port_ViTick());
         }
     }
-    if (!sWindow->IsFrameReady()) {
+    if (!sWindow->PictureOpen() && !sWindow->IsFrameReady()) {
         if (!TrackFrame(gfxCommands)) {
             Port_GfxFrameDone();
             return true;
