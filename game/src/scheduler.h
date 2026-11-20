@@ -46,7 +46,7 @@ typedef struct UnkArray4 {
 
 typedef struct UnkStruct80083CA0_2 {
     /* 0x000 */ SchedClient client;
-    /* 0x1E0 */ u8 unk1E0[0x800];
+    /* 0x1E0 */ u8 stack[0x800]; // DisplayWorker_Initialize passes &unk_9E0 as the stack top.
     /* 0x9E0 */ struct unk_D_80068BB0* unk_9E0;
     /* 0x9E4 */ OSMesg unk_9E4;
     /* 0x9E8 */ OSMesg unk_9E8;
