@@ -21,6 +21,11 @@ bool TrackFrame(void* gfxCommands);
 // RunFrame with interpolated matrices (an std::unordered_map<Mtx*, MtxF>, or null); subFrame: the display list drawn
 // again for an in-between frame (interp.cpp)
 bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame, bool readBack = false);
+// The display list drawn again into the game's frame buffers only, as part of the next picture RunFrameWith shows: no
+// picture of its own (interp.cpp: the exact drawing of a frame whose last in-between picture was dropped)
+bool DrawIntoNextPicture(void* gfxCommands, const void* mtxReplacements);
+// shows a picture DrawIntoNextPicture began, if RunFrameWith did not (a window closing)
+void EndOpenPicture();
 // saves the picture just drawn as a PPM file
 void SaveScreen(const char* path);
 // how many frames RunFrameWith has drawn so far (the web build's window loop, main.cpp)

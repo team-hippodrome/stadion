@@ -644,6 +644,12 @@ void DrawNext();
 // was still pending when the next game frame came, which a completed series never is (DrawNext ends it): any three
 // drops since the last hold, seconds apart, started a new one (PORT_INTERP_OLD_BUDGET=1: those rules).
 bool gForcedFinish = false;
+// The forced exact drawing comes right before the next game frame's first picture (RunGameFrame): it goes into the game
+// frame buffers as part of that picture instead of being shown on its own. Shown, it was a second picture in the same
+// window-thread task, the next one waited for a free swapchain image (a refresh), and a menu frame on a slow GPU (an
+// Intel HD 520: 14-15 ms per picture) took 30-31 ms, late again: the next in-between picture was dropped, forcing
+// another one (the main menu at 30 fps: "8 of the last 16 series came late"). PORT_INTERP_SHOW_FORCED=1: shown.
+bool gIntoNextPicture = false;
 
 void FinishPending(bool countDrop = true, bool behind = false) {
     static const bool sOld = getenv("PORT_INTERP_OLD_BUDGET") != nullptr;
@@ -676,8 +682,13 @@ void DrawNext() {
         interp->ReplayPassStart();
         interp->mReplayT = j + 1 < p.k ? (float)(j + 1) / p.k : 1.0f; // (2D rectangles: interpreter.cpp)
     }
-    Port::RunFrameWith(p.dl, &r, true, ShotWanted(p.tick));
-    Shot(p.tick, j, p.k);
+    static const bool sShowForced = getenv("PORT_INTERP_SHOW_FORCED") != nullptr;
+    if (gForcedFinish && gIntoNextPicture && !sShowForced) {
+        Port::DrawIntoNextPicture(p.dl, &r); // (not a picture: no screenshot either)
+    } else {
+        Port::RunFrameWith(p.dl, &r, true, ShotWanted(p.tick));
+        Shot(p.tick, j, p.k);
+    }
     if (Port_SteadyNs() > p.frameDue + 2000000) NoteLatePicture("a picture ended after the next game frame was due");
     if (p.next >= p.k) {
         static const bool sOld = getenv("PORT_INTERP_OLD_BUDGET") != nullptr;
@@ -737,7 +748,12 @@ void RunGameFrame(void* gfxCommands, bool exact) {
         fprintf(stderr, "[interp] drop at frame %llu picture %d/%d: newer frame (%.1f ms after the first)\n",
                 (unsigned long long)gPending.tick, gPending.next + 1, gPending.k, (Port_SteadyNs() - gPending.start) / 1e6);
     }
-    FinishPending(); // a newer frame: in-between frames still due are dropped
+    gIntoNextPicture = true; // (this frame's picture follows at once)
+    FinishPending();         // a newer frame: in-between frames still due are dropped
+    gIntoNextPicture = false;
+    struct ShowOpen { // (a picture the forced drawing began is shown by this frame's, or here)
+        ~ShowOpen() { Port::EndOpenPicture(); }
+    } showOpen;
     if (!on) {
         gPrev = nullptr;
         if (ShotWanted(Port_ViTick())) { // (the same pictures as with it on, for comparisons)
@@ -830,6 +846,10 @@ int64_t NextInterpolationDueNs() {
 
 void PumpInterpolation() {
     if (!gHavePending) return;
+    // PORT debug: PORT_DEBUG_INTERP_HOLD=1 never draws an in-between picture on time: every series ends with the next
+    // game frame (the forced exact drawing of frames drawn over the previous picture, checked against Smooth motion off)
+    static const bool sHold = getenv("PORT_DEBUG_INTERP_HOLD") != nullptr;
+    if (sHold) return;
     if (gMapGen.load() != gPending.mapGen) { // the game unloaded or moved data the display list may use
         EndPending();
         return;
