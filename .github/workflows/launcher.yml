@@ -15,10 +15,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Initialize patched launcher path policy
-        run: |
-          git submodule update --init libultraship
-          git -C libultraship apply "$PWD/patches/libultraship.patch"
+      - name: Initialize launcher dependency
+        run: git submodule update --init libultraship
       - name: Native save-import, directory and package tests
         run: python3 -m unittest discover -s tools -p 'test_launcher_*.py'
       - name: Compile legacy macOS frontend and test shared JSON settings
@@ -36,10 +34,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Apply port patches
-        run: |
-          git -C libultraship apply "$PWD/patches/libultraship.patch"
-          python3 tools/game_patches.py apply
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

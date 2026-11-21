@@ -1,0 +1,11 @@
+# The same moves with a second Pokemon on each side, in the arena sweep.sh sets (2 Poke Cup, 11 Koga's gym,
+# 15 Elite Four room): stage effects, sleep Zs, Psychic, Fire Blast
+arena ARENA
+seed 3
+intro 1
+mon 0 0 species=94 level=50 m1=94 m2=126
+mon 0 1 species=6 level=50 m1=33
+act 0 m0 m1 m0 m1
+mon 1 0 species=143 level=100 m1=1 status=7
+mon 1 1 species=65 level=100 m1=33
+stop 4

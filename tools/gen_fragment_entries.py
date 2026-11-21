@@ -30,8 +30,10 @@ for i, l in enumerate(mp):
         syms.setdefault(int(s.group(1), 16), s.group(2))
 # entry functions must exist in the compiled game (a table disassembled as code has a func_ symbol but no C function)
 import subprocess
+# C symbols carry a leading underscore in Mach-O (macOS) object files, not in ELF (Linux)
+CPFX = "_" if __import__("sys").platform == "darwin" else ""
 _nm = subprocess.run(["nm", "-g", str(root / "build/libstadium_game.a")], capture_output=True, text=True).stdout
-defined = {l.split()[2].lstrip("_") for l in _nm.splitlines() if len(l.split()) == 3 and l.split()[1] in "TtDd"}
+defined = {l.split()[2][len(CPFX):] for l in _nm.splitlines() if len(l.split()) == 3 and l.split()[1] in "TtDd"}
 rows, missing = [], []
 for name, f in sorted(frags.items(), key=lambda kv: int(kv[0][8:])):
     if "rom" not in f or "text" not in f or "header" not in f:

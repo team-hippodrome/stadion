@@ -1,6 +1,8 @@
 #include "Engine.h"
 #include "rom_check.h"
 #include "interp.h"
+#include "pacing.h"
+#include <algorithm>
 #include "port_platform.h"
 #include "launcher.h"
 #include "launcher_files.h"
@@ -12,6 +14,8 @@
 #endif
 
 #include <SDL3/SDL_messagebox.h>
+#include <SDL3/SDL_filesystem.h>
+#include <filesystem>
 
 #include <string>
 
@@ -21,11 +25,12 @@
 #include <cstring>
 #include <thread>
 #include <csignal>
+#include "StadionPort.h"
+#include <spdlog/spdlog.h>
 #if defined(_WIN32)
 #include <exception>
 #include <io.h>
 #include <SDL3/SDL_process.h>
-#include <spdlog/spdlog.h>
 #else
 #include <sys/ucontext.h>
 #include <unistd.h>
@@ -41,7 +46,6 @@
 #endif
 
 extern "C" void Main(void);
-extern "C" uint64_t Port_ViTick();
 extern "C" void Port_InputFinish(); // game entry (src/main.c): starts libultra and the idle thread
 extern "C" void Port_ReserveLowAddressSpace(void);
 
@@ -312,7 +316,33 @@ static bool CheckAbsSymbols() {
 }
 #endif
 
+// PORT_LOG_FILE=<file>: everything the game writes to stderr (the PORT_TRACE_* and PORT_INTERP_LOG output, crash
+// reports) goes into that file, without a shell redirect. Testers on Windows got empty files from "2> log.txt": in
+// PowerShell neither "set" (a PowerShell variable) nor the redirect reaches a windowed program, and a batch file run
+// from another folder (or as administrator: System32) does not find the game. A relative name is next to the game
+// executable (SDL_GetBasePath; Resources in the macOS app). The first line names the file.
+static void OpenLogFile() {
+    const char* name = getenv("PORT_LOG_FILE");
+    if (name == nullptr || *name == '\0') return;
+    std::filesystem::path path = std::filesystem::u8path(name);
+    if (path.is_relative()) {
+        if (const char* base = SDL_GetBasePath()) path = std::filesystem::u8path(base) / path;
+    }
+#if defined(_WIN32)
+    FILE* f = _wfreopen(path.wstring().c_str(), L"w", stderr);
+#else
+    FILE* f = freopen(path.string().c_str(), "w", stderr);
+#endif
+    if (f == nullptr) return;
+    setvbuf(stderr, nullptr, _IONBF, 0);
+#if defined(_WIN32)
+    SetStdHandle(STD_ERROR_HANDLE, (HANDLE)_get_osfhandle(_fileno(stderr))); // (code writing to the handle itself)
+#endif
+    fprintf(stderr, "[log] PORT_LOG_FILE: %s\n", Port::PathUtf8(path).c_str());
+}
+
 static int RunGame(int argc, char** argv) {
+    OpenLogFile();
 #if defined(__EMSCRIPTEN__)
     if (!CheckAbsSymbols()) {
         return 1;
@@ -392,6 +422,22 @@ static int RunGame(int argc, char** argv) {
     // The port tells N64 addresses (below 4 GB) from host pointers; keep host allocations above 4 GB (Windows).
     Port_ReserveLowAddressSpace();
     Port_AltSignalStack();
+    // Battle boot (src/port/xcheck.cpp): `stadion <rom> --battle <case file> [--frames <dir>] [--every <n>]
+    // [--res <WxH>] [--max-frames <n>]` starts the battle engine directly; the options set the PORT_BATTLE_* variables.
+    for (int i = 2; i + 1 < argc; i += 2) {
+        const char* key = nullptr;
+        if (strcmp(argv[i], "--battle") == 0) key = "PORT_BATTLE";
+        else if (strcmp(argv[i], "--frames") == 0) key = "PORT_BATTLE_FRAMES";
+        else if (strcmp(argv[i], "--every") == 0) key = "PORT_BATTLE_EVERY";
+        else if (strcmp(argv[i], "--res") == 0) key = "PORT_BATTLE_RES";
+        else if (strcmp(argv[i], "--max-frames") == 0) key = "PORT_BATTLE_MAX_FRAMES";
+        if (!key) break;
+#ifdef _WIN32
+        _putenv_s(key, argv[i + 1]);
+#else
+        setenv(key, argv[i + 1], 1);
+#endif
+    }
     InstallSignalHandlers();
     Port::UseShipHomeDefaults();
     // With a ROM argument the game starts right away (scripts, replays); without one, the launcher (launcher.cpp)
@@ -419,6 +465,9 @@ static int RunGame(int argc, char** argv) {
         std::ofstream marker(recovery); marker << "graphics\n";
     }
     const auto configPath = std::filesystem::u8path(Port::AppPath("stadion.cfg.json"));
+    // An empty or cut-off config (a save that was interrupted) used to stop the game here with a message box.
+    const std::string configRecovery = Port::RecoverConfigFile(configPath);
+    if (!configRecovery.empty()) fprintf(stderr, "[config] %s\n", configRecovery.c_str());
     if (std::filesystem::is_regular_file(configPath)) {
         if (getenv("PORT_SAFE_MODE") != nullptr) {
             // Recovery changes only graphics/Auto-play, and keeps an untouched copy of the original JSON.
@@ -429,18 +478,10 @@ static int RunGame(int argc, char** argv) {
                 copied = std::filesystem::copy_file(configPath, copy, std::filesystem::copy_options::none, ec); break;
             }
             if (!copied) { fprintf(stderr, "Cannot preserve config before recovery. No settings changed.\n"); clearRecovery(); return 1; }
-        } else {
-            try {
-                std::ifstream input(configPath);
-                if (!nlohmann::json::parse(input).is_object()) throw std::runtime_error("Config must be an object");
-            } catch (const std::exception&) {
-                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Cannot read launcher settings",
-                    "The config JSON is invalid and has been preserved. Start with --safe-mode to create working settings and keep a recovery copy.", nullptr);
-                clearRecovery(); return 1;
-            }
         }
     }
     if (!Port::Init()) { return 1; }
+    if (!configRecovery.empty()) SPDLOG_WARN("[config] {}", configRecovery);
     if (interactive) { std::ofstream marker(recovery); marker << "game\n"; }
     InstallSignalHandlers();
     if (romPath.empty()) {
@@ -485,11 +526,25 @@ static int RunGame(int argc, char** argv) {
 #endif
     // The window must be driven from the process's main thread; game threads run on host threads.
     while (Port::PumpFrame()) {
-        Port::PumpRspTasks();
-        Port::PumpInterpolation();
-        // up to 1 ms, less when the game queues an RSP task: a scene's 300 JPEG tasks each waited a full loop pass
-        // (a 0.35 s pause at the title-to-menu change)
-        Port::WaitForRspTasks(std::chrono::milliseconds(1));
+        // PORT: sleeps until the earliest thing that needs this thread: a queued RSP task (the game's JPEG tasks: a
+        // scene's 300 of them each waited a full loop pass, a 0.35 s pause at the title-to-menu change), a frame buffer
+        // to show or a retrace (both wake it), the next in-between picture, PumpFrame's next event pump, at most 16 ms.
+        // It polled every millisecond before: ~1000 wakeups a second to do nothing. Tasks queued right after one
+        // another are run for up to 4 ms before the window's events are pumped again: the event pump (Cocoa) costs
+        // about as much as a task, and paying it 300 times held up the screen changes by 15-30 ms.
+        const auto burstStart = std::chrono::steady_clock::now();
+        bool more;
+        do {
+            const uint64_t epoch = Port::WindowWakeEpoch();
+            Port::PumpRspTasks();
+            Port::PumpInterpolation();
+            const int64_t now = Port_SteadyNs();
+            int64_t until = std::min({ Port::NextInterpolationDueNs(), Port::NextPumpDueNs(), now + 16000000 });
+            // A long sleep wakes late (the OS merges timers: a few ms on a busy machine, and the pads are read just
+            // before the retrace). So a deadline more than 1.5 ms away is slept to in two steps, the last short.
+            if (until - now > 1500000) until -= 1500000;
+            more = Port::WaitForWindowWork(until, epoch);
+        } while (more && std::chrono::steady_clock::now() - burstStart < std::chrono::milliseconds(4));
     }
     Port::StopDevices();
     // Window closed: end the process at once, as on SIGTERM. Returning from main ran the static destructors while
@@ -505,7 +560,7 @@ int main(int argc, char** argv) {
 #ifdef ENABLE_VULKAN
     try {
         return RunGame(argc, argv);
-    } catch (const Fast::VulkanSwapchainError& e) {
+    } catch (const Fast::VulkanFatalError& e) { // (a failed swapchain, or a device out of memory or lost)
         Port::ExitAfterVulkanFailure(e.what());
     }
 #else

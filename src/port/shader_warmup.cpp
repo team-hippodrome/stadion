@@ -77,6 +77,7 @@ class ShaderWarmupWindow : public Ship::GuiWindow {
     ShaderWarmupWindow() : GuiWindow("", true, "Shader warm-up") {}
 
     float progress = 0.0f;
+    uint64_t shownAt = SDL_GetTicks();
 
     void Draw() override {
         auto* viewport = ImGui::GetMainViewport();
@@ -88,6 +89,9 @@ class ShaderWarmupWindow : public Ship::GuiWindow {
         const float y = pos.y + size.y * 0.5f;
         const char* label = "Preparing shaders";
         draw->AddRectFilled(pos, ImVec2(pos.x + size.x, pos.y + size.y), IM_COL32_BLACK);
+        // with warm caches the warm-up takes a few frames: no progress screen flashing up on every start, only when
+        // something actually has to be compiled
+        if (SDL_GetTicks() - shownAt < 400) return;
         draw->AddText(ImVec2(pos.x + (size.x - ImGui::CalcTextSize(label).x) * 0.5f, y - 24), IM_COL32_WHITE, label);
         draw->AddRectFilled(ImVec2(x, y), ImVec2(x + width, y + 8), IM_COL32(55, 55, 55, 255));
         draw->AddRectFilled(ImVec2(x, y), ImVec2(x + width * progress, y + 8), IM_COL32(98, 162, 255, 255));
@@ -149,9 +153,12 @@ bool PumpShaderWarmup() {
         }
     }
     window->GetGui()->RemoveGuiWindow(sScreen->GetName());
+    const uint64_t waited = SDL_GetTicks() - sScreen->shownAt;
     sScreen.reset();
     if (window->IsRunning() && (getenv("PORT_TRACE_SHADERS") || getenv("PORT_TRACE_PACING"))) {
-        fprintf(stderr, "[shader] startup warm-up complete; starting intro\n");
+        // (tools/run_replays.py --shader-verify looks for this text)
+        fprintf(stderr, "[shader] startup warm-up complete; starting intro (waited %llu ms)\n",
+                (unsigned long long)waited);
     }
     return false;
 }

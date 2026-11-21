@@ -165,7 +165,10 @@ Experience per level follows `Pokemon_ExpForLevel` with the growth byte of the s
 - **gb**: Game Boy character set (`D_80073030` maps it to the N64 font; `D_80073130` the reverse), terminated by
   0x50; bytes after the terminator are not text (the game leaves stack garbage there, the editor keeps them).
   0x5D is the player-name token (`Text_UntranscodeName` substitutes the player label). Names are at most 10
-  characters.
+  characters. Stadium's table follows the European Game Boy charset (0xBA-0xCC are à è é ù ß ç and umlauts, where the
+  English games have é 'd 'l ...), PK/MN are 0xE1/0xE2, ♂ 0xEF, ♀ 0xF5, × 0xF1, ' 0xE0; bytes it has no glyph for
+  (0xCD-0xDF, 0xE5, 0xE8-0xEE) decode as `<xx>` and survive a round trip. Encoding accepts `<M>` `<F>` `<PK>` `<MN>`
+  (any case), `<xx>`, typographic ' and -, and both cases of letters.
 - **n64**: the game's own font bytes (latin-1 compatible; 0xA9 ♂, 0xBE ♀, 0xBC/0xBD PK/MN), NUL terminated.
 
 ## 6. Records in detail

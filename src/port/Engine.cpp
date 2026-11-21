@@ -25,6 +25,8 @@
 #include <libultraship/bridge/crashhandlerbridge.h>
 #include <libultraship/bridge/gfxbridge.h>
 
+#include "sound_settings.h"
+
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
@@ -35,6 +37,7 @@
 #include <SDL3/SDL.h>
 #include <thread>
 #include <vector>
+#include "StadionPort.h"
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 #endif
@@ -48,9 +51,9 @@ extern "C" void Port_FragmentLoadRanges(const char* text);
 extern "C" void* Port_ResolveN64Address(uintptr_t addr);
 
 extern "C" double Port_Speed();
+extern "C" int64_t Port_NextRetraceNs(void);
 extern "C" bool Port_DisplayPaced();
 extern "C" bool Port_Lockstep();
-extern "C" uint64_t Port_ViTick();
 extern "C" bool Port_FreezeCheckEnabled();
 extern "C" void Port_NotePictureHash(uint64_t hash);
 extern "C" void Port_GfxFrameDone(void);
@@ -183,6 +186,13 @@ bool Init() {
     auto config = std::make_shared<Ship::Config>(
         Ship::Context::GetPathRelativeToAppDirectory("stadion.cfg.json"), nullptr);
     sContext->GetChildren().Add(config);
+    if (const char* res = getenv("PORT_BATTLE_RES")) { // battle boot: the window (so the picture) at that size
+        int rw = 0, rh = 0;
+        if (sscanf(res, "%dx%d", &rw, &rh) == 2 && rw > 0 && rh > 0) {
+            config->SetInt("Window.Width", rw);
+            config->SetInt("Window.Height", rh);
+        }
+    }
 
     auto cvars = std::make_shared<Ship::ConsoleVariable>(config);
     sContext->GetChildren().Add(cvars);
@@ -218,13 +228,24 @@ bool Init() {
         cvars->Save();
     }
 
-#if defined(__EMSCRIPTEN__)
-    // Web build: the canvas has devicePixelRatio pixels per point (HiDPI); the game is drawn at that resolution (at most
-    // twice the window's size in points) unless the player chose another one in the settings
-    if (CVarGetFloat("gInternalResolution", 0.0f) == 0.0f) {
-        cvars->SetFloat("gInternalResolution",
-                        (float)EM_ASM_DOUBLE({ return Math.min(Math.max(window.devicePixelRatio || 1, 1), 2); }));
+    // Graphics settings first seen by this version (the launcher's Graphics panel, Engine.h ResolutionSetting):
+    // Internal resolution replaced the old Resolution percentage (gInternalResolution): below 100 % (the slow-chip
+    // preset's 50 %) becomes 2x, the Low-power preset's size; anything else Match window, which now counts the
+    // window's pixels (a HiDPI display's too, as the web build's devicePixelRatio scale did). New configurations get
+    // the Recommended preset: 4x anti-aliasing and Smooth motion on. Fullscreen is borderless (SDL; DXGI always is).
+    if (cvars->GetInteger("gPort.Resolution.Mode", -1) < 0) {
+        const float old = cvars->GetFloat("gInternalResolution", 1.0f);
+        cvars->SetInteger("gPort.Resolution.Mode", old > 0.0f && old < 0.99f ? kResN64 : kResWindow);
+        cvars->SetInteger("gPort.Resolution.Multiple", 2);
+        cvars->SetInteger("gPort.Resolution.Height", 1080);
+        cvars->SetInteger("gPort.Resolution.Upscale", kUpscaleSmooth);
+        cvars->SetFloat("gInternalResolution", 1.0f);
+        if (cvars->GetInteger("gMSAAValue", 0) == 0) cvars->SetInteger("gMSAAValue", 4);
+        if (cvars->GetInteger("gPort.Interpolate", -1) < 0) cvars->SetInteger("gPort.Interpolate", 1);
+        cvars->Save();
     }
+#if !defined(__ANDROID__)
+    cvars->SetInteger("gSdlWindowedFullscreen", 1);
 #endif
     // ImGui windows (tooltips, menus) stay inside the game window: with multi-viewports on, one that reached past its
     // edge became an OS window of its own, and the Metal backend crashed creating it (the launcher's wide tooltips)
@@ -249,6 +270,7 @@ bool Init() {
 
     MigrateControls(cvars);
     ApplyAspect();
+    ApplySoundSettings();
     auto controlDeck = std::make_shared<LUS::ControlDeck>(std::vector<CONTROLLERBUTTONS_T>(), DefaultMappings(),
                                                           std::unordered_map<CONTROLLERBUTTONS_T, std::string>({
                                                               { BTN_A, "A" },
@@ -321,6 +343,7 @@ bool Init() {
     WindowSetWindowComponent(sWindow);
     GfxSetFast3dWindow(sWindow);
     sWindow->Init();
+    ApplyAspect(); // again: the renderer's Init read the scale from gInternalResolution (PORT_RESOLUTION=window:n)
     // PORT_WINDOW_ON_TOP=1: the window stays above other windows without taking the keyboard focus (measuring the
     // frame pacing with PORT_TRACE_PACING while working in another app: macOS stops presenting a covered window)
     if (getenv("PORT_WINDOW_ON_TOP")) {
@@ -387,8 +410,8 @@ static void ValidateList(const Gfx* g, int depth, const char* path) {
 
 // Debug aid (PORT_SCREENSHOT_DIR=dir): writes the presented frame as a PPM every 120 frames (the Metal readback
 // returns the previous frame as RGBA5551). Convert with tools/ppm2png.py.
-extern "C" int Port_XcheckAnimActive(void);
-extern "C" const char* Port_XcheckFramePath(void);
+extern "C" const char* Port_BattleFramePath(int* w, int* h);
+extern "C" void Port_BattleFrameWritten(void);
 
 // the presented frame as a PPM: the 8-bit screen pixels when the readback has them (same frame as buf), else the
 // RGBA5551 copy
@@ -407,6 +430,38 @@ static void WriteFramePpm(const char* path, int w, int h, const std::vector<uint
         uint8_t px[3] = { (uint8_t)(((v >> 11) & 31) * 255 / 31), (uint8_t)(((v >> 6) & 31) * 255 / 31), (uint8_t)(((v >> 1) & 31) * 255 / 31) };
         fwrite(px, 1, 3, f);
     }
+    fclose(f);
+}
+
+// battle boot frames (xcheck.cpp): the presented frame as an 8-bit PPM, box-averaged to ow x oh when that is asked for
+static void WriteFramePpmSized(const char* path, int w, int h, const std::vector<uint16_t>& buf, int ow, int oh) {
+    if (ow <= 0 || oh <= 0 || (ow == w && oh == h)) return WriteFramePpm(path, w, h, buf);
+    FILE* f = fopen(path, "wb");
+    if (!f) return;
+    bool full = gPortScreenW == (uint32_t)w && gPortScreenH == (uint32_t)h && gPortScreenBgra.size() == buf.size() * 4;
+    auto pixel = [&](size_t i, unsigned* rgb) {
+        if (full) {
+            rgb[0] += gPortScreenBgra[i * 4 + 2], rgb[1] += gPortScreenBgra[i * 4 + 1], rgb[2] += gPortScreenBgra[i * 4];
+        } else {
+            uint16_t v = buf[i];
+            rgb[0] += ((v >> 11) & 31) * 255 / 31, rgb[1] += ((v >> 6) & 31) * 255 / 31, rgb[2] += ((v >> 1) & 31) * 255 / 31;
+        }
+    };
+    std::vector<uint8_t> out((size_t)ow * oh * 3);
+    for (int y = 0; y < oh; y++) {
+        int ya = (int)((int64_t)y * h / oh), yb = std::max(ya + 1, (int)((int64_t)(y + 1) * h / oh));
+        for (int x = 0; x < ow; x++) {
+            int xa = (int)((int64_t)x * w / ow), xb = std::max(xa + 1, (int)((int64_t)(x + 1) * w / ow));
+            unsigned sum[3] = { 0, 0, 0 }, n = 0;
+            for (int yy = ya; yy < yb && yy < h; yy++) {
+                for (int xx = xa; xx < xb && xx < w; xx++) pixel((size_t)yy * w + xx, sum), n++;
+            }
+            n = std::max(n, 1u);
+            for (int c = 0; c < 3; c++) out[((size_t)y * ow + x) * 3 + c] = (uint8_t)(sum[c] / n);
+        }
+    }
+    fprintf(f, "P6\n%d %d\n255\n", ow, oh);
+    fwrite(out.data(), 1, out.size(), f);
     fclose(f);
 }
 
@@ -447,9 +502,10 @@ static void MaybeScreenshot() {
     static const char* dir = getenv("PORT_SCREENSHOT_DIR");
     static const bool xcheckAnim = Port_XcheckAnimActive(); // battle cross-check: move animation frames (xcheck.cpp)
     static const bool stopOnly = getenv("PORT_SCREENSHOT_STOP_ONLY") != nullptr;
-    if (stopOnly && !xcheckAnim && !Port_FreezeCheckEnabled() && sCaptureFrame == 0) return;
+    static const bool battleBoot = Port_BattleBootActive() != 0; // battle boot: frames of the whole battle (xcheck.cpp)
+    if (stopOnly && !xcheckAnim && !battleBoot && !Port_FreezeCheckEnabled() && sCaptureFrame == 0) return;
     static int frame = 0;
-    if (!dir && !xcheckAnim && !Port_FreezeCheckEnabled()) return;
+    if (!dir && !xcheckAnim && !battleBoot && !Port_FreezeCheckEnabled()) return;
     ++frame;
     int w = sWindow->GetWidth(), h = sWindow->GetHeight();
     {   // the drawable can be larger than the window in points (Retina): read the full pixel size
@@ -472,6 +528,13 @@ static void MaybeScreenshot() {
         Port_NotePictureHash(fh);
     }
     if (const char* xpath = xcheckAnim ? Port_XcheckFramePath() : nullptr) WriteFramePpmSmall(xpath, w, h, buf);
+    if (battleBoot) {
+        int ow = 0, oh = 0;
+        if (const char* bpath = Port_BattleFramePath(&ow, &oh)) {
+            WriteFramePpmSized(bpath, w, h, buf, ow, oh);
+            Port_BattleFrameWritten();
+        }
+    }
     if (!dir) return;
     // Only save when the picture changed since the last saved frame (hash of a sparse sample), checked every 15 frames.
     // The readback must still be requested every frame to stay in sync.
@@ -599,8 +662,43 @@ uint64_t FramesDrawn() {
     return sFramesDrawn.load(std::memory_order_relaxed);
 }
 
+// PORT debug: PORT_DEBUG_DRAW_MS=<ms> makes every drawn frame (in-between frames too) take that much longer, as on a
+// slow GPU (an Intel HD 520 needs ~20-25 ms per battle frame), to test pacing and sound when drawing falls behind
+// PORT_DEBUG_VSYNC_HZ=<hz> then waits for the next refresh of a simulated display at that rate, as a present with
+// VSync blocks on Windows/OpenGL/DXGI (with PORT_NO_DISPLAY_VBLANK=1 on macOS: the Windows pacing, whose 1/60 s clock
+// drifts against the display's real refresh)
+static void DebugDrawDelay() {
+    static const double sDrawDelayMs = getenv("PORT_DEBUG_DRAW_MS") ? atof(getenv("PORT_DEBUG_DRAW_MS")) : 0.0;
+    if (sDrawDelayMs > 0) std::this_thread::sleep_for(std::chrono::microseconds((long long)(sDrawDelayMs * 1000)));
+    static const double sVsyncHz = getenv("PORT_DEBUG_VSYNC_HZ") ? atof(getenv("PORT_DEBUG_VSYNC_HZ")) : 0.0;
+    if (sVsyncHz > 0) {
+        const int64_t period = (int64_t)(1e9 / sVsyncHz), now = Port_SteadyNs();
+        std::this_thread::sleep_for(std::chrono::nanoseconds(period - now % period));
+    }
+}
+
 bool RunFrame(void* gfxCommands) {
     return RunFrameWith(gfxCommands, nullptr, false);
+}
+
+bool DrawIntoNextPicture(void* gfxCommands, const void* mtxReplacements) {
+    if (!WindowIsRunning()) {
+        return false;
+    }
+    auto interp = sWindow->GetInterpreterWeak().lock();
+    if (!interp) return false;
+    sWindow->StartFrame();
+    interp->mReplayPass = true;
+    sWindow->RunCommandsIntoNextPicture(static_cast<Gfx*>(gfxCommands),
+                                        *static_cast<const std::unordered_map<Mtx*, MtxF>*>(mtxReplacements));
+    interp->mReplayPass = false;
+    return true;
+}
+
+void EndOpenPicture() {
+    if (sWindow && sWindow->PictureOpen()) {
+        sWindow->EndOpenPicture();
+    }
 }
 
 // mtxReplacements: interpolated matrices (interp.cpp); subFrame: an in-between frame, the display list drawn again
@@ -618,6 +716,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         interp->mReplayPass = true;
         interp->mReplayReadback = readBack; // (Metal reads the screen back at the end of the next frame)
         sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), replacements);
+        DebugDrawDelay();
         sFramesDrawn.fetch_add(1, std::memory_order_relaxed);
         interp->mReplayPass = false;
         interp->mReplayReadback = false;
@@ -631,6 +730,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
         return false;
     }
     sWindow->HandleEvents();
+    Port::DebugMinimize(Port_ViTick());
     { // PORT debug: PORT_DEBUG_RESIZE=<frame>:<w>x<h>[,<frame>:<w>x<h>...] resizes the window at those VI frames
         static const char* rs = getenv("PORT_DEBUG_RESIZE");
         unsigned long long f = 0;
@@ -652,7 +752,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
             fprintf(stderr, "[quit] window close at frame %llu\n", (unsigned long long)Port_ViTick());
         }
     }
-    if (!sWindow->IsFrameReady()) {
+    if (!sWindow->PictureOpen() && !sWindow->IsFrameReady()) {
         if (!TrackFrame(gfxCommands)) {
             Port_GfxFrameDone();
             return true;
@@ -675,6 +775,7 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
     auto drawStart = std::chrono::steady_clock::now();
     Port_BeforePresent();
     sWindow->DrawAndRunGraphicsCommands(static_cast<Gfx*>(gfxCommands), replacements);
+    DebugDrawDelay();
     sFramesDrawn.fetch_add(1, std::memory_order_relaxed);
     Port_PacingNote(PORT_PACE_DRAWN, Port_SteadyNs());
     if (tracePacing) { // PORT_TRACE_PACING=1: presented frames more than 40 ms apart, and slow draws (os_devices.cpp)
@@ -697,6 +798,26 @@ bool RunFrameWith(void* gfxCommands, const void* mtxReplacements, bool subFrame,
 
 extern "C" void Port_ProcessControllerInitRequests(void);
 
+// When PumpFrame next has to pump (steady clock, ns); at or before now: it is due. The window loop (main.cpp) sleeps
+// until the earliest such deadline instead of waking every millisecond to find out.
+static int64_t sLastPumpNs = 0;
+
+int64_t NextPumpDueNs() {
+    int64_t due = sLastPumpNs + 33000000;
+    const int64_t retrace = Port_NextRetraceNs();
+    if (retrace != 0) {
+        const int64_t period = (int64_t)(16666667.0 / Port_Speed());
+        const int64_t last = retrace - period;
+        if (sLastPumpNs < retrace - 2000000) {
+            due = std::min(due, retrace - 1500000); // shortly before the retrace
+        }
+        if (sLastPumpNs < last) {
+            due = std::min(due, last + period / 2); // none since the last retrace
+        }
+    }
+    return due;
+}
+
 bool PumpFrame() {
     static bool saveFailureShown = false;
     if (!saveFailureShown) {
@@ -710,12 +831,29 @@ bool PumpFrame() {
     if (!WindowIsRunning()) {
         return false;
     }
+    // The window loop (main.cpp) comes here about once per millisecond while it waits for the game. Pumping the
+    // window's events and polling the controllers that often cost several times what drawing the game does (Cocoa's
+    // event pump: ~85% of the window thread's busy time). They are needed before the game's next retrace, when the
+    // clock takes the pads (LatchPads), and now and then for the window: so they run shortly before each retrace,
+    // in the middle of a frame that has had none since the last retrace (the one before the retrace can be missed
+    // while a picture is drawn: the pads would then be a frame old), and at least every 33 ms (two frames: the window
+    // stays responsive while the game loads or when retraces do not follow real time, PORT_SPEED=max). A 4 ms floor
+    // pumped ~250 times a second, still twice the cost of drawing the game.
+    {
+        const int64_t now = Port_SteadyNs();
+        if (NextPumpDueNs() > now) {
+            return true;
+        }
+        sLastPumpNs = now;
+    }
     Port_ProcessControllerInitRequests();
     sWindow->HandleEvents();
     { // the display the window is on sets the pacing (os_devices.cpp, LockstepClock)
         int n = 0;
         if (SDL_Window** ws = SDL_GetWindows(&n)) {
             if (n > 0) Port_DisplayFollowWindow(ws[0]);
+            // launcher > Sound > Mute in background (audio_out.cpp reads it on the game thread)
+            if (n > 0) NoteSoundWindowFocus((SDL_GetWindowFlags(ws[0]) & SDL_WINDOW_INPUT_FOCUS) != 0);
             SDL_free(ws);
         }
     }
@@ -796,16 +934,172 @@ extern "C" s16 Port_WidenViewAngle(s16 angle) {
     return (s16)lround(widened / kBinToRad);
 }
 
+extern "C" float Port_WidenViewSpan(float span) {
+    return Port::AspectSetting() == 1 ? span * (4.0f / 3.0f) : span;
+}
+
+// Port_WidenEffectGridX (port_compat.h): the effect grids span x -72..63 at 4:3, which puts their right edge at 0.94 of
+// the screen's half-width (their left edge at 1.08); in 16:9 the right edge has to reach 4/3 of it, so the grid is
+// widened by 1.45 about its centre (x 0: the screen's centre)
+extern "C" float Port_WidenEffectGridX(float x) {
+    return Port::AspectSetting() == 1 ? x * 1.45f : x;
+}
+
+// Port_WideMarginN64 (port_compat.h): N64 pixels beside the 4:3 frame on each side of the picture (16:9: 54, rounded up)
+extern "C" int Port_WideMarginN64(void) {
+    return Port::AspectSetting() == 1 ? 54 : 0;
+}
+
 namespace Port {
 
+void DebugMinimize(unsigned long long frame) {
+    static const char* spec = getenv("PORT_DEBUG_MINIMIZE");
+    static unsigned long long minFrame = 0, restoreFrame = 0;
+    static bool parsed = false, minimized = false, restored = false;
+    if (spec == nullptr || restored) return;
+    if (!parsed) {
+        parsed = true;
+        if (sscanf(spec, "%llu:%llu", &minFrame, &restoreFrame) != 2) {
+            fprintf(stderr, "[minimize] PORT_DEBUG_MINIMIZE=<frame>:<restore frame>\n");
+            restored = true;
+            return;
+        }
+    }
+    int n = 0;
+    SDL_Window** ws = SDL_GetWindows(&n);
+    if (ws == nullptr || n == 0) {
+        SDL_free(ws);
+        return;
+    }
+    SDL_Window* w = ws[0];
+    SDL_free(ws);
+    if (!minimized && frame >= minFrame) {
+        minimized = true;
+        SDL_MinimizeWindow(w);
+        fprintf(stderr, "[minimize] window minimized at frame %llu\n", frame);
+    } else if (minimized && frame >= restoreFrame) {
+        restored = true;
+        SDL_RestoreWindow(w);
+        fprintf(stderr, "[minimize] window restored at frame %llu\n", frame);
+    }
+}
+
+void ApplySoundSettings() {
+    SoundSettings s;
+    s.master = CVarGetInteger("gSound.Master", 100);
+    s.music = CVarGetInteger("gSound.Music", 100);
+    s.effects = CVarGetInteger("gSound.Effects", 100);
+    s.voices = CVarGetInteger("gSound.Voices", 100);
+    s.gameBoy = CVarGetInteger("gSound.GameBoy", 100);
+    s.on = CVarGetInteger("gSound.On", 1) != 0;
+    s.muteInBackground = CVarGetInteger("gSound.MuteInBackground", 0) != 0;
+    s.delay = CVarGetInteger("gSound.Delay", 0);
+    SetSoundSettings(s);
+}
+
+// a fixed resolution's size for the picture's shape (see ApplyAspect)
+static void FixedSize(int mode, int value, bool wide, int* width, int* lines) {
+    if (mode == kResN64) {
+        *lines = 240 * value;
+        *width = (wide ? 426 : 320) * value;
+    } else {
+        *lines = value;
+        *width = wide ? 2 * (int)lround(value * 16.0 / 9.0 / 2.0) : (int)lround(value * 4.0 / 3.0);
+        if (wide && ((*width - (int)lround(value * 4.0 / 3.0)) & 1)) (*width)++;
+    }
+}
+
+std::string ResolutionLabel(int mode, int value) {
+    if (mode == kResWindow) return "Match window";
+    int w, h;
+    FixedSize(mode, value, AspectSetting() == 1, &w, &h);
+    char buf[64];
+    if (mode == kResN64) snprintf(buf, sizeof buf, "%s %d x %d", value == 1 ? "Native" : (std::to_string(value) + "x").c_str(), w, h);
+    else snprintf(buf, sizeof buf, "%dp %d x %d", value, w, h);
+    return buf;
+}
+
+ResolutionSetting GetResolutionSetting() {
+    ResolutionSetting r;
+    r.mode = std::clamp(CVarGetInteger("gPort.Resolution.Mode", kResWindow), (int)kResWindow, (int)kResHeight);
+    r.multiple = std::clamp(CVarGetInteger("gPort.Resolution.Multiple", 1), 1, 8);
+    r.height = std::clamp(CVarGetInteger("gPort.Resolution.Height", 1080), 240, 4320);
+    r.scale = 1.0f; // (the window mode's scale: PORT_RESOLUTION=window:n only)
+    r.upscale = std::clamp(CVarGetInteger("gPort.Resolution.Upscale", kUpscaleSmooth), (int)kUpscaleExact,
+                           (int)kUpscaleSmooth);
+    if (const char* e = getenv("PORT_RESOLUTION")) {
+        const std::string v = e;
+        int n = atoi(e);
+        if (v == "native") {
+            r.mode = kResN64;
+            r.multiple = 1;
+        } else if (v.size() >= 2 && v.back() == 'x' && n >= 1) {
+            r.mode = kResN64;
+            r.multiple = std::min(n, 8);
+        } else if (v.size() >= 2 && v.back() == 'p' && n >= 240) {
+            r.mode = kResHeight;
+            r.height = std::min(n, 4320);
+        } else if (v.rfind("window", 0) == 0) {
+            r.mode = kResWindow;
+            if (v.size() > 7) r.scale = std::clamp(atoi(e + 7) / 100.0f, 0.25f, 4.0f);
+        }
+    }
+    if (const char* e = getenv("PORT_UPSCALE")) {
+        r.upscale = strcmp(e, "exact") == 0 ? kUpscaleExact : strcmp(e, "sharp") == 0 ? kUpscaleSharp : kUpscaleSmooth;
+    }
+    return r;
+}
+
+void SetResolutionSetting(const ResolutionSetting& r) {
+    CVarSetInteger("gPort.Resolution.Mode", r.mode);
+    CVarSetInteger("gPort.Resolution.Multiple", r.multiple);
+    CVarSetInteger("gPort.Resolution.Height", r.height);
+    CVarSetInteger("gPort.Resolution.Upscale", r.upscale);
+    ApplyAspect();
+}
+
+void RenderSize(int* w, int* h) {
+    *w = *h = 0;
+    if (sWindow == nullptr) return;
+    if (auto interp = sWindow->GetInterpreterWeak().lock()) {
+        uint32_t cw = 0, ch = 0;
+        interp->GetCurDimensions(&cw, &ch);
+        *w = (int)cw;
+        *h = (int)ch;
+    }
+}
+
+// The picture's shape and resolution go to libultraship's fixed-aspect ("advanced") resolution settings: the window
+// mode keeps the window's resolution (times gInternalResolution) cut to the shape; the N64 and fixed-height modes set
+// the vertical pixel count and a width for the shape. Their 16:9 widths keep the 4:3 middle on whole pixels with an
+// even margin on each side, so the 2D screens and HUD drawn into it are not shifted by half a pixel: the N64's 240
+// lines get 426 = 320 + 2 x 53 (16:9 is 426.7; 428, Port_WideMarginN64's 54 a side, would not fit 3x into 1280 x 720
+// or 6x into 2560 x 1440 for pixel-exact upscaling), 480 lines 854 (not 853).
 void ApplyAspect() {
     const bool wide = AspectSetting() == 1;
+    const ResolutionSetting r = GetResolutionSetting();
     CVarSetInteger("gAdvancedResolution.Enabled", 1);
-    CVarSetFloat("gAdvancedResolution.AspectRatioX", wide ? 16.0f : 4.0f);
-    CVarSetFloat("gAdvancedResolution.AspectRatioY", wide ? 9.0f : 3.0f);
-    CVarSetInteger("gAdvancedResolution.VerticalResolutionToggle", 0); // the window's resolution
-    CVarSetInteger("gAdvancedResolution.PixelPerfectMode", 0);
     CVarSetInteger("gAdvancedResolution.IgnoreAspectCorrection", 0);
+    if (r.mode == kResWindow) {
+        CVarSetFloat("gAdvancedResolution.AspectRatioX", wide ? 16.0f : 4.0f);
+        CVarSetFloat("gAdvancedResolution.AspectRatioY", wide ? 9.0f : 3.0f);
+        CVarSetInteger("gAdvancedResolution.VerticalResolutionToggle", 0); // the window's resolution
+    } else {
+        int width, lines;
+        FixedSize(r.mode, r.mode == kResN64 ? r.multiple : r.height, wide, &width, &lines);
+        CVarSetFloat("gAdvancedResolution.AspectRatioX", (float)width);
+        CVarSetFloat("gAdvancedResolution.AspectRatioY", (float)lines);
+        CVarSetInteger("gAdvancedResolution.VerticalResolutionToggle", 1);
+        CVarSetInteger("gAdvancedResolution.VerticalPixelCount", lines);
+    }
+    // Scaling (whole multiples: Fast3dGui::DrawGame; nearest) for the fixed resolutions; Match window's picture has the
+    // window's pixels and is not scaled (Scaling is greyed out there), so it is always drawn linearly
+    CVarSetInteger("gAdvancedResolution.PixelPerfectMode", r.mode != kResWindow && r.upscale == kUpscaleExact ? 1 : 0);
+    CVarSetInteger("gAdvancedResolution.NearestUpscale", r.mode != kResWindow && r.upscale != kUpscaleSmooth ? 1 : 0);
+    CVarSetInteger("gAdvancedResolution.MatchPixels", r.mode == kResWindow ? 1 : 0);
+    if (sWindow != nullptr) {
+        sWindow->SetResolutionMultiplier(r.mode == kResWindow ? r.scale : 1.0f);
+    }
 }
 
 std::string AppPath(const char* name) {
@@ -835,12 +1129,14 @@ std::shared_ptr<Fast::Fast3dWindow> GetWindow() {
     } catch (const std::exception& e) {
         fprintf(stderr, "Could not save the renderer fallback: %s\n", e.what());
     }
-    std::string message = std::string("Vulkan could not create the display images.\n\n") + reason +
+    std::string message = std::string("The Vulkan renderer stopped working.\n\n") + reason +
                           (saved ? "\n\nOpenGL has been selected for the next launch. Please restart the game."
                                  : "\n\nPlease select OpenGL or DirectX 11 in stadion.cfg.json before restarting.");
     SPDLOG_ERROR("{}", message);
     fprintf(stderr, "%s\n", message.c_str());
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "stadion: Vulkan error", message.c_str(), nullptr);
+    if (getenv("PORT_HIDDEN_WINDOW") == nullptr) { // (scripted runs: no dialog waiting for a click)
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "stadion: Vulkan error", message.c_str(), nullptr);
+    }
     // A failed swapchain may already have retired the old one. Do not unwind driver objects or run static
     // destructors while game threads are still alive (the normal shutdown path also exits the process directly).
     fflush(nullptr);

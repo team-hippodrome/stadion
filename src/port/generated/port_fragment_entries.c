@@ -30,7 +30,7 @@ extern void WidgetTree_DrawTiledTexture();
 extern void LabPC_IconListDispatch();
 extern void Pokedex_Main();
 extern void LabUI_DrawConfirmOptionLabel();
-extern void FatalError_Main();
+extern void TransferPakError_Main();
 extern void TransferPak_SelectMain();
 extern void ParticleMath_BitwiseOr();
 extern void N64Logo_Main();
@@ -55,7 +55,7 @@ extern void RentalHub_Main();
 extern void RentalRules_Main();
 extern void Options_Main();
 extern void TransferPak_CheckMain();
-extern void FreeBattle_RuleSelectMain();
+extern void FreeBattle_SettingsMain();
 extern void StadiumSelect_Main();
 extern void CupSelect_Main();
 extern void Rental_Main();
@@ -105,7 +105,7 @@ const struct PortFragmentEntry gPortFragmentEntries[] = {
     { 0x1F7C90, 0x88600000, (void*)LabPC_IconListDispatch, "fragment27" },
     { 0x214900, 0x88800000, (void*)Pokedex_Main, "fragment28" },
     { 0x23C250, 0x88900000, (void*)LabUI_DrawConfirmOptionLabel, "fragment29" },
-    { 0x25A740, 0x81100000, (void*)FatalError_Main, "fragment32" },
+    { 0x25A740, 0x81100000, (void*)TransferPakError_Main, "fragment32" },
     { 0x25B0D0, 0x81300000, (void*)TransferPak_SelectMain, "fragment33" },
     { 0x261F70, 0x81400000, (void*)ParticleMath_BitwiseOr, "fragment34" },
     { 0x271260, 0x82000000, (void*)N64Logo_Main, "fragment35" },
@@ -130,7 +130,7 @@ const struct PortFragmentEntry gPortFragmentEntries[] = {
     { 0x2BED20, 0x83000000, (void*)RentalRules_Main, "fragment55" },
     { 0x2C3220, 0x82C00000, (void*)Options_Main, "fragment56" },
     { 0x2C49D0, 0x82D00000, (void*)TransferPak_CheckMain, "fragment57" },
-    { 0x2CF350, 0x84000000, (void*)FreeBattle_RuleSelectMain, "fragment58" },
+    { 0x2CF350, 0x84000000, (void*)FreeBattle_SettingsMain, "fragment58" },
     { 0x2D24C0, 0x84100000, (void*)StadiumSelect_Main, "fragment59" },
     { 0x2D5CB0, 0x82E00000, (void*)CupSelect_Main, "fragment60" },
     { 0x2D7890, 0x84200000, (void*)Rental_Main, "fragment61" },

@@ -18,6 +18,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <vector>
+#include "StadionPort.h"
 
 extern "C" {
 struct PortMemoryMap {
@@ -26,9 +27,6 @@ struct PortMemoryMap {
 };
 extern PortMemoryMap gSegments[16];
 extern PortMemoryMap gFragments[240];
-size_t Port_PoolBlockSize(void* data);
-void* Port_VResolve(uintptr_t addr);
-int Port_VIsRaw(const void* p);
 uintptr_t Memmap_GetSegmentVaddr(uintptr_t mask);
 uintptr_t Memmap_GetFragmentVaddr(void* addr);
 }

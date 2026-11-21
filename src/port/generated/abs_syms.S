@@ -309,24 +309,8 @@
 .set SYM(D_1003C30), 0x1003C30
 .globl SYM(D_1003CF0)
 .set SYM(D_1003CF0), 0x1003CF0
-.globl SYM(D_1003DB0)
-.set SYM(D_1003DB0), 0x1003DB0
-.globl SYM(D_1003E50)
-.set SYM(D_1003E50), 0x1003E50
-.globl SYM(D_1003E78)
-.set SYM(D_1003E78), 0x1003E78
-.globl SYM(D_1003EA0)
-.set SYM(D_1003EA0), 0x1003EA0
-.globl SYM(D_1003EC8)
-.set SYM(D_1003EC8), 0x1003EC8
-.globl SYM(D_1003EF0)
-.set SYM(D_1003EF0), 0x1003EF0
-.globl SYM(D_102BA0)
-.set SYM(D_102BA0), 0x102BA0
 .globl SYM(D_102BA0_END)
 .set SYM(D_102BA0_END), 0x102BA0
-.globl SYM(D_124570)
-.set SYM(D_124570), 0x124570
 .globl SYM(D_2000000)
 .set SYM(D_2000000), 0x2000000
 .globl SYM(D_2000040)
@@ -363,14 +347,6 @@
 .set SYM(D_2000C00), 0x2000C00
 .globl SYM(D_2000C40)
 .set SYM(D_2000C40), 0x2000C40
-.globl SYM(D_2000C80)
-.set SYM(D_2000C80), 0x2000C80
-.globl SYM(D_2000D80)
-.set SYM(D_2000D80), 0x2000D80
-.globl SYM(D_2000E80)
-.set SYM(D_2000E80), 0x2000E80
-.globl SYM(D_2000F80)
-.set SYM(D_2000F80), 0x2000F80
 .globl SYM(D_2001080)
 .set SYM(D_2001080), 0x2001080
 .globl SYM(D_2001550)
@@ -431,10 +407,6 @@
 .set SYM(D_2006920), 0x2006920
 .globl SYM(D_20069A0)
 .set SYM(D_20069A0), 0x20069A0
-.globl SYM(D_2006C00)
-.set SYM(D_2006C00), 0x2006C00
-.globl SYM(D_2007500)
-.set SYM(D_2007500), 0x2007500
 .globl SYM(D_2007E00)
 .set SYM(D_2007E00), 0x2007E00
 .globl SYM(D_2008700)
@@ -453,12 +425,6 @@
 .set SYM(D_200A780), 0x200A780
 .globl SYM(D_200AC00)
 .set SYM(D_200AC00), 0x200AC00
-.globl SYM(D_200B3E0)
-.set SYM(D_200B3E0), 0x200B3E0
-.globl SYM(D_200C380)
-.set SYM(D_200C380), 0x200C380
-.globl SYM(D_200D320)
-.set SYM(D_200D320), 0x200D320
 .globl SYM(D_200DFA0)
 .set SYM(D_200DFA0), 0x200DFA0
 .globl SYM(D_200F3E0)
@@ -585,8 +551,6 @@
 .set SYM(D_3000008), 0x3000008
 .globl SYM(D_3000180)
 .set SYM(D_3000180), 0x3000180
-.globl SYM(D_3000470)
-.set SYM(D_3000470), 0x3000470
 .globl SYM(D_30005B0)
 .set SYM(D_30005B0), 0x30005B0
 .globl SYM(D_3000780)
@@ -615,22 +579,14 @@
 .set SYM(D_3001D20), 0x3001D20
 .globl SYM(D_3001F40)
 .set SYM(D_3001F40), 0x3001F40
-.globl SYM(D_3001F70)
-.set SYM(D_3001F70), 0x3001F70
-.globl SYM(D_3002220)
-.set SYM(D_3002220), 0x3002220
 .globl SYM(D_30024E0)
 .set SYM(D_30024E0), 0x30024E0
 .globl SYM(D_30025E0)
 .set SYM(D_30025E0), 0x30025E0
 .globl SYM(D_3002760)
 .set SYM(D_3002760), 0x3002760
-.globl SYM(D_3002820)
-.set SYM(D_3002820), 0x3002820
 .globl SYM(D_3002C00)
 .set SYM(D_3002C00), 0x3002C00
-.globl SYM(D_3002E20)
-.set SYM(D_3002E20), 0x3002E20
 .globl SYM(D_3002EE0)
 .set SYM(D_3002EE0), 0x3002EE0
 .globl SYM(D_3003000)
@@ -639,8 +595,6 @@
 .set SYM(D_30032A0), 0x30032A0
 .globl SYM(D_3003480)
 .set SYM(D_3003480), 0x3003480
-.globl SYM(D_3003C80)
-.set SYM(D_3003C80), 0x3003C80
 .globl SYM(D_3003E80)
 .set SYM(D_3003E80), 0x3003E80
 .globl SYM(D_3003F80)
@@ -659,8 +613,6 @@
 .set SYM(D_3004EC0), 0x3004EC0
 .globl SYM(D_3004EF0)
 .set SYM(D_3004EF0), 0x3004EF0
-.globl SYM(D_30050C0)
-.set SYM(D_30050C0), 0x30050C0
 .globl SYM(D_3005260)
 .set SYM(D_3005260), 0x3005260
 .globl SYM(D_30055B0)
@@ -687,80 +639,38 @@
 .set SYM(D_3006060), 0x3006060
 .globl SYM(D_30060E0)
 .set SYM(D_30060E0), 0x30060E0
-.globl SYM(D_3006170)
-.set SYM(D_3006170), 0x3006170
-.globl SYM(D_30061D0)
-.set SYM(D_30061D0), 0x30061D0
-.globl SYM(D_3006230)
-.set SYM(D_3006230), 0x3006230
-.globl SYM(D_3006290)
-.set SYM(D_3006290), 0x3006290
 .globl SYM(D_3006300)
 .set SYM(D_3006300), 0x3006300
-.globl SYM(D_3006450)
-.set SYM(D_3006450), 0x3006450
-.globl SYM(D_3006530)
-.set SYM(D_3006530), 0x3006530
 .globl SYM(D_3006668)
 .set SYM(D_3006668), 0x3006668
 .globl SYM(D_30066C0)
 .set SYM(D_30066C0), 0x30066C0
-.globl SYM(D_30066F0)
-.set SYM(D_30066F0), 0x30066F0
-.globl SYM(D_30067D0)
-.set SYM(D_30067D0), 0x30067D0
 .globl SYM(D_3006900)
 .set SYM(D_3006900), 0x3006900
-.globl SYM(D_3006990)
-.set SYM(D_3006990), 0x3006990
-.globl SYM(D_3006A70)
-.set SYM(D_3006A70), 0x3006A70
 .globl SYM(D_3006A80)
 .set SYM(D_3006A80), 0x3006A80
 .globl SYM(D_3006B80)
 .set SYM(D_3006B80), 0x3006B80
-.globl SYM(D_3006C30)
-.set SYM(D_3006C30), 0x3006C30
-.globl SYM(D_3006D10)
-.set SYM(D_3006D10), 0x3006D10
 .globl SYM(D_3006E40)
 .set SYM(D_3006E40), 0x3006E40
-.globl SYM(D_3007010)
-.set SYM(D_3007010), 0x3007010
 .globl SYM(D_3007200)
 .set SYM(D_3007200), 0x3007200
 .globl SYM(D_3007220)
 .set SYM(D_3007220), 0x3007220
-.globl SYM(D_3007310)
-.set SYM(D_3007310), 0x3007310
 .globl SYM(D_30074E0)
 .set SYM(D_30074E0), 0x30074E0
 .globl SYM(D_30075C0)
 .set SYM(D_30075C0), 0x30075C0
-.globl SYM(D_3007610)
-.set SYM(D_3007610), 0x3007610
 .globl SYM(D_3007620)
 .set SYM(D_3007620), 0x3007620
-.globl SYM(D_3007910)
-.set SYM(D_3007910), 0x3007910
 .globl SYM(D_3007980)
 .set SYM(D_3007980), 0x3007980
 .globl SYM(D_30079A0)
 .set SYM(D_30079A0), 0x30079A0
-.globl SYM(D_3007A78)
-.set SYM(D_3007A78), 0x3007A78
-.globl SYM(D_3007BE0)
-.set SYM(D_3007BE0), 0x3007BE0
 .globl SYM(D_3007D40)
 .set SYM(D_3007D40), 0x3007D40
-.globl SYM(D_3007D48)
-.set SYM(D_3007D48), 0x3007D48
-.globl SYM(D_3007EB0)
-.set SYM(D_3007EB0), 0x3007EB0
 .globl SYM(D_3008000)
 .set SYM(D_3008000), 0x3008000
-.globl SYM(D_3008018)
-.set SYM(D_3008018), 0x3008018
 .globl SYM(D_3008100)
 .set SYM(D_3008100), 0x3008100
 .globl SYM(D_30081A8)
@@ -769,132 +679,52 @@
 .set SYM(D_3008200), 0x3008200
 .globl SYM(D_3008238)
 .set SYM(D_3008238), 0x3008238
-.globl SYM(D_3008280)
-.set SYM(D_3008280), 0x3008280
-.globl SYM(D_3008380)
-.set SYM(D_3008380), 0x3008380
-.globl SYM(D_3008400)
-.set SYM(D_3008400), 0x3008400
 .globl SYM(D_3008420)
 .set SYM(D_3008420), 0x3008420
-.globl SYM(D_3008480)
-.set SYM(D_3008480), 0x3008480
 .globl SYM(D_30084C0)
 .set SYM(D_30084C0), 0x30084C0
-.globl SYM(D_3008500)
-.set SYM(D_3008500), 0x3008500
-.globl SYM(D_3008580)
-.set SYM(D_3008580), 0x3008580
-.globl SYM(D_3008600)
-.set SYM(D_3008600), 0x3008600
 .globl SYM(D_3008670)
 .set SYM(D_3008670), 0x3008670
-.globl SYM(D_3008680)
-.set SYM(D_3008680), 0x3008680
-.globl SYM(D_3008700)
-.set SYM(D_3008700), 0x3008700
-.globl SYM(D_3008780)
-.set SYM(D_3008780), 0x3008780
-.globl SYM(D_3008880)
-.set SYM(D_3008880), 0x3008880
-.globl SYM(D_3008900)
-.set SYM(D_3008900), 0x3008900
-.globl SYM(D_30089C0)
-.set SYM(D_30089C0), 0x30089C0
-.globl SYM(D_3008B40)
-.set SYM(D_3008B40), 0x3008B40
-.globl SYM(D_3008C00)
-.set SYM(D_3008C00), 0x3008C00
-.globl SYM(D_3008D80)
-.set SYM(D_3008D80), 0x3008D80
-.globl SYM(D_3008E40)
-.set SYM(D_3008E40), 0x3008E40
 .globl SYM(D_3008E50)
 .set SYM(D_3008E50), 0x3008E50
-.globl SYM(D_3008FC0)
-.set SYM(D_3008FC0), 0x3008FC0
-.globl SYM(D_3008FD0)
-.set SYM(D_3008FD0), 0x3008FD0
 .globl SYM(D_3009000)
 .set SYM(D_3009000), 0x3009000
-.globl SYM(D_3009080)
-.set SYM(D_3009080), 0x3009080
-.globl SYM(D_3009200)
-.set SYM(D_3009200), 0x3009200
 .globl SYM(D_3009290)
 .set SYM(D_3009290), 0x3009290
-.globl SYM(D_30092C0)
-.set SYM(D_30092C0), 0x30092C0
 .globl SYM(D_30092E0)
 .set SYM(D_30092E0), 0x30092E0
-.globl SYM(D_3009560)
-.set SYM(D_3009560), 0x3009560
 .globl SYM(D_3009620)
 .set SYM(D_3009620), 0x3009620
 .globl SYM(D_3009678)
 .set SYM(D_3009678), 0x3009678
-.globl SYM(D_30096B0)
-.set SYM(D_30096B0), 0x30096B0
-.globl SYM(D_3009720)
-.set SYM(D_3009720), 0x3009720
-.globl SYM(D_30098F0)
-.set SYM(D_30098F0), 0x30098F0
 .globl SYM(D_30099B8)
 .set SYM(D_30099B8), 0x30099B8
-.globl SYM(D_3009B30)
-.set SYM(D_3009B30), 0x3009B30
 .globl SYM(D_3009BC0)
 .set SYM(D_3009BC0), 0x3009BC0
-.globl SYM(D_3009D70)
-.set SYM(D_3009D70), 0x3009D70
 .globl SYM(D_3009DC8)
 .set SYM(D_3009DC8), 0x3009DC8
 .globl SYM(D_3009E38)
 .set SYM(D_3009E38), 0x3009E38
 .globl SYM(D_3009E70)
 .set SYM(D_3009E70), 0x3009E70
-.globl SYM(D_3009FB0)
-.set SYM(D_3009FB0), 0x3009FB0
-.globl SYM(D_300A1F0)
-.set SYM(D_300A1F0), 0x300A1F0
 .globl SYM(D_300A290)
 .set SYM(D_300A290), 0x300A290
-.globl SYM(D_300A430)
-.set SYM(D_300A430), 0x300A430
 .globl SYM(D_300A5C0)
 .set SYM(D_300A5C0), 0x300A5C0
-.globl SYM(D_300A670)
-.set SYM(D_300A670), 0x300A670
 .globl SYM(D_300A820)
 .set SYM(D_300A820), 0x300A820
-.globl SYM(D_300A8B0)
-.set SYM(D_300A8B0), 0x300A8B0
-.globl SYM(D_300AAF0)
-.set SYM(D_300AAF0), 0x300AAF0
 .globl SYM(D_300AD10)
 .set SYM(D_300AD10), 0x300AD10
-.globl SYM(D_300AD30)
-.set SYM(D_300AD30), 0x300AD30
 .globl SYM(D_300AE38)
 .set SYM(D_300AE38), 0x300AE38
-.globl SYM(D_300AF70)
-.set SYM(D_300AF70), 0x300AF70
-.globl SYM(D_300B1B0)
-.set SYM(D_300B1B0), 0x300B1B0
 .globl SYM(D_300B290)
 .set SYM(D_300B290), 0x300B290
-.globl SYM(D_300B3F0)
-.set SYM(D_300B3F0), 0x300B3F0
-.globl SYM(D_300B630)
-.set SYM(D_300B630), 0x300B630
 .globl SYM(D_300B6E0)
 .set SYM(D_300B6E0), 0x300B6E0
 .globl SYM(D_300B768)
 .set SYM(D_300B768), 0x300B768
 .globl SYM(D_300B820)
 .set SYM(D_300B820), 0x300B820
-.globl SYM(D_300B870)
-.set SYM(D_300B870), 0x300B870
 .globl SYM(D_300B980)
 .set SYM(D_300B980), 0x300B980
 .globl SYM(D_300B9B8)
@@ -1111,8 +941,6 @@
 .set SYM(D_3024800), 0x3024800
 .globl SYM(D_3024A00)
 .set SYM(D_3024A00), 0x3024A00
-.globl SYM(D_3024C80)
-.set SYM(D_3024C80), 0x3024C80
 .globl SYM(D_3025200)
 .set SYM(D_3025200), 0x3025200
 .globl SYM(D_30256A0)
@@ -1121,8 +949,6 @@
 .set SYM(D_3025950), 0x3025950
 .globl SYM(D_30260A0)
 .set SYM(D_30260A0), 0x30260A0
-.globl SYM(D_30260C0)
-.set SYM(D_30260C0), 0x30260C0
 .globl SYM(D_3026168)
 .set SYM(D_3026168), 0x3026168
 .globl SYM(D_3026368)
@@ -1219,8 +1045,6 @@
 .set SYM(D_302E9C8), 0x302E9C8
 .globl SYM(D_302EA70)
 .set SYM(D_302EA70), 0x302EA70
-.globl SYM(D_302EBC0)
-.set SYM(D_302EBC0), 0x302EBC0
 .globl SYM(D_302EF78)
 .set SYM(D_302EF78), 0x302EF78
 .globl SYM(D_302F528)
@@ -1645,14 +1469,6 @@
 .set SYM(D_8C2011C4), 0x8C2011C4
 .globl SYM(D_8D000000)
 .set SYM(D_8D000000), 0x8D000000
-.globl SYM(D_F4130)
-.set SYM(D_F4130), 0xF4130
-.globl SYM(D_F4920)
-.set SYM(D_F4920), 0xF4920
-.globl SYM(D_F5450)
-.set SYM(D_F5450), 0xF5450
-.globl SYM(D_FDE40)
-.set SYM(D_FDE40), 0xFDE40
 .globl SYM(F3DEX2_data_bin)
 .set SYM(F3DEX2_data_bin), 0x8007E650
 .globl SYM(_5C7A70_ROM_END)
@@ -2113,6 +1929,8 @@
 .set SYM(fragment6_ROM_START), 0x120A10
 .globl SYM(fragment6_TEXT_START)
 .set SYM(fragment6_TEXT_START), 0x86000000
+.globl SYM(fragment6_misc_ROM_START)
+.set SYM(fragment6_misc_ROM_START), 0x124570
 .globl SYM(fragment6_relocs_ROM_END)
 .set SYM(fragment6_relocs_ROM_END), 0x124570
 .globl SYM(fragment75_ROM_START)
@@ -2141,8 +1959,174 @@
 .set SYM(fragment9_relocs_ROM_END), 0x134680
 .globl SYM(gAudioData)
 .set SYM(gAudioData), 0x15C0000
+.globl SYM(gBattleOrderSideBarFist)
+.set SYM(gBattleOrderSideBarFist), 0x3002E20
+.globl SYM(gBattleOrderSideBarSlot)
+.set SYM(gBattleOrderSideBarSlot), 0x30050C0
+.globl SYM(gBattleOrderSideBarSlotTop)
+.set SYM(gBattleOrderSideBarSlotTop), 0x3003C80
+.globl SYM(gBorderBottom)
+.set SYM(gBorderBottom), 0x3008680
+.globl SYM(gBorderBottomLeft)
+.set SYM(gBorderBottomLeft), 0x3008400
+.globl SYM(gBorderBottomRight)
+.set SYM(gBorderBottomRight), 0x3008580
+.globl SYM(gBorderLeft)
+.set SYM(gBorderLeft), 0x3008380
+.globl SYM(gBorderRight)
+.set SYM(gBorderRight), 0x3008500
+.globl SYM(gBorderTeeRight)
+.set SYM(gBorderTeeRight), 0x3008280
+.globl SYM(gBorderTop)
+.set SYM(gBorderTop), 0x3008700
+.globl SYM(gBorderTopLeft)
+.set SYM(gBorderTopLeft), 0x3008480
+.globl SYM(gBorderTopRight)
+.set SYM(gBorderTopRight), 0x3008600
+.globl SYM(gBottomLeftSelectionCorner)
+.set SYM(gBottomLeftSelectionCorner), 0x2000C80
+.globl SYM(gBottomRightSelectionCorner)
+.set SYM(gBottomRightSelectionCorner), 0x2000D80
+.globl SYM(gButtonA)
+.set SYM(gButtonA), 0x3008C00
+.globl SYM(gButtonAMask)
+.set SYM(gButtonAMask), 0x3008D80
+.globl SYM(gButtonB)
+.set SYM(gButtonB), 0x3008E40
+.globl SYM(gButtonBMask)
+.set SYM(gButtonBMask), 0x3008FC0
+.globl SYM(gButtonCDown)
+.set SYM(gButtonCDown), 0x3006530
+.globl SYM(gButtonCDownMask)
+.set SYM(gButtonCDownMask), 0x30066F0
+.globl SYM(gButtonCLeft)
+.set SYM(gButtonCLeft), 0x30067D0
+.globl SYM(gButtonCLeftMask)
+.set SYM(gButtonCLeftMask), 0x3006990
+.globl SYM(gButtonCRight)
+.set SYM(gButtonCRight), 0x3006290
+.globl SYM(gButtonCRightMask)
+.set SYM(gButtonCRightMask), 0x3006450
+.globl SYM(gButtonCUp)
+.set SYM(gButtonCUp), 0x3006A70
+.globl SYM(gButtonCUpMask)
+.set SYM(gButtonCUpMask), 0x3006C30
+.globl SYM(gButtonL)
+.set SYM(gButtonL), 0x3008780
+.globl SYM(gButtonLMask)
+.set SYM(gButtonLMask), 0x3008900
+.globl SYM(gButtonR)
+.set SYM(gButtonR), 0x30089C0
+.globl SYM(gButtonRMask)
+.set SYM(gButtonRMask), 0x3008B40
+.globl SYM(gButtonStart)
+.set SYM(gButtonStart), 0x3009080
+.globl SYM(gButtonStartMask)
+.set SYM(gButtonStartMask), 0x3009200
+.globl SYM(gComPlayerLabelIcon)
+.set SYM(gComPlayerLabelIcon), 0x3008880
+.globl SYM(gEndBattleBanner)
+.set SYM(gEndBattleBanner), 0x3000470
+.globl SYM(gEventBattleBackground)
+.set SYM(gEventBattleBackground), 0x302EBC0
+.globl SYM(gHandCursor)
+.set SYM(gHandCursor), 0x30092C0
+.globl SYM(gHandCursorMask)
+.set SYM(gHandCursorMask), 0x3009560
+.globl SYM(gHpBarEmpty)
+.set SYM(gHpBarEmpty), 0x1003E78
+.globl SYM(gHpBarEndCap)
+.set SYM(gHpBarEndCap), 0x1003E50
+.globl SYM(gHpBarGreen)
+.set SYM(gHpBarGreen), 0x1003EA0
+.globl SYM(gHpBarLabel)
+.set SYM(gHpBarLabel), 0x1003DB0
+.globl SYM(gHpBarRed)
+.set SYM(gHpBarRed), 0x1003EF0
+.globl SYM(gHpBarYellow)
+.set SYM(gHpBarYellow), 0x1003EC8
+.globl SYM(gHudGlyphTable)
+.set SYM(gHudGlyphTable), 0x300B870
+.globl SYM(gLButtonOrderSelect)
+.set SYM(gLButtonOrderSelect), 0x3002220
+.globl SYM(gPlayer1LabelIcon)
+.set SYM(gPlayer1LabelIcon), 0x3008FD0
+.globl SYM(gPlayer1LabelLarge)
+.set SYM(gPlayer1LabelLarge), 0x3024C80
+.globl SYM(gPlayer2LabelIcon)
+.set SYM(gPlayer2LabelIcon), 0x3009720
+.globl SYM(gPlayer2LabelLarge)
+.set SYM(gPlayer2LabelLarge), 0x30260C0
+.globl SYM(gPlayerLabel1P)
+.set SYM(gPlayerLabel1P), 0x3006D10
+.globl SYM(gPlayerLabel2P)
+.set SYM(gPlayerLabel2P), 0x3007010
+.globl SYM(gPlayerLabel3P)
+.set SYM(gPlayerLabel3P), 0x3007310
+.globl SYM(gPlayerLabel4P)
+.set SYM(gPlayerLabel4P), 0x3007610
+.globl SYM(gPokeBallIconBottom)
+.set SYM(gPokeBallIconBottom), 0x2007500
+.globl SYM(gPokeBallIconTop)
+.set SYM(gPokeBallIconTop), 0x2006C00
+.globl SYM(gPokeBallStatusFainted)
+.set SYM(gPokeBallStatusFainted), 0x3006230
+.globl SYM(gPokeBallStatusHealthy)
+.set SYM(gPokeBallStatusHealthy), 0x3006170
+.globl SYM(gPokeBallStatusStatused)
+.set SYM(gPokeBallStatusStatused), 0x30061D0
+.globl SYM(gRButtonOrderSelect)
+.set SYM(gRButtonOrderSelect), 0x3002820
 .globl SYM(gRound2BadgeTexture)
 .set SYM(gRound2BadgeTexture), 0x20144E0
+.globl SYM(gStadiumLogo)
+.set SYM(gStadiumLogo), 0x3001F70
+.globl SYM(gStatusIconBurn)
+.set SYM(gStatusIconBurn), 0x3008018
+.globl SYM(gStatusIconFainted)
+.set SYM(gStatusIconFainted), 0x3007A78
+.globl SYM(gStatusIconIce)
+.set SYM(gStatusIconIce), 0x3007BE0
+.globl SYM(gStatusIconParalyze)
+.set SYM(gStatusIconParalyze), 0x3007D48
+.globl SYM(gStatusIconPoison)
+.set SYM(gStatusIconPoison), 0x3007910
+.globl SYM(gStatusIconSleep)
+.set SYM(gStatusIconSleep), 0x3007EB0
+.globl SYM(gTopLeftSelectionCorner)
+.set SYM(gTopLeftSelectionCorner), 0x2000F80
+.globl SYM(gTopRightSelectionCorner)
+.set SYM(gTopRightSelectionCorner), 0x2000E80
+.globl SYM(gTypeLabelBug)
+.set SYM(gTypeLabelBug), 0x300B3F0
+.globl SYM(gTypeLabelDragon)
+.set SYM(gTypeLabelDragon), 0x3009B30
+.globl SYM(gTypeLabelElectric)
+.set SYM(gTypeLabelElectric), 0x300A670
+.globl SYM(gTypeLabelFighting)
+.set SYM(gTypeLabelFighting), 0x300B630
+.globl SYM(gTypeLabelFire)
+.set SYM(gTypeLabelFire), 0x300A430
+.globl SYM(gTypeLabelFlying)
+.set SYM(gTypeLabelFlying), 0x300A1F0
+.globl SYM(gTypeLabelGhost)
+.set SYM(gTypeLabelGhost), 0x3009FB0
+.globl SYM(gTypeLabelGrass)
+.set SYM(gTypeLabelGrass), 0x300AF70
+.globl SYM(gTypeLabelGround)
+.set SYM(gTypeLabelGround), 0x300AAF0
+.globl SYM(gTypeLabelIce)
+.set SYM(gTypeLabelIce), 0x300AD30
+.globl SYM(gTypeLabelNormal)
+.set SYM(gTypeLabelNormal), 0x30098F0
+.globl SYM(gTypeLabelPoison)
+.set SYM(gTypeLabelPoison), 0x30096B0
+.globl SYM(gTypeLabelPsychic)
+.set SYM(gTypeLabelPsychic), 0x3009D70
+.globl SYM(gTypeLabelRock)
+.set SYM(gTypeLabelRock), 0x300A8B0
+.globl SYM(gTypeLabelWater)
+.set SYM(gTypeLabelWater), 0x300B1B0
 .globl SYM(gUiPanelBottomLeftTexture)
 .set SYM(gUiPanelBottomLeftTexture), 0x20289E0
 .globl SYM(gUiPanelBottomRightTexture)
@@ -2151,6 +2135,12 @@
 .set SYM(gUiPanelTopLeftTexture), 0x2028A60
 .globl SYM(gUiPanelTopRightTexture)
 .set SYM(gUiPanelTopRightTexture), 0x2028AA0
+.globl SYM(gVsBottom)
+.set SYM(gVsBottom), 0x200D320
+.globl SYM(gVsMiddle)
+.set SYM(gVsMiddle), 0x200C380
+.globl SYM(gVsTop)
+.set SYM(gVsTop), 0x200B3E0
 .globl SYM(gallery_ui_ROM_END)
 .set SYM(gallery_ui_ROM_END), 0x69D090
 .globl SYM(gallery_ui_ROM_START)

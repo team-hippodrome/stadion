@@ -2,7 +2,7 @@
 
 A native N64 game port for Windows, macOS, Linux and Android, with local multiplayer,
 Transfer Pak support and a built-in Game Boy Tower. Built by Team Hippodrome on
-[libultraship](https://github.com/Kenix3/libultraship).
+[Team Hippodrome's libultraship fork](https://github.com/team-hippodrome/libultraship).
 
 [Download](https://github.com/team-hippodrome/pokestadium-port/releases/latest) ·
 [Report an issue](https://github.com/team-hippodrome/pokestadium-port/issues) ·
@@ -86,6 +86,61 @@ OpenGL, Metal or Vulkan. Restart to apply a change. Vulkan requires a compatible
 driver; availability depends on the platform and build. On Windows, **Restart and
 apply** reopens the launcher with the selected renderer.
 
+**Graphics** opens the drawing settings; changes apply at once and are kept:
+- **Display**: windowed or fullscreen (borderless), applied when the game starts.
+  F11 switches in-game.
+- **Internal resolution**: the pixels the game is drawn with. **Match window** (the
+  default) draws every pixel of the window, Retina and other HiDPI displays included.
+  **Native** is the N64's own 320 x 240 (426 x 240 in 16:9); **2x** to **6x** are
+  multiples of it; **480p** to **2160p** are fixed heights. Each entry shows its size.
+  Lower is much faster on integrated graphics.
+- **Scaling**: how a fixed resolution is stretched to the window. **Integer** uses the
+  largest whole multiple that fits (sharp, even pixels, black borders), **Sharp** fills
+  the window without blurring, **Smooth** fills it with linear filtering. Not used with
+  Match window. Picking Native or a multiple switches it to Integer.
+- **Anti-aliasing**: MSAA off, 2x, 4x or 8x. It costs speed on weak chips.
+- **VSync**: on stops tearing.
+- **Smooth motion**: in-between frames for 3D scenes. Doubles the drawing work.
+- **Keep full speed**: when the graphics chip cannot keep up, frames are skipped so
+  the game and its sound keep their speed instead of slowing down and stuttering.
+
+Two presets light up when the settings match them: **Recommended** (Match window, 4x
+anti-aliasing, VSync, Smooth motion and Keep full speed on; the default for a new
+configuration) and **Low-power** (for chips such as Intel HD 520: 2x, Smooth scaling,
+anti-aliasing and Smooth motion off, VSync and Keep full speed on). A smaller window
+helps as well, and DirectX or OpenGL can be faster than the other on some chips.
+
+**Sound** opens the sound settings; changes apply at once and are kept:
+- **Master**, **Music**, **Sound effects**, **Voices** (Pokémon cries and the announcer)
+  and **Game Boy** (the GB Tower) volumes.
+- **Sound**: on or off. **In the background**: keep playing or mute while another
+  window is in front.
+- **Sound delay**: short, normal or long. Long helps when the sound crackles on a slow
+  PC; it applies when the game starts.
+
+Stereo or mono is set in the game's own Options menu.
+
+Compiled shaders are saved in `shadercache/` beside the settings for DirectX 11,
+Vulkan, and OpenGL drivers that support program binaries. Later launches reuse
+matching compiler output. Invalid entries are rebuilt automatically. For
+diagnostics, `PORT_TRACE_SHADER_CACHE=1` logs cache hits and writes, and
+`PORT_NO_SHADER_DISK_CACHE=1` disables this cache.
+
+`PORT_TRACE_RENDER_SPIKES=1` reports frames exceeding 50 ms with shader, texture
+upload, draw, and presentation timings. `PORT_RENDER_SPIKE_MS` sets the threshold.
+Use `PORT_TRACE_RENDER_TIMING=1` for the full per-frame timing trace.
+The optional `shader_cache_check` build target tests corrupted and truncated
+entries, concurrent writes, and unavailable storage. Run it with an empty scratch
+directory as its argument.
+
+For a GPU copy regression check, configure an evidence build with
+`-DCMAKE_PROJECT_INCLUDE="$PWD/cmake/evidence.cmake"`
+`-DPORT_EVID_FILES="(game_state.c|battle_prep_)"`, then run
+`python3 tools/rtt_check.py <output> --bin <binary> --backend opengl`
+(or `metal`, `vulkan`, `directx`). It displays the castle's defeated-trainer card
+and checks the preserved portrait target against its original RGBA16 pixels, including alpha.
+`PORT_CHECK_RTT_INIT=1` enables the same readback diagnostics during other runs.
+
 ### Transfer Pak and Game Boy Tower
 
 Select a compatible Game Boy cartridge ROM and battery save for each player in the
@@ -139,6 +194,11 @@ release version, platform, renderer and steps to reproduce.
 See [Building stadion](docs/BUILDING.md) for platform dependencies, packaging,
 repository layout and the game-patch workflow. [Porting notes](PORTING_NOTES.md)
 cover implementation details, validation tools and debug options.
+
+To start a battle directly (no menus), for example to compare frames with another renderer:
+`tools/battle_boot.py --out out --p1 25,4,7 --p2 113 --known2 1,34 --arena 2 --moves 85,85 --seed 1 --turns 2 --frames-every 2 --trace --camlog`
+writes a case file, runs the port hidden and leaves the frames and logs in `out/`; `pokestadium <rom> --battle <case>` takes a
+case file directly. Format and details: [Battle boot](PORTING_NOTES.md#battle-boot-straight-into-a-battle-from-a-case-file-toolsbattle_bootpy).
 
 ## Acknowledgments
 

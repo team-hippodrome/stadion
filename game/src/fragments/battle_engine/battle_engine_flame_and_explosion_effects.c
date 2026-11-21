@@ -1,0 +1,1896 @@
+#include "battle_engine.h"
+#include "src/model_renderer.h"
+
+/*
+This file covers these specific moves:
+    - fire punch
+    - ember
+    - flamethrower
+    - hydro pump
+    - ice beam
+    - psybeam
+    - bubble beam
+    - hyper beam
+    - solar beam
+    - dragon rage
+    - fire spin
+    - rage
+    - self-destruct
+    - egg bomb
+    - fire blast
+    - waterfall
+    - sky attack
+    - explosion
+*/
+
+void BattleAnim_SetupFireBreathFlameFading(Particle* arg0, s16 arg1) {
+    UNUSED s32 pad[3];
+    s16 sp22 = Particle_FieldAC_GetS16_0C038(arg0);
+
+    Particle_Scale_SetScaled(arg0, 0.25f);
+    Particle_Rotation_AddX(arg0, ParticleMath_RandomSignedOffset(0x400, 0xE00));
+    Particle_Rotation_AddY(arg0, ParticleMath_RandomSigned(0x400));
+    Particle_StepMagnitude_SetScaled(arg0, 2.5f);
+
+    switch (arg1) {
+        case 0:
+            ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x17);
+            break;
+
+        case 1:
+            ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x18);
+            break;
+    }
+
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp22 * 2);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+void BattleAnim_ContinueFireBreathFlameFading(Particle* arg0) {
+    switch (arg0->phase) {
+        case 1:
+            if (Particle_TickPhaseTimer(arg0, 2) != 0) {
+                Particle_AdvancePhase(arg0);
+            }
+            break;
+
+        case 2:
+            Particle_Rotation_DecrementXTo(arg0, -0x400, 0x200);
+            if (Particle_TickPhaseTimer(arg0, 0x10) != 0) {
+                Particle_AdvancePhase(arg0);
+            }
+            break;
+    }
+
+    if (arg0->phase > 0) {
+        Particle_AddMotionOffsetFromRotationTemplate1(arg0);
+    }
+}
+
+/*
+    Handles the fading of flames when using Fire Blast, Fire Spin, Flamethrower, or Dragon Rage
+*/
+void BattleAnim_RunFireBreathFlameFading(Particle* arg0) {
+    s16 sp2E = Particle_FieldCF_GetS16_0C058(arg0);
+
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupFireBreathFlameFading(arg0, sp2E);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_BeginPhase(arg0);
+                Particle_EnableRendering(arg0);
+                Particle_FieldA6_SetS16_0BCA8(arg0, 0xB);
+            }
+            break;
+
+        case 3:
+            Particle_Scale_Approach(arg0, 0.75f, 0.03f);
+
+            switch (sp2E) {
+                case 0:
+                    Particle_PrimB_Approach_0BB44(arg0, 0, 0x18);
+                    Particle_ApproachEnvGreen(arg0, 0, 0x18);
+                    break;
+
+                case 1:
+                    Particle_PrimR_Approach_0BAE4(arg0, 0, 0x18);
+                    Particle_ApproachEnvGreen(arg0, 0x78, 0xC);
+                    break;
+            }
+
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_FieldA6_SetS16_0BCA8(arg0, 0xC);
+            }
+            break;
+
+        case 4:
+            Particle_Scale_Approach(arg0, 0.75f, 0.02f);
+            switch (sp2E) {
+                case 0:
+                    Particle_PrimG_Approach_0BB14(arg0, 0, 0x10);
+                    Particle_EnvR_Approach_0BB90(arg0, 0, 0x10);
+                    break;
+
+                case 1:
+                    Particle_PrimG_Approach_0BB14(arg0, 0x78, 0xC);
+                    Particle_ApproachEnvGreen(arg0, 0, 0xA);
+                    break;
+            }
+
+            if ((Particle_FieldA6_DecrementToZeroStep1_0BDAC(arg0) != 0) &&
+                (Particle_PrimAlpha_Approach_0BC2C(arg0, 0, 0x18) != 0)) {
+                Particle_AdvanceLifecycle(arg0);
+            }
+            break;
+
+        case 5:
+            Particle_MarkInactive(arg0);
+            break;
+    }
+
+    if (Particle_IsRenderingEnabled(arg0) != 0) {
+        Particle_AnimateFramesForward(arg0, 0, 7, 1, 2, -1);
+        BattleAnim_ContinueFireBreathFlameFading(arg0);
+    }
+}
+
+void BattleAnim_SetupUnusedDescriptor4FColorCycleScaleFadeVariant(Particle* arg0) {
+    UNUSED s32 pad[3];
+    s16 sp22 = Particle_FieldAC_GetS16_0C038(arg0);
+
+    Particle_Scale_SetScaled(arg0, 0.25f);
+    Particle_Rotation_AddY(arg0, ParticleMath_RandomSigned(0x400));
+    Particle_StepMagnitude_SetScaled(arg0, D_84392058[0]);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x17);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp22 * 2);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+void BattleAnim_MotionUnusedDescriptor4FColorCycleScaleFadeVariant(Particle* arg0) {
+    switch (arg0->phase) {
+        case 1:
+            if (Particle_TickPhaseTimer(arg0, 2) != 0) {
+                Particle_AdvancePhase(arg0);
+                Particle_Rotation_AddZ(arg0, 0x2900);
+            }
+            break;
+
+        case 2:
+            Particle_Rotation_AddX(arg0, 0xC00);
+            break;
+    }
+
+    if (arg0->phase > 0) {
+        Particle_AddMotionOffsetFromRotationTemplate7B(arg0);
+    }
+}
+
+void BattleAnim_CallbackUnusedDescriptor4FColorCycleScaleFadeVariant(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupUnusedDescriptor4FColorCycleScaleFadeVariant(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_BeginPhase(arg0);
+                Particle_EnableRendering(arg0);
+                Particle_FieldA6_SetS16_0BCA8(arg0, 0xB);
+            }
+            break;
+
+        case 3:
+            Particle_Scale_Approach(arg0, 0.75f, 0.03f);
+            Particle_PrimB_Approach_0BB44(arg0, 0, 0x18);
+            Particle_ApproachEnvGreen(arg0, 0, 0x20);
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_FieldA6_SetS16_0BCA8(arg0, 0xC);
+            }
+            break;
+
+        case 4:
+            Particle_Scale_Approach(arg0, 0.75f, 0.02f);
+            Particle_PrimG_Approach_0BB14(arg0, 0, 0x10);
+            Particle_EnvR_Approach_0BB90(arg0, 0, 0x10);
+            if ((Particle_FieldA6_DecrementToZeroStep1_0BDAC(arg0) != 0) &&
+                (Particle_PrimAlpha_Approach_0BC2C(arg0, 0, 0xC) != 0)) {
+                Particle_AdvanceLifecycle(arg0);
+            }
+            break;
+
+        case 5:
+            Particle_MarkInactive(arg0);
+            break;
+    }
+
+    if (Particle_IsRenderingEnabled(arg0) != 0) {
+        Particle_AnimateFramesForward(arg0, 0, 7, 1, 2, -1);
+        BattleAnim_MotionUnusedDescriptor4FColorCycleScaleFadeVariant(arg0);
+    }
+}
+
+void BattleAnim_SetupFireBreathFlameGeometry(Particle* arg0) {
+    UNUSED s32 pad[3];
+    s16 sp22 = Particle_FieldAC_GetS16_0C038(arg0);
+    s16 sp20 = Particle_FieldCF_GetS16_0C058(arg0);
+
+    Particle_Scale_SetScaled(arg0, 0.4f);
+    Particle_Rotation_AddX(arg0, ParticleMath_RandomSignedOffset(0x200, 0xE00));
+    Particle_Rotation_AddY(arg0, ParticleMath_RandomSigned(0x1800));
+    Particle_StepMagnitude_SetScaled(arg0, 2.0f);
+
+    switch (sp20) {
+        case 0:
+            ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x1A);
+            break;
+
+        case 1:
+            ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 6);
+            break;
+    }
+
+    Particle_SetPrimAlpha(arg0, 0xC8);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp22 * 2);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+void BattleAnim_ContinueFireBreathFlameGeometry(Particle* arg0) {
+    switch (arg0->phase) {
+        case 1:
+            if (Particle_TickPhaseTimer(arg0, 1) != 0) {
+                Particle_AdvancePhase(arg0);
+            }
+            break;
+
+        case 2:
+            Particle_Rotation_DecrementXTo(arg0, -0x1800, 0x800);
+            if (Particle_TickPhaseTimer(arg0, 0x10) != 0) {
+                Particle_AdvancePhase(arg0);
+            }
+            break;
+    }
+
+    if (arg0->phase > 0) {
+        Particle_AddMotionOffsetFromRotationTemplate1(arg0);
+    }
+}
+
+/*
+    Handles the geometry of flames when using Fire Blast, Fire Spin, Flamethrower, or Dragon Rage
+*/
+void BattleAnim_RunFireBreathFlameGeometry(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupFireBreathFlameGeometry(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_BeginPhase(arg0);
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 0, 7, 1, 2, 0);
+            Particle_PrimAlpha_Approach_0BC2C(arg0, 0x20, 4);
+            Particle_Scale_Approach(arg0, 0.75f, 0.05f);
+            break;
+
+        case 4:
+            Particle_MarkInactive(arg0);
+            break;
+    }
+
+    if (Particle_IsRenderingEnabled(arg0) != 0) {
+        BattleAnim_ContinueFireBreathFlameGeometry(arg0);
+    }
+}
+
+void BattleAnim_SetupFireBreathFlameColoration(Particle* arg0, s16 arg1) {
+    UNUSED s32 pad[3];
+    s16 sp22 = Particle_FieldAC_GetS16_0C038(arg0);
+
+    Particle_Scale_SetScaled(arg0, 0.2f);
+    Particle_Rotation_AddX(arg0, ParticleMath_RandomSignedOffset(0x200, 0xE00));
+    Particle_Rotation_AddY(arg0, ParticleMath_RandomSigned(0x2000));
+    Particle_StepMagnitude_SetScaled(arg0, 2.0f);
+
+    switch (arg1) {
+        case 0:
+            ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x17);
+            break;
+
+        case 1:
+            ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x18);
+            break;
+    }
+
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp22 * 2);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+void BattleAnim_ContinueFireBreathFlameColoration(Particle* arg0) {
+    switch (arg0->phase) {
+        case 1:
+            if (Particle_TickPhaseTimer(arg0, arg0->unk_AE) != 0) {
+                Particle_AdvancePhase(arg0);
+            }
+            break;
+
+        case 2:
+            Particle_ApproachRotationXTo(arg0, 0x4000, 0x800);
+            if (Particle_TickPhaseTimer(arg0, 0x10) != 0) {
+                Particle_AdvancePhase(arg0);
+            }
+            break;
+    }
+
+    if (arg0->phase > 0) {
+        Particle_AddMotionOffsetFromRotationTemplate1(arg0);
+    }
+}
+
+/*
+    Handles the color of flames when using Fire Blast, Fire Spin, Flamethrower, or Dragon Rage
+*/
+void BattleAnim_RunFireBreathFlameColoration(Particle* arg0) {
+    s16 temp_v0 = Particle_FieldCF_GetS16_0C058(arg0);
+
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupFireBreathFlameColoration(arg0, temp_v0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_BeginPhase(arg0);
+                Particle_EnableRendering(arg0);
+                Particle_FieldAE_SetS16_0BF4C(arg0, ParticleMath_RandomRange(3));
+                Particle_FieldA6_SetS16_0BCA8(arg0, 8);
+            }
+            break;
+
+        case 3:
+            switch (temp_v0) {
+                case 0:
+                    Particle_PrimB_Approach_0BB44(arg0, 0, 0x20);
+                    Particle_ApproachEnvGreen(arg0, 0, 0x20);
+                    break;
+
+                case 1:
+                    Particle_PrimR_Approach_0BAE4(arg0, 0, 0x20);
+                    Particle_ApproachEnvGreen(arg0, 0x78, 0x10);
+                    break;
+            }
+            Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0);
+            break;
+
+        case 4:
+            switch (temp_v0) {
+                case 0:
+                    Particle_PrimG_Approach_0BB14(arg0, 0, 0x20);
+                    Particle_EnvR_Approach_0BB90(arg0, 0, 0x20);
+                    break;
+
+                case 1:
+                    Particle_PrimG_Approach_0BB14(arg0, 0x78, 0xC);
+                    Particle_ApproachEnvGreen(arg0, 0, 0xA);
+                    break;
+            }
+
+            if (Particle_PrimAlpha_Approach_0BC2C(arg0, 0, 0x18) != 0) {
+                Particle_AdvanceLifecycle(arg0);
+            }
+            break;
+
+        case 5:
+            Particle_MarkInactive(arg0);
+            break;
+    }
+
+    if (Particle_IsRenderingEnabled(arg0) != 0) {
+        Particle_AnimateFramesForward(arg0, 0, 7, 1, 2, -1);
+        Particle_Scale_Approach(arg0, 0.02f, 0.015f);
+        BattleAnim_ContinueFireBreathFlameColoration(arg0);
+        if (arg0->worldPosition.y <= 0.0f) {
+            Particle_MarkInactive(arg0);
+        }
+    }
+}
+/*
+    handles setting up the hit spark for Hydro Pump, Ice Beam, Bubble Beam, Hyper Beam, Solar Beam, Egg Bomb, Waterfall,
+   and Sky Attack Oddly, Psybeam calls this setup, but not the runner for the effect
+*/
+void BattleAnim_SetupExpandingHitSpark(Particle* arg0) {
+    Particle_Field38_AddXZFromField94YOffset180_08F38(arg0, 33.0f);
+    Particle_Scale_SetScaled(arg0, 0.67f);
+    ParticleGfx_RecolorPrim(arg0, Particle_FieldCF_GetS16_0C058(arg0));
+    Particle_SetPrimAlpha(arg0, 0xC8);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    handles expanding hit spark for Hydro Pump, Ice Beam, Bubble Beam, Hyper Beam, Solar Beam, Egg Bomb, Waterfall, and
+   Sky Attack
+*/
+void BattleAnim_RunExpandingHitSpark(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupExpandingHitSpark(arg0);
+            break;
+
+        case 2:
+            if (Particle_Scale_Approach(arg0, 6.67f, 0.67f) != 0) {
+                Particle_AdvanceLifecycle(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_TickDelayAndAdvanceLifecycle(arg0, 0);
+            break;
+
+        case 4:
+            if (Particle_PrimAlpha_Approach_0BC2C(arg0, 0x20, 8) != 0) {
+                Particle_AdvanceLifecycle(arg0);
+            }
+            break;
+
+        case 5:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+}
+
+/*
+    handles the hit spark when being hit by psybeam
+*/
+void BattleAnim_RunPsybeamHitSparkDrift(Particle* particle) {
+    switch (particle->lifecycle) {
+        case 1:
+            BattleAnim_SetupExpandingHitSpark(particle);
+            break;
+
+        case 2:
+            if (Particle_Scale_Approach(particle, 8.0f, 1.0f) != 0) {
+                Particle_AdvanceLifecycle(particle);
+            }
+            break;
+
+        case 3:
+            Particle_TickDelayAndAdvanceLifecycle(particle, 8);
+            break;
+
+        case 4:
+            if (Particle_PrimAlpha_Approach_0BC2C(particle, 0x20, 8) != 0) {
+                Particle_AdvanceLifecycle(particle);
+            }
+            break;
+
+        case 5:
+            Particle_DisableAndDetach(particle);
+            break;
+    }
+
+    Particle_Rotation_AddZ(particle, 0x1000);
+}
+
+void BattleAnim_CallbackUnusedGrowFadeVariant(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupExpandingHitSpark(arg0);
+            break;
+
+        case 2:
+            if (Particle_Scale_Approach(arg0, 8.0f, 1.0f) != 0) {
+                Particle_AdvanceLifecycle(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_TickDelayAndAdvanceLifecycle(arg0, 8);
+            break;
+
+        case 4:
+            if (Particle_PrimAlpha_Approach_0BC2C(arg0, 0x20, 8) != 0) {
+                Particle_AdvanceLifecycle(arg0);
+            }
+            break;
+
+        case 5:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+
+    Particle_Rotation_AddZ(arg0, 0x1000);
+
+    if (sParticleFrameMod4 == 0) {
+        ParticleGfx_RecolorPrimFromPaletteSetB(arg0, ParticleMath_RandomRange(6));
+    }
+}
+
+void BattleAnim_SetupOscillatingFlameUnderneathPokemon(Particle* arg0) {
+    s16 sp26 = Particle_FieldAC_GetS16_0C038(arg0);
+
+    Particle_Scale_SetScaled(arg0, 0.5f);
+    Particle_MotionStep_SetYScaled(arg0, 2.0f);
+    Particle_RotationStep_SetY(arg0, ParticleMath_RandomRange(0x10000));
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x1A);
+    Particle_SetPrimAlpha(arg0, 0xFF);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp26 * 4);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    handles the flame that appears under a pokemon when:
+        - charging Sky Attack
+        - Using Rage or Bide
+        - Being hit by Fire Spin
+*/
+void BattleAnim_RunOscillatingFlameUnderneathPokemon(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupOscillatingFlameUnderneathPokemon(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_EnableRendering(arg0);
+                Particle_FieldA6_SetS16_0BCA8(arg0, 0x10);
+            }
+            break;
+
+        case 3:
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 0, 7, 1, 2, -1);
+            Particle_Scale_Approach(arg0, 1.0f, 0.1f);
+            Particle_MotionOffset_AddYScaled(arg0, 2.0f);
+            Particle_UpdateRotatingMotionOffsetXZ(arg0, 10.0f, 0x800);
+            Particle_PrimG_Approach_0BB14(arg0, 0, 4);
+            Particle_EnvR_Approach_0BB90(arg0, 0, 4);
+            if ((Particle_FieldA6_DecrementToZeroStep1_0BDAC(arg0) != 0) &&
+                (Particle_PrimAlpha_Approach_0BC2C(arg0, 0, 0x18) != 0)) {
+                Particle_AdvanceLifecycle(arg0);
+            }
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+}
+
+void BattleAnim_SetupFireSpinFlame(Particle* arg0) {
+    s16 sp26 = Particle_FieldAC_GetS16_0C038(arg0);
+
+    Particle_Scale_SetScaled(arg0, 0.5f);
+    Particle_PositionOffset_SetYScaled(arg0, 10.0f);
+    Particle_MotionStep_SetYScaled(arg0, 1.0f);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x1A);
+    Particle_SetPrimAlpha(arg0, 0xFF);
+    Particle_DisableRendering(arg0);
+    Particle_RotationStep_SetY(arg0, (sp26 << 0x10) / 18);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp26 * 3);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    handles the flame that make up the ring of fire when being hit by fire spin
+*/
+void BattleAnim_RunFireSpinFlame(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupFireSpinFlame(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_Scale_Approach(arg0, 1.0f, 0.1f);
+            break;
+    }
+
+    if (Particle_IsRenderingEnabled(arg0) != 0) {
+        Particle_UpdateRotatingMotionOffsetXZ(arg0, 50.0f, 0);
+    }
+}
+
+void BattleAnim_SetupUnusedVariant2(Particle* arg0) {
+    s16 sp26 = Particle_FieldAC_GetS16_0C038(arg0);
+
+    Particle_Scale_SetScaled(arg0, 1.0f);
+    Particle_PositionOffset_SetYScaled(arg0, 10.0f);
+    Particle_MotionStep_SetYScaled(arg0, 1.0f);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x1A);
+    Particle_SetPrimAlpha(arg0, 0xFF);
+    Particle_DisableRendering(arg0);
+    Particle_RotationStep_SetY(arg0, (sp26 << 0x10) / 18);
+    Particle_FieldA6_SetS16_0BCA8(arg0, 0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+void BattleAnim_CallbackUnusedVariant2(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 3:
+            break;
+
+        case 1:
+            BattleAnim_SetupUnusedVariant2(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 4:
+            Particle_PrimAlpha_ApproachAndStepState_0BC5C(arg0, 0, 0x10);
+            break;
+
+        case 5:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+
+    if (Particle_IsRenderingEnabled(arg0) != 0) {
+        Particle_UpdateRotatingMotionOffsetXZ(arg0, 50.0f, 0);
+    }
+}
+
+void BattleAnim_SetupEmberProjectileAfterimages(Particle* arg0) {
+    Particle_Scale_SetScaled(arg0, 0.4f);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x1A);
+    Particle_SetPrimAlpha(arg0, 0xA0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Handles the afterimages of the Ember projectile
+*/
+void BattleAnim_RunEmberProjectileAfterimages(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupEmberProjectileAfterimages(arg0);
+            break;
+
+        case 2:
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 2, 7, 1, 2, 0);
+            Particle_PrimAlpha_Approach_0BC2C(arg0, 0x20, 0x18);
+            break;
+
+        case 3:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+
+    Particle_Scale_Approach(arg0, 0.6f, 0.05f);
+}
+
+void BattleAnim_SetupEmberProjectile(Particle* arg0) {
+    Particle_Scale_SetScaled(arg0, 0.4f);
+    Particle_StepMagnitude_SetScaled(arg0, 8.0f);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x29);
+    Particle_SetTextureFrame(arg0, 2);
+    Particle_SetPrimAlpha(arg0, 0xFF);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    handles the projectile made when Ember is used
+*/
+void BattleAnim_RunEmberProjectile(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupEmberProjectile(arg0);
+            break;
+
+        case 2:
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 3, 5, 1, 1, 0);
+            break;
+
+        case 3:
+            Particle_TickDelayAndAdvanceLifecycle(arg0, 0xF);
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+
+    if (Particle_IsRenderingEnabled(arg0) != 0) {
+        ParticleGfx_ApproachPrimEnvPalettePair(arg0, 0x2A, 0x1C);
+        Particle_AddMotionOffsetFromRotationTemplate1(arg0);
+        BattleAnim_EmitParticleBurst(arg0, BattleAnim_RunEmberProjectileAfterimages,
+                                     &gBattleAnimParticleDescriptors[0x4A], 1);
+    }
+}
+
+/*
+    Handles the white "origin" of the burst for ember
+*/
+void BattleAnim_SetupEmberBurstEmitter(Particle* arg0) {
+    Particle_FieldAC_GetS16_0C038(arg0);
+    Particle_StepMagnitude_SetScaled(arg0, 0.2f);
+    Particle_Scale_SetScaled(arg0, 1.0f);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x1D);
+    Particle_SetPrimAlpha(arg0, 0xFF);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Handles the white "origin" of the burst for ember
+*/
+void BattleAnim_RunEmberBurstEmitter(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupEmberBurstEmitter(arg0);
+            break;
+
+        case 2:
+            Particle_TickDelayAndAdvanceLifecycle(arg0, 1);
+            break;
+
+        case 3:
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 0, 3, 1, 2, 0);
+            Particle_AddVelocityXZFromRotationYPlusHalfTurn(arg0);
+            ParticleGfx_ApproachPrimEnvPalettePair(arg0, 0, 0x20);
+            Particle_Scale_Approach(arg0, 1.5f, 0.1f);
+            break;
+
+        case 4:
+            Particle_MarkInactive(arg0);
+            break;
+    }
+}
+
+void BattleAnim_SetupEmberUseEffect(Particle* arg0) {
+    Vec3s sp28;
+    UNUSED s32 pad[1];
+
+    Particle_FieldCF_GetS16_0C058(arg0);
+    Particle_FieldAC_GetS16_0C038(arg0);
+    Particle_Scale_SetScaled(arg0, 0.45f);
+    sp28.x = ParticleMath_RandomSigned(0x2000);
+    sp28.y = ParticleMath_RandomSignedOffset(0x3000, 0);
+    sp28.z = 0;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp28);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x1D);
+    Particle_SetPrimAlpha(arg0, 0x64);
+    Particle_StepMagnitude_SetScaled(arg0, 2.5f);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+void BattleAnim_RunEmberUseEffect(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupEmberUseEffect(arg0);
+            break;
+
+        case 2:
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 0, 7, 1, 2, 0);
+            Particle_StepMagnitude_Approach(arg0, 0.5, 0.5f);
+            Particle_PrimAlpha_Approach_0BC2C(arg0, 0x20, 4);
+            break;
+
+        case 3:
+            Particle_MarkInactive(arg0);
+            break;
+    }
+
+    if (Particle_IsRunning(arg0) != 0) {
+        Particle_Scale_Approach(arg0, 0.75f, 0.1f);
+        Particle_AddMotionOffsetFromRotationTemplate1(arg0);
+        ParticleGfx_ApproachPrimEnvPalettePair(arg0, 0x1A, 0x10);
+    }
+}
+
+/*
+    Handles config for explosion effects when using Fire Punch, Ember, and Egg bomb
+*/
+void BattleAnim_GetExplosionParticleColor(Particle* particle, u8 arg1) {
+    u16 sp1E;
+
+    Particle_FieldCF_SetU8Alt_0BEF8(particle, arg1);
+
+    switch (arg1) {
+        case 0:
+            sp1E = 0x1A;
+            break;
+
+        case 1:
+            sp1E = 0x2A;
+            break;
+
+        case 2:
+            sp1E = 0x24;
+            break;
+
+        case 3:
+            sp1E = 0x2C;
+            break;
+    }
+
+    ParticleGfx_RecolorPrimEnvFromPalettePair(particle, sp1E);
+}
+
+void func_84334B04(void) {
+}
+
+/*
+    Moves: Egg Bomb (hit), Ember (hit), Fire Punch (hit)
+    TODO: Human contributor add screenshot
+*/
+void BattleAnim_FirePunchEmberEggBombColorChange(Particle* particle) {
+    UNUSED u16 pad;
+    u16 palette_index;
+    u16 step;
+
+    switch (Particle_FieldCF_GetS16_0C058(particle)) {
+        case 0:
+            palette_index = 0x2E;
+            step = 0x10;
+            break;
+
+        case 1:
+            palette_index = 0x2D;
+            step = 0x10;
+            break;
+
+        case 2:
+            palette_index = 0x2D;
+            step = 0x10;
+            break;
+
+        case 3:
+            palette_index = 0x2B;
+            step = 0x10;
+            break;
+    }
+
+    ParticleGfx_ApproachPrimEnvPalettePair(particle, palette_index, step);
+}
+
+void BattleAnim_SetupBackgroundBombExplosion(Particle* arg0) {
+    s16 sp26 = Particle_FieldAC_GetS16_0C038(arg0);
+    s16 sp24 = Particle_FieldCF_GetS16_0C058(arg0);
+    s16 sp22 = Particle_FieldCE_GetS32_0C040(arg0);
+
+    switch (sp26) {
+        case 0:
+            Particle_SetPosition(arg0, 0.0f, -5.0f, 0.0f);
+            break;
+
+        case 1:
+            Particle_SetPosition(arg0, 0.0f, 5.0f, 5.0f);
+            break;
+
+        case 2:
+            Particle_SetPosition(arg0, 0.0f, 5.0f, -5.0f);
+            break;
+    }
+
+    switch (sp22) {
+        case 0:
+            Particle_Scale_SetScaled(arg0, 0.5f);
+            Particle_SetScaleParameter20(arg0, 1.0f);
+            Particle_SetScaleParameter24(arg0, 0.1f);
+            break;
+
+        case 1:
+            Particle_Scale_SetScaled(arg0, 0.75f);
+            Particle_SetScaleParameter20(arg0, 1.5f);
+            Particle_SetScaleParameter24(arg0, 0.15f);
+            break;
+
+        case 2:
+            Particle_Scale_SetScaled(arg0, 1.0f);
+            Particle_SetScaleParameter20(arg0, 2.0f);
+            Particle_SetScaleParameter24(arg0, 0.2f);
+            break;
+    }
+
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, sp24);
+    Particle_SetTextureFrame(arg0, 1);
+    Particle_SetPrimAlpha(arg0, 0xC8);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp26 * 2);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Handles the large background explosion when being hit by egg bomb
+*/
+void BattleAnim_RunBackgroundBombExplosion(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupBackgroundBombExplosion(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_ApproachScaleUsingFields20And24(arg0);
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 2, 7, 1, 1, 0);
+            if (arg0->textureFrame >= 6) {
+                Particle_PrimAlpha_Approach_0BC2C(arg0, 0x64, 0x4E);
+            }
+            break;
+
+        case 4:
+            Particle_MarkInactive(arg0);
+            break;
+    }
+}
+
+void BattleAnim_SetupBoomSmallExplosion(Particle* arg0) {
+    Vec3f sp2C;
+    s16 sp2A;
+    s16 sp28;
+
+    sp2A = Particle_FieldAC_GetS16_0C038(arg0);
+    sp28 = Particle_FieldCF_GetS16_0C058(arg0);
+    sp2C.x = ParticleMath_RandomSigned(0xA);
+    sp2C.y = ParticleMath_RandomSignedOffset(0xF, 0xA);
+    sp2C.z = ParticleMath_RandomSigned(0xF);
+    Particle_PositionOffset_AddVecScaledFromVec3f(arg0, sp2C);
+    Particle_StepMagnitude_SetScaled(arg0, (ParticleMath_RandomRange(5) * 0.25f) + 3.0f);
+    Particle_Scale_SetScaled(arg0, 0.75f);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, sp28);
+    Particle_SetPrimAlpha(arg0, 0xFF);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp2A * 2);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Handles the smaller explosions being hit by Explosion and Self-destruct (Boom)
+*/
+void BattleAnim_RunBoomSmallExplosion(Particle* arg0) {
+    Particle_FieldCE_GetS32_0C040(arg0);
+
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupBoomSmallExplosion(arg0);
+            break;
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_AddVelocityXZFromRotationYPlusHalfTurn(arg0);
+            Particle_ApproachScaleUsingFields20And24(arg0);
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 1, 7, 1, 1, 0);
+
+            if (arg0->textureFrame >= 6) {
+                Particle_PrimAlpha_Approach_0BC2C(arg0, 0x64, 0x4E);
+            }
+
+            if (arg0->textureFrame >= 4) {}
+            break;
+
+        case 4:
+            Particle_MarkInactive(arg0);
+            break;
+    }
+}
+
+void BattleAnim_SetupEggBombHitEffect(Particle* arg0) {
+    Vec3s sp30;
+    Vec3f sp24;
+    s16 sp22;
+    s16 sp20;
+
+    sp22 = Particle_FieldAC_GetS16_0C038(arg0);
+    sp20 = Particle_FieldCF_GetS16_0C058(arg0);
+    sp24.x = ParticleMath_RandomSigned(0xA);
+    sp24.y = ParticleMath_RandomSignedOffset(0xA, 5);
+    sp24.z = ParticleMath_RandomSigned(0xA);
+    Particle_PositionOffset_AddVecScaledFromVec3f(arg0, sp24);
+    Particle_Scale_SetScaled(arg0, 1.0f);
+    Particle_StepMagnitude_SetScaled(arg0, 0.5f);
+    sp30.x = ParticleMath_RandomSigned(0x2000);
+    sp30.y = ParticleMath_RandomSigned(0x2000);
+    sp30.z = 0;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp30);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, sp20);
+    Particle_SetPrimAlpha(arg0, 0xC8);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp22 * 2);
+    Particle_SetTextureFrame(arg0, 2);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+void BattleAnim_RunEggBombHitEffect(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupEggBombHitEffect(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 2, 7, 1, 1, 0);
+            Particle_Scale_Approach(arg0, 1.2f, 0.05f);
+            Particle_PrimAlpha_Approach_0BC2C(arg0, 0x64, 0x10);
+            Particle_AddMotionOffsetFromRotationTemplate1(arg0);
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+}
+
+void BattleAnim_SetupSecondaryBombExplosion(Particle* arg0) {
+    s16 sp36 = Particle_FieldAC_GetS16_0C038(arg0);
+    Vec3s sp30;
+    UNUSED s32 pad[3];
+
+    Particle_SetRandomPositionOffsetXYZ(arg0, 5, 5, 5);
+    Particle_Scale_SetScaled(arg0, 0.5f);
+    Particle_StepMagnitude_SetScaled(arg0, 1.0f);
+    sp30.x = 0x2000 - ParticleMath_RandomRange(0x4000);
+    sp30.y = 0x2000 - ParticleMath_RandomRange(0x4000);
+    sp30.z = 0;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp30);
+    Particle_AddRotationTargetXY(arg0, sp30.x, sp30.y);
+    Particle_RotationStep_SetXY(arg0, 0, 0);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x1A);
+    Particle_SetPrimAlpha(arg0, 0xC8);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp36 * 3);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Handles secondary explosion from being hit by egg bomb
+*/
+void BattleAnim_RunSecondaryBombExplosion(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupSecondaryBombExplosion(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_FieldA6_SetS16_0BCA8(arg0, 0xA);
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_Scale_Approach(arg0, 1.0f, 0.1f);
+            Particle_PrimR_Approach_0BAE4(arg0, 0, 0xC);
+            Particle_PrimG_Approach_0BB14(arg0, 0, 0x20);
+            Particle_AddMotionOffsetFromRotationTemplate1(arg0);
+            Particle_PositionOffset_AddYScaled(arg0, 0.4f);
+            BattleAnim_FirePunchEmberEggBombColorChange(arg0);
+            if ((Particle_FieldA6_DecrementToZeroStep1_0BDAC(arg0) != 0) &&
+                (Particle_PrimAlpha_Approach_0BC2C(arg0, 0x20, 0x10) != 0)) {
+                Particle_AdvanceLifecycle(arg0);
+            }
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+}
+
+void BattleAnim_SetupEmberHitFireball(Particle* arg0) {
+    s16 sp36 = Particle_FieldAC_GetS16_0C038(arg0);
+    Vec3s sp30;
+    Vec3f sp24;
+
+    sp24.x = ParticleMath_RandomSigned(0x19);
+    sp24.y = ParticleMath_RandomSignedOffset(0xF, 5);
+    sp24.z = ParticleMath_RandomSigned(0xA);
+    Particle_PositionOffset_AddVecScaledFromVec3f(arg0, sp24);
+    Particle_Scale_SetScaled(arg0, 0.15f);
+    Particle_StepMagnitude_SetScaled(arg0, 0.5f);
+    sp30.x = 0x2000 - ParticleMath_RandomRange(0x4000);
+    sp30.y = 0x2000 - ParticleMath_RandomRange(0x4000);
+    sp30.z = 0;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp30);
+    Particle_AddRotationTargetXY(arg0, sp30.x, sp30.y);
+    Particle_RotationStep_SetXY(arg0, 0, 0);
+    BattleAnim_GetExplosionParticleColor(arg0, (sp36 % 4) & 0xFF);
+    Particle_SetPrimAlpha(arg0, 0xC8);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp36 * 1);
+    Particle_SetTextureFrame(arg0, 2);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Handles the "fireballs" that emit from the central damage point
+    when being hit by ember
+*/
+void BattleAnim_RunEmberHitFireball(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupEmberHitFireball(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 2, 7, 1, 1, 0);
+            Particle_Scale_Approach(arg0, 0.45000002f, 0.075f);
+            Particle_PrimAlpha_Approach_0BC2C(arg0, 0x64, 0x10);
+            Particle_AddMotionOffsetFromRotationTemplate1(arg0);
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+}
+
+void BattleAnim_SetupEmberHitSmoke(Particle* arg0) {
+    s16 sp36 = Particle_FieldAC_GetS16_0C038(arg0);
+    Vec3s sp30;
+    UNUSED s32 pad[3];
+
+    Particle_SetRandomPositionOffsetXYZ(arg0, 5, 0xA, 0xA);
+    Particle_Scale_SetScaled(arg0, 0.90000004f);
+    Particle_StepMagnitude_SetScaled(arg0, 1.0f);
+    sp30.x = ParticleMath_RandomSigned(0x2000);
+    sp30.y = ParticleMath_RandomRange(0x10000);
+    sp30.z = 0;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp30);
+    BattleAnim_GetExplosionParticleColor(arg0, (sp36 % 4) & 0xFF);
+    Particle_SetPrimAlpha(arg0, 0xC8);
+    Particle_FieldA6_SetS16_0BCA8(arg0, 0);
+    Particle_SetTextureFrame(arg0, 2);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Renders the border of smoke behind the main Ember hit spark
+*/
+void BattleAnim_RunEmberHitSmoke(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupEmberHitSmoke(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_FieldA6_SetS16_0BCA8(arg0, 5);
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 0, 7, 1, 2, 0);
+            Particle_Scale_Approach(arg0, 1.05f, 0.075f);
+            Particle_StepMagnitude_Approach(arg0, 0.5, 0.5f);
+            Particle_AddMotionOffsetFromRotationTemplate1(arg0);
+            if (Particle_FieldA6_DecrementToZeroStep1_0BDAC(arg0) != 0) {
+                Particle_MotionOffset_AddYScaled(arg0, 0.5f);
+                Particle_PrimAlpha_Approach_0BC2C(arg0, 0x64, 0x10);
+            }
+            break;
+
+        case 4:
+            Particle_MarkInactive(arg0);
+            break;
+    }
+}
+
+void BattleAnim_SetupFirePunchLingeringHitSpark(Particle* arg0) {
+    s16 sp36 = Particle_FieldAC_GetS16_0C038(arg0);
+    Vec3s sp30;
+    UNUSED s32 pad[3];
+
+    Particle_SetRandomPositionOffsetXYZ(arg0, 5, 5, 5);
+    Particle_Scale_SetScaled(arg0, 0.75f);
+    Particle_StepMagnitude_SetScaled(arg0, 1.0f);
+    sp30.x = 0x2000 - ParticleMath_RandomRange(0x4000);
+    sp30.y = ParticleMath_RandomRange(0x10000);
+    sp30.z = 0;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp30);
+    Particle_AddRotationTargetXY(arg0, sp30.x, sp30.y);
+    Particle_RotationStep_SetXY(arg0, 0, 0);
+    BattleAnim_GetExplosionParticleColor(arg0, (sp36 % 4) & 0xFF);
+    Particle_SetPrimAlpha(arg0, 0xC8);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp36 * 3);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Creates the lingering hit spark when hit by fire punch or ember
+*/
+void BattleAnim_RunFirePunchLingeringHitSpark(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupFirePunchLingeringHitSpark(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_FieldA6_SetS16_0BCA8(arg0, 0xA);
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_PrimR_Approach_0BAE4(arg0, 0, 0xC);
+            Particle_PrimG_Approach_0BB14(arg0, 0, 0x20);
+            Particle_Scale_Approach(arg0, 1.5f, 0.15f);
+            BattleAnim_FirePunchEmberEggBombColorChange(arg0);
+            Particle_AddMotionOffsetFromRotationTemplate1(arg0);
+            Particle_PositionOffset_AddYScaled(arg0, 0.4f);
+            if ((Particle_FieldA6_DecrementToZeroStep1_0BDAC(arg0) != 0) &&
+                (Particle_PrimAlpha_Approach_0BC2C(arg0, 0x20, 0x10) != 0)) {
+                Particle_AdvanceLifecycle(arg0);
+            }
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+}
+
+void BattleAnim_SetupAfterImpactSmoke(Particle* arg0) {
+    s16 sp36;
+    Vec3s sp30;
+    Vec3f sp24;
+
+    sp36 = Particle_FieldAC_GetS16_0C038(arg0);
+    sp24.x = ParticleMath_RandomSigned(0x14);
+    sp24.y = ParticleMath_RandomSignedOffset(0xF, 0xA);
+    sp24.z = ParticleMath_RandomSigned(0xF);
+    Particle_PositionOffset_AddVecScaledFromVec3f(arg0, sp24);
+    Particle_Scale_SetScaled(arg0, 0.1f);
+    sp30.x = ParticleMath_RandomRange(0x10000);
+    sp30.y = ParticleMath_RandomRange(0x10000);
+    sp30.z = 0;
+    Particle_Rotation_AddVecFromVec3s(arg0, sp30);
+    Particle_AddRotationTargetXY(arg0, sp30.x, sp30.y);
+    Particle_RotationStep_SetXY(arg0, 0, 0);
+    BattleAnim_GetExplosionParticleColor(arg0, (sp36 % 4) & 0xFF);
+    Particle_SetPrimAlpha(arg0, 0xC8);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp36 * 2);
+    Particle_SetTextureFrame(arg0, 2);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Handles the dissipating and spreading smoke from being hit by fire punch and egg bomb
+*/
+void BattleAnim_RunAfterImpactSmoke(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupAfterImpactSmoke(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 2, 7, 1, 1, 0);
+            Particle_Scale_Approach(arg0, 0.3f, 0.05f);
+            Particle_PrimAlpha_Approach_0BC2C(arg0, 0x64, 0x10);
+            break;
+
+        case 4:
+            Particle_DisableAndDetach(arg0);
+            break;
+    }
+}
+
+/*
+    handles the small bursts of fire that appear when hit by fire punch
+*/
+void BattleAnim_SetupFirePunchHitEffect(Particle* arg0) {
+    s16 temp_s1 = Particle_FieldAC_GetS16_0C038(arg0);
+
+    Particle_Scale_SetScaled(arg0, 0.75f);
+
+    switch (temp_s1) {
+        case 0:
+            Particle_SetPosition(arg0, 0.0f, -3.0f, 0.0f);
+            break;
+
+        case 1:
+            Particle_SetPosition(arg0, 0.0f, 3.0f, 3.0f);
+            break;
+
+        case 2:
+            Particle_SetPosition(arg0, 0.0f, 3.0f, -3.0f);
+            break;
+    }
+
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x17);
+    Particle_SetPrimAlpha(arg0, 0xFF);
+    Particle_FieldA6_SetS16_0BCA8(arg0, temp_s1 * 4);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    handles the small bursts of fire that appear when hit by fire punch
+*/
+void BattleAnim_RunFirePunchHitEffect(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupFirePunchHitEffect(arg0);
+            break;
+
+        case 2:
+            if (Particle_TickDelayAndAdvanceLifecycle(arg0, arg0->unk_A6) != 0) {
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 0, 7, 1, 1, 0);
+            Particle_Scale_Approach(arg0, 1.0f, 0.02f);
+            Particle_PrimB_Approach_0BB44(arg0, 0, 0x20);
+            Particle_ApproachEnvGreen(arg0, 0, 0x20);
+            if (arg0->textureFrame >= 6) {
+                Particle_PrimG_Approach_0BB14(arg0, 0, 0x20);
+                Particle_PrimAlpha_Approach_0BC2C(arg0, 0x64, 0x4E);
+            }
+            break;
+
+        case 4:
+            Particle_MarkInactive(arg0);
+            break;
+    }
+}
+
+void BattleAnim_SetupFlamethrowerHitRotation(Particle* particle, s16 use_stronger_rotation, s16 arg2) {
+    UNUSED s32 pad[2];
+    s16 sp26 = Particle_FieldAC_GetS16_0C038(particle);
+
+    Particle_PositionOffset_SetYScaled(particle, -10.0f);
+    Particle_PositionOffset_AddXZFromRotationY(particle, 50.0f);
+    Particle_Scale_SetScaled(particle, 0.5f);
+    Particle_StepMagnitude_SetScaled(particle, 5.0f);
+
+    switch (use_stronger_rotation) {
+        case 0:
+            Particle_Rotation_AddX(particle, ParticleMath_RandomSigned(0x800));
+            Particle_Rotation_AddY(particle, ParticleMath_RandomSignedOffset(0x1000, 0x8000));
+            break;
+
+        case 1:
+            Particle_Rotation_AddX(particle, ParticleMath_RandomSigned(0xA00));
+            Particle_Rotation_AddY(particle, ParticleMath_RandomSignedOffsetBySign(0xD00, 0xF400) + 0x8000);
+            break;
+    }
+
+    switch (arg2) {
+        case 0:
+            ParticleGfx_RecolorPrimEnvFromPalettePair(particle, 0x1A);
+            break;
+
+        case 1:
+            ParticleGfx_RecolorPrimEnvFromPalettePair(particle, 6);
+            break;
+    }
+
+    Particle_SetPrimAlpha(particle, 0xC8);
+    Particle_FieldA6_SetS16_0BCA8(particle, sp26 * 4);
+    Particle_DisableRendering(particle);
+    Particle_AdvanceLifecycle(particle);
+}
+
+/*
+    Handles Positioning the flames from getting hit by flamethrower or dragon rage
+*/
+void BattleAnim_RunFlamethrowerHitRotation(Particle* particle, s32 use_stronger_rotation) {
+    s16 temp_v0 = Particle_FieldCF_GetS16_0C058(particle);
+
+    switch (particle->lifecycle) {
+        case 1:
+            BattleAnim_SetupFlamethrowerHitRotation(particle, use_stronger_rotation, temp_v0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(particle) != 0) {
+                Particle_EnableRendering(particle);
+            }
+            break;
+
+        case 3:
+            Particle_FieldA6_SetS16_0BCA8(particle, 0xC);
+            Particle_AdvanceLifecycle(particle);
+            break;
+
+        case 4:
+            switch (temp_v0) {
+                case 0:
+                    Particle_PrimG_Approach_0BB14(particle, 0, 0x10);
+                    Particle_EnvR_Approach_0BB90(particle, 0, 0x10);
+                    break;
+
+                case 1:
+                    Particle_PrimG_Approach_0BB14(particle, 0, 0xA);
+                    Particle_ApproachEnvGreen(particle, 0, 5);
+                    break;
+            }
+
+            if ((Particle_FieldA6_DecrementToZeroStep1_0BDAC(particle) != 0) &&
+                (Particle_PrimAlpha_Approach_0BC2C(particle, 0, 0x18) != 0)) {
+                Particle_AdvanceLifecycle(particle);
+            }
+            break;
+
+        case 5:
+            Particle_DisableAndDetach(particle);
+            break;
+    }
+
+    if (Particle_IsRenderingEnabled(particle) != 0) {
+        Particle_ApproachRotationXTo(particle, -0xC00, 0x100);
+        Particle_Scale_Approach(particle, 1.2f, 0.04f);
+        Particle_AddMotionOffsetFromRotationTemplate1(particle);
+        Particle_AnimateFramesForward(particle, 0, 7, 1, 2, -1);
+    }
+}
+
+void BattleAnim_RunFlamethrowerHitRotationWeak(Particle* arg0) {
+    BattleAnim_RunFlamethrowerHitRotation(arg0, 0);
+}
+
+void BattleAnim_RunFlamethrowerHitRotationStrong(Particle* arg0) {
+    BattleAnim_RunFlamethrowerHitRotation(arg0, 1);
+}
+
+void BattleAnim_SetupFireBlastHitFrontFlames(Particle* arg0) {
+    s16 sp36 = Particle_FieldCF_GetS16_0C058(arg0);
+    UNUSED s32 pad[3];
+    s16 sp26 = Particle_FieldAC_GetS16_0C038(arg0);
+
+    Particle_Scale_SetScaled(arg0, 0.4f);
+    Particle_PositionOffset_AddXZFromRotationY(arg0, 15.0f);
+    Particle_Rotation_AddX(arg0, ParticleMath_RandomSignedOffset(0x200, 0xE00));
+    Particle_Rotation_AddY(arg0, ParticleMath_RandomSignedOffset(0x3800, 0x8000));
+    Particle_RotationTarget_SetX(arg0, -0x4000);
+    Particle_RotationStep_SetX(arg0, 0x1000);
+    Particle_StepMagnitude_SetScaled(arg0, 3.0f);
+
+    switch (sp36) {
+        case 0:
+            ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x1A);
+            break;
+
+        case 1:
+            ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 6);
+            break;
+    }
+
+    Particle_SetPrimAlpha(arg0, 0xC8);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp26 * 2);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+void BattleAnim_ContinueFireBlastHitFrontFlames(Particle* arg0) {
+    switch (arg0->phase) {
+        case 1:
+            if (Particle_TickPhaseTimer(arg0, 1) != 0) {
+                Particle_AdvancePhase(arg0);
+            }
+            break;
+
+        case 2:
+            Particle_ApproachRotationTargetX(arg0);
+            if (Particle_TickPhaseTimer(arg0, 0x10) != 0) {
+                Particle_AdvancePhase(arg0);
+            }
+            break;
+    }
+
+    if (arg0->phase > 0) {
+        Particle_AddMotionOffsetFromRotationTemplate1(arg0);
+    }
+}
+
+/*
+    Handles the flames that appear in front of the pokemon when being hit by fire blast
+    also called for flamethrower and dragon rage
+*/
+void BattleAnim_RunFireBlastHitFrontFlames(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupFireBlastHitFrontFlames(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_BeginPhase(arg0);
+                Particle_EnableRendering(arg0);
+            }
+            break;
+
+        case 3:
+            Particle_AnimateFramesForwardAndAdvanceLifecycle(arg0, 0, 7, 1, 2, 0);
+            Particle_PrimAlpha_Approach_0BC2C(arg0, 0x20, 4);
+            Particle_Scale_Approach(arg0, 1.2f, 0.1f);
+            break;
+
+        case 4:
+            Particle_MarkInactive(arg0);
+            break;
+    }
+
+    if (Particle_IsRenderingEnabled(arg0) != 0) {
+        BattleAnim_ContinueFireBlastHitFrontFlames(arg0);
+    }
+}
+
+void BattleAnim_SetupDaimonji(Particle* arg0) {
+    UNUSED s32 pad[3];
+    s16 sp22 = Particle_FieldAC_GetS16_0C038(arg0);
+    s16 sp20 = Particle_FieldCF_GetS16_0C058(arg0);
+
+    Particle_Scale_SetScaled(arg0, 0.6f);
+    Particle_PositionOffset_AddYScaled(arg0, 15.0f);
+    Particle_Field38_AddXZFromField94YOffset180_08F38(arg0, 20.0f);
+
+    switch (sp20) {
+        case 0:
+            Particle_StepMagnitude_SetScaled(arg0, 1.5f);
+            Particle_Rotation_AddX(arg0, -0x4000);
+            break;
+
+        case 1:
+            Particle_StepMagnitude_SetScaled(arg0, 2.0f);
+            Particle_Rotation_AddY(arg0, 0x4000);
+            Particle_Rotation_AddX(arg0, -0xE00);
+            break;
+
+        case 2:
+            Particle_StepMagnitude_SetScaled(arg0, 2.0f);
+            Particle_Rotation_AddY(arg0, -0x4000);
+            Particle_Rotation_AddX(arg0, -0xE00);
+            break;
+
+        case 3:
+            Particle_StepMagnitude_SetScaled(arg0, 2.5f);
+            Particle_Rotation_AddY(arg0, 0x4000);
+            Particle_Rotation_AddX(arg0, 0x2000);
+            break;
+
+        case 4:
+            Particle_StepMagnitude_SetScaled(arg0, 2.5f);
+            Particle_Rotation_AddY(arg0, -0x4000);
+            Particle_Rotation_AddX(arg0, 0x2000);
+            break;
+    }
+
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x17);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp22 * 2);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+void BattleAnim_ContinueDaimonji(Particle* arg0) {
+    switch (arg0->phase) {
+        case 1:
+            if (Particle_TickPhaseTimer(arg0, 2) != 0) {
+                Particle_AdvancePhase(arg0);
+            }
+            break;
+
+        case 2:
+            if (Particle_TickPhaseTimer(arg0, 0x10) != 0) {
+                Particle_AdvancePhase(arg0);
+            }
+            break;
+    }
+
+    if (arg0->phase > 0) {
+        Particle_AddMotionOffsetFromRotationTemplate5(arg0);
+    }
+}
+
+/*
+    used to create the Daimonji of Fire blast that spells out 大
+    https://en.wikipedia.org/wiki/Gozan_no_Okuribi
+*/
+void BattleAnim_RunDaimonji(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupDaimonji(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_BeginPhase(arg0);
+                Particle_EnableRendering(arg0);
+                Particle_FieldA6_SetS16_0BCA8(arg0, 0xB);
+            }
+            break;
+
+        case 3:
+            Particle_PrimB_Approach_0BB44(arg0, 0, 0x18);
+            Particle_ApproachEnvGreen(arg0, 0, 0x18);
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_FieldA6_SetS16_0BCA8(arg0, 0xC);
+            }
+            break;
+
+        case 4:
+            Particle_PrimG_Approach_0BB14(arg0, 0, 0x10);
+            Particle_EnvR_Approach_0BB90(arg0, 0, 0x10);
+            if ((Particle_FieldA6_DecrementToZeroStep1_0BDAC(arg0) != 0) &&
+                (Particle_PrimAlpha_Approach_0BC2C(arg0, 0, 0x40) != 0)) {
+                Particle_AdvanceLifecycle(arg0);
+            }
+            break;
+
+        case 5:
+            Particle_MarkInactive(arg0);
+            break;
+    }
+
+    if (Particle_IsRenderingEnabled(arg0) != 0) {
+        Particle_Scale_Approach(arg0, 0.8f, 0.025f);
+        Particle_AnimateFramesForward(arg0, 0, 7, 1, 2, -1);
+        BattleAnim_ContinueDaimonji(arg0);
+    }
+}
+
+void BattleAnim_SetupDaimonjiColoration(Particle* arg0) {
+    UNUSED s32 pad[3];
+    s16 sp22 = Particle_FieldAC_GetS16_0C038(arg0);
+
+    Particle_FieldCF_GetS16_0C058(arg0);
+    Particle_Scale_SetScaled(arg0, 0.7f);
+    Particle_SetRandomPositionOffsetX(arg0, 0xF);
+    Particle_SetRandomPositionOffsetYOffset(arg0, 0xF, 0xA);
+    Particle_SetRandomPositionOffsetZ(arg0, 0xF);
+    ParticleGfx_RecolorPrimEnvFromPalettePair(arg0, 0x1A);
+    Particle_SetPrimAlpha(arg0, 0xC8);
+    Particle_FieldA6_SetS16_0BCA8(arg0, sp22 * 4);
+    Particle_DisableRendering(arg0);
+    Particle_AdvanceLifecycle(arg0);
+}
+
+/*
+    Colors the Daimonji created when being hit by fire blast
+*/
+void BattleAnim_RunDaimonjiColoration(Particle* arg0) {
+    switch (arg0->lifecycle) {
+        case 1:
+            BattleAnim_SetupDaimonjiColoration(arg0);
+            break;
+
+        case 2:
+            if (Particle_FieldA6_DecrementToZeroStep1AndStepState_0BDD0(arg0) != 0) {
+                Particle_BeginPhase(arg0);
+                Particle_EnableRendering(arg0);
+                Particle_FieldA6_SetS16_0BCA8(arg0, 8);
+            }
+            break;
+
+        case 3:
+            Particle_PrimG_Approach_0BB14(arg0, 0, 0x10);
+            Particle_EnvR_Approach_0BB90(arg0, 0, 0x10);
+            if ((Particle_FieldA6_DecrementToZeroStep1_0BDAC(arg0) != 0) &&
+                (Particle_PrimAlpha_Approach_0BC2C(arg0, 0x20, 0x18) != 0)) {
+                Particle_AdvanceLifecycle(arg0);
+            }
+            break;
+
+        case 4:
+            Particle_MarkInactive(arg0);
+            break;
+    }
+
+    if (Particle_IsRenderingEnabled(arg0) != 0) {
+        Particle_Scale_Approach(arg0, 1.0f, 0.025f);
+        Particle_AnimateFramesForward(arg0, 0, 7, 1, 2, 0);
+    }
+}
+
+// initialize using ember
+void BattleAnim_InitializeEmberUse(void) {
+    BattleAnim_SpawnDescriptor25AlphaHoldFadeOut(0, 0, 0x40, 0xA, 0xC8);
+    BattleAnim_CreateEffectSlotForCurrentOwner(1, BattleAnim_RunEmberBurstEmitter,
+                                               &gBattleAnimParticleDescriptors[0x34], 0, 1, 0x10,
+                                               gBattleAnimCurrentAnchor, 0, 0);
+    BattleAnim_CreateEffectSlotForCurrentOwner(2, BattleAnim_RunEmberUseEffect, &gBattleAnimParticleDescriptors[0x3D],
+                                               0, 3, 0x11, gBattleAnimCurrentAnchor, 0, 0);
+    BattleAnim_CreateEffectSlotForCurrentOwner(4, BattleAnim_RunEmberProjectile, &gBattleAnimParticleDescriptors[0x46],
+                                               0, 1, 0x11, gBattleAnimCurrentAnchor, 0, 0);
+}
+
+// initialize being hit by ember
+void BattleAnim_InitializeEmberHit(void) {
+    BattleAnim_SpawnDescriptor25AlphaHoldFadeOut(2, 0, 0x40, 0xA, 0xC8);
+    BattleAnim_SpawnOwnerModelTintRampDetach(0, 0xC, 0xFF, 0, 0x30);
+    BattleAnim_CreateEffectSlotForCurrentOwner(4, BattleAnim_RunEmberHitFireball, &gBattleAnimParticleDescriptors[0x46],
+                                               0, 6, 0x10, 9, 0, 0);
+    BattleAnim_CreateEffectSlotForCurrentOwner(8, BattleAnim_RunEmberHitFireball, &gBattleAnimParticleDescriptors[0x46],
+                                               0, 6, 0x10, 9, 0, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 2, 2, BattleAnim_RunFirePunchLingeringHitSpark,
+                                                        &gBattleAnimParticleDescriptors[0x3D], 0, 4, 0x10, 9, 0, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 2, 2, BattleAnim_RunEmberHitSmoke,
+                                                        &gBattleAnimParticleDescriptors[0x47], 0, 4, 0x10, 9, 0, 0);
+}
+
+// initialize being hit by fire punch
+void BattleAnim_InitializeFirePunchHit(void) {
+    BattleAnim_SpawnDescriptor25AlphaHoldFadeOut(2, 0, 0x40, 0xA, 0xC8);
+    BattleAnim_SpawnOwnerModelTintRampDetach(2, 0xB, 0xC8, 0, 0x10);
+    BattleAnim_CreateEffectSlotForCurrentOwner(0, BattleAnim_RunFirePunchHitEffect,
+                                               &gBattleAnimParticleDescriptors[0x46], 0, 3, 0x10, 9, 0, 0);
+    BattleAnim_CreateEffectSlotForCurrentOwner(0xA, BattleAnim_RunAfterImpactSmoke,
+                                               &gBattleAnimParticleDescriptors[0x46], 0, 8, 0x11, 9, 0, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0xC, 2, 2, BattleAnim_RunFirePunchLingeringHitSpark,
+                                                        &gBattleAnimParticleDescriptors[0x3D], 0, 4, 0x11, 9, 0, 0);
+}
+
+// initializes smoke for flamethrower and fire blast
+void BattleAnim_InitializeFireBlastFlamethrowerUseSmoke(void) {
+    BattleAnim_SpawnCategory17MarkerSlot(0x64, 1);
+    BattleAnim_SpawnGlobalTintColorFadeDetach(0, 8, 6);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 2, 0x3C, BattleAnim_RunFireBreathFlameFading,
+                                                        &gBattleAnimParticleDescriptors[0x4F], 0, 1, 0x11,
+                                                        gBattleAnimCurrentAnchor, 0, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 0x1E, BattleAnim_RunFireBreathFlameGeometry,
+                                                        &gBattleAnimParticleDescriptors[0x3D], 0, 1, 0x11,
+                                                        gBattleAnimCurrentAnchor, 0, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 0x1E, BattleAnim_RunFireBreathFlameColoration,
+                                                        &gBattleAnimParticleDescriptors[0x4F], 0, 1, 0x11,
+                                                        gBattleAnimCurrentAnchor, 0, 0);
+}
+
+// initialize being hit by flamethrower
+void BattleAnim_InitializeFlamethrowerHit(void) {
+    BattleAnim_SpawnDrainFlameHueChange(0xA, 0xB, 0x10, 8, 0xC8, 0x10);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 2, 0x14, BattleAnim_RunFlamethrowerHitRotationWeak,
+                                                        &gBattleAnimParticleDescriptors[0x4E], 0, 1, 0x11, 9, 0, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 2, 2, BattleAnim_RunFlamethrowerHitRotationStrong,
+                                                        &gBattleAnimParticleDescriptors[0x4E], 0, 0xC, 0x11, 9, 0, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0xE, 8, 5, BattleAnim_RunFireBlastHitFrontFlames,
+                                                        &gBattleAnimParticleDescriptors[0x3D], 0, 2, 0x11, 9, 0, 0);
+    BattleAnim_SpawnOwnerModelTintRampDetach(0x3C, 0x10, 0xC8, 0, 8);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0x3A, 2, 2, BattleAnim_RunSharedAnimatedVerticalFade,
+                                                        &gBattleAnimParticleDescriptors[0x3D], 0, 1, 9, 0, 0x33, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0x3C, 2, 2, BattleAnim_RunSharedAnimatedVerticalFade,
+                                                        &gBattleAnimParticleDescriptors[0x3D], 0, 1, 9, 0, 0x33, 0);
+}
+
+void BattleAnim_InitializeDragonRageUse(void) {
+    BattleAnim_SpawnGlobalTintColorFadeDetach(0, 8, 6);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 2, 0x3C, BattleAnim_RunFireBreathFlameFading,
+                                                        &gBattleAnimParticleDescriptors[0x4F], 0, 1, 0x11,
+                                                        gBattleAnimCurrentAnchor, 1, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 0x1E, BattleAnim_RunFireBreathFlameGeometry,
+                                                        &gBattleAnimParticleDescriptors[0x3D], 0, 1, 0x11,
+                                                        gBattleAnimCurrentAnchor, 1, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 0x1E, BattleAnim_RunFireBreathFlameColoration,
+                                                        &gBattleAnimParticleDescriptors[0x4F], 0, 1, 0x11,
+                                                        gBattleAnimCurrentAnchor, 1, 0);
+}
+
+// initialize the being hit by dragon rage
+void BattleAnim_InitializeDragonRageHit(void) {
+    BattleAnim_SpawnDrainFlameHueChange(0xA, 0x35, 0x2E, 8, 0xC8, 0x10);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 2, 0x14, BattleAnim_RunFlamethrowerHitRotationWeak,
+                                                        &gBattleAnimParticleDescriptors[0x4E], 0, 1, 0x11, 9, 1, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 2, 2, BattleAnim_RunFlamethrowerHitRotationStrong,
+                                                        &gBattleAnimParticleDescriptors[0x4E], 0, 0xC, 0x11, 9, 1, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0xE, 8, 5, BattleAnim_RunFireBlastHitFrontFlames,
+                                                        &gBattleAnimParticleDescriptors[0x3D], 0, 2, 0x11, 9, 1, 0);
+    BattleAnim_SpawnOwnerModelTintRampDetach(0x3C, 0x2E, 0xC8, 0, 8);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0x3A, 2, 2, BattleAnim_RunSharedAnimatedVerticalFade,
+                                                        &gBattleAnimParticleDescriptors[0x3D], 0, 1, 9, 0, 0x18, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0x3C, 2, 2, BattleAnim_RunSharedAnimatedVerticalFade,
+                                                        &gBattleAnimParticleDescriptors[0x3D], 0, 1, 9, 0, 0x18, 0);
+}
+
+// initialize smoke that appears under the pokemon being hit by fire spin
+void BattleAnim_InitializeFireSpinUseSmoke(void) {
+    BattleAnim_SpawnGlobalTintColorFadeDetach(0, 8, 6);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 2, 0x50, BattleAnim_RunFireBreathFlameFading,
+                                                        &gBattleAnimParticleDescriptors[0x4F], 0, 1, 0x11,
+                                                        gBattleAnimCurrentAnchor, 0, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 0x28, BattleAnim_RunFireBreathFlameGeometry,
+                                                        &gBattleAnimParticleDescriptors[0x3D], 0, 1, 0x11,
+                                                        gBattleAnimCurrentAnchor, 0, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 0x28, BattleAnim_RunFireBreathFlameColoration,
+                                                        &gBattleAnimParticleDescriptors[0x4F], 0, 1, 0x11,
+                                                        gBattleAnimCurrentAnchor, 0, 0);
+}
+
+// initialize flames that make up the ring that engulfs a pokemon being hit by fire spin
+void BattleAnim_InitializeFireSpinHitFlames(void) {
+    BattleAnim_CreateEffectSlotForCurrentOwner(0, BattleAnim_RunFireSpinFlame, &gBattleAnimParticleDescriptors[2], 0,
+                                               0x12, 0xE, 0, 0, 0);
+    BattleAnim_CreateEffectSlotForCurrentOwner(8, BattleAnim_RunOscillatingFlameUnderneathPokemon,
+                                               &gBattleAnimParticleDescriptors[0x4F], 0, 0x20, 7, 0, 0, 0);
+    BattleAnim_SpawnDrainFlameHueChange(8, 0xB, 0x10, 8, 0xC8, 0x10);
+}
+
+void func_8433765C(void) {
+}
+
+void ParticleEffect_InitNoop(void) {
+}
+
+// initialize being hit by egg bomb
+void BattleAnim_InitializeEggBombHit(void) {
+    BattleAnim_CreateEffectSlotForCurrentOwner(0, BattleAnim_RunExpandingHitSpark, &gBattleAnimParticleDescriptors[4],
+                                               0, 1, 0x10, 9, 0x14, 0);
+    BattleAnim_SpawnDescriptor25AlphaHoldFadeOut(0, 0, 0x40, 0xA, 0xC8);
+    BattleAnim_SpawnBeamBoomWaterfallHueChange(4, 0xA, 0x19, 0x20, 0xFF);
+    BattleAnim_CreateEffectSlotForCurrentOwner(0, BattleAnim_RunBackgroundBombExplosion,
+                                               &gBattleAnimParticleDescriptors[0x46], 0, 3, 0x10, 9, 0x17, 2);
+    BattleAnim_CreateEffectSlotForCurrentOwner(6, BattleAnim_RunBackgroundBombExplosion,
+                                               &gBattleAnimParticleDescriptors[0x46], 0, 3, 0x10, 9, 0x2C, 1);
+    BattleAnim_CreateEffectSlotForCurrentOwner(0xC, BattleAnim_RunBackgroundBombExplosion,
+                                               &gBattleAnimParticleDescriptors[0x46], 0, 3, 0x10, 9, 0x1A, 1);
+    BattleAnim_CreateEffectSlotForCurrentOwner(0x12, BattleAnim_RunBackgroundBombExplosion,
+                                               &gBattleAnimParticleDescriptors[0x46], 0, 2, 0x10, 9, 0x1A, 0);
+    BattleAnim_CreateEffectSlotForCurrentOwner(0x14, BattleAnim_RunEggBombHitEffect,
+                                               &gBattleAnimParticleDescriptors[0x48], 0, 3, 0x11, 9, 0x1A, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0x14, 2, 2, BattleAnim_RunSecondaryBombExplosion,
+                                                        &gBattleAnimParticleDescriptors[0x3D], 0, 6, 0x11, 9, 0, 0);
+    BattleAnim_CreateEffectSlotForCurrentOwner(0x18, BattleAnim_RunAfterImpactSmoke,
+                                               &gBattleAnimParticleDescriptors[0x46], 0, 8, 0x11, 9, 0, 0);
+}
+
+void func_843378CC(void) {
+}
+
+// renders the Daimonji created when using fire blast
+void BattleAnim_InitializeFireBlastHit(void) {
+    BattleAnim_SpawnGlobalTintColorFadeDetach(0, 0xFF, 0);
+    BattleAnim_SpawnDrainFlameHueChange(0xA, 0xB, 0x10, 8, 0xC8, 0x10);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(4, 8, 0x14, BattleAnim_RunFireBlastHitFrontFlames,
+                                                        &gBattleAnimParticleDescriptors[0x3D], 0, 2, 0xE, 0, 0, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(4, 8, 0x14, BattleAnim_RunDaimonjiColoration,
+                                                        &gBattleAnimParticleDescriptors[0x4F], 0, 2, 9, 0, 0, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 6, 0x28, BattleAnim_RunDaimonji,
+                                                        &gBattleAnimParticleDescriptors[0x4F], 0, 1, 9, 0, 0, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 0x3C, BattleAnim_RunDaimonji,
+                                                        &gBattleAnimParticleDescriptors[0x4F], 0, 1, 9, 0, 1, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 4, 0x3C, BattleAnim_RunDaimonji,
+                                                        &gBattleAnimParticleDescriptors[0x4F], 0, 1, 9, 0, 2, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 3, 0x50, BattleAnim_RunDaimonji,
+                                                        &gBattleAnimParticleDescriptors[0x4F], 0, 1, 9, 0, 3, 0);
+    BattleAnim_CreateRepeatingEffectSlotForCurrentOwner(0, 3, 0x50, BattleAnim_RunDaimonji,
+                                                        &gBattleAnimParticleDescriptors[0x4F], 0, 1, 9, 0, 4, 0);
+}

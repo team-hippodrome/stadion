@@ -23,8 +23,12 @@ def backend_home(env, directory, backend=None):
         return
     ident, name = BACKENDS[backend]
     os.makedirs(directory, exist_ok=True)
+    config = {"Window": {"Backend": {"Id": ident, "Name": name}}}
+    # PORT_TEST_MSAA=<n>: the anti-aliasing setting (Vulkan pipelines are recorded per sample count)
+    if env.get("PORT_TEST_MSAA"):
+        config["CVars"] = {"gMSAAValue": int(env["PORT_TEST_MSAA"])}
     with open(os.path.join(directory, "stadion.cfg.json"), "w") as f:
-        json.dump({"Window": {"Backend": {"Id": ident, "Name": name}}}, f)
+        json.dump(config, f)
     env["SHIP_HOME"] = directory
 
 

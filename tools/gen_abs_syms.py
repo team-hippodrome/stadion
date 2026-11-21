@@ -8,6 +8,8 @@ root = pathlib.Path(__file__).resolve().parent.parent
 # the unmodified decomp checkout and build the game is patched from (PORT_DECOMP_DIR, default ../stadion)
 decomp = pathlib.Path(__import__("os").environ.get("PORT_DECOMP_DIR", root.parent / "stadion"))
 mapfile = decomp / "build/pokestadium-us.map"
+# C symbols carry a leading underscore in Mach-O (macOS) object files, not in ELF (Linux)
+CPFX = "_" if __import__("sys").platform == "darwin" else ""
 lib = root / "build/libstadium_game.a"
 nm = subprocess.run(["nm", "-g", str(lib)], capture_output=True, text=True).stdout
 undef, defd = set(), set()
@@ -15,7 +17,7 @@ for l in nm.splitlines():
     f = l.split()
     if len(f) == 2 and f[0] == "U": undef.add(f[1])
     elif len(f) == 3 and f[1] in "TDBSRC": defd.add(f[2])
-need = sorted(s[1:] for s in undef - defd if s.startswith("_"))
+need = sorted(s[len(CPFX):] for s in undef - defd if s.startswith(CPFX))
 vals = {}
 pat = re.compile(r"^\s+0x([0-9a-fA-F]{8,16})\s+([A-Za-z_]\w*)\s*(?:=.*)?$")
 for l in mapfile.read_text(errors="replace").splitlines():

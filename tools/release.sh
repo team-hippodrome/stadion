@@ -1,5 +1,7 @@
 #!/bin/bash
 # Builds a release on this Mac, the way .github/workflows/release.yml does on GitHub, plus the Android APK.
+# The "Release (Mac mini)" workflow (.github/workflows/release-macmini.yml) runs this on the self-hosted Mac mini;
+# tools/release_host_setup.sh sets a Mac up for it (Homebrew packages, Android SDK, the two OrbStack machines).
 #
 # Usage: tools/release.sh <version> [--ref REF] [--only LIST] [--serial] [--jobs N] [--keep] [--publish [--yes]]
 #   <version>      e.g. 0.0.11 (a leading "v" is dropped); goes into the builds (Info.plist, .exe file version, APK)
@@ -25,6 +27,7 @@
 #                    static SDL3 in ~/rel/deps, appimagetool at ~/rel/appimagetool (the build.yml setup)
 # The machines see this Mac's /Users, so they build from the same checkout; their build folders stay in their own home.
 # Local paths are kept out of the binaries (CMake PORT_PATH_MAP; debug info stripped except the APK's, kept for crash stacks).
+# Windows: the shipped exe has no symbol table; a copy with it goes to releases/v<version>/symbols/ (never published).
 # No game data goes into any file: the user's own ROM is needed to play.
 set -euo pipefail
 
@@ -82,9 +85,9 @@ if [ -e "$SRC" ]; then
         die "$SRC holds another commit: remove it (git -C '$MAIN' worktree remove --force '$SRC') or pick another version"
 else
     git -C "$MAIN" worktree add -q --detach "$SRC" "$COMMIT"
-    # submodules borrow the objects of the main checkout's (no full download), then the port's patches
+    # the submodule borrows the objects of the main checkout's (no full download)
     # (a shallow clone cannot lend its objects: those are fetched from GitHub by setup.sh)
-    for sm in game libultraship; do
+    for sm in libultraship; do
         if [ -e "$MAIN/$sm/.git" ] && [ "$(git -C "$MAIN/$sm" rev-parse --is-shallow-repository)" = false ]; then
             git -C "$SRC" -c protocol.file.allow=always submodule update -q --init --reference "$MAIN/$sm" "$sm"
         fi
@@ -124,7 +127,7 @@ build_windows() { # $1: x64 or arm64
         arm64) triple=aarch64-w64-mingw32 vcpkg=arm64-mingw-static ;;
     esac
     local stage="$REL/windows-$arch"
-    rm -rf "$stage"; mkdir -p "$stage"
+    rm -rf "$stage"; mkdir -p "$stage" "$REL/symbols"
     orb run -m "$WIN_VM" bash -lc "
         set -e
         export PATH=\"\$(ls -d \$HOME/tools/llvm-mingw-*/bin | head -1):\$PATH\" MINGW_TRIPLE=$triple
@@ -134,12 +137,14 @@ build_windows() { # $1: x64 or arm64
             -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE='$SRC/cmake/toolchain-mingw-clang.cmake' -DPORT_VERSION=$VERSION \
             -DPORT_PATH_MAP=\"$VM_MAP\"
         nice -n 15 cmake --build \"\$B\" -j $JOBS
-        llvm-strip --strip-debug -o '$stage/stadion.exe' \"\$B/stadion.exe\"
+        # shipped exe: no symbol table at all (an unstripped table after the last section reads as an appended blob,
+        # which antivirus heuristics count against the file); the symbol table copy stays in the release folder only
+        llvm-strip --strip-debug -o '$REL/symbols/stadion-windows-$arch-v$VERSION.exe' \"\$B/stadion.exe\"
+        llvm-strip --strip-all -o '$stage/stadion.exe' \"\$B/stadion.exe\"
         if [ -f \"\$B/stadion.o2r\" ]; then cp \"\$B/stadion.o2r\" '$stage/'; fi
         [ $KEEP = 1 ] || rm -rf \"\$B\"
     "
     cp "$SRC/README.md" "$stage/README.md"
-    cp "$SRC/PORTING_NOTES.md" "$stage/PORTING_NOTES.md"
     mkdir -p "$stage/docs"
     cp "$SRC/docs/BUILDING.md" "$stage/docs/BUILDING.md"
     rm -f "$DIST/stadion-windows-$arch-v$VERSION.zip"

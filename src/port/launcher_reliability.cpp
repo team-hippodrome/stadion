@@ -10,6 +10,7 @@
 #include <sstream>
 #include <cctype>
 #include <set>
+#include <nlohmann/json.hpp>
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>
@@ -130,6 +131,72 @@ LauncherCheck CheckLauncherFiles(const fs::path& directory, const std::string& s
             result.errors.push_back(label + "The save points to the ROM itself. Choose a separate .sav file.");
     }
     return result;
+}
+
+namespace {
+// Writes a whole file under a temporary name in the same folder and renames it over the target: the target is
+// either the old or the new file, never a partly written one.
+bool ReplaceWhole(const fs::path& path, const std::vector<uint8_t>& data, std::string& error) {
+    const auto temporary = path.parent_path() / fs::u8path(".stadium-config-" + Unique());
+    if (!WriteNew(temporary, data.data(), data.size(), error)) return false;
+    std::error_code ec;
+#ifdef _WIN32
+    if (!MoveFileExW(temporary.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+        fs::remove(temporary, ec); error = "Cannot replace " + PathUtf8(path); return false;
+    }
+#else
+    fs::rename(temporary, path, ec);
+    if (ec) { fs::remove(temporary, ec); error = "Cannot replace " + PathUtf8(path); return false; }
+#endif
+    return true;
+}
+// Empty when the file holds a JSON object, else why not.
+std::string ConfigProblem(const fs::path& path, std::vector<uint8_t>& data) {
+    std::error_code ec;
+    if (!fs::is_regular_file(path, ec)) return "missing";
+    if (!Read(path, data, 64u << 20)) return "cannot be read";
+    if (data.empty()) return "empty (0 bytes)";
+    try {
+        if (!nlohmann::json::parse(data.begin(), data.end()).is_object()) return "not a JSON object";
+    } catch (const std::exception& e) {
+        return std::to_string(data.size()) + " bytes, not valid JSON (" + e.what() + ")";
+    }
+    return "";
+}
+} // namespace
+
+std::string RecoverConfigFile(const fs::path& path) {
+    std::error_code ec;
+    if (!fs::exists(path, ec)) return "";
+    const auto backup = fs::u8path(PathUtf8(path) + ".bak");
+    const auto broken = fs::u8path(PathUtf8(path) + ".broken");
+    std::vector<uint8_t> data;
+    const std::string problem = ConfigProblem(path, data);
+    std::string error;
+    if (problem.empty()) {
+        // A good config: keep a copy of it, for the next start if the config is lost.
+        std::vector<uint8_t> old;
+        if (ConfigProblem(backup, old) != "" || old != data) ReplaceWhole(backup, data, error);
+        return "";
+    }
+    // Set the broken file aside (the newest one is kept) before anything replaces it.
+    std::string message = PathUtf8(path.filename()) + " is " + problem + "; kept it as " + PathUtf8(broken.filename());
+    fs::remove(broken, ec);
+    fs::rename(path, broken, ec);
+    if (ec) {
+        ec.clear();
+        fs::copy_file(path, broken, fs::copy_options::overwrite_existing, ec);
+        if (ec) message = PathUtf8(path.filename()) + " is " + problem + "; could not keep a copy (" + ec.message() + ")";
+        else fs::remove(path, ec);
+    }
+    std::vector<uint8_t> saved;
+    const std::string backupProblem = ConfigProblem(backup, saved);
+    if (backupProblem.empty() && ReplaceWhole(path, saved, error))
+        return message + "; restored the settings from " + PathUtf8(backup.filename()) + ".";
+    if (backupProblem == "missing") return message + "; no " + PathUtf8(backup.filename()) + ", starting with default settings.";
+    return message + "; " + PathUtf8(backup.filename()) + " " +
+           (backupProblem.empty() ? "could not be restored (" + error + ")" : "is " + backupProblem) +
+           ", starting with default settings.";
 }
 
 bool WriteProtectedSave(const fs::path& source, const uint8_t* data, size_t size, std::string& error) {

@@ -15,7 +15,7 @@ parser.add_argument('--expect-failure', action='store_true')
 args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
 base=root
-source=root/'game/src/fragments/battle_engine/battle_engine_361050.c'
+source=root/'game/src/fragments/battle_engine/battle_engine_com_decision_logic.c'
 text=source.read_text()
 a=text.index('u8 BattleAI_ScoreAttackVsSwitch(')
 b=text.index('\nu16 BattleAI_ApplyStatStageModifier',a)
@@ -44,12 +44,12 @@ int main(int argc, char** argv) {
     unk_func_8438220C* scores = calloc(6, sizeof(*scores));
     u8 choice = 0;
     profile.unk_00 = 0x4000C0;
-    defender.unk_12.unk_0C = 100;
-    attacker.unk_12.unk_28 = 100;
+    defender.unk_12.displayHp = 100;
+    attacker.unk_12.maxHp = 100;
     team.unk_06 = 2;
     if (argc > 1) {
-        attacker.unk_12.unk_0C = 100;
-        team.unk_14[0].unk_12.unk_0C = 100;
+        attacker.unk_12.displayHp = 100;
+        team.unk_14[0].unk_12.displayHp = 100;
         for (int index = 0; index < 4; index++) {
             scores[0].unk_B4 = index;
             for (int damage = 250; damage <= 251; damage++) {
@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
 }
 '''
 # Reuse the real game's include paths and compatibility defines, but compile only the actual failing function.
-ninja=(args.build/'build.ninja').read_text();key='game/src/fragments/battle_engine/battle_engine_361050.c.o:';i=ninja.index(key);block=ninja[i:ninja.index('\n\n',i)]
+ninja=(args.build/'build.ninja').read_text();key='game/src/fragments/battle_engine/battle_engine_com_decision_logic.c.o:';i=ninja.index(key);block=ninja[i:ninja.index('\n\n',i)]
 defs=shlex.split(re.search(r'  DEFINES = (.*)',block).group(1));incs=shlex.split(re.search(r'  INCLUDES = (.*)',block).group(1))
 with tempfile.TemporaryDirectory(prefix='pokemon-ai-') as tmp:
  p=Path(tmp);fixture=p/'probe.c';fixture.write_text(header+'\nstatic void require_true(int value) { if (!value) abort(); }\n'+function+main.replace('assert(', 'require_true('))

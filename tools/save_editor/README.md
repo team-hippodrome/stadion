@@ -3,7 +3,8 @@
 Library, CLI and small web UI for the N64 *Pokémon Stadium* (US) cartridge save: a 128 KiB FlashRAM image
 (`.fla` / `.flash`) in the byte order the N64 reads it, as ares stores `save.flash`. Other emulators may store
 FlashRAM byte- or word-swapped; such files need converting first (`check` reports every record invalid otherwise).
-The format is documented in [SAVE_FORMAT.md](SAVE_FORMAT.md). Python 3.9+, no dependencies.
+The format is documented in [SAVE_FORMAT.md](SAVE_FORMAT.md). Python 3.9+, no dependencies. Players do not need
+any of this: the game's launcher has the editor built in ([From the game's launcher](#from-the-games-launcher)).
 
 Run everything from this directory (`tools/save_editor`):
 
@@ -96,12 +97,32 @@ s.edit(lambda d: d["teams"]["prime_cup"][0].update(flags=1, name="RED", trainer_
 s.save("out.fla")
 ```
 
+## From the game's launcher
+
+The game has this editor built in, with no Python needed: tick *Debug* in the launcher, then click *Save editor*
+(or *Edit save* on a Transfer Pak card for that cartridge's Game Boy save). On the handheld layout (Android) it is
+under *Files & help*. It has the same pages as the web page below except the raw JSON view, works with the mouse,
+the keyboard and a gamepad, and writes the save the same way (the previous file kept as `.bak`).
+
+It is a C++ port of this library: `src/port/save_editor/stadium_save.cpp` (with `gamedata.h`, written by
+`gen_data.py` from the same tables) and the pages in `save_editor_ui.cpp`. `tests/test_native.py` checks that both
+give the same JSON and the same bytes:
+
+```
+cmake --build <build dir> --target stadium_save_cli
+STADIUM_SAVE_CLI=<build dir>/stadium_save_cli python3 -m unittest tests.test_native -v
+```
+
+The Python package stays the developer's tool: the command line above and the web page (`serve`).
+
 ## Files
 
 - `stadium_save/` — library (`save.py` layout/records/footers/JSON, `pokemon.py` Gen 1 records and stats,
   `text.py` Game Boy / N64 text, `schema.py` exact struct codec, `cli.py`, `web.py`, `gamedata.py` generated tables)
 - `gen_data.py` — regenerates `stadium_save/gamedata.py` (names from the ROM text tables; species, move, index and
-  charset tables from the decomp): `python3 gen_data.py <rom.z64> ../../../stadion/src stadium_save/gamedata.py`
+  charset tables from the decomp): `python3 gen_data.py <rom.z64> ../../../stadion/src stadium_save/gamedata.py`.
+  It also writes `src/port/save_editor/gamedata.h` for the built-in editor (`python3 gen_data.py --cpp` writes only
+  that, from the current `gamedata.py`)
 - `fixtures/first_save.flash` — the save the real game writes on a blank chip (ares)
 - `tests/` — `python3 -m unittest discover -s tests`
 - `ares/` — `ares_save`: the `tools/ares_ref` driver plus FlashRAM load/store, `build.sh`, `run.sh`

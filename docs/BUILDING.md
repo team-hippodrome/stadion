@@ -7,12 +7,12 @@ Use Clang (AppleClang on macOS, llvm-mingw for the Windows cross-build below), C
 Clone the repository and prepare its submodules before following the instructions for your platform:
 
 ```bash
-git clone https://github.com/team-hippodrome/pokestadium-port.git
-cd pokestadium-port
+git clone https://github.com/team-hippodrome/stadion.git
+cd stadion
 ```
 
 ```bash
-tools/setup.sh                      # submodules + the port's patches (patches/libultraship.patch, patches/game/)
+tools/setup.sh                      # submodule (libultraship); the game is vendored in game/
 ```
 
 **macOS** (Homebrew):
@@ -60,7 +60,11 @@ its `vulkan` feature (vcpkg leaves it out by default) for the Vulkan renderer. K
 vcpkg's debug libraries are linked, and the debug SDL3 stops DirectX 11 at startup with an assertion dialog
 (`SDL_IsMainThread` in `SDL_PumpEventsInternal`). `stadion.exe` is a
 window-only program (no console window; set `PORT_CONSOLE=1` to open one) with the icon and version information of
-`src/port/stadion.rc.in`.
+`src/port/stadion.rc.in`. For logs from testers, `PORT_LOG_FILE=<file>` makes the game write its stderr (the
+`PORT_TRACE_*` and `PORT_INTERP_LOG` output, crash reports) to that file itself, next to the executable for a relative
+name: `2> log.txt` came back empty on a tester's machine (in PowerShell, `set` makes no environment variable and the
+redirect does not reach a windowed program). `tools/windows/smooth_motion_trace.bat`, put next to `stadion.exe`
+and double-clicked, runs the game that way with the Smooth motion trace and leaves `smooth_motion_log.txt`.
 
 **Android** (64-bit ARM, Android 10 or newer; tested target: AYN Thor). Needs JDK 17 or 21, the Android SDK with NDK
 29.0.14206865, platform 36 and build-tools 36 (`sdkmanager "platforms;android-36" "build-tools;36.0.0"
@@ -91,33 +95,50 @@ moves `latest` and creates the GitHub release, after asking. `--only macos,windo
 
 ## Repository layout
 
-- `game/` — submodule: the decompiled game (C), unmodified; the port's changes are in `patches/game/` (see below)
+- `game/` — the decompiled game (C), vendored from the decomp with the port's changes folded in (see below)
 - `src/port/` — host layer: OS/threads, VI, controllers, sound (audio microcode, AI), Transfer Pak, flash saves, GB core
+- `src/port/StadionPort.h` — the game/port boundary: every function the game calls in the port, or implements for
+  it, is declared there once. Game files include it explicitly; do not declare `Port_*` functions with a local `extern`
 - `src/port/sdk/` — stand-ins for the N64 SDK headers the game includes (`ultra64.h`, `PR/*.h`, force-included `port_compat.h`)
-- `libultraship/` — submodule; the port's renderer changes are in `patches/libultraship.patch`
+- `libultraship/`: submodule of [Team Hippodrome's fork](https://github.com/team-hippodrome/libultraship);
+  the port's renderer changes are committed in the fork, not applied as a local patch
 - `tools/` — launcher, save editor, ares comparison tooling (`tools/tour.py`), replay helpers
   (`tools/run_replays.py` plays all stored recordings without showing the window and reports which still pass;
   `tools/frame_sweep.py` captures a stretch of the game at 5 pictures per second, skipping repeats, as contact sheets;
   `tools/audio_compare.py` compares the game's sound with ares; `tools/av_sync.py` checks the timing of pictures
-  against the sound, for ares or the port, against a video such as a console capture)
+  against the sound, for ares or the port, against a video such as a console capture; `tools/interp_check/` checks
+  Smooth motion's in-between pictures and pacing)
 - `replays/` — input recordings used as regression tests
 - `PORTING_NOTES.md` — what was done, how it was checked against ares, debug switches
 
-## The game submodule
+## The libultraship submodule
 
-`game/` is an unmodified commit of the decompilation, [michiiik/pokestadium](https://github.com/michiiik/pokestadium)
-(`master`). Everything the port changes in it (64-bit pointers, big-endian ROM data, sound, Game Boy, port hooks) is
-kept here as patches in `patches/game/`, one per area, and `tools/setup.sh` (and CI) applies them with
-`tools/game_patches.py apply`. Only `game/src`, `game/include` and the libultra files listed in
-`cmake/ultralib_sources.txt` are compiled; the rest of the decomp (asm, assets, tools) is unused.
+`libultraship/` is pinned to a committed revision of Team Hippodrome's fork. Make renderer and runtime dependency
+changes in that repository, then update the submodule pointer here after the fork commit is available remotely.
+Setup and CI use the pinned source directly; do not export or apply a libultraship patch.
 
-To change game code: edit files in `game/`, then `python3 tools/game_patches.py export` and commit `patches/game`.
-To move to a newer decomp commit: `python3 tools/game_patches.py reset`, check out the new commit in `game/`, apply
-(fix the patches that no longer apply, e.g. with `git apply --3way` and the decomp's renames), export, and commit the
-submodule pointer together with `patches/game`. Then regenerate the tables in `src/port/generated/` with
-`tools/gen_func_table.py`, `tools/gen_fragment_entries.py` and `tools/gen_abs_syms.py`: they read the map of an
-unmodified decomp build of that same commit (`build/pokestadium-us.map`) in `$PORT_DECOMP_DIR`, by default
-`../stadion`.
+For an existing checkout, first save any local libultraship edits (including untracked files) outside the checkout.
+If the old setup applied the renderer patch, restore the tracked files to the old pinned revision only after
+backing up those edits. Then run `tools/setup.sh`: it synchronizes the submodule URL before updating the pin.
+Git may refuse the update if old edits or untracked files would be overwritten; do not force it or delete files
+until you have verified your backup. A fresh clone avoids this migration step.
+
+## The vendored game
+
+`game/` holds `src/`, `include/` and `lib/ultralib/` of the decompilation,
+[team-hippodrome/pokestadium](https://github.com/team-hippodrome/pokestadium), with everything the port changes
+(64-bit pointers, big-endian ROM data, sound, Game Boy, port hooks) edited in place. `game/UPSTREAM.md` records the
+decomp commit it was last synced with. Only `game/src`, `game/include` and the libultra files listed in
+`cmake/ultralib_sources.txt` are compiled. Game code is edited directly in `game/`; mark port-only code with `PORT`
+comments as before, and keep the decomp's names for decomp things, so the two trees stay comparable.
+
+To move to a newer decomp commit, merge the decomp's changes since the recorded commit into `game/` (a three-way
+merge: base = the recorded commit, theirs = the new commit, ours = `game/`), format with the decomp's
+`.clang-format` (clang-format 14), build, and update `game/UPSTREAM.md`. Then regenerate the tables in
+`src/port/generated/` with `tools/gen_func_table.py`, `tools/gen_fragment_entries.py` and `tools/gen_abs_syms.py`
+(after one build, since they read `build/libstadium_game.a`; run them twice when names changed, as the old table is
+part of that library), and `tools/ares_ref/battle_engine.syms`. The generators read the map of an unmodified decomp
+build of the new commit (`build/pokestadium-us.map`) in `$PORT_DECOMP_DIR`, by default `../stadion`.
 
 ## Shader coverage
 
@@ -132,3 +153,12 @@ on the same backend with `--shader-verify DIR --reference-dir CAPTURE/ref`. Veri
 and checks for first-draw compilation, new recipes and changes to the final captured image. It covers only the
 game paths exercised by those replays. Use `--gb-dir DIR` for the optional Game Boy Tower fixtures and
 `--replay-dir DIR` for additional recordings and their `replays.txt` manifest.
+
+Vulkan pipelines also depend on the anti-aliasing setting (the sample count is part of a pipeline), so the shipped
+`src/port/vulkan_pipeline_warmup.txt` stores it as 0 ("the MSAA setting") or 1 (a single-sampled buffer) and the
+warm-up builds each recipe at the player's setting. Capture at 2x, which tells the two apart:
+`PORT_TEST_MSAA=2 PORT_VK_NO_PREBUILD=1 tools/run_replays.py --all --backend vulkan --shader-capture --out DIR`, then
+`tools/vulkan_pipeline_list.py --msaa 2 DIR/shader-recipes/*/vulkan_pipelines.txt` adds the new pipelines to the list
+(files recorded at another or unknown setting: `--msaa N` before them; a profile's `vulkan_pipelines.txt` works too).
+`tools/vulkan_pipeline_list.py --check --msaa 2 FILE` counts the pipelines of a recording a fresh profile would still
+build on first draw.

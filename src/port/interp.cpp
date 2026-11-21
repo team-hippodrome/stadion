@@ -37,31 +37,49 @@
 #include <mutex>
 #include <unordered_map>
 #include <vector>
+#include "StadionPort.h"
 
-extern "C" uint64_t Port_ViTick();
 extern "C" double Port_Speed();
+extern "C" bool Port_RspTaskPending();
+extern "C" int64_t Port_ClockLagNs();
 
 namespace {
 using Replacements = std::unordered_map<Mtx*, MtxF>;
 
 struct Tag {
     const void* mtx;
-    uint64_t id, group; // group: call site and node; id: group and the matrix's number in it
+    uint64_t group; // call site and scene-graph node (Port_InterpTagMtx)
+};
+
+// One matrix of a finished frame: where the display list reads it, its group, its number in the group, its value
+struct Mat {
+    const void* mtx;
+    uint64_t group;
+    uint32_t index;
+    MtxF v;
 };
 
 struct Frame {
     const void* dl = nullptr;
-    std::vector<Tag> tags;                       // game thread, while the frame is built
-    std::unordered_map<uint64_t, MtxF> byId;     // when finished: the matrices' values
-    std::unordered_map<uint64_t, uint32_t> sizes; // matrices per group
-    std::vector<Tag> mats;
+    uint64_t serial = 0;                                        // build order (frames the game submits again)
+    std::vector<Tag> tags;                                      // game thread, while the frame is built
+    std::vector<Mat> mats;                                      // when finished
+    std::unordered_map<uint64_t, std::vector<uint32_t>> groups; // group -> indices into mats, in drawing order
+};
+
+// What the in-between pictures of one game frame draw: for every recorded matrix of the newer frame its partner in the
+// older one (matched once per frame, see Plan()), or none (drawn as the game built it)
+struct PlanEntry {
+    Mtx* mtx;
+    MtxF a, b;
+    bool blend;
 };
 
 std::mutex gLock;
 std::shared_ptr<Frame> gBuilding;                 // game thread
 std::deque<std::shared_ptr<Frame>> gFinished;     // waiting for their task
-std::unordered_map<uint64_t, uint32_t> gSiteUses; // game thread: matrices per (site, node) in this frame
 const void* gNode = nullptr;
+uint64_t gSerial = 0;
 std::atomic<bool> gRecording{ false };
 std::atomic<uint64_t> gMapGen{ 0 };
 
@@ -69,14 +87,168 @@ std::atomic<uint64_t> gMapGen{ 0 };
 std::shared_ptr<Frame> gPrev;
 uint64_t gPrevTick = 0;
 struct Pending {
+    bool late = false; // something in this series came late (NoteLate): counted in the budget's window
     void* dl = nullptr;
     std::shared_ptr<Frame> a, b;
+    std::vector<PlanEntry> plan;
     int k = 0, next = 0;
     int64_t start = 0, period = 0, vblank = 0;
     bool grid = false;
+    bool restore = false; // drawn from a copy of the previous picture (a menu): the exact drawing must happen
     uint64_t mapGen = 0, tick = 0;
+    int64_t frameDue = 0; // when the next game frame is expected (steady clock)
 } gPending;
 bool gHavePending = false;
+
+// How many pictures a game frame may get (window thread). Every in-between picture is a full draw; on a GPU that
+// needs ~25 ms per picture (an Intel HD 520), two pictures per 33 ms game frame do not fit, game time falls behind,
+// the catch-up (PumpRspTasks) skips whole game frames, and the screen freezes and then jumps several frames ahead
+// ("fast-forward"; measured with PORT_DEBUG_DRAW_MS=25: 92 freezes over 50 ms and 37 jumps in 15 s, none without
+// Smooth motion). So the pictures are budgeted: when a series overran (a picture finished after the next game frame
+// was due, the first picture alone took two refreshes, or an in-between picture dropped while behind) in at least half of
+// the last 16 series (CountSeries), the next frames get one picture each, exactly as without Smooth motion, for a hold
+// time that doubles on each new overrun (2 s up to 1 min) and halves again after long calm stretches; then in-between
+// pictures are tried again.
+struct Budget {
+    int maxPictures = 8;
+    uint64_t hold = 0;     // game frames left at one picture
+    uint64_t backoff = 60; // the next hold
+    uint64_t calm = 0;     // game frames at full budget without an overrun
+    int dropsInRow = 0;    // game frames in a row whose last pictures were dropped (PORT_INTERP_OLD_BUDGET)
+    bool overran = false;
+    uint64_t overruns = 0;
+    uint32_t window = 0;   // the last kWindow series of in-between pictures, one bit each: 1 = something came late
+    int windowFill = 0;
+    int lateRun = 0;       // late series in a row
+    int probation = 0;     // series left after a hold in which kProbationRun late ones in a row start the next hold
+} gBudget;
+
+// The budget's evidence (2026-11-17), from an Intel HD 520 (Windows, v0.0.15) that draws a picture in ~12 ms and holds
+// 60 pictures per second without the budget (1794 of 1799 in a 30 s ceremony): a single heavy game frame every 25-30
+// frames (loading, texture uploads: the game busy 45-48 ms) gave a late picture and one or two drops while game time
+// caught up. Counted per event ("two late pictures within a second", "drops in 3 frames in a row") these isolated
+// hitches started 4-6 holds per 30 s. A GPU too slow for the pictures is late in most series; a hitch in one or two.
+// So: an overrun when at least half of the last 16 series had something late, or 5 in a row (the HD 520 traces: at most
+// 3 in a row, 3 in any 16). After a hold, in-between pictures are on probation for 16 series: 2 late in a row start the
+// next hold at once, so a GPU that is really too slow pays two late series per retry, not eight (pacing.sh at 25 ms
+// per picture: 26 freezes in 15 s with the window alone).
+constexpr int kWindow = 16, kWindowLate = 8, kLateRun = 5, kProbationRun = 2;
+
+bool BudgetDisabled() {
+    static const bool v = getenv("PORT_INTERP_IMMEDIATE") != nullptr ||
+                          (getenv("PORT_INTERP_BUDGET") && atoi(getenv("PORT_INTERP_BUDGET")) == 0);
+    return v;
+}
+
+void NoteOverrun(const char* why);
+
+bool OldBudget() {
+    static const bool v = getenv("PORT_INTERP_OLD_BUDGET") != nullptr; // the rules of v0.0.13 (comparisons)
+    return v;
+}
+
+// Something in the pending series came late (a picture that ended after the next game frame was due, a first picture
+// over two refreshes, an in-between picture dropped while behind). Counted once per series, when it ends (EndPending).
+void NoteLate(const char* why) {
+    if (BudgetDisabled() || !gHavePending) return;
+    if (!gPending.late && getenv("PORT_INTERP_LOG")) {
+        fprintf(stderr, "[interp] late at frame %llu: %s\n", (unsigned long long)Port_ViTick(), why);
+    }
+    gPending.late = true;
+}
+
+// A series ended: its bit goes into the window; at least kWindowLate late ones among the last kWindow is an overrun.
+void CountSeries(bool late) {
+    if (BudgetDisabled() || OldBudget()) return;
+    Budget& b = gBudget;
+    b.window = (b.window << 1) | (late ? 1u : 0u);
+    if (b.windowFill < kWindow) b.windowFill++;
+    b.lateRun = late ? b.lateRun + 1 : 0;
+    const bool onProbation = b.probation > 0;
+    if (b.probation > 0) b.probation--;
+    const int lateCount = __builtin_popcount(b.window & ((1u << kWindow) - 1));
+    char why[96];
+    if (lateCount >= kWindowLate) {
+        snprintf(why, sizeof why, "%d of the last %d series of pictures came late", lateCount, b.windowFill);
+        NoteOverrun(why);
+    } else if (b.lateRun >= (onProbation ? kProbationRun : kLateRun)) {
+        snprintf(why, sizeof why, "%d series of pictures in a row came late%s", b.lateRun,
+                 onProbation ? " (after a hold)" : "");
+        NoteOverrun(why);
+    }
+}
+
+// A late picture counts as an overrun only when another came within the last second of game time: a GPU too slow for
+// the pictures is late on every frame, while a lone late picture (a scene loading, a shader built, the host busy for
+// a moment) put the menus on 30 pictures per second for 2 s and doubled the next hold.
+void NoteLatePicture(const char* why) {
+    if (!OldBudget()) {
+        NoteLate(why);
+        return;
+    }
+    static uint64_t sLastLate = 0;
+    const uint64_t tick = Port_ViTick();
+    static const bool sOld = getenv("PORT_INTERP_OLD_BUDGET") != nullptr; // the rules before 2026-11-13 (comparisons)
+    const bool repeated = sOld || (sLastLate != 0 && tick >= sLastLate && tick - sLastLate <= 60);
+    sLastLate = tick;
+    if (repeated) {
+        NoteOverrun(why);
+    } else if (getenv("PORT_INTERP_LOG")) {
+        fprintf(stderr, "[interp] late picture at frame %llu (%s): the first in a second, not counted\n",
+                (unsigned long long)tick, why);
+    }
+}
+
+void NoteOverrun(const char* why) {
+    if (BudgetDisabled()) return;
+    if (!gBudget.overran && getenv("PORT_INTERP_LOG")) {
+        fprintf(stderr, "[interp] overrun at frame %llu: %s\n", (unsigned long long)Port_ViTick(), why);
+    }
+    gBudget.overran = true;
+}
+
+// Once per game frame, before its pictures are planned: the number of pictures it may have.
+int PicturesAllowed() {
+    if (BudgetDisabled()) return 8;
+    Budget& b = gBudget;
+    // (a refresh, as in PumpInterpolation: drawing itself delays the next retrace by a few ms, and with 4 ms every
+    // frame of a slow GPU renewed the hold below, so the budget never left one picture per game frame: an Intel HD 520
+    // showed the game's own 20 per second in the title, where v0.0.12 showed 60)
+    static const bool sOld = getenv("PORT_INTERP_OLD_BUDGET") != nullptr;
+    // (two refreshes: after a heavy frame game time lags a refresh or so while it catches up; HD 520: 17-28 ms)
+    bool lagging = Port_ClockLagNs() > (sOld ? 4000000 : 33333333);
+    if (b.overran) { // (a lag alone is not ours: loading stalls the game too; dropped pictures count, FinishPending)
+        if (b.maxPictures > 1) {
+            b.hold = b.backoff;
+            b.backoff = std::min<uint64_t>(b.backoff * 2, sOld ? 9000 : 1800); // (at most a minute)
+            b.overruns++;
+            if (getenv("PORT_INTERP_LOG")) {
+                fprintf(stderr, "[interp] budget: one picture per game frame for %llu frames (overrun %llu)\n",
+                        (unsigned long long)b.hold, (unsigned long long)b.overruns);
+            }
+        }
+        b.maxPictures = 1;
+        b.overran = false;
+        b.calm = 0;
+        b.dropsInRow = 0;
+        b.window = 0; // (a fresh start when in-between pictures are tried again)
+        b.windowFill = 0;
+        b.lateRun = 0;
+    } else if (b.maxPictures == 1) {
+        if (lagging) {
+            b.hold = std::max(b.hold, (uint64_t)30); // the game lags without in-between pictures too: wait
+        } else if (b.hold > 0) {
+            b.hold--;
+        } else {
+            b.maxPictures = 8; // try again
+            b.probation = kWindow;
+        }
+    } else if (++b.calm >= 1800) { // a minute without an overrun
+        b.calm = 0;
+        b.backoff = std::max<uint64_t>(b.backoff / 2, 60);
+    }
+    return b.maxPictures;
+}
 
 uint64_t Mix(uint64_t h, uint64_t v) {
     h ^= v + 0x9E3779B97F4A7C15ull + (h << 6) + (h >> 2);
@@ -102,12 +274,13 @@ MtxF ReadFixed(const void* p) {
 }
 
 void Finish(Frame& f) {
-    f.byId.reserve(f.tags.size());
+    std::unordered_map<uint64_t, uint32_t> counts;
+    f.mats.reserve(f.tags.size());
     for (auto& t : f.tags) {
-        f.byId[t.id] = ReadFixed(t.mtx);
-        f.sizes[t.group]++;
+        uint32_t n = counts[t.group]++;
+        f.groups[t.group].push_back((uint32_t)f.mats.size());
+        f.mats.push_back({ t.mtx, t.group, n, ReadFixed(t.mtx) });
     }
-    f.mats = std::move(f.tags);
     f.tags.clear();
 }
 
@@ -137,9 +310,10 @@ bool Affine(const MtxF& m) {
 }
 
 struct Stats {
-    int mats = 0, matched = 0, blended = 0, cuts = 0, regrouped = 0;
+    int mats = 0, matched = 0, blended = 0, cuts = 0, regrouped = 0, reordered = 0, ambiguous = 0, misindexed = 0;
     float maxMove = 0;
     int cutTurn = 0, cutMove = 0, cutProj = 0;
+    bool sceneCut = false;
 };
 
 float JumpLimit() {
@@ -214,25 +388,177 @@ bool Blend(const MtxF& a, const MtxF& b, float t, MtxF* out, Stats* st) {
     return true;
 }
 
-void Build(const Frame& a, const Frame& b, float t, Replacements& out, Stats* st) {
-    Stats local;
-    if (st == nullptr) st = &local;
-    for (auto& tag : b.mats) {
-        st->mats++;
-        auto ia = a.byId.find(tag.id);
-        if (ia == a.byId.end()) continue;
-        st->matched++;
-        // a site drawing a different number of matrices (particles coming and going): the n-th one may be another
-        // object than in the previous frame
-        auto sa = a.sizes.find(tag.group);
-        if (sa == a.sizes.end() || sa->second != b.sizes.at(tag.group)) {
-            st->regrouped++;
-            continue;
+float Dist(const MtxF& x, const MtxF& y) {
+    float d = 0;
+    for (int c = 0; c < 3; c++) d += (x.mf[3][c] - y.mf[3][c]) * (x.mf[3][c] - y.mf[3][c]);
+    return std::sqrt(d);
+}
+
+// Pairs one group's matrices (same call site and node) of the newer frame b with the older frame a's. partner[i]: the
+// index into ga for gb[i], or -1. The n-th matrix of a site is the same object in both frames for models and most
+// effects, but not for effects that recycle their slots (sleep Zs, flames, sparkles: the oldest one goes, a new one
+// comes, and everything after it moves up a place) or whose number changes. So the n-th pairing is kept only when
+// every matrix's own partner is its nearest one in the older frame; otherwise each one takes its nearest partner, and
+// only when that is unambiguous (clearly nearer than any other candidate, and nearer than half the spacing between
+// the candidates). Anything else is drawn as built: a wrong partner blends one object towards another's place.
+void MatchGroup(const Frame& a, const Frame& b, const std::vector<uint32_t>& ga, const std::vector<uint32_t>& gb,
+                std::vector<int>& partner, Stats* st) {
+    size_t na = ga.size(), nb = gb.size();
+    partner.assign(nb, -1);
+    // PORT_INTERP_MATCH=index: the rule before 2026-11 (n-th pairing, groups whose size changed not at all), to compare
+    static const bool legacy = getenv("PORT_INTERP_MATCH") && strcmp(getenv("PORT_INTERP_MATCH"), "index") == 0;
+    if (legacy) {
+        if (na == nb)
+            for (size_t i = 0; i < nb; i++) partner[i] = (int)i;
+        return;
+    }
+    if (na == 1 && nb == 1) {
+        partner[0] = 0;
+        return;
+    }
+    if (!Affine(b.mats[gb[0]].v)) { // projections: by number, and only when nothing came or went
+        if (na == nb)
+            for (size_t i = 0; i < nb; i++) partner[i] = (int)i;
+        return;
+    }
+    const size_t kMax = 96; // larger groups (a crowd, confetti): by number only, and only when nothing came or went
+    if (na > kMax || nb > kMax) {
+        if (na == nb)
+            for (size_t i = 0; i < nb; i++) partner[i] = (int)i;
+        return;
+    }
+    // the n-th pairing, when nothing came or went and each one's nearest candidate is its own (or as near)
+    if (na == nb) {
+        bool ok = true;
+        for (size_t i = 0; i < nb && ok; i++) {
+            const MtxF& m = b.mats[gb[i]].v;
+            float own = Dist(m, a.mats[ga[i]].v), best = own;
+            for (size_t j = 0; j < na; j++) best = std::min(best, Dist(m, a.mats[ga[j]].v));
+            if (own > best * 1.25f + 0.5f) ok = false;
         }
+        if (ok) {
+            for (size_t i = 0; i < nb; i++) partner[i] = (int)i;
+            return;
+        }
+    }
+    st->reordered++;
+    static const bool logGroups = getenv("PORT_INTERP_LOG") && atoi(getenv("PORT_INTERP_LOG")) >= 2;
+    if (logGroups) {
+        fprintf(stderr, "[interp]   group %016llx: %zu -> %zu matrices, not in the same order:", (unsigned long long)b.mats[gb[0]].group, na, nb);
+        for (size_t i = 0; i < std::min<size_t>(nb, 6); i++) {
+            const MtxF& m = b.mats[gb[i]].v;
+            fprintf(stderr, " (%.0f %.0f %.0f)", m.mf[3][0], m.mf[3][1], m.mf[3][2]);
+        }
+        fputs(" was", stderr);
+        for (size_t j = 0; j < std::min<size_t>(na, 6); j++) {
+            const MtxF& m = a.mats[ga[j]].v;
+            fprintf(stderr, " (%.0f %.0f %.0f)", m.mf[3][0], m.mf[3][1], m.mf[3][2]);
+        }
+        fputc('\n', stderr);
+    }
+    // nearest unambiguous partners
+    auto spacing = [](const Frame& f, const std::vector<uint32_t>& g, size_t i) {
+        float s = 1e30f;
+        for (size_t j = 0; j < g.size(); j++)
+            if (j != i) s = std::min(s, Dist(f.mats[g[i]].v, f.mats[g[j]].v));
+        return s;
+    };
+    std::vector<float> spaceA(na), spaceB(nb);
+    for (size_t j = 0; j < na; j++) spaceA[j] = spacing(a, ga, j);
+    for (size_t i = 0; i < nb; i++) spaceB[i] = spacing(b, gb, i);
+    for (size_t i = 0; i < nb; i++) {
+        const MtxF& m = b.mats[gb[i]].v;
+        int bestJ = -1;
+        float best = 1e30f, second = 1e30f;
+        for (size_t j = 0; j < na; j++) {
+            float d = Dist(m, a.mats[ga[j]].v);
+            if (d < best) {
+                second = best;
+                best = d;
+                bestJ = (int)j;
+            } else if (d < second) {
+                second = d;
+            }
+        }
+        if (bestJ < 0) continue;
+        if (best * 2.0f < std::min(spaceA[bestJ], spaceB[i]) && best * 2.0f < second) {
+            partner[i] = bestJ;
+        } else {
+            st->ambiguous++;
+        }
+    }
+    // a partner taken twice belongs to neither
+    std::vector<int> uses(na, 0);
+    for (int p : partner)
+        if (p >= 0) uses[p]++;
+    for (int& p : partner)
+        if (p >= 0 && uses[p] > 1) p = -1;
+    // (statistics: matrices the n-th pairing, the design before this one, would have blended with another object)
+    if (na == nb) {
+        Stats tmp;
+        for (size_t i = 0; i < nb; i++) {
+            MtxF m;
+            if (partner[i] != (int)i && Blend(a.mats[ga[i]].v, b.mats[gb[i]].v, 0.5f, &m, &tmp)) st->misindexed++;
+        }
+    }
+}
+
+// Matches the newer frame's matrices with the older frame's and decides once per game frame which ones are blended.
+// The whole frame is shown as built (no in-between movement at all) at a scene cut: a projection that jumped (another
+// camera), or a third or more of the matched matrices cut, or most of the matrices new. Blending the few that
+// survive a cut (small objects near the camera) would draw them half-way into the old scene.
+std::vector<PlanEntry> Plan(const Frame& a, const Frame& b, Stats* st) {
+    std::vector<PlanEntry> plan;
+    plan.reserve(b.mats.size());
+    std::vector<int> partner;
+    std::unordered_map<uint32_t, int> partnerOf; // index into b.mats -> index into a.mats
+    partnerOf.reserve(b.mats.size());
+    for (auto& [group, gb] : b.groups) {
+        auto ia = a.groups.find(group);
+        if (ia == a.groups.end()) continue;
+        if (ia->second.size() != gb.size()) st->regrouped++;
+        MatchGroup(a, b, ia->second, gb, partner, st);
+        for (size_t i = 0; i < gb.size(); i++)
+            if (partner[i] >= 0) partnerOf[gb[i]] = (int)ia->second[partner[i]];
+    }
+    int cuts = 0;
+    for (uint32_t i = 0; i < b.mats.size(); i++) {
+        const Mat& m = b.mats[i];
+        st->mats++;
+        PlanEntry e{ (Mtx*)m.mtx, m.v, m.v, false };
+        auto it = partnerOf.find(i);
+        if (it != partnerOf.end()) {
+            st->matched++;
+            e.a = a.mats[it->second].v;
+            int before = st->cuts;
+            MtxF tmp;
+            e.blend = Blend(e.a, e.b, 0.5f, &tmp, st);
+            if (st->cuts != before) cuts++;
+        }
+        plan.push_back(e);
+    }
+    st->sceneCut = st->cutProj > 0 || (st->matched >= 4 && cuts * 3 >= st->matched) ||
+                   (st->mats >= 8 && st->matched * 2 < st->mats);
+    for (auto& e : plan) {
+        if (st->sceneCut) e.blend = false;
+        if (e.blend) st->blended++;
+    }
+    return plan;
+}
+
+// The matrices for the picture at t (0 < t <= 1): blended ones between the two frames, every other recorded one with
+// the value the game built. All of them, not just the blended ones: the in-between and final pictures are drawn after
+// the game was told this frame is done, and a matrix the game keeps outside the display-list buffer may already hold
+// the next frame's value (the first picture, drawn before that, reads the same values).
+void Build(const std::vector<PlanEntry>& plan, float t, Replacements& out) {
+    Stats unused;
+    out.reserve(plan.size());
+    for (auto& e : plan) {
         MtxF m;
-        if (Blend(ia->second, b.byId.at(tag.id), t, &m, st)) {
-            out[(Mtx*)tag.mtx] = m;
-            st->blended++;
+        if (e.blend && t < 1.0f && Blend(e.a, e.b, t, &m, &unused)) {
+            out[e.mtx] = m;
+        } else {
+            out[e.mtx] = e.b;
         }
     }
 }
@@ -272,6 +598,13 @@ bool ShotWanted(uint64_t tick) {
 }
 
 void Shot(uint64_t tick, int i, int k) {
+    // PORT_INTERP_LOG=3: every picture shown (game frame, its number in the series, wall clock): what a real-time run
+    // puts on screen, and when
+    static const bool logPictures = getenv("PORT_INTERP_LOG") && atoi(getenv("PORT_INTERP_LOG")) >= 3;
+    if (logPictures) {
+        fprintf(stderr, "[picture] frame %llu %d/%d at %.2f ms\n", (unsigned long long)tick, i + 1, k,
+                Port_SteadyNs() / 1e6);
+    }
     if (!ShotWanted(tick)) return;
     char path[1024];
     snprintf(path, sizeof path, "%s/interp_%05llu_%dof%d.ppm", ShotDir(), (unsigned long long)tick,
@@ -294,20 +627,74 @@ std::shared_ptr<Fast::Interpreter> Interp() {
 void EndPending() {
     if (gHavePending) {
         if (auto interp = Interp()) interp->ReplayEnd();
+        CountSeries(gPending.late);
     }
     gHavePending = false;
     gPending = Pending();
+}
+
+void DrawNext();
+
+// Drops the in-between frames still due. A frame drawn over the previous picture (Pending::restore) has its exact
+// drawing done first: the game frame buffer would otherwise keep a blended picture that later frames draw over. Not
+// when the game has unloaded data the display list may use (the blended picture stays, as for other frames).
+// A drop counts against the budget only when the picture dropped was already due: we were late drawing it. A game
+// frame that comes before an in-between picture's refresh (the game's own uneven pace: start-up logos, loading) is
+// not a lack of time. Before 2026-11-13 every drop counted, and the count was reset only by a drop-free series that
+// was still pending when the next game frame came, which a completed series never is (DrawNext ends it): any three
+// drops since the last hold, seconds apart, started a new one (PORT_INTERP_OLD_BUDGET=1: those rules).
+bool gForcedFinish = false;
+// The forced exact drawing comes right before the next game frame's first picture (RunGameFrame): it goes into the game
+// frame buffers as part of that picture instead of being shown on its own. Shown, it was a second picture in the same
+// window-thread task, the next one waited for a free swapchain image (a refresh), and a menu frame on a slow GPU (an
+// Intel HD 520: 14-15 ms per picture) took 30-31 ms, late again: the next in-between picture was dropped, forcing
+// another one (the main menu at 30 fps: "8 of the last 16 series came late"). PORT_INTERP_SHOW_FORCED=1: shown.
+bool gIntoNextPicture = false;
+
+void FinishPending(bool countDrop = true, bool behind = false) {
+    static const bool sOld = getenv("PORT_INTERP_OLD_BUDGET") != nullptr;
+    const bool late = sOld || behind || (gHavePending && Port_SteadyNs() > Due(gPending, gPending.next));
+    if (gHavePending && gPending.next < gPending.k && countDrop && late) {
+        if (!OldBudget()) {
+            NoteLate(behind ? "an in-between picture dropped: game time behind" : "an in-between picture dropped late");
+        } else if (++gBudget.dropsInRow >= 3) {
+            NoteOverrun("pictures dropped in 3 game frames in a row");
+        }
+    } else if (gHavePending) {
+        gBudget.dropsInRow = 0;
+    }
+    if (gHavePending && gPending.restore && gPending.next < gPending.k && gMapGen.load() == gPending.mapGen) {
+        gPending.next = gPending.k - 1;
+        gForcedFinish = true;
+        DrawNext(); // (ends the pending frame)
+        gForcedFinish = false;
+        return;
+    }
+    EndPending();
 }
 
 void DrawNext() {
     Pending& p = gPending;
     int j = p.next++;
     Replacements r;
-    if (j + 1 < p.k) Build(*p.a, *p.b, (float)(j + 1) / p.k, r, nullptr);
-    if (auto interp = Interp()) interp->ReplayPassStart();
-    Port::RunFrameWith(p.dl, &r, true, ShotWanted(p.tick));
-    Shot(p.tick, j, p.k);
-    if (p.next >= p.k) EndPending();
+    Build(p.plan, j + 1 < p.k ? (float)(j + 1) / p.k : 1.0f, r);
+    if (auto interp = Interp()) {
+        interp->ReplayPassStart();
+        interp->mReplayT = j + 1 < p.k ? (float)(j + 1) / p.k : 1.0f; // (2D rectangles: interpreter.cpp)
+    }
+    static const bool sShowForced = getenv("PORT_INTERP_SHOW_FORCED") != nullptr;
+    if (gForcedFinish && gIntoNextPicture && !sShowForced) {
+        Port::DrawIntoNextPicture(p.dl, &r); // (not a picture: no screenshot either)
+    } else {
+        Port::RunFrameWith(p.dl, &r, true, ShotWanted(p.tick));
+        Shot(p.tick, j, p.k);
+    }
+    if (Port_SteadyNs() > p.frameDue + 2000000) NoteLatePicture("a picture ended after the next game frame was due");
+    if (p.next >= p.k) {
+        static const bool sOld = getenv("PORT_INTERP_OLD_BUDGET") != nullptr;
+        if (!gForcedFinish && !sOld) gBudget.dropsInRow = 0; // every picture of the series shown
+        EndPending();
+    }
 }
 } // namespace
 
@@ -320,8 +707,10 @@ extern "C" void Port_InterpBeginFrame(const void* dlStart) {
         while (gFinished.size() > 4) gFinished.pop_front();
     }
     gBuilding = on ? std::make_shared<Frame>() : nullptr;
-    if (gBuilding) gBuilding->dl = dlStart;
-    gSiteUses.clear();
+    if (gBuilding) {
+        gBuilding->dl = dlStart;
+        gBuilding->serial = ++gSerial;
+    }
     gNode = nullptr;
 }
 
@@ -333,9 +722,7 @@ extern "C" void Port_InterpTagMtx(const void* mtx, const void* site) {
     if (!gRecording.load(std::memory_order_relaxed) || (uintptr_t)mtx < 0x100000000ull) return;
     std::lock_guard<std::mutex> g(gLock);
     if (!gBuilding) return;
-    uint64_t key = Mix(Mix(0, (uint64_t)(uintptr_t)site), (uint64_t)(uintptr_t)gNode);
-    uint32_t n = gSiteUses[key]++;
-    gBuilding->tags.push_back({ mtx, Mix(key, n), key });
+    gBuilding->tags.push_back({ mtx, Mix(Mix(0, (uint64_t)(uintptr_t)site), (uint64_t)(uintptr_t)gNode) });
 }
 
 extern "C" void Port_InterpMapsChanged(void) {
@@ -344,17 +731,37 @@ extern "C" void Port_InterpMapsChanged(void) {
 
 namespace Port {
 void CancelInterpolation() {
-    EndPending();
+    FinishPending(false); // (something else is shown: not a drop for lack of time)
     gPrev = nullptr;
 }
 
 void RunGameFrame(void* gfxCommands, bool exact) {
     bool on = Enabled();
     gRecording = on;
-    EndPending(); // a newer frame: in-between frames still due are dropped
+    // PORT_INTERP_IMMEDIATE=late (test): the in-between pictures are drawn only now, after the game has built this
+    // newer frame (what a real-time run does when they come late in the game frame)
+    static const bool late = getenv("PORT_INTERP_IMMEDIATE") && strcmp(getenv("PORT_INTERP_IMMEDIATE"), "late") == 0;
+    if (late && gHavePending && gMapGen.load() == gPending.mapGen) {
+        while (gHavePending) DrawNext();
+    }
+    if (Logging() && gHavePending && gPending.next < gPending.k) {
+        fprintf(stderr, "[interp] drop at frame %llu picture %d/%d: newer frame (%.1f ms after the first)\n",
+                (unsigned long long)gPending.tick, gPending.next + 1, gPending.k, (Port_SteadyNs() - gPending.start) / 1e6);
+    }
+    gIntoNextPicture = true; // (this frame's picture follows at once)
+    FinishPending();         // a newer frame: in-between frames still due are dropped
+    gIntoNextPicture = false;
+    struct ShowOpen { // (a picture the forced drawing began is shown by this frame's, or here)
+        ~ShowOpen() { Port::EndOpenPicture(); }
+    } showOpen;
     if (!on) {
         gPrev = nullptr;
-        RunFrame(gfxCommands);
+        if (ShotWanted(Port_ViTick())) { // (the same pictures as with it on, for comparisons)
+            RunFrameWith(gfxCommands, nullptr, false, true);
+        } else {
+            RunFrame(gfxCommands);
+        }
+        Shot(Port_ViTick(), 0, 1);
         return;
     }
     static const bool immediate = getenv("PORT_INTERP_IMMEDIATE") != nullptr;
@@ -368,28 +775,39 @@ void RunGameFrame(void* gfxCommands, bool exact) {
     // blended: over it many of a model's matrices turn too far and are cut while the ones skinned to them still blend,
     // and limbs stretch across the screen (Clefairy in the title's fall, blended from 20 retraces back).
     const uint64_t kMaxGap = 4;
-    if (cur && gPrev && !exact && tick > gPrevTick && tick - gPrevTick <= kMaxGap) {
+    // (a frame the game submits again, or an older one, is not blended "backwards" either)
+    if (cur && gPrev && !exact && cur->serial > gPrev->serial && tick > gPrevTick && tick - gPrevTick <= kMaxGap) {
         k = (int)std::min<uint64_t>((tick - gPrevTick) * perRetrace, 8);
     }
+    const uint64_t gap = tick > gPrevTick ? tick - gPrevTick : 0;
+    if (on && !exact) k = std::min(k, PicturesAllowed());
     Stats st;
     Replacements r;
-    bool repaint = false;
-    if (k >= 2) {
-        if (auto interp = Interp()) repaint = interp->FrameRepaintsScreen((Gfx*)gfxCommands);
+    std::vector<PlanEntry> plan;
+    bool repaint = false, restore = false;
+    auto interpreter = Interp();
+    if (k >= 2 && interpreter) {
+        repaint = interpreter->FrameRepaintsScreen((Gfx*)gfxCommands);
+        // a frame that draws over the previous picture (menus) is drawn again from a copy of that picture
+        restore = !repaint && interpreter->CanRestorePicture();
     }
-    if (k >= 2 && repaint) {
-        Build(*gPrev, *cur, 1.0f / k, r, &st);
+    if (k >= 2 && (repaint || restore)) {
+        plan = Plan(*gPrev, *cur, &st);
+        Build(plan, 1.0f / k, r);
     }
     if (Logging()) {
-        fprintf(stderr, "[interp] frame %llu: %s k %d repaint %d mats %d matched %d regrouped %d blended %d cuts %d (turn %d "
-                "move %d projection %d) max move %.1f\n",
+        fprintf(stderr, "[interp] frame %llu: %s k %d repaint %d mats %d matched %d regrouped %d reordered %d ambiguous %d "
+                "misindexed %d blended %d cuts %d (turn %d move %d projection %d)%s max move %.1f\n",
                 (unsigned long long)tick, cur ? "recorded" : "no record", k, (int)repaint, st.mats, st.matched,
-                st.regrouped, st.blended, st.cuts, st.cutTurn, st.cutMove, st.cutProj, st.maxMove);
+                st.regrouped, st.reordered, st.ambiguous, st.misindexed, st.blended, st.cuts, st.cutTurn, st.cutMove, st.cutProj,
+                st.sceneCut ? " SCENE CUT" : "", st.maxMove);
     }
-    if (k >= 2 && repaint) {
+    if (k >= 2 && (repaint || restore)) {
+        gPending.late = false;
         gPending.dl = gfxCommands;
         gPending.a = gPrev;
         gPending.b = cur;
+        gPending.plan = std::move(plan);
         gPending.k = k;
         gPending.next = 1;
         gPending.start = Port_SteadyNs();
@@ -398,25 +816,60 @@ void RunGameFrame(void* gfxCommands, bool exact) {
         gPending.grid = grid;
         gPending.mapGen = gMapGen.load();
         gPending.tick = tick;
-        if (auto interp = Interp()) interp->ReplayBegin();
+        gPending.restore = restore;
+        gPending.frameDue = gPending.start + (int64_t)gap * 16666667;
+        interpreter->Interp2DPrepare((Gfx*)gfxCommands);
+        interpreter->ReplayBegin(restore);
+        interpreter->mReplayT = 1.0f / k;
         RunFrameWith(gfxCommands, &r, false);
         Shot(tick, 0, k);
+        // the first picture alone took two refreshes (a present that waits for the vblank takes up to one): no room
         gHavePending = true;
-        if (immediate) {
+        if (Port_SteadyNs() - gPending.start > gPending.period * 2) NoteLatePicture("the first picture took two refreshes");
+        if (immediate && !late) {
             while (gHavePending) DrawNext();
         }
     } else {
+        if (interpreter) interpreter->mReplayT = 1.0f;
         RunFrame(gfxCommands);
         Shot(tick, 0, 1);
     }
-    gPrev = cur;
-    gPrevTick = tick;
+    if (!cur || !gPrev || cur->serial > gPrev->serial) { // (a frame submitted again keeps the newer one as reference)
+        gPrev = cur;
+        gPrevTick = tick;
+    }
+}
+
+int64_t NextInterpolationDueNs() {
+    return gHavePending ? Due(gPending, gPending.next) : INT64_MAX;
 }
 
 void PumpInterpolation() {
     if (!gHavePending) return;
+    // PORT debug: PORT_DEBUG_INTERP_HOLD=1 never draws an in-between picture on time: every series ends with the next
+    // game frame (the forced exact drawing of frames drawn over the previous picture, checked against Smooth motion off)
+    static const bool sHold = getenv("PORT_DEBUG_INTERP_HOLD") != nullptr;
+    if (sHold) return;
     if (gMapGen.load() != gPending.mapGen) { // the game unloaded or moved data the display list may use
         EndPending();
+        return;
+    }
+    // An in-between frame never holds up the game: when the game already waits for its next frame to be drawn, or
+    // game time lags behind real time (a slow GPU), the in-between frames still due are dropped. The lag allowed is a
+    // refresh: drawing a picture delays the window thread's RSP tasks (the game's audio, its next frame), so each
+    // retrace after a long picture comes a few ms late and is made up at once. With 4 ms, pictures of 9-10 ms (3840 x
+    // 2160 on an M1/M2's GPU), two of which fit in a 30 fps frame, were dropped on most frames, and the budget then
+    // held the menus at 30 pictures per second for up to minutes (PORT_DEBUG_DRAW_MS=9: 37 pictures/s, 5 holds in 45 s).
+    static const int64_t sLagNs = getenv("PORT_INTERP_LAG_MS") ? (int64_t)(atof(getenv("PORT_INTERP_LAG_MS")) * 1e6)
+                                  : getenv("PORT_INTERP_OLD_BUDGET") ? 4000000 : 16666667;
+    if (Port_RspTaskPending() || Port_ClockLagNs() > sLagNs) {
+        if (Logging() && gPending.next < gPending.k) {
+            fprintf(stderr, "[interp] drop at frame %llu picture %d/%d: %s (lag %.1f ms, %.1f ms after the first)\n",
+                    (unsigned long long)gPending.tick, gPending.next + 1, gPending.k,
+                    Port_RspTaskPending() ? "next game frame waiting" : "clock lag", Port_ClockLagNs() / 1e6,
+                    (Port_SteadyNs() - gPending.start) / 1e6);
+        }
+        FinishPending(true, Port_ClockLagNs() > sLagNs); // (game time behind: drawing could not keep up)
         return;
     }
     if (Port_SteadyNs() < Due(gPending, gPending.next)) return;

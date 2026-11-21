@@ -31,7 +31,9 @@
 #include <vector>
 #include <unordered_map>
 #include <unistd.h>
+#include "StadionPort.h"
 
+extern "C" uint32_t* port_ThreadCsrSlot(uint32_t* fallback); // os_thread.cpp
 extern "C" void port_PostEvent(OSEvent event);
 extern "C" void port_PostMesgFromIrq(OSMesgQueue* mq, OSMesg msg);
 
@@ -294,7 +296,8 @@ void __osSetCount(u32) {}
 // drifted out of phase. The FP environment is per host thread and each OSThread is one (os_thread.cpp), so this only
 // changes game code. Only the rounding mode is mirrored (no traps; denormal results are rare enough to leave).
 u32 __osSetFpcCsr(u32 csr) {
-    static thread_local u32 sCsr = 0x01000800; // libultra's boot value: round to nearest, flush, trap invalid
+    static thread_local u32 sHostCsr = 0x01000800; // libultra's boot value: round to nearest, flush, trap invalid
+    u32& sCsr = *port_ThreadCsrSlot(&sHostCsr); // (one per OSThread, which may be a fiber of a shared host thread)
     static const int kModes[4] = { FE_TONEAREST, FE_TOWARDZERO, FE_UPWARD, FE_DOWNWARD };
     u32 old = sCsr;
     sCsr = csr;
@@ -349,6 +352,8 @@ void* port_osViGetCurrentFramebuffer(void) {
     return gViCurrent;
 }
 
+static void WakeWindowThread();
+
 void port_osViSwapBuffer(void* fb) {
     {
         std::lock_guard<std::mutex> v(gViFbLock);
@@ -356,6 +361,7 @@ void port_osViSwapBuffer(void* fb) {
     }
     std::unique_lock<std::mutex> g(gSwapLock);
     gViPending = fb;
+    WakeWindowThread(); // PORT: the window loop sleeps until its next deadline; the frame is presented from it
     // In lockstep mode the swap completes when the main thread has looked at it (as a graphics task does), so each
     // CPU-drawn frame is shown and frame numbers stay deterministic.
     if (Port_Lockstep()) {
@@ -459,7 +465,6 @@ double Port_Speed() {
 } // extern "C"
 
 // Only every n-th frame is drawn when running fast (PORT_RENDER_EVERY overrides); the game cannot tell.
-extern "C" int Port_XcheckWantDraw(void);
 
 static uint64_t Port_RenderEvery() {
     static uint64_t n = getenv("PORT_RENDER_EVERY") ? (uint64_t)std::max(1, atoi(getenv("PORT_RENDER_EVERY")))
@@ -535,11 +540,24 @@ static size_t Port_PictureLoopSize() {
 }
 
 extern "C" int port_ThreadsIdle(void);
+extern "C" void port_NotifyMaybeIdle(void);
 extern "C" void port_DumpThreads(void);
 
 extern "C" bool Port_Lockstep() {
     static bool on = getenv("PORT_REALTIME") == nullptr;
     return on;
+}
+
+// Steady-clock time of the last VI retrace (both clocks), for Port_NextRetraceNs.
+static std::atomic<int64_t> gLastRetraceNs{ 0 };
+
+// When the next VI retrace is expected (steady clock, ns), or 0 when retraces do not follow real time (PORT_SPEED=max,
+// none yet). The window thread polls input just before it (Engine.cpp, PumpFrame).
+extern "C" int64_t Port_NextRetraceNs() {
+    const double periodNs = 16666667.0 / Port_Speed();
+    const int64_t last = gLastRetraceNs.load(std::memory_order_relaxed);
+    if (last == 0 || periodNs < 1000000.0) return 0;
+    return last + (int64_t)periodNs;
 }
 
 extern "C" uint64_t Port_ViTick() {
@@ -834,6 +852,7 @@ std::mutex gTaskLock;
 std::condition_variable gTaskDoneCv;
 uint64_t gTasksSubmitted = 0, gTasksProcessed = 0;
 std::condition_variable gTaskQueuedCv; // the window loop waits on it (Port::WaitForRspTasks)
+std::atomic<uint64_t> gWindowWake{ 0 }; // bumped by what the window loop must see besides a queued task (WakeWindowThread)
 std::deque<OSTask*> gTasks;
 OSTask* gLoaded = nullptr;
 
@@ -845,6 +864,21 @@ OSTask* gLoaded = nullptr;
 std::deque<OSTask*> gCpuTasks;
 std::condition_variable gCpuTaskCv;
 #endif
+
+// The lockstep clock sleeps until the game may have gone idle (LockstepClock): woken when the last runnable game
+// thread blocks (os_thread.cpp, Reschedule) and when a task completes. It used to poll every 20 us, which cost a
+// wake-up and two context switches per poll (~28000 per second, more kernel time than the game itself used).
+std::mutex gIdleLock;
+std::condition_variable gIdleCv;
+uint64_t gIdleEpoch = 0; // (gIdleLock) bumped by every notification
+
+void NotifyMaybeIdle() {
+    {
+        std::lock_guard<std::mutex> g(gIdleLock);
+        gIdleEpoch++;
+    }
+    gIdleCv.notify_all();
+}
 
 bool TasksDrained() {
     std::lock_guard<std::mutex> g(gTaskLock);
@@ -867,6 +901,13 @@ bool TasksDrained() {
 std::atomic<bool> gDisplayPaced{ false };
 std::atomic<int64_t> gRetraceVblank{ 0 }; // the vblank the last paced retrace followed (steady clock), 0: not paced
 std::atomic<int64_t> gRetracePeriod{ 0 };
+// How far the last retrace came after its place in wall-clock time (ns; 0: on time). When the host cannot draw every
+// frame in time (a weak GPU: an Intel HD 520 needs ~20-25 ms per frame), game time, and with it the sound the game
+// produces, fell behind real time: the game ran in slow motion and the sound queue ran dry over and over (audible
+// stutter). Retraces now make up a lag of up to kMaxLagNs, and while the clock lags the window thread draws fewer
+// frames (PumpRspTasks, interp.cpp) until game time has caught up. A longer stall (loading) is not made up.
+std::atomic<int64_t> gClockLagNs{ 0 };
+constexpr int64_t kMaxLagNs = 100000000;
 
 class RetraceSchedule {
   public:
@@ -881,11 +922,17 @@ class RetraceSchedule {
             const auto period = std::chrono::microseconds((long long)periodUs);
             mNext += period;
             auto wallNow = std::chrono::steady_clock::now();
-            // Allow a late retrace, but do not burst several game frames into the audio queue after a stall.
-            if (mNext < wallNow - period) mNext = wallNow;
+            // A late retrace comes at once and the next ones follow quickly until the clock is back on time; after a
+            // stall longer than kMaxLagNs the clock restarts from now instead (no burst of game frames into the sound
+            // queue after loading). At other speeds a late retrace is not made up.
+            const auto maxLag = Port_Speed() == 1.0 ? std::chrono::nanoseconds(kMaxLagNs)
+                                                    : std::chrono::nanoseconds(period);
+            if (mNext < wallNow - maxLag) mNext = wallNow;
+            gClockLagNs = std::max<int64_t>(0, std::chrono::duration_cast<std::chrono::nanoseconds>(wallNow - mNext).count());
             std::this_thread::sleep_until(mNext);
             return;
         }
+        gClockLagNs = std::max<int64_t>(0, now - target);
         if (target > now) std::this_thread::sleep_for(std::chrono::nanoseconds(target - now));
     }
 
@@ -924,12 +971,13 @@ class RetraceSchedule {
         }
         int64_t base = vblank + sLeadNs;
         double k;
-        if (mTarget == 0 || mTarget + n * refresh < now - n * refresh) {
+        if (mTarget == 0 || mTarget + n * refresh < now - kMaxLagNs) {
             // the first retrace, or one after a stall: the next grid point (no racing to catch up)
             k = std::ceil((double)(now - base) / refresh);
         } else {
             // n refreshes after the previous one, snapped to the grid (it follows the display's measured clock); one
-            // that is already late (the game was busy) comes at once, and the next is back on the grid
+            // that is already late (the game was busy) comes at once, and so do the next ones until the clock is back
+            // on the grid (a lag of up to kMaxLagNs is made up)
             k = std::floor((double)(mTarget + n * refresh - base) / refresh + 0.5);
         }
         mTarget = base + (int64_t)k * refresh;
@@ -956,9 +1004,18 @@ void LockstepClock() {
         bool reported = false;
         // drained, idle, drained: the two are read under different locks; a completion posted after the first check
         // leaves a runnable thread, and a task submitted after the idle check shows in the second one
-        while (!(TasksDrained() && port_ThreadsIdle() && TasksDrained())) {
+        for (;;) {
+            uint64_t epoch;
+            {
+                std::lock_guard<std::mutex> g(gIdleLock);
+                epoch = gIdleEpoch; // read before the checks: a change after them ends the wait below at once
+            }
+            if (TasksDrained() && port_ThreadsIdle() && TasksDrained()) break;
             if (gStop) return;
-            std::this_thread::sleep_for(std::chrono::microseconds(20));
+            {   // (the timeout is only a safety net: every way into the idle state notifies)
+                std::unique_lock<std::mutex> g(gIdleLock);
+                gIdleCv.wait_for(g, std::chrono::milliseconds(1), [&] { return gIdleEpoch != epoch || gStop; });
+            }
             // (after 150 ms with PORT_TRACE_PACING=1, to see what a hitch waits for)
             static const auto reportAfter = getenv("PORT_TRACE_PACING") ? std::chrono::milliseconds(150)
                                                                          : std::chrono::milliseconds(3000);
@@ -1019,6 +1076,8 @@ void LockstepClock() {
             gCountBump = 0;
         }
         gTick = ++tick;
+        gLastRetraceNs = Port_SteadyNs();
+        WakeWindowThread(); // PORT: the next retrace moved the window loop's event-pump deadlines
         LatchPads(tick);
         if (Port_FreezeCheckEnabled()) { // freeze report: the picture has not changed for PORT_FREEZE_FRAMES game frames
             static const uint64_t limit = getenv("PORT_FREEZE_FRAMES") ? strtoull(getenv("PORT_FREEZE_FRAMES"), nullptr, 10) : 300;
@@ -1065,6 +1124,44 @@ void LockstepClock() {
     }
 }
 } // namespace
+
+// Wakes the window loop (Port::WaitForWindowWork) for something it must see that is not an RSP task. The lock is
+// taken so a wake cannot fall between the loop's predicate check and its sleep.
+static void WakeWindowThread() {
+    gWindowWake.fetch_add(1);
+    { std::lock_guard<std::mutex> g(gTaskLock); }
+    gTaskQueuedCv.notify_one();
+}
+
+extern "C" void port_NotifyMaybeIdle(void) {
+    NotifyMaybeIdle();
+}
+
+// The battle's portrait cameras, anchored to the picture's edges like its HUD (port_compat.h): registered every frame
+// the battle draws its HUD; a registration older than 4 retraces is ignored, so a camera node that a later scene
+// allocates at the same address is not anchored.
+static std::atomic<const void*> sHudCamLeft{ nullptr }, sHudCamRight{ nullptr };
+static std::atomic<uint64_t> sHudCamTick{ 0 };
+extern "C" void Port_SetHudAnchorCameras(const void* left, const void* right) {
+    sHudCamLeft = left;
+    sHudCamRight = right;
+    sHudCamTick = gTick.load();
+}
+extern "C" int Port_HudAnchorSide(const void* camera) {
+    if (camera == nullptr || gTick.load() > sHudCamTick.load() + 4) return 0;
+    return camera == sHudCamLeft.load() ? -1 : camera == sHudCamRight.load() ? 1 : 0;
+}
+
+// how far game time lags behind real time at the latest retrace (ns; see gClockLagNs)
+extern "C" int64_t Port_ClockLagNs() {
+    return gClockLagNs.load();
+}
+
+// whether the game has submitted a task the window thread has not run yet (it waits for it)
+extern "C" bool Port_RspTaskPending() {
+    std::lock_guard<std::mutex> g(gTaskLock);
+    return !gTasks.empty();
+}
 
 // whether retraces follow the display's refresh (Engine.cpp then keeps libultraship's frame limiter out of the way)
 extern "C" bool Port_DisplayPaced() {
@@ -1123,6 +1220,8 @@ void port_osCreateViManager(OSPri) {
                 every = gViEvery;
             }
             gTick = ++tick;
+            gLastRetraceNs = Port_SteadyNs();
+            WakeWindowThread();
             if (q && (tick % every) == 0) {
                 port_PostMesgFromIrq(q, m);
             }
@@ -1173,6 +1272,7 @@ static void Port_CpuTaskThread() {
             gTasksProcessed++;
         }
         gTaskDoneCv.notify_all();
+        NotifyMaybeIdle();
     }
 }
 #endif
@@ -1186,6 +1286,28 @@ void osSpTaskStartGo(OSTask* t) {
     static const bool asyncTasks = getenv("PORT_ASYNC_TASKS") != nullptr;
     if (trace) fprintf(stderr, "[sp] task type=%u flags=0x%x data=%p\n", (t ? t : gLoaded)->t.type, (t ? t : gLoaded)->t.flags, (void*)(t ? t : gLoaded)->t.data_ptr);
     std::unique_lock<std::mutex> g(gTaskLock);
+#if !defined(__EMSCRIPTEN__)
+    // A JPEG decode (pure CPU work, emulated on the host) is run right here when no other task is queued or in flight,
+    // so the order of tasks is unchanged. Scenes decode their backgrounds as 300 small tasks, the game submitting the
+    // next when the last is done: handing each to the window thread and back cost ~25 us, 8-10 ms per screen change,
+    // plus a pass of the window loop each (its event pump), which held up the next frame by 15-30 ms. The completion
+    // is posted as the window thread posts it (PumpRspTasks). PORT_JPEG_ON_WINDOW_THREAD=1: the old way.
+    static const bool jpegOnWindow = getenv("PORT_JPEG_ON_WINDOW_THREAD") != nullptr;
+    if ((t ? t : gLoaded)->t.type == 4 && !jpegOnWindow && !asyncTasks && Port_Lockstep() && gTasks.empty() &&
+        gTasksProcessed == gTasksSubmitted) {
+        OSTask* task = t ? t : gLoaded;
+        ++gTasksSubmitted;
+        g.unlock();
+        Port_RunJpegTask(task->t.data_ptr);
+        port_PostEvent(OS_EVENT_SP);
+        g.lock();
+        gTasksProcessed++;
+        g.unlock();
+        gTaskDoneCv.notify_all();
+        NotifyMaybeIdle();
+        return;
+    }
+#endif
 #if defined(__EMSCRIPTEN__)
     if ((t ? t : gLoaded)->t.type != M_GFXTASK) {
         static std::once_flag started;
@@ -1361,6 +1483,33 @@ static void TryPresentCpuFrame() {
     }
 }
 
+// At normal speed, while game time lags behind real time by more than a retrace (the host took too long to draw), a
+// game frame is not drawn, only tracked (its state changes still happen, and a frame that renders to a texture or
+// draws over the previous picture with a changed amount of drawing is drawn after all, as when running fast), so that
+// the game catches up and keeps producing sound at the real rate. At most 2 frames in a row are skipped.
+// The launcher's Graphics panel switches it (gPort.FrameSkip, default on); PORT_NO_FRAME_SKIP=1 turns it off.
+static bool WantSkipWhileBehind() {
+    static const bool sOff = getenv("PORT_NO_FRAME_SKIP") != nullptr && atoi(getenv("PORT_NO_FRAME_SKIP")) != 0;
+    if (sOff || Port_Speed() != 1.0 || !Port_Lockstep() || CVarGetInteger("gPort.FrameSkip", 1) == 0) return false;
+    constexpr int64_t kSkipLagNs = 16666667;
+    return gClockLagNs.load() > kSkipLagNs;
+}
+
+// counts a game frame: drawn, or skipped to catch up (PORT_TRACE_PACING=1 reports them every 600 retraces)
+static void NoteGameFrame(bool skipped) {
+    static uint64_t sSkipped = 0, sDrawn = 0, sLastReport = 0;
+    (skipped ? sSkipped : sDrawn)++;
+    if (Port_PacingTrace() && gTick.load() >= sLastReport + 600) {
+        if (sSkipped > 0) {
+            fprintf(stderr, "[pace] last %llu retraces: %llu game frames drawn, %llu skipped to catch up (lag now %.1f ms)\n",
+                    (unsigned long long)(gTick.load() - sLastReport), (unsigned long long)sDrawn,
+                    (unsigned long long)sSkipped, gClockLagNs.load() / 1e6);
+        }
+        sSkipped = sDrawn = 0;
+        sLastReport = gTick.load();
+    }
+}
+
 void Port::PumpRspTasks() {
     TryPresentCpuFrame();
     for (;;) {
@@ -1380,11 +1529,22 @@ void Port::PumpRspTasks() {
             bool stopFrame, shotFrame;
             CheckCapture(&stopFrame, &shotFrame);
             // (Port_XcheckWantDraw: the battle cross-check is capturing a move animation, src/port/xcheck.cpp)
-            if ((gfxCount++ % Port_RenderEvery()) == 0 || stopFrame || shotFrame || Port_XcheckWantDraw()) {
+            constexpr int kMaxSkipsInRow = 2;
+            static int sSkipsInRow = 0;
+            const bool regular = (gfxCount++ % Port_RenderEvery()) == 0;
+            const bool catchUp = regular && sSkipsInRow < kMaxSkipsInRow && WantSkipWhileBehind();
+            bool skipped = false;
+            if ((regular && !catchUp) || stopFrame || shotFrame || Port_XcheckWantDraw()) {
                 Port::RunGameFrame(t->t.data_ptr, stopFrame || shotFrame); // (interp.cpp: in-between frames)
             } else if (Port::TrackFrame(t->t.data_ptr)) { // not drawn, but its state changes must still happen
                 Port::CancelInterpolation();
                 Port::RunFrame(t->t.data_ptr);                  // renders to a texture: draw it after all
+            } else {
+                skipped = true;
+            }
+            if (regular) {
+                sSkipsInRow = catchUp && skipped ? sSkipsInRow + 1 : 0;
+                NoteGameFrame(catchUp && skipped);
             }
             if (stopFrame) {
                 fprintf(stderr, "[stop] reached frame %llu\n", (unsigned long long)gTick.load());
@@ -1430,13 +1590,27 @@ void Port::PumpRspTasks() {
             gTasksProcessed++;
         }
         gTaskDoneCv.notify_all();
+        NotifyMaybeIdle();
     }
     TryPresentCpuFrame(); // a frame buffer swapped while the tasks above ran
 }
 
-void Port::WaitForRspTasks(std::chrono::milliseconds timeout) {
+uint64_t Port::WindowWakeEpoch() {
+    return gWindowWake.load();
+}
+
+bool Port::WaitForWindowWork(int64_t untilNs, uint64_t epoch) {
+    const int64_t waitNs = untilNs - Port_SteadyNs();
     std::unique_lock<std::mutex> g(gTaskLock);
-    gTaskQueuedCv.wait_for(g, timeout, [] { return !gTasks.empty() || gStop; });
+    if (waitNs <= 0) return !gTasks.empty() && !gStop;
+    return gTaskQueuedCv.wait_for(g, std::chrono::nanoseconds(waitNs),
+                                  [&] { return !gTasks.empty() || gStop || gWindowWake.load() != epoch; }) &&
+           !gTasks.empty() && !gStop;
+}
+
+bool Port::WaitForRspTasks(std::chrono::milliseconds timeout) {
+    std::unique_lock<std::mutex> g(gTaskLock);
+    return gTaskQueuedCv.wait_for(g, timeout, [] { return !gTasks.empty() || gStop; }) && !gStop;
 }
 
 void Port::StopDevices() {

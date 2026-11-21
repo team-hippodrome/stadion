@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include "StadionPort.h"
 
 typedef uint8_t u8;
 typedef uint32_t u32;
@@ -83,7 +84,7 @@ void func_80050BA0(void* src, void* dst) { Yay0_Decompress(src, dst); }
 
 // ---- TODO(port): hand-written assembly with no host implementation yet ------------------------------
 // GB Tower emulator core (src/fragments/gb_tower_emulator/gb_tower_emulator_code_asm.s).
-// (GbEmu_InitContext, GbCpu_Execute, GbCpu_InitOpcodeTables: native core in gb_core.c)
+// (GbEmu_InitContext, GbCpu_Execute, GbSgb_RenderBorder: native core in gb_core.c)
 // (libgsm speech decoder kernels, src/libgsm.s: game/src/libgsm/libgsm.c)
 void set_watch_lohi(s32 a) { (void)a; }
 
@@ -132,10 +133,9 @@ void* port_hw_reg(unsigned long addr) { return &sHwPage[addr & 0xFFFFFC]; }
 int64_t __ll_mul(int64_t a, int64_t b) { return a * b; }
 u64 __ull_div(u64 a, u64 b) { return b ? a / b : 0; }
 
-unsigned long long Port_ViTick(void);
 void Port_TraceState(int state) {
     static int last = -1;
-    if (state != last && getenv("PORT_TRACE_STATE")) fprintf(stderr, "[state] %d @frame %llu\n", state, Port_ViTick());
+    if (state != last && getenv("PORT_TRACE_STATE")) fprintf(stderr, "[state] %d @frame %llu\n", state, (unsigned long long)Port_ViTick());
     last = state;
 }
 

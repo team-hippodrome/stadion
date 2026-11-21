@@ -19,8 +19,8 @@ class BattleSourceEncodingTests(unittest.TestCase):
                     'gMoveDataWithZeroth[166] = {\n{1, 0, 40, 0, 255, 35}\n};\n'
                     'SpeciesData gSpeciesData[152] = {\n'
                     '{1, 45, 49, 49, 45, 65, 0, 0, 0, 0, {33, 0, 0, 0}}\n};\n'),
-                'game/src/fragments/battle_engine/battle_engine_359F90.c':
-                    'u8 gTypeEffects[] = {0, 0, 0x14, 0xFF, 0, 0};\n',
+                'game/src/fragments/battle_engine/battle_engine_mechanics.c':
+                    'u8 sTypeEffects[] = {0, 0, 0x14, 0xFF, 0, 0};\n',
                 'game/include/pokemon.h': '#define BULBASAUR 1\n',
                 'game/include/moves.h': '#define POUND 1\n',
             }

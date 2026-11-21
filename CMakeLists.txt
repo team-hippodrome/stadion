@@ -29,12 +29,14 @@ if(CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
   set(PORT_FORCE_INCLUDE "/FI")
   set(PORT_DEBUG_INFO /Z7)
   set(PORT_NO_WARNINGS /w)
+  set(PORT_ALL_WARNINGS /W4) # clang-cl: /W4 is -Wall -Wextra (its -Wall means -Weverything)
   set(PORT_UNSIGNED_CHAR /J)
   set(PORT_NO_BUILTIN /clang:-fno-builtin)
 else()
   set(PORT_FORCE_INCLUDE "-include")
   set(PORT_DEBUG_INFO -g)
   set(PORT_NO_WARNINGS -w)
+  set(PORT_ALL_WARNINGS -Wall -Wextra)
   set(PORT_UNSIGNED_CHAR -funsigned-char)
   set(PORT_NO_BUILTIN -fno-builtin)
 endif()
@@ -69,6 +71,8 @@ set(PORT_MAIN_SOURCES
   src/port/shader_warmup.cpp
   src/port/touch_controls.cpp
   src/port/xcheck.cpp
+  src/port/save_editor/stadium_save.cpp
+  src/port/save_editor/save_editor_ui.cpp
   src/port/stubs.c
   src/port/port_platform.c
 )
@@ -94,6 +98,24 @@ target_include_directories(stadion PRIVATE
 )
 target_compile_definitions(stadion PRIVATE F3DEX_GBI_2)
 target_link_libraries(stadion PRIVATE libultraship)
+if(NOT ANDROID AND NOT EMSCRIPTEN)
+  # the save library's command-line driver, for tools/save_editor/tests/test_native.py (not shipped)
+  add_executable(stadium_save_cli EXCLUDE_FROM_ALL src/port/save_editor/cli_main.cpp src/port/save_editor/stadium_save.cpp)
+  find_package(nlohmann_json QUIET)
+  if(TARGET nlohmann_json::nlohmann_json)
+    target_link_libraries(stadium_save_cli PRIVATE nlohmann_json::nlohmann_json)
+  else()
+    target_link_libraries(stadium_save_cli PRIVATE libultraship) # (its include path has nlohmann/json.hpp)
+  endif()
+  if(WIN32 AND NOT MSVC)
+    target_link_options(stadium_save_cli PRIVATE -static)
+  endif()
+  add_executable(shader_cache_check EXCLUDE_FROM_ALL tools/shader_cache_check.cpp)
+  target_link_libraries(shader_cache_check PRIVATE libultraship)
+  if(WIN32 AND NOT MSVC)
+    target_link_options(shader_cache_check PRIVATE -static)
+  endif()
+endif()
 if(APPLE)
   target_sources(stadion PRIVATE src/port/pacing_mac.mm)
   target_link_libraries(stadion PRIVATE "-framework CoreVideo" "-framework QuartzCore" "-framework Metal")
@@ -104,12 +126,12 @@ endif()
 # Flags mirror tools/compile_flags.txt (used by tools/syntax_check.sh).
 # ---------------------------------------------------------------------------------------------
 file(GLOB_RECURSE STADIUM_GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/game/src/*.c)
-# game/ is the whole decomp (a submodule): of its libultra sources, only the ones listed are compiled
+# game/ is the vendored decomp (src, include, lib/ultralib): of its libultra sources, only the ones listed are compiled
 file(STRINGS cmake/ultralib_sources.txt PORT_ULTRALIB_SOURCES REGEX "^[^#]")
 list(TRANSFORM PORT_ULTRALIB_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/game/lib/ultralib/src/)
 list(APPEND STADIUM_GAME_SOURCES ${PORT_ULTRALIB_SOURCES})
 # tables generated from the decomp's link map (tools/gen_func_table.py, tools/gen_fragment_entries.py); they are compiled
-# with the game code but kept in the port, so the game sources are the decomp plus patches/game only
+# with the game code but kept in the port, so game/ holds only decomp code
 list(APPEND STADIUM_GAME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_func_table.c
      ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_fragment_entries.c)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ultralib_sources.txt)
@@ -159,11 +181,52 @@ if(EMSCRIPTEN)
   list(APPEND STADIUM_GAME_SOURCES ${CMAKE_BINARY_DIR}/generated/fragment_thunks.c)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_fragment_thunks.py)
 endif()
+# Game-code diagnostics, modelled on 2Ship2Harkinian (mm/CMakeLists.txt): -Wall -Wextra without -Werror, minus the
+# warnings decompiled code produces by design. The type-mismatch groups (int-conversion, incompatible pointer types)
+# are still off while those are fixed subsystem by subsystem; remove an entry here once its count reaches zero.
+set(STADION_GAME_WARNINGS
+  ${PORT_ALL_WARNINGS} -Wno-error
+  -Wno-unused-parameter         # decomp signatures keep parameters the body never reads
+  -Wno-unused-function
+  -Wno-unused-variable          # stack pads (s32 pad[2]) that keep the original frame layout
+  -Wno-unused-but-set-variable
+  -Wno-missing-field-initializers
+  -Wno-missing-braces           # flat initialisers for nested structs/arrays, as in the original source
+  -Wno-parentheses
+  -Wno-sign-compare
+  -Wno-int-conversion -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types
+  -Wno-return-mismatch -Wno-return-type # older clang (macOS CI) rejects missing return values the decomp keeps
+  -Wno-error=format-security    # the Android NDK adds -Werror=format-security, which -Wno-error does not undo: the
+                                # game's sprintf(buf, Text_GetString(...)) in the demo scenes stopped the APK build
+  -Werror=implicit-function-declaration)
+# The vendored libultra sources stay silent, as 2Ship2Harkinian does for its libultra copy: they are upstream SDK
+# code, not maintained here.
+set_source_files_properties(${PORT_ULTRALIB_SOURCES} PROPERTIES COMPILE_OPTIONS ${PORT_NO_WARNINGS})
 add_library(stadium_game STATIC ${STADIUM_GAME_SOURCES})
+if(WIN32)
+  # Keep Windows GDI declarations from colliding with game types.
+  target_compile_definitions(stadium_game PRIVATE NOGDI)
+endif()
 # Per-fragment data sections, restored whenever the game loads the fragment (see tools/gen_frag_sections.py)
 execute_process(COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_frag_sections.py
                         ${CMAKE_CURRENT_SOURCE_DIR}/game/src ${CMAKE_BINARY_DIR}/generated)
 include(${CMAKE_BINARY_DIR}/generated/frag_sections.cmake)
+# Type-safety ratchet: the files in cmake/strict_sources.txt are clean of the pointer/integer mismatches that break a
+# 64-bit build (int-conversion, incompatible pointer types, pointer/int casts, 64-to-32 truncation, missing returns) and
+# keep these as errors. Add a file once it compiles clean; when every game file is listed, the groups move into
+# STADION_GAME_WARNINGS and this list goes away. Appended after frag_sections.cmake, which sets COMPILE_OPTIONS.
+set(STADION_STRICT_GROUPS int-conversion incompatible-pointer-types incompatible-function-pointer-types
+    pointer-to-int-cast int-to-pointer-cast return-type shorten-64-to-32)
+set(STADION_STRICT_WARNINGS ${STADION_STRICT_GROUPS})
+if(CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+  list(TRANSFORM STADION_STRICT_WARNINGS PREPEND /clang:-Werror=)
+else()
+  list(TRANSFORM STADION_STRICT_WARNINGS PREPEND -Werror=)
+endif()
+file(STRINGS cmake/strict_sources.txt STADION_STRICT_SOURCES REGEX "^[^#]")
+list(TRANSFORM STADION_STRICT_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
+set_property(SOURCE ${STADION_STRICT_SOURCES} APPEND PROPERTY COMPILE_OPTIONS ${STADION_STRICT_WARNINGS})
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/strict_sources.txt)
 # the per-fragment options were set on the original paths: give them to the wrappers that replace those files
 list(LENGTH PORT_WRAPPED_SOURCES _n)
 if(_n GREATER 0)
@@ -183,6 +246,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_S
              ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_fragment_entries.c)
 set_target_properties(stadium_game PROPERTIES C_STANDARD 11 C_EXTENSIONS ON)
 target_include_directories(stadium_game PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/port # StadionPort.h: the game/port boundary
   ${CMAKE_CURRENT_SOURCE_DIR}/game
   ${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk
   ${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/PR
@@ -200,19 +264,17 @@ target_compile_definitions(stadium_game PRIVATE
   BUILD_VERSION=VERSION_I_P VERSION_US
   PORT_STATIC_FRAGMENTS)
 target_compile_options(stadium_game PRIVATE
-  ${PORT_DEBUG_INFO} ${PORT_NO_BUILTIN} ${PORT_UNSIGNED_CHAR} ${PORT_NO_WARNINGS}
+  ${PORT_DEBUG_INFO} ${PORT_NO_BUILTIN} ${PORT_UNSIGNED_CHAR} ${STADION_GAME_WARNINGS}
   # keep a symbol per static array: arm64 global merging folds them into _MergedGlobals, and the renderer finds the
   # 16/32-bit word arrays it must byte-swap (textures, palettes; gen_word_arrays.py) by symbol name
   $<$<AND:$<C_COMPILER_ID:Clang,AppleClang>,$<STREQUAL:${CMAKE_SYSTEM_PROCESSOR},arm64>>:-mno-global-merge>
   $<$<AND:$<C_COMPILER_ID:Clang,AppleClang>,$<STREQUAL:${CMAKE_SYSTEM_PROCESSOR},aarch64>>:-mno-global-merge>
-  -Wno-int-conversion -Wno-incompatible-function-pointer-types -Wno-incompatible-pointer-types
-  -Wno-return-mismatch -Wno-return-type # older clang (macOS CI) rejects missing return values the decomp keeps
   ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/port_compat.h)
 
 # libultra runtime for the game (threads, message queues, devices). This target sees the game's SDK shim
 # headers (src/port/sdk/ultra64.h etc.); the LUS-facing code in the executable must not, because libultraship
 # headers include <ultra64.h> themselves.
-add_library(port_os STATIC src/port/os_thread.cpp src/port/os_devices.cpp src/port/transfer_pak.cpp src/port/gb_audio_out.cpp src/port/audio_out.cpp src/port/audio_hle.cpp src/port/gb_core.c
+add_library(port_os STATIC src/port/os_thread.cpp src/port/fiber.cpp src/port/os_devices.cpp src/port/transfer_pak.cpp src/port/gb_audio_out.cpp src/port/audio_out.cpp src/port/sound_settings.cpp src/port/audio_hle.cpp src/port/gb_core.c
   src/port/jpeg_task.cpp src/port/gfx_translate.cpp)
 if(EMSCRIPTEN)
   target_sources(port_os PRIVATE src/port/web_audio.cpp) # sound output through an AudioWorklet (web_audio.h)
@@ -258,7 +320,7 @@ string(APPEND PORT_BUILD_DESCRIPTION " revision ${PORT_SOURCE_REVISION}")
 target_compile_definitions(stadion PRIVATE PORT_BUILD_VERSION="${PORT_BUILD_DESCRIPTION}")
 target_compile_definitions(port_os PRIVATE LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 NDEBUG _FINALROM N_MICRO VERSION_US BUILD_VERSION=VERSION_I_P)
 target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/port_compat.h
-  ${PORT_NO_WARNINGS})
+  ${PORT_ALL_WARNINGS} -Wno-error)
 # the GB Tower's sound output uses SDL3 directly (same SDL3 the window uses)
 if(ANDROID OR EMSCRIPTEN)  # the SDL3 that libultraship fetched (no system copy to find)
   target_link_libraries(port_os PRIVATE SDL3::Headers)

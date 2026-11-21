@@ -3,9 +3,13 @@
 // of each Transfer Pak (picture, game, trainer from the save, save file) and a bar with the Stadium ROM, its save and
 // PLAY. The choices are remembered in stadion.cfg.json and passed to the game the way the command line does
 // (PORT_FLASH_FILE, PORT_GB_ROM*, PORT_GB_SAVE*). Auto-play skips it next time (hold Shift while starting to see it
-// again); Debug adds a button that opens the save editor (tools/save_editor, needs python3) in the browser. Controls
+// again); Debug adds a button that opens the save editor (save_editor/save_editor_ui.cpp, built in: it takes the
+// launcher's place until it is closed; on the handheld layout it is under Files & help). Controls
 // swaps the player cards for the key and controller bindings of each player (libultraship's ControlDeck mappings).
 // Renderer picks libultraship's window backend (Window.Backend.Id); it applies the next time the game starts.
+// Graphics swaps the player cards for the drawing settings (resolution scale, anti-aliasing, VSync, Smooth motion,
+// frame skipping when the graphics chip falls behind), with a preset for slow ones such as an Intel HD 520; they apply
+// at once and are kept in stadion.cfg.json.
 // Android (or PORT_LAUNCHER_HANDHELD=1) shows a handheld layout instead: the Stadium cartridge and a big PLAY, the
 // Transfer Pak cards and the controls on pages of their own, everything reachable with the gamepad (D-pad or stick
 // moves the focus, A presses, B goes back) as well as by touch.
@@ -15,6 +19,7 @@
 #include "port_platform.h"
 #include "Engine.h"
 #include "rom_check.h"
+#include "save_editor/save_editor_ui.h"
 
 #include <chrono>
 #include <libultraship/libultraship.h>
@@ -562,52 +567,30 @@ void OfferExport(const std::string& path) {
 
 // ---- save editor (debug option) --------------------------------------------------------------------------------------
 
-// tools/save_editor next to the executable or in the source tree above it
-std::string SaveEditorDir() {
-    const char* base = SDL_GetBasePath();
-    fs::path p = base != nullptr ? fs::path(base) : fs::current_path();
-    for (int up = 0; up < 3 && !p.empty(); up++) {
-        if (fs::exists(p / "tools" / "save_editor" / "stadium_save")) {
-            return (p / "tools" / "save_editor").string();
-        }
-        p = p.parent_path();
-    }
-    return "";
-}
-
 std::string gEditorStatus;
+Port::SaveEditor gSaveEditor; // the editor, drawn in place of the launcher's panels while it is open
 
-void OpenSaveEditor(const std::string& save) {
-    std::string dir = SaveEditorDir();
-    if (dir.empty()) {
-        gEditorStatus = "tools/save_editor not found";
+// Opens the save editor on the Stadium save, with the Game Boy saves of the Transfer Paks that are on; gbSlot: the
+// player card whose cartridge to show first (-1: the overview).
+void OpenSaveEditor(const State& s, int gbSlot = -1) {
+    std::error_code ec;
+    if (s.save.empty() || !fs::exists(fs::u8path(s.save), ec)) { // a new install: the game writes the save when it starts
+        gEditorStatus = "No save yet: start the game once";
         return;
     }
-    static SDL_Process* sEditor = nullptr;
-    if (sEditor == nullptr) {
-#ifdef _WIN32
-        const char* python = "python";
-#else
-        const char* python = "python3";
-#endif
-        const char* args[] = { python, "-m", "stadium_save", "serve", save.c_str(), "--port", "8765", "--write", nullptr };
-        SDL_PropertiesID props = SDL_CreateProperties();
-        SDL_SetPointerProperty(props, SDL_PROP_PROCESS_CREATE_ARGS_POINTER, (void*)args);
-#ifdef SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING // SDL 3.4+
-        SDL_SetStringProperty(props, SDL_PROP_PROCESS_CREATE_WORKING_DIRECTORY_STRING, dir.c_str());
-#endif
-        // the module is found through PYTHONPATH too (older SDL cannot set the child's working directory)
-        SDL_SetEnvironmentVariable(SDL_GetEnvironment(), "PYTHONPATH", dir.c_str(), true);
-        sEditor = SDL_CreateProcessWithProperties(props);
-        SDL_DestroyProperties(props);
-        if (sEditor == nullptr) {
-            gEditorStatus = "Needs python3";
-            return;
-        }
-        SDL_Delay(800); // let the server bind its port
+    std::vector<Port::SaveEditorGb> gbs;
+    for (int i = 0; i < 4; i++) {
+        const GbSlot& g = s.gb[i];
+        const bool shown = (g.enabled && !g.rom.empty()) || i == gbSlot;
+        gbs.push_back({ "Player " + std::to_string(i + 1), shown ? GbSave(g) : "", g.rom });
     }
-    SDL_OpenURL("http://127.0.0.1:8765/");
-    gEditorStatus = "Opened in the browser";
+    std::string error;
+    if (gSaveEditor.Open(s.save, gbs, gbSlot, &error)) {
+        gEditorStatus.clear();
+    } else {
+        gEditorStatus = "Cannot open the save: " + error;
+        SDL_Log("save editor: %s", gEditorStatus.c_str());
+    }
 }
 
 // ---- look: Launcher.swift's Theme and fonts --------------------------------------------------------------------------
@@ -947,11 +930,28 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(206, 14, "PC port · Transfer Pak", gFonts.body, Theme::dim);
         dl->AddRectFilled(P(0, 44), P(kW, 45), Hex(Theme::cardBorder));
         Tools();
+        if (getenv("PORT_LAUNCHER_OPEN_GRAPHICS") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
+            mGraphicsTestOpened = mGraphics = true;
+        }
+        if (getenv("PORT_LAUNCHER_OPEN_SOUND") != nullptr && !mSoundTestOpened) { // test hook (as OPEN_TOOLS)
+            mSoundTestOpened = mSound = true;
+        }
 
+        if (gSaveEditor.IsOpen()) {
+            EditorPanel(16, 58, kW - 32, kH - 58 - 16);
+            if (mChanged) {
+                Store(s);
+            }
+            return;
+        }
         if (mTools) {
             ToolsPanel(16, 58, kW - 32, 366);
         } else if (mControls) {
             ControlsPanel(16, 58, kW - 32, 366);
+        } else if (mGraphics) {
+            GraphicsPanel(16, 58, kW - 32, 366);
+        } else if (mSound) {
+            SoundPanel(16, 58, kW - 32, 366);
         } else {
             for (int i = 0; i < 4; i++) {
                 PlayerCard(i, 16 + i * (222 + 14), 58, 222, 366);
@@ -970,7 +970,7 @@ class LauncherWindow : public Ship::GuiWindow {
     bool mToolsTestOpened = false, mTools = false;
     void Tools() {
         const bool testOpen = getenv("PORT_LAUNCHER_OPEN_TOOLS") != nullptr && !mToolsTestOpened;
-        ImGui::BeginDisabled(mCapture >= 0);
+        ImGui::BeginDisabled(mCapture >= 0 || (gSaveEditor.IsOpen() && !Handheld()));
         const bool opened = Button("Files & help", 800, 8, 144, 30);
         ImGui::EndDisabled();
         if ((opened && mCapture < 0) || testOpen) {
@@ -978,6 +978,20 @@ class LauncherWindow : public Ship::GuiWindow {
             mTools = !mTools;
             if (Handheld()) GoToPage(mTools ? kPageTools : kPageHome);
         }
+    }
+    // the save editor in the rectangle (design coordinates), with the launcher's scale, fonts and gamepad focus
+    void EditorPanel(float x, float y, float w, float h) {
+        Port::SaveEditorStyle style;
+        style.scale = mScale;
+        style.body = gFonts.body;
+        style.small = gFonts.small;
+        style.game = gFonts.game;
+        style.title = gFonts.title;
+        style.handheld = Handheld();
+        style.navItem = [this] { return NavItem(); };
+        style.setDefaultFocus = [this] { mDefaultFocus = (int)mNavItems.size(); };
+        style.resetFocus = [this] { mFocusReset = true; };
+        gSaveEditor.Draw(style, P(x, y), P(x + w, y + h));
     }
     bool ToolAction(const char* label) {
         const bool clicked = ImGui::Button(label, ImVec2(std::min(280.0f * mScale, ImGui::GetContentRegionAvail().x),
@@ -997,6 +1011,16 @@ class LauncherWindow : public Ship::GuiWindow {
                 const auto romError = CheckRom(mState->rom);
                 if (!romError.empty()) check.errors.insert(check.errors.begin(), "Stadium ROM: " + romError);
                 mToolsStatus = CheckText(check);
+            }
+            if (Handheld() && ToolAction("Save editor")) { // (the desktop layout has it under Debug)
+                OpenSaveEditor(*mState);
+                if (gSaveEditor.IsOpen()) {
+                    mTools = false;
+                    GoToPage(kPageSaveEditor);
+                    mFocusReset = true; // (this frame still draws the old page: its default would win)
+                } else {
+                    mToolsStatus = gEditorStatus;
+                }
             }
             if (ToolAction("Open settings folder")) OpenFolder(directory);
             if (ToolAction("Open saves folder")) OpenFolder(fs::u8path(mState->save).parent_path());
@@ -1148,7 +1172,7 @@ class LauncherWindow : public Ship::GuiWindow {
 
         Text(x + 12, y + h - 26, "Transfer Pak · controller " + std::to_string(i + 1), gFonts.small, Theme::dim);
         if (s.debug && !save.empty() && Button("Edit save", x + w - 90, y + h - 33, 80, 26)) {
-            OpenSaveEditor(save);
+            OpenSaveEditor(s, i);
         }
         ImGui::PopID();
     }
@@ -1288,6 +1312,376 @@ class LauncherWindow : public Ship::GuiWindow {
         }
     }
 
+    // ---- graphics settings ----
+    // (the port's internal resolution, Port::ResolutionSetting in Engine.h (gPort.Resolution.*); libultraship's
+    // gMSAAValue and gVsyncEnabled; the config's Window.Fullscreen.Enabled, applied on Play; gPort.Interpolate and
+    // gPort.FrameSkip, read by os_devices.cpp). Layout after the usual PC-game and emulator settings pages: one
+    // Internal resolution list (Dolphin, DuckStation), Scaling next to it, two presets that light up when they match.
+    struct ResEntry {
+        int mode, value;
+    };
+    static constexpr ResEntry kResEntries[] = {
+        { Port::kResWindow, 0 }, { Port::kResN64, 1 },     { Port::kResN64, 2 },     { Port::kResN64, 3 },
+        { Port::kResN64, 4 },    { Port::kResN64, 5 },     { Port::kResN64, 6 },     { Port::kResHeight, 480 },
+        { Port::kResHeight, 720 }, { Port::kResHeight, 1080 }, { Port::kResHeight, 1440 }, { Port::kResHeight, 2160 },
+    };
+    static constexpr int kMsaa[] = { 1, 2, 4, 8 };
+
+    static int ResIndex(const Port::ResolutionSetting& r) {
+        for (int i = 0; i < (int)std::size(kResEntries); i++) {
+            const ResEntry& e = kResEntries[i];
+            if (e.mode == r.mode && (e.mode == Port::kResWindow || e.value == (e.mode == Port::kResN64 ? r.multiple : r.height))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+    static void SetResolution(const ResEntry& e) {
+        Port::ResolutionSetting r = Port::GetResolutionSetting();
+        // the N64's own sizes look their best with Integer scaling: picking one from another kind switches Scaling to
+        // it (it can be changed back); leaving them goes back to Smooth
+        if (e.mode == Port::kResN64 && r.mode != Port::kResN64) r.upscale = Port::kUpscaleExact;
+        else if (e.mode != Port::kResN64 && r.mode == Port::kResN64 && r.upscale == Port::kUpscaleExact) {
+            r.upscale = Port::kUpscaleSmooth;
+        }
+        r.mode = e.mode;
+        if (e.mode == Port::kResN64) r.multiple = e.value;
+        if (e.mode == Port::kResHeight) r.height = e.value;
+        Port::SetResolutionSetting(r);
+    }
+    static void SetUpscale(int upscale) {
+        Port::ResolutionSetting r = Port::GetResolutionSetting();
+        r.upscale = upscale;
+        Port::SetResolutionSetting(r);
+    }
+    static void SetMsaa(int level) {
+        CVarSetInteger("gMSAAValue", level);
+        Port::GetWindow()->SetMsaaLevel(level);
+    }
+    static std::shared_ptr<Ship::Config> WindowConfig() {
+        return Port::GetWindow()->GetContext()->GetChildren().GetFirst<Ship::Config>();
+    }
+
+    // The Internal resolution list: a combo the width of four buttons, entries named with their pixel size for the
+    // current shape. Left/Right on the closed list step to the previous/next entry (keyboard and gamepad, like the
+    // button rows); A/Enter opens it on the current entry, B/Escape closes it unchanged.
+    void ResolutionCombo(float x, float y, float w) {
+        const Port::ResolutionSetting r = Port::GetResolutionSetting();
+        const int cur = ResIndex(r);
+        ImGui::SetCursorScreenPos(P(x, y));
+        ImGui::SetWindowFontScale(mScale);
+        const float fh = ImGui::GetFontSize();
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8 * mScale, std::max(0.0f, (26 * mScale - fh) / 2)));
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, ImGui::GetStyle().FrameRounding);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, HexV(Theme::button));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, HexV(Theme::buttonHover));
+        ImGui::PushStyleColor(ImGuiCol_Button, HexV(Theme::button));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, HexV(Theme::buttonHover));
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, HexV(Theme::card));
+        ImGui::PushStyleColor(ImGuiCol_Header, HexV(0x23406B));
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, HexV(Theme::buttonHover));
+        ImGui::SetNextItemWidth(w * mScale);
+        const std::string preview = cur >= 0 ? Port::ResolutionLabel(kResEntries[cur].mode, kResEntries[cur].value) : "Custom";
+        static int sOpenForTest = getenv("PORT_LAUNCHER_OPEN_RESOLUTION") != nullptr ? 2 : 0; // test hook: the list open
+        if (sOpenForTest > 0 && --sOpenForTest == 0) {
+            ImGui::OpenPopupEx(ImHashStr("##ComboPopup", 0, ImGui::GetID("##internalres")));
+        }
+        const bool open = ImGui::BeginCombo("##internalres", preview.c_str(), ImGuiComboFlags_HeightLargest);
+        const bool focused = ImGui::IsItemFocused();
+        int pick = -1;
+        if (open) {
+            // (the launcher brings its own window to the front every frame, Draw: the list goes above it)
+            ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+            ImGui::SetWindowFontScale(mScale);
+            for (int i = 0; i < (int)std::size(kResEntries); i++) {
+                const ResEntry& e = kResEntries[i];
+                if (i == 1 || i == 7) ImGui::Separator();
+                const std::string label = Port::ResolutionLabel(e.mode, e.value);
+                const size_t sp = e.mode == Port::kResWindow ? std::string::npos : label.find(' ');
+                const std::string name = label.substr(0, sp), size = sp == std::string::npos ? "" : label.substr(sp + 1);
+                ImGui::PushID(i);
+                if (ImGui::Selectable(name.c_str(), i == cur)) pick = i;
+                if (i == cur && ImGui::IsWindowAppearing()) ImGui::SetItemDefaultFocus();
+                if (!size.empty()) {
+                    ImGui::SameLine(ImGui::GetContentRegionMax().x - ImGui::CalcTextSize(size.c_str()).x);
+                    ImGui::TextColored(HexV(Theme::dim), "%s", size.c_str());
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndCombo();
+        } else if (focused && cur >= 0) {
+            const bool left = ImGui::IsKeyPressed(ImGuiKey_GamepadDpadLeft) || ImGui::IsKeyPressed(ImGuiKey_LeftArrow);
+            const bool right = ImGui::IsKeyPressed(ImGuiKey_GamepadDpadRight) || ImGui::IsKeyPressed(ImGuiKey_RightArrow);
+            if (left && cur > 0) pick = cur - 1;
+            if (right && cur + 1 < (int)std::size(kResEntries)) pick = cur + 1;
+        }
+        ImGui::PopStyleColor(7);
+        ImGui::PopStyleVar(2);
+        ImGui::SetWindowFontScale(1.0f);
+        if (pick >= 0 && pick != cur) SetResolution(kResEntries[pick]);
+    }
+
+    // the pixel height of the display the window is on (a Retina display's pixels, not its points); 0 if unknown
+    static int DisplayPixelHeight() {
+        SDL_Window* sdl = MainWindow();
+        if (sdl == nullptr) return 0;
+        const SDL_DisplayMode* mode = SDL_GetDesktopDisplayMode(SDL_GetDisplayForWindow(sdl));
+        if (mode == nullptr || mode->h <= 0) return 0;
+        return (int)std::lround(mode->h * std::max(1.0f, mode->pixel_density));
+    }
+
+    // a row of buttons, the chosen one highlighted; returns the index clicked, or -1
+    int Choice(const char* id, const std::vector<std::string>& labels, int chosen, float x, float y, float bw = 64) {
+        int clicked = -1;
+        ImGui::PushID(id);
+        for (int i = 0; i < (int)labels.size(); i++) {
+            ImGui::PushID(i);
+            const bool on = i == chosen;
+            if (ColorButton(labels[i].c_str(), x + i * (bw + 4), y, bw, 26, on ? 0x23406B : Theme::button,
+                            on ? 0x23406B : Theme::buttonHover)) {
+                clicked = i;
+            }
+            ImGui::PopID();
+        }
+        ImGui::PopID();
+        return clicked;
+    }
+
+    void GraphicsPanel(float x, float y, float w, float h) {
+        State& s = *mState;
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "GRAPHICS", gFonts.body, Theme::text);
+        Text(x + 110, y + 15, "Changes apply at once and are kept for the next start.", gFonts.small, Theme::dim);
+        if (Button("Done", x + w - 108, y + 9, 94, 26)) {
+            mGraphics = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+
+        const float lx = x + 14, cx = x + 190, tx = x + 560, pitch = 37;
+        float ry = y + 58;
+        auto label = [&](const char* name, const std::string& hint) {
+            Text(lx, ry + 5, name, gFonts.body);
+            Text(tx, ry + 1, hint, gFonts.small, Theme::dim);
+        };
+        auto onOff = [&](const char* id, bool on) { return Choice(id, { "On", "Off" }, on ? 0 : 1, cx, ry); };
+
+        // Display: windowed or (borderless) fullscreen; the launcher keeps its own window, the game gets this on Play
+        {
+            auto config = WindowConfig();
+            const bool full = config != nullptr && config->GetBool("Window.Fullscreen.Enabled", false);
+            label("Display", "Fullscreen is borderless;\nF11 switches in-game.");
+            int c = Choice("display", { "Windowed", "Fullscreen" }, full ? 1 : 0, cx, ry, 96);
+            if (c >= 0 && config != nullptr && (c == 1) != full) {
+                config->SetBool("Window.Fullscreen.Enabled", c == 1);
+                config->Save();
+            }
+        }
+        ry += pitch;
+        const Port::ResolutionSetting r = Port::GetResolutionSetting();
+        // Internal resolution: how many pixels the game is drawn with (Port::ResolutionSetting)
+        {
+            int rw = 0, rh = 0;
+            Port::RenderSize(&rw, &rh);
+            char hint[128];
+            // a fixed size taller than the display is drawn and then shrunk to the display (or the window): it costs
+            // the work of the larger picture (2160p is four times the pixels of 1080p; on an M5 MacBook Air's GPU a
+            // menu picture took 4.6 ms at 2160p, 1.6 ms at 1080p) for little sharpness
+            const int lines = r.mode == Port::kResN64 ? 240 * r.multiple : r.mode == Port::kResHeight ? r.height : 0;
+            const int displayLines = DisplayPixelHeight();
+            if (lines > 0 && displayLines > 0 && lines > displayLines) {
+                snprintf(hint, sizeof hint, "Taller than this display (%d lines):\nslower, hardly sharper. Try %dp.",
+                         displayLines, displayLines >= 1440 ? 1440 : displayLines >= 1080 ? 1080 : 720);
+            } else if (rw > 0) {
+                snprintf(hint, sizeof hint, "Draws %d x %d.\nLower it if the game is slow.", rw, rh);
+            } else {
+                snprintf(hint, sizeof hint, "Lower it if the game is slow.");
+            }
+            label("Internal resolution", hint);
+            ResolutionCombo(cx, ry, 4 * 64 + 3 * 4);
+        }
+        ry += pitch;
+        // Scaling: how a fixed resolution's picture is stretched to the window (not used by Match window)
+        {
+            const bool used = r.mode != Port::kResWindow;
+            label("Scaling", used ? "How the picture is stretched to the window.\nInteger: largest whole multiple, black borders."
+                                  : "Not used: the picture already\nmatches the window.");
+            ImGui::BeginDisabled(!used);
+            int c = Choice("scaling", { "Integer", "Sharp", "Smooth" }, used ? r.upscale : Port::kUpscaleSmooth, cx, ry, 84);
+            ImGui::EndDisabled();
+            if (c >= 0 && used) SetUpscale(c);
+        }
+        ry += pitch;
+        // anti-aliasing (MSAA)
+        const int msaa = CVarGetInteger("gMSAAValue", 1);
+        {
+            int chosen = 0;
+            for (int i = 0; i < (int)std::size(kMsaa); i++) {
+                if (msaa == kMsaa[i]) chosen = i;
+            }
+            label("Anti-aliasing", "Smooths jagged edges.\nCosts speed on weak chips.");
+            int c = Choice("msaa", { "Off", "2x", "4x", "8x" }, chosen, cx, ry);
+            if (c >= 0) SetMsaa(kMsaa[c]);
+        }
+        ry += pitch;
+        const bool vsync = CVarGetInteger("gVsyncEnabled", 1) != 0;
+        {
+            label("VSync", "Stops tearing.");
+            int c = onOff("vsync", vsync);
+            if (c >= 0) CVarSetInteger("gVsyncEnabled", c == 0 ? 1 : 0);
+        }
+        ry += pitch;
+        // Smooth motion (frame interpolation)
+        {
+            label("Smooth motion", "In-between frames for the 3D scenes the game\ndraws at 30 or 20 per second.");
+            int c = onOff("smooth", s.smooth);
+            if (c >= 0) {
+                s.smooth = c == 0;
+                mChanged = true;
+            }
+        }
+        ry += pitch;
+        // frame skipping when drawing falls behind (os_devices.cpp, WantSkipWhileBehind)
+        const bool skip = CVarGetInteger("gPort.FrameSkip", 1) != 0;
+        {
+            label("Keep full speed", "Skips frames rather than\nslowing the game down.");
+            int c = onOff("skip", skip);
+            if (c >= 0) CVarSetInteger("gPort.FrameSkip", c == 0 ? 1 : 0);
+        }
+
+        // presets: lit when the settings match one (Display is not part of them)
+        const bool recommended = r.mode == Port::kResWindow && msaa == 4 && vsync && s.smooth && skip;
+        const bool lowPower = r.mode == Port::kResN64 && r.multiple == 2 && r.upscale == Port::kUpscaleSmooth &&
+                              msaa == 1 && vsync && !s.smooth && skip;
+        auto apply = [&](const ResEntry& e, int msaaLevel, bool smooth) {
+            SetResolution(e);
+            SetUpscale(Port::kUpscaleSmooth);
+            SetMsaa(msaaLevel);
+            CVarSetInteger("gVsyncEnabled", 1);
+            CVarSetInteger("gPort.FrameSkip", 1);
+            s.smooth = smooth;
+            mChanged = true;
+        };
+        const float by = y + h - 40;
+        dl->AddRectFilled(P(x, by - 8), P(x + w, by - 7), Hex(Theme::cardBorder));
+        Text(lx, by + 6, "Preset:", gFonts.body);
+        const uint32_t lit = 0x23406B;
+        if (ColorButton("Recommended", lx + 66, by, 120, 28, recommended ? lit : Theme::button,
+                        recommended ? lit : Theme::buttonHover)) {
+            apply({ Port::kResWindow, 0 }, 4, true);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Match window, 4x anti-aliasing, VSync, Smooth motion and Keep full speed on.");
+        }
+        if (ColorButton("Low-power", lx + 192, by, 110, 28, lowPower ? lit : Theme::button,
+                        lowPower ? lit : Theme::buttonHover)) {
+            apply({ Port::kResN64, 2 }, 1, false);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("For integrated graphics such as Intel HD 520: 2x (640 x 480), Smooth scaling,\n"
+                              "anti-aliasing and Smooth motion off, VSync and Keep full speed on.");
+        }
+        Text(x + w - 160, by + 7, std::string("Current: ") + (recommended ? "Recommended" : lowPower ? "Low-power" : "Custom"),
+             gFonts.small, Theme::dim);
+        CVarSave();
+    }
+
+    // launcher > Sound: CVars gSound.*, handed to the audio paths at once (Port::ApplySoundSettings, sound_settings.h)
+    void SoundPanel(float x, float y, float w, float h) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "SOUND", gFonts.body, Theme::text);
+        Text(x + 90, y + 15, "Changes apply at once and are kept for the next start.", gFonts.small, Theme::dim);
+        if (Button("Done", x + w - 108, y + 9, 94, 26)) {
+            mSound = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+        bool changed = false;
+
+        // volumes (left column)
+        const float lx = x + 14, sx = x + 150, sw = 250;
+        float ry = y + 60;
+        auto volume = [&](const char* name, const char* cvar, const char* hint) {
+            Text(lx, ry + 4, name, gFonts.body);
+            int v = std::clamp(CVarGetInteger(cvar, 100), 0, 100);
+            ImGui::SetCursorScreenPos(P(sx, ry));
+            ImGui::SetNextItemWidth(sw * mScale);
+            ImGui::PushStyleColor(ImGuiCol_SliderGrab, HexV(0x4C7BD9));
+            ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, HexV(0x6E95E6));
+            const std::string id = std::string("##") + cvar;
+            if (ImGui::SliderInt(id.c_str(), &v, 0, 100, v == 0 ? "off" : "%d%%", ImGuiSliderFlags_AlwaysClamp)) {
+                CVarSetInteger(cvar, v);
+                changed = true;
+            }
+            ImGui::PopStyleColor(2);
+            if (ImGui::IsItemHovered() && hint != nullptr) ImGui::SetTooltip("%s", hint);
+            ry += 44;
+        };
+        volume("Master", "gSound.Master", "All sound, the Game Boy included");
+        volume("Music", "gSound.Music", "The game's songs");
+        volume("Sound effects", "gSound.Effects", "Menus, moves and the other effects");
+        volume("Voices", "gSound.Voices", "Pokémon cries and the announcer");
+        volume("Game Boy", "gSound.GameBoy", "The Game Boy games in the GB Tower");
+
+        // switches (right column)
+        const float cx = x + 470, ox = x + 640;
+        float oy = y + 60;
+        auto option = [&](const char* name, const char* hint, const char* id, const std::vector<std::string>& labels,
+                          int chosen, float bw) {
+            Text(cx, oy + 5, name, gFonts.body);
+            const int c = Choice(id, labels, chosen, ox, oy, bw);
+            Text(cx, oy + 30, hint, gFonts.small, Theme::dim);
+            oy += 74;
+            return c;
+        };
+        {
+            const int c = option("Sound", "Off silences everything (the game runs as before).", "snd-on", { "On", "Off" },
+                                 CVarGetInteger("gSound.On", 1) != 0 ? 0 : 1, 64);
+            if (c >= 0) {
+                CVarSetInteger("gSound.On", c == 0 ? 1 : 0);
+                changed = true;
+            }
+        }
+        {
+            const int c = option("In the background", "Silent while another window is in front.", "snd-bg",
+                                 { "Play", "Mute" }, CVarGetInteger("gSound.MuteInBackground", 0) != 0 ? 1 : 0, 64);
+            if (c >= 0) {
+                CVarSetInteger("gSound.MuteInBackground", c);
+                changed = true;
+            }
+        }
+        {
+            const int c = option("Sound delay", "Long helps when the sound crackles on a slow PC.\nApplies when the game starts.",
+                                 "snd-delay", { "Short", "Normal", "Long" }, std::array<int, 3>{ 1, 0, 2 }[std::clamp(
+                                                                               CVarGetInteger("gSound.Delay", 0), 0, 2)],
+                                 72);
+            if (c >= 0) {
+                CVarSetInteger("gSound.Delay", std::array<int, 3>{ 1, 0, 2 }[c]); // buttons: short, normal, long
+                changed = true;
+            }
+        }
+
+        // defaults
+        const float by = y + h - 40;
+        dl->AddRectFilled(P(x, by - 8), P(x + w, by - 7), Hex(Theme::cardBorder));
+        if (Button("Defaults", lx, by, 90, 28)) {
+            for (const char* cvar : { "gSound.Master", "gSound.Music", "gSound.Effects", "gSound.Voices", "gSound.GameBoy" }) {
+                CVarSetInteger(cvar, 100);
+            }
+            CVarSetInteger("gSound.On", 1);
+            CVarSetInteger("gSound.MuteInBackground", 0);
+            CVarSetInteger("gSound.Delay", 0);
+            changed = true;
+        }
+        Text(lx + 104, by + 7, "Stereo or mono: the game's own Options menu.", gFonts.small, Theme::dim);
+        if (changed) {
+            Port::ApplySoundSettings();
+            CVarSave();
+        }
+    }
+
     void BottomBar(float x, float y, float w, float h) {
         State& s = *mState;
         ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -1316,21 +1710,36 @@ class LauncherWindow : public Ship::GuiWindow {
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Import a raw N64 Stadium cartridge save. A working copy is saved beside the launcher; the original is kept.");
         if (s.debug) {
-            if (Button("Save editor", x + 556, y + 56, 96, 26)) {
-                OpenSaveEditor(s.save);
+            static bool sTestClicked = false; // test hook: PORT_LAUNCHER_TEST_SAVE_EDITOR=1 clicks it once
+            if (Button("Save editor", x + 556, y + 56, 96, 26) ||
+                (!sTestClicked && getenv("PORT_LAUNCHER_TEST_SAVE_EDITOR") != nullptr && (sTestClicked = true))) {
+                OpenSaveEditor(s);
+                if (getenv("PORT_LAUNCHER_TEST_SAVE_EDITOR") != nullptr) {
+                    fprintf(stderr, "[launcher] save editor: %s\n", gSaveEditor.IsOpen() ? "open" : gEditorStatus.c_str());
+                }
             }
             if (!gEditorStatus.empty()) {
                 Text(x + 658, y + 61, gEditorStatus, gFonts.small, Theme::dim);
             }
         }
         Check("Debug", &s.debug, x + 164, y + 88);
-        Check("Smooth motion", &s.smooth, x + 250, y + 88);
+        if (Button(mSound ? "Players" : "Sound", x + 234, y + 86, 96, 26)) {
+            mSound = !mSound;
+            mGraphics = mControls = mTools = false;
+        }
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("3D scenes at the display's refresh rate: in-between frames are drawn between the game's\n"
-                              "own 30 or 20 frames per second (one game frame of extra delay)");
+            ImGui::SetTooltip("Volume of music, sound effects, voices and the Game Boy; mute in the background");
+        }
+        if (Button(mGraphics ? "Players" : "Graphics", x + 340, y + 86, 100, 26)) {
+            mGraphics = !mGraphics;
+            mControls = mTools = mSound = false;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Resolution, anti-aliasing, VSync, Smooth motion; a preset for slow graphics chips");
         }
         if (Button(mControls ? "Players" : "Controls", x + 450, y + 86, 100, 26)) {
             mControls = !mControls;
+            mGraphics = mTools = mSound = false;
         }
         // the game picture's shape (the rest of the window gets black bars)
         Text(x + 566, y + 91, "Screen", gFonts.small, Theme::dim);
@@ -1402,7 +1811,7 @@ class LauncherWindow : public Ship::GuiWindow {
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Start the game directly next time (hold Shift while starting to see this launcher)");
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mTools) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mTools && !mGraphics && !mSound) {
             *mPlay = ReadyToPlay(s);
         }
         (void)mQuit;
@@ -1454,6 +1863,12 @@ class LauncherWindow : public Ship::GuiWindow {
         }
         mHeldDx = dx;
         mHeldDy = dy;
+        if (mFocusReset) { // no focus this frame; NavEndFrame picks the default the new view named
+            mFocusReset = false;
+            mFocus = -1;
+            mNavPrev.clear();
+            move = false;
+        }
         if (mNavPrev.empty()) {
             mFocus = -1; // (the page's items are not known before its first frame)
         } else if (mFocus < 0 || mFocus >= (int)mNavPrev.size()) {
@@ -1509,13 +1924,29 @@ class LauncherWindow : public Ship::GuiWindow {
         if (mPage == kPageControls && !mControls) { // the panel's Done button
             GoToPage(kPageHome);
         }
+        if (mPage == kPageSaveEditor) {
+            if (mNavBack) { // B: out of a picker or the Pokémon dialog first, then close (asking about unsaved edits)
+                gSaveEditor.Back();
+                mNavBack = false;
+            }
+            if (!gSaveEditor.IsOpen()) {
+                GoToPage(kPageHome);
+            }
+        } else if (gSaveEditor.IsOpen()) { // opened from a Transfer Pak card
+            GoToPage(kPageSaveEditor);
+            mFocusReset = true;
+        }
         ImDrawList* dl = ImGui::GetWindowDrawList();
         Text(24, 14, "stadion", gFonts.title);
-        const char* pageName = mPage == kPageTransferPak ? "Transfer Pak" : mPage == kPageControls ? "Controls" : mPage == kPageTools ? "Files & help" : "";
+        const char* pageName = mPage == kPageTransferPak ? "Transfer Pak" : mPage == kPageControls ? "Controls"
+                               : mPage == kPageTools ? "Files & help" : mPage == kPageSaveEditor ? "Save editor" : "";
         Text(220, 17, pageName, gFonts.body, Theme::dim);
         dl->AddRectFilled(P(0, 50), P(kW, 51), Hex(Theme::cardBorder));
 
-        if (mPage == kPageTools) {
+        if (mPage == kPageSaveEditor) {
+            mDefaultFocus = 0; // (the editor names its own: the current section)
+            EditorPanel(16, 62, kW - 32, 438);
+        } else if (mPage == kPageTools) {
             ToolsPanel(16, 62, kW - 32, 430);
             mDefaultFocus = 0;
         } else if (mPage == kPageTransferPak) {
@@ -1620,10 +2051,11 @@ class LauncherWindow : public Ship::GuiWindow {
     struct NavRect {
         ImVec2 min, max;
     };
-    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2, kPageTools = 3;
+    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2, kPageTools = 3, kPageSaveEditor = 4;
     int mPage = kPageHome;
     std::vector<NavRect> mNavItems, mNavPrev; // this frame's and last frame's focus targets, in drawing order
     int mFocus = -1, mDefaultFocus = 0;
+    bool mFocusReset = false; // the save editor changed its view: the new view's default focus
     bool mNavAccept = false, mNavBack = false, mWasAccept = true, mWasBack = true; // (held at start: not a press)
     int mHeldDx = 0, mHeldDy = 0;
     std::chrono::steady_clock::time_point mRepeatAt;
@@ -1635,6 +2067,10 @@ class LauncherWindow : public Ship::GuiWindow {
     Fast::Fast3dGui* mGui;
     std::shared_ptr<Ship::Window> mWindow;
     bool mControls = false; // the controls panel instead of the player cards
+    bool mGraphics = false; // the graphics panel instead of the player cards
+    bool mSound = false;    // the sound panel instead of the player cards
+    bool mSoundTestOpened = false;
+    bool mGraphicsTestOpened = false;
     int mPort = 0;          // whose controls it shows
     int mCapture = -1;      // the input (kInputs) waiting for a key or controller input, -1: none
     std::string mCaptureId; // the binding it replaces ("": adds one)
@@ -1643,6 +2079,83 @@ class LauncherWindow : public Ship::GuiWindow {
     ImVec2 mOrigin;
     bool mChanged = false;
 };
+
+// Test hook: PORT_LAUNCHER_SCRIPT=<file> drives the launcher with ImGui input, one command per line:
+//   <frame> click <x> <y>   left click at design coordinates (the 960x556 layout; 960x540 handheld)
+//   <frame> move <x> <y>    <frame> wheel <dy>
+//   <frame> text <string>   typed characters      <frame> key <name>   Enter, Escape, Tab, Backspace, Up, Down,
+//                                                                       Left, Right, Ctrl+S, Ctrl+A
+//   <frame> shot <file.ppm> the picture (saved twice: Metal reads the screen back a frame late)
+//   <frame> quit
+// It goes through ImGui's input queue like the mouse and keyboard, so it checks the real controls (also under Wine).
+struct ScriptStep {
+    int frame;
+    std::string cmd, arg;
+};
+
+std::vector<ScriptStep> LoadScript(const char* path) {
+    std::vector<ScriptStep> steps;
+    std::ifstream f(fs::u8path(path));
+    std::string line;
+    while (std::getline(f, line)) {
+        while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
+        if (line.empty() || line[0] == '#') continue;
+        ScriptStep st{};
+        size_t a = line.find(' ');
+        if (a == std::string::npos) continue;
+        st.frame = atoi(line.substr(0, a).c_str());
+        size_t b = line.find(' ', a + 1);
+        st.cmd = line.substr(a + 1, b == std::string::npos ? std::string::npos : b - a - 1);
+        st.arg = b == std::string::npos ? "" : line.substr(b + 1);
+        steps.push_back(st);
+    }
+    return steps;
+}
+
+// returns true for quit
+bool RunScriptStep(const ScriptStep& st) {
+    ImGuiIO& io = ImGui::GetIO();
+    ImGuiViewport* vp = ImGui::GetMainViewport();
+    const float designH = Handheld() ? kHandheldH : kH;
+    const float scale = std::min(vp->Size.x / kW, vp->Size.y / designH);
+    auto pos = [&](const std::string& arg) {
+        float x = 0, y = 0;
+        sscanf(arg.c_str(), "%f %f", &x, &y);
+        return ImVec2(vp->Pos.x + (vp->Size.x - kW * scale) / 2 + x * scale, vp->Pos.y + (vp->Size.y - designH * scale) / 2 + y * scale);
+    };
+    if (st.cmd == "click" || st.cmd == "move") {
+        ImVec2 p = pos(st.arg);
+        io.AddMousePosEvent(p.x, p.y);
+        if (st.cmd == "click") {
+            io.AddMouseButtonEvent(0, true);
+            io.AddMouseButtonEvent(0, false);
+        }
+    } else if (st.cmd == "wheel") {
+        io.AddMouseWheelEvent(0, (float)atof(st.arg.c_str()));
+    } else if (st.cmd == "text") {
+        io.AddInputCharactersUTF8(st.arg.c_str());
+    } else if (st.cmd == "key") {
+        static const std::pair<const char*, ImGuiKey> keys[] = {
+            { "Enter", ImGuiKey_Enter }, { "Escape", ImGuiKey_Escape }, { "Tab", ImGuiKey_Tab },
+            { "Backspace", ImGuiKey_Backspace }, { "Up", ImGuiKey_UpArrow }, { "Down", ImGuiKey_DownArrow },
+            { "Left", ImGuiKey_LeftArrow }, { "Right", ImGuiKey_RightArrow }, { "S", ImGuiKey_S }, { "A", ImGuiKey_A },
+        };
+        std::string name = st.arg;
+        const bool ctrl = name.rfind("Ctrl+", 0) == 0;
+        if (ctrl) name = name.substr(5);
+        for (auto [n, k] : keys) {
+            if (name == n) {
+                if (ctrl) io.AddKeyEvent(ImGuiMod_Ctrl, true);
+                io.AddKeyEvent(k, true);
+                io.AddKeyEvent(k, false);
+                if (ctrl) io.AddKeyEvent(ImGuiMod_Ctrl, false);
+            }
+        }
+    } else if (st.cmd == "quit") {
+        return true;
+    }
+    return false;
+}
 
 } // namespace
 
@@ -1729,8 +2242,15 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
         // PORT_TRACE_PACING=1: launcher frames more than 40 ms apart
         static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
         auto lastFrame = std::chrono::steady_clock::now();
+        static const char* scriptPath = getenv("PORT_LAUNCHER_SCRIPT");
+        std::vector<ScriptStep> script = scriptPath != nullptr ? LoadScript(scriptPath) : std::vector<ScriptStep>{};
         for (int frame = 0; !play && !quit && !restart && window->IsRunning(); frame++) {
             window->HandleEvents();
+            Port::DebugMinimize((unsigned long long)frame); // test hook: PORT_DEBUG_MINIMIZE
+            for (const ScriptStep& st : script) {
+                if (st.frame == frame) quit |= RunScriptStep(st);
+                if (st.cmd == "shot" && (st.frame == frame - 1 || st.frame == frame - 2)) Port::SaveScreen(st.arg.c_str());
+            }
             window->DrawAndRunGraphicsCommands(empty, {});
             auto now = std::chrono::steady_clock::now();
             if (tracePacing && frame > 0 && now - lastFrame > std::chrono::milliseconds(40)) {
@@ -1750,6 +2270,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
         }
         window->GetGui()->RemoveGuiWindow(launcher->GetName());
         Store(state);
+        gSaveEditor.Close(); // (unsaved edits are dropped with the window, as the browser page did)
         if (!play || restart) {
             return "";
         }
@@ -1768,6 +2289,13 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
             SDL_SetWindowSize(sdl, gameW, gameH);
             SDL_SetWindowPosition(sdl, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
             SDL_SetWindowTitle(sdl, "stadion");
+        }
+        // Graphics > Display: the game window windowed or fullscreen (the launcher kept its own window)
+        if (auto config = window->GetContext()->GetChildren().GetFirst<Ship::Config>()) {
+            const bool full = config->GetBool("Window.Fullscreen.Enabled", false);
+            if (full != window->IsFullscreen()) {
+                window->SetFullscreen(full);
+            }
         }
     }
 

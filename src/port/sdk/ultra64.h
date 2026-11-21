@@ -36,6 +36,19 @@
 #include <libultraship/libultra/vi.h>
 #undef OSMesg
 typedef void* OSMesg;
+// HarbourMasters-style message constructors, rewritten for the void* OSMesg. Use OS_MESG_32 for integer
+// messages ('DONE', event codes) and OS_MESG_PTR for pointers; read integers back with OS_MESG_GET_32.
+#undef OS_MESG_8
+#undef OS_MESG_16
+#undef OS_MESG_32
+#undef OS_MESG_PTR
+#undef osSendMesg8
+#undef osSendMesg16
+#undef osSendMesg32
+#undef osSendMesgPtr
+#define OS_MESG_32(x) ((OSMesg)(uintptr_t)(u32)(x))
+#define OS_MESG_PTR(x) ((OSMesg)(x))
+#define OS_MESG_GET_32(msg) ((u32)(uintptr_t)(msg))
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -97,11 +110,7 @@ extern "C" {
 void* Port_GfxPrepareDL(uintptr_t dl);
 void* Port_GfxPrepareVtx(void* v, int n);
 void* Port_GfxPrepareMtx(void* m);
-void Port_GfxFlushCache(void);
 void Port_GfxFrameDone(void);
-// frame interpolation (src/port/interp.h): a new frame's display-list buffer, the scene-graph node being drawn
-void Port_InterpBeginFrame(const void* dlStart);
-void Port_InterpNode(const void* node);
 #ifdef __cplusplus
 }
 #endif

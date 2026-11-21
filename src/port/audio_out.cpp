@@ -8,12 +8,16 @@
 //
 // Accepted buffers are copied to an SDL3 audio stream. Playback starts once the queue reaches its target. The playback
 // ratio then follows the fill level to absorb the difference between host frame pacing and the N64 DAC rate. If the
-// stream falls far behind, the queue is dropped and filled again instead of lagging.
+// stream falls far behind, the queue is dropped and filled again instead of lagging. A queue that ran dry without a
+// long stall raises the target (a host whose frames come unevenly, e.g. a slow GPU; see PORTING_NOTES, Slow GPUs).
 // Output is on at normal speed; PORT_SPEED other than 1 turns it off, PORT_SOUND=0/1 overrides.
+// The launcher's Sound settings (sound_settings.h) set the stream's gain (master, Sound off, background mute) and
+// the queue target (Sound delay).
 // PORT_AUDIO_DUMP=<file> writes everything the AI accepts as raw 16-bit stereo PCM at the AI rate (host byte
 // order; the rate is printed as "[audio] rate"), plus <file>.frames with the VI frame of each buffer.
 #include <SDL3/SDL.h>
 #include "web_audio.h" // (web build: an AudioWorklet instead of SDL's audio device)
+#include "sound_settings.h"
 
 #include <algorithm>
 #include <cmath>
@@ -23,8 +27,8 @@
 #include <cstring>
 #include <mutex>
 #include <string>
+#include "StadionPort.h"
 
-extern "C" uint64_t Port_ViTick(void);
 extern "C" double Port_Speed();
 extern "C" void Port_GbAudioSetFrequency(int32_t freq);
 
@@ -49,11 +53,13 @@ constexpr double kDefaultQueueTarget = 0.045;
 constexpr double kDefaultQueueTarget = 0.070;
 #endif
 double gQueueTarget = kDefaultQueueTarget;
+constexpr double kMaxQueueTarget = 0.120; // the most the target grows to after underruns (s)
 double gRatio = 1.0;
 double gRateIntegral = 0.0;
 double gQueueAvg = 0.0;   // smoothed fill level (s)
 uint64_t gLastOutNs = 0;  // host time of the previous Output (SDL_GetTicksNS)
 bool gPlaying = false;    // the device runs (paused while the queue fills up)
+float gGain = -1.0f;      // the stream's gain as last set (-1: not set on this stream)
 FILE* gDump = nullptr;
 FILE* gDumpFrames = nullptr;
 
@@ -160,6 +166,9 @@ void OpenStream() {
         gQueueTarget = kDefaultQueueTarget;
     }
 #endif
+    gQueueTarget = Port::SoundQueueTarget(gQueueTarget); // launcher > Sound > Sound delay
+    if (getenv("PORT_TRACE_AUDIO_OUT")) fprintf(stderr, "[audio-out] queue target %.1f ms\n", gQueueTarget * 1000);
+    gGain = -1.0f;
     gRatio = 1.0;
     gRateIntegral = 0.0;
     gLastOutNs = 0;
@@ -189,10 +198,18 @@ void Output(const void* data, uint32_t bytes) {
     // SDL can retain input for resampling even when it has no playable output left.
     const bool drained = gPlaying && queued >= 0 && queued < static_cast<int>(bytes) &&
                          SDL_GetAudioStreamAvailable(gStream) == 0;
+    const uint64_t now = SDL_GetTicksNS();
+    const double sinceLast = gLastOutNs != 0 ? (now - gLastOutNs) / 1e9 : 0.0;
     if (drained || queued > kMaxQueue * bytesPerSecond) {
         if (trace) {
             fprintf(stderr, "[audio-out] frame %llu rebuffering (%s)\n", (unsigned long long)gTick,
                     drained ? "empty queue" : "excess backlog");
+        }
+        // The queue ran dry without a long stall (loading, which no queue covers): the host's frames come too
+        // unevenly for the target (a slow GPU), so keep more queued from now on, up to kMaxQueueTarget.
+        if (drained && sinceLast < 0.1 && gTick > 600 && gQueueTarget < kMaxQueueTarget) {
+            gQueueTarget = std::min(gQueueTarget * 1.5, kMaxQueueTarget);
+            if (trace) fprintf(stderr, "[audio-out] queue target raised to %.1f ms\n", gQueueTarget * 1000);
         }
         SDL_PauseAudioStreamDevice(gStream);
         SDL_ClearAudioStream(gStream);
@@ -202,8 +219,7 @@ void Output(const void* data, uint32_t bytes) {
         SDL_SetAudioStreamFrequencyRatio(gStream, 1.0f);
         queued = 0;
     }
-    const uint64_t now = SDL_GetTicksNS();
-    const double dt = gLastOutNs != 0 ? std::min((now - gLastOutNs) / 1e9, 0.1) : 0.0;
+    const double dt = std::min(sinceLast, 0.1);
     gLastOutNs = now;
     if (gPlaying) {
         gQueueAvg += (queued / bytesPerSecond - gQueueAvg) * std::min(1.0, dt / kSmoothing);
@@ -211,6 +227,11 @@ void Output(const void* data, uint32_t bytes) {
         gRateIntegral = std::clamp(gRateIntegral + err * kKi * dt, -0.03, 0.03);
         gRatio = std::clamp(1.0 + gRateIntegral + std::clamp(err * kKp, -0.005, 0.005), 0.97, 1.03);
         SDL_SetAudioStreamFrequencyRatio(gStream, (float)gRatio);
+    }
+    const float gain = Port::SoundOutputGain(false); // master volume, Sound off, muted in the background
+    if (gain != gGain) {
+        SDL_SetAudioStreamGain(gStream, gain);
+        gGain = gain;
     }
     SDL_PutAudioStreamData(gStream, data, (int)bytes);
     if (!gPlaying && SDL_GetAudioStreamQueued(gStream) >= gQueueTarget * bytesPerSecond) {

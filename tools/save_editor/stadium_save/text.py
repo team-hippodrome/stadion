@@ -48,11 +48,19 @@ def decode_gb(data):
     return "".join(out)
 
 
+# Alternative spellings accepted when encoding (typing "<M>" is easier than a ♂ the keyboard does not have, and
+# word processors turn ' and - into typographic characters)
+_ALIASES = {"<M>": "\u2642", "<F>": "\u2640", "<PK>": "<PK>", "<MN>": "<MN>",
+            "\u2019": "'", "\u2018": "'", "\u00b4": "'", "`": "'", "\u2013": "-", "\u2014": "-", "\u2212": "-",
+            "\u00d7": "\u00d7", "\u2715": "\u00d7"}
+
+
 def _tokens(text):
+    """Characters, and <...> groups (<PK>, <MN>, <PLAYER>, <xx> hex byte). A "<" without a closing ">" is a character."""
     i = 0
     while i < len(text):
-        if text[i] == "<":
-            j = text.index(">", i)
+        j = text.find(">", i) if text[i] == "<" else -1
+        if j > 0:
             yield text[i:j + 1]
             i = j + 1
         else:
@@ -64,13 +72,16 @@ def encode_gb(text, size, pad=0x00):
     """Game Boy text + 0x50 terminator, padded to size bytes."""
     out = bytearray()
     for tok in _tokens(text):
-        if tok == "<PLAYER>":
+        key = tok.upper() if len(tok) > 1 else tok
+        if key == "<PLAYER>":
             out.append(GB_PLAYER)
-        elif tok in _CHR_TO_GB:
-            out.append(_CHR_TO_GB[tok])
-        elif len(tok) > 1:
+        elif key in _CHR_TO_GB:
+            out.append(_CHR_TO_GB[key])
+        elif key in _ALIASES and _ALIASES[key] in _CHR_TO_GB:
+            out.append(_CHR_TO_GB[_ALIASES[key]])
+        elif len(tok) > 1 and _is_hex_byte(tok[1:-1]):
             out.append(int(tok[1:-1], 16))
-        elif tok.upper() in _CHR_TO_GB:
+        elif len(tok) == 1 and tok.upper() in _CHR_TO_GB:
             out.append(_CHR_TO_GB[tok.upper()])
         else:
             raise ValueError("character %r has no Game Boy encoding" % tok)
@@ -78,6 +89,10 @@ def encode_gb(text, size, pad=0x00):
     if len(out) > size:
         raise ValueError("text %r needs %d bytes, field has %d" % (text, len(out), size))
     return bytes(out) + bytes([pad]) * (size - len(out))
+
+
+def _is_hex_byte(h):
+    return len(h) == 2 and all(c in "0123456789abcdefABCDEF" for c in h)
 
 
 def decode_n64(data):
