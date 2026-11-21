@@ -66,6 +66,7 @@ jobs:
             cp README.md "$dir/"
             mkdir -p "$dir/docs"
             cp docs/BUILDING.md "$dir/docs/BUILDING.md"
+            cp docs/USAGE.md "$dir/docs/USAGE.md"
             (cd "$dir" && zip -r "../../dist/${name}-v${VERSION}.zip" .)
           done
           ls -l dist

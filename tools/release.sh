@@ -147,6 +147,7 @@ build_windows() { # $1: x64 or arm64
     cp "$SRC/README.md" "$stage/README.md"
     mkdir -p "$stage/docs"
     cp "$SRC/docs/BUILDING.md" "$stage/docs/BUILDING.md"
+    cp "$SRC/docs/USAGE.md" "$stage/docs/USAGE.md"
     rm -f "$DIST/stadion-windows-$arch-v$VERSION.zip"
     (cd "$stage" && zip -q -r "$DIST/stadion-windows-$arch-v$VERSION.zip" .)
     rm -rf "$stage"
