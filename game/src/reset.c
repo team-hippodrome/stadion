@@ -6,7 +6,7 @@
 // this file handles the soft reset effect.
 typedef struct UnkStruct800A6D20 {
     /* 0x000 */ SchedClient client;
-    /* 0x1E0 */ char unk1E0[0x400];
+    /* 0x1E0 */ char stack[0x400]; // SoftReset_CreateThread passes &gSoftResetLineNum as the stack top.
     /* 0x5E0 */ u32 gSoftResetLineNum;
     /* 0x5E4 */ s32 gSoftResetRed;
     /* 0x5E8 */ s32 gSoftResetGreen;
