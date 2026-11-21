@@ -58,7 +58,7 @@ unk_D_86002F34_alt2* GeoNode_CreateWithReference(MainPoolState* arg0, unk_D_8600
 
     if (arg1 != NULL) {
         arg1->unk_18 = arg2;
-        GeoNode_Init(arg1, 1);
+        GeoNode_Init(&arg1->node, 1);
     }
 
     return arg1;
@@ -74,7 +74,7 @@ CameraNode* GeoNode_CreateCamera(MainPoolState* arg0, CameraNode* arg1, s16 arg2
         GeoCamera_SetPerspective(arg1, 30.0f, 100.0f, 12800.0f);
         GeoCamera_SetEyeAtUp(arg1, 0.0f, 512.0f, 4096.0f, 0.0f, 0.0f, 0.0f, 0);
         GeoCamera_SetBackground(arg1, 2, 0, 0, 0, 0);
-        GeoNode_Init(arg1, 2);
+        GeoNode_Init(&arg1->node, 2);
     }
     return arg1;
 }
@@ -86,7 +86,7 @@ unk_D_86002F34_alt13* GeoNode_CreateType3(MainPoolState* arg0, unk_D_86002F34_al
 
     if (arg1 != NULL) {
         arg1->unk_18 = arg2;
-        GeoNode_Init(arg1, 3);
+        GeoNode_Init(&arg1->node, 3);
     }
 
     return arg1;
@@ -100,7 +100,7 @@ unk_D_86002F34_alt1* GeoNode_CreateType4(MainPoolState* arg0, unk_D_86002F34_alt
     if (arg1 != NULL) {
         arg1->unk_18 = arg2;
         arg1->unk_1A = 0;
-        GeoNode_Init(arg1, 4);
+        GeoNode_Init(&arg1->node, 4);
     }
 
     return arg1;
@@ -112,7 +112,7 @@ unk_D_86002F34_alt14* GeoNode_CreateOrtho(MainPoolState* arg0, unk_D_86002F34_al
     }
 
     if (arg1 != NULL) {
-        GeoNode_Init(arg1, 5);
+        GeoNode_Init(&arg1->node, 5);
         arg1->node.renderFlags |= arg2 & 3;
     }
 
@@ -125,7 +125,7 @@ unk_D_86002F34_alt15* GeoNode_CreatePerspective(MainPoolState* arg0, unk_D_86002
     }
 
     if (arg1 != NULL) {
-        GeoNode_Init(arg1, 6);
+        GeoNode_Init(&arg1->node, 6);
         arg1->node.renderFlags |= arg2 & 3;
     }
 
@@ -143,7 +143,7 @@ unk_D_86002F34_alt16* GeoNode_CreateBackground(MainPoolState* arg0, unk_D_86002F
     if (arg1 != NULL) {
         temp_v0 = ((arg2 >> 3) << 0xB) | ((arg3 >> 3) << 6) | ((arg4 >> 3) << 1) | 1;
         arg1->unk_18 = (temp_v0 << 0x10) | temp_v0;
-        GeoNode_Init(arg1, 7);
+        GeoNode_Init(&arg1->node, 7);
     }
     return arg1;
 }
@@ -154,14 +154,14 @@ unk_D_86002F34_alt17* GeoNode_CreateClearDepth(MainPoolState* arg0, unk_D_86002F
     }
 
     if (arg1 != NULL) {
-        GeoNode_Init(arg1, 8);
+        GeoNode_Init(&arg1->node, 8);
     }
 
     return arg1;
 }
 
-unk_D_8690A610* GeoNode_CreateFog(intptr_t arg0, unk_D_8690A610* arg1, s16 arg2, s16 arg3, u8 r, u8 g, u8 b, u8 a) {
-    if (arg0 != 0) {
+unk_D_8690A610* GeoNode_CreateFog(MainPoolState* arg0, unk_D_8690A610* arg1, s16 arg2, s16 arg3, u8 r, u8 g, u8 b, u8 a) {
+    if (arg0 != NULL) {
         arg1 = MainPool_AllocAligned(arg0, sizeof(unk_D_8690A610), 4);
     }
 
@@ -171,7 +171,7 @@ unk_D_8690A610* GeoNode_CreateFog(intptr_t arg0, unk_D_8690A610* arg1, s16 arg2,
         arg1->unk_18.unk_04.rgba = PORT_BE32((r << 0x18) | (g << 0x10) | (b << 8) |
                                              a); /* PORT: .rgba holds the bytes r,g,b,a in memory order; the numeric
                                                     0xRRGGBBAA form needs a swap on this host */
-        GeoNode_Init(arg1, 0xA);
+        GeoNode_Init((GraphNode*)arg1, 0xA);
     }
 
     return arg1;
@@ -190,7 +190,7 @@ unk_D_86002F34_alt18* GeoNode_CreateLight(MainPoolState* arg0, unk_D_86002F34_al
         arg1->a = a;
         arg1->unk_1C = arg2;
         arg1->unk_1E = arg3;
-        GeoNode_Init(arg1, 0xB);
+        GeoNode_Init(&arg1->node, 0xB);
     }
 
     return arg1;
@@ -205,7 +205,7 @@ unk_D_86002F34_alt19* GeoNode_CreateAmbientLight(MainPoolState* arg0, unk_D_8600
         arg1->r = r;
         arg1->g = g;
         arg1->b = b;
-        GeoNode_Init(arg1, 0xD);
+        GeoNode_Init(&arg1->node, 0xD);
     }
 
     return arg1;
@@ -226,7 +226,7 @@ unk_D_86002F34* GeoNode_CreateShadowContext(MainPoolState* arg0, unk_D_86002F34*
         arg1->unk_25 = arg4;
         arg1->unk_26 = arg6;
         arg1->unk_28 = NULL;
-        GeoNode_Init(arg1, 0xE);
+        GeoNode_Init(&arg1->node, 0xE);
     }
 
     return arg1;
@@ -243,7 +243,7 @@ unk_D_86002F34_alt12* GeoNode_CreateShadow(MainPoolState* arg0, unk_D_86002F34_a
         arg1->unk_1A = arg3;
         arg1->unk_1C = arg4;
         arg1->unk_1E = arg5;
-        GeoNode_Init(arg1, 0xF);
+        GeoNode_Init(&arg1->node, 0xF);
     }
 
     return arg1;
@@ -257,7 +257,7 @@ unk_D_86002F34_alt20* GeoNode_CreateCullDistance(MainPoolState* arg0, unk_D_8600
     if (arg1 != NULL) {
         arg1->unk_18 = arg2;
         arg1->unk_1A = arg3;
-        GeoNode_Init(arg1, 0x10);
+        GeoNode_Init(&arg1->node, 0x10);
     }
 
     return arg1;
@@ -271,7 +271,7 @@ unk_D_86002F34_alt21* GeoNode_CreateSwitchCase(MainPoolState* arg0, unk_D_86002F
     if (arg1 != NULL) {
         arg1->unk_18 = arg2;
         arg1->unk_1A = arg3;
-        GeoNode_Init(arg1, 0x11);
+        GeoNode_Init(&arg1->node, 0x11);
     }
 
     return arg1;
@@ -286,7 +286,7 @@ unk_D_86002F34_alt5* GeoNode_CreateTranslateRotate(MainPoolState* arg0, unk_D_86
     if (arg1 != NULL) {
         arg1->unk_18 = *arg2;
         arg1->unk_24 = *arg3;
-        GeoNode_Init(arg1, 0x12);
+        GeoNode_Init(&arg1->node, 0x12);
     }
 
     return arg1;
@@ -299,7 +299,7 @@ unk_D_86002F34_alt22* GeoNode_CreateTranslate(MainPoolState* arg0, unk_D_86002F3
 
     if (arg1 != NULL) {
         arg1->unk_18 = *arg2;
-        GeoNode_Init(arg1, 0x13);
+        GeoNode_Init(&arg1->node, 0x13);
     }
 
     return arg1;
@@ -318,7 +318,7 @@ unk_D_86002F34_alt6* GeoNode_CreateAnimatedPart(MainPoolState* arg0, unk_D_86002
         arg1->unk_30 = arg2;
         arg1->unk_31 = arg3;
         arg1->unk_32 = arg4;
-        GeoNode_Init(arg1, 0x14);
+        GeoNode_Init(&arg1->node, 0x14);
     }
 
     return arg1;
@@ -333,7 +333,7 @@ unk_D_86002F34_alt7* GeoNode_CreateDisplayListPart(MainPoolState* arg0, unk_D_86
     if (arg1 != NULL) {
         arg1->unk_18 = arg3;
         arg1->unk_1C = arg4;
-        GeoNode_Init(arg1, 0x15);
+        GeoNode_Init(&arg1->node, 0x15);
         arg1->node.renderLayer = arg2;
     }
 
@@ -367,7 +367,7 @@ DisplayObject* GeoNode_CreateModelPart(MainPoolState* arg0, DisplayObject* arg1,
         arg1->eventTrack.data = NULL;
         arg1->eventTrack.frame = 0;
         arg1->eventTrack.lastRenderFrame = 0;
-        GeoNode_Init(&arg1->node, 0x16);
+        GeoNode_Init((GraphNode*)&arg1->node, 0x16);
         arg1->node.renderFlags |= 0x60;
     }
 
@@ -387,7 +387,7 @@ unk_D_86002F34_alt8* GeoNode_CreateDisplayListMatrix(MainPoolState* arg0, unk_D_
         } else {
             MtxF_Copy(&arg1->unk_1C, arg4);
         }
-        GeoNode_Init(arg1, 0x17);
+        GeoNode_Init(&arg1->node, 0x17);
         arg1->node.renderLayer = arg2;
     }
 
@@ -412,7 +412,7 @@ unk_D_86002F34_alt9* GeoNode_CreateScale(MainPoolState* arg0, unk_D_86002F34_alt
         arg1->unk_1C = *arg4;
         arg1->unk_28 = arg5;
         arg1->unk_18 = arg3;
-        GeoNode_Init(arg1, 0x18);
+        GeoNode_Init(&arg1->node, 0x18);
         arg1->node.renderLayer = arg2;
     }
 
@@ -426,7 +426,7 @@ unk_func_80011B94* GeoNode_CreateDisplayList(MainPoolState* arg0, unk_func_80011
 
     if (arg1 != NULL) {
         arg1->gfx = arg3;
-        GeoNode_Init(arg1, 0x19);
+        GeoNode_Init((GraphNode*)arg1, 0x19);
         arg1->display_node_header.renderLayer = arg2;
     }
 
@@ -448,7 +448,7 @@ unk_D_86002F34_alt10* GeoNode_CreateShadowTexture(MainPoolState* arg0, unk_D_860
         arg1->unk_24.rgba = PORT_BE32((r << 0x18) | (g << 0x10) | (b << 8) |
                                       a); /* PORT: .rgba holds the bytes r,g,b,a in memory order; the numeric 0xRRGGBBAA
                                              form needs a swap on this host */
-        GeoNode_Init(arg1, 0x1A);
+        GeoNode_Init(&arg1->node, 0x1A);
     }
 
     return arg1;
@@ -461,7 +461,7 @@ unk_D_86002F34_alt23* GeoNode_CreateAnchor(MainPoolState* arg0, unk_D_86002F34_a
 
     if (arg1 != NULL) {
         arg1->unk_18 = arg2;
-        GeoNode_Init(arg1, 0x1B);
+        GeoNode_Init(&arg1->node, 0x1B);
     }
 
     return arg1;
@@ -484,7 +484,7 @@ unk_D_86002F34_alt24* GeoNode_CreateGroup(MainPoolState* arg0, unk_D_86002F34_al
         arg1->unk_28.rgba = PORT_BE32((r << 0x18) | (g << 0x10) | (b << 8) |
                                       a); /* PORT: .rgba holds the bytes r,g,b,a in memory order; the numeric 0xRRGGBBAA
                                              form needs a swap on this host */
-        GeoNode_Init(arg1, 0x1C);
+        GeoNode_Init(&arg1->node, 0x1C);
         arg1->node.renderLayer = arg2;
     }
 
@@ -566,9 +566,9 @@ void GraphNode_AppendChild(GraphNode* arg0, GraphNode* arg1) {
     GraphNode* temp_v1;
 
     if ((arg0 != NULL) && (arg1 != NULL)) {
-        temp_v0 = arg0->children;
+        temp_v0 = (GraphNode*)arg0->children; // children is typed as the camera most roots hold first
         if (temp_v0 == NULL) {
-            arg0->children = arg1;
+            arg0->children = (CameraNode*)arg1;
             arg1->prevSibling = arg1;
             arg1->nextSibling = arg1;
         } else {

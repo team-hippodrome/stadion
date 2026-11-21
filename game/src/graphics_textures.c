@@ -226,7 +226,7 @@ void Gfx_DrawTiledImageMesh(s16 arg0, s16 arg1, s16 arg2, f32 arg3, Vtx* arg4, u
     Vec3s spCC;
     Vec3f spC0;
     Vec3f spB4;
-    MtxF* temp_s4;
+    Mtx* temp_s4;
     DepthBuffer* temp_s1;
     Vp* temp_s2;
     MtxF* temp_s0;
@@ -384,8 +384,8 @@ void Font_LoadSet(s32 arg0, s32 arg1, s32 arg2) {
         gFontContext->setIndex = sp1C;
         gFontContext->unk_00[sp1C].width = arg1;
         gFontContext->unk_00[sp1C].height = arg2;
-        gFontContext->unk_00[sp1C].glyphWidths = temp_v0_2;
-        gFontContext->unk_00[sp1C].texture = &temp_v0_2->unk_90;
+        gFontContext->unk_00[sp1C].glyphWidths = (u8*)temp_v0_2; // the set file starts with the width table
+        gFontContext->unk_00[sp1C].texture = (u8*)&temp_v0_2->unk_90;
         main_pool_set_func(temp_v0_2, sp1C, &Font_FreeSetAsset);
     }
 }
@@ -545,7 +545,7 @@ s16 Font_DrawChar(s16 x, s16 y, s16 char_index) {
     return x;
 }
 
-char* String_CopyBytesAndAdvance(char* buffer, const char* data, u32 size) {
+char* String_CopyBytesAndAdvance(char* buffer, const char* data, size_t size) {
     return (char*)memcpy(buffer, data, size) + size;
 }
 

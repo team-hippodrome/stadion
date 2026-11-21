@@ -73,7 +73,7 @@ ModelLoadContext* PokeIcon_AllocFramebuffers(u32 arg0);
 void PokeIcon_OpenModelArchives(void);
 s32 PokeIcon_RequestFrameLoad(ModelLoadContext* arg0, u16 arg1, arg1_func_80010CA8 arg2);
 s32 PokeIcon_RequestFrameLoadWithVariant(ModelLoadContext* arg0, u16 arg1, arg1_func_80010CA8 arg2, s16 arg3);
-s32 PokeIcon_RequestBackgroundLoad(ModelLoadContext* arg0, s16* arg1, intptr_t arg2);
+s32 PokeIcon_RequestBackgroundLoad(ModelLoadContext* arg0, s16* arg1, arg1_func_80019420* arg2);
 s32 PokeIcon_ApplyLoadResult(ModelLoadContext* arg0, sp18_func_800198E4* arg1);
 s32 PokeIcon_PollFrameLoad(ModelLoadContext* arg0);
 s32 PokeIcon_PollBackgroundLoad(ModelLoadContext* arg0);

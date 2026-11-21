@@ -898,8 +898,8 @@ typedef struct Rectangle {
 } Rectangle; // size >= 0x8
 extern Rectangle D_800A7440;
 
-extern struct DisplayNodeHeader D_800AC840;
-extern struct DisplayNodeHeader D_800AC858;
+extern GraphNode D_800AC840;
+extern GraphNode D_800AC858;
 
 typedef struct unk_D_8006FF00 {
     /* 0x00 */ u8 unk_00;

@@ -67,14 +67,14 @@ s32 ModelRenderer_IsReady(UNUSED s32 arg0) {
 
 void ModelRenderer_CacheSlotMatrices(u8 arg0) {
     MtxF_Copy(D_800AF7C8[arg0].mtx, GeoRender_GetRelativeMatrix(0));
-    MtxF_Copy(D_800AF7C8[arg0].mtx[1].mf, GeoRender_GetRelativeMatrix(-1));
+    MtxF_Copy(&D_800AF7C8[arg0].mtx[1], GeoRender_GetRelativeMatrix(-1));
 }
 
 void ModelRenderer_ApplySlotScale(u8 index) {
     MtxF* temp_a1;
     MtxF sp1C;
 
-    temp_a1 = &D_800AF7C8[index];
+    temp_a1 = D_800AF7C8[index].mtx;
     MtxF_ExtractScale(&sp1C, &D_8006F088->view.floatMatrix);
     guMtxCatF(sp1C.mf, temp_a1->mf, temp_a1->mf);
 }
@@ -91,7 +91,7 @@ void ModelRenderer_RebuildSlotMatrix(u8 index) {
     MtxF sp38;
     Vec3f sp2C;
 
-    temp_a0 = &D_800AF7C8[index].mtx;
+    temp_a0 = D_800AF7C8[index].mtx;
 
     MtxF_GetScaleVector(temp_a0, &sp2C);
     guScaleF(sp38.mf, sp2C.x, sp2C.y, sp2C.z);
@@ -102,7 +102,7 @@ void ModelRenderer_RebuildSlotMatrix(u8 index) {
 
 void ModelRenderer_ClearSlotModels(s32 arg0) {
     s32 i;
-    StadiumModelSlot* slot = &D_800AFFC8[arg0];
+    StadiumModelSlot* slot = D_800AFFC8[arg0];
 
     for (i = 0; i < 3; i++) {
         slot[i].model.unk_00 = 0;
@@ -163,7 +163,7 @@ void ModelRenderer_UpdateSlotVertices(void) {
         ModelRenderer_CacheSlotMatrices(index);
         ModelRenderer_RebuildSlotMatrix(index);
         ModelRenderer_ApplySlotScale(index);
-        func_800361C4(&D_800AFFC8[index][D_800AF7B0[index & 1]].model, &D_800AF7C8[index].mtx);
+        func_800361C4(&D_800AFFC8[index][D_800AF7B0[index & 1]].model, D_800AF7C8[index].mtx);
     }
 }
 
@@ -199,12 +199,12 @@ Gfx* ModelRenderer_DrawStaticSegment(Gfx* gfx) {
     guMtxCatL(&tempMtx, mtxL, mtxL);
     // Keep expanded GBI commands on one line for IDO matching.
     // clang-format off
-    {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDA380002;    _gfx->words.w1 = mtxL;    }
+    {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDA380002;    _gfx->words.w1 = (uintptr_t)mtxL;    }
     gfx = ModelRenderer_SetupSlotColors(gfx);
     {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDB060038;    _gfx->words.w1 = (uintptr_t) segment->vertexSegment; /* PORT64: was (s32) */    }
-    {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = (intptr_t) segment->displayList;    }
+    {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = (uintptr_t) segment->displayList;    }
     {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xD8380002;    _gfx->words.w1 = 0x40;    }
-    {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = &D_800762B0;    }
+    {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = (uintptr_t)&D_800762B0;    }
     // clang-format on
     return gfx;
 }
@@ -236,8 +236,8 @@ Gfx* ModelRenderer_RenderActiveSlot(Gfx* gfx) {
                 // Keep expanded GBI commands on one line for IDO matching.
                 // clang-format off
                 {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDB060038;    _gfx->words.w1 = (uintptr_t) segment->vertexSegment; /* PORT64: was (s32) */    }
-                {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = (intptr_t) segment->displayList;    }
-                {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = &D_800762B0;    }
+                {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = (uintptr_t) segment->displayList;    }
+                {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = (uintptr_t)&D_800762B0;    }
                 // clang-format on
             }
             *var_v1 += 1;
@@ -256,14 +256,14 @@ Gfx* ModelRenderer_RenderActiveSlot(Gfx* gfx) {
         case 3:
             vtx = Gfx_AllocDisplayList(0xA0);
             // clang-format off
-            {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDA380002;    _gfx->words.w1 = &D_80076270;    }
+            {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDA380002;    _gfx->words.w1 = (uintptr_t)&D_80076270;    }
             // clang-format on
             gfx = ModelRenderer_SetupSlotColors(gfx);
             var_v1 = &D_800AF7B0[mode & 1];
             gfx = Model_Draw(gfx, &D_800AFFC8[mode][*var_v1].model, vtx);
             // clang-format off
             {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xD8380002;    _gfx->words.w1 = 0x40;    }
-            {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = &D_800762B0;    }
+            {    Gfx *_gfx = (Gfx *)(gfx++);    _gfx->words.w0 = 0xDE000000;    _gfx->words.w1 = (uintptr_t)&D_800762B0;    }
             // clang-format on
             break;
     }

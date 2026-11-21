@@ -60,3 +60,15 @@ game/src/scheduler.c
 game/src/session.c
 game/src/stage_loader.c
 game/src/util.c
+# geo/model rendering
+game/src/33FE0.c
+game/src/geo_layout.c
+game/src/geo_node.c
+game/src/geo_render.c
+game/src/gfx_buffer.c
+game/src/gfx_rect.c
+game/src/graphics_textures.c
+game/src/model_animation.c
+game/src/model_animation_events.c
+game/src/model_renderer.c
+game/src/model_renderer_callbacks.c

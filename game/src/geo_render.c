@@ -116,7 +116,7 @@ static u32 D_8006F124[4][9] = {
     },
 };
 
-static u8 D_8006F1B4[15][16] = {
+static ParticleCombineMux D_8006F1B4[15] = {
     { 0x1F, 0x1F, 0x1F, 3, 7, 7, 7, 3, 0, 0x1F, 4, 0x1F, 0, 7, 6, 7 },
     { 1, 0x1F, 3, 0x1F, 7, 7, 7, 1, 0, 0x1F, 4, 0x1F, 0, 7, 6, 7 },
     { 1, 3, 8, 3, 7, 7, 3, 7, 0, 0x1F, 4, 0x1F, 0, 7, 6, 7 },
@@ -418,7 +418,7 @@ void GeoOverlay_Draw(CameraOverlay* arg0, CameraOrthographic* arg1) {
 }
 
 void Geo_ProcessNodeChildren(GraphNode* arg0) {
-    GraphNode* temp_s2 = arg0->children;
+    GraphNode* temp_s2 = (GraphNode*)arg0->children;
     GraphNode* var_s0 = temp_s2;
 
     if (temp_s2 != NULL) {
@@ -438,7 +438,7 @@ void Geo_ProcessNodeChildren(GraphNode* arg0) {
 
 void Geo_NodeReference(GraphNode* arg0) {
     UNUSED s32 pad;
-    GraphNode* temp_a1 = ((unk_D_86002F34*)arg0)->unk_18;
+    GraphNode* temp_a1 = ((unk_D_86002F34_alt2*)arg0)->unk_18; // GeoNode_CreateWithReference
 
     if ((temp_a1 != NULL) && (temp_a1->flags & 1)) {
         D_800AA6C0 = 0;
@@ -482,7 +482,7 @@ void Geo_NodeCamera(GraphNode* arg0) {
             temp_s2->unk_18, temp_s2->unk_1C);
     guPerspective(sp48->projectionMatrix, &sp48->unk_04, sp48->verticalFieldOfView, sp48->unk_0C, sp48->nearPlane,
                   sp48->farPlane, sp48->unk_18);
-    guLookAtReflectF(&temp_s1->floatMatrix, temp_s1->unk_44, temp_s1->eyePosition.x, temp_s1->eyePosition.y,
+    guLookAtReflectF(temp_s1->floatMatrix.mf, temp_s1->unk_44, temp_s1->eyePosition.x, temp_s1->eyePosition.y,
                      temp_s1->eyePosition.z, temp_s1->targetPosition.x, temp_s1->targetPosition.y,
                      temp_s1->targetPosition.z, temp_s1->upDirection.x, temp_s1->upDirection.y, temp_s1->upDirection.z);
     MtxF_ToFixed(temp_s1->fixedMatrix, &temp_s1->floatMatrix);
@@ -518,7 +518,7 @@ void Geo_NodeCamera(GraphNode* arg0) {
 }
 
 void Geo_NodeType3Pass(GraphNode* arg0) {
-    D_8006F08C = arg0;
+    D_8006F08C = (unk_D_86002F34_alt1*)arg0;
     Geo_ProcessNodeChildren(arg0);
     D_8006F08C = NULL;
 }
@@ -596,7 +596,8 @@ void Geo_NodePerspective(GraphNode* arg0) {
 }
 
 void Geo_NodeBackground(GraphNode* arg0) {
-    unk_D_86002F34_alt2* arg = (unk_D_86002F34_alt2*)arg0;
+    // PORT64: GeoNode_CreateBackground's node (a u32 fill colour at 0x18); the alt2 view read it as an 8-byte pointer.
+    unk_D_86002F34_alt16* arg = (unk_D_86002F34_alt16*)arg0;
     CameraViewport* ptr = &D_8006F088->viewport;
 
     GfxImage_FillRectangle(&gDisplayListHead, ptr->x, ptr->y, ptr->width, ptr->height, arg->unk_18);
@@ -737,7 +738,7 @@ void Geo_NodeCullDistance(GraphNode* arg0) {
 void Geo_NodeSwitchCase(GraphNode* arg0) {
     unk_D_86002F34_alt3* arg = (unk_D_86002F34_alt3*)arg0;
     s32 i;
-    GraphNode* var_a1 = arg->node.children;
+    GraphNode* var_a1 = (GraphNode*)arg->node.children;
 
     if (var_a1 != NULL) {
         for (i = 0; i < arg->unk_1A; i++) {
@@ -867,7 +868,7 @@ void Geo_NodeModelPart(GraphNode* arg0) {
             D_800AA8C8.unk_10A0++;
 
             GeoRender_CommitMatrix();
-            D_8006F09C = arg0;
+            D_8006F09C = (DisplayObject*)arg0;
 
             GeoRender_SetMaterialParams(arg->fogColor, arg->lodFraction, arg->textureMode);
 
@@ -1047,9 +1048,9 @@ void Geo_NodeShadow(GraphNode* arg0) {
         GeoRender_CommitMatrix();
 
         if (arg->unk_18 == 0) {
-            gSPBranchList(&temp_s1[1], Util_ConvertAddrToVirtAddr(D_1002480));
+            gSPBranchList(&temp_s1[1], ADDR_TO_VIRTUAL(D_1002480));
         } else {
-            gSPBranchList(&temp_s1[1], Util_ConvertAddrToVirtAddr(D_1002508));
+            gSPBranchList(&temp_s1[1], ADDR_TO_VIRTUAL(D_1002508));
         }
         gDPSetEnvColor(&temp_s1[0], 0, 0, 0, (s32)(150.0f * sp80));
 
@@ -1062,7 +1063,7 @@ void Geo_NodeShadow(GraphNode* arg0) {
         gDPSetFogColor(gDisplayListHead++, 255, 255, 255, 0);
         gDPSetPrimColor(gDisplayListHead++, 0, D_8006F09C->lodFraction, 255, 255, 255, 255);
 
-        GeoRender_SubmitDisplayList((uintptr_t)temp_s1, 1);
+        GeoRender_SubmitDisplayList(temp_s1, 1);
         Geo_ProcessNodeChildren(arg0);
 
         D_800AA8C8.unk_10A0--;
@@ -1110,19 +1111,19 @@ void Geo_ProcessCallbacks(GraphNode* arg0, s32 arg1) {
                     break;
 
                 case 2:
-                    var_s0 = &D_8006F088;
+                    var_s0 = (GraphNode**)&D_8006F088;
                     break;
 
                 case 4:
-                    var_s0 = &D_8006F090;
+                    var_s0 = (GraphNode**)&D_8006F090;
                     break;
 
                 case 6:
-                    var_s0 = &D_8006F098;
+                    var_s0 = (GraphNode**)&D_8006F098;
                     break;
 
                 case 0x16:
-                    var_s0 = &D_8006F09C;
+                    var_s0 = (GraphNode**)&D_8006F09C;
                     break;
             }
 
@@ -1130,7 +1131,7 @@ void Geo_ProcessCallbacks(GraphNode* arg0, s32 arg1) {
                 *var_s0 = var_s1;
             }
 
-            Geo_ProcessCallbacks(var_s1->children, arg1);
+            Geo_ProcessCallbacks((GraphNode*)var_s1->children, arg1);
 
             if (var_s0 != NULL) {
                 *var_s0 = NULL;
@@ -1232,7 +1233,7 @@ void GeoRender_ApplyMaterialState(void) {
     gDPSetTextureLUT(gDisplayListHead++, G_TT_NONE);
     gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF);
 
-    GeoRender_SetCombineMode(gDisplayListHead++, D_8006F1B4[D_800ABCB8->unk_25]);
+    GeoRender_SetCombineMode(gDisplayListHead++, &D_8006F1B4[D_800ABCB8->unk_25]);
 
     gSPSetGeometryMode(gDisplayListHead++, G_SHADE | G_CULL_BACK | G_SHADING_SMOOTH);
     gSPClearGeometryMode(gDisplayListHead++, G_FOG | G_TEXTURE_GEN);
@@ -1278,7 +1279,7 @@ void GeoRender_SetPrimitiveColor(unk_D_800ABB10* arg0) {
 void GeoRender_SetCombineTableEntry(unk_D_800ABB10* arg0) {
     if (arg0->unk_00 != D_800ABCB8->unk_25) {
         GeoRender_SyncMaterialState();
-        GeoRender_SetCombineMode(gDisplayListHead++, D_8006F1B4[arg0->unk_00]);
+        GeoRender_SetCombineMode(gDisplayListHead++, &D_8006F1B4[arg0->unk_00]);
         D_800ABCB8->unk_25 = arg0->unk_00;
     }
 }
@@ -1455,7 +1456,7 @@ void GeoRender_SubmitDisplayList(Gfx* arg0, s32 arg1) {
     if ((D_8006F120 != 0) && !(D_800ABB04 & 2) && (D_800ABB10.unk_01 > 0)) {
         if (arg0 != NULL) {
             if (((uintptr_t)arg0 >= 0x81000000) && ((uintptr_t)arg0 < 0x90000000)) {
-                gSPDisplayList(gDisplayListHead++, Memmap_GetFragmentVaddr((uintptr_t)arg0));
+                gSPDisplayList(gDisplayListHead++, (Gfx*)Memmap_GetFragmentVaddr(arg0));
             } else {
                 gSPDisplayList(gDisplayListHead++, arg0);
             }
