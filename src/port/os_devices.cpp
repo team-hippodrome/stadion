@@ -560,6 +560,11 @@ extern "C" int64_t Port_NextRetraceNs() {
     return last + (int64_t)periodNs;
 }
 
+static std::atomic<uint64_t> gGameFramesSubmitted{ 0 };
+extern "C" uint64_t Port_GameFramesSubmitted() {
+    return gGameFramesSubmitted.load(std::memory_order_relaxed);
+}
+
 extern "C" uint64_t Port_ViTick() {
     return gTick.load();
 }
@@ -1526,6 +1531,7 @@ void Port::PumpRspTasks() {
         auto taskStart = std::chrono::steady_clock::now();
         if (t->t.type == M_GFXTASK) {
             static uint64_t gfxCount = 0;
+            gGameFramesSubmitted.fetch_add(1, std::memory_order_relaxed);
             bool stopFrame, shotFrame;
             CheckCapture(&stopFrame, &shotFrame);
             // (Port_XcheckWantDraw: the battle cross-check is capturing a move animation, src/port/xcheck.cpp)
