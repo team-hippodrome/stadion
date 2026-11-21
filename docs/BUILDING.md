@@ -105,7 +105,8 @@ moves `latest` and creates the GitHub release, after asking. `--only macos,windo
   against the sound, for ares or the port, against a video such as a console capture; `tools/interp_check/` checks
   Smooth motion's in-between pictures and pacing)
 - `replays/` — input recordings used as regression tests
-- `PORTING_NOTES.md` — what was done, how it was checked against ares, debug switches
+- `docs/archive/PORTING_NOTES.md` — archived (may be out of date): what was done, how it was checked against ares, debug switches
+- `docs/TYPE_SAFETY.md` — warning groups, the `cmake/strict_sources.txt` ratchet and the 64-bit type-fix conventions
 
 ## The libultraship submodule
 

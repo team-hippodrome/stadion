@@ -252,7 +252,7 @@ s32 BattlePrep_BadgeCarouselGeoCallback(s32 arg0, unk_func_80011B94* arg1);
 s32 BattlePrep_BadgeCarouselGlowCallback(s32 arg0, unk_func_80011B94* arg1);
 s32 BattlePrep_BadgeCarouselTextureCallback(s32 arg0, unk_func_80011B94* arg1);
 s32 BattlePrep_BadgeCarouselGlowCallback2(s32 arg0, unk_func_80011B94* arg1);
-void BattlePrep_RenderBadgeGlowTexture(intptr_t arg0);
+void BattlePrep_RenderBadgeGlowTexture(u8* arg0);
 void BattlePrep_ResetBadgeSlideSlots(unk_D_84B259E8* arg0);
 void BattlePrep_BadgeSlideInLeft(unk_D_84B259E8* arg0);
 void BattlePrep_BadgeSlideInRight(unk_D_84B259E8* arg0);

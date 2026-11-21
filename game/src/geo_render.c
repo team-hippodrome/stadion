@@ -1048,9 +1048,9 @@ void Geo_NodeShadow(GraphNode* arg0) {
         GeoRender_CommitMatrix();
 
         if (arg->unk_18 == 0) {
-            gSPBranchList(&temp_s1[1], ADDR_TO_VIRTUAL(D_1002480));
+            gSPBranchList(&temp_s1[1], ADDR_PTR_TO_VIRTUAL(D_1002480));
         } else {
-            gSPBranchList(&temp_s1[1], ADDR_TO_VIRTUAL(D_1002508));
+            gSPBranchList(&temp_s1[1], ADDR_PTR_TO_VIRTUAL(D_1002508));
         }
         gDPSetEnvColor(&temp_s1[0], 0, 0, 0, (s32)(150.0f * sp80));
 

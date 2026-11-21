@@ -6277,9 +6277,9 @@ s32 Pokedex_GetHighestSeenSpeciesIndex(void) {
 }
 
 void Pokedex_InitFramebuffers(void) {
-    uintptr_t sp34; // PORT64: frame-buffer addresses (were u32)
-    uintptr_t sp30;
-    uintptr_t sp2C;
+    u8* sp34; // PORT64: frame-buffer addresses (were u32)
+    u8* sp30;
+    u8* sp2C;
     DepthBuffer* sp28;
 
     sp28 = main_pool_alloc(sizeof(DepthBuffer), 0);

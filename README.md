@@ -192,13 +192,13 @@ release version, platform, renderer and steps to reproduce.
 ## Development
 
 See [Building stadion](docs/BUILDING.md) for platform dependencies, packaging,
-repository layout and the game-patch workflow. [Porting notes](PORTING_NOTES.md)
+repository layout and the game-patch workflow. [Porting notes](docs/archive/PORTING_NOTES.md) (archived, may be out of date)
 cover implementation details, validation tools and debug options.
 
 To start a battle directly (no menus), for example to compare frames with another renderer:
 `tools/battle_boot.py --out out --p1 25,4,7 --p2 113 --known2 1,34 --arena 2 --moves 85,85 --seed 1 --turns 2 --frames-every 2 --trace --camlog`
 writes a case file, runs the port hidden and leaves the frames and logs in `out/`; `pokestadium <rom> --battle <case>` takes a
-case file directly. Format and details: [Battle boot](PORTING_NOTES.md#battle-boot-straight-into-a-battle-from-a-case-file-toolsbattle_bootpy).
+case file directly. Format and details: [Battle boot](docs/archive/PORTING_NOTES.md#battle-boot-straight-into-a-battle-from-a-case-file-toolsbattle_bootpy).
 
 ## Acknowledgments
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3 -I
-"""OBSOLETE: the port now reads and writes N64-order saves directly (PORTING_NOTES.md, "Save byte order").
+"""OBSOLETE: the port now reads and writes N64-order saves directly (docs/archive/PORTING_NOTES.md, "Save byte order").
 Converts a Pokémon Stadium FlashRAM image in N64 order (ares save.flash, tools/save_editor output) to the order the
 port currently writes: record footers and the options/progress record's 16/32-bit fields in host (little-endian) order.
 Records other than options keep their bytes, which is enough for blank/edited-progress saves.

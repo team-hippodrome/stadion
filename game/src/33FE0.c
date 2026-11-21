@@ -459,10 +459,10 @@ void func_80033B2C(StadiumModel* model, void* arg1, void* arg2, void* arg3) {
     ModelSegment* segment;
     ModelSegment* temp_v0;
 
-    model = SEGMENTED_TO_VIRTUAL(model);
-    arg1 = SEGMENTED_TO_VIRTUAL(arg1);
-    temp_s0 = SEGMENTED_TO_VIRTUAL(arg2);
-    temp_v0 = SEGMENTED_TO_VIRTUAL(arg3);
+    model = SEGMENTED_PTR_TO_VIRTUAL(model);
+    arg1 = SEGMENTED_PTR_TO_VIRTUAL(arg1);
+    temp_s0 = SEGMENTED_PTR_TO_VIRTUAL(arg2);
+    temp_v0 = SEGMENTED_PTR_TO_VIRTUAL(arg3);
     segment = &model->unkSegment;
     D_800B2F50 = arg1;
     *segment = *temp_v0;
@@ -878,7 +878,7 @@ void func_80034BD4(ModelSegment* modelSegment, StadiumTransform* xf, s32 index, 
     s32 i;
     PosBlend* temp_v0_2;
 
-    temp_v0 = SEGMENTED_TO_VIRTUAL(modelSegment);
+    temp_v0 = SEGMENTED_PTR_TO_VIRTUAL(modelSegment);
     spCA = temp_v0->vertexCount;
     temp_s1 = SEGMENTED_TO_VIRTUAL(temp_v0->remapSegment);
     spC0 = SEGMENTED_TO_VIRTUAL(temp_v0->tableSegment);

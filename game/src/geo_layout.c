@@ -74,7 +74,7 @@ void geo_layout_cmd_branch_and_link(void) {
     gGeoLayoutStack[gGeoLayoutStackIndex++] = (uintptr_t)(cmd + GL_CMDSIZE(8));
     gGeoLayoutStack[gGeoLayoutStackIndex++] = (gCurGraphNodeIndex << 16) + gGeoLayoutReturnIndex;
     gGeoLayoutReturnIndex = gGeoLayoutStackIndex;
-    GeoSetCmd(ADDR_TO_VIRTUAL((uintptr_t)cur_geo_cmd_ptr(0x04)));
+    GeoSetCmd(ADDR_PTR_TO_VIRTUAL(cur_geo_cmd_ptr(0x04)));
 }
 
 // 0x01: Terminate geo layout
@@ -94,7 +94,7 @@ void geo_layout_cmd_jump(void) {
 
     cmd += 0;
 
-    GeoSetCmd(ADDR_TO_VIRTUAL((uintptr_t)cur_geo_cmd_ptr(0x04)));
+    GeoSetCmd(ADDR_PTR_TO_VIRTUAL(cur_geo_cmd_ptr(0x04)));
 }
 
 /*
@@ -108,7 +108,7 @@ void geo_layout_cmd_branch(void) {
 
     // unlike in sm64, this argument doesnt seem to be optional.
     gGeoLayoutStack[gGeoLayoutStackIndex++] = (uintptr_t)(cmd + GL_CMDSIZE(8));
-    GeoSetCmd(ADDR_TO_VIRTUAL((uintptr_t)cur_geo_cmd_ptr(0x04)));
+    GeoSetCmd(ADDR_PTR_TO_VIRTUAL(cur_geo_cmd_ptr(0x04)));
 }
 
 // 0x04: Return from branch
@@ -144,7 +144,9 @@ void register_graph_node(GraphNode* arg0) {
 
 void geo_layout_cmd_attach_node(void) {
 
-    register_graph_node((GraphNode*)&((unk_D_8690A610*)Util_ConvertAddrToVirtAddr((uintptr_t)GL_PTR(0x4)))->node);
+    unk_D_8690A610* node = ADDR_PTR_TO_VIRTUAL(GL_PTR(0x4));
+
+    register_graph_node((GraphNode*)&node->node);
 
     gGeoLayoutCommand += GL_CMDSIZE(0x8);
 }
@@ -168,7 +170,7 @@ void geo_layout_cmd_create_container(void) {
 void geo_layout_cmd_create_reference(void) {
 
     register_graph_node((GraphNode*)GeoNode_CreateWithReference(gGraphNodePool, NULL,
-                                                    ((GraphNode*)Util_ConvertAddrToVirtAddr((uintptr_t)GL_PTR(0x4)))));
+                                                    ADDR_PTR_TO_VIRTUAL(GL_PTR(0x4))));
 
     gGeoLayoutCommand += GL_CMDSIZE(0x8);
 }
@@ -459,7 +461,7 @@ GraphNode* process_geo_layout(MainPoolState* pool, void* segptr) {
     gGeoLayoutStackIndex = 2;
     gGeoLayoutReturnIndex = 2; // stack index is often copied here?
 
-    GeoSetCmd((u8*)Util_ConvertAddrToVirtAddr((uintptr_t)segptr));
+    GeoSetCmd(ADDR_PTR_TO_VIRTUAL(segptr));
 
     gGraphNodePool = pool;
 

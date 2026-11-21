@@ -388,7 +388,7 @@ void ModelAnim_ClearTransformChannel(DisplayObject* display_object) {
 }
 
 s32 ModelAnim_BindTransformCurve(DisplayObject* display_object, s16 animation_id, void* address, s32 speed) {
-    TransformAnimData* transform_addr = ADDR_TO_VIRTUAL(address);
+    TransformAnimData* transform_addr = ADDR_PTR_TO_VIRTUAL(address);
     TransformAnimState* transform_anim = &display_object->transformAnim;
 
     if ((transform_addr != transform_anim->data) || (animation_id != transform_anim->animationId)) {
