@@ -31,6 +31,9 @@ extern "C" {
 
 // Retraces (N64 vertical blanks) since boot, on the port's clock: virtual in lockstep mode.
 uint64_t Port_ViTick(void);
+// Display lists the game has submitted (graphics tasks), drawn or not: the window title's frame rate leaves out the
+// stretches in which the game submits none (Engine.cpp UpdateFpsTitle).
+uint64_t Port_GameFramesSubmitted(void);
 // Whether the N64 logo's hold is paced by retraces (PORT_PACED_LOGO_HOLD, or a replayed recording; n64_logo.c).
 int Port_PacedLogoHold(void);
 // The N64's loading time where the game's timing counts on it (the boot diorama's model loads, which the music is
