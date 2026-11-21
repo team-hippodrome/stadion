@@ -9,6 +9,8 @@
 #include <mutex>
 #include <sstream>
 #include <cctype>
+#include <cstdlib>
+#include <cstring>
 #include <set>
 #include <nlohmann/json.hpp>
 #ifdef _WIN32
@@ -69,6 +71,43 @@ bool Writable(const fs::path& target, std::string& error) {
 }
 }
 
+// Why the US Stadium will not use this cartridge, or empty when it will. The game's own test
+// (GbPak_DetectSupportedCartridgeVariant, GbPak_IsPokemonCartridge) wants the title POKEMON RED, BLUE, GREEN or
+// YELLOW, licensee "01", the Super Game Boy flag, a 1 MB ROM, 32 KB of battery RAM and the overseas destination code.
+// GREEN is in the US game's list: an English-engine Green (fan translations of the Japanese Green such as
+// "Pokémon Verde") passes; the Japanese Green (512 KB, Japanese destination, Japanese save layout) does not.
+// European Red/Blue/Yellow pass because transfer_pak.cpp presents them under the US title (PORT_GB_REGION_COMPAT).
+std::string GameBoyCartridgeNotice(const uint8_t* rom) {
+    std::string title;
+    for (size_t i = 0x134; i < 0x143 && rom[i] != 0; i++)
+        title += (rom[i] >= 0x20 && rom[i] < 0x7f) ? static_cast<char>(rom[i]) : '?';
+    const auto starts = [&](const char* prefix) { return title.compare(0, strlen(prefix), prefix) == 0; };
+    const bool family = starts("POKEMON RED") || starts("POKEMON BLUE") || starts("POKEMON GREEN") || starts("POKEMON YEL");
+    const char* unusable = "the Pokémon on it, the Lab and GB Tower won't be available.";
+    if (!family)
+        return "\"" + title + "\" is not Pokémon Red, Blue, Green or Yellow; Stadium will not read this cartridge: " + unusable;
+    if (rom[0x14a] == 0)
+        return "This is a Japanese cartridge (" + title + "). The US Stadium refuses Japanese cartridges (their save layout "
+               "differs too): " + unusable;
+    const bool exact = title == "POKEMON RED" || title == "POKEMON BLUE" || title == "POKEMON GREEN" ||
+                       (title == "POKEMON YELLOW" && rom[0x143] == 0x80);
+    const char* compat = getenv("PORT_GB_REGION_COMPAT");
+    if (!exact && compat != nullptr && strcmp(compat, "0") == 0)
+        return "This is a European release (" + title + ") and PORT_GB_REGION_COMPAT=0 presents it as it is; the US "
+               "Stadium refuses it: " + std::string(unusable);
+    std::vector<std::string> wrong;
+    if (rom[0x144] != '0' || rom[0x145] != '1') wrong.push_back("licensee");
+    if (rom[0x146] != 3) wrong.push_back("Super Game Boy flag");
+    if (rom[0x148] != 5) wrong.push_back("ROM size (1 MB expected)");
+    if (rom[0x149] != 3) wrong.push_back("battery RAM size (32 KB expected)");
+    if (rom[0x14a] != 1) wrong.push_back("destination code");
+    if (wrong.empty()) return "";
+    std::string list;
+    for (const auto& w : wrong) list += (list.empty() ? "" : ", ") + w;
+    return "The header of this " + title + " cartridge differs from the official releases (" + list +
+           "); Stadium will not read it: " + unusable;
+}
+
 LauncherCheck CheckLauncherFiles(const fs::path& directory, const std::string& save,
                                  const std::array<LauncherSlot, 4>& slots) {
     LauncherCheck result;
@@ -109,9 +148,8 @@ LauncherCheck CheckLauncherFiles(const fs::path& directory, const std::string& s
         if (checksum != rom[0x14d] || rom[0x148] > 8 || rom.size() != (size_t(0x8000) << rom[0x148])) {
             result.errors.push_back(label + "Game Boy ROM header or size is invalid. Choose a complete cartridge dump."); continue;
         }
-        std::string title(reinterpret_cast<const char*>(rom.data() + 0x134), 16);
-        if (title.find("POKEMON RED") != 0 && title.find("POKEMON BLUE") != 0 && title.find("POKEMON YEL") != 0)
-            result.warnings.push_back(label + "This cartridge is not a recognized Red, Blue or Yellow release; Stadium compatibility is not assured.");
+        const std::string notice = GameBoyCartridgeNotice(rom.data());
+        if (!notice.empty()) result.warnings.push_back(label + notice);
         static const size_t sizes[] = {0, 0x800, 0x2000, 0x8000, 0x20000, 0x10000};
         const size_t size = rom[0x149] < 6 ? sizes[rom[0x149]] : 0;
         if (size == 0) { result.errors.push_back(label + "Cartridge has no supported battery RAM."); continue; }
