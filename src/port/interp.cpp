@@ -784,10 +784,19 @@ void RunGameFrame(void* gfxCommands, bool exact) {
     Stats st;
     Replacements r;
     std::vector<PlanEntry> plan;
-    bool repaint = false, restore = false;
+    bool repaint = false, restore = false, prepared2D = false;
     auto interpreter = Interp();
     if (k >= 2 && interpreter) {
         repaint = interpreter->FrameRepaintsScreen((Gfx*)gfxCommands);
+        // repainting through its opaque rectangles holds only while none of them moves in the in-between pictures
+        if (repaint) {
+            interpreter->Interp2DPrepare((Gfx*)gfxCommands);
+            prepared2D = true;
+            if (interpreter->RepaintCoverageMoves()) {
+                repaint = false;
+                if (Logging()) fprintf(stderr, "[interp] frame %llu: a covering rectangle moves: restore\n", (unsigned long long)tick);
+            }
+        }
         // a frame that draws over the previous picture (menus) is drawn again from a copy of that picture
         restore = !repaint && interpreter->CanRestorePicture();
     }
@@ -818,7 +827,7 @@ void RunGameFrame(void* gfxCommands, bool exact) {
         gPending.tick = tick;
         gPending.restore = restore;
         gPending.frameDue = gPending.start + (int64_t)gap * 16666667;
-        interpreter->Interp2DPrepare((Gfx*)gfxCommands);
+        if (!prepared2D) interpreter->Interp2DPrepare((Gfx*)gfxCommands);
         interpreter->ReplayBegin(restore);
         interpreter->mReplayT = 1.0f / k;
         RunFrameWith(gfxCommands, &r, false);
