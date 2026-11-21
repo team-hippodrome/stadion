@@ -197,6 +197,10 @@ bool Init() {
     auto cvars = std::make_shared<Ship::ConsoleVariable>(config);
     sContext->GetChildren().Add(cvars);
     CVarSetConsoleVariable(cvars);
+    // First, before anything below sets values for this run only: dropping the old controller block reloads every
+    // variable from the file (ConsoleVariable::ClearBlock), which lost them. On a first run (no ControlsVersion yet)
+    // multi-viewports came back on, and the Metal backend crashed creating an OS window for the launcher's tooltip.
+    MigrateControls(cvars);
     if (getenv("PORT_SAFE_MODE") != nullptr) {
 #ifdef __APPLE__
         config->SetInt("Window.Backend.Id", Fast::FAST3D_SDL_METAL);
@@ -268,7 +272,6 @@ bool Init() {
     sContext->GetChildren().Add(resourceManager);
     ResourceSetResourceManager(resourceManager);
 
-    MigrateControls(cvars);
     ApplyAspect();
     ApplySoundSettings();
     auto controlDeck = std::make_shared<LUS::ControlDeck>(std::vector<CONTROLLERBUTTONS_T>(), DefaultMappings(),
