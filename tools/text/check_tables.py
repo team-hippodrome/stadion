@@ -7,7 +7,8 @@
 
 With several ROMs, a cell in <src>.csv that is identical to another official ROM's own text for the same id (and
 longer than a name) is reported: each source is translated from its own ROM only. Reports are leads to review
-(set phrases can match honestly); --strict makes them fail the check.
+(set phrases can match honestly); --strict makes them fail the check. So is a target cell that is the source ROM's
+own text (untranslated, and source text must never be committed): credits and close languages can match honestly.
 """
 import argparse
 import glob
@@ -31,7 +32,7 @@ def main():
     ap.add_argument("--rom", nargs="*", default=[])
     ap.add_argument("--strict", action="store_true", help="contamination warnings fail the check too")
     a = ap.parse_args()
-    errors, warnings = [], []
+    errors, warnings, untranslated = [], [], []
     dumps = {}  # src -> id -> (md5, address, text)
     for path in a.rom:
         src, enc, rows = T.rom_rows(open(path, "rb").read())
@@ -84,6 +85,10 @@ def main():
                 want = tokens(ref[2])
                 for col in head[3:-1]:
                     cell = d[col]
+                    # a target cell left as the source's own text (more than a few words): untranslated, and the
+                    # source text must not be committed (credits and close languages can match honestly)
+                    if col != "kanji" and cell and len(cell.split()) > 3 and cell == ref[2]:
+                        untranslated.append(f"{where} [{col}]: the source ROM's own text")
                     if cell and tokens(cell) != want:
                         errors.append(f"{where} [{col}]: tokens {sorted(tokens(cell).elements())} "
                                       f"!= source {sorted(want.elements())}")
@@ -97,10 +102,13 @@ def main():
         print("error:", e)
     for w in warnings:
         print("contamination:", w)
-    print(f"{len(files)} tables, {len(errors)} errors, {len(warnings)} contamination warnings")
+    for w in untranslated:
+        print("untranslated:", w)
+    print(f"{len(files)} tables, {len(errors)} errors, {len(warnings)} contamination warnings, "
+          f"{len(untranslated)} untranslated warnings")
     # Contamination is a lead to review, not proof: set phrases (TM cards, official names, short battle lines) can
     # match an official translation honestly.
-    sys.exit(1 if errors or (a.strict and warnings) else 0)
+    sys.exit(1 if errors or (a.strict and (warnings or untranslated)) else 0)
 
 
 if __name__ == "__main__":
