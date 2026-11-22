@@ -271,10 +271,10 @@ T02_014,96a4afc89b8aea00e77074cbbe021440,00765A1E,There are no Pokémon here to 
 T02_015,8370f6128bd6c57d45afdc953a9cc2ca,00765A52,There are no Pokémon here to release!,¡Aquí no hay Pokémon que liberar!,逃がせる ポケモンが いません!,Não há Pokémon aqui para libertar!,놓아줄 수 있는 포켓몬이 없습니다!,Il n'y a aucun Pokémon à relâcher!,Non ci sono Pokémon da liberare!,
 T02_016,4413b82deb677473586081b0d749d939,00765A86,There's no room for more Pokémon at the destination!,¡No hay sitio para más Pokémon en el destino!,移し先に ポケモンを 入れる 場所が ありません!,Não há espaço para mais Pokémon no destino!,옮길 곳에 포켓몬을 넣을 자리가 없습니다!,Plus de place pour d'autres Pokémon à destination!,Non c'è spazio per altri Pokémon nella destinazione!,
 T02_017,0afd63e1e437b262dafcda073570b830,00765AB5,Stored in #37,Guardado en #37,#37に 預けてある,Guardado em #37,#37에 맡겨져 있음,Stocké dans #37,Depositato in #37,
-T02_018,eb7e6c99d9ee7e71895a33f27359c7c0,00765AC5,HP:,PS:,HP:,PS:,HP:,PV:,PS:,
+T02_018,eb7e6c99d9ee7e71895a33f27359c7c0,00765AC5,SP:,PF:,力P:,PF:,힘P:,PF:,PF:,
 T02_019,00cd346d4df9e8f2965ff08ed343d457,00765AC9,ATK.,ATQ.,攻撃,ATQ.,공격,ATT.,ATT.,
 T02_020,720ef3a9e27df8504feca907a154a9ad,00765ACF,DEF.,DEF.,防御,DEF.,방어,DEF.,DIF.,
-T02_021,dc41fdc2dba216c136e46a9e8f7f1e3d,00765AD5,SPD.,VEL.,素早さ,VEL.,스피드,VIT.,VEL.,
+T02_021,dc41fdc2dba216c136e46a9e8f7f1e3d,00765AD5,INIT.,INIC.,主導権,INIC.,주도권,INIT.,INIZ.,
 T02_022,30c00bc0156b01c74c87e15b1a28699f,00765ADB,SPEC.,ESP.,特殊,ESP.,특수,SPE.,SPE.,
 T02_023,8df129806ec688f8b8b1fc536438ed8b,00765AE1,STADIUM,ESTADIO,スタジアム,ESTÁDIO,스타디움,STADE,STADIO,
 T02_024,732798a292ccd22394a13db3a2ab3480,00765AE9,TEAM,EQUIPO,チーム,EQUIPE,팀,EQUIPE,SQUADRA,
@@ -435,10 +435,10 @@ T05_011,4c625c7c1bd68d1cdf62eacfb568b053,0076650C,MOVE 2,MOV. 2,技2,GOLPE 2,기
 T05_012,5e0a7a3194dfc83360a1aca36a6123d0,00766516,MOVE 3,MOV. 3,技3,GOLPE 3,기술3,CAPACITE 3,MOSSA 3,
 T05_013,a22bbb9690f0c306810768dbe8d11d77,00766520,MOVE 4,MOV. 4,技4,GOLPE 4,기술4,CAPACITE 4,MOSSA 4,
 T05_014,ec46cfef93df98a48cda0c5df179485e,0076652A,LEVEL,NIVEL,レベル,NÍVEL,레벨,NIVEAU,LIVELLO,
-T05_015,da2be3f8b1640de6534fea0e9744cccb,00766530,HP,PS,HP,PS,HP,PV,PS,
+T05_015,da2be3f8b1640de6534fea0e9744cccb,00766530,SP,PF,力P,PF,힘P,PF,PF,
 T05_016,00cd346d4df9e8f2965ff08ed343d457,00766533,ATK.,ATQ.,攻撃,ATQ.,공격,ATT.,ATT.,
 T05_017,720ef3a9e27df8504feca907a154a9ad,00766539,DEF.,DEF.,防御,DEF.,방어,DEF.,DIF.,
-T05_018,dc41fdc2dba216c136e46a9e8f7f1e3d,0076653F,SPD.,VEL.,素早さ,VEL.,스피드,VIT.,VEL.,
+T05_018,dc41fdc2dba216c136e46a9e8f7f1e3d,0076653F,INIT.,INIC.,主導権,INIC.,주도권,INIT.,INIZ.,
 T05_019,30c00bc0156b01c74c87e15b1a28699f,00766545,SPEC.,ESP.,特殊,ESP.,특수,SPE.,SPE.,
 T05_020,732798a292ccd22394a13db3a2ab3480,0076654B,TEAM,EQUIPO,チーム,EQUIPE,팀,EQUIPE,SQUADRA,
 T05_021,79cba1185463850dedba31f172f1dc5b,00766550,GB,GB,GB,GB,GB,GB,GB,
@@ -464,11 +464,11 @@ T05_040,e89171b5bc6f0742d6861611181347b4,007666A6,Use item,Usar objeto,道具を
 T05_041,e3f5e678282c30b3c601024b3aa475c1,007666B4,View,Ver,見る,Ver,보기,Voir,Vedi,
 T05_042,c99ad7cd834c38b3b4ff9d067ef433c0,007666BF,Sort by CUP,Ordenar por COPA,カップ別に 並べる,Ordenar por COPA,컵별 정렬,Trier par COUPE,Ordina per COPPA,
 T05_043,050830be2972ad527099e00027c0beb3,007666D2,Color coding,Código de colores,色分け,Código de cores,색 구분,Code couleur,Codice colori,
-T05_044,d372f3b62a210bfce8b1647aba3e2b76,007666E0,PETIT CUP,COPA PETIT,プチカップ,COPA PETIT,쁘띠컵,COUPE PETIT,COPPA PETIT,
+T05_044,d372f3b62a210bfce8b1647aba3e2b76,007666E0,MINI CUP,COPA MINI,ミニカップ,COPA MINI,미니컵,COUPE MINI,COPPA MINI,
 T05_045,073822ed076b0748b5e2f1368163ac7d,007666E9,PIKA CUP,COPA PIKA,ピカチュウカップ,COPA PIKA,피카츄컵,COUPE PIKA,COPPA PIKA,
-T05_046,b8e40954ca20c131a3a1a9af5ce9e252,007666F2,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T05_047,b8e40954ca20c131a3a1a9af5ce9e252,007666FE,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T05_048,b8e40954ca20c131a3a1a9af5ce9e252,0076670A,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
+T05_046,b8e40954ca20c131a3a1a9af5ce9e252,007666F2,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T05_047,b8e40954ca20c131a3a1a9af5ce9e252,007666FE,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T05_048,b8e40954ca20c131a3a1a9af5ce9e252,0076670A,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
 T05_049,935fcb13a2e9891eb309a158dbd5c943,00766716,Back,Atrás,戻る,Voltar,돌아가기,Retour,Indietro,
 T05_050,a719f5675446056a0b56fab9f234aa0f,0076671D,White,Blanco,白,Branco,흰색,Blanc,Bianco,
 T05_051,802c25f3bf11153affaee56d77e4f5bb,00766722,Green,Verde,緑,Verde,초록,Vert,Verde,
@@ -585,10 +585,10 @@ T06_004,978d088f084cb28631c5a5148be8724e,00766B7B,Really release this PKMN?,¿Se
 T06_005,375ee26098b46e23bcb854331f0ad8c5,00766B95,Yes,Sí,はい,Sim,예,Oui,Sì,
 T06_006,b397ec0bea79fb90df2b7ec2845cde07,00766B98,No,No,いいえ,Não,아니오,Non,No,
 T06_007,daeea209bb85025ef0ed8a132fef4510,00766B9D,TYPE,TIPO,タイプ,TIPO,타입,TYPE,TIPO,
-T06_008,da2be3f8b1640de6534fea0e9744cccb,00766BA1,HP,PS,HP,PS,HP,PV,PS,
+T06_008,da2be3f8b1640de6534fea0e9744cccb,00766BA1,SP,PF,力P,PF,힘P,PF,PF,
 T06_009,00cd346d4df9e8f2965ff08ed343d457,00766BA4,ATK.,ATQ.,攻撃,ATQ.,공격,ATT.,ATT.,
 T06_010,720ef3a9e27df8504feca907a154a9ad,00766BAA,DEF.,DEF.,防御,DEF.,방어,DEF.,DIF.,
-T06_011,dc41fdc2dba216c136e46a9e8f7f1e3d,00766BB0,SPD.,VEL.,素早さ,VEL.,스피드,VIT.,VEL.,
+T06_011,dc41fdc2dba216c136e46a9e8f7f1e3d,00766BB0,INIT.,INIC.,主導権,INIC.,주도권,INIT.,INIZ.,
 T06_012,30c00bc0156b01c74c87e15b1a28699f,00766BB6,SPEC.,ESP.,特殊,ESP.,특수,SPE.,SPE.,
 T06_013,9b107ef0abf3b8f771524937e676e140,00766BBC,ID/,ID/,IDNo./,ID/,ID/,ID/,ID/,
 T06_014,c8384bcf4ce65d35e64cea3faf298469,00766BC0,OT/,EO/,親/,TO/,어버이/,DO/,PO/,
@@ -596,7 +596,7 @@ T06_015,940ac82eb26112fb6b63693a1d1e3a0a,00766BC4,EXP. POINTS/,PUNTOS EXP./,経�
 T06_016,61a7a43ec5aaff3fd1b86838f153595f,00766BD1,#06 to,#06 para,#06まで,#06 para,#06까지,#06 pour,#06 per,
 T06_017,e242b38d0692fba9624299c400541113,00766BD9,STATUS/,ESTADO/,状態/,ESTADO/,상태/,STATUT/,STATO/,
 T06_018,fc3998817e4f2fdf1cb7aa8acea0f541,00766BE1,TYPE/,TIPO/,タイプ/,TIPO/,타입/,TYPE/,TIPO/,
-T06_019,f129c763c1a214c69a20dba7d1ba4ff8,00766BE6,POWER/,POTENCIA/,威力/,PODER/,위력/,PUISSANCE/,POTENZA/,
+T06_019,f129c763c1a214c69a20dba7d1ba4ff8,00766BE6,STRENGTH/,FUERZA/,強さ/,FORÇA/,세기/,FORCE/,FORZA/,
 T06_020,4ec5ecb0024663b07bc4a9969a3d7823,00766BEE,ACCURACY,PRECISIÓN,命中,PRECISÃO,명중,PRECISION,PRECISIONE,
 T06_021,d20caec3b48a1eef164cb4ca81ba2587,00766BFA,L,N,L,N,L,N,L,
 T06_022,2eedf62184d9e924987221d452e08a15,00766BFC,No.,N.º,No.,N.º,No.,N°,N.,
@@ -692,18 +692,18 @@ T09_018,160c94d862c9e7a0eaee0a990a9f92b3,0076717C,Always,Siempre,いつも,Sempr
 T09_019,d296ee932a6e9a5fbcfbb8c23c0ea42e,00767182,ROUTE 1,RUTA 1,1番道路,ROTA 1,1번도로,ROUTE 1,PERCORSO 1,
 T09_020,1faa942e0b9ffcbb7f15765a2952729e,0076718A,ROUTE 2,RUTA 2,2番道路,ROTA 2,2번도로,ROUTE 2,PERCORSO 2,
 T09_021,e6e973c46d8b5168e6a76d5ac10c05b9,00767192,VIRIDIAN FOREST,BOSQUE VERDE,トキワの森,FLORESTA VIRIDIAN,상록숲,FORÊT DE JADIELLE,BOSCO DI SMERALDOPOLI,
-T09_022,4871ab9ed0c0cecde5d9458f3e0a37c6,007671A0,DIGLETT'S CAVE,CUEVA DIGLETT,ディグダの穴,CAVERNA DO DIGLETT,디그다굴,CAVE TAUPIQUEUR,GROTTA DIGLETT,
+T09_022,4871ab9ed0c0cecde5d9458f3e0a37c6,007671A0,DIGLETT'S CAVE,CUEVA DE DIGLETT,ディグダの洞窟,CAVERNA DO DIGLETT,디그다의 동굴,GROTTE DE TAUPIQUEUR,GROTTA DI DIGLETT,
 T09_023,c7514aab6c3c9bd27c97ac926dd08d5b,007671AD,ROUTE 3,RUTA 3,3番道路,ROTA 3,3번도로,ROUTE 3,PERCORSO 3,
-T09_024,139273f69f222af9884dbbcbdd250209,007671B5,MT. MOON,MT. MOON,おつきみ山,MT. MOON,달맞이산,MONT SÉLÉNITE,MONTE LUNA,
+T09_024,139273f69f222af9884dbbcbdd250209,007671B5,MOON MOUNTAIN,MONTE LUNA,月の山,MONTE LUA,달의 산,MONT LUNE,MONTE LUNA,
 T09_025,c507326fcd411e58467f5018d2d0895e,007671BE,ROUTE 4,RUTA 4,4番道路,ROTA 4,4번도로,ROUTE 4,PERCORSO 4,
 T09_026,0ba6a0c4359a85bfa34e601a1b7244a9,007671C6,ROUTE 24,RUTA 24,24番道路,ROTA 24,24번도로,ROUTE 24,PERCORSO 24,
 T09_027,32bf0aaf3b76413cc9c7a54a27ba7f06,007671CF,ROUTE 25,RUTA 25,25番道路,ROTA 25,25번도로,ROUTE 25,PERCORSO 25,
 T09_028,d21865a7238e94821d89b080c455ff25,007671D8,ROUTE 5,RUTA 5,5番道路,ROTA 5,5번도로,ROUTE 5,PERCORSO 5,
 T09_029,92fd5ff3bb8abe511a2ca8957a8449d3,007671E0,ROUTE 6,RUTA 6,6番道路,ROTA 6,6번도로,ROUTE 6,PERCORSO 6,
 T09_030,9b0221c200bd4e4744c9fba59c8c81da,007671E8,ROUTE 9,RUTA 9,9番道路,ROTA 9,9번도로,ROUTE 9,PERCORSO 9,
-T09_031,0f21462d221b9c34dbe2a4f82f99517b,007671F0,ROCK TUNNEL,TÚNEL ROCA,イワヤマトンネル,TÚNEL DE PEDRA,돌산터널,GROTTE,TUNNEL ROCCIOSO,
+T09_031,0f21462d221b9c34dbe2a4f82f99517b,007671F0,ROCK TUNNEL,TÚNEL DE ROCA,岩のトンネル,TÚNEL DE ROCHA,바위 터널,TUNNEL DE ROCHE,TUNNEL DI ROCCIA,
 T09_032,09e7c8deb03e54e24cf91c5fd157d86c,007671FB,ROUTE 10,RUTA 10,10番道路,ROTA 10,10번도로,ROUTE 10,PERCORSO 10,
-T09_033,8db5e1a5bbbc9c93d5aa72727e3fc129,00767204,POKéMON TOWER,TORRE POKéMON,ポケモンタワー,TORRE POKéMON,포켓몬타워,TOUR POKéMON,TORRE POKéMON,
+T09_033,8db5e1a5bbbc9c93d5aa72727e3fc129,00767204,POKéMON TOWER,TORRE POKéMON,ポケモンの塔,TORRE POKéMON,포켓몬 탑,TOUR POKéMON,TORRE POKéMON,
 T09_034,8f663114819873c99c1a83c1c06e96d6,00767211,ROUTE 8,RUTA 8,8番道路,ROTA 8,8번도로,ROUTE 8,PERCORSO 8,
 T09_035,5cf186f11793f6d438ca3cd5463ee701,00767219,ROUTE 7,RUTA 7,7番道路,ROTA 7,7번도로,ROUTE 7,PERCORSO 7,
 T09_036,eb374681e3c2dc97110c78d3a84e00e3,00767221,ROUTE 11,RUTA 11,11番道路,ROTA 11,11번도로,ROUTE 11,PERCORSO 11,
@@ -714,17 +714,17 @@ T09_040,70ef1ff010591301c97e34f9ff00fc6d,00767245,ROUTE 15,RUTA 15,15番道路,R
 T09_041,88d2a592487142bb391f541993e593d0,0076724E,ROUTE 16,RUTA 16,16番道路,ROTA 16,16번도로,ROUTE 16,PERCORSO 16,
 T09_042,e5b4762592c47f488fb0db582ad19ec9,00767257,ROUTE 17,RUTA 17,17番道路,ROTA 17,17번도로,ROUTE 17,PERCORSO 17,
 T09_043,23924a4528824fcddeddc17a09e85d28,00767260,ROUTE 18,RUTA 18,18番道路,ROTA 18,18번도로,ROUTE 18,PERCORSO 18,
-T09_044,e12b841837e651830faec15b96b6bf77,00767269,SAFARI ZONE,ZONA SAFARI,サファリゾーン,ZONA SAFÁRI,사파리존,PARC SAFARI,ZONA SAFARI,
+T09_044,e12b841837e651830faec15b96b6bf77,00767269,SAFARI ZONE,ZONA SAFARI,サファリゾーン,ZONA SAFÁRI,사파리 존,ZONE SAFARI,ZONA SAFARI,
 T09_045,f6abe78c00abcd5eaa14b78bdcdbd018,00767275,ROUTE 19,RUTA 19,19番道路,ROTA 19,19번도로,ROUTE 19,PERCORSO 19,
-T09_046,feacbbe46b8ec60b8c3778605ba56187,0076727E,SEAFOAM ISLANDS,ISLAS ESPUMA,ふたご島,ILHAS ESPUMA,쌍둥이섬,ILES ECUME,ISOLE SPUMARINE,
+T09_046,feacbbe46b8ec60b8c3778605ba56187,0076727E,SEAFOAM ISLANDS,ISLAS ESPUMA DE MAR,海の泡の島々,ILHAS ESPUMA DO MAR,바다거품 섬,ÎLES ÉCUME DE MER,ISOLE SCHIUMA DI MARE,
 T09_047,af148fd2432c7c70f2b7294cc085a0fe,0076728E,ROUTE 20,RUTA 20,20番道路,ROTA 20,20번도로,ROUTE 20,PERCORSO 20,
-T09_048,b356da2c6ea5ac10d5662c8bebf9102f,00767297,POKéMON MANSION,MANSIÓN POKéMON,ポケモン屋敷,MANSÃO POKéMON,포켓몬저택,MANOIR POKéMON,VILLA POKéMON,
+T09_048,b356da2c6ea5ac10d5662c8bebf9102f,00767297,POKéMON VILLA,VILLA POKéMON,ポケモン別荘,VILA POKéMON,포켓몬 별장,VILLA POKéMON,VILLA POKéMON,
 T09_049,c41e78d130445b3e9a019feba186f95b,007672A5,ROUTE 21,RUTA 21,21番道路,ROTA 21,21번도로,ROUTE 21,PERCORSO 21,
 T09_050,f4fe511572e308a818fdc4ded93573da,007672AE,ROUTE 22,RUTA 22,22番道路,ROTA 22,22번도로,ROUTE 22,PERCORSO 22,
 T09_051,923940ba2d93fbe8795c7c4403a52925,007672B7,ROUTE 23,RUTA 23,23番道路,ROTA 23,23번도로,ROUTE 23,PERCORSO 23,
-T09_052,72596724e44c0c0e4dc46a445a7b174c,007672C0,VICTORY ROAD,CALLE VICTORIA,チャンピオンロード,ESTRADA VITÓRIA,챔피언로드,ROUTE VICTOIRE,VIA VITTORIA,
-T09_053,469742cf148bea7bae6a2c4255b3af68,007672CE,POWER PLANT,CENTRAL ENERGÍA,無人発電所,USINA DE ENERGIA,무인발전소,CENTRALE,CENTRALE ELETTRICA,
-T09_054,6d11497eb6e3cf80f61c6f6adf24f733,007672D8,CERULEAN CAVE,CUEVA CELESTE,ハナダの洞窟,CAVERNA CERULEAN,블루시티 동굴,CAVERNE AZURÉE,GROTTA CELESTE,
+T09_052,72596724e44c0c0e4dc46a445a7b174c,007672C0,VICTORY ROAD,CALLE VICTORIA,勝利の道,ESTRADA DA VITÓRIA,승리의 길,ROUTE DE LA VICTOIRE,VIA DELLA VITTORIA,
+T09_053,469742cf148bea7bae6a2c4255b3af68,007672CE,POWER PLANT,CENTRAL ELÉCTRICA,発電所,USINA ELÉTRICA,발전소,CENTRALE ÉLECTRIQUE,CENTRALE ELETTRICA,
+T09_054,6d11497eb6e3cf80f61c6f6adf24f733,007672D8,SECRET DUNGEON,MAZMORRA SECRETA,秘密のダンジョン,MASMORRA SECRETA,비밀 던전,DONJON SECRET,SOTTERRANEO SEGRETO,
 T09_055,4c761f170e016836ff84498202b99827,007672E6,~,~,~,~,~,~,~,
 T09_056,67f6274e0ac0bd892f9b1ec09a2253fc,007672E8,2F,P1,2F,2º,2층,1ER,P1,
 T09_057,b9eeaf6a16ca49f37df57620aed91b62,007672EB,3F,P2,3F,3º,3층,2E,P2,
@@ -3976,14 +3976,14 @@ confundir o oponente.","10분의 1 확률로 상대를 혼란시키는
 10 de rendre l'adversaire confus.","Un attacco PSICO con 1 probabilità su
 10 di confondere l'avversario.",
 T0B_060,8c071d99f03f9d590bf7b19e77109fbe,0076D8E7,"This WATER attack has a 1 in 3 chance
-of lowering the foe's SPEED.","Este ataque de AGUA tiene una
+of lowering the foe's INITIATIVE.","Este ataque de AGUA tiene una
 probabilidad de 1 entre 3 de bajar la
-VELOCIDAD del rival.","3分の1の 確率で 相手の 素早さを
+INICIATIVA del rival.","3分の1の 確率で 相手の 主導権を
 下げる 水の 攻撃。","Este ataque de ÁGUA tem 1 chance em 3
-de reduzir a VELOCIDADE do oponente.","3분의 1 확률로 상대의 스피드를
+de reduzir a INICIATIVA do oponente.","3분의 1 확률로 상대의 주도권을
 떨어뜨리는 물 공격.","Cette attaque EAU a 1 chance sur 3 de
-baisser la VITESSE de l'adversaire.","Questo attacco ACQUA ha 1 probabilità
-su 3 di ridurre la VELOCITÀ
+baisser l'INITIATIVE de l'adversaire.","Questo attacco ACQUA ha 1 probabilità
+su 3 di ridurre l'INIZIATIVA
 dell'avversario.",
 T0B_061,024f73cc3de61a9445724bcd61ad7427,0076D944,"This ICE attack has a 1 in 3 chance of
 lowering the foe's ATTACK.","Este ataque de HIELO tiene una
@@ -4084,44 +4084,44 @@ aussi déplacer des obstacles, comme
 des rochers.","Un attacco NORMALE molto forte che può
 anche spostare ostacoli, come i massi.",
 T0B_070,372082a305752ae43835fd841a5b2a61,0076DCAA,"A PLANT attack that credits half the
-HP taken from the foe to the attacker.","Un ataque de PLANTA que abona al
-atacante la mitad de los PS quitados
-al rival.","相手から 奪った HPの 半分を 自分の
+SP taken from the foe to the attacker.","Un ataque de PLANTA que abona al
+atacante la mitad de los PF quitados
+al rival.","相手から 奪った 力Pの 半分を 自分の
 ものに する 植物の 攻撃。","Um ataque de PLANTA que credita ao
-atacante metade dos PS tirados do
-oponente.","상대에게서 빼앗은 HP의 절반을 자신의
+atacante metade dos PF tirados do
+oponente.","상대에게서 빼앗은 힘P의 절반을 자신의
 것으로 하는 식물 공격.","Une attaque PLANTE qui crédite
-l'attaquant de la moitié des PV pris à
+l'attaquant de la moitié des PF pris à
 l'adversaire.","Un attacco PIANTA che accredita
-all'attaccante metà dei PS sottratti
+all'attaccante metà dei PF sottratti
 all'avversario.",
 T0B_071,744718e7a916542327b0c7e949664968,0076DD0E,"A PLANT attack that credits half the
-HP taken from the foe to the attacker.","Un ataque de PLANTA que abona al
-atacante la mitad de los PS quitados
-al rival.","相手から 奪った HPの 半分を 自分の
+SP taken from the foe to the attacker.","Un ataque de PLANTA que abona al
+atacante la mitad de los PF quitados
+al rival.","相手から 奪った 力Pの 半分を 自分の
 ものに する 植物の 攻撃。","Um ataque de PLANTA que credita ao
-atacante metade dos PS tirados do
-oponente.","상대에게서 빼앗은 HP의 절반을 자신의
+atacante metade dos PF tirados do
+oponente.","상대에게서 빼앗은 힘P의 절반을 자신의
 것으로 하는 식물 공격.","Une attaque PLANTE qui crédite
-l'attaquant de la moitié des PV pris à
+l'attaquant de la moitié des PF pris à
 l'adversaire.","Un attacco PIANTA che accredita
-all'attaccante metà dei PS sottratti
+all'attaccante metà dei PF sottratti
 all'avversario.",
 T0B_072,9fc2303d24de7aac4e6901eaf0770de9,0076DD71,"This attack plants seeds on the foe
-and slowly drains its HP. They are
+and slowly drains its SP. They are
 credited to the attacker.","Este ataque planta semillas en el
-rival y le quita PS poco a poco. Se
-abonan al atacante.","相手に 種を 植えつけ 少しずつ HPを
-吸い取る。 吸った HPは 自分の ものに
+rival y le quita PF poco a poco. Se
+abonan al atacante.","相手に 種を 植えつけ 少しずつ 力Pを
+吸い取る。 吸った 力Pは 自分の ものに
 なる。","Este ataque planta sementes no
-oponente e drena seus PS aos poucos.
-Eles são creditados ao atacante.","상대에게 씨앗을 심어 조금씩 HP를
-빨아들인다. 빨아들인 HP는 자신의
+oponente e drena seus PF aos poucos.
+Eles são creditados ao atacante.","상대에게 씨앗을 심어 조금씩 힘P를
+빨아들인다. 빨아들인 힘P는 자신의
 것이 된다.","Cette attaque plante des graines sur
 l'adversaire et draine lentement ses
-PV, crédités à l'attaquant.","Questo attacco pianta semi
+PF, crédités à l'attaquant.","Questo attacco pianta semi
 sull'avversario e gli sottrae
-lentamente PS, che vanno
+lentamente PF, che vanno
 all'attaccante.",
 T0B_073,59e00d7fbd5358ee9e8a6c9bcf8cf008,0076DDDB,"This move strengthens a Pokémon's
 SPECIAL and at the same time protects
@@ -4166,14 +4166,14 @@ au tour suivant.","Il più forte attacco PIANTA. Assorbe
 energia prima di attaccare nel turno
 successivo.",
 T0B_076,e744994894640d2eb9ca8f91d4169c95,0076DF1E,"An attack that poisons the foe and so
-continually drains its HP.","Un ataque que envenena al rival y así
-le quita PS continuamente.","相手を 毒状態に して HPを 少しずつ
+continually drains its SP.","Un ataque que envenena al rival y así
+le quita PF continuamente.","相手を 毒状態に して 力Pを 少しずつ
 奪い続ける 攻撃。","Um ataque que envenena o oponente e
-assim drena seus PS continuamente.","상대를 독 상태로 만들어 HP를 계속
+assim drena seus PF continuamente.","상대를 독 상태로 만들어 힘P를 계속
 깎는 공격.","Une attaque qui empoisonne
 l'adversaire et lui retire ainsi des
-PV en continu.","Un attacco che avvelena l'avversario e
-così gli sottrae PS di continuo.",
+PF en continu.","Un attacco che avvelena l'avversario e
+così gli sottrae PF di continuo.",
 T0B_077,91dfa513a1d80153e6c855266386241e,0076DF7D,"This attack paralyzes the foe. A
 quarter of the time, it then cannot
 attack.","Este ataque paraliza al rival. Una de
@@ -4213,16 +4213,16 @@ il l'utilise.","Questo attacco simile a una danza dura
 da due a tre turni e confonde
 l'attaccante quando lo usa.",
 T0B_080,490350ca8569549d6f569b299eb57004,0076E0BA,"This attack shoots threads at the foe
-and wraps it up, lowering its SPEED.","Este ataque dispara hilos al rival y
+and wraps it up, lowering its INITIATIVE.","Este ataque dispara hilos al rival y
 lo envuelve, con lo que baja su
-VELOCIDAD.","相手に 糸を 吹きつけて 巻きつけ
-素早さを 下げる。","Este ataque dispara fios no oponente e
-o envolve, reduzindo sua VELOCIDADE.","상대에게 실을 뿜어 휘감아 스피드를
+INICIATIVA.","相手に 糸を 吹きつけて 巻きつけ
+主導権を 下げる。","Este ataque dispara fios no oponente e
+o envolve, reduzindo sua INICIATIVA.","상대에게 실을 뿜어 휘감아 주도권을
 떨어뜨린다.","Cette attaque projette des fils sur
 l'adversaire et l'enroule, ce qui
-baisse sa VITESSE.","Questo attacco spara fili
+baisse son INITIATIVE.","Questo attacco spara fili
 sull'avversario e lo avvolge,
-riducendone la VELOCITÀ.",
+riducendone l'INIZIATIVA.",
 T0B_081,68c3f16704989478c6947a0b6a7195f8,0076E125,"A DRAGON attack that deals a minimum
 amount of damage to the foe, whatever
 its type.","Un ataque DRAGÓN que causa al rival un
@@ -4392,17 +4392,17 @@ jusqu'à six fois par combat.","Un attacco speciale con cui un Pokémon
 può aumentare il suo ATTACCO fino a
 sei volte per lotta.",
 T0B_096,1279fd26bd51179f382ed382f0e250a1,0076E6FB,"A special attack with which a Pokémon
-can raise its SPEED up to three times
+can raise its INITIATIVE up to three times
 per battle.","Un ataque especial con el que un
-Pokémon puede subir su VELOCIDAD hasta
-tres veces por combate.","1回の バトルで 3回まで 素早さを
+Pokémon puede subir su INICIATIVA hasta
+tres veces por combate.","1回の バトルで 3回まで 主導権を
 上げられる 特殊な 技。","Um ataque especial com que um Pokémon
-pode aumentar sua VELOCIDADE até três
-vezes por batalha.","한 배틀에 3번까지 스피드를 올릴 수
+pode aumentar sua INICIATIVA até três
+vezes por batalha.","한 배틀에 3번까지 주도권을 올릴 수
 있는 특수한 기술.","Une attaque spéciale qui permet à un
-Pokémon d'augmenter sa VITESSE jusqu'à
+Pokémon d'augmenter son INITIATIVE jusqu'à
 trois fois par combat.","Un attacco speciale con cui un Pokémon
-può aumentare la sua VELOCITÀ fino a
+può aumentare la sua INIZIATIVA fino a
 tre volte per lotta.",
 T0B_097,1a6d5263edf8d0202127609e985605ca,0076E763,"This attack always goes before the
 foe's, unless the foe uses the same
@@ -4491,16 +4491,16 @@ image de son utilisateur.","Questo attacco riduce la PRECISIONE
 dell'avversario confondendolo con
 un'immagine di chi lo usa.",
 T0B_104,bf09de08edd8a4a189cdcdf9656829a9,0076EA35,"This attack restores half of the
-user's HP. Only a few Pokémon can
+user's SP. Only a few Pokémon can
 learn it.","Este ataque restaura la mitad de los
-PS de quien lo usa. Pocos Pokémon
-pueden aprenderlo.","自分の HPを 半分 回復する。
-覚えられる ポケモンは 少ない。","Este ataque restaura metade dos PS de
+PF de quien lo usa. Pocos Pokémon
+pueden aprenderlo.","自分の 力Pを 半分 回復する。
+覚えられる ポケモンは 少ない。","Este ataque restaura metade dos PF de
 quem o usa. Poucos Pokémon podem
-aprendê-lo.","자신의 HP를 절반 회복한다. 배울 수
+aprendê-lo.","자신의 힘P를 절반 회복한다. 배울 수
 있는 포켓몬은 적다.","Cette attaque restaure la moitié des
-PV de son utilisateur. Peu de Pokémon
-peuvent l'apprendre.","Questo attacco ripristina metà dei PS
+PF de son utilisateur. Peu de Pokémon
+peuvent l'apprendre.","Questo attacco ripristina metà dei PF
 di chi lo usa. Pochi Pokémon possono
 impararlo.",
 T0B_105,2c68acf531d939c0d86dd35d9e4c4663,0076EA9A,"This attack protects the user from
@@ -4805,17 +4805,16 @@ de dois a cinco golpes.","명중률이 높은 공격으로 2~5번
 série de deux à cinq coups.","Questo attacco molto preciso è una
 serie di due-cinque colpi.",
 T0B_131,0ff9211794dcb5e36f44d059c672695d,0076F469,"This NORMAL attack has a 1 in 3 chance
-of weakening the foe's SPEED.","Este ataque NORMAL tiene una
+of weakening the foe's INITIATIVE.","Este ataque NORMAL tiene una
 probabilidad de 1 entre 3 de debilitar
-la VELOCIDAD del rival.","3分の1の 確率で 相手の 素早さを
+la INICIATIVA del rival.","3分の1の 確率で 相手の 主導権を
 弱める ノーマルの 攻撃。","Este ataque NORMAL tem 1 chance em 3
-de enfraquecer a VELOCIDADE do
-oponente.","3분의 1 확률로 상대의 스피드를
+de enfraquecer a INICIATIVA do
+oponente.","3분의 1 확률로 상대의 주도권을
 약하게 하는 노멀 공격.","Cette attaque NORMAL a 1 chance sur 3
-d'affaiblir la VITESSE de
+d'affaiblir l'INITIATIVE de
 l'adversaire.","Questo attacco NORMALE ha 1
-probabilità su 3 di indebolire la
-VELOCITÀ dell'avversario.",
+probabilità su 3 di indebolire l'INIZIATIVA dell'avversario.",
 T0B_132,b98f1a7e235983965bc089614eebd5cd,0076F4CA,"This attack strengthens a Pokémon's
 SPECIAL and at the same time protects
 against SPECIAL ATTACKS.","Este ataque refuerza el ESPECIAL de un
@@ -4842,31 +4841,31 @@ ainsi sa précision.","Questo attacco piega-cucchiai
 disorienta l'avversario e ne
 indebolisce così la precisione.",
 T0B_134,6e8e53e7ab77e9921faf80feb587c757,0076F59A,"This attack restores half of the
-user's HP. It can also be used outside
+user's SP. It can also be used outside
 of battle.","Este ataque restaura la mitad de los
-PS de quien lo usa. También se puede
-usar fuera del combate.","自分の HPを 半分 回復する。 バトル
-以外でも 使える。","Este ataque restaura metade dos PS de
+PF de quien lo usa. También se puede
+usar fuera del combate.","自分の 力Pを 半分 回復する。 バトル
+以外でも 使える。","Este ataque restaura metade dos PF de
 quem o usa. Também pode ser usado fora
-da batalha.","자신의 HP를 절반 회복한다. 배틀
+da batalha.","자신의 힘P를 절반 회복한다. 배틀
 밖에서도 쓸 수 있다.","Cette attaque restaure la moitié des
-PV de son utilisateur. Elle s'utilise
-aussi hors combat.","Questo attacco ripristina metà dei PS
+PF de son utilisateur. Elle s'utilise
+aussi hors combat.","Questo attacco ripristina metà dei PF
 di chi lo usa. Si può usare anche
 fuori dalla lotta.",
 T0B_135,7fea8360972383e59840f45bf88379fc,0076F606,"This attack is stronger than JUMP
 KICK. If it misses, the attacker loses
-HP.","Este ataque es más fuerte que PATADA
+SP.","Este ataque es más fuerte que PATADA
 SALTO. Si falla, el atacante pierde
-PS.","とびげりより 強い 攻撃。 外すと
-自分の HPが 減る。","Este ataque é mais forte que CHUTE
+PF.","とびげりより 強い 攻撃。 外すと
+自分の 力Pが 減る。","Este ataque é mais forte que CHUTE
 SALTADO. Se errar, o atacante perde
-PS.","점프킥보다 강한 공격. 빗나가면
-자신의 HP가 줄어든다.","Cette attaque est plus forte que PIED
+PF.","점프킥보다 강한 공격. 빗나가면
+자신의 힘P가 줄어든다.","Cette attaque est plus forte que PIED
 SAUTÉ. Si elle échoue, l'attaquant
-perd des PV.","Questo attacco è più forte di
+perd des PF.","Questo attacco è più forte di
 CALCIOSALTO. Se manca il bersaglio,
-l'attaccante perde PS.",
+l'attaccante perde PF.",
 T0B_136,d351c12b93e8a8b11473d44c3dd98eb5,0076F674,"The foe is stared at with a terrifying
 glare until it is paralyzed with
 fright.","Se mira fijamente al rival con ojos
@@ -4881,17 +4880,17 @@ d'effroi.","L'avversario viene fissato con uno
 sguardo terrificante finché non è
 paralizzato dalla paura.",
 T0B_137,17e5c2017f3086accce94a13b11b06eb,0076F6D7,"This attack only works on sleeping
-foes. The HP taken is credited to the
+foes. The SP taken is credited to the
 attacker.","Este ataque solo funciona con rivales
-dormidos. Los PS quitados se abonan al
+dormidos. Los PF quitados se abonan al
 atacante.","眠っている 相手にしか 効かない。
-奪った HPは 自分の ものに なる。","Este ataque só funciona em oponentes
-adormecidos. Os PS tirados são
+奪った 力Pは 自分の ものに なる。","Este ataque só funciona em oponentes
+adormecidos. Os PF tirados são
 creditados ao atacante.","잠든 상대에게만 효과가 있다. 빼앗은
-HP는 자신의 것이 된다.","Cette attaque ne marche que sur un
-adversaire endormi. Les PV pris sont
+힘P는 자신의 것이 된다.","Cette attaque ne marche que sur un
+adversaire endormi. Les PF pris sont
 crédités à l'attaquant.","Questo attacco funziona solo sugli
-avversari addormentati. I PS sottratti
+avversari addormentati. I PF sottratti
 vanno all'attaccante.",
 T0B_138,0c152162eb23537d84480ca3165fb329,0076F744,"The foe is attacked with an extremely
 toxic cloud of gas to poison it.","Se ataca al rival con una nube de gas
@@ -4915,15 +4914,15 @@ multitude d'étoiles qui le blessent à
 coup sûr.","L'avversario viene bersagliato da una
 moltitudine di stelle che lo
 danneggiano senza fallo.",
-T0B_140,59678c64dc201497fe32f219631a3191,0076F7FC,"This attack drains HP from the foe,
+T0B_140,59678c64dc201497fe32f219631a3191,0076F7FC,"This attack drains SP from the foe,
 half of which is credited to the
-attacker.","Este ataque quita PS al rival, y la
-mitad se abona al atacante.","相手から HPを 吸い取り その 半分を
-自分の ものに する。","Este ataque drena PS do oponente, e
-metade deles é creditada ao atacante.","상대에게서 HP를 빨아들이고 그 절반을
-자신의 것으로 한다.","Cette attaque draine les PV de
+attacker.","Este ataque quita PF al rival, y la
+mitad se abona al atacante.","相手から 力Pを 吸い取り その 半分を
+自分の ものに する。","Este ataque drena PF do oponente, e
+metade deles é creditada ao atacante.","상대에게서 힘P를 빨아들이고 그 절반을
+자신의 것으로 한다.","Cette attaque draine les PF de
 l'adversaire, dont la moitié est
-créditée à l'attaquant.","Questo attacco sottrae PS
+créditée à l'attaquant.","Questo attacco sottrae PF
 all'avversario, metà dei quali vanno
 all'attaccante.",
 T0B_141,e832922d9d46dac64c6c36f2a0315b33,0076F866,"A special attack that defeats the foe
@@ -4952,27 +4951,27 @@ a lieu au second tour.","Il più forte attacco VOLO. Prima
 raccoglie energia, poi attacca al
 secondo turno.",
 T0B_143,f487f42cf185d9ab532d987c7ad54967,0076F940,"The attacker transforms into a copy of
-the foe. It has five PP for each of
+the foe. It has five AP for each of
 its attacks.","El atacante se transforma en una copia
-del rival. Tiene cinco PP para cada
-uno de sus ataques.","相手の コピーに 変身する。 技の PPは
+del rival. Tiene cinco PA para cada
+uno de sus ataques.","相手の コピーに 変身する。 技の 攻撃Pは
 それぞれ 5に なる。","O atacante se transforma numa cópia do
-oponente. Tem cinco PP para cada um de
+oponente. Tem cinco PA para cada um de
 seus ataques.","상대의 복사판으로 변신한다. 기술의
-PP는 각각 5가 된다.","L'attaquant se transforme en copie de
-l'adversaire. Il a cinq PP pour
+공격P는 각각 5가 된다.","L'attaquant se transforme en copie de
+l'adversaire. Il a cinq PA pour
 chacune de ses attaques.","L'attaccante si trasforma in una copia
-dell'avversario. Ha cinque PP per
+dell'avversario. Ha cinque PA per
 ciascuno dei suoi attacchi.",
 T0B_144,2ac992c215d4c7db57d15fe416a3057d,0076F9B3,"This WATER attack has a 1 in 3 chance
-of lowering the foe's SPEED.","Este ataque de AGUA tiene una
+of lowering the foe's INITIATIVE.","Este ataque de AGUA tiene una
 probabilidad de 1 entre 3 de bajar la
-VELOCIDAD del rival.","3分の1の 確率で 相手の 素早さを
+INICIATIVA del rival.","3分の1の 確率で 相手の 主導権を
 下げる 水の 攻撃。","Este ataque de ÁGUA tem 1 chance em 3
-de reduzir a VELOCIDADE do oponente.","3분의 1 확률로 상대의 스피드를
+de reduzir a INICIATIVA do oponente.","3분의 1 확률로 상대의 주도권을
 떨어뜨리는 물 공격.","Cette attaque EAU a 1 chance sur 3 de
-baisser la VITESSE de l'adversaire.","Questo attacco ACQUA ha 1 probabilità
-su 3 di ridurre la VELOCITÀ
+baisser l'INITIATIVE de l'adversaire.","Questo attacco ACQUA ha 1 probabilità
+su 3 di ridurre l'INIZIATIVA
 dell'avversario.",
 T0B_145,284b98f669c1209bbac64b448e9e742e,0076FA10,"A highly accurate NORMAL attack whose
 striking power is fairly strong.","Un ataque NORMAL muy certero con una
@@ -5094,17 +5093,17 @@ l'adversaire et inflige le double de
 dégâts à l'aller et au retour.","Un boomerang viene lanciato
 sull'avversario e infligge danni doppi
 all'andata e al ritorno.",
-T0B_155,3ca73ddab6f8472f217f4699d6bb94c9,0076FE11,"The attacker fully restores its HP
+T0B_155,3ca73ddab6f8472f217f4699d6bb94c9,0076FE11,"The attacker fully restores its SP
 with a nap and cures all status
-problems.","El atacante recupera todos sus PS
+problems.","El atacante recupera todos sus PF
 echando una siesta y elimina todos los
-problemas de estado.","昼寝を して HPを 全回復し 状態異常も
-すべて 治す。","O atacante recupera todos os PS
+problemas de estado.","昼寝を して 力Pを 全回復し 状態異常も
+すべて 治す。","O atacante recupera todos os PF
 tirando uma soneca e cura todos os
-problemas de status.","낮잠을 자서 HP를 전부 회복하고 상태
-이상도 모두 고친다.","L'attaquant restaure tous ses PV en
+problemas de status.","낮잠을 자서 힘P를 전부 회복하고 상태
+이상도 모두 고친다.","L'attaquant restaure tous ses PF en
 faisant un somme et soigne tous les
-problèmes de statut.","L'attaccante recupera tutti i PS
+problèmes de statut.","L'attaccante recupera tutti i PF
 facendo un pisolino ed elimina tutti i
 problemi di stato.",
 T0B_156,a303f968c4bed3f3785f82544d97c844,0076FE7C,"This ROCK attack hits the foe with a
@@ -5163,20 +5162,20 @@ force triangulaire blesse
 l'adversaire.","In questo attacco NORMALE viene
 generato un campo di forza triangolare
 che danneggia l'avversario.",
-T0B_161,fef86b65b684fb6dac99fab38f64f59a,0077006B,"If this attack hits, the foe's HP is
+T0B_161,fef86b65b684fb6dac99fab38f64f59a,0077006B,"If this attack hits, the foe's SP is
 halved. Only Pokémon with fangs can
-learn it.","Si este ataque acierta, los PS del
+learn it.","Si este ataque acierta, los PF del
 rival se reducen a la mitad. Solo los
 Pokémon con colmillos pueden
-aprenderlo.","当たると 相手の HPが 半分に なる。
+aprenderlo.","当たると 相手の 力Pが 半分に なる。
 キバを 持つ ポケモンしか
-覚えられない。","Se este ataque acertar, os PS do
+覚えられない。","Se este ataque acertar, os PF do
 oponente caem pela metade. Só Pokémon
-com presas podem aprendê-lo.","맞으면 상대의 HP가 절반이 된다.
-송곳니가 있는 포켓몬만 배울 수 있다.","Si cette attaque touche, les PV de
+com presas podem aprendê-lo.","맞으면 상대의 힘P가 절반이 된다.
+송곳니가 있는 포켓몬만 배울 수 있다.","Si cette attaque touche, les PF de
 l'adversaire sont divisés par deux.
 Seuls les Pokémon à crocs peuvent
-l'apprendre.","Se questo attacco va a segno, i PS
+l'apprendre.","Se questo attacco va a segno, i PF
 dell'avversario si dimezzano. Solo i
 Pokémon con le zanne possono
 impararlo.",
@@ -5194,27 +5193,27 @@ double de dégâts.","Un attacco NORMALE che spesso infligge
 brutti colpi, causando danni doppi
 all'avversario.",
 T0B_163,2f9242e94b2a466f084ba65ccbda4c90,00770144,"This attack turns a quarter of the
-attacker's HP into a SUBSTITUTE that
+attacker's SP into a SUBSTITUTE that
 absorbs damage.","Este ataque convierte un cuarto de los
-PS del atacante en un SUSTITUTO que
-absorbe el daño.","自分の HPの 4分の1で ダメージを
+PF del atacante en un SUSTITUTO que
+absorbe el daño.","自分の 力Pの 4分の1で ダメージを
 受け止める みがわりを 作る。","Este ataque transforma um quarto dos
-PS do atacante num DELEGADOR que
-absorve o dano.","자신의 HP의 4분의 1로 데미지를 받아
+PF do atacante num DELEGADOR que
+absorve o dano.","자신의 힘P의 4분의 1로 데미지를 받아
 내는 대타출동을 만든다.","Cette attaque transforme un quart des
-PV de l'attaquant en un CLONAGE qui
+PF de l'attaquant en un CLONAGE qui
 absorbe les dégâts.","Questo attacco trasforma un quarto dei
-PS dell'attaccante in un SOSTITUTO che
+PF dell'attaccante in un SOSTITUTO che
 assorbe i danni.",
-T0B_164,68d615d92d1b32048dd29cb906abc267,007701AF,"This attack is only used when no PP
-are left at all. Using it costs HP.","Este ataque solo se usa cuando no
-queda ningún PP. Usarlo cuesta PS.","PPが まったく 残っていない ときだけ
-使う。 使うと HPが 減る。","Este ataque só é usado quando não
-resta nenhum PP. Usá-lo custa PS.","PP가 전혀 남지 않았을 때만 쓴다.
-쓰면 HP가 줄어든다.","Cette attaque n'est utilisée que quand
-il ne reste plus aucun PP. Elle coûte
-des PV.","Questo attacco si usa solo quando non
-resta alcun PP. Usarlo costa PS.",
+T0B_164,68d615d92d1b32048dd29cb906abc267,007701AF,"This attack is only used when no AP
+are left at all. Using it costs SP.","Este ataque solo se usa cuando no
+queda ningún PA. Usarlo cuesta PF.","攻撃Pが まったく 残っていない ときだけ
+使う。 使うと 力Pが 減る。","Este ataque só é usado quando não
+resta nenhum PA. Usá-lo custa PF.","공격P가 전혀 남지 않았을 때만 쓴다.
+쓰면 힘P가 줄어든다.","Cette attaque n'est utilisée que quand
+il ne reste plus aucun PA. Elle coûte
+des PF.","Questo attacco si usa solo quando non
+resta alcun PA. Usarlo costa PF.",
 T0C_000,ad4902bf972d7857d2e2090e5bb5ecf7,0077060C,"With the MASTER BALL you can catch any
 wild Pokémon on the first try.","Con la BOLA MAESTRA atrapas a cualquier
 Pokémon salvaje al primer intento.","マスターボールなら どんな 野生の
@@ -5270,7 +5269,7 @@ en la ZONA SAFARI.","サファリゾーンだけで 使われる
 特別な ポケボール。","Esta POKéBOLA especial só é usada
 na ZONA SAFÁRI.","사파리존에서만 쓰이는
 특별한 포케볼.","Cette POKéBALLE spéciale ne sert que
-dans le PARC SAFARI.","Questa POKéPALLA speciale si usa solo
+dans la ZONE SAFARI.","Questa POKéPALLA speciale si usa solo
 nella ZONA SAFARI.",
 T0C_008,d41d8cd98f00b204e9800998ecf8427e,00770803,,,,,,,,
 T0C_009,a133d855561a651a8893b2f7a69bd8ff,00770804,"This STONE makes Pokémon of a certain
@@ -5321,46 +5320,46 @@ paralisados.","마비된 포켓몬을
 치료하는 약.","Ce médicament soigne les Pokémon
 paralysés.","Questa medicina cura i Pokémon
 paralizzati.",
-T0C_015,7f4626067e544dafafb1e430a67c81ac,00770983,"This medicine restores all HP and
-removes any status changes.","Esta medicina restaura todos los PS y
-elimina cualquier cambio de estado.","HPを すべて 回復し
-状態異常も 治す 薬。","Este remédio restaura todos os PS e
-remove qualquer mudança de estado.","HP를 모두 회복하고
-상태 이상도 치료하는 약.","Ce médicament restaure tous les PV et
-soigne tout changement de statut.","Questa medicina ripristina tutti i PS e
+T0C_015,7f4626067e544dafafb1e430a67c81ac,00770983,"This medicine restores all SP and
+removes any status changes.","Esta medicina restaura todos los PF y
+elimina cualquier cambio de estado.","力Pを すべて 回復し
+状態異常も 治す 薬。","Este remédio restaura todos os PF e
+remove qualquer mudança de estado.","힘P를 모두 회복하고
+상태 이상도 치료하는 약.","Ce médicament restaure tous les PF et
+soigne tout changement de statut.","Questa medicina ripristina tutti i PF e
 cura ogni alterazione di stato.",
-T0C_016,7a3480c8696b19796db76608bf3e51f4,007709D1,"This medicine fully restores all HIT
+T0C_016,7a3480c8696b19796db76608bf3e51f4,007709D1,"This medicine fully restores all STRENGTH
 POINTS lost in battle.","Esta medicina restaura del todo los
-PUNTOS DE SALUD perdidos.","バトルで 減った 体力を
+PUNTOS DE FUERZA perdidos.","バトルで 減った 力ポイントを
 すべて 回復する 薬。","Este remédio restaura todos os PONTOS
-DE SAÚDE perdidos em batalha.","배틀에서 줄어든 체력을
+DE FORÇA perdidos em batalha.","배틀에서 줄어든 힘 포인트를
 모두 회복하는 약.","Ce médicament restaure tous les POINTS
-DE VIE perdus au combat.","Questa medicina ripristina tutti i PUNTI
-SALUTE persi in lotta.",
+DE FORCE perdus au combat.","Questa medicina ripristina tutti i PUNTI
+FORZA persi in lotta.",
 T0C_017,ccaab0eeef201907c0dd98e8f163755a,00770A1D,"This medicine restores 200 of the
-HIT POINTS lost in battle.","Esta medicina restaura 200 de los
-PUNTOS DE SALUD perdidos.","バトルで 減った 体力を
+STRENGTH POINTS lost in battle.","Esta medicina restaura 200 de los
+PUNTOS DE FUERZA perdidos.","バトルで 減った 力ポイントを
 200 回復する 薬。","Este remédio restaura 200 dos
-PONTOS DE SAÚDE perdidos.","배틀에서 줄어든 체력을
+PONTOS DE FORÇA perdidos.","배틀에서 줄어든 힘 포인트를
 200 회복하는 약.","Ce médicament restaure 200 des
-POINTS DE VIE perdus au combat.","Questa medicina ripristina 200
-PUNTI SALUTE persi in lotta.",
+POINTS DE FORCE perdus au combat.","Questa medicina ripristina 200
+PUNTI FORZA persi in lotta.",
 T0C_018,e56bf644b3d0260a0207b7dd45e0b756,00770A65,"This medicine restores 50 of the
-HIT POINTS lost in battle.","Esta medicina restaura 50 de los
-PUNTOS DE SALUD perdidos.","バトルで 減った 体力を
+STRENGTH POINTS lost in battle.","Esta medicina restaura 50 de los
+PUNTOS DE FUERZA perdidos.","バトルで 減った 力ポイントを
 50 回復する 薬。","Este remédio restaura 50 dos
-PONTOS DE SAÚDE perdidos.","배틀에서 줄어든 체력을
+PONTOS DE FORÇA perdidos.","배틀에서 줄어든 힘 포인트를
 50 회복하는 약.","Ce médicament restaure 50 des
-POINTS DE VIE perdus au combat.","Questa medicina ripristina 50
-PUNTI SALUTE persi in lotta.",
+POINTS DE FORCE perdus au combat.","Questa medicina ripristina 50
+PUNTI FORZA persi in lotta.",
 T0C_019,773c2d4d31b2baf1f0955955a7e00c42,00770AA9,"This medicine restores 20 of the
-HIT POINTS lost in battle.","Esta medicina restaura 20 de los
-PUNTOS DE SALUD perdidos.","バトルで 減った 体力を
+STRENGTH POINTS lost in battle.","Esta medicina restaura 20 de los
+PUNTOS DE FUERZA perdidos.","バトルで 減った 力ポイントを
 20 回復する 薬。","Este remédio restaura 20 dos
-PONTOS DE SAÚDE perdidos.","배틀에서 줄어든 체력을
+PONTOS DE FORÇA perdidos.","배틀에서 줄어든 힘 포인트를
 20 회복하는 약.","Ce médicament restaure 20 des
-POINTS DE VIE perdus au combat.","Questa medicina ripristina 20
-PUNTI SALUTE persi in lotta.",
+POINTS DE FORCE perdus au combat.","Questa medicina ripristina 20
+PUNTI FORZA persi in lotta.",
 T0C_020,d41d8cd98f00b204e9800998ecf8427e,00770AED,,,,,,,,
 T0C_021,d41d8cd98f00b204e9800998ecf8427e,00770AEE,,,,,,,,
 T0C_022,d41d8cd98f00b204e9800998ecf8427e,00770AEF,,,,,,,,
@@ -5418,13 +5417,13 @@ Pokémon.","특정 포켓몬을
 Pokémon.","Questa PIETRA fa evolvere certi
 Pokémon.",
 T0C_034,19af33c51da5089fc3558c3a9707ac2e,00770C7B,"This item raises a Pokémon's
-maximum HIT POINTS.","Este objeto aumenta los PUNTOS DE
-SALUD máximos de un Pokémon.","ポケモンの 最大の
-体力を 上げる 道具。","Este item aumenta os PONTOS DE
-SAÚDE máximos de um Pokémon.","포켓몬의 최대
-체력을 올리는 도구.","Cet objet augmente les POINTS DE
-VIE maximum d'un Pokémon.","Questo strumento aumenta i PUNTI
-SALUTE massimi di un Pokémon.",
+maximum STRENGTH POINTS.","Este objeto aumenta los PUNTOS DE
+FUERZA máximos de un Pokémon.","ポケモンの 最大の
+力ポイントを 上げる 道具。","Este item aumenta os PONTOS DE
+FORÇA máximos de um Pokémon.","포켓몬의 최대
+힘 포인트를 올리는 도구.","Cet objet augmente les POINTS DE
+FORCE maximum d'un Pokémon.","Questo strumento aumenta i PUNTI
+FORZA massimi di un Pokémon.",
 T0C_035,a7a20a9ff4d9bf429874be8c018fa295,00770CC5,"This item raises a Pokémon's
 ATTACK power.","Este objeto aumenta el
 ATAQUE de un Pokémon.","ポケモンの
@@ -5442,12 +5441,12 @@ DEFESA de um Pokémon.","포켓몬의
 d'un Pokémon.","Questo strumento aumenta la DIFESA
 di un Pokémon.",
 T0C_037,fcf0f06d94bc7ae144912c1b6b2ada56,00770D49,"This item raises a Pokémon's
-SPEED.","Este objeto aumenta la
-VELOCIDAD de un Pokémon.","ポケモンの
-すばやさを 上げる 道具。","Este item aumenta a
-VELOCIDADE de um Pokémon.","포켓몬의
-스피드를 올리는 도구.","Cet objet augmente la VITESSE
-d'un Pokémon.","Questo strumento aumenta la VELOCITÀ
+INITIATIVE.","Este objeto aumenta la
+INICIATIVA de un Pokémon.","ポケモンの
+主導権を 上げる 道具。","Este item aumenta a
+INICIATIVA de um Pokémon.","포켓몬의
+주도권을 올리는 도구.","Cet objet augmente l'INITIATIVE
+d'un Pokémon.","Questo strumento aumenta l'INIZIATIVA
 di un Pokémon.",
 T0C_038,8dac0df634851f02f35cfd8f9543d635,00770D89,"This item raises a Pokémon's
 SPECIAL stat.","Este objeto aumenta el
@@ -5482,13 +5481,13 @@ em tempos pré-históricos.","태고의 시대에 살았던
 à la préhistoire.","Il fossile di un Pokémon vissuto
 in epoca preistorica.",
 T0C_042,acccdbb4d3ecb507f42c1466d5857d34,00770E8A,"This key unlocks the entrance door
-of a Pokémon Gym.","Esta llave abre la puerta de entrada
-de un Gimnasio Pokémon.","ポケモンジムの 入り口の
+of a Pokémon Arena.","Esta llave abre la puerta de entrada
+de una arena Pokémon.","ポケモンアリーナの 入り口の
 扉を 開ける カギ。","Esta chave abre a porta de entrada
-de um Ginásio Pokémon.","포켓몬 체육관의 입구
+de uma arena Pokémon.","포켓몬 아레나의 입구
 문을 여는 열쇠.","Cette clé ouvre la porte d'entrée
 d'une Arène Pokémon.","Questa chiave apre la porta d'ingresso
-di una Palestra Pokémon.",
+di una arena Pokémon.",
 T0C_043,d41d8cd98f00b204e9800998ecf8427e,00770ED3,,,,,,,,
 T0C_044,98a821f1c2f157aa00c5f85d47281ad1,00770ED4,"Trade the voucher for a BICYCLE at the
 bike shop in CERULEAN CITY.","Cambia el bono por una BICICLETA en la
@@ -5548,21 +5547,21 @@ qualquer mudança de estado.","포켓몬의 상태 이상을
 tout changement de statut.","Questa medicina libera un Pokémon da
 ogni alterazione di stato.",
 T0C_052,40c30e9a7268a7d2f3ef8ff0be8ede77,007710DE,"This medicine revives fainted Pokémon
-and restores half their HP.","Esta medicina reanima a Pokémon
-debilitados y restaura la mitad de sus PS.","倒れた ポケモンを 元気にし
-HPを 半分 回復する 薬。","Este remédio reanima Pokémon desmaiados
-e restaura metade dos PS.","쓰러진 포켓몬을 되살리고
-HP를 절반 회복하는 약.","Ce médicament ranime un Pokémon K.O.
-et restaure la moitié de ses PV.","Questa medicina rianima i Pokémon esausti
-e ripristina metà dei loro PS.",
+and restores half their SP.","Esta medicina reanima a Pokémon
+debilitados y restaura la mitad de sus PF.","倒れた ポケモンを 元気にし
+力Pを 半分 回復する 薬。","Este remédio reanima Pokémon desmaiados
+e restaura metade dos PF.","쓰러진 포켓몬을 되살리고
+힘P를 절반 회복하는 약.","Ce médicament ranime un Pokémon K.O.
+et restaure la moitié de ses PF.","Questa medicina rianima i Pokémon esausti
+e ripristina metà dei loro PF.",
 T0C_053,e2c090bb5f8c104012054eaaab0b939d,0077112C,"This medicine revives fainted Pokémon
-and fully restores their HP.","Esta medicina reanima a Pokémon
-debilitados y restaura todos sus PS.","倒れた ポケモンを 元気にし
-HPを すべて 回復する 薬。","Este remédio reanima Pokémon desmaiados
-e restaura todos os PS.","쓰러진 포켓몬을 되살리고
-HP를 모두 회복하는 약.","Ce médicament ranime un Pokémon K.O.
-et restaure tous ses PV.","Questa medicina rianima i Pokémon esausti
-e ripristina tutti i loro PS.",
+and fully restores their SP.","Esta medicina reanima a Pokémon
+debilitados y restaura todos sus PF.","倒れた ポケモンを 元気にし
+力Pを すべて 回復する 薬。","Este remédio reanima Pokémon desmaiados
+e restaura todos os PF.","쓰러진 포켓몬을 되살리고
+힘P를 모두 회복하는 약.","Ce médicament ranime un Pokémon K.O.
+et restaure tous ses PF.","Questa medicina rianima i Pokémon esausti
+e ripristina tutti i loro PF.",
 T0C_054,4db94b0041c9ec86efffdc1ca088d50b,0077117A,"This remedy temporarily raises a
 Pokémon's DEFENSE.","Este remedio aumenta temporalmente
 la DEFENSA de un Pokémon.","ポケモンの ぼうぎょを
@@ -5597,29 +5596,29 @@ chances de coup critique.","Questo rimedio aumenta temporaneamente
 la probabilità di un brutto colpo.",
 T0C_058,d41d8cd98f00b204e9800998ecf8427e,007712B5,,,,,,,,
 T0C_059,340fe082e6405148a3f8114fddbce735,007712B6,"This drink restores 50 of the
-HIT POINTS lost in battle.","Esta bebida restaura 50 de los
-PUNTOS DE SALUD perdidos.","バトルで 減った 体力を
+STRENGTH POINTS lost in battle.","Esta bebida restaura 50 de los
+PUNTOS DE FUERZA perdidos.","バトルで 減った 力ポイントを
 50 回復する 飲み物。","Esta bebida restaura 50 dos
-PONTOS DE SAÚDE perdidos.","배틀에서 줄어든 체력을
+PONTOS DE FORÇA perdidos.","배틀에서 줄어든 힘 포인트를
 50 회복하는 음료.","Cette boisson restaure 50 des
-POINTS DE VIE perdus au combat.","Questa bevanda ripristina 50
-PUNTI SALUTE persi in lotta.",
+POINTS DE FORCE perdus au combat.","Questa bevanda ripristina 50
+PUNTI FORZA persi in lotta.",
 T0C_060,836ea5e1c660480bcf35a68b4ddbfc1e,007712FB,"This drink restores 60 of the
-HIT POINTS lost in battle.","Esta bebida restaura 60 de los
-PUNTOS DE SALUD perdidos.","バトルで 減った 体力を
+STRENGTH POINTS lost in battle.","Esta bebida restaura 60 de los
+PUNTOS DE FUERZA perdidos.","バトルで 減った 力ポイントを
 60 回復する 飲み物。","Esta bebida restaura 60 dos
-PONTOS DE SAÚDE perdidos.","배틀에서 줄어든 체력을
+PONTOS DE FORÇA perdidos.","배틀에서 줄어든 힘 포인트를
 60 회복하는 음료.","Cette boisson restaure 60 des
-POINTS DE VIE perdus au combat.","Questa bevanda ripristina 60
-PUNTI SALUTE persi in lotta.",
+POINTS DE FORCE perdus au combat.","Questa bevanda ripristina 60
+PUNTI FORZA persi in lotta.",
 T0C_061,524a1ce94e7dcf5253eaa44f2ee797b9,00771340,"This drink restores 80 of the
-HIT POINTS lost in battle.","Esta bebida restaura 80 de los
-PUNTOS DE SALUD perdidos.","バトルで 減った 体力を
+STRENGTH POINTS lost in battle.","Esta bebida restaura 80 de los
+PUNTOS DE FUERZA perdidos.","バトルで 減った 力ポイントを
 80 回復する 飲み物。","Esta bebida restaura 80 dos
-PONTOS DE SAÚDE perdidos.","배틀에서 줄어든 체력을
+PONTOS DE FORÇA perdidos.","배틀에서 줄어든 힘 포인트를
 80 회복하는 음료.","Cette boisson restaure 80 des
-POINTS DE VIE perdus au combat.","Questa bevanda ripristina 80
-PUNTI SALUTE persi in lotta.",
+POINTS DE FORCE perdus au combat.","Questa bevanda ripristina 80
+PUNTI FORZA persi in lotta.",
 T0C_062,c155fd48095a28276c1f4d9a9102040f,00771385,"This ticket is an invitation to the
 big party aboard the S.S. Anne.","Este ticket es una invitación a la
 gran fiesta a bordo del S.S. Anne.","サントアンヌ号の 船上で 開かれる
@@ -5633,7 +5632,7 @@ GOLD TEETH and is looking for them!","¡El guarda de la ZONA SAFARI perdió sus
 DIENTES DE ORO y los está buscando!","サファリゾーンの 園長が
 なくして 探している 入れ歯!","O guarda da ZONA SAFÁRI perdeu seus
 DENTES DE OURO e está procurando!","사파리존의 원장이
-잃어버려서 찾고 있는 틀니!","Le gardien du PARC SAFARI a perdu ses
+잃어버려서 찾고 있는 틀니!","Le gardien de la ZONE SAFARI a perdu ses
 DENTS EN OR et les cherche!","Il guardiano della ZONA SAFARI ha perso
 i DENTI D'ORO e li sta cercando!",
 T0C_064,522c75aab4903a682955ecc8221131b4,00771426,"This remedy temporarily raises a
@@ -5653,13 +5652,13 @@ a DEFESA de um Pokémon.","포켓몬의 방어를
 la DEFENSE d'un Pokémon.","Questo rimedio aumenta temporaneamente
 la DIFESA di un Pokémon.",
 T0C_066,2701b1d574c3cb7efd5a68bba00e704a,007714AC,"This remedy temporarily raises a
-Pokémon's SPEED.","Este remedio aumenta temporalmente
-la VELOCIDAD de un Pokémon.","ポケモンの すばやさを
+Pokémon's INITIATIVE.","Este remedio aumenta temporalmente
+la INICIATIVA de un Pokémon.","ポケモンの 主導権を
 一時的に 上げる 薬。","Este remédio aumenta temporariamente
-a VELOCIDADE de um Pokémon.","포켓몬의 스피드를
+a INICIATIVA de um Pokémon.","포켓몬의 주도권을
 일시적으로 올리는 약.","Ce remède augmente temporairement
-la VITESSE d'un Pokémon.","Questo rimedio aumenta temporaneamente
-la VELOCITÀ di un Pokémon.",
+l'INITIATIVE d'un Pokémon.","Questo rimedio aumenta temporaneamente
+l'INIZIATIVA di un Pokémon.",
 T0C_067,2663f0b17492dc95f41646dd539b86c5,007714EA,"This remedy temporarily raises a
 Pokémon's SPECIAL stat.","Este remedio aumenta temporalmente
 el ESPECIAL de un Pokémon.","ポケモンの とくしゅを
@@ -5780,13 +5779,13 @@ de todos os golpes.","모든 기술의 PP를
 10씩 회복하는 약.","Ce remède restaure 10 PP
 de toutes les capacités.","Questo rimedio ripristina 10 PP
 di tutte le mosse.",
-T0C_082,8bc8a9c9616995513759eecf986e138f,0077194E,"This remedy fully restores the PP
-of all chosen moves.","Este remedio restaura del todo los PP
-de todos los movimientos.","すべての わざの PPを
-すべて 回復する 薬。","Este remédio restaura todos os PP
-de todos os golpes.","모든 기술의 PP를
-모두 회복하는 약.","Ce remède restaure tous les PP
-de toutes les capacités.","Questo rimedio ripristina tutti i PP
+T0C_082,8bc8a9c9616995513759eecf986e138f,0077194E,"This remedy fully restores the AP
+of all chosen moves.","Este remedio restaura del todo los PA
+de todos los movimientos.","すべての わざの 攻撃Pを
+すべて 回復する 薬。","Este remédio restaura todos os PA
+de todos os golpes.","모든 기술의 공격P를
+모두 회복하는 약.","Ce remède restaure tous les PA
+de toutes les capacités.","Questo rimedio ripristina tutti i PA
 di tutte le mosse.",
 T0C_083,d41d8cd98f00b204e9800998ecf8427e,00771998,,,,,,,,
 T0C_084,d41d8cd98f00b204e9800998ecf8427e,00771999,,,,,,,,
@@ -5901,445 +5900,445 @@ T0C_192,d41d8cd98f00b204e9800998ecf8427e,00771A05,,,,,,,,
 T0C_193,d41d8cd98f00b204e9800998ecf8427e,00771A06,,,,,,,,
 T0C_194,d41d8cd98f00b204e9800998ecf8427e,00771A07,,,,,,,,
 T0C_195,924eb6a39721cc290106d0b9b0187e6d,00771A08,"CUT
-NORMAL PP/30 POWER/50 ACC./95","CORTE
-NORMAL PP/30 POT./50 PRE./95","いあいぎり
-ノーマル PP/30 威力/50 命中/95","CORTADOR
-NORMAL PP/30 PODER/50 PREC./95","풀베기
-노멀 PP/30 위력/50 명중/95","COUPE
-NORMAL PP/30 PUIS./50 PREC./95","TAGLIO
-NORMALE PP/30 POT./50 PREC./95",
+NORMAL AP/30 STRENGTH/50 ACC./95","CORTE
+NORMAL PA/30 FUERZA/50 PRE./95","いあいぎり
+ノーマル 攻撃P/30 強さ/50 命中/95","CORTADOR
+NORMAL PA/30 FORÇA/50 PREC./95","풀베기
+노멀 공격P/30 세기/50 명중/95","COUPE
+NORMAL PA/30 FORCE/50 PREC./95","TAGLIO
+NORMALE PA/30 FORZA/50 PREC./95",
 T0C_196,5b2c543240e35d4d2dc96d5e168b5cbf,00771A35,"FLY
-FLIGHT PP/15 POWER/70 ACC./95","VUELO
-VUELO PP/15 POT./70 PRE./95","そらをとぶ
-飛行 PP/15 威力/70 命中/95","VOAR
-VOO PP/15 PODER/70 PREC./95","공중날기
-비행 PP/15 위력/70 명중/95","VOL
-VOL PP/15 PUIS./70 PREC./95","VOLO
-VOLO PP/15 POT./70 PREC./95",
+FLIGHT AP/15 STRENGTH/70 ACC./95","VUELO
+VUELO PA/15 FUERZA/70 PRE./95","そらをとぶ
+飛行 攻撃P/15 強さ/70 命中/95","VOAR
+VOO PA/15 FORÇA/70 PREC./95","공중날기
+비행 공격P/15 세기/70 명중/95","VOL
+VOL PA/15 FORCE/70 PREC./95","VOLO
+VOLO PA/15 FORZA/70 PREC./95",
 T0C_197,026cc1597a3a64acfc8061df490eee1f,00771A5B,"SURF
-WATER PP/15 POWER/95 ACC./100","SURF
-AGUA PP/15 POT./95 PRE./100","なみのり
-水 PP/15 威力/95 命中/100","SURFISTA
-ÁGUA PP/15 PODER/95 PREC./100","파도타기
-물 PP/15 위력/95 명중/100","SURF
-EAU PP/15 PUIS./95 PREC./100","SURF
-ACQUA PP/15 POT./95 PREC./100",
+WATER AP/15 STRENGTH/95 ACC./100","SURF
+AGUA PA/15 FUERZA/95 PRE./100","なみのり
+水 攻撃P/15 強さ/95 命中/100","SURFISTA
+ÁGUA PA/15 FORÇA/95 PREC./100","파도타기
+물 공격P/15 세기/95 명중/100","SURF
+EAU PA/15 FORCE/95 PREC./100","SURF
+ACQUA PA/15 FORZA/95 PREC./100",
 T0C_198,27b7e20a9c9643b2f6c8c2a5b7fce47e,00771A83,"STRENGTH
-NORMAL PP/15 POWER/80 ACC./100","FUERZA
-NORMAL PP/15 POT./80 PRE./100","かいりき
-ノーマル PP/15 威力/80 命中/100","FORÇA
-NORMAL PP/15 PODER/80 PREC./100","괴력
-노멀 PP/15 위력/80 명중/100","FORCE
-NORMAL PP/15 PUIS./80 PREC./100","FORZA
-NORMALE PP/15 POT./80 PREC./100",
+NORMAL AP/15 STRENGTH/80 ACC./100","FUERZA
+NORMAL PA/15 FUERZA/80 PRE./100","かいりき
+ノーマル 攻撃P/15 強さ/80 命中/100","FORÇA
+NORMAL PA/15 FORÇA/80 PREC./100","괴력
+노멀 공격P/15 세기/80 명중/100","FORCE
+NORMAL PA/15 FORCE/80 PREC./100","FORZA
+NORMALE PA/15 FORZA/80 PREC./100",
 T0C_199,b89f50ee62aa144fdd340308ced42139,00771AAB,"FLASH
-NORMAL PP/20 POWER/-- ACC./70","DESTELLO
-NORMAL PP/20 POT./-- PRE./70","フラッシュ
-ノーマル PP/20 威力/-- 命中/70","RELÂMPAGO
-NORMAL PP/20 PODER/-- PREC./70","플래시
-노멀 PP/20 위력/-- 명중/70","FLASH
-NORMAL PP/20 PUIS./-- PREC./70","FLASH
-NORMALE PP/20 POT./-- PREC./70",
+NORMAL AP/20 STRENGTH/-- ACC./70","DESTELLO
+NORMAL PA/20 FUERZA/-- PRE./70","フラッシュ
+ノーマル 攻撃P/20 強さ/-- 命中/70","RELÂMPAGO
+NORMAL PA/20 FORÇA/-- PREC./70","플래시
+노멀 공격P/20 세기/-- 명중/70","FLASH
+NORMAL PA/20 FORCE/-- PREC./70","FLASH
+NORMALE PA/20 FORZA/-- PREC./70",
 T0C_200,b14d2028c473558d7a24f30512cdd9dc,00771AD1,"MEGA PUNCH
-NORMAL PP/20 POWER/80 ACC./85","MEGAPUÑO
-NORMAL PP/20 POT./80 PRE./85","メガトンパンチ
-ノーマル PP/20 威力/80 命中/85","MEGAGOLPE
-NORMAL PP/20 PODER/80 PREC./85","메가톤펀치
-노멀 PP/20 위력/80 명중/85","ULTIMAPOING
-NORMAL PP/20 PUIS./80 PREC./85","MEGAPUGNO
-NORMALE PP/20 POT./80 PREC./85",
+NORMAL AP/20 STRENGTH/80 ACC./85","MEGAPUÑO
+NORMAL PA/20 FUERZA/80 PRE./85","メガトンパンチ
+ノーマル 攻撃P/20 強さ/80 命中/85","MEGAGOLPE
+NORMAL PA/20 FORÇA/80 PREC./85","메가톤펀치
+노멀 공격P/20 세기/80 명중/85","ULTIMAPOING
+NORMAL PA/20 FORCE/80 PREC./85","MEGAPUGNO
+NORMALE PA/20 FORZA/80 PREC./85",
 T0C_201,154bc1e72d93cd7a35d2a60c34fcc431,00771AFA,"RAZOR WIND
-NORMAL PP/10 POWER/80 ACC./75","VIENTO CORTANTE
-NORMAL PP/10 POT./80 PRE./75","かまいたち
-ノーマル PP/10 威力/80 命中/75","TEMPESTADE DE LÂMINAS
-NORMAL PP/10 PODER/80 PREC./75","칼바람
-노멀 PP/10 위력/80 명중/75","COUPE-VENT
-NORMAL PP/10 PUIS./80 PREC./75","VENTAGLIENTE
-NORMALE PP/10 POT./80 PREC./75",
+NORMAL AP/10 STRENGTH/80 ACC./75","VIENTO CORTANTE
+NORMAL PA/10 FUERZA/80 PRE./75","かまいたち
+ノーマル 攻撃P/10 強さ/80 命中/75","TEMPESTADE DE LÂMINAS
+NORMAL PA/10 FORÇA/80 PREC./75","칼바람
+노멀 공격P/10 세기/80 명중/75","COUPE-VENT
+NORMAL PA/10 FORCE/80 PREC./75","VENTAGLIENTE
+NORMALE PA/10 FORZA/80 PREC./75",
 T0C_202,6ba56a013769119cd820335afbfbc6a7,00771B27,"SWORDS DANCE
-NORMAL PP/30 POWER/-- ACC./100","DANZA ESPADA
-NORMAL PP/30 POT./-- PRE./100","つるぎのまい
-ノーマル PP/30 威力/-- 命中/100","DANÇA DA ESPADA
-NORMAL PP/30 PODER/-- PREC./100","칼춤
-노멀 PP/30 위력/-- 명중/100","DANSE-LAMES
-NORMAL PP/30 PUIS./-- PREC./100","DANZASPADA
-NORMALE PP/30 POT./-- PREC./100",
+NORMAL AP/30 STRENGTH/-- ACC./100","DANZA ESPADA
+NORMAL PA/30 FUERZA/-- PRE./100","つるぎのまい
+ノーマル 攻撃P/30 強さ/-- 命中/100","DANÇA DA ESPADA
+NORMAL PA/30 FORÇA/-- PREC./100","칼춤
+노멀 공격P/30 세기/-- 명중/100","DANSE-LAMES
+NORMAL PA/30 FORCE/-- PREC./100","DANZASPADA
+NORMALE PA/30 FORZA/-- PREC./100",
 T0C_203,6461e72a01fbafa1bcca57b71dfecb05,00771B54,"WHIRLWIND
-NORMAL PP/20 POWER/-- ACC./85","REMOLINO
-NORMAL PP/20 POT./-- PRE./85","ふきとばし
-ノーマル PP/20 威力/-- 命中/85","REDEMOINHO
-NORMAL PP/20 PODER/-- PREC./85","날려버리기
-노멀 PP/20 위력/-- 명중/85","CYCLONE
-NORMAL PP/20 PUIS./-- PREC./85","TURBINE
-NORMALE PP/20 POT./-- PREC./85",
+NORMAL AP/20 STRENGTH/-- ACC./85","REMOLINO
+NORMAL PA/20 FUERZA/-- PRE./85","ふきとばし
+ノーマル 攻撃P/20 強さ/-- 命中/85","REDEMOINHO
+NORMAL PA/20 FORÇA/-- PREC./85","날려버리기
+노멀 공격P/20 세기/-- 명중/85","CYCLONE
+NORMAL PA/20 FORCE/-- PREC./85","TURBINE
+NORMALE PA/20 FORZA/-- PREC./85",
 T0C_204,8c4a265e274598d4eed92aaa071f3580,00771B7F,"MEGA KICK
-NORMAL PP/5 POWER/120 ACC./75","MEGAPATADA
-NORMAL PP/5 POT./120 PRE./75","メガトンキック
-ノーマル PP/5 威力/120 命中/75","MEGACHUTE
-NORMAL PP/5 PODER/120 PREC./75","메가톤킥
-노멀 PP/5 위력/120 명중/75","ULTIMAWASHI
-NORMAL PP/5 PUIS./120 PREC./75","MEGACALCIO
-NORMALE PP/5 POT./120 PREC./75",
+NORMAL AP/5 STRENGTH/120 ACC./75","MEGAPATADA
+NORMAL PA/5 FUERZA/120 PRE./75","メガトンキック
+ノーマル 攻撃P/5 強さ/120 命中/75","MEGACHUTE
+NORMAL PA/5 FORÇA/120 PREC./75","메가톤킥
+노멀 공격P/5 세기/120 명중/75","ULTIMAWASHI
+NORMAL PA/5 FORCE/120 PREC./75","MEGACALCIO
+NORMALE PA/5 FORZA/120 PREC./75",
 T0C_205,46cf8ca90ddea0f7f419835f86f93223,00771BA8,"TOXIC
-POISON PP/10 POWER/-- ACC./85","TÓXICO
-VENENO PP/10 POT./-- PRE./85","どくどく
-毒 PP/10 威力/-- 命中/85","TOXINA
-VENENO PP/10 PODER/-- PREC./85","맹독
-독 PP/10 위력/-- 명중/85","TOXIK
-POISON PP/10 PUIS./-- PREC./85","TOSSINA
-VELENO PP/10 POT./-- PREC./85",
+POISON AP/10 STRENGTH/-- ACC./85","TÓXICO
+VENENO PA/10 FUERZA/-- PRE./85","どくどく
+毒 攻撃P/10 強さ/-- 命中/85","TOXINA
+VENENO PA/10 FORÇA/-- PREC./85","맹독
+독 공격P/10 세기/-- 명중/85","TOXIK
+POISON PA/10 FORCE/-- PREC./85","TOSSINA
+VELENO PA/10 FORZA/-- PREC./85",
 T0C_206,ef2472d373171551f8d0e7bbb0520f3c,00771BCC,"HORN DRILL
-NORMAL PP/5 POWER/-- ACC./30","PERFORADOR
-NORMAL PP/5 POT./-- PRE./30","つのドリル
-ノーマル PP/5 威力/-- 命中/30","BROCA DE CHIFRE
-NORMAL PP/5 PODER/-- PREC./30","뿔드릴
-노멀 PP/5 위력/-- 명중/30","EMPAL'KORNE
-NORMAL PP/5 PUIS./-- PREC./30","PERFORCORNO
-NORMALE PP/5 POT./-- PREC./30",
+NORMAL AP/5 STRENGTH/-- ACC./30","PERFORADOR
+NORMAL PA/5 FUERZA/-- PRE./30","つのドリル
+ノーマル 攻撃P/5 強さ/-- 命中/30","BROCA DE CHIFRE
+NORMAL PA/5 FORÇA/-- PREC./30","뿔드릴
+노멀 공격P/5 세기/-- 명중/30","EMPAL'KORNE
+NORMAL PA/5 FORCE/-- PREC./30","PERFORCORNO
+NORMALE PA/5 FORZA/-- PREC./30",
 T0C_207,d1621924174807d630a0f79cee099e08,00771BF6,"BODY SLAM
-NORMAL PP/15 POWER/85 ACC./100","GOLPE CUERPO
-NORMAL PP/15 POT./85 PRE./100","のしかかり
-ノーマル PP/15 威力/85 命中/100","PANCADA CORPORAL
-NORMAL PP/15 PODER/85 PREC./100","누르기
-노멀 PP/15 위력/85 명중/100","PLAQUAGE
-NORMAL PP/15 PUIS./85 PREC./100","CORPOSCONTRO
-NORMALE PP/15 POT./85 PREC./100",
+NORMAL AP/15 STRENGTH/85 ACC./100","GOLPE CUERPO
+NORMAL PA/15 FUERZA/85 PRE./100","のしかかり
+ノーマル 攻撃P/15 強さ/85 命中/100","PANCADA CORPORAL
+NORMAL PA/15 FORÇA/85 PREC./100","누르기
+노멀 공격P/15 세기/85 명중/100","PLAQUAGE
+NORMAL PA/15 FORCE/85 PREC./100","CORPOSCONTRO
+NORMALE PA/15 FORZA/85 PREC./100",
 T0C_208,8e4b796cc7bae5ff71b5c0ab2882318c,00771C20,"TAKE DOWN
-NORMAL PP/20 POWER/90 ACC./85","DERRIBO
-NORMAL PP/20 POT./90 PRE./85","とっしん
-ノーマル PP/20 威力/90 命中/85","ENCONTRÃO
-NORMAL PP/20 PODER/90 PREC./85","돌진
-노멀 PP/20 위력/90 명중/85","BÉLIER
-NORMAL PP/20 PUIS./90 PREC./85","RIDUTTORE
-NORMALE PP/20 POT./90 PREC./85",
+NORMAL AP/20 STRENGTH/90 ACC./85","DERRIBO
+NORMAL PA/20 FUERZA/90 PRE./85","とっしん
+ノーマル 攻撃P/20 強さ/90 命中/85","ENCONTRÃO
+NORMAL PA/20 FORÇA/90 PREC./85","돌진
+노멀 공격P/20 세기/90 명중/85","BÉLIER
+NORMAL PA/20 FORCE/90 PREC./85","RIDUTTORE
+NORMALE PA/20 FORZA/90 PREC./85",
 T0C_209,25d8427a0547b3050265f7389cc3ae14,00771C4A,"DOUBLE-EDGE
-NORMAL PP/15 POWER/100 ACC./100","DOBLE FILO
-NORMAL PP/15 POT./100 PRE./100","すてみタックル
-ノーマル PP/15 威力/100 命中/100","INVESTIDA ARRISCADA
-NORMAL PP/15 PODER/100 PREC./100","이판사판태클
-노멀 PP/15 위력/100 명중/100","DAMOCLÈS
-NORMAL PP/15 PUIS./100 PREC./100","SDOPPIATORE
-NORMALE PP/15 POT./100 PREC./100",
+NORMAL AP/15 STRENGTH/100 ACC./100","DOBLE FILO
+NORMAL PA/15 FUERZA/100 PRE./100","すてみタックル
+ノーマル 攻撃P/15 強さ/100 命中/100","INVESTIDA ARRISCADA
+NORMAL PA/15 FORÇA/100 PREC./100","이판사판태클
+노멀 공격P/15 세기/100 명중/100","DAMOCLÈS
+NORMAL PA/15 FORCE/100 PREC./100","SDOPPIATORE
+NORMALE PA/15 FORZA/100 PREC./100",
 T0C_210,fffc473825fbe7d7e12d22a57f96c6ad,00771C79,"BUBBLE BEAM
-WATER PP/20 POWER/65 ACC./100","RAYO BURBUJA
-AGUA PP/20 POT./65 PRE./100","バブルこうせん
-水 PP/20 威力/65 命中/100","RAIO BLUB
-ÁGUA PP/20 PODER/65 PREC./100","거품광선
-물 PP/20 위력/65 명중/100","BULLES D'O
-EAU PP/20 PUIS./65 PREC./100","BOLLARAGGIO
-ACQUA PP/20 POT./65 PREC./100",
+WATER AP/20 STRENGTH/65 ACC./100","RAYO BURBUJA
+AGUA PA/20 FUERZA/65 PRE./100","バブルこうせん
+水 攻撃P/20 強さ/65 命中/100","RAIO BLUB
+ÁGUA PA/20 FORÇA/65 PREC./100","거품광선
+물 공격P/20 세기/65 명중/100","BULLES D'O
+EAU PA/20 FORCE/65 PREC./100","BOLLARAGGIO
+ACQUA PA/20 FORZA/65 PREC./100",
 T0C_211,70278dafb42f57cba24d80a5263d9d8f,00771CA6,"WATER GUN
-WATER PP/25 POWER/40 ACC./100","PISTOLA AGUA
-AGUA PP/25 POT./40 PRE./100","みずでっぽう
-水 PP/25 威力/40 命中/100","ESPINGARDA AQUA
-ÁGUA PP/25 PODER/40 PREC./100","물대포
-물 PP/25 위력/40 명중/100","PISTOLET À O
-EAU PP/25 PUIS./40 PREC./100","PISTOLACQUA
-ACQUA PP/25 POT./40 PREC./100",
+WATER AP/25 STRENGTH/40 ACC./100","PISTOLA AGUA
+AGUA PA/25 FUERZA/40 PRE./100","みずでっぽう
+水 攻撃P/25 強さ/40 命中/100","ESPINGARDA AQUA
+ÁGUA PA/25 FORÇA/40 PREC./100","물대포
+물 공격P/25 세기/40 명중/100","PISTOLET À O
+EAU PA/25 FORCE/40 PREC./100","PISTOLACQUA
+ACQUA PA/25 FORZA/40 PREC./100",
 T0C_212,c048297fc57a83020e4c7825328d23ce,00771CD2,"ICE BEAM
-ICE PP/10 POWER/95 ACC./100","RAYO HIELO
-HIELO PP/10 POT./95 PRE./100","れいとうビーム
-氷 PP/10 威力/95 命中/100","RAIO DE GELO
-GELO PP/10 PODER/95 PREC./100","냉동빔
-얼음 PP/10 위력/95 명중/100","LASER GLACE
-GLACE PP/10 PUIS./95 PREC./100","GELORAGGIO
-GHIACCIO PP/10 POT./95 PREC./100",
+ICE AP/10 STRENGTH/95 ACC./100","RAYO HIELO
+HIELO PA/10 FUERZA/95 PRE./100","れいとうビーム
+氷 攻撃P/10 強さ/95 命中/100","RAIO DE GELO
+GELO PA/10 FORÇA/95 PREC./100","냉동빔
+얼음 공격P/10 세기/95 명중/100","LASER GLACE
+GLACE PA/10 FORCE/95 PREC./100","GELORAGGIO
+GHIACCIO PA/10 FORZA/95 PREC./100",
 T0C_213,676d86deecee73614c4448f1c7ef7974,00771CFA,"BLIZZARD
-ICE PP/5 POWER/120 ACC./90","VENTISCA
-HIELO PP/5 POT./120 PRE./90","ふぶき
-氷 PP/5 威力/120 命中/90","NEVASCA
-GELO PP/5 PODER/120 PREC./90","눈보라
-얼음 PP/5 위력/120 명중/90","BLIZZARD
-GLACE PP/5 PUIS./120 PREC./90","BORA
-GHIACCIO PP/5 POT./120 PREC./90",
+ICE AP/5 STRENGTH/120 ACC./90","VENTISCA
+HIELO PA/5 FUERZA/120 PRE./90","ふぶき
+氷 攻撃P/5 強さ/120 命中/90","NEVASCA
+GELO PA/5 FORÇA/120 PREC./90","눈보라
+얼음 공격P/5 세기/120 명중/90","BLIZZARD
+GLACE PA/5 FORCE/120 PREC./90","BORA
+GHIACCIO PA/5 FORZA/120 PREC./90",
 T0C_214,15fcf3d1bf169d5170b3e46978586af3,00771D20,"HYPER BEAM
-NORMAL PP/5 POWER/150 ACC./90","HIPERRAYO
-NORMAL PP/5 POT./150 PRE./90","はかいこうせん
-ノーマル PP/5 威力/150 命中/90","HIPERRAIO
-NORMAL PP/5 PODER/150 PREC./90","파괴광선
-노멀 PP/5 위력/150 명중/90","ULTRALASER
-NORMAL PP/5 PUIS./150 PREC./90","IPER RAGGIO
-NORMALE PP/5 POT./150 PREC./90",
+NORMAL AP/5 STRENGTH/150 ACC./90","HIPERRAYO
+NORMAL PA/5 FUERZA/150 PRE./90","はかいこうせん
+ノーマル 攻撃P/5 強さ/150 命中/90","HIPERRAIO
+NORMAL PA/5 FORÇA/150 PREC./90","파괴광선
+노멀 공격P/5 세기/150 명중/90","ULTRALASER
+NORMAL PA/5 FORCE/150 PREC./90","IPER RAGGIO
+NORMALE PA/5 FORZA/150 PREC./90",
 T0C_215,1e9aeabbfd51ea0176718a80ad2a6b5b,00771D4C,"PAY DAY
-NORMAL PP/20 POWER/40 ACC./100","DÍA DE PAGO
-NORMAL PP/20 POT./40 PRE./100","ネコにこばん
-ノーマル PP/20 威力/40 命中/100","DIA DE PAGAMENTO
-NORMAL PP/20 PODER/40 PREC./100","고양이돈받기
-노멀 PP/20 위력/40 명중/100","JACKPOT
-NORMAL PP/20 PUIS./40 PREC./100","GIORNOPAGA
-NORMALE PP/20 POT./40 PREC./100",
+NORMAL AP/20 STRENGTH/40 ACC./100","DÍA DE PAGO
+NORMAL PA/20 FUERZA/40 PRE./100","ネコにこばん
+ノーマル 攻撃P/20 強さ/40 命中/100","DIA DE PAGAMENTO
+NORMAL PA/20 FORÇA/40 PREC./100","고양이돈받기
+노멀 공격P/20 세기/40 명중/100","JACKPOT
+NORMAL PA/20 FORCE/40 PREC./100","GIORNOPAGA
+NORMALE PA/20 FORZA/40 PREC./100",
 T0C_216,6f9d462ec1a20bff0e9eb118286788a9,00771D75,"SUBMISSION
-FIGHT PP/25 POWER/80 ACC./80","SUMISIÓN
-COMBATE PP/25 POT./80 PRE./80","じごくぐるま
-格闘 PP/25 威力/80 命中/80","ATROPELAMENTO
-LUTA PP/25 PODER/80 PREC./80","지옥의바퀴
-격투 PP/25 위력/80 명중/80","SACRIFICE
-COMBAT PP/25 PUIS./80 PREC./80","SOTTOMISSIONE
-LOTTA PP/25 POT./80 PREC./80",
+FIGHT AP/25 STRENGTH/80 ACC./80","SUMISIÓN
+COMBATE PA/25 FUERZA/80 PRE./80","じごくぐるま
+格闘 攻撃P/25 強さ/80 命中/80","ATROPELAMENTO
+LUTA PA/25 FORÇA/80 PREC./80","지옥의바퀴
+격투 공격P/25 세기/80 명중/80","SACRIFICE
+COMBAT PA/25 FORCE/80 PREC./80","SOTTOMISSIONE
+LOTTA PA/25 FORZA/80 PREC./80",
 T0C_217,b7b1bb730de43a88150aa59b72ae683e,00771D9F,"COUNTER
-FIGHT PP/20 POWER/-- ACC./100","CONTRAATAQUE
-COMBATE PP/20 POT./-- PRE./100","カウンター
-格闘 PP/20 威力/-- 命中/100","CONTRA-ATAQUE
-LUTA PP/20 PODER/-- PREC./100","카운터
-격투 PP/20 위력/-- 명중/100","RIPOSTE
-COMBAT PP/20 PUIS./-- PREC./100","CONTRATTACCO
-LOTTA PP/20 POT./-- PREC./100",
+FIGHT AP/20 STRENGTH/-- ACC./100","CONTRAATAQUE
+COMBATE PA/20 FUERZA/-- PRE./100","カウンター
+格闘 攻撃P/20 強さ/-- 命中/100","CONTRA-ATAQUE
+LUTA PA/20 FORÇA/-- PREC./100","카운터
+격투 공격P/20 세기/-- 명중/100","RIPOSTE
+COMBAT PA/20 FORCE/-- PREC./100","CONTRATTACCO
+LOTTA PA/20 FORZA/-- PREC./100",
 T0C_218,23408f9429b9269bb75ed76b322c84fb,00771DC6,"SEISMIC TOSS
-FIGHT PP/20 POWER/-- ACC./100","SÍSMICO
-COMBATE PP/20 POT./-- PRE./100","ちきゅうなげ
-格闘 PP/20 威力/-- 命中/100","GEOARREMESSO
-LUTA PP/20 PODER/-- PREC./100","지구던지기
-격투 PP/20 위력/-- 명중/100","FRAPPE ATLAS
-COMBAT PP/20 PUIS./-- PREC./100","MOVIM. SISMICO
-LOTTA PP/20 POT./-- PREC./100",
+FIGHT AP/20 STRENGTH/-- ACC./100","SÍSMICO
+COMBATE PA/20 FUERZA/-- PRE./100","ちきゅうなげ
+格闘 攻撃P/20 強さ/-- 命中/100","GEOARREMESSO
+LUTA PA/20 FORÇA/-- PREC./100","지구던지기
+격투 공격P/20 세기/-- 명중/100","FRAPPE ATLAS
+COMBAT PA/20 FORCE/-- PREC./100","MOVIM. SISMICO
+LOTTA PA/20 FORZA/-- PREC./100",
 T0C_219,0e9eb462b13a9aa60edaaab630139032,00771DEE,"RAGE
-NORMAL PP/20 POWER/20 ACC./100","FURIA
-NORMAL PP/20 POT./20 PRE./100","いかり
-ノーマル PP/20 威力/20 命中/100","FRENESI
-NORMAL PP/20 PODER/20 PREC./100","분노
-노멀 PP/20 위력/20 명중/100","FRÉNÉSIE
-NORMAL PP/20 PUIS./20 PREC./100","IRA
-NORMALE PP/20 POT./20 PREC./100",
+NORMAL AP/20 STRENGTH/20 ACC./100","FURIA
+NORMAL PA/20 FUERZA/20 PRE./100","いかり
+ノーマル 攻撃P/20 強さ/20 命中/100","FRENESI
+NORMAL PA/20 FORÇA/20 PREC./100","분노
+노멀 공격P/20 세기/20 명중/100","FRÉNÉSIE
+NORMAL PA/20 FORCE/20 PREC./100","IRA
+NORMALE PA/20 FORZA/20 PREC./100",
 T0C_220,758098b30e4147b9584663be85146c68,00771E17,"MEGA DRAIN
-PLANT PP/10 POWER/40 ACC./100","MEGAAGOTAR
-PLANTA PP/10 POT./40 PRE./100","メガドレイン
-植物 PP/10 威力/40 命中/100","MEGASSUCÇÃO
-PLANTA PP/10 PODER/40 PREC./100","메가드레인
-식물 PP/10 위력/40 명중/100","MÉGA-SANGSUE
-PLANTE PP/10 PUIS./40 PREC./100","MEGASSORBIMENTO
-PIANTA PP/10 POT./40 PREC./100",
+PLANT AP/10 STRENGTH/40 ACC./100","MEGAAGOTAR
+PLANTA PA/10 FUERZA/40 PRE./100","メガドレイン
+植物 攻撃P/10 強さ/40 命中/100","MEGASSUCÇÃO
+PLANTA PA/10 FORÇA/40 PREC./100","메가드레인
+식물 공격P/10 세기/40 명중/100","MÉGA-SANGSUE
+PLANTE PA/10 FORCE/40 PREC./100","MEGASSORBIMENTO
+PIANTA PA/10 FORZA/40 PREC./100",
 T0C_221,30192745f5b936bf5e94dc1a6f4f3dda,00771E44,"SOLAR BEAM
-PLANT PP/10 POWER/120 ACC./100","RAYO SOLAR
-PLANTA PP/10 POT./120 PRE./100","ソーラービーム
-植物 PP/10 威力/120 命中/100","RAIO SOLAR
-PLANTA PP/10 PODER/120 PREC./100","솔라빔
-식물 PP/10 위력/120 명중/100","LANCE-SOLEIL
-PLANTE PP/10 PUIS./120 PREC./100","SOLARRAGGIO
-PIANTA PP/10 POT./120 PREC./100",
+PLANT AP/10 STRENGTH/120 ACC./100","RAYO SOLAR
+PLANTA PA/10 FUERZA/120 PRE./100","ソーラービーム
+植物 攻撃P/10 強さ/120 命中/100","RAIO SOLAR
+PLANTA PA/10 FORÇA/120 PREC./100","솔라빔
+식물 공격P/10 세기/120 명중/100","LANCE-SOLEIL
+PLANTE PA/10 FORCE/120 PREC./100","SOLARRAGGIO
+PIANTA PA/10 FORZA/120 PREC./100",
 T0C_222,4daa94b5d8de2f135775278b50e8bd9e,00771E73,"DRAGON RAGE
-DRAGON PP/10 POWER/-- ACC./100","FURIA DRAGÓN
-DRAGÓN PP/10 POT./-- PRE./100","りゅうのいかり
-竜 PP/10 威力/-- 命中/100","FÚRIA DO DRAGÃO
-DRAGÃO PP/10 PODER/-- PREC./100","용의분노
-용 PP/10 위력/-- 명중/100","DRACO-RAGE
-DRAGON PP/10 PUIS./-- PREC./100","IRA DI DRAGO
-DRAGO PP/10 POT./-- PREC./100",
+DRAGON AP/10 STRENGTH/-- ACC./100","FURIA DRAGÓN
+DRAGÓN PA/10 FUERZA/-- PRE./100","りゅうのいかり
+竜 攻撃P/10 強さ/-- 命中/100","FÚRIA DO DRAGÃO
+DRAGÃO PA/10 FORÇA/-- PREC./100","용의분노
+용 공격P/10 세기/-- 명중/100","DRACO-RAGE
+DRAGON PA/10 FORCE/-- PREC./100","IRA DI DRAGO
+DRAGO PA/10 FORZA/-- PREC./100",
 T0C_223,fdb91283cf18c8f238fe0b962c960a99,00771EA0,"THUNDERBOLT
-ELECTRO PP/15 POWER/95 ACC./100","RAYO
-ELECTRO PP/15 POT./95 PRE./100","10まんボルト
-電気 PP/15 威力/95 命中/100","RAIO TROVÃO
-ELETRO PP/15 PODER/95 PREC./100","10만볼트
-전기 PP/15 위력/95 명중/100","TONNERRE
-ÉLECTRO PP/15 PUIS./95 PREC./100","FULMINE
-ELETTRO PP/15 POT./95 PREC./100",
+ELECTRO AP/15 STRENGTH/95 ACC./100","RAYO
+ELECTRO PA/15 FUERZA/95 PRE./100","10まんボルト
+電気 攻撃P/15 強さ/95 命中/100","RAIO TROVÃO
+ELETRO PA/15 FORÇA/95 PREC./100","10만볼트
+전기 공격P/15 세기/95 명중/100","TONNERRE
+ÉLECTRO PA/15 FORCE/95 PREC./100","FULMINE
+ELETTRO PA/15 FORZA/95 PREC./100",
 T0C_224,62a00ee9dcb705c2013504e7af294a21,00771ECE,"THUNDER
-ELECTRO PP/10 POWER/120 ACC./70","TRUENO
-ELECTRO PP/10 POT./120 PRE./70","かみなり
-電気 PP/10 威力/120 命中/70","TROVÃO
-ELETRO PP/10 PODER/120 PREC./70","번개
-전기 PP/10 위력/120 명중/70","FATAL-FOUDRE
-ÉLECTRO PP/10 PUIS./120 PREC./70","TUONO
-ELETTRO PP/10 POT./120 PREC./70",
+ELECTRO AP/10 STRENGTH/120 ACC./70","TRUENO
+ELECTRO PA/10 FUERZA/120 PRE./70","かみなり
+電気 攻撃P/10 強さ/120 命中/70","TROVÃO
+ELETRO PA/10 FORÇA/120 PREC./70","번개
+전기 공격P/10 세기/120 명중/70","FATAL-FOUDRE
+ÉLECTRO PA/10 FORCE/120 PREC./70","TUONO
+ELETTRO PA/10 FORZA/120 PREC./70",
 T0C_225,1c91a027295c872f81035874e1d17b4d,00771EF7,"EARTHQUAKE
-GROUND PP/10 POWER/100 ACC./100","TERREMOTO
-SUELO PP/10 POT./100 PRE./100","じしん
-地面 PP/10 威力/100 命中/100","TERREMOTO
-SOLO PP/10 PODER/100 PREC./100","지진
-땅 PP/10 위력/100 명중/100","SÉISME
-SOL PP/10 PUIS./100 PREC./100","TERREMOTO
-SUOLO PP/10 POT./100 PREC./100",
+GROUND AP/10 STRENGTH/100 ACC./100","TERREMOTO
+SUELO PA/10 FUERZA/100 PRE./100","じしん
+地面 攻撃P/10 強さ/100 命中/100","TERREMOTO
+SOLO PA/10 FORÇA/100 PREC./100","지진
+땅 공격P/10 세기/100 명중/100","SÉISME
+SOL PA/10 FORCE/100 PREC./100","TERREMOTO
+SUOLO PA/10 FORZA/100 PREC./100",
 T0C_226,a2692f5e43c035b2e02e6c0cfa81880f,00771F21,"FISSURE
-GROUND PP/5 POWER/-- ACC./30","FISURA
-SUELO PP/5 POT./-- PRE./30","じわれ
-地面 PP/5 威力/-- 命中/30","GEOFISSURA
-SOLO PP/5 PODER/-- PREC./30","땅가르기
-땅 PP/5 위력/-- 명중/30","ABÎME
-SOL PP/5 PUIS./-- PREC./30","ABISSO
-SUOLO PP/5 POT./-- PREC./30",
+GROUND AP/5 STRENGTH/-- ACC./30","FISURA
+SUELO PA/5 FUERZA/-- PRE./30","じわれ
+地面 攻撃P/5 強さ/-- 命中/30","GEOFISSURA
+SOLO PA/5 FORÇA/-- PREC./30","땅가르기
+땅 공격P/5 세기/-- 명중/30","ABÎME
+SOL PA/5 FORCE/-- PREC./30","ABISSO
+SUOLO PA/5 FORZA/-- PREC./30",
 T0C_227,50377cb39b0fe2a4aecb0b9f1750e66c,00771F49,"DIG
-GROUND PP/10 POWER/100 ACC./100","EXCAVAR
-SUELO PP/10 POT./100 PRE./100","あなをほる
-地面 PP/10 威力/100 命中/100","ESCAVADOR
-SOLO PP/10 PODER/100 PREC./100","구멍파기
-땅 PP/10 위력/100 명중/100","TUNNEL
-SOL PP/10 PUIS./100 PREC./100","FOSSA
-SUOLO PP/10 POT./100 PREC./100",
+GROUND AP/10 STRENGTH/100 ACC./100","EXCAVAR
+SUELO PA/10 FUERZA/100 PRE./100","あなをほる
+地面 攻撃P/10 強さ/100 命中/100","ESCAVADOR
+SOLO PA/10 FORÇA/100 PREC./100","구멍파기
+땅 공격P/10 세기/100 명중/100","TUNNEL
+SOL PA/10 FORCE/100 PREC./100","FOSSA
+SUOLO PA/10 FORZA/100 PREC./100",
 T0C_228,8705352f13d10980e4af7968f06030b8,00771F74,"PSYCHO
-PSYCHO PP/10 POWER/90 ACC./100","PSICO
-PSICO PP/10 POT./90 PRE./100","サイコキネシス
-サイコ PP/10 威力/90 命中/100","PSICOCINESE
-PSICO PP/10 PODER/90 PREC./100","사이코키네시스
-사이코 PP/10 위력/90 명중/100","PSYKO
-PSYCHO PP/10 PUIS./90 PREC./100","PSICHICO
-PSICO PP/10 POT./90 PREC./100",
+PSYCHO AP/10 STRENGTH/90 ACC./100","PSICO
+PSICO PA/10 FUERZA/90 PRE./100","サイコキネシス
+サイコ 攻撃P/10 強さ/90 命中/100","PSICOCINESE
+PSICO PA/10 FORÇA/90 PREC./100","사이코키네시스
+사이코 공격P/10 세기/90 명중/100","PSYKO
+PSYCHO PA/10 FORCE/90 PREC./100","PSICHICO
+PSICO PA/10 FORZA/90 PREC./100",
 T0C_229,5349dee065dd72a9c7c7675979301b04,00771FA2,"TELEPORT
-PSYCHO PP/20 POWER/-- ACC./100","TELETRANSPORTE
-PSICO PP/20 POT./-- PRE./100","テレポート
-サイコ PP/20 威力/-- 命中/100","TELETRANSPORTE
-PSICO PP/20 PODER/-- PREC./100","순간이동
-사이코 PP/20 위력/-- 명중/100","TÉLÉPORT
-PSYCHO PP/20 PUIS./-- PREC./100","TELETRASPORTO
-PSICO PP/20 POT./-- PREC./100",
+PSYCHO AP/20 STRENGTH/-- ACC./100","TELETRANSPORTE
+PSICO PA/20 FUERZA/-- PRE./100","テレポート
+サイコ 攻撃P/20 強さ/-- 命中/100","TELETRANSPORTE
+PSICO PA/20 FORÇA/-- PREC./100","순간이동
+사이코 공격P/20 세기/-- 명중/100","TÉLÉPORT
+PSYCHO PA/20 FORCE/-- PREC./100","TELETRASPORTO
+PSICO PA/20 FORZA/-- PREC./100",
 T0C_230,a3def90c86fa8316a7f0dbff82200fa8,00771FCC,"MIMIC
-NORMAL PP/10 POWER/-- ACC./100","MIMÉTICO
-NORMAL PP/10 POT./-- PRE./100","ものまね
-ノーマル PP/10 威力/-- 命中/100","MIMETISMO
-NORMAL PP/10 PODER/-- PREC./100","흉내내기
-노멀 PP/10 위력/-- 명중/100","COPIE
-NORMAL PP/10 PUIS./-- PREC./100","MIMICA
-NORMALE PP/10 POT./-- PREC./100",
+NORMAL AP/10 STRENGTH/-- ACC./100","MIMÉTICO
+NORMAL PA/10 FUERZA/-- PRE./100","ものまね
+ノーマル 攻撃P/10 強さ/-- 命中/100","MIMETISMO
+NORMAL PA/10 FORÇA/-- PREC./100","흉내내기
+노멀 공격P/10 세기/-- 명중/100","COPIE
+NORMAL PA/10 FORCE/-- PREC./100","MIMICA
+NORMALE PA/10 FORZA/-- PREC./100",
 T0C_231,b78d564f71334680b1659198f6dc6b80,00771FF5,"DOUBLE TEAM
-PLANT PP/15 POWER/-- ACC./100","DOBLE EQUIPO
-PLANTA PP/15 POT./-- PRE./100","かげぶんしん
-植物 PP/15 威力/-- 命中/100","EQUIPE DUPLA
-PLANTA PP/15 PODER/-- PREC./100","그림자분신
-식물 PP/15 위력/-- 명중/100","REFLET
-PLANTE PP/15 PUIS./-- PREC./100","DOPPIOTEAM
-PIANTA PP/15 POT./-- PREC./100","The German TM card gives this move the PFLANZEN (Plant) type; kept literally, though the move is NORMAL."
+PLANT AP/15 STRENGTH/-- ACC./100","DOBLE EQUIPO
+PLANTA PA/15 FUERZA/-- PRE./100","かげぶんしん
+植物 攻撃P/15 強さ/-- 命中/100","EQUIPE DUPLA
+PLANTA PA/15 FORÇA/-- PREC./100","그림자분신
+식물 공격P/15 세기/-- 명중/100","REFLET
+PLANTE PA/15 FORCE/-- PREC./100","DOPPIOTEAM
+PIANTA PA/15 FORZA/-- PREC./100","The German TM card gives this move the PFLANZEN (Plant) type; kept literally, though the move is NORMAL."
 T0C_232,b65f297fc9cc9173b3dd29c0253bbb19,00772023,"REFLECT
-PSYCHO PP/20 POWER/-- ACC./100","REFLEJO
-PSICO PP/20 POT./-- PRE./100","リフレクター
-サイコ PP/20 威力/-- 命中/100","REFLETOR
-PSICO PP/20 PODER/-- PREC./100","리플렉터
-사이코 PP/20 위력/-- 명중/100","PROTECTION
-PSYCHO PP/20 PUIS./-- PREC./100","RIFLESSO
-PSICO PP/20 POT./-- PREC./100",
+PSYCHO AP/20 STRENGTH/-- ACC./100","REFLEJO
+PSICO PA/20 FUERZA/-- PRE./100","リフレクター
+サイコ 攻撃P/20 強さ/-- 命中/100","REFLETOR
+PSICO PA/20 FORÇA/-- PREC./100","리플렉터
+사이코 공격P/20 세기/-- 명중/100","PROTECTION
+PSYCHO PA/20 FORCE/-- PREC./100","RIFLESSO
+PSICO PA/20 FORZA/-- PREC./100",
 T0C_233,cd274b3efb415e57da299d3eff3de72d,0077204E,"BIDE
-NORMAL PP/10 POWER/-- ACC./100","VENGANZA
-NORMAL PP/10 POT./-- PRE./100","がまん
-ノーマル PP/10 威力/-- 命中/100","PACIÊNCIA
-NORMAL PP/10 PODER/-- PREC./100","참기
-노멀 PP/10 위력/-- 명중/100","PATIENCE
-NORMAL PP/10 PUIS./-- PREC./100","PAZIENZA
-NORMALE PP/10 POT./-- PREC./100",
+NORMAL AP/10 STRENGTH/-- ACC./100","VENGANZA
+NORMAL PA/10 FUERZA/-- PRE./100","がまん
+ノーマル 攻撃P/10 強さ/-- 命中/100","PACIÊNCIA
+NORMAL PA/10 FORÇA/-- PREC./100","참기
+노멀 공격P/10 세기/-- 명중/100","PATIENCE
+NORMAL PA/10 FORCE/-- PREC./100","PAZIENZA
+NORMALE PA/10 FORZA/-- PREC./100",
 T0C_234,d621520fc7db0c3cf8b83a5f70ab3c57,00772076,"METRONOME
-NORMAL PP/10 POWER/-- ACC./100","METRÓNOMO
-NORMAL PP/10 POT./-- PRE./100","ゆびをふる
-ノーマル PP/10 威力/-- 命中/100","METRÔNOMO
-NORMAL PP/10 PODER/-- PREC./100","손가락흔들기
-노멀 PP/10 위력/-- 명중/100","MÉTRONOME
-NORMAL PP/10 PUIS./-- PREC./100","METRONOMO
-NORMALE PP/10 POT./-- PREC./100",
+NORMAL AP/10 STRENGTH/-- ACC./100","METRÓNOMO
+NORMAL PA/10 FUERZA/-- PRE./100","ゆびをふる
+ノーマル 攻撃P/10 強さ/-- 命中/100","METRÔNOMO
+NORMAL PA/10 FORÇA/-- PREC./100","손가락흔들기
+노멀 공격P/10 세기/-- 명중/100","MÉTRONOME
+NORMAL PA/10 FORCE/-- PREC./100","METRONOMO
+NORMALE PA/10 FORZA/-- PREC./100",
 T0C_235,7f251860fd18bf555cd3b56eb96b4d18,007720A0,"SELF-DESTRUCT
-NORMAL PP/5 POWER/260 ACC./100","AUTODESTRUCCIÓN
-NORMAL PP/5 POT./260 PRE./100","じばく
-ノーマル PP/5 威力/260 命中/100","GRAN FINAL
-NORMAL PP/5 PODER/260 PREC./100","자폭
-노멀 PP/5 위력/260 명중/100","DESTRUCTION
-NORMAL PP/5 PUIS./260 PREC./100","AUTODISTRUZIONE
-NORMALE PP/5 POT./260 PREC./100",
+NORMAL AP/5 STRENGTH/260 ACC./100","AUTODESTRUCCIÓN
+NORMAL PA/5 FUERZA/260 PRE./100","じばく
+ノーマル 攻撃P/5 強さ/260 命中/100","GRAN FINAL
+NORMAL PA/5 FORÇA/260 PREC./100","자폭
+노멀 공격P/5 세기/260 명중/100","DESTRUCTION
+NORMAL PA/5 FORCE/260 PREC./100","AUTODISTRUZIONE
+NORMALE PA/5 FORZA/260 PREC./100",
 T0C_236,ca4bb2b418d6d1f43c03ee25cf55178a,007720C8,"EGG BOMB
-NORMAL PP/10 POWER/100 ACC./75","BOMBA HUEVO
-NORMAL PP/10 POT./100 PRE./75","タマゴばくだん
-ノーマル PP/10 威力/100 命中/75","BOMBA DE OVO
-NORMAL PP/10 PODER/100 PREC./75","알폭탄
-노멀 PP/10 위력/100 명중/75","BOMBE-ŒUF
-NORMAL PP/10 PUIS./100 PREC./75","UOVOBOMBA
-NORMALE PP/10 POT./100 PREC./75",
+NORMAL AP/10 STRENGTH/100 ACC./75","BOMBA HUEVO
+NORMAL PA/10 FUERZA/100 PRE./75","タマゴばくだん
+ノーマル 攻撃P/10 強さ/100 命中/75","BOMBA DE OVO
+NORMAL PA/10 FORÇA/100 PREC./75","알폭탄
+노멀 공격P/10 세기/100 명중/75","BOMBE-ŒUF
+NORMAL PA/10 FORCE/100 PREC./75","UOVOBOMBA
+NORMALE PA/10 FORZA/100 PREC./75",
 T0C_237,bcbd99b3da49244627862a18b2191a03,007720F3,"FIRE BLAST
-FIRE PP/5 POWER/120 ACC./85","LLAMARADA
-FUEGO PP/5 POT./120 PRE./85","だいもんじ
-火 PP/5 威力/120 命中/85","TEMPESTADE DE FOGO
-FOGO PP/5 PODER/120 PREC./85","불대문자
-불 PP/5 위력/120 명중/85","DÉFLAGRATION
-FEU PP/5 PUIS./120 PREC./85","FUOCOBOMBA
-FUOCO PP/5 POT./120 PREC./85",
+FIRE AP/5 STRENGTH/120 ACC./85","LLAMARADA
+FUEGO PA/5 FUERZA/120 PRE./85","だいもんじ
+火 攻撃P/5 強さ/120 命中/85","TEMPESTADE DE FOGO
+FOGO PA/5 FORÇA/120 PREC./85","불대문자
+불 공격P/5 세기/120 명중/85","DÉFLAGRATION
+FEU PA/5 FORCE/120 PREC./85","FUOCOBOMBA
+FUOCO PA/5 FORZA/120 PREC./85",
 T0C_238,e535fc8f6058a843ce33804e4ac130ba,0077211D,"SWIFT
-NORMAL PP/20 POWER/60 ACC./100","METEOROS
-NORMAL PP/20 POT./60 PRE./100","スピードスター
-ノーマル PP/20 威力/60 命中/100","CHUVA DE ESTRELAS
-NORMAL PP/20 PODER/60 PREC./100","스피드스타
-노멀 PP/20 위력/60 명중/100","MÉTÉORES
-NORMAL PP/20 PUIS./60 PREC./100","COMETE
-NORMALE PP/20 POT./60 PREC./100",
+NORMAL AP/20 STRENGTH/60 ACC./100","METEOROS
+NORMAL PA/20 FUERZA/60 PRE./100","スピードスター
+ノーマル 攻撃P/20 強さ/60 命中/100","CHUVA DE ESTRELAS
+NORMAL PA/20 FORÇA/60 PREC./100","스피드스타
+노멀 공격P/20 세기/60 명중/100","MÉTÉORES
+NORMAL PA/20 FORCE/60 PREC./100","COMETE
+NORMALE PA/20 FORZA/60 PREC./100",
 T0C_239,f8d06b5440c4fa0f1e36f638c310fd66,0077214B,"SKULL BASH
-NORMAL PP/15 POWER/100 ACC./100","CABEZAZO
-NORMAL PP/15 POT./100 PRE./100","ロケットずつき
-ノーマル PP/15 威力/100 命中/100","PANCADA DE CRÂNIO
-NORMAL PP/15 PODER/100 PREC./100","로켓박치기
-노멀 PP/15 위력/100 명중/100","COUD'KRÂNE
-NORMAL PP/15 PUIS./100 PREC./100","CAPOCCIATA
-NORMALE PP/15 POT./100 PREC./100",
+NORMAL AP/15 STRENGTH/100 ACC./100","CABEZAZO
+NORMAL PA/15 FUERZA/100 PRE./100","ロケットずつき
+ノーマル 攻撃P/15 強さ/100 命中/100","PANCADA DE CRÂNIO
+NORMAL PA/15 FORÇA/100 PREC./100","로켓박치기
+노멀 공격P/15 세기/100 명중/100","COUD'KRÂNE
+NORMAL PA/15 FORCE/100 PREC./100","CAPOCCIATA
+NORMALE PA/15 FORZA/100 PREC./100",
 T0C_240,e2ed73596cfa9356d25c70d79c1f1b06,0077217A,"SOFT-BOILED
-NORMAL PP/10 POWER/-- ACC./100","OVOCURACIÓN
-NORMAL PP/10 POT./-- PRE./100","タマゴうみ
-ノーマル PP/10 威力/-- 命中/100","OVO MOLE
-NORMAL PP/10 PODER/-- PREC./100","알낳기
-노멀 PP/10 위력/-- 명중/100","E-COQUE
-NORMAL PP/10 PUIS./-- PREC./100","COVAUOVA
-NORMALE PP/10 POT./-- PREC./100",
+NORMAL AP/10 STRENGTH/-- ACC./100","OVOCURACIÓN
+NORMAL PA/10 FUERZA/-- PRE./100","タマゴうみ
+ノーマル 攻撃P/10 強さ/-- 命中/100","OVO MOLE
+NORMAL PA/10 FORÇA/-- PREC./100","알낳기
+노멀 공격P/10 세기/-- 명중/100","E-COQUE
+NORMAL PA/10 FORCE/-- PREC./100","COVAUOVA
+NORMALE PA/10 FORZA/-- PREC./100",
 T0C_241,bed8315f5c024f00254d0e8dd0a8878a,007721A3,"DREAM EATER
-PSYCHO PP/15 POWER/100 ACC./100","COMESUEÑOS
-PSICO PP/15 POT./100 PRE./100","ゆめくい
-サイコ PP/15 威力/100 命中/100","COME-SONHOS
-PSICO PP/15 PODER/100 PREC./100","꿈먹기
-사이코 PP/15 위력/100 명중/100","DÉVORÊVE
-PSYCHO PP/15 PUIS./100 PREC./100","MANGIASOGNI
-PSICO PP/15 POT./100 PREC./100",
+PSYCHO AP/15 STRENGTH/100 ACC./100","COMESUEÑOS
+PSICO PA/15 FUERZA/100 PRE./100","ゆめくい
+サイコ 攻撃P/15 強さ/100 命中/100","COME-SONHOS
+PSICO PA/15 FORÇA/100 PREC./100","꿈먹기
+사이코 공격P/15 세기/100 명중/100","DÉVORÊVE
+PSYCHO PA/15 FORCE/100 PREC./100","MANGIASOGNI
+PSICO PA/15 FORZA/100 PREC./100",
 T0C_242,325e70368fbec45855b6e0c909a189b5,007721D2,"SKY ATTACK
-FLIGHT PP/5 POWER/140 ACC./90","ATAQUE AÉREO
-VUELO PP/5 POT./140 PRE./90","ゴッドバード
-飛行 PP/5 威力/140 命中/90","VARREDOR CELESTE
-VOO PP/5 PODER/140 PREC./90","불새
-비행 PP/5 위력/140 명중/90","PIQUÉ
-VOL PP/5 PUIS./140 PREC./90","AEROATTACCO
-VOLO PP/5 POT./140 PREC./90",
+FLIGHT AP/5 STRENGTH/140 ACC./90","ATAQUE AÉREO
+VUELO PA/5 FUERZA/140 PRE./90","ゴッドバード
+飛行 攻撃P/5 強さ/140 命中/90","VARREDOR CELESTE
+VOO PA/5 FORÇA/140 PREC./90","불새
+비행 공격P/5 세기/140 명중/90","PIQUÉ
+VOL PA/5 FORCE/140 PREC./90","AEROATTACCO
+VOLO PA/5 FORZA/140 PREC./90",
 T0C_243,b691afeec63db817343321ffe03c6a9f,007721FD,"REST
-PSYCHO PP/10 POWER/-- ACC./100","DESCANSO
-PSICO PP/10 POT./-- PRE./100","ねむる
-サイコ PP/10 威力/-- 命中/100","DESCANSO
-PSICO PP/10 PODER/-- PREC./100","잠자기
-사이코 PP/10 위력/-- 명중/100","REPOS
-PSYCHO PP/10 PUIS./-- PREC./100","RIPOSO
-PSICO PP/10 POT./-- PREC./100",
+PSYCHO AP/10 STRENGTH/-- ACC./100","DESCANSO
+PSICO PA/10 FUERZA/-- PRE./100","ねむる
+サイコ 攻撃P/10 強さ/-- 命中/100","DESCANSO
+PSICO PA/10 FORÇA/-- PREC./100","잠자기
+사이코 공격P/10 세기/-- 명중/100","REPOS
+PSYCHO PA/10 FORCE/-- PREC./100","RIPOSO
+PSICO PA/10 FORZA/-- PREC./100",
 T0C_244,d3b576a046a9b83cb082d89384f0d76b,00772227,"THUNDER WAVE
-ELECTRO PP/20 POWER/-- ACC./100","ONDA TRUENO
-ELECTRO PP/20 POT./-- PRE./100","でんじは
-電気 PP/20 威力/-- 命中/100","ONDA DO TROVÃO
-ELETRO PP/20 PODER/-- PREC./100","전기자석파
-전기 PP/20 위력/-- 명중/100","CAGE-ÉCLAIR
-ÉLECTRO PP/20 PUIS./-- PREC./100","TUONONDA
-ELETTRO PP/20 POT./-- PREC./100",
+ELECTRO AP/20 STRENGTH/-- ACC./100","ONDA TRUENO
+ELECTRO PA/20 FUERZA/-- PRE./100","でんじは
+電気 攻撃P/20 強さ/-- 命中/100","ONDA DO TROVÃO
+ELETRO PA/20 FORÇA/-- PREC./100","전기자석파
+전기 공격P/20 세기/-- 명중/100","CAGE-ÉCLAIR
+ÉLECTRO PA/20 FORCE/-- PREC./100","TUONONDA
+ELETTRO PA/20 FORZA/-- PREC./100",
 T0C_245,e0c09a9d43dee3cefcf437a9cfc89bfe,00772255,"PSYWAVE
-PSYCHO PP/15 POWER/-- ACC./80","PSICOONDA
-PSICO PP/15 POT./-- PRE./80","サイコウェーブ
-サイコ PP/15 威力/-- 命中/80","PSIONDA
-PSICO PP/15 PODER/-- PREC./80","사이코웨이브
-사이코 PP/15 위력/-- 명중/80","VAGUE PSYCHO
-PSYCHO PP/15 PUIS./-- PREC./80","PSICONDA
-PSICO PP/15 POT./-- PREC./80",
+PSYCHO AP/15 STRENGTH/-- ACC./80","PSICOONDA
+PSICO PA/15 FUERZA/-- PRE./80","サイコウェーブ
+サイコ 攻撃P/15 強さ/-- 命中/80","PSIONDA
+PSICO PA/15 FORÇA/-- PREC./80","사이코웨이브
+사이코 공격P/15 세기/-- 명중/80","VAGUE PSYCHO
+PSYCHO PA/15 FORCE/-- PREC./80","PSICONDA
+PSICO PA/15 FORZA/-- PREC./80",
 T0C_246,e8515b04e77dea1916e964ad339bcfa0,0077227E,"EXPLOSION
-NORMAL PP/5 POWER/340 ACC./100","EXPLOSIÓN
-NORMAL PP/5 POT./340 PRE./100","だいばくはつ
-ノーマル PP/5 威力/340 命中/100","EXPLOSÃO
-NORMAL PP/5 PODER/340 PREC./100","대폭발
-노멀 PP/5 위력/340 명중/100","EXPLOSION
-NORMAL PP/5 PUIS./340 PREC./100","ESPLOSIONE
-NORMALE PP/5 POT./340 PREC./100",
+NORMAL AP/5 STRENGTH/340 ACC./100","EXPLOSIÓN
+NORMAL PA/5 FUERZA/340 PRE./100","だいばくはつ
+ノーマル 攻撃P/5 強さ/340 命中/100","EXPLOSÃO
+NORMAL PA/5 FORÇA/340 PREC./100","대폭발
+노멀 공격P/5 세기/340 명중/100","EXPLOSION
+NORMAL PA/5 FORCE/340 PREC./100","ESPLOSIONE
+NORMALE PA/5 FORZA/340 PREC./100",
 T0C_247,f03796ab17c12e0503ce5cfd39c4e960,007722A9,"ROCK SLIDE
-ROCK PP/10 POWER/75 ACC./90","AVALANCHA
-ROCA PP/10 POT./75 PRE./90","いわなだれ
-岩石 PP/10 威力/75 命中/90","GRANIZO DE PEDRAS
-PEDRA PP/10 PODER/75 PREC./90","스톤샤워
-암석 PP/10 위력/75 명중/90","ÉBOULEMENT
-ROCHE PP/10 PUIS./75 PREC./90","FRANA
-ROCCIA PP/10 POT./75 PREC./90",
+ROCK AP/10 STRENGTH/75 ACC./90","AVALANCHA
+ROCA PA/10 FUERZA/75 PRE./90","いわなだれ
+岩石 攻撃P/10 強さ/75 命中/90","GRANIZO DE PEDRAS
+PEDRA PA/10 FORÇA/75 PREC./90","스톤샤워
+암석 공격P/10 세기/75 명중/90","ÉBOULEMENT
+ROCHE PA/10 FORCE/75 PREC./90","FRANA
+ROCCIA PA/10 FORZA/75 PREC./90",
 T0C_248,0e8fca686fc55564b44db4f845ecb166,007722D5,"TRI ATTACK
-NORMAL PP/10 POWER/80 ACC./100","TRIATAQUE
-NORMAL PP/10 POT./80 PRE./100","トライアタック
-ノーマル PP/10 威力/80 命中/100","TRIPLETO
-NORMAL PP/10 PODER/80 PREC./100","트라이어택
-노멀 PP/10 위력/80 명중/100","TRIPLATTAQUE
-NORMAL PP/10 PUIS./80 PREC./100","TRIPLETTA
-NORMALE PP/10 POT./80 PREC./100",
+NORMAL AP/10 STRENGTH/80 ACC./100","TRIATAQUE
+NORMAL PA/10 FUERZA/80 PRE./100","トライアタック
+ノーマル 攻撃P/10 強さ/80 命中/100","TRIPLETO
+NORMAL PA/10 FORÇA/80 PREC./100","트라이어택
+노멀 공격P/10 세기/80 명중/100","TRIPLATTAQUE
+NORMAL PA/10 FORCE/80 PREC./100","TRIPLETTA
+NORMALE PA/10 FORZA/80 PREC./100",
 T0C_249,103373e608080ac88bed8871bc26b92c,00772300,"SUBSTITUTE
-NORMAL PP/10 POWER/-- ACC./100","SUSTITUTO
-NORMAL PP/10 POT./-- PRE./100","みがわり
-ノーマル PP/10 威力/-- 命中/100","DELEGADOR
-NORMAL PP/10 PODER/-- PREC./100","대타출동
-노멀 PP/10 위력/-- 명중/100","CLONAGE
-NORMAL PP/10 PUIS./-- PREC./100","SOSTITUTO
-NORMALE PP/10 POT./-- PREC./100",
+NORMAL AP/10 STRENGTH/-- ACC./100","SUSTITUTO
+NORMAL PA/10 FUERZA/-- PRE./100","みがわり
+ノーマル 攻撃P/10 強さ/-- 命中/100","DELEGADOR
+NORMAL PA/10 FORÇA/-- PREC./100","대타출동
+노멀 공격P/10 세기/-- 명중/100","CLONAGE
+NORMAL PA/10 FORCE/-- PREC./100","SOSTITUTO
+NORMALE PA/10 FORZA/-- PREC./100",
 T0D_000,0a13970f6992d14ffe887506e0756fc0,00772340,"The Transfer Pak is not
 connected properly.
 Please turn off the console and
@@ -6406,13 +6405,13 @@ commence une NOUVELLE PARTIE.","I dati salvati sono danneggiati
 e non si possono più usare!
 Esegui un reset e
 inizia una NUOVA PARTITA.",
-T0E_000,b8e40954ca20c131a3a1a9af5ce9e252,00772600,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T0E_001,b8e40954ca20c131a3a1a9af5ce9e252,0077260C,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T0E_002,b8e40954ca20c131a3a1a9af5ce9e252,00772618,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T0E_003,d372f3b62a210bfce8b1647aba3e2b76,00772624,PETIT CUP,COPA PETIT,プチカップ,COPA PETIT,쁘띠컵,COUPE PETIT,COPPA PETIT,
+T0E_000,b8e40954ca20c131a3a1a9af5ce9e252,00772600,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T0E_001,b8e40954ca20c131a3a1a9af5ce9e252,0077260C,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T0E_002,b8e40954ca20c131a3a1a9af5ce9e252,00772618,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T0E_003,d372f3b62a210bfce8b1647aba3e2b76,00772624,MINI CUP,COPA MINI,ミニカップ,COPA MINI,미니컵,COUPE MINI,COPPA MINI,
 T0E_004,073822ed076b0748b5e2f1368163ac7d,0077262D,PIKA CUP,COPA PIKA,ピカチュウカップ,COPA PIKA,피카츄컵,COUPE PIKA,COPPA PIKA,
-T0E_005,32b558e091c51497f17d216b505ee7a6,00772636,PRIME CUP,COPA PRIME,プライムカップ,COPA PRIME,프라임컵,COUPE PRIME,COPPA PRIME,
-T0E_006,0fe6f482db23f0d3b2e6729851c73b27,00772642,GYM LEADER CASTLE,CASTILLO DE LÍDERES,ジムリーダーの 城,CASTELO DOS LÍDERES,체육관 관장의 성,CHATEAU DES CHAMPIONS,CASTELLO CAPIPALESTRA,
+T0E_005,32b558e091c51497f17d216b505ee7a6,00772636,PREMIUM CUP,COPA PREMIUM,プレミアムカップ,COPA PREMIUM,프리미엄컵,COUPE PREMIUM,COPPA PREMIUM,
+T0E_006,0fe6f482db23f0d3b2e6729851c73b27,00772642,ARENA LEADER CASTLE,CASTILLO DE LOS LÍDERES DE ARENA,アリーナリーダーの 城,CASTELO DOS LÍDERES DE ARENA,아레나 리더의 성,CHÂTEAU DES CHEFS D'ARÈNE,CASTELLO DEI CAPI ARENA,
 T0E_007,34461f39974fdca608489f4aadf0813e,00772653,POKé BALL,POKéBOLA,ポケボール,POKéBOLA,포케볼,POKéBALLE,POKéPALLA,
 T0E_008,0e548fdc0b1e306d5a72956393801bc4,0077265C,SUPER BALL,SUPERBOLA,スーパーボール,SUPERBOLA,슈퍼볼,SUPERBALLE,SUPERPALLA,
 T0E_009,3885994da35ef75a8c6abcb886f07a2d,00772666,HYPER BALL,HIPERBOLA,ハイパーボール,HIPERBOLA,하이퍼볼,HYPERBALLE,IPERPALLA,
@@ -6433,7 +6432,7 @@ T0E_023,94ad705d1092d6dd54ef3c28a2c86837,007726F3,FUCHSIA CITY,CIUDAD FUCSIA,セ
 T0E_024,51b302545c652493730f8e32a1a620d2,00772702,SAFFRON CITY,CIUDAD AZAFRÁN,ヤマブキシティ,SAFFRON CITY,노랑시티,SAFRANIA,ZAFFERANOPOLI,
 T0E_025,ca25d243a4e4a0227455266bdfe9ac11,00772711,CINNABAR ISLAND,ISLA CANELA,グレン島,ILHA CINNABAR,홍련섬,CRAMOIS'ILE,ISOLA CANNELLA,
 T0E_026,f67d3d6e233686fc440fb1a5873f872e,0077271F,VIRIDIAN CITY,CIUDAD VERDE,トキワシティ,VIRIDIAN CITY,상록시티,JADIELLE,SMERALDOPOLI,
-T0E_027,df8ee255992cfcac2e9c94a42f908f7c,0077272D,ELITE FOUR,ALTO MANDO,四天王,ELITE DOS QUATRO,사천왕,CONSEIL 4,SUPERQUATTRO,
+T0E_027,df8ee255992cfcac2e9c94a42f908f7c,0077272D,TOP FOUR,TOP CUATRO,トップ4,TOP QUATRO,톱4,TOP QUATRE,TOP QUATTRO,
 T0E_028,af89de7a266182fa60ce80f4221a5b2c,00772736,RIVAL,RIVAL,ライバル,RIVAL,라이벌,RIVAL,RIVALE,
 T0E_029,666b23dcd48ede325a744d21b1628e9e,0077273D,Game Pak,Cartucho,カートリッジ,Cartucho,팩,Cartouche,Cassetta,
 T0E_030,94353ed24590ed3afc2825982c5387f7,00772743,Check,Comprobar,調べる,Verificar,확인,Vérifier,Controlla,
@@ -6530,8 +6529,8 @@ T0E_043,375ee26098b46e23bcb854331f0ad8c5,007728BD,Yes,Sí,はい,Sim,예,Oui,Sì
 T0E_044,b397ec0bea79fb90df2b7ec2845cde07,007728C0,No,No,いいえ,Não,아니오,Non,No,
 T0E_045,f6766390efd8b7e24714843dab0085b2,007728C5,Erase saved data.,Borrar datos guardados.,セーブデータを 消す。,Apagar dados salvos.,세이브 데이터 삭제.,Effacer la sauvegarde.,Cancella i dati salvati.,
 T0E_046,2030d5a1d8f807d0bde30a307309a409,007728E1,TRAINER #01,ENTRENADOR #01,トレーナー #01,TREINADOR #01,트레이너 #01,DRESSEUR #01,ALLENATORE #01,
-T0E_047,98ef38af1a519ffdbc9678db1a16f3e9,007728ED,GYM LEADER ,LÍDER ,ジムリーダー ,LÍDER ,체육관 관장 ,CHAMPION ,CAPOPALESTRA ,
-T0E_048,973bb5a7e7cd9728fafc9e4a1eb589e6,007728FA,ELITE FOUR #01,ALTO MANDO #01,四天王 #01,ELITE DOS QUATRO #01,사천왕 #01,CONSEIL 4 #01,SUPERQUATTRO #01,
+T0E_047,98ef38af1a519ffdbc9678db1a16f3e9,007728ED,ARENA LEADER ,LÍDER DE ARENA ,アリーナリーダー ,LÍDER DE ARENA ,아레나 리더 ,CHEF D'ARÈNE ,CAPO ARENA ,
+T0E_048,973bb5a7e7cd9728fafc9e4a1eb589e6,007728FA,TOP FOUR #01,TOP CUATRO #01,トップ4 #01,TOP QUATRO #01,톱4 #01,TOP QUATRE #01,TOP QUATTRO #01,
 T0E_049,3c2754a91aafdfb99d0690295a0c0869,00772907,CONTINUE=#01,CONTINUAR=#01,コンティニュー=#01,CONTINUAR=#01,컨티뉴=#01,CONTINUER=#01,CONTINUA=#01,
 T0E_050,bc0a68a32a49f0a51bdd458c306c6813,00772914,"The saved battle data will be
 erased if you choose ""CONTINUE""!","¡Los datos de combate guardados se
@@ -6578,11 +6577,11 @@ T0E_056,1d175e19517cabfbcef5762c70e323ed,00772A57,"This arena is reserved for ba
 trainers of the Pokémon games inserted in
 the Transfer Paks of controllers 1 and 2!","¡Esta arena está reservada a combates entre los
 entrenadores de los juegos Pokémon de los
-Transfer Pak de los mandos 1 y 2!","この 会場は コントローラ1と2の
+Transfer Pak de los mandos 1 y 2!","この アリーナは コントローラ1と2の
 64GBパックに 差した ポケモンの
 トレーナー 同士の 対戦 専用だ!","Esta arena é reservada a batalhas entre os
 treinadores dos jogos Pokémon inseridos nos
-Transfer Paks dos controles 1 e 2!","이 경기장은 컨트롤러 1과 2의
+Transfer Paks dos controles 1 e 2!","이 아레나는 컨트롤러 1과 2의
 Transfer Pak에 꽂힌 포켓몬 게임의
 트레이너끼리 대전하는 곳이다!","Cette arène est réservée aux combats entre les
 dresseurs des jeux Pokémon insérés dans
@@ -6623,22 +6622,22 @@ T0E_059,755968aeb83fd6c48649869bd104c1b0,00772BC1,Where do you want to go?,¿Ad�
 T0E_060,52ae20620f4c156a46cab9dd364f4a3a,00772BD6,STADIUM,ESTADIO,スタジアム,ESTÁDIO,스타디움,STADE,STADIO,
 T0E_061,b1731d546f8a0d8e53b0115cdada783c,00772BDE,change,cambiar,切り替え,trocar,전환,changer,cambia,
 T0E_062,1147bf380df105e17cbb0603530c9114,00772BE7,POKéMON STADIUM,ESTADIO POKéMON,ポケモンスタジアム,ESTÁDIO POKéMON,포켓몬 스타디움,STADE POKéMON,STADIO POKéMON,
-T0E_063,99a6727c8d24671c766a74767e5a0afa,00772BF7,"QUICK
+T0E_063,99a6727c8d24671c766a74767e5a0afa,00772BF7,"LIGHTNING
 BATTLE!","¡COMBATE
-RÁPIDO!","すぐに
+RELÁMPAGO!","電光
 バトル!","BATALHA
-RÁPIDA!","바로
+RELÂMPAGO!","번개
 배틀!","COMBAT
-EXPRESS!","LOTTA
+ÉCLAIR!","LOTTA
 LAMPO!",
-T0E_064,52e982411394fa587d3b18afaf77dee9,00772C05,"FREE
+T0E_064,52e982411394fa587d3b18afaf77dee9,00772C05,"SHOW
 BATTLE","COMBATE
-LIBRE","フリー
+DE EXHIBICIÓN","ショー
 バトル","BATALHA
-LIVRE","프리
+DE EXIBIÇÃO","쇼
 배틀","COMBAT
-LIBRE","LOTTA
-LIBERA",
+D'EXHIBITION","LOTTA
+DIMOSTRATIVA",
 T0E_065,a1954623bc8e03500dc8dadd230e2ea9,00772C12,OPTIONS,OPCIONES,設定,OPÇÕES,설정,OPTIONS,OPZIONI,
 T0E_066,e025869fb4fcdaad96836e6a371e94a7,00772C1B,1-Player Battle,Combate 1 jugador,1人で たいせん,Batalha 1 jogador,1인 대전,Combat 1 joueur,Lotta 1 giocatore,
 T0E_067,1333b54da16781cea7d5ab14699b99ca,00772C2B,2-Player Battle,Combate 2 jugadores,2人で たいせん,Batalha 2 jogadores,2인 대전,Combat 2 joueurs,Lotta 2 giocatori,
@@ -6666,15 +6665,15 @@ Pokémon Snap Station.","이 옵션은 포켓몬 스냅
 스테이션에서는 사용할 수 없습니다.","Cette option n'est pas disponible
 dans la Pokémon Snap Station.","Questa opzione non è disponibile
 nella Pokémon Snap Station.",
-T0F_000,aa4c847cf32c961985bf1c16868de5fa,00772D54,FREE BATTLE Rules,Reglas de COMBATE LIBRE,フリーバトルの ルール,Regras de BATALHA LIVRE,프리 배틀 룰,Règles du COMBAT LIBRE,Regole LOTTA LIBERA,
+T0F_000,aa4c847cf32c961985bf1c16868de5fa,00772D54,SHOW BATTLE Rules,Reglas de COMBATE DE EXHIBICIÓN,ショーバトルの ルール,Regras de BATALHA DE EXIBIÇÃO,쇼 배틀 룰,Règles du COMBAT D'EXHIBITION,Regole LOTTA DIMOSTRATIVA,
 T0F_001,5392c635a234e5b555309cf7c346b5d7,00772D69,Please choose the entry field!,¡Elige el grupo de participantes!,参加する 枠を 選んでください!,Escolha o grupo de participantes!,참가할 부문을 선택하세요!,Choisis le groupe de participants!,Scegli il gruppo di partecipanti!,
-T0F_002,010ec201d73bf586c0b5c7bb55a6949a,00772D8E,ANYTHING GOES,TODO VALE,何でも OK,VALE TUDO,무엇이든 OK,TOUT EST PERMIS,TUTTO PERMESSO,
-T0F_003,ded02fcb6f5aa546960a402db7567bbf,00772DA0,POKé CUP Rules,Reglas de la COPA POKé,ポケモンカップの ルール,Regras da COPA POKé,포켓몬컵 룰,Règles de la COUPE POKé,Regole COPPA POKé,
-T0F_004,ded02fcb6f5aa546960a402db7567bbf,00772DB3,POKé CUP Rules,Reglas de la COPA POKé,ポケモンカップの ルール,Regras da COPA POKé,포켓몬컵 룰,Règles de la COUPE POKé,Regole COPPA POKé,
-T0F_005,ded02fcb6f5aa546960a402db7567bbf,00772DC6,POKé CUP Rules,Reglas de la COPA POKé,ポケモンカップの ルール,Regras da COPA POKé,포켓몬컵 룰,Règles de la COUPE POKé,Regole COPPA POKé,
-T0F_006,8b204fa8c4d7f8f209f4edf48e287479,00772DD9,PETIT CUP Rules,Reglas de la COPA PETIT,プチカップの ルール,Regras da COPA PETIT,쁘띠컵 룰,Règles de la COUPE PETIT,Regole COPPA PETIT,
+T0F_002,010ec201d73bf586c0b5c7bb55a6949a,00772D8E,EVERYTHING IS ALLOWED,TODO ESTÁ PERMITIDO,すべて 許可,TUDO É PERMITIDO,모두 허용,TOUT EST PERMIS,TUTTO È PERMESSO,
+T0F_003,ded02fcb6f5aa546960a402db7567bbf,00772DA0,POKéMON CUP Rules,Reglas de la COPA POKéMON,ポケモンカップの ルール,Regras da COPA POKéMON,포켓몬컵 룰,Règles de la COUPE POKéMON,Regole COPPA POKéMON,
+T0F_004,ded02fcb6f5aa546960a402db7567bbf,00772DB3,POKéMON CUP Rules,Reglas de la COPA POKéMON,ポケモンカップの ルール,Regras da COPA POKéMON,포켓몬컵 룰,Règles de la COUPE POKéMON,Regole COPPA POKéMON,
+T0F_005,ded02fcb6f5aa546960a402db7567bbf,00772DC6,POKéMON CUP Rules,Reglas de la COPA POKéMON,ポケモンカップの ルール,Regras da COPA POKéMON,포켓몬컵 룰,Règles de la COUPE POKéMON,Regole COPPA POKéMON,
+T0F_006,8b204fa8c4d7f8f209f4edf48e287479,00772DD9,MINI CUP Rules,Reglas de la COPA MINI,ミニカップの ルール,Regras da COPA MINI,미니컵 룰,Règles de la COUPE MINI,Regole COPPA MINI,
 T0F_007,8e829f4144d9c0f533ceb075c01d65ed,00772DE9,PIKA CUP Rules,Reglas de la COPA PIKA,ピカチュウカップの ルール,Regras da COPA PIKA,피카츄컵 룰,Règles de la COUPE PIKA,Regole COPPA PIKA,
-T0F_008,22210f0ea15048fc7cf501da2ef4c172,00772DF9,PRIME CUP Rules,Reglas de la COPA PRIME,プライムカップの ルール,Regras da COPA PRIME,프라임컵 룰,Règles de la COUPE PRIME,Regole COPPA PRIME,
+T0F_008,22210f0ea15048fc7cf501da2ef4c172,00772DF9,PREMIUM CUP Rules,Reglas de la COPA PREMIUM,プレミアムカップの ルール,Regras da COPA PREMIUM,프리미엄컵 룰,Règles de la COUPE PREMIUM,Regole COPPA PREMIUM,
 T0F_009,740959fba523a188f69056fb5262c2ea,00772E0C,Please choose a rule set!,¡Elige un reglamento!,ルールを 選んでください!,Escolha um regulamento!,룰을 선택하세요!,Choisis un règlement!,Scegli un regolamento!,
 T0F_010,fc117d68fd65538af593a741fbf78278,00772E2B,Strength,Nivel,強さ,Força,강도,Force,Forza,
 T0F_011,199a96b989eb8ef3432ec9e138c88a8c,00772E33,Strong,Fuerte,強い,Forte,강함,Fort,Forte,
@@ -6725,7 +6724,7 @@ o tempo disponível para escolher golpes.","이 대회에서는 배틀 시간과
 et le temps pour choisir les capacités.","In questo torneo puoi impostare la durata della lotta
 e il tempo per scegliere le mosse.",
 T10_007,d4291f8b6a676c502374b7b395c0a423,0077310B,Back to the selection screen,Volver a la pantalla de selección,選択 画面に 戻る,Voltar à tela de seleção,선택 화면으로 돌아가기,Retour à l'écran de sélection,Torna alla schermata di selezione,
-T10_008,a0a0ab23d4acca4ef1e4dd1f079f188e,00773128,FREE BATTLE,COMBATE LIBRE,フリーバトル,BATALHA LIVRE,프리 배틀,COMBAT LIBRE,LOTTA LIBERA,
+T10_008,a0a0ab23d4acca4ef1e4dd1f079f188e,00773128,SHOW BATTLE,COMBATE DE EXHIBICIÓN,ショーバトル,BATALHA DE EXIBIÇÃO,쇼 배틀,COMBAT D'EXHIBITION,LOTTA DIMOSTRATIVA,
 T10_009,b153177ed33d7f8ba57179eaa846524e,00773133,"The three lowest levels
 add up to more than level #03!
 ","¡Los tres niveles más bajos
@@ -6752,13 +6751,13 @@ T10_017,111eef9205d4baf2a48026d41866eae8,007731D3,Selection time,Tiempo de elecc
 T10_018,6aeeee57cbbc1d7ac0cc2b5e644699ee,007731DF,#02 sec.,#02 s,#02秒,#02 s,#02초,#02 s,#02 s,
 T10_019,e0aa021e21dddbd6d8cecec71e9cf564,007731E8,OK,OK,OK,OK,OK,OK,OK,
 T10_020,a2c0d75a860fa15584fdae76ccd45853,007731EB,TRAINER,ENTRENADOR,トレーナー,TREINADOR,트레이너,DRESSEUR,ALLENATORE,
-T10_021,b8e40954ca20c131a3a1a9af5ce9e252,007731F3,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T10_022,b8e40954ca20c131a3a1a9af5ce9e252,007731FF,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T10_023,b8e40954ca20c131a3a1a9af5ce9e252,0077320B,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T10_024,d372f3b62a210bfce8b1647aba3e2b76,00773217,PETIT CUP,COPA PETIT,プチカップ,COPA PETIT,쁘띠컵,COUPE PETIT,COPPA PETIT,
+T10_021,b8e40954ca20c131a3a1a9af5ce9e252,007731F3,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T10_022,b8e40954ca20c131a3a1a9af5ce9e252,007731FF,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T10_023,b8e40954ca20c131a3a1a9af5ce9e252,0077320B,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T10_024,d372f3b62a210bfce8b1647aba3e2b76,00773217,MINI CUP,COPA MINI,ミニカップ,COPA MINI,미니컵,COUPE MINI,COPPA MINI,
 T10_025,073822ed076b0748b5e2f1368163ac7d,00773220,PIKA CUP,COPA PIKA,ピカチュウカップ,COPA PIKA,피카츄컵,COUPE PIKA,COPPA PIKA,
-T10_026,32b558e091c51497f17d216b505ee7a6,00773229,PRIME CUP,COPA PRIME,プライムカップ,COPA PRIME,프라임컵,COUPE PRIME,COPPA PRIME,
-T10_027,0477ad837f7957b1e1ad744bfc7157cb,00773235,FREE BATTLE Settings,Ajustes de COMBATE LIBRE,フリーバトルの 設定,Configurações da BATALHA LIVRE,프리 배틀 설정,Réglages du COMBAT LIBRE,Impostazioni LOTTA LIBERA,
+T10_026,32b558e091c51497f17d216b505ee7a6,00773229,PREMIUM CUP,COPA PREMIUM,プレミアムカップ,COPA PREMIUM,프리미엄컵,COUPE PREMIUM,COPPA PREMIUM,
+T10_027,0477ad837f7957b1e1ad744bfc7157cb,00773235,SHOW BATTLE Settings,Ajustes de COMBATE DE EXHIBICIÓN,ショーバトルの 設定,Configurações da BATALHA DE EXIBIÇÃO,쇼 배틀 설정,Réglages du COMBAT D'EXHIBITION,Impostazioni LOTTA DIMOSTRATIVA,
 T10_028,ff18aa50a6115cc8dc036a06910bab7e,0077324E,Back  ,Atrás  ,戻る  ,Voltar  ,돌아가기  ,Retour  ,Indietro  ,
 T10_029,a1d7dac2f9b91cc065447ba3d8d9e601,00773257,Battle ,Combate ,対戦 ,Batalha ,대전 ,Combat ,Lotta ,
 T10_030,cd4cbc884703514c39801a95719d9989,0077325E,Rules,Reglas,ルール,Regras,룰,Règles,Regole,
@@ -6793,15 +6792,15 @@ superano il livello #03.",
 T12_008,647d37957ec446baeb5305dd489ad0dc,007733F9,Ready!,¡Listo!,準備 OK!,Pronto!,준비 완료!,Prêt!,Pronto!,
 T12_009,00cd346d4df9e8f2965ff08ed343d457,00773401,ATK.,ATQ.,攻撃,ATQ.,공격,ATT.,ATT.,
 T12_010,720ef3a9e27df8504feca907a154a9ad,00773407,DEF.,DEF.,防御,DEF.,방어,DEF.,DIF.,
-T12_011,dc41fdc2dba216c136e46a9e8f7f1e3d,0077340D,SPD.,VEL.,素早さ,VEL.,스피드,VIT.,VEL.,
+T12_011,dc41fdc2dba216c136e46a9e8f7f1e3d,0077340D,INIT.,INIC.,主導権,INIC.,주도권,INIT.,INIZ.,
 T12_012,30c00bc0156b01c74c87e15b1a28699f,00773413,SPEC.,ESP.,特殊,ESP.,특수,SPE.,SPE.,
 T12_013,bf3a557377321fcef78b9bf9647228a3,00773419,TYPE1/,TIPO1/,タイプ1/,TIPO1/,타입1/,TYPE1/,TIPO1/,
 T12_014,f019004bfa20dacacb713e3af6697252,0077341F,TYPE2/,TIPO2/,タイプ2/,TIPO2/,타입2/,TYPE2/,TIPO2/,
-T13_000,b8e40954ca20c131a3a1a9af5ce9e252,00773470,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T13_001,b8e40954ca20c131a3a1a9af5ce9e252,0077347C,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T13_002,b8e40954ca20c131a3a1a9af5ce9e252,00773488,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T13_003,32b558e091c51497f17d216b505ee7a6,00773494,PRIME CUP,COPA PRIME,プライムカップ,COPA PRIME,프라임컵,COUPE PRIME,COPPA PRIME,
-T13_004,d372f3b62a210bfce8b1647aba3e2b76,007734A0,PETIT CUP,COPA PETIT,プチカップ,COPA PETIT,쁘띠컵,COUPE PETIT,COPPA PETIT,
+T13_000,b8e40954ca20c131a3a1a9af5ce9e252,00773470,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T13_001,b8e40954ca20c131a3a1a9af5ce9e252,0077347C,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T13_002,b8e40954ca20c131a3a1a9af5ce9e252,00773488,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T13_003,32b558e091c51497f17d216b505ee7a6,00773494,PREMIUM CUP,COPA PREMIUM,プレミアムカップ,COPA PREMIUM,프리미엄컵,COUPE PREMIUM,COPPA PREMIUM,
+T13_004,d372f3b62a210bfce8b1647aba3e2b76,007734A0,MINI CUP,COPA MINI,ミニカップ,COPA MINI,미니컵,COUPE MINI,COPPA MINI,
 T13_005,073822ed076b0748b5e2f1368163ac7d,007734A9,PIKA CUP,COPA PIKA,ピカチュウカップ,COPA PIKA,피카츄컵,COUPE PIKA,COPPA PIKA,
 T13_006,4bd1f32c2066562755dabb39be0da55c,007734B2,"The official POKéMON LEAGUE tournament. Train your
 skills and show you have what it takes to be Champion!","El torneo oficial de la LIGA POKéMON. ¡Entrena tus
@@ -6873,20 +6872,20 @@ Prove sua habilidade em quatro torneios diferentes!","포켓몬 대회가 열리
 Prouve ton talent dans quatre tournois différents!","Lo STADIO dove si svolgono i tornei Pokémon.
 Dimostra la tua abilità in quattro tornei diversi!",
 T17_001,e70458c4eb0826338cc49ff7670522f8,007738BF,"Here you can battle your friends! Up to
-four players can take part in a FREE BATTLE.","¡Aquí puedes luchar contra tus amigos! Hasta
-cuatro jugadores pueden jugar un COMBATE LIBRE.","ここでは 友達と 対戦 できる! フリーバトルには
+four players can take part in a SHOW BATTLE.","¡Aquí puedes luchar contra tus amigos! Hasta
+cuatro jugadores pueden jugar un COMBATE DE EXHIBICIÓN.","ここでは 友達と 対戦 できる! ショーバトルには
 4人まで 参加 できるよ。","Aqui você pode batalhar com seus amigos! Até
-quatro jogadores podem participar da BATALHA LIVRE.","여기서는 친구와 대전할 수 있다! 프리 배틀에는
+quatro jogadores podem participar da BATALHA DE EXIBIÇÃO.","여기서는 친구와 대전할 수 있다! 쇼 배틀에는
 4명까지 참가할 수 있다.","Ici, tu peux combattre tes amis! Jusqu'à
-quatre joueurs peuvent participer au COMBAT LIBRE.","Qui puoi lottare con i tuoi amici! Fino a
-quattro giocatori possono fare una LOTTA LIBERA.",
-T17_002,c7123b41b6e27aebb060f927b75a0db1,00773926,"The challenge: defeat every GYM LEADER of the
-Pokémon world and become the ultimate master trainer!","El reto: ¡vence a todos los LÍDERES de gimnasio del
-mundo Pokémon y conviértete en el maestro definitivo!","挑戦! ポケモンの 世界の ジムリーダーを
-すべて 倒し 最強の トレーナーに なれ!","O desafio: derrote todos os LÍDERES de ginásio do
-mundo Pokémon e torne-se o mestre definitivo!","도전! 포켓몬 세계의 체육관 관장을
-모두 쓰러뜨리고 최강의 트레이너가 되어라!","Le défi: bats tous les CHAMPIONS d'arène du
-monde Pokémon et deviens le Maître ultime!","La sfida: sconfiggi tutti i CAPIPALESTRA del
+quatre joueurs peuvent participer au COMBAT D'EXHIBITION.","Qui puoi lottare con i tuoi amici! Fino a
+quattro giocatori possono fare una LOTTA DIMOSTRATIVA.",
+T17_002,c7123b41b6e27aebb060f927b75a0db1,00773926,"The challenge: defeat every ARENA LEADER of the
+Pokémon world and become the ultimate master trainer!","El reto: ¡vence a todos los LÍDERES DE ARENA del
+mundo Pokémon y conviértete en el maestro definitivo!","挑戦! ポケモンの 世界の アリーナリーダーを
+すべて 倒し 最強の トレーナーに なれ!","O desafio: derrote todos os LÍDERES DE ARENA do
+mundo Pokémon e torne-se o mestre definitivo!","도전! 포켓몬 세계의 아레나 리더를
+모두 쓰러뜨리고 최강의 트레이너가 되어라!","Le défi: bats tous les CHEFS D'ARÈNE du
+monde Pokémon et deviens le Maître ultime!","La sfida: sconfiggi tutti i CAPI ARENA del
 mondo Pokémon e diventa il migliore allenatore!",
 T17_003,27e12af2b1451e815ace0ab09bcafbb2,00773990,"The ultimate challenge! Do your Pokémon have
 the strength to withstand MEWTWO's incredible power?","¡El reto definitivo! ¿Tienen tus Pokémon la fuerza
@@ -6928,9 +6927,9 @@ Só insira o jogo de GB com o console desligado!","게임보이 포켓몬 게임
 GB 게임은 전원을 끈 상태에서 꽂자!","Joue à ton jeu Pokémon Game Boy sur Nintendo 64.
 N'insère le jeu GB que console éteinte!","Gioca al tuo gioco Pokémon per Game Boy sul Nintendo 64.
 Inserisci il gioco GB solo a console spenta!",
-T18_000,a0a0ab23d4acca4ef1e4dd1f079f188e,00773BD0,FREE BATTLE,COMBATE LIBRE,フリーバトル,BATALHA LIVRE,프리 배틀,COMBAT LIBRE,LOTTA LIBERA,
+T18_000,a0a0ab23d4acca4ef1e4dd1f079f188e,00773BD0,SHOW BATTLE,COMBATE DE EXHIBICIÓN,ショーバトル,BATALHA DE EXIBIÇÃO,쇼 배틀,COMBAT D'EXHIBITION,LOTTA DIMOSTRATIVA,
 T18_001,4e6d44277d5459baa33189cd49dc8f54,00773BDB,POKéMON STADIUM,ESTADIO POKéMON,ポケモンスタジアム,ESTÁDIO POKéMON,포켓몬 스타디움,STADE POKéMON,STADIO POKéMON,
-T18_002,0fe6f482db23f0d3b2e6729851c73b27,00773BEB,GYM LEADER CASTLE,CASTILLO DE LÍDERES,ジムリーダーの 城,CASTELO DOS LÍDERES,체육관 관장의 성,CHATEAU DES CHAMPIONS,CASTELLO CAPIPALESTRA,
+T18_002,0fe6f482db23f0d3b2e6729851c73b27,00773BEB,ARENA LEADER CASTLE,CASTILLO DE LOS LÍDERES DE ARENA,アリーナリーダーの 城,CASTELO DOS LÍDERES DE ARENA,아레나 리더의 성,CHÂTEAU DES CHEFS D'ARÈNE,CASTELLO DEI CAPI ARENA,
 T18_003,00b5bb14b8e364d6b8d4781e356fe72d,00773BFC,VS MEWTWO,VS MEWTWO,VS ミュウツー,VS MEWTWO,VS 뮤츠,VS MEWTWO,VS MEWTWO,
 T18_004,42c834bc58b5654e2de09892f2c591da,00773C05,Battle,Combate,対戦,Batalha,대전,Combat,Lotta,
 T18_005,cd4cbc884703514c39801a95719d9989,00773C0B,Rules,Reglas,ルール,Regras,룰,Règles,Regole,
@@ -6943,9 +6942,9 @@ T19_004,94ad705d1092d6dd54ef3c28a2c86837,00773C99,FUCHSIA CITY,CIUDAD FUCSIA,セ
 T19_005,51b302545c652493730f8e32a1a620d2,00773CA8,SAFFRON CITY,CIUDAD AZAFRÁN,ヤマブキシティ,SAFFRON CITY,노랑시티,SAFRANIA,ZAFFERANOPOLI,
 T19_006,ca25d243a4e4a0227455266bdfe9ac11,00773CB7,CINNABAR ISLAND,ISLA CANELA,グレン島,ILHA CINNABAR,홍련섬,CRAMOIS'ILE,ISOLA CANNELLA,
 T19_007,f67d3d6e233686fc440fb1a5873f872e,00773CC5,VIRIDIAN CITY,CIUDAD VERDE,トキワシティ,VIRIDIAN CITY,상록시티,JADIELLE,SMERALDOPOLI,
-T19_008,ab2292a9c0b88c95f68be73b08e14760,00773CD3,GYM LEADER,LÍDER,ジムリーダー,LÍDER,체육관 관장,CHAMPION,CAPOPALESTRA,
+T19_008,ab2292a9c0b88c95f68be73b08e14760,00773CD3,ARENA LEADER,LÍDER DE ARENA,アリーナリーダー,LÍDER DE ARENA,아레나 리더,CHEF D'ARÈNE,CAPO ARENA,
 T19_009,6f83323347c4b2cb003910c6db43edc3,00773CDF,TO GIOVANNI'S TOWER,A LA TORRE DE GIOVANNI,サカキの 塔へ,PARA A TORRE DE GIOVANNI,비주기의 탑으로,VERS LA TOUR DE GIOVANNI,ALLA TORRE DI GIOVANNI,
-T19_010,df8ee255992cfcac2e9c94a42f908f7c,00773CF1,ELITE FOUR,ALTO MANDO,四天王,ELITE DOS QUATRO,사천왕,CONSEIL 4,SUPERQUATTRO,
+T19_010,df8ee255992cfcac2e9c94a42f908f7c,00773CF1,TOP FOUR,TOP CUATRO,トップ4,TOP QUATRO,톱4,TOP QUATRE,TOP QUATTRO,
 T19_011,af89de7a266182fa60ce80f4221a5b2c,00773CFA,RIVAL,RIVAL,ライバル,RIVAL,라이벌,RIVAL,RIVALE,
 T19_012,8cc073cf7c3f0413242c067c34347d99,00773D01,"GIOVANNI gave you the key to the
 last castle, and you opened the gate!","¡GIOVANNI te ha dado la llave del
@@ -6955,13 +6954,13 @@ last castle, and you opened the gate!","¡GIOVANNI te ha dado la llave del
 받아 문을 열었다!","GIOVANNI t'a remis la clé du
 dernier château et tu as ouvert la porte!","GIOVANNI ti ha dato la chiave
 dell'ultimo castello e hai aperto il portone!",
-T19_013,4615f2599126f20b969eab615608ec79,00773D55,"The ELITE FOUR gave you the key to
-the castle's upper floor!","¡El ALTO MANDO te ha dado la llave
-del piso superior del castillo!","四天王から 城の 上の 階の
-カギを もらった!","A ELITE DOS QUATRO deu a você a chave
-do andar superior do castelo!","사천왕에게 성 위층의
-열쇠를 받았다!","Le CONSEIL 4 t'a remis la clé de
-l'étage supérieur du château!","I SUPERQUATTRO ti hanno dato la chiave
+T19_013,4615f2599126f20b969eab615608ec79,00773D55,"The TOP FOUR gave you the key to
+the castle's upper floor!","¡El TOP CUATRO te ha dado la llave
+del piso superior del castillo!","トップ4から 城の 上の 階の
+カギを もらった!","O TOP QUATRO deu a você a chave
+do andar superior do castelo!","톱4에게 성 위층의
+열쇠를 받았다!","Le TOP QUATRE t'a remis la clé de
+l'étage supérieur du château!","I TOP QUATTRO ti hanno dato la chiave
 del piano superiore del castello!",
 T19_014,1541c8eee2d42a7e492d1980034ec2b9,00773DA5,"#36 gave you the key
 to #41's tower!","¡#36 te ha dado la llave
@@ -6986,7 +6985,7 @@ T1A_003,375ee26098b46e23bcb854331f0ad8c5,00773F65,Yes,Sí,はい,Sim,예,Oui,Sì
 T1A_004,b397ec0bea79fb90df2b7ec2845cde07,00773F68,No,No,いいえ,Não,아니오,Non,No,
 T1A_005,00cd346d4df9e8f2965ff08ed343d457,00773F6D,ATK.,ATQ.,攻撃,ATQ.,공격,ATT.,ATT.,
 T1A_006,720ef3a9e27df8504feca907a154a9ad,00773F73,DEF.,DEF.,防御,DEF.,방어,DEF.,DIF.,
-T1A_007,dc41fdc2dba216c136e46a9e8f7f1e3d,00773F79,SPD.,VEL.,素早さ,VEL.,스피드,VIT.,VEL.,
+T1A_007,dc41fdc2dba216c136e46a9e8f7f1e3d,00773F79,INIT.,INIC.,主導権,INIC.,주도권,INIT.,INIZ.,
 T1A_008,30c00bc0156b01c74c87e15b1a28699f,00773F7F,SPEC.,ESP.,特殊,ESP.,특수,SPE.,SPE.,
 T1A_009,95dfedcfab7c730c067676c704a5dc3a,00773F85,TYPE 1,TIPO 1,タイプ1,TIPO 1,타입1,TYPE 1,TIPO 1,
 T1A_010,43d72fd1d1e35000e76920e2cc1b3bca,00773F8B,TYPE 2,TIPO 2,タイプ2,TIPO 2,타입2,TYPE 2,TIPO 2,
@@ -7066,18 +7065,18 @@ T1A_055,7b1f79cbeb1a0ac433353f15c2f2571a,00774318,Choose the participating Poké
 T1A_056,90925e2893b3913c609f3a550ed6d899,00774338,Pokémon Registration,Registro de Pokémon,ポケモンの 登録,Registro de Pokémon,포켓몬 등록,Inscription des Pokémon,Registrazione Pokémon,
 T1A_057,d4c481167c36048a0395a18291f6b6ad,0077434E,View registered Pokémon,Ver Pokémon registrados,登録した ポケモンを 見る,Ver Pokémon registrados,등록한 포켓몬 보기,Voir Pokémon inscrits,Vedi Pokémon registrati,
 T1A_058,f2605a97ecd9afc4dd2270c097d3950a,0077436D,Delete registered Pokémon,Borrar Pokémon registrados,登録した ポケモンを 消す,Apagar Pokémon registrados,등록한 포켓몬 삭제,Effacer Pokémon inscrits,Cancella Pokémon registrati,
-T1A_059,a0a0ab23d4acca4ef1e4dd1f079f188e,0077438A,FREE BATTLE,COMBATE LIBRE,フリーバトル,BATALHA LIVRE,프리 배틀,COMBAT LIBRE,LOTTA LIBERA,
+T1A_059,a0a0ab23d4acca4ef1e4dd1f079f188e,0077438A,SHOW BATTLE,COMBATE DE EXHIBICIÓN,ショーバトル,BATALHA DE EXIBIÇÃO,쇼 배틀,COMBAT D'EXHIBITION,LOTTA DIMOSTRATIVA,
 T1A_060,4e6d44277d5459baa33189cd49dc8f54,00774395,POKéMON STADIUM,ESTADIO POKéMON,ポケモンスタジアム,ESTÁDIO POKéMON,포켓몬 스타디움,STADE POKéMON,STADIO POKéMON,
-T1A_061,0fe6f482db23f0d3b2e6729851c73b27,007743A5,GYM LEADER CASTLE,CASTILLO DE LÍDERES,ジムリーダーの 城,CASTELO DOS LÍDERES,체육관 관장의 성,CHATEAU DES CHAMPIONS,CASTELLO CAPIPALESTRA,
+T1A_061,0fe6f482db23f0d3b2e6729851c73b27,007743A5,ARENA LEADER CASTLE,CASTILLO DE LOS LÍDERES DE ARENA,アリーナリーダーの 城,CASTELO DOS LÍDERES DE ARENA,아레나 리더의 성,CHÂTEAU DES CHEFS D'ARÈNE,CASTELLO DEI CAPI ARENA,
 T1A_062,00b5bb14b8e364d6b8d4781e356fe72d,007743B6,VS MEWTWO,VS MEWTWO,VS ミュウツー,VS MEWTWO,VS 뮤츠,VS MEWTWO,VS MEWTWO,
-T1A_063,010ec201d73bf586c0b5c7bb55a6949a,007743BF,ANYTHING GOES,TODO VALE,何でも OK,VALE TUDO,무엇이든 OK,TOUT EST PERMIS,TUTTO PERMESSO,
-T1A_064,b8e40954ca20c131a3a1a9af5ce9e252,007743D1,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T1A_065,b8e40954ca20c131a3a1a9af5ce9e252,007743DD,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T1A_066,b8e40954ca20c131a3a1a9af5ce9e252,007743E9,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T1A_067,d372f3b62a210bfce8b1647aba3e2b76,007743F5,PETIT CUP,COPA PETIT,プチカップ,COPA PETIT,쁘띠컵,COUPE PETIT,COPPA PETIT,
+T1A_063,010ec201d73bf586c0b5c7bb55a6949a,007743BF,EVERYTHING IS ALLOWED,TODO ESTÁ PERMITIDO,すべて 許可,TUDO É PERMITIDO,모두 허용,TOUT EST PERMIS,TUTTO È PERMESSO,
+T1A_064,b8e40954ca20c131a3a1a9af5ce9e252,007743D1,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T1A_065,b8e40954ca20c131a3a1a9af5ce9e252,007743DD,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T1A_066,b8e40954ca20c131a3a1a9af5ce9e252,007743E9,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T1A_067,d372f3b62a210bfce8b1647aba3e2b76,007743F5,MINI CUP,COPA MINI,ミニカップ,COPA MINI,미니컵,COUPE MINI,COPPA MINI,
 T1A_068,073822ed076b0748b5e2f1368163ac7d,007743FE,PIKA CUP,COPA PIKA,ピカチュウカップ,COPA PIKA,피카츄컵,COUPE PIKA,COPPA PIKA,
-T1A_069,32b558e091c51497f17d216b505ee7a6,00774407,PRIME CUP,COPA PRIME,プライムカップ,COPA PRIME,프라임컵,COUPE PRIME,COPPA PRIME,
-T1A_070,0fe6f482db23f0d3b2e6729851c73b27,00774413,GYM LEADER CASTLE,CASTILLO DE LÍDERES,ジムリーダーの 城,CASTELO DOS LÍDERES,체육관 관장의 성,CHATEAU DES CHAMPIONS,CASTELLO CAPIPALESTRA,
+T1A_069,32b558e091c51497f17d216b505ee7a6,00774407,PREMIUM CUP,COPA PREMIUM,プレミアムカップ,COPA PREMIUM,프리미엄컵,COUPE PREMIUM,COPPA PREMIUM,
+T1A_070,0fe6f482db23f0d3b2e6729851c73b27,00774413,ARENA LEADER CASTLE,CASTILLO DE LOS LÍDERES DE ARENA,アリーナリーダーの 城,CASTELO DOS LÍDERES DE ARENA,아레나 리더의 성,CHÂTEAU DES CHEFS D'ARÈNE,CASTELLO DEI CAPI ARENA,
 T1A_071,00b5bb14b8e364d6b8d4781e356fe72d,00774424,VS MEWTWO,VS MEWTWO,VS ミュウツー,VS MEWTWO,VS 뮤츠,VS MEWTWO,VS MEWTWO,
 T1A_072,0376e08ae9548ceb6c54a369c20d4b92,0077442D,: Registration,: Registro,:登録,: Registro,: 등록,: Inscription,: Registrazione,
 T1A_073,90925e2893b3913c609f3a550ed6d899,0077443D,Pokémon Registration,Registro de Pokémon,ポケモンの 登録,Registro de Pokémon,포켓몬 등록,Inscription des Pokémon,Registrazione Pokémon,
@@ -7101,13 +7100,13 @@ in seguito. I Pokémon a noleggio sono ammessi.
 Si possono registrare fino a 10 squadre.",
 T1A_078,d41d8cd98f00b204e9800998ecf8427e,00774525,,,,,,,,
 T1A_079,a2c0d75a860fa15584fdae76ccd45853,00774526,TRAINER,ENTRENADOR,トレーナー,TREINADOR,트레이너,DRESSEUR,ALLENATORE,
-T1B_000,b8e40954ca20c131a3a1a9af5ce9e252,00774638,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T1B_001,b8e40954ca20c131a3a1a9af5ce9e252,00774644,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T1B_002,b8e40954ca20c131a3a1a9af5ce9e252,00774650,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T1B_003,d372f3b62a210bfce8b1647aba3e2b76,0077465C,PETIT CUP,COPA PETIT,プチカップ,COPA PETIT,쁘띠컵,COUPE PETIT,COPPA PETIT,
+T1B_000,b8e40954ca20c131a3a1a9af5ce9e252,00774638,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T1B_001,b8e40954ca20c131a3a1a9af5ce9e252,00774644,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T1B_002,b8e40954ca20c131a3a1a9af5ce9e252,00774650,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T1B_003,d372f3b62a210bfce8b1647aba3e2b76,0077465C,MINI CUP,COPA MINI,ミニカップ,COPA MINI,미니컵,COUPE MINI,COPPA MINI,
 T1B_004,073822ed076b0748b5e2f1368163ac7d,00774665,PIKA CUP,COPA PIKA,ピカチュウカップ,COPA PIKA,피카츄컵,COUPE PIKA,COPPA PIKA,
-T1B_005,32b558e091c51497f17d216b505ee7a6,0077466E,PRIME CUP,COPA PRIME,プライムカップ,COPA PRIME,프라임컵,COUPE PRIME,COPPA PRIME,
-T1B_006,0fe6f482db23f0d3b2e6729851c73b27,0077467A,GYM LEADER CASTLE,CASTILLO DE LÍDERES,ジムリーダーの 城,CASTELO DOS LÍDERES,체육관 관장의 성,CHATEAU DES CHAMPIONS,CASTELLO CAPIPALESTRA,
+T1B_005,32b558e091c51497f17d216b505ee7a6,0077466E,PREMIUM CUP,COPA PREMIUM,プレミアムカップ,COPA PREMIUM,프리미엄컵,COUPE PREMIUM,COPPA PREMIUM,
+T1B_006,0fe6f482db23f0d3b2e6729851c73b27,0077467A,ARENA LEADER CASTLE,CASTILLO DE LOS LÍDERES DE ARENA,アリーナリーダーの 城,CASTELO DOS LÍDERES DE ARENA,아레나 리더의 성,CHÂTEAU DES CHEFS D'ARÈNE,CASTELLO DEI CAPI ARENA,
 T1B_007,34461f39974fdca608489f4aadf0813e,0077468B,POKé BALL,POKéBOLA,ポケボール,POKéBOLA,포케볼,POKéBALLE,POKéPALLA,
 T1B_008,0e548fdc0b1e306d5a72956393801bc4,00774694,SUPER BALL,SUPERBOLA,スーパーボール,SUPERBOLA,슈퍼볼,SUPERBALLE,SUPERPALLA,
 T1B_009,3885994da35ef75a8c6abcb886f07a2d,0077469E,HYPER BALL,HIPERBOLA,ハイパーボール,HIPERBOLA,하이퍼볼,HYPERBALLE,IPERPALLA,
@@ -7128,7 +7127,7 @@ T1B_023,94ad705d1092d6dd54ef3c28a2c86837,0077472B,FUCHSIA CITY,CIUDAD FUCSIA,セ
 T1B_024,51b302545c652493730f8e32a1a620d2,0077473A,SAFFRON CITY,CIUDAD AZAFRÁN,ヤマブキシティ,SAFFRON CITY,노랑시티,SAFRANIA,ZAFFERANOPOLI,
 T1B_025,ca25d243a4e4a0227455266bdfe9ac11,00774749,CINNABAR ISLAND,ISLA CANELA,グレン島,ILHA CINNABAR,홍련섬,CRAMOIS'ILE,ISOLA CANNELLA,
 T1B_026,f67d3d6e233686fc440fb1a5873f872e,00774757,VIRIDIAN CITY,CIUDAD VERDE,トキワシティ,VIRIDIAN CITY,상록시티,JADIELLE,SMERALDOPOLI,
-T1B_027,df8ee255992cfcac2e9c94a42f908f7c,00774765,ELITE FOUR,ALTO MANDO,四天王,ELITE DOS QUATRO,사천왕,CONSEIL 4,SUPERQUATTRO,
+T1B_027,df8ee255992cfcac2e9c94a42f908f7c,00774765,TOP FOUR,TOP CUATRO,トップ4,TOP QUATRO,톱4,TOP QUATRE,TOP QUATTRO,
 T1B_028,af89de7a266182fa60ce80f4221a5b2c,0077476E,RIVAL,RIVAL,ライバル,RIVAL,라이벌,RIVAL,RIVALE,
 T1B_029,1752583f97692d24fc9e10a41b08f9b0,00774775,BROCK,BROCK,タケシ,BROCK,웅,PIERRE,BROCK,
 T1B_030,624c7e68e3b2000d4e47cef8e3dea77f,0077477B,MISTY,MISTY,カスミ,MISTY,이슬,ONDINE,MISTY,
@@ -7151,7 +7150,7 @@ T1B_046,b97d23bf800ff592f7afe97a29921271,00774807,Save,Guardar,セーブ,Salvar,
 T1B_047,a44ab40ab79141c5b7c134638809d3fd,00774811,New entry,Nueva inscripción,エントリーし直す,Nova inscrição,다시 엔트리,Nouvelle inscription,Nuova iscrizione,
 T1B_048,af88e25439d875af63bc58b44fc15f0e,0077481E,Start over,Empezar de nuevo,最初から,Recomeçar,처음부터,Recommencer,Ricomincia,
 T1B_049,82f357d1e4c80c143a22db05a3e9cd9e,00774830,Exit,Salir,終わる,Sair,나가기,Quitter,Esci,
-T1B_050,653fd0bbb9d0727749db6a9a54ca6cfd,0077483A,Restart the Gym,Reiniciar el gimnasio,ジムを 最初から,Reiniciar o ginásio,체육관을 처음부터,Recommencer l'arène,Ricomincia la palestra,
+T1B_050,653fd0bbb9d0727749db6a9a54ca6cfd,0077483A,Restart the Arena,Reiniciar la arena,アリーナを 最初から,Reiniciar a arena,아레나를 처음부터,Recommencer l'arène,Ricomincia la arena,
 T1B_051,ab5471f72312eb4c406aa16b40c61e2a,00774852,Try again,Reintentar,もう一度 挑戦,Tentar de novo,재도전,Réessayer,Riprova,
 T1B_052,b9098469a002e2df48b2f511b112853b,00774863,Change team lineup,Cambiar formación,チームの 順番を 変える,Mudar formação da equipe,팀 편성 변경,Modifier l'équipe,Cambia formazione,
 T1B_053,703b9d9ade5fc6ba9bd2f31e8d9292b9,0077487B,Rematch,Revancha,再戦,Revanche,재시합,Revanche,Rivincita,
@@ -7163,9 +7162,9 @@ T1B_058,ae34102c75269fa14cf8f135c43c717e,007748A6,Current save,Partida actual,�
 T1B_059,707680d8d45598b7fe0fc64b7e81b355,007748BB,Overwrite the old save?,¿Sobrescribir la partida anterior?,前の セーブデータに 上書きしますか?,Sobrescrever o jogo antigo?,이전 세이브에 덮어쓰겠습니까?,Écraser l'ancienne sauvegarde?,Sovrascrivere la vecchia partita?,
 T1B_060,b97d23bf800ff592f7afe97a29921271,007748DB,Save,Guardar,セーブ,Salvar,저장,Sauvegarder,Salva,
 T1B_061,3e0314b147996490447a60140d77c353,007748E5,Continue without saving,Seguir sin guardar,セーブせずに 続ける,Continuar sem salvar,저장하지 않고 계속,Continuer sans sauvegarder,Continua senza salvare,
-T1B_062,98ef38af1a519ffdbc9678db1a16f3e9,007748FE,GYM LEADER ,LÍDER ,ジムリーダー ,LÍDER ,체육관 관장 ,CHAMPION ,CAPOPALESTRA ,
+T1B_062,98ef38af1a519ffdbc9678db1a16f3e9,007748FE,ARENA LEADER ,LÍDER DE ARENA ,アリーナリーダー ,LÍDER DE ARENA ,아레나 리더 ,CHEF D'ARÈNE ,CAPO ARENA ,
 T1B_063,48c512beabe8eb912a18b5d9aeb9fec6,0077490B,The old save will be erased!,¡Se borrará la partida anterior!,前の セーブデータは 消えます!,O jogo antigo será apagado!,이전 세이브가 삭제됩니다!,L'ancienne sauvegarde sera effacée!,La vecchia partita verrà cancellata!,
-T1B_064,973bb5a7e7cd9728fafc9e4a1eb589e6,0077492E,ELITE FOUR #01,ALTO MANDO #01,四天王 #01,ELITE DOS QUATRO #01,사천왕 #01,CONSEIL 4 #01,SUPERQUATTRO #01,
+T1B_064,973bb5a7e7cd9728fafc9e4a1eb589e6,0077492E,TOP FOUR #01,TOP CUATRO #01,トップ4 #01,TOP QUATRO #01,톱4 #01,TOP QUATRE #01,TOP QUATTRO #01,
 T1C_000,54012d5ab7513ddcb2229a13146e649a,0077499C,"Congratulations!
 You won the battle with PIKACHU!","¡Enhorabuena!
 ¡Has ganado el combate con PIKACHU!","おめでとう!
@@ -7455,7 +7454,7 @@ mantiver o botão A pressionado.","단단해지기는 A버튼을
 누르고 있는 동안만 쓸 수 있다.","Tu n'utilises ARMURE que tant
 que tu maintiens A enfoncé.","Usi RAFFORZATORE solo finché
 tieni premuto il pulsante A.",
-T1D_071,92cce7ebf0ef06d58c496cd93f9d74eb,007757A4,Careful: HARDEN uses up your HP!,¡Cuidado: FORTALEZA gasta tus PS!,注意! かたくなるは HPを 減らす!,Cuidado: ENDURECER gasta seus PS!,주의! 단단해지기는 HP를 소모한다!,Attention: ARMURE use tes PV!,Attento: RAFFORZATORE consuma i PS!,
+T1D_071,92cce7ebf0ef06d58c496cd93f9d74eb,007757A4,Careful: HARDEN uses up your SP!,¡Cuidado: FORTALEZA gasta tus PF!,注意! かたくなるは 力Pを 減らす!,Cuidado: ENDURECER gasta seus PF!,주의! 단단해지기는 힘P를 소모한다!,Attention: ARMURE use tes PF!,Attento: RAFFORZATORE consuma i PF!,
 T1D_072,3679954d24cfe44179d585c9d744e51a,007757CB,Watch the rocks' shadows!,¡Fíjate en las sombras de las rocas!,岩の 影に 注意!,Fique de olho nas sombras das rochas!,바위의 그림자에 주의!,Regarde l'ombre des rochers!,Osserva le ombre dei massi!,
 T1D_073,38dd5ab080cb5bfd71ae20e3d1086415,007757EE,HARDEN,FORTALEZA,かたくなる,ENDURECER,단단해지기,ARMURE,RAFFORZATORE,
 T1D_074,f61a8183c3af9f46d726bdf691a23182,007757F6,THE GREAT DIG,LA GRAN EXCAVACIÓN,あなをほる 対決,A GRANDE ESCAVAÇÃO,구멍파기 대결,LE GRAND TUNNEL,LA GRANDE FOSSA,
@@ -7513,13 +7512,13 @@ T1D_097,e0ca65b82b7a75161fc43e77b0540ecb,00775A0A,Control Pad,Cruceta,十字ボ�
 T1D_098,ab6563ea2647fc2454730696ed25a63a,00775A16,Control Stick,Palanca de control,3Dスティック,Direcional analógico,3D 스틱,Stick directionnel,Levetta di controllo,
 T1D_099,5fe6785bd6dc66db4a458eb3e0f5444f,00775A22,L/R Buttons,Botones L/R,LボタンとRボタン,Botões L e R,L버튼과 R버튼,Boutons L et R,Pulsanti L/R,
 T1E_000,c09b6839656afdf31a283d7030acf87b,00775CF0,#25 has no attacks left!,¡A #25 no le quedan movimientos!,#25は 出せる 技が ない!,#25 não tem mais golpes!,#25은(는) 쓸 수 있는 기술이 없다!,#25 n'a plus de capacités!,#25 non ha più mosse!,
-T1E_001,5a0ee157708ccb1608f84231fa6a2110,00775D0E,No PP left for this move!,¡No quedan PP para este movimiento!,技の PPが ない!,Não há PP para este golpe!,기술의 PP가 없다!,Plus de PP pour cette capacité!,Non ci sono PP per questa mossa!,
+T1E_001,5a0ee157708ccb1608f84231fa6a2110,00775D0E,No AP left for this move!,¡No quedan PA para este movimiento!,技の 攻撃Pが ない!,Não há PA para este golpe!,기술의 공격P가 없다!,Plus de PA pour cette capacité!,Non ci sono PA per questa mossa!,
 T1E_002,83c4fef227f2858528de42a6c8952123,00775D32,This move is disabled!,¡Este movimiento está anulado!,この 技は 封じられている!,Este golpe está bloqueado!,이 기술은 봉인되어 있다!,Cette capacité est bloquée!,Questa mossa è bloccata!,
 T1E_003,0b118067100bd8d9feaaac079ee47dbb,00775D50,It can't battle!,¡No puede combatir!,戦える 状態ではない!,Ele não pode lutar!,싸울 수 없는 상태다!,Il n'est pas en état de combattre!,Non può lottare!,
 T1E_004,15e3275d0ac706efff97866fc3d17791,00775D67,#25 is already in battle!,¡#25 ya está combatiendo!,#25は もう 出ている!,#25 já está lutando!,#25은(는) 이미 싸우고 있다!,#25 est déjà au combat!,#25 sta già lottando!,
 T1E_005,fa0549c07acc4b5a49baedfa0957057d,00775D7B,The poison is hurting it!,¡El veneno le resta salud!,毒の ダメージを 受けている!,O veneno o machuca!,독의 데미지를 입고 있다!,Le poison lui inflige des dégâts!,Il veleno lo danneggia!,
 T1E_006,b4990b62835578ce603001b58bba5645,00775D91,It's hurt by its burn!,¡La quemadura le resta salud!,やけどの ダメージを 受けている!,A queimadura o machuca!,화상의 데미지를 입고 있다!,La brûlure lui inflige des dégâts!,La scottatura lo danneggia!,
-T1E_007,a32b9fab2e2385b2204ba7dbd6166ccb,00775DAE,LEECH SEED saps its HP!,¡DRENADORAS le quita PS!,やどりぎが 体力を 奪う!,SEMENTE SANGUESSUGA drena seus PS!,씨뿌리기가 체력을 빼앗는다!,VAMPIGRAINE draine ses PV!,PARASSISEME gli sottrae PS!,
+T1E_007,a32b9fab2e2385b2204ba7dbd6166ccb,00775DAE,LEECH SEED saps its SP!,¡DRENADORAS le quita PF!,やどりぎが 力Pを 奪う!,SEMENTE SANGUESSUGA drena seus PF!,씨뿌리기가 힘P를 빼앗는다!,VAMPIGRAINE draine ses PF!,PARASSISEME gli sottrae PF!,
 T1E_008,0070d2cbbe12914b1b9a6cd2ea02f307,00775DCE,#25 fainted!,¡#25 se ha debilitado!,#25は 倒れた!,#25 desmaiou!,#25은(는) 쓰러졌다!,#25 est K.O.!,#25 è esausto!,
 T1E_009,29861ca76230703e47013f623174392e,00775DE1,Hit #02 times!,¡Golpeó #02 veces!,#02回 当たった!,Acertou #02 vezes!,#02번 맞았다!,Touché #02 fois!,Colpito #02 volte!,
 T1E_010,885cac056f74bc422c8581b2f4c39d32,00775DF3,It's fast asleep!,¡Está profundamente dormido!,ぐうぐう 眠っている!,Está dormindo profundamente!,쿨쿨 잠들어 있다!,Il dort profondément!,Dorme profondamente!,
@@ -7575,7 +7574,7 @@ T1E_059,d587f2df9935262d529d018f05cc405a,007762C7,It was badly poisoned!,¡Ha si
 T1E_060,47f85a33f835d46551b58ac6c1840ab8,007762E2,It was poisoned!,¡Ha sido envenenado!,毒を 浴びた!,Foi envenenado!,독을 입었다!,Il est empoisonné!,È stato avvelenato!,
 T1E_061,329edbb045be2010572a7bdee6602ce9,007762F6,The move failed!,¡El movimiento ha fallado!,うまく 決まらなかった!,O golpe falhou!,기술이 실패했다!,La capacité a échoué!,La mossa non riesce!,
 T1E_062,8ab93e349515ea6c1c8b7526f9a6ee2f,0077630F,Its dream was eaten!,¡Se han comido su sueño!,夢を 食われた!,Seu sonho foi devorado!,꿈을 먹혔다!,Son rêve a été dévoré!,Il suo sogno è stato divorato!,
-T1E_063,42d841d8ef9420d2b57f77309f2b9e6d,0077632B,It lost HIT POINTS!,¡Ha perdido PUNTOS DE SALUD!,体力を 失った!,Perdeu PONTOS DE SAÚDE!,체력을 잃었다!,Il a perdu des POINTS DE VIE!,Ha perso PUNTI SALUTE!,
+T1E_063,42d841d8ef9420d2b57f77309f2b9e6d,0077632B,It lost STRENGTH POINTS!,¡Ha perdido PUNTOS DE FUERZA!,力ポイントを 失った!,Perdeu PONTOS DE FORÇA!,힘 포인트를 잃었다!,Il a perdu des POINTS DE FORCE!,Ha perso PUNTI FORZA!,
 T1E_064,89984b86d9a3f35df56ec183d86c0165,00776348,The ice melted!,¡El hielo se ha derretido!,氷が 溶けた!,O gelo derreteu!,얼음이 녹았다!,La glace est fondue!,Il ghiaccio è fuso!,
 T1E_065,8fb95b3cccf08d79e25b3e0534d95bbe,00776361,It was burned!,¡Se ha quemado!,やけどを 負った!,Ele se queimou!,화상을 입었다!,Il est brûlé!,È stato scottato!,
 T1E_066,8fb95b3cccf08d79e25b3e0534d95bbe,00776380,It was burned!,¡Se ha quemado!,やけどを 負った!,Ele se queimou!,화상을 입었다!,Il est brûlé!,È stato scottato!,
@@ -7583,26 +7582,26 @@ T1E_067,31faaed18e7f0e68d0fe5ced42ba661e,0077639F,It was frozen!,¡Se ha congela
 T1E_068,3fee01720796bf05d13ce06011fda17d,007763B5,It may not be able to attack!,¡Puede que no logre atacar!,技が 出にくく なるかも!,Talvez não consiga atacar!,기술을 쓰기 어려워질지도!,Il risque de ne pas pouvoir attaquer!,Potrebbe non riuscire ad attaccare!,
 T1E_069,a5c05a406dbbbe62300394e2cf18132b,007763D8,Its ATTACK greatly rose!,¡Su ATAQUE ha subido mucho!,攻撃が ぐーんと 上がった!,Seu ATAQUE subiu muito!,공격이 크게 올랐다!,Son ATTAQUE augmente beaucoup!,Il suo ATTACCO aumenta molto!,
 T1E_070,ff5df7223c454898319df1baae82e7fc,007763F5,Its DEFENSE greatly rose!,¡Su DEFENSA ha subido mucho!,防御が ぐーんと 上がった!,Sua DEFESA subiu muito!,방어가 크게 올랐다!,Sa DEFENSE augmente beaucoup!,La sua DIFESA aumenta molto!,
-T1E_071,92a78439be0e6fdc554036988e8aa7f7,00776418,Its SPEED greatly rose!,¡Su VELOCIDAD ha subido mucho!,素早さが ぐーんと 上がった!,Sua VELOCIDADE subiu muito!,스피드가 크게 올랐다!,Sa VITESSE augmente beaucoup!,La sua VELOCITÀ aumenta molto!,
+T1E_071,92a78439be0e6fdc554036988e8aa7f7,00776418,Its INITIATIVE greatly rose!,¡Su INICIATIVA ha subido mucho!,主導権が ぐーんと 上がった!,Sua INICIATIVA subiu muito!,주도권이 크게 올랐다!,Son INITIATIVE augmente beaucoup!,La sua INIZIATIVA aumenta molto!,
 T1E_072,f1afcc131587cd2c81b749ca5047b143,00776439,Its SPECIAL greatly rose!,¡Su ESPECIAL ha subido mucho!,特殊が ぐーんと 上がった!,Seu ESPECIAL subiu muito!,특수가 크게 올랐다!,Son SPECIAL augmente beaucoup!,Il suo SPECIALE aumenta molto!,
 T1E_073,86dea5ad34e0527b0a939061291624b2,0077645B,Its accuracy greatly rose!,¡Su precisión ha subido mucho!,命中率が ぐーんと 上がった!,Sua precisão subiu muito!,명중률이 크게 올랐다!,Sa précision augmente beaucoup!,La sua precisione aumenta molto!,
 T1E_074,40674a5ae70c4683cc71212c9e2e4f23,0077647D,Its evasiveness greatly rose!,¡Su evasión ha subido mucho!,回避率が ぐーんと 上がった!,Sua evasão subiu muito!,회피율이 크게 올랐다!,Son esquive augmente beaucoup!,La sua elusione aumenta molto!,
 T1E_075,cfa1faab3f1f3121eb083605d6a79abb,0077649E,Its ATTACK rose!,¡Su ATAQUE ha subido!,攻撃が 上がった!,Seu ATAQUE subiu!,공격이 올랐다!,Son ATTAQUE augmente!,Il suo ATTACCO aumenta!,
 T1E_076,e5863f6a640f5dd546b9718533f14eff,007764B5,Its DEFENSE rose!,¡Su DEFENSA ha subido!,防御が 上がった!,Sua DEFESA subiu!,방어가 올랐다!,Sa DEFENSE augmente!,La sua DIFESA aumenta!,
-T1E_077,b4c66eb68e3168db66161c2fbb19e5aa,007764D2,Its SPEED rose!,¡Su VELOCIDAD ha subido!,素早さが 上がった!,Sua VELOCIDADE subiu!,스피드가 올랐다!,Sa VITESSE augmente!,La sua VELOCITÀ aumenta!,
+T1E_077,b4c66eb68e3168db66161c2fbb19e5aa,007764D2,Its INITIATIVE rose!,¡Su INICIATIVA ha subido!,主導権が 上がった!,Sua INICIATIVA subiu!,주도권이 올랐다!,Son INITIATIVE augmente!,La sua INIZIATIVA aumenta!,
 T1E_078,674737a5ca77c7f2e0fda68d423b39db,007764ED,Its SPECIAL rose!,¡Su ESPECIAL ha subido!,特殊が 上がった!,Seu ESPECIAL subiu!,특수가 올랐다!,Son SPECIAL augmente!,Il suo SPECIALE aumenta!,
 T1E_079,69a024ec5a22695acf78838d2e5821db,00776509,Its accuracy rose!,¡Su precisión ha subido!,命中率が 上がった!,Sua precisão subiu!,명중률이 올랐다!,Sa précision augmente!,La sua precisione aumenta!,
 T1E_080,848aeb3b85371bba4bd4c6fbaee755fc,00776525,Its evasiveness rose!,¡Su evasión ha subido!,回避率が 上がった!,Sua evasão subiu!,회피율이 올랐다!,Son esquive augmente!,La sua elusione aumenta!,
 T1E_081,3b3887dec54ece5de481f6d701dcff66,00776540,Nothing happened!,¡No ha pasado nada!,しかし 何も 起こらない!,Nada aconteceu!,그러나 아무 일도 일어나지 않았다!,Mais rien ne se passe!,Non succede niente!,
 T1E_082,bcfc1522d1ee354575cd8787e17f4234,00776558,Its ATTACK greatly fell!,¡Su ATAQUE ha bajado mucho!,攻撃が がくっと 下がった!,Seu ATAQUE caiu muito!,공격이 크게 떨어졌다!,Son ATTAQUE baisse beaucoup!,Il suo ATTACCO cala molto!,
 T1E_083,91c85d1e600d9d310a56ca61a580886d,00776572,Its DEFENSE greatly fell!,¡Su DEFENSA ha bajado mucho!,防御が がくっと 下がった!,Sua DEFESA caiu muito!,방어가 크게 떨어졌다!,Sa DEFENSE baisse beaucoup!,La sua DIFESA cala molto!,
-T1E_084,fd6c31aaceb25f62c022064fe0ec2358,00776592,Its SPEED greatly fell!,¡Su VELOCIDAD ha bajado mucho!,素早さが がくっと 下がった!,Sua VELOCIDADE caiu muito!,스피드가 크게 떨어졌다!,Sa VITESSE baisse beaucoup!,La sua VELOCITÀ cala molto!,
+T1E_084,fd6c31aaceb25f62c022064fe0ec2358,00776592,Its INITIATIVE greatly fell!,¡Su INICIATIVA ha bajado mucho!,主導権が がくっと 下がった!,Sua INICIATIVA caiu muito!,주도권이 크게 떨어졌다!,Son INITIATIVE baisse beaucoup!,La sua INIZIATIVA cala molto!,
 T1E_085,31ceb4b0431e03ae51ebd4dc1724c278,007765B0,Its SPECIAL greatly fell!,¡Su ESPECIAL ha bajado mucho!,特殊が がくっと 下がった!,Seu ESPECIAL caiu muito!,특수가 크게 떨어졌다!,Son SPECIAL baisse beaucoup!,Il suo SPECIALE cala molto!,
 T1E_086,971ef74a1da74309464741a52970ab65,007765CF,Its accuracy greatly fell!,¡Su precisión ha bajado mucho!,命中率が がくっと 下がった!,Sua precisão caiu muito!,명중률이 크게 떨어졌다!,Sa précision baisse beaucoup!,La sua precisione cala molto!,
 T1E_087,e8be9c22b1f043d9ce8a5b26069d030a,007765EE,Its evasiveness greatly fell!,¡Su evasión ha bajado mucho!,回避率が がくっと 下がった!,Sua evasão caiu muito!,회피율이 크게 떨어졌다!,Son esquive baisse beaucoup!,La sua elusione cala molto!,
 T1E_088,15be86779243d85488ff90b6aa46902c,0077660C,Its ATTACK fell!,¡Su ATAQUE ha bajado!,攻撃が 下がった!,Seu ATAQUE caiu!,공격이 떨어졌다!,Son ATTAQUE baisse!,Il suo ATTACCO cala!,
 T1E_089,c853a470e3fdf392959ca29b9a543bc8,00776620,Its DEFENSE fell!,¡Su DEFENSA ha bajado!,防御が 下がった!,Sua DEFESA caiu!,방어가 떨어졌다!,Sa DEFENSE baisse!,La sua DIFESA cala!,
-T1E_090,5d44a1bc385191c183ca4e658494fa26,0077663A,Its SPEED fell!,¡Su VELOCIDAD ha bajado!,素早さが 下がった!,Sua VELOCIDADE caiu!,스피드가 떨어졌다!,Sa VITESSE baisse!,La sua VELOCITÀ cala!,
+T1E_090,5d44a1bc385191c183ca4e658494fa26,0077663A,Its INITIATIVE fell!,¡Su INICIATIVA ha bajado!,主導権が 下がった!,Sua INICIATIVA caiu!,주도권이 떨어졌다!,Son INITIATIVE baisse!,La sua INIZIATIVA cala!,
 T1E_091,0da3b6a0faf8d14208cee98a0073f114,00776652,Its SPECIAL fell!,¡Su ESPECIAL ha bajado!,特殊が 下がった!,Seu ESPECIAL caiu!,특수가 떨어졌다!,Son SPECIAL baisse!,Il suo SPECIALE cala!,
 T1E_092,0690163a35bfe64b48a27dbe122a332a,0077666B,Its accuracy fell!,¡Su precisión ha bajado!,命中率が 下がった!,Sua precisão caiu!,명중률이 떨어졌다!,Sa précision baisse!,La sua precisione cala!,
 T1E_093,16d14b3c4a9a7fa8d219c4d41e8205c5,00776684,Its evasiveness fell!,¡Su evasión ha bajado!,回避率が 下がった!,Sua evasão caiu!,회피율이 떨어졌다!,Son esquive baisse!,La sua elusione cala!,
@@ -7655,7 +7654,7 @@ T1E_139,329edbb045be2010572a7bdee6602ce9,00776AF9,The move failed!,¡El movimien
 T1E_140,9ce954147cb479e573a3572a21441d09,00776B12,It gained armor!,¡Se ha blindado!,体が 硬くなった!,Ganhou uma armadura!,몸이 단단해졌다!,Il se protège!,Si è corazzato!,
 T1E_141,329edbb045be2010572a7bdee6602ce9,00776B2A,The move failed!,¡El movimiento ha fallado!,うまく 決まらなかった!,O golpe falhou!,기술이 실패했다!,La capacité a échoué!,La mossa non riesce!,
 T1E_142,ab6d7001c3a99b65c40bce987b55b546,00776B43,It already has a SUBSTITUTE!,¡Ya tiene un SUSTITUTO!,もう みがわりが 出ている!,Já tem um DELEGADOR!,이미 대타가 나와 있다!,Il a déjà un CLONAGE!,Ha già un SOSTITUTO!,
-T1E_143,ddc32ab4a829e10fc9d97a924af96f5e,00776B64,Not enough HIT POINTS!,¡No tiene suficientes PUNTOS DE SALUD!,体力が 足りない!,PONTOS DE SAÚDE insuficientes!,체력이 부족하다!,Pas assez de POINTS DE VIE!,PUNTI SALUTE insufficienti!,
+T1E_143,ddc32ab4a829e10fc9d97a924af96f5e,00776B64,Not enough STRENGTH POINTS!,¡No tiene suficientes PUNTOS DE FUERZA!,力ポイントが 足りない!,PONTOS DE FORÇA insuficientes!,힘 포인트가 부족하다!,Pas assez de POINTS DE FORCE!,PUNTI FORZA insufficienti!,
 T1E_144,9c309378fd6902a6e385f9858e75a907,00776B7D,It makes a SUBSTITUTE!,¡Ha creado un SUSTITUTO!,みがわりを 出した!,Criou um DELEGADOR!,대타를 내보냈다!,Il crée un CLONAGE!,Crea un SOSTITUTO!,
 T1E_145,49cceffb2ad8a4b72748888d24f0022e,00776B99,"Congratulations! You won
 a DODUO GAME BOY!","¡Enhorabuena! ¡Has ganado
@@ -7667,9 +7666,9 @@ un GAME BOY DODUO!","Congratulazioni! Hai vinto
 un GAME BOY DODUO!",
 T1E_146,8401a24458678dd13ec67efb461f9fd4,00776BD7,"This speeds up the
 GAME BOY in the GB TOWER!","¡Acelera el
-GAME BOY de la TORRE GB!","GBビルの ゲームボーイが
+GAME BOY de la TORRE GB!","GBタワーの ゲームボーイが
 速くなる!","Ele acelera o
-GAME BOY na TORRE GB!","GB 빌딩의 게임보이가
+GAME BOY na TORRE GB!","GB 타워의 게임보이가
 빨라진다!","Il accélère le
 GAME BOY de la TOUR GB!","Accelera il
 GAME BOY nella TORRE GB!",
@@ -7683,9 +7682,9 @@ GAME BOY DODRIO!","Incredibile! Hai vinto un
 GAME BOY DODRIO!",
 T1E_148,931bf6173908d4832c0d8b875fec4ea4,00776C36,"The GAME BOY in the GB TOWER
 now runs at lightning speed!","¡El GAME BOY de la TORRE GB
-ahora va a la velocidad del rayo!","GBビルの ゲームボーイが
+ahora va a la velocidad del rayo!","GBタワーの ゲームボーイが
 ものすごく 速くなった!","O GAME BOY na TORRE GB
-agora roda na velocidade da luz!","GB 빌딩의 게임보이가
+agora roda na velocidade da luz!","GB 타워의 게임보이가
 엄청나게 빨라졌다!","Le GAME BOY de la TOUR GB
 va maintenant à toute vitesse!","Il GAME BOY nella TORRE GB
 ora va alla velocità della luce!",
@@ -7809,13 +7808,13 @@ registrados","#03마리의
 enregistrés","#03 Pokémon
 presenti",
 T1F_006,3abd2b3c571e55d29bf882c5435e8622,00776F55,Congratulations!,¡Enhorabuena!,おめでとう!,Parabéns!,축하합니다!,Félicitations!,Congratulazioni!,
-T1F_007,b8e40954ca20c131a3a1a9af5ce9e252,00776F62,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T1F_008,b8e40954ca20c131a3a1a9af5ce9e252,00776F6E,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T1F_009,b8e40954ca20c131a3a1a9af5ce9e252,00776F7A,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T1F_010,d372f3b62a210bfce8b1647aba3e2b76,00776F86,PETIT CUP,COPA PETIT,プチカップ,COPA PETIT,쁘띠컵,COUPE PETIT,COPPA PETIT,
+T1F_007,b8e40954ca20c131a3a1a9af5ce9e252,00776F62,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T1F_008,b8e40954ca20c131a3a1a9af5ce9e252,00776F6E,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T1F_009,b8e40954ca20c131a3a1a9af5ce9e252,00776F7A,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T1F_010,d372f3b62a210bfce8b1647aba3e2b76,00776F86,MINI CUP,COPA MINI,ミニカップ,COPA MINI,미니컵,COUPE MINI,COPPA MINI,
 T1F_011,073822ed076b0748b5e2f1368163ac7d,00776F8F,PIKA CUP,COPA PIKA,ピカチュウカップ,COPA PIKA,피카츄컵,COUPE PIKA,COPPA PIKA,
-T1F_012,32b558e091c51497f17d216b505ee7a6,00776F98,PRIME CUP,COPA PRIME,プライムカップ,COPA PRIME,프라임컵,COUPE PRIME,COPPA PRIME,
-T1F_013,0fe6f482db23f0d3b2e6729851c73b27,00776FA4,GYM LEADER CASTLE,CASTILLO DE LÍDERES,ジムリーダーの 城,CASTELO DOS LÍDERES,체육관 관장의 성,CHATEAU DES CHAMPIONS,CASTELLO CAPIPALESTRA,
+T1F_012,32b558e091c51497f17d216b505ee7a6,00776F98,PREMIUM CUP,COPA PREMIUM,プレミアムカップ,COPA PREMIUM,프리미엄컵,COUPE PREMIUM,COPPA PREMIUM,
+T1F_013,0fe6f482db23f0d3b2e6729851c73b27,00776FA4,ARENA LEADER CASTLE,CASTILLO DE LOS LÍDERES DE ARENA,アリーナリーダーの 城,CASTELO DOS LÍDERES DE ARENA,아레나 리더의 성,CHÂTEAU DES CHEFS D'ARÈNE,CASTELLO DEI CAPI ARENA,
 T1F_014,f631995c8312bd989e10191669f9d6e0,00776FB5,"This Game Pak
 cannot
 be
@@ -8052,14 +8051,14 @@ addormentare altri Pokémon del trio. La regola
 vale anche per i Pokémon congelati. È però
 possibile che uno si addormenti e un altro
 venga congelato.",
-T20_040,a844cabf33fd14a4db54c7a0062564a7,00777B88,"MEW may only be used in the GYM LEADER CASTLE,
-the PRIME CUP and FREE BATTLE.","MEW solo se puede usar en el CASTILLO DE LÍDERES,
-la COPA PRIME y el COMBATE LIBRE.","ミュウは ジムリーダーの 城
-プライムカップ フリーバトル だけで 使える。","MEW só pode ser usado no CASTELO DOS LÍDERES,
-na COPA PRIME e na BATALHA LIVRE.","뮤는 체육관 관장의 성,
-프라임컵, 프리 배틀에서만 쓸 수 있다.","MEW n'est utilisable qu'au CHATEAU DES CHAMPIONS,
-dans la COUPE PRIME et en COMBAT LIBRE.","MEW può essere usato solo nel CASTELLO CAPIPALESTRA,
-nella COPPA PRIME e nella LOTTA LIBERA.",
+T20_040,a844cabf33fd14a4db54c7a0062564a7,00777B88,"MEW may only be used in the ARENA LEADER CASTLE,
+the PREMIUM CUP and SHOW BATTLE.","MEW solo se puede usar en el CASTILLO DE LOS LÍDERES DE ARENA,
+la COPA PREMIUM y el COMBATE DE EXHIBICIÓN.","ミュウは アリーナリーダーの 城
+プレミアムカップ ショーバトル だけで 使える。","MEW só pode ser usado no CASTELO DOS LÍDERES DE ARENA,
+na COPA PREMIUM e na BATALHA DE EXIBIÇÃO.","뮤는 아레나 리더의 성,
+프리미엄컵, 쇼 배틀에서만 쓸 수 있다.","MEW n'est utilisable qu'au CHÂTEAU DES CHEFS D'ARÈNE,
+dans la COUPE PREMIUM et en COMBAT D'EXHIBITION.","MEW può essere usato solo nel CASTELLO DEI CAPI ARENA,
+nella COPPA PREMIUM e nella LOTTA DIMOSTRATIVA.",
 T20_041,212bcaf3dfd7ee6ba6e4f613f6b4bc84,00777BE8,"If you win a battle without any of your
 Pokémon fainting, you get a CONTINUE.
 With a CONTINUE, you can retry a
@@ -8104,33 +8103,33 @@ par une égalité, tu as perdu.","Le lotte hanno un limite di 15 minuti.
 Durante la lotta, la mossa successiva va scelta
 entro 30 secondi. Se la lotta finisce
 in parità, hai perso.",
-T20_043,2140e93fbe4cc7f54a2e68276ecf1e11,00777D86,"In VS. FREE BATTLE, the battle time and the time
+T20_043,2140e93fbe4cc7f54a2e68276ecf1e11,00777D86,"In VS. SHOW BATTLE, the battle time and the time
 allowed for choosing moves can be set under
-FREE BATTLE settings.
+SHOW BATTLE settings.
 Alternatively, the time limits can be switched
-off completely.","En COMBATE LIBRE VS. puedes ajustar el tiempo
+off completely.","En COMBATE DE EXHIBICIÓN VS. puedes ajustar el tiempo
 de combate y el de elección de movimientos
-en los ajustes de COMBATE LIBRE.
+en los ajustes de COMBATE DE EXHIBICIÓN.
 También puedes desactivar del todo
-los límites de tiempo.","VSフリーバトルでは フリーバトルの
+los límites de tiempo.","VSショーバトルでは ショーバトルの
 設定で バトルの 時間と
 技を 選ぶ 時間を 決められる。
 時間 制限を なしに することも
-できる。","Na BATALHA LIVRE VS., o tempo de batalha e o
+できる。","Na BATALHA DE EXIBIÇÃO VS., o tempo de batalha e o
 tempo para escolher golpes podem ser definidos
-nas configurações da BATALHA LIVRE.
+nas configurações da BATALHA DE EXIBIÇÃO.
 Também é possível desativar totalmente
-os limites de tempo.","VS 프리 배틀에서는 프리 배틀
+os limites de tempo.","VS 쇼 배틀에서는 쇼 배틀
 설정에서 배틀 시간과
 기술 선택 시간을 정할 수 있다.
 시간 제한을 없앨 수도
-있다.","En COMBAT LIBRE VS., la durée du combat et le
+있다.","En COMBAT D'EXHIBITION VS., la durée du combat et le
 temps pour choisir les capacités se règlent
-dans les réglages du COMBAT LIBRE.
+dans les réglages du COMBAT D'EXHIBITION.
 On peut aussi désactiver complètement
-les limites de temps.","Nella LOTTA LIBERA VS. puoi impostare la durata
+les limites de temps.","Nella LOTTA DIMOSTRATIVA VS. puoi impostare la durata
 della lotta e il tempo per scegliere le mosse
-nelle impostazioni LOTTA LIBERA.
+nelle impostazioni LOTTA DIMOSTRATIVA.
 In alternativa puoi disattivare del tutto
 i limiti di tempo.",
 T20_044,7973fd8d6dfd2883f57b22787147d435,00777E64,"Pokémon up to level 30 may be used in
@@ -8340,34 +8339,34 @@ de combat ne doit pas
 dépasser 50.","Sommando i livelli dei tre Pokémon in
 lotta, il livello totale del trio
 non può superare 50.",
-T20_055,795962b0894c9c6abe04481ca299a752,007785BD,"The GYM LEADERS and their students usually use
+T20_055,795962b0894c9c6abe04481ca299a752,007785BD,"The ARENA LEADERS and their students usually use
 level 50 Pokémon. If you choose
 Pokémon stronger than level 50, your opponents'
-Pokémon in the GYM LEADER CASTLE will take on
-the level of your strongest chosen Pokémon.","Los LÍDERES y sus alumnos suelen usar
+Pokémon in the ARENA LEADER CASTLE will take on
+the level of your strongest chosen Pokémon.","Los LÍDERES DE ARENA y sus alumnos suelen usar
 Pokémon de nivel 50. Si eliges Pokémon
 de nivel superior a 50, los Pokémon rivales
-del CASTILLO DE LÍDERES tendrán el nivel
-de tu Pokémon elegido más fuerte.","ジムリーダーと 弟子たちは 普通
+del CASTILLO DE LOS LÍDERES DE ARENA tendrán el nivel
+de tu Pokémon elegido más fuerte.","アリーナリーダーと 弟子たちは 普通
 レベル50の ポケモンを 使う。
 レベル50より 強い ポケモンを 選ぶと
-ジムリーダーの 城の 相手の ポケモンは
-君の 一番 強い ポケモンの レベルに なる。","Os LÍDERES e seus alunos costumam usar
+アリーナリーダーの 城の 相手の ポケモンは
+君の 一番 強い ポケモンの レベルに なる。","Os LÍDERES DE ARENA e seus alunos costumam usar
 Pokémon de nível 50. Se você escolher
 Pokémon acima do nível 50, os Pokémon
-rivais no CASTELO DOS LÍDERES terão o nível
-do seu Pokémon escolhido mais forte.","체육관 관장과 제자들은 보통
+rivais no CASTELO DOS LÍDERES DE ARENA terão o nível
+do seu Pokémon escolhido mais forte.","아레나 리더와 제자들은 보통
 레벨 50의 포켓몬을 쓴다.
 레벨 50보다 강한 포켓몬을 고르면
-체육관 관장의 성의 상대 포켓몬은
-네가 고른 가장 강한 포켓몬의 레벨이 된다.","Les CHAMPIONS et leurs élèves utilisent en général
+아레나 리더의 성의 상대 포켓몬은
+네가 고른 가장 강한 포켓몬의 레벨이 된다.","Les CHEFS D'ARÈNE et leurs élèves utilisent en général
 des Pokémon de niveau 50. Si tu choisis
 des Pokémon au-dessus du niveau 50, ceux de tes
-adversaires au CHATEAU DES CHAMPIONS prendront
-le niveau de ton Pokémon le plus fort.","I CAPIPALESTRA e i loro allievi di solito usano
+adversaires au CHÂTEAU DES CHEFS D'ARÈNE prendront
+le niveau de ton Pokémon le plus fort.","I CAPI ARENA e i loro allievi di solito usano
 Pokémon di livello 50. Se scegli Pokémon
 di livello superiore a 50, i Pokémon avversari
-del CASTELLO CAPIPALESTRA assumeranno il livello
+del CASTELLO DEI CAPI ARENA assumeranno il livello
 del tuo Pokémon scelto più forte.",
 T20_056,ccf8060e3cbf7fff85bb1a51460b8898,007786CC,"Each player must have their own controller.
 Players can form two teams if they like.
@@ -8626,27 +8625,27 @@ per i Pokémon congelati. È però possibile
 che uno si addormenti e un altro
 venga congelato.
 ",
-T20_068,d9aba6bb300dfa6ea32a49fdc95e5244,00778EDA,"Under the ANYTHING GOES rules, tag team
+T20_068,d9aba6bb300dfa6ea32a49fdc95e5244,00778EDA,"Under the EVERYTHING IS ALLOWED rules, tag team
 battles with up to two players per side can
 be held. Each player must choose six Pokémon
 and pick three battle Pokémon from them.
 The players on a team can only control
-their own Pokémon during battle.","Con las reglas TODO VALE se pueden jugar
+their own Pokémon during battle.","Con las reglas TODO ESTÁ PERMITIDO se pueden jugar
 combates por parejas con hasta dos jugadores
 por bando. Cada jugador elige seis Pokémon
 y de ellos tres para el combate.
 Cada jugador de un equipo solo controla
-sus propios Pokémon en el combate.","なんでもOKの ルールでは 片側
+sus propios Pokémon en el combate.","すべて許可の ルールでは 片側
 2人までの タッグバトルが できる。
 それぞれ ポケモンを 6匹 選び
 その 中から 3匹を 決める。
 バトル 中は 自分の ポケモンしか
-操作 できない。","Com as regras VALE TUDO, é possível fazer
+操作 できない。","Com as regras TUDO É PERMITIDO, é possível fazer
 batalhas em duplas com até dois jogadores
 por lado. Cada jogador escolhe seis Pokémon
 e define três deles para a batalha.
 Os jogadores de uma equipe só controlam
-os próprios Pokémon durante a batalha.","무엇이든 OK 룰에서는 한쪽에
+os próprios Pokémon durante a batalha.","모두 허용 룰에서는 한쪽에
 2명까지 태그 배틀을 할 수 있다.
 각자 포켓몬 6마리를 고르고
 그중에서 3마리를 정한다.
@@ -8656,24 +8655,24 @@ jouer des combats en équipe avec jusqu'à deux
 joueurs par camp. Chacun choisit six Pokémon
 et en désigne trois pour le combat.
 Pendant le combat, chaque joueur ne contrôle
-que ses propres Pokémon.","Con le regole TUTTO PERMESSO si possono fare
+que ses propres Pokémon.","Con le regole TUTTO È PERMESSO si possono fare
 lotte in coppia con fino a due giocatori
 per lato. Ogni giocatore sceglie sei Pokémon
 e tra questi ne designa tre per la lotta.
 Durante la lotta ogni giocatore controlla
 solo i propri Pokémon.",
-T20_069,a0a0ab23d4acca4ef1e4dd1f079f188e,00778FFF,FREE BATTLE,COMBATE LIBRE,フリーバトル,BATALHA LIVRE,프리 배틀,COMBAT LIBRE,LOTTA LIBERA,
+T20_069,a0a0ab23d4acca4ef1e4dd1f079f188e,00778FFF,SHOW BATTLE,COMBATE DE EXHIBICIÓN,ショーバトル,BATALHA DE EXIBIÇÃO,쇼 배틀,COMBAT D'EXHIBITION,LOTTA DIMOSTRATIVA,
 T20_070,4e6d44277d5459baa33189cd49dc8f54,0077900A,POKéMON STADIUM,ESTADIO POKéMON,ポケモンスタジアム,ESTÁDIO POKéMON,포켓몬 스타디움,STADE POKéMON,STADIO POKéMON,
-T20_071,0fe6f482db23f0d3b2e6729851c73b27,0077901A,GYM LEADER CASTLE,CASTILLO DE LÍDERES,ジムリーダーの 城,CASTELO DOS LÍDERES,체육관 관장의 성,CHATEAU DES CHAMPIONS,CASTELLO CAPIPALESTRA,
+T20_071,0fe6f482db23f0d3b2e6729851c73b27,0077901A,ARENA LEADER CASTLE,CASTILLO DE LOS LÍDERES DE ARENA,アリーナリーダーの 城,CASTELO DOS LÍDERES DE ARENA,아레나 리더의 성,CHÂTEAU DES CHEFS D'ARÈNE,CASTELLO DEI CAPI ARENA,
 T20_072,00b5bb14b8e364d6b8d4781e356fe72d,0077902B,VS MEWTWO,VS MEWTWO,VS ミュウツー,VS MEWTWO,VS 뮤츠,VS MEWTWO,VS MEWTWO,
-T20_073,a0a0ab23d4acca4ef1e4dd1f079f188e,00779034,FREE BATTLE,COMBATE LIBRE,フリーバトル,BATALHA LIVRE,프리 배틀,COMBAT LIBRE,LOTTA LIBERA,
-T20_074,010ec201d73bf586c0b5c7bb55a6949a,0077903F,ANYTHING GOES,TODO VALE,何でも OK,VALE TUDO,무엇이든 OK,TOUT EST PERMIS,TUTTO PERMESSO,
-T20_075,b8e40954ca20c131a3a1a9af5ce9e252,00779051,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T20_076,b8e40954ca20c131a3a1a9af5ce9e252,0077905D,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T20_077,b8e40954ca20c131a3a1a9af5ce9e252,00779069,POKé CUP,COPA POKé,ポケモンカップ,COPA POKé,포켓몬컵,COUPE POKé,COPPA POKé,
-T20_078,d372f3b62a210bfce8b1647aba3e2b76,00779075,PETIT CUP,COPA PETIT,プチカップ,COPA PETIT,쁘띠컵,COUPE PETIT,COPPA PETIT,
+T20_073,a0a0ab23d4acca4ef1e4dd1f079f188e,00779034,SHOW BATTLE,COMBATE DE EXHIBICIÓN,ショーバトル,BATALHA DE EXIBIÇÃO,쇼 배틀,COMBAT D'EXHIBITION,LOTTA DIMOSTRATIVA,
+T20_074,010ec201d73bf586c0b5c7bb55a6949a,0077903F,EVERYTHING IS ALLOWED,TODO ESTÁ PERMITIDO,すべて 許可,TUDO É PERMITIDO,모두 허용,TOUT EST PERMIS,TUTTO È PERMESSO,
+T20_075,b8e40954ca20c131a3a1a9af5ce9e252,00779051,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T20_076,b8e40954ca20c131a3a1a9af5ce9e252,0077905D,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T20_077,b8e40954ca20c131a3a1a9af5ce9e252,00779069,POKéMON CUP,COPA POKéMON,ポケモンカップ,COPA POKéMON,포켓몬컵,COUPE POKéMON,COPPA POKéMON,
+T20_078,d372f3b62a210bfce8b1647aba3e2b76,00779075,MINI CUP,COPA MINI,ミニカップ,COPA MINI,미니컵,COUPE MINI,COPPA MINI,
 T20_079,073822ed076b0748b5e2f1368163ac7d,0077907E,PIKA CUP,COPA PIKA,ピカチュウカップ,COPA PIKA,피카츄컵,COUPE PIKA,COPPA PIKA,
-T20_080,32b558e091c51497f17d216b505ee7a6,00779087,PRIME CUP,COPA PRIME,プライムカップ,COPA PRIME,프라임컵,COUPE PRIME,COPPA PRIME,
+T20_080,32b558e091c51497f17d216b505ee7a6,00779087,PREMIUM CUP,COPA PREMIUM,プレミアムカップ,COPA PREMIUM,프리미엄컵,COUPE PREMIUM,COPPA PREMIUM,
 T21_000,1f5bbd8c49b72e47bba5bfaee7e17b3b,00779130,Welcome to the Pokémon TRADE SERVICE!,¡Bienvenido al SERVICIO DE INTERCAMBIO Pokémon!,ポケモン 交換サービスへ ようこそ!,Bem-vindo ao SERVIÇO DE TROCAS Pokémon!,포켓몬 교환 서비스에 어서 오세요!,Bienvenue au SERVICE D'ÉCHANGE Pokémon!,Benvenuto al SERVIZIO SCAMBI Pokémon!,
 T21_001,ed4acf0628f42dd4fd7fc2b2cc1ce7e4,00779156,Available Game Boy Game Paks,Cartuchos de Game Boy disponibles,使える ゲームボーイの カートリッジ,Cartuchos de Game Boy disponíveis,사용 가능한 게임보이 팩,Cartouches Game Boy disponibles,Cassette Game Boy disponibili,
 T21_002,b02945f101ee4b74b414f48190dac81f,00779176,Please choose the games for the trade!,¡Elige los juegos para el intercambio!,交換する ゲームを 選んでください!,Escolha os jogos para a troca!,교환할 게임을 선택하세요!,Choisis les jeux pour l'échange!,Scegli i giochi per lo scambio!,
@@ -8703,7 +8702,7 @@ T21_011,980b9e36a052eb02a8c8459ba473b904,00779269,GB BOX #01,CAJA GB #01,GBボ�
 T21_012,daeea209bb85025ef0ed8a132fef4510,00779274,TYPE,TIPO,タイプ,TIPO,타입,TYPE,TIPO,
 T21_013,00cd346d4df9e8f2965ff08ed343d457,00779278,ATK.,ATQ.,攻撃,ATQ.,공격,ATT.,ATT.,
 T21_014,720ef3a9e27df8504feca907a154a9ad,0077927E,DEF.,DEF.,防御,DEF.,방어,DEF.,DIF.,
-T21_015,dc41fdc2dba216c136e46a9e8f7f1e3d,00779284,SPD.,VEL.,素早さ,VEL.,스피드,VIT.,VEL.,
+T21_015,dc41fdc2dba216c136e46a9e8f7f1e3d,00779284,INIT.,INIC.,主導権,INIC.,주도권,INIT.,INIZ.,
 T21_016,30c00bc0156b01c74c87e15b1a28699f,0077928A,SPEC.,ESP.,特殊,ESP.,특수,SPE.,SPE.,
 T21_017,89a1377945bd17f497831610bc684cbc,00779290,Trade this Pokémon?,¿Intercambiar este Pokémon?,この ポケモンを 交換しますか?,Trocar este Pokémon?,이 포켓몬을 교환합니까?,Échanger ce Pokémon?,Scambiare questo Pokémon?,
 T21_018,375ee26098b46e23bcb854331f0ad8c5,007792A9,Yes,Sí,はい,Sim,예,Oui,Sì,
@@ -9210,7 +9209,7 @@ T27_030,1f873410cc72dd821cead01370bdd296,0077AE92,OLD AMBER,ÁMBAR VIEJO,古い�
 T27_031,6e94b5e90d9efdc14cdd4ad589969d79,0077AE9F,FIRE STONE,PIEDRA DE FUEGO,炎の石,PEDRA DE FOGO,불의 돌,PIERRE DE FEU,PIETRA DI FUOCO,
 T27_032,11148aba8c730380da33f9fdccb5a80b,0077AEAA,THUNDER STONE,PIEDRA TRUENO,雷の石,PEDRA DO TROVÃO,천둥의 돌,PIERRE TONNERRE,PIETRA TUONO,
 T27_033,07dc2fa3f8f49a0f4ef5e0edee611c1c,0077AEB6,WATER STONE,PIEDRA DE AGUA,水の石,PEDRA DE ÁGUA,물의 돌,PIERRE D'EAU,PIETRA D'ACQUA,
-T27_034,cdde06b6b4f0c068868b8801f4babe60,0077AEC2,HP PLUS,PS PLUS,HPプラス,HP PLUS,HP 플러스,PV PLUS,PS PLUS,
+T27_034,cdde06b6b4f0c068868b8801f4babe60,0077AEC2,SP PLUS,PF PLUS,力Pプラス,PF PLUS,힘P 플러스,PF PLUS,PF PLUS,
 T27_035,a14c965e19843e7785a8f5c3fda276a8,0077AECA,PROTEIN,PROTEÍNA,プロテイン,PROTEÍNA,프로틴,PROTÉINE,PROTEINA,
 T27_036,bec02011dc1cf574b21390ef7b084b62,0077AED2,IRON,HIERRO,鉄,FERRO,철,FER,FERRO,
 T27_037,453276ee992ed07dc207ed08b2b221ce,0077AED8,CARBON,CARBONO,カーボン,CARBONO,카본,CARBONE,CARBONIO,
@@ -9254,7 +9253,7 @@ T27_074,85e1f4746ccbdc8518a883dcd3e8521d,0077B035,EXP. SPLITTER,DIVISOR DE EXP.,
 T27_075,53ddd17d8993e1021cab33107ac88a5e,0077B03F,FISHING ROD,CAÑA DE PESCAR,釣り竿,VARA DE PESCA,낚싯대,CANNE À PÊCHE,CANNA DA PESCA,
 T27_076,cb82591fda7b0bcc55aa637410e6af88,0077B045,PRO ROD,CAÑA PRO,プロ釣り竿,VARA PRO,프로 낚싯대,CANNE PRO,CANNA PRO,
 T27_077,2f29db93f394db6f81afc0bc12233a62,0077B050,SUPER ROD,SUPERCAÑA,スーパー釣り竿,SUPERVARA,슈퍼 낚싯대,SUPERCANNE,SUPERCANNA,
-T27_078,71903f32b3d7171f86fc255896dfc18d,0077B05B,PP PLUS,PP PLUS,PPプラス,PP PLUS,PP 플러스,PP PLUS,PP PLUS,
+T27_078,71903f32b3d7171f86fc255896dfc18d,0077B05B,AP PLUS,PA PLUS,攻撃Pプラス,PA PLUS,공격P 플러스,PA PLUS,PA PLUS,
 T27_079,33d73e3d751bcd5ff8ec43036047d9b6,0077B063,ETHER,ÉTER,エーテル,ÉTER,에테르,ÉTHER,ETERE,
 T27_080,b08a6769f40de9245ceb7bc4fb272f3a,0077B069,TOP ETHER,ÉTER TOP,トップエーテル,ÉTER TOP,톱 에테르,ÉTHER TOP,ETERE TOP,
 T27_081,87e120553ca818a3a79f09538fd5834a,0077B073,ELIXIR,ELIXIR,エリクサー,ELIXIR,엘릭서,ÉLIXIR,ELISIR,
