@@ -22,3 +22,5 @@ build_android/
 # the web deployment's private settings (tools/deploy_web.sh)
 /deploy.local.env
 /build-win-llvm/*
+# your own ROM text, written by tools/text/extract_text.py: never commit it (ROM text rule)
+/translation/rom-text/
