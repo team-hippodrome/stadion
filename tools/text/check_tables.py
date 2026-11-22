@@ -51,6 +51,11 @@ def main():
         if h != head:
             errors.append(f"{name}: header {','.join(h)}\n  expected {','.join(head)}"); continue
         src = T.source_of(path)
+        if src is None:  # port.csv: ids unique, the English cell filled
+            ids = [d["id"] for d in dicts]
+            errors += [f"{name}: duplicate id {i}" for i in sorted({i for i in ids if ids.count(i) > 1})]
+            errors += [f"{name}: {d['id']} has no English" for d in dicts if not d["en"]]
+            continue
         seen, prev = set(), None
         for n, (d, rr) in enumerate(zip(dicts, raw_rows), start=2):
             where = f"{name}:{n} {d.get('id', '')}"
@@ -84,7 +89,8 @@ def main():
                                       f"!= source {sorted(want.elements())}")
             for col in head[3:-1]:
                 cell = d[col]
-                other = dumps.get(col, {}).get(rid) if rid.startswith("T") else None
+                # (T24 and T25 are the species and move names, which are meant to be the official ones)
+                other = dumps.get(col, {}).get(rid) if rid.startswith("T") and rid[:4] not in ("T24_", "T25_") else None
                 if cell and other and len(cell.split()) > 3 and cell == other[2]:
                     warnings.append(f"{where} [{col}]: identical to the official {col} ROM's text")
     for e in errors:

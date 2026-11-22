@@ -67,6 +67,7 @@ set(PORT_MAIN_SOURCES
   src/port/launcher.cpp
   src/port/launcher_files.cpp
   src/port/launcher_reliability.cpp
+  src/port/language_prompt.cpp
   src/port/rom_check.cpp
   src/port/shader_warmup.cpp
   src/port/touch_controls.cpp
@@ -406,7 +407,9 @@ if(EMSCRIPTEN)
     --profiling-funcs) # function names in the browser's stack traces
   file(GLOB_RECURSE PORT_WEB_RESOURCE_INPUTS CONFIGURE_DEPENDS
        ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*
-       ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png)
+       ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png
+       ${CMAKE_CURRENT_SOURCE_DIR}/translation/port.csv
+       ${CMAKE_CURRENT_SOURCE_DIR}/hippodrome-utils/assets/font/*)
   set_property(TARGET pokestadium APPEND PROPERTY LINK_DEPENDS
                ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
                ${CMAKE_CURRENT_SOURCE_DIR}/src/port/vulkan_pipeline_warmup.txt
@@ -421,7 +424,9 @@ else()
 # left in generated/ for inspection.
 file(GLOB_RECURSE PORT_O2R_INPUTS CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*
-     ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png)
+     ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png
+     ${CMAKE_CURRENT_SOURCE_DIR}/translation/port.csv
+     ${CMAKE_CURRENT_SOURCE_DIR}/hippodrome-utils/assets/font/*)
 add_custom_command(
   OUTPUT ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c
   COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
