@@ -6,8 +6,8 @@ TPCI's localizations, queried through PokeAPI).
     python3 tools/text/check_names.py --rom <source ROM> ...       # check those sources' files
 
 Everything is translated literally from the source ROM's wording (Julius, 2026-11-22: German HYPERBALL is "Hyper
-Ball", not "Ultra Ball") except species, move and trainer names, which take the official names. This checks species
-and moves (PokeAPI has no trainer names): a row whose source text is the official name of one in the source's language
+Ball", not "Ultra Ball") except species, move, trainer/character and city names, which take the official names (trainer
+classes are literal). This checks species, moves and the gyms' city names (PokeAPI has no trainer names): a row whose source text is the official name of one in the source's language
 must have, in each target column, its official name in the target language. --kinds item type checks those too (for
 reference only: they are meant to be literal). Names are
 compared ignoring case, accents, spaces and punctuation, so "THUNDERSHOCK" matches "Thunder Shock". Targets with no
@@ -27,7 +27,14 @@ import tables as T
 
 BASE = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv/"
 KINDS = {"species": ("pokemon_species_names.csv", "pokemon_species_id"), "move": ("move_names.csv", "move_id"),
-         "item": ("item_names.csv", "item_id"), "type": ("type_names.csv", "type_id")}
+         "item": ("item_names.csv", "item_id"), "type": ("type_names.csv", "type_id"),
+         "city": ("location_names.csv", "location_id")}
+# The gyms' rows (T19_000-007, the same in the five western ROMs) name a city in every language, each in its own form
+# (PEWTER GYM, GIM. PLATEADO, MARMORIA CITY): a target cell must contain the city's official name, without its
+# City/Town/Island word. PokeAPI has Kanto's city names only in English, German and French.
+CITY_ROWS = {"T19_000": 231, "T19_001": 68, "T19_002": 151, "T19_003": 67, "T19_004": 76, "T19_005": 234,
+             "T19_006": 71, "T19_007": 154}
+CITY_WORDS = ("city", "town", "island", "insel", "ile")
 # PokeAPI local_language_id per table language: 1 ja-hrkt (kana), 11 ja (kanji), 3 ko, 5 fr, 6 de, 7 es, 14 es-419,
 # 8 it, 9 en, 13 pt-br. Spanish accepts Spain's and Latin America's names (the dialect rules).
 LANG_IDS = {"en": [9], "es": [7, 14], "jp": [11, 1], "kanji": [11, 1], "pt": [13], "de": [6], "ko": [3], "fr": [5],
@@ -54,14 +61,25 @@ def norm(s):
     return "".join(c for c in s.casefold() if c.isalnum() or c in "♀♂")
 
 
+def city_core(name):
+    n = norm(name)
+    for w in CITY_WORDS:
+        if n.endswith(w) and len(n) > len(w) + 3:
+            return n[: -len(w)]
+    return n
+
+
 def load():
     names = defaultdict(lambda: defaultdict(list))  # (kind, id) -> language id -> names
+    cities = set(CITY_ROWS.values())
     for kind, (f, key) in KINDS.items():
         path = os.path.join(DIR, f)
         if not os.path.exists(path):
             sys.exit(f"{path} missing: run with --download first")
         with open(path, encoding="utf-8", newline="") as fh:
             for row in csv.DictReader(fh):
+                if kind == "city" and int(row[key]) not in cities:
+                    continue
                 names[(kind, int(row[key]))][int(row["local_language_id"])].append(row["name"])
     return names
 
@@ -78,7 +96,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--download", action="store_true")
     ap.add_argument("--rom", nargs="*", default=[])
-    ap.add_argument("--kinds", nargs="*", default=["species", "move"], choices=sorted(KINDS))
+    ap.add_argument("--kinds", nargs="*", default=["species", "move", "city"], choices=sorted(KINDS))
     a = ap.parse_args()
     if a.download:
         os.makedirs(DIR, exist_ok=True)
@@ -93,7 +111,7 @@ def main():
         src, enc, rows = T.rom_rows(open(rom_path, "rb").read())
         index = defaultdict(set)  # normalized source-language name -> things
         for thing, langs in names.items():
-            if thing[0] not in a.kinds or thing[1] > LAST_ID.get(thing[0], 1 << 30):
+            if thing[0] not in a.kinds or thing[0] == "city" or thing[1] > LAST_ID.get(thing[0], 1 << 30):
                 continue
             for i in SOURCE_IDS[src]:
                 for n in langs.get(i, []):
@@ -105,6 +123,17 @@ def main():
                 continue
             head, dicts, _ = T.read_table(path)
             for n, d in enumerate(dicts, start=2):
+                if "city" in a.kinds and d["id"] in CITY_ROWS:
+                    thing = ("city", CITY_ROWS[d["id"]])
+                    for col in head[3:-1]:
+                        want = expected(names, thing, col) if col != "pt" else names[thing].get(9, [])
+                        if not d[col] or not want:
+                            continue
+                        checked += 1
+                        if not any(city_core(w) in norm(d[col]) for w in want):
+                            problems.append(f"{fname}:{n} {d['id']} [{col}] city: {d[col]!r} should name "
+                                            + " or ".join(sorted(set(want))))
+                    continue
                 text = source.get(d["id"])
                 things = index.get(norm(text)) if text else None
                 if things and src != "jp":
