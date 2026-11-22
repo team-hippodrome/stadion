@@ -5759,13 +5759,13 @@ dans un certain Gymnase Pokémon.","La chiave necessaria per entrare
 in una Palestra Pokémon.",
 T0C_043,d41d8cd98f00b204e9800998ecf8427e,0076E827,,,,,,,,
 T0C_044,ef36c888b8a4917abc48f7e8ae1662b9,0076E828,"To be exchanged for a BICYCLE at the
-BIKE SHOP in SKY BLUE CITY.","空色シティの自転車店で
+BIKE SHOP in CERULEAN CITY.","ハナダシティの自転車店で
 自転車と交換できる。","Para trocar por uma BICI na
-LOJA de BICICLETAS da CIDADE CELESTE.","Tausche ihn gegen ein RAD im
-FAHRRADLADEN in HIMMELBLAU-STADT.","하늘색도시의 자전거 가게에서
+LOJA de BICICLETAS de CERULEAN.","Tausche ihn gegen ein RAD im
+FAHRRADLADEN in AZURIA CITY.","블루시티의 자전거 가게에서
 자전거와 바꿀 수 있다.","A échanger contre une BICYCLETTE au
-MAGASIN DE VELOS de VILLE CELESTE.","Da scambiare con una BICI al
-NEGOZIO BICI di CITTÀ CELESTE.",
+MAGASIN DE VELOS d'AZURIA.","Da scambiare con una BICI al
+NEGOZIO BICI di CELESTOPOLI.",
 T0C_045,b8e8ba74b59de13171c3694ce5df1f1f,0076E86D,"Temporarily raises ACCURACY
 in a battle.","戦いの間、
 命中率を上げる。","Aumenta temporariamente a PRECISÃO
@@ -5897,7 +5897,7 @@ des Luxusdampfers S.S. ANNE.","호화 여객선 S.S. 앤호에
 paquebot de luxe S.S. ANNE.","L'invito permette di imbarcarsi sul
 transatlantico di lusso S.S. ANNE.",
 T0C_063,e79a6f0aa040535288e250036f7d0585,0076EC6F,"Lost, and desperately sought by
-the SAFARI ZONE WARDEN.","サファリ地帯の管理人が
+the SAFARI ZONE GUARDIAN.","サファリ地帯の管理人が
 なくして探しているもの。","Perdido e procurado desesperadamente
 pelo GUARDA da ZONA SAFARI.","Verloren und vom WÄRTER der
 SAFARI-ZONE verzweifelt gesucht.","사파리구역의 관리인이
@@ -6680,7 +6680,7 @@ T0E_002,8ac00826945c69312c4e3d9c349bdb8b,0076FD54,POKé CUP,ポケカップ,POK�
 T0E_003,f5e5c95b4c942aea2b65c9eaf9a0ad39,0076FD5E,MINI CUP,ミニカップ,MINI COPA,MINI-POKAL,미니컵,MINI COUPE,COPPA MINI,
 T0E_004,176ed3a7b0a0d87f0208399235348655,0076FD68,PIKA CUP,ピカカップ,PIKA COPA,PIKA-POKAL,피카컵,PIKA COUPE,COPPA PIKA,
 T0E_005,08eed730dcc73de8e3ef99a03dd985b0,0076FD72,SUPER CUP,スーパーカップ,SUPER COPA,SUPER-POKAL,슈퍼컵,SUPER COUPE,SUPERCOPPA,
-T0E_006,27a8704959e648889ebcbd829e106daf,0076FD7D,GYM LEADER CASTLE,ジムリーダーの城,CASTELO do LÍDER de GIN.,SCHLOSS der ARENALEITER,체육관 관장의 성,CHATEAU des CHAMPIONS,CASTELLO CAPOPALESTRA,
+T0E_006,27a8704959e648889ebcbd829e106daf,0076FD7D,GYMNASIUM LEADER CASTLE,ジムリーダーの城,CASTELO do LÍDER de GIN.,SCHLOSS der TURNHALLENLEITER,체육관 리더의 성,CHATEAU du CHEF GYM.,CASTELLO del CAPO PAL.,
 T0E_007,e7a3c4f9b4a398df37e95b6428edf224,0076FD95,POKé BALL,ポケボール,POKé BALL,POKéBALL,포켓볼,POKé BALL,POKé BALL,
 T0E_008,9dc3fe28fe90585395d7ff07fbfd383e,0076FD9F,SUPER BALL,スーパーボール,SUPER BALL,SUPERBALL,슈퍼볼,SUPER BALL,SUPER BALL,
 T0E_009,dbb2d66033981e38f9e501dfaf376c33,0076FDAA,ULTRA BALL,ウルトラボール,ULTRA BALL,ULTRABALL,울트라볼,ULTRA BALL,ULTRA BALL,
@@ -6693,15 +6693,15 @@ T0E_015,0267622d9a9006dbdcae1f4db534840f,0076FDE9,BATTLE 5,バトル5,BATALHA 5,
 T0E_016,89ac00b4245ed287646d6ce84a75b979,0076FDF3,BATTLE 6,バトル6,BATALHA 6,KAMPF 6,배틀 6,COMBAT 6,LOTTA 6,
 T0E_017,d8fb2bade95625df49089b9f2ff71aaa,0076FDFD,SEMIFINAL,準決勝,SEMIFINAL,HALBFINALE,준결승,DEMI-FINALE,SEMIFINALE,
 T0E_018,bf79836f89ea41583d31766d4f592827,0076FE07,FINAL BATTLE,決勝,BATALHA FINAL,FINALKAMPF,결승전,COMBAT FINAL,LOTTA FINALE,
-T0E_019,f8290ff0737617b2dff0ed082fbad7d4,0076FE15,SILVER GYM,銀色ジム,GINÁSIO PRATEADA,TURNHALLE SILBER,은색체육관,GYMNASE ARGENTE,PALESTRA ARGENTATA,
-T0E_020,8849601d9d231bfc377add6fe37ae776,0076FE27,SKY BLUE GYM,空色ジム,GINÁSIO CELESTE,TURNHALLE HIMMELBLAU,하늘색체육관,GYMNASE CELESTE,PALESTRA CELESTE,
-T0E_021,02ed514119c38022df527962ff9b8998,0076FE38,CARMINE GYM,深紅ジム,GINÁSIO CARMIM,TURNHALLE KARMIN,진홍색체육관,GYMNASE CARMIN,PALESTRA CARMINIO,
-T0E_022,9edc384f2a282bf80f97ab1fb9544583,0076FE48,DEEP BLUE GYM,紺碧ジム,GINÁSIO AZULÃO,TURNHALLE TIEFBLAU,짙은파랑체육관,GYMNASE BLEU ROI,PALESTRA AZZURRONA,
-T0E_023,b62b3c7cd2cf2ac65b59623d7be5dd42,0076FE58,FUCHSIA GYM,赤紫ジム,GINÁSIO FÚCSIA,TURNHALLE FUCHSIA,자홍색체육관,GYMNASE FUCHSIA,PALESTRA FUCSIA,
-T0E_024,9e34be5aee88d39f61fef443b24694b4,0076FE68,SAFFRON GYM,サフランジム,GINÁSIO AÇAFRÃO,TURNHALLE SAFRAN,사프란체육관,GYMNASE SAFRAN,PALESTRA ZAFFERANO,
-T0E_025,1965066bda58b9fe4e16160998f9a690,0076FE79,CINNAMON GYM,シナモンジム,GINÁSIO CANELA,TURNHALLE ZIMT,계피체육관,GYMNASE CANNELLE,PALESTRA CANNELLA,
-T0E_026,34319890c31fa8a961db713ba5bc378d,0076FE89,GREEN GYM,緑ジム,GINÁSIO VERDE,TURNHALLE GRÜN,초록체육관,GYMNASE VERT,PALESTRA VERDE,
-T0E_027,f7782ca85a881a99151b31b138ffaf48,0076FE98,ELITE FOUR,四天王,ALTO COMANDO,TOP VIER,사천왕,CONSEIL 4,SUPERQUATTRO,
+T0E_019,f8290ff0737617b2dff0ed082fbad7d4,0076FE15,PEWTER GYM,ニビジム,GINÁSIO PEWTER,TURNHALLE MARMORIA,회색체육관,GYMNASE ARGENTA,PALESTRA PLUMBEOPOLI,
+T0E_020,8849601d9d231bfc377add6fe37ae776,0076FE27,CERULEAN GYM,ハナダジム,GINÁSIO CERULEAN,TURNHALLE AZURIA,블루체육관,GYMNASE AZURIA,PALESTRA CELESTOPOLI,
+T0E_021,02ed514119c38022df527962ff9b8998,0076FE38,VERMILION GYM,クチバジム,GINÁSIO VERMILION,TURNHALLE ORANIA,갈색체육관,GYMNASE CARMIN SUR MER,PALESTRA ARANCIOPOLI,
+T0E_022,9edc384f2a282bf80f97ab1fb9544583,0076FE48,CELADON GYM,タマムシジム,GINÁSIO CELADON,TURNHALLE PRISMANIA,무지개체육관,GYMNASE CELADOPOLE,PALESTRA AZZURROPOLI,
+T0E_023,b62b3c7cd2cf2ac65b59623d7be5dd42,0076FE58,FUCHSIA GYM,セキチクジム,GINÁSIO FUCHSIA,TURNHALLE FUCHSANIA,연분홍체육관,GYMNASE PARMANIE,PALESTRA FUCSIAPOLI,
+T0E_024,9e34be5aee88d39f61fef443b24694b4,0076FE68,SAFFRON GYM,ヤマブキジム,GINÁSIO SAFFRON,TURNHALLE SAFFRONIA,노랑체육관,GYMNASE SAFRANIA,PALESTRA ZAFFERANOPOLI,
+T0E_025,1965066bda58b9fe4e16160998f9a690,0076FE79,CINNABAR GYM,グレンジム,GINÁSIO CINNABAR,TURNHALLE ZINNOBERINSEL,홍련체육관,GYMNASE CRAMOIS'ILE,PALESTRA CANNELLA,
+T0E_026,34319890c31fa8a961db713ba5bc378d,0076FE89,VIRIDIAN GYM,トキワジム,GINÁSIO VIRIDIAN,TURNHALLE VERTANIA,상록체육관,GYMNASE JADIELLE,PALESTRA SMERALDOPOLI,
+T0E_027,f7782ca85a881a99151b31b138ffaf48,0076FE98,HIGH COMMAND,最高司令部,ALTO COMANDO,OBERKOMMANDO,최고사령부,HAUT COMMANDEMENT,ALTO COMANDO,
 T0E_028,92abd84e4bfcf1a679c713575bf54add,0076FEA3,RIVAL,ライバル,RIVAL,RIVALE,라이벌,RIVAL,RIVALE,
 T0E_029,4ac1a873fcc7d754a5ca1029755f4ff8,0076FEA9,Game Pak,カセット,Cartucho,Modul,카트리지,Cartouche,Cassetta,
 T0E_030,b71eea8f87d5f5ffd7dcdccf26394d5d,0076FEB2,Game Boy,ゲームボーイ,Game Boy,Game Boy,게임보이,Game Boy,Game Boy,
@@ -6776,9 +6776,9 @@ T0E_042,7c68aa28b978ae30d9f9a9118fa85c05,0076FFE1,Continue?,続けますか？,C
 T0E_043,102386f19eaa638a38fa7c55150fc48a,0076FFED,Yes,はい,Sim,Ja,예,Oui,Sì,
 T0E_044,bafd7322c6e97d25b6299b5d6fe8920b,0076FFF0,No,いいえ,Não,Nein,아니오,Non,No,
 T0E_045,2db0d4a39c63932298b1b7a36035457f,0076FFF3,Erase Battle Data,バトルデータを消す,Apagar Dados de batalha,Kampfdaten löschen,배틀 데이터 삭제,Effacer Données de combat,Cancella dati di lotta,
-T0E_046,768878f34c70431821bea1f23c50e7ac,0077000B,TRAINER #01,トレーナー #01,TREINADOR #01,TRAINER #01,트레이너 #01,DRESSEUR #01,ALLENATORE #01,
-T0E_047,ed4a034153e9ba0c4d783f14939e0d93,0077001A,GYM LEADER,ジムリーダー,LÍDER DE GINÁSIO,ARENALEITER,체육관 관장,CHAMPION D'ARENE,CAPOPALESTRA,
-T0E_048,ca02bfb41ab15f206b060991a224482d,0077002C,ELITE FOUR #01,四天王 #01,ALTO COMANDO #01,TOP VIER #01,사천왕 #01,CONSEIL 4 #01,SUPERQUATTRO #01,
+T0E_046,768878f34c70431821bea1f23c50e7ac,0077000B,TRAINER #01,トレーナー #01,TREINADOR #01,TRAINER #01,트레이너 #01,ENTRAINEUR #01,ALLENATORE #01,
+T0E_047,ed4a034153e9ba0c4d783f14939e0d93,0077001A,GYMNASIUM LEADER,ジムリーダー,LÍDER DE GINÁSIO,TURNHALLENLEITER,체육관 리더,CHEF DE GYMNASE,CAPO DI PALESTRA,
+T0E_048,ca02bfb41ab15f206b060991a224482d,0077002C,HIGH COMMAND #01,最高司令部 #01,ALTO COMANDO #01,OBERKOMMANDO #01,최고사령부 #01,HAUT COMMANDEMENT #01,ALTO COMANDO #01,
 T0E_049,10c8c1e5e2f7be0b9850c2fb88ea0639,0077003B,CONTINUE=#01,続き=#01,CONTINUAR=#01,WEITER=#01,이어서 하기=#01,CONTINUER=#01,CONTINUA=#01,
 T0E_050,8202de9cd97f013095ff50c8b5f750b8,00770049,"The saved battle data will be
 erased if you choose CONTINUE.","「続き」を選ぶと、セーブした
@@ -6819,7 +6819,7 @@ Trainers with Game Paks in Controllers 1 and 2.","コントローラ1と2にカ�
 トレーナー同士で戦うバトルアリーナ。","Esta é uma arena de batalha para equipes de
 treinadores com cartuchos nos controles 1 e 2.","Eine Kampfarena für Trainer-Teams mit
 Modulen in den Controllern 1 und 2.","컨트롤러 1과 2에 카트리지를 꽂은
-트레이너들의 팀 배틀 경기장입니다.","Une arène de combat pour les dresseurs
+트레이너들의 팀 배틀 경기장입니다.","Une arène de combat pour les entraîneurs
 avec cartouches sur les manettes 1 et 2.","Un'arena di lotta per squadre di allenatori
 con le cassette nei controller 1 e 2.",
 T0E_057,1d2327c7d6e3a7da806106ff703ad8ee,007701B0,"Change sound options, clear the data
@@ -6892,13 +6892,13 @@ T0F_010,49e7a64230177571838cdaac583e96df,00770455,Level: ,強さ ,Nível ,Stufe:
 T0F_011,78543a1f0dae8ad25618709cef2926c5,0077045F,Hard,難しい,Difícil,Schwer,어려움,Difficile,Difficile,
 T0F_012,960b44c579bc2f6818d2daaf9e4c16f0,00770467,Normal,普通,Normal,Normal,보통,Normal,Normale,
 T0F_013,6f982fd9e4089e50b594f2fba46f607f,0077046E,Easy,易しい,Fácil,Leicht,쉬움,Facile,Facile,
-T0F_014,795bfb39036be59c06eb4ee58b87a536,00770474,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,DRESSEUR,ALLENATORE,
+T0F_014,795bfb39036be59c06eb4ee58b87a536,00770474,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,ENTRAINEUR,ALLENATORE,
 T0F_015,d47c174ed277bdf06cfc72763ab7970c,0077047F,COM,COM,COM,COM,COM,COM,COM,
 T10_000,b255566551202fe0af6f95d8b3d09b62,00770514,"The official POKéMON League tournament.
 Hone your skills to become champion!","ポケモンリーグ公式の大会。
 腕を磨いてチャンピオンを目指せ！","O torneio oficial da Liga POKéMON.
 Afie suas habilidades para ser campeão!","Das offizielle Turnier der POKéMON-LIGA.
-Schärfe dein Können, um Champ zu werden!","포켓몬리그 공식 대회.
+Schärfe dein Können, um Meister zu werden!","포켓몬리그 공식 대회.
 실력을 갈고닦아 챔피언이 되자!","Le tournoi officiel de la Ligue POKéMON.
 Affûte tes talents pour être champion !","Il torneo ufficiale della Lega POKéMON.
 Affina le tue abilità per diventare campione!",
@@ -6956,7 +6956,7 @@ T10_016,60d0fa74b3b4341d881b868c71775ed4,00770789,Battle Time,バトル時間,Te
 T10_017,45ccdb73f0dd7c288a0cbac51ec7a18c,0077079B,Selection Time,選択時間,Tempo de Seleção,Auswahlzeit,선택 시간,Temps de Sélection,Tempo di Selezione,
 T10_018,78b83434de9c62b86052329dac5dbcfc,007707AF,#02 sec.,#02秒,#02 seg.,#02 Sek.,#02초,#02 s.,#02 sec.,
 T10_019,e0aa021e21dddbd6d8cecec71e9cf564,007707B8,OK,OK,OK,OK,OK,OK,OK,
-T10_020,795bfb39036be59c06eb4ee58b87a536,007707BB,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,DRESSEUR,ALLENATORE,
+T10_020,795bfb39036be59c06eb4ee58b87a536,007707BB,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,ENTRAINEUR,ALLENATORE,
 T10_021,8ac00826945c69312c4e3d9c349bdb8b,007707C6,POKé CUP,ポケカップ,POKé COPA,POKé-POKAL,포켓컵,POKé COUPE,COPPA POKé,
 T10_022,8ac00826945c69312c4e3d9c349bdb8b,007707D0,POKé CUP,ポケカップ,POKé COPA,POKé-POKAL,포켓컵,POKé COUPE,COPPA POKé,
 T10_023,8ac00826945c69312c4e3d9c349bdb8b,007707DA,POKé CUP,ポケカップ,POKé COPA,POKé-POKAL,포켓컵,POKé COUPE,COPPA POKé,
@@ -6969,7 +6969,7 @@ T10_029,ac660692b711d60d1ce8732d67ecfcdd,00770822,Battle,バトル,Batalha,Kampf
 T10_030,adbfbb8a0e09db87fbdfafa6629931de,0077082A,Rules,ルール,Regras,Regeln,룰,Règles,Regole,
 T10_031,9151c0eb84d96abb1f3c4d34f5b5758c,00770831,Exit,終わる,Sair,Ende,나가기,Quitter,Esci,
 T11_000,252babceebcc855cb954c0401f26b6ba,00770858,NINTEN,ニンテン,NINTEN,NINTEN,닌텐,NINTEN,NINTEN,
-T11_001,795bfb39036be59c06eb4ee58b87a536,0077085F,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,DRESSEUR,ALLENATORE,
+T11_001,795bfb39036be59c06eb4ee58b87a536,0077085F,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,ENTRAINEUR,ALLENATORE,
 T11_002,bd6dbd063f5ab7394879e3c08781cd72,0077086A,DEMO,デモ,DEMO,DEMO,데모,DEMO,DEMO,
 T11_003,d47c174ed277bdf06cfc72763ab7970c,0077086F,COM,COM,COM,COM,COM,COM,COM,
 T11_004,430027a8ecedbfce39cd11d4c4b016b8,00770873,#01P,#01P,#01J,#01S,#01P,#01J,#01G,
@@ -7005,7 +7005,7 @@ T13_006,b255566551202fe0af6f95d8b3d09b62,00770A6D,"The official POKéMON League 
 Hone your skills to become champion!","ポケモンリーグ公式の大会。
 腕を磨いてチャンピオンを目指せ！","O torneio oficial da Liga POKéMON.
 Afie suas habilidades para ser campeão!","Das offizielle Turnier der POKéMON-LIGA.
-Schärfe dein Können, um Champ zu werden!","포켓몬리그 공식 대회.
+Schärfe dein Können, um Meister zu werden!","포켓몬리그 공식 대회.
 실력을 갈고닦아 챔피언이 되자!","Le tournoi officiel de la Ligue POKéMON.
 Affûte tes talents pour être champion !","Il torneo ufficiale della Lega POKéMON.
 Affina le tue abilità per diventare campione!",
@@ -7036,7 +7036,7 @@ Hier ist Strategie der Schlüssel.","피카 대회는 레벨이 가장 낮은 �
 Ici, la stratégie est la clé.","Il torneo PIKA offre il livello più basso di Pokémon.
 Qui la strategia è la chiave.",
 T13_012,91d03f846bb8b29b4e3c87d80363474b,00770BC2,LEVEL,レベル,NÍVEL,LEVEL,레벨,NIVEAU,LIV.,
-T13_013,795bfb39036be59c06eb4ee58b87a536,00770BC8,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,DRESSEUR,ALLENATORE,
+T13_013,795bfb39036be59c06eb4ee58b87a536,00770BC8,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,ENTRAINEUR,ALLENATORE,
 T13_014,d47c174ed277bdf06cfc72763ab7970c,00770BD3,COM,COM,COM,COM,COM,COM,COM,
 T14_000,145901e2dadcdf0d1f2953abcc1f2267,00770BE8,Controller 1 is not connected. Turn off the N64 console and insert Controller 1 into the correct socket.,コントローラ1がつながっていません。N64の電源を切って、コントローラ1を正しいコネクタに差してください。,O Controle 1 não está conectado. Desligue o console N64 e encaixe o Controle 1 na entrada correspondente.,Controller 1 ist nicht angeschlossen. Schalte das N64 aus und stecke Controller 1 in den entsprechenden Anschluss.,컨트롤러 1이 연결되어 있지 않습니다. N64 본체의 전원을 끄고 컨트롤러 1을 해당 단자에 꽂아 주세요.,La Manette 1 n'est pas branchée. Eteins la N64 et insère la Manette 1 dans le port correspondant.,Il Controller 1 non è collegato. Spegni la console N64 e inserisci il Controller 1 nella presa corrispondente.,
 T15_000,6932c0fd9f9d21cc924e40c921116dc0,00770C8C,STEREO,ステレオ,ESTÉREO,STEREO,스테레오,STEREO,STEREO,
@@ -7060,7 +7060,7 @@ cassetta N64 andranno persi. Sicuro?",
 T15_011,102386f19eaa638a38fa7c55150fc48a,00770D4D,Yes,はい,Sim,Ja,예,Oui,Sì,
 T15_012,bafd7322c6e97d25b6299b5d6fe8920b,00770D50,No,いいえ,Não,Nein,아니오,Non,No,
 T15_013,b6ba3ea45c1cdd26723b6503fd3c6cac,00770D53,Saved data erased.,セーブデータを消しました。,Dados salvos apagados.,Speicherdaten gelöscht.,저장 데이터를 삭제했습니다.,Sauvegarde effacée.,Dati salvati cancellati.,
-T16_000,795bfb39036be59c06eb4ee58b87a536,00770D7C,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,DRESSEUR,ALLENATORE,
+T16_000,795bfb39036be59c06eb4ee58b87a536,00770D7C,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,ENTRAINEUR,ALLENATORE,
 T16_001,d47c174ed277bdf06cfc72763ab7970c,00770D87,COM,COM,COM,COM,COM,COM,COM,
 T17_000,c286b1be0a2939401a39b1aeda0a7227,00770DB4,"The STADIUM where tournaments take place. Test
 your Pokémon's worth under four types of rules.","大会が開かれるスタジアム。4種類の
@@ -7078,13 +7078,13 @@ können in FREIEN KÄMPFEN antreten.","여기서 친구와 대결하세요. 프�
 최대 4명이 대결할 수 있습니다.","Affronte tes amis ici. Jusqu'à quatre joueurs
 peuvent s'affronter en COMBATS LIBRES.","Sfida qui i tuoi amici. Fino a quattro giocatori
 possono affrontarsi nelle LOTTE LIBERE.",
-T17_002,3fa6c0b1f148f2caa2de569c59f97aae,00770E78,"The GYM LEADERS await your arrival.
+T17_002,3fa6c0b1f148f2caa2de569c59f97aae,00770E78,"The GYMNASIUM LEADERS await your arrival.
 Whoever reaches the top will be the best Trainer.","ジムリーダーが君を待っている。
 頂点に立った者が最高のトレーナーだ。","O LÍDER DE GINÁSIO aguarda sua chegada.
-Quem chegar ao topo será o melhor treinador.","Die ARENALEITER erwarten dich.
-Wer den Gipfel erreicht, ist der beste Trainer.","체육관 관장이 기다리고 있습니다.
-정상에 오른 자가 최고의 트레이너입니다.","Les CHAMPIONS D'ARENE t'attendent.
-Celui qui atteint le sommet sera le meilleur dresseur.","I CAPOPALESTRA attendono il tuo arrivo.
+Quem chegar ao topo será o melhor treinador.","Der TURNHALLENLEITER erwartet dich.
+Wer den Gipfel erreicht, ist der beste Trainer.","체육관 리더가 기다리고 있습니다.
+정상에 오른 자가 최고의 트레이너입니다.","Le CHEF DE GYMNASE t'attend.
+Celui qui atteint le sommet sera le meilleur entraîneur.","Il CAPO DI PALESTRA attende il tuo arrivo.
 Chi raggiunge la cima sarà il miglior allenatore.",
 T17_003,de1c634f3236dc20f5c683bbd804e49d,00770ED1,"The ultimate Pokémon, MEWTWO, lies in wait. Can
 your Pokémon defeat this terrifying Pokémon?","最後のポケモン、ミュウツーが待ち受ける。君の
@@ -7128,22 +7128,22 @@ cartouche GB dans le Transfer Pak, N64 éteinte.","Qui puoi giocare con i Pokém
 la cassetta GB nel Transfer Pak a N64 spento.",
 T18_000,1af3d4c9a35bfba37e10c3b6f17eca06,00771110,FREE BATTLE,フリーバトル,BATALHA LIVRE,FREIER KAMPF,프리 배틀,COMBAT LIBRE,LOTTA LIBERA,
 T18_001,a193d1095e33c2184081e24530e82aa1,0077111E,POKéMON STADIUM,ポケモンスタジアム,POKéMON STADIUM,POKéMON STADIUM,포켓몬 스타디움,POKéMON STADIUM,POKéMON STADIUM,
-T18_002,27a8704959e648889ebcbd829e106daf,0077112E,GYM LEADER CASTLE,ジムリーダーの城,CASTELO do LÍDER de GIN.,SCHLOSS der ARENALEITER,체육관 관장의 성,CHATEAU des CHAMPIONS,CASTELLO CAPOPALESTRA,
+T18_002,27a8704959e648889ebcbd829e106daf,0077112E,GYMNASIUM LEADER CASTLE,ジムリーダーの城,CASTELO do LÍDER de GIN.,SCHLOSS der TURNHALLENLEITER,체육관 리더의 성,CHATEAU du CHEF GYM.,CASTELLO del CAPO PAL.,
 T18_003,00b7879269946492815fb77bcfe65d8e,00771146,VS MEWTWO,VS ミュウツー,VS MEWTWO,VS MEWTU,VS 뮤츠,VS MEWTWO,VS MEWTWO,
 T18_004,ac660692b711d60d1ce8732d67ecfcdd,00771150,Battle,バトル,Batalha,Kampf,배틀,Combat,Lotta,
 T18_005,adbfbb8a0e09db87fbdfafa6629931de,00771158,Rules,ルール,Regras,Regeln,룰,Règles,Regole,
 T18_006,78a28834219cd5c7a5a715f78b925da7,0077115F,Register,登録,Registro,Register,등록,Registre,Registro,
-T19_000,9c6541d0705596f5cf5d42a40d64f3f0,007711B4,SILVER GYM,銀色ジム,GIN. PRATEADA,TURNHALLE SILBER,은색체육관,GYM. ARGENTE,PAL. ARGENTATA,
-T19_001,86ed0a7e75a287664bce8a58c8cf6c7e,007711C2,SKY BLUE GYM,空色ジム,GIN. CELESTE,TURNHALLE HIMMELBLAU,하늘색체육관,GYM. CELESTE,PAL. CELESTE,
-T19_002,00cebc0ebd2ca06fea316dbfd31830df,007711CF,CARMINE GYM,深紅ジム,GIN. CARMIM,TURNHALLE KARMIN,진홍색체육관,GYM. CARMIN,PAL. CARMINIO,
-T19_003,ce997d6aafa73faae0f6e2ac8520df49,007711DB,DEEP BLUE GYM,紺碧ジム,GIN. AZULONA,TURNHALLE TIEFBLAU,짙은파랑체육관,GYM. BLEU ROI,PAL. AZZURRONA,
-T19_004,ae24cf19cb162a520c193819356ce8bc,007711E8,FUCHSIA GYM,赤紫ジム,GIN. FÚCSIA,TURNHALLE FUCHSIA,자홍색체육관,GYM. FUCHSIA,PAL. FUCSIA,
-T19_005,16d4670026c65323c4b19e9196c7374f,007711F4,SAFFRON GYM,サフランジム,GIN. AÇAFRÃO,TURNHALLE SAFRAN,사프란체육관,GYM. SAFRAN,PAL. ZAFFERANO,
-T19_006,6e55328905c2123c1a8416f48a135048,00771201,CINNAMON GYM,シナモンジム,GIN. CANELA,TURNHALLE ZIMT,계피체육관,GYM. CANNELLE,PAL. CANNELLA,
-T19_007,c28f3a08f1e01a24e41a408aaddc9115,0077120D,GREEN GYM,緑ジム,GIN. VERDE,TURNHALLE GRÜN,초록체육관,GYM. VERT,PAL. VERDE,
-T19_008,97a26cb930da57550b15f20c54890b80,00771218,GYM LEADER,ジムリーダー,GIN. LÍDER,ARENALEITER,체육관 관장,CHAMPION,CAPOPALESTRA,
+T19_000,9c6541d0705596f5cf5d42a40d64f3f0,007711B4,PEWTER GYM,ニビジム,GIN. PEWTER,TURNHALLE MARMORIA,회색체육관,GYM. ARGENTA,PAL. PLUMBEOPOLI,
+T19_001,86ed0a7e75a287664bce8a58c8cf6c7e,007711C2,CERULEAN GYM,ハナダジム,GIN. CERULEAN,TURNHALLE AZURIA,블루체육관,GYM. AZURIA,PAL. CELESTOPOLI,
+T19_002,00cebc0ebd2ca06fea316dbfd31830df,007711CF,VERMILION GYM,クチバジム,GIN. VERMILION,TURNHALLE ORANIA,갈색체육관,GYM. CARMIN SUR MER,PAL. ARANCIOPOLI,
+T19_003,ce997d6aafa73faae0f6e2ac8520df49,007711DB,CELADON GYM,タマムシジム,GIN. CELADON,TURNHALLE PRISMANIA,무지개체육관,GYM. CELADOPOLE,PAL. AZZURROPOLI,
+T19_004,ae24cf19cb162a520c193819356ce8bc,007711E8,FUCHSIA GYM,セキチクジム,GIN. FUCHSIA,TURNHALLE FUCHSANIA,연분홍체육관,GYM. PARMANIE,PAL. FUCSIAPOLI,
+T19_005,16d4670026c65323c4b19e9196c7374f,007711F4,SAFFRON GYM,ヤマブキジム,GIN. SAFFRON,TURNHALLE SAFFRONIA,노랑체육관,GYM. SAFRANIA,PAL. ZAFFERANOPOLI,
+T19_006,6e55328905c2123c1a8416f48a135048,00771201,CINNABAR GYM,グレンジム,GIN. CINNABAR,TURNHALLE ZINNOBERINSEL,홍련체육관,GYM. CRAMOIS'ILE,PAL. CANNELLA,
+T19_007,c28f3a08f1e01a24e41a408aaddc9115,0077120D,VIRIDIAN GYM,トキワジム,GIN. VIRIDIAN,TURNHALLE VERTANIA,상록체육관,GYM. JADIELLE,PAL. SMERALDOPOLI,
+T19_008,97a26cb930da57550b15f20c54890b80,00771218,GYMNASIUM LEADER,ジムリーダー,GIN. LÍDER,TURNHALLENLEITER,체육관 리더,CHEF GYM.,CAPO PAL.,
 T19_009,c71c697d75e9df97738c04e83e3795ba,00771223,To GIOVANNI's tower,サカキの塔へ,Para a torre de GIOVANNI,Zu GIOVANNIs Turm,비주기의 탑으로,Vers la tour de GIOVANNI,Torre di GIOVANNI,
-T19_010,f7782ca85a881a99151b31b138ffaf48,0077123A,ELITE FOUR,四天王,ALTO COMANDO,TOP VIER,사천왕,CONSEIL 4,SUPERQUATTRO,
+T19_010,f7782ca85a881a99151b31b138ffaf48,0077123A,HIGH COMMAND,最高司令部,ALTO COMANDO,OBERKOMMANDO,최고사령부,HAUT COMMANDEMENT,ALTO COMANDO,
 T19_011,92abd84e4bfcf1a679c713575bf54add,00771245,RIVAL,ライバル,RIVAL,RIVALE,라이벌,RIVAL,RIVALE,
 T19_012,0ff51c0d956bf02fe12d2dd9b8223a99,0077124B,"Received GIOVANNI's key
 and opened the door to the last castle.","サカキの鍵をもらって、
@@ -7153,13 +7153,13 @@ die Tür zum letzten Schloss geöffnet.","비주기의 열쇠를 받아
 마지막 성의 문이 열렸다.","Clé de GIOVANNI reçue,
 la porte du dernier château s'ouvre.","Ricevuta la chiave di GIOVANNI,
 la porta dell'ultimo castello è aperta.",
-T19_013,6c930c7d4837df855d325d5ce7afcb0b,00771291,"Received the ELITE FOUR's key
-and opened the door to the top floor.","四天王の鍵をもらって、
+T19_013,6c930c7d4837df855d325d5ce7afcb0b,00771291,"Received the HIGH COMMAND's key
+and opened the door to the top floor.","最高司令部の鍵をもらって、
 上の階への扉が開いた。","Você recebeu a chave da ALTO COMANDO
-e abriu a porta do andar de cima.","Schlüssel der TOP VIER erhalten und
-die Tür zum obersten Stock geöffnet.","사천왕의 열쇠를 받아
-위층의 문이 열렸다.","Clé du CONSEIL 4 reçue,
-la porte de l'étage supérieur s'ouvre.","Ricevuta la chiave dei SUPERQUATTRO,
+e abriu a porta do andar de cima.","Schlüssel des OBERKOMMANDOS erhalten
+und die Tür zum obersten Stock geöffnet.","최고사령부의 열쇠를 받아
+위층의 문이 열렸다.","Clé du HAUT COMMANDEMENT reçue,
+la porte de l'étage supérieur s'ouvre.","Ricevuta la chiave dell'ALTO COMANDO,
 la porta del piano superiore è aperta.",
 T19_014,3df07c11b559d6e223abf68f48f82a7d,007712D9,"Received #36's key
 and opened #41's tower.","#36の鍵をもらって、
@@ -7169,7 +7169,7 @@ Turm von #41 geöffnet.","#36의 열쇠를 받아
 #41의 탑이 열렸다.","Clé de #36 reçue,
 la tour de #41 s'ouvre.","Ricevuta la chiave di #36,
 la torre di #41 è aperta.",
-T19_015,fc902cef319d1aab1f90d13f782c0d8e,0077130D,Trainer,トレーナー,Treinador,Trainer,트레이너,Dresseur,Allenatore,
+T19_015,fc902cef319d1aab1f90d13f782c0d8e,0077130D,Trainer,トレーナー,Treinador,Trainer,트레이너,Entraîneur,Allenatore,
 T1A_000,c961238c7522f9232dc657ed8867173f,00771464,ENTER?,参加？,ENTRA?,DABEI?,참가?,ENTRER ?,ENTRA?,
 T1A_001,6ff13dc8ace61682d6f7430efd23da67,0077146C,CHANGE,変える,MUDAR,WECHSEL,바꾸기,CHANGER,CAMBIA,
 T1A_002,44e858516ed0d4556ebac73a587266d3,00771474,"Use this
@@ -7259,7 +7259,7 @@ T1A_057,68859ae71f7467fba464b1035fafb4d3,0077180B,Check registered Pokémon,登�
 T1A_058,3e82679108971d8f45c18e057c5a65e0,00771828,Delete registered Pokémon,登録したポケモンを消す,Apagar Pokémon registrado,Registrierte Pokémon löschen,등록한 포켓몬 삭제,Effacer Pokémon enregistré,Cancella Pokémon registrato,
 T1A_059,1af3d4c9a35bfba37e10c3b6f17eca06,00771842,FREE BATTLE,フリーバトル,BATALHA LIVRE,FREIER KAMPF,프리 배틀,COMBAT LIBRE,LOTTA LIBERA,
 T1A_060,a193d1095e33c2184081e24530e82aa1,00771850,POKéMON STADIUM,ポケモンスタジアム,POKéMON STADIUM,POKéMON STADIUM,포켓몬 스타디움,POKéMON STADIUM,POKéMON STADIUM,
-T1A_061,27a8704959e648889ebcbd829e106daf,00771860,GYM LEADER CASTLE,ジムリーダーの城,CASTELO do LÍDER de GIN.,SCHLOSS der ARENALEITER,체육관 관장의 성,CHATEAU des CHAMPIONS,CASTELLO CAPOPALESTRA,
+T1A_061,27a8704959e648889ebcbd829e106daf,00771860,GYMNASIUM LEADER CASTLE,ジムリーダーの城,CASTELO do LÍDER de GIN.,SCHLOSS der TURNHALLENLEITER,체육관 리더의 성,CHATEAU du CHEF GYM.,CASTELLO del CAPO PAL.,
 T1A_062,00b7879269946492815fb77bcfe65d8e,00771878,VS MEWTWO,VS ミュウツー,VS MEWTWO,VS MEWTU,VS 뮤츠,VS MEWTWO,VS MEWTWO,
 T1A_063,4fb7c4748f41ac85d212500befe274c0,00771882,ANYTHING GOES Entry,何でもあり 登録,Registro VALE TUDO,Registr. ALLES GILT,무제한 등록,Registre TOUT PERMIS,Registro TUTTO VALE,
 T1A_064,e5160c3e2576fefad1c0366d9aeab309,00771895,POKé CUP Entry,ポケカップ 登録,Registro POKé COPA,Registr. POKé-POKAL,포켓컵 등록,Registre POKé COUPE,Registro COPPA POKé,
@@ -7268,7 +7268,7 @@ T1A_066,e5160c3e2576fefad1c0366d9aeab309,007718BB,POKé CUP Entry,ポケカッ�
 T1A_067,c2993af3c4bffa9fbbd64aa3bf687871,007718CE,MINI CUP Entry,ミニカップ 登録,Registro MINI COPA,Registr. MINI-POKAL,미니컵 등록,Registre MINI COUPE,Registro COPPA MINI,
 T1A_068,a942df24441bc5ba99379dcd8be229d2,007718E1,PIKA CUP Entry,ピカカップ 登録,Registro PIKA COPA,Registr. PIKA-POKAL,피카컵 등록,Registre PIKA COUPE,Registro COPPA PIKA,
 T1A_069,90111fee026b8515365e337cd2cc98e2,007718F4,SUPER CUP Entry,スーパーカップ 登録,Registro SUPER COPA,Registr. SUPER-POKAL,슈퍼컵 등록,Registre SUPER COUPE,Registro SUPERCOPPA,
-T1A_070,9f253e940328696a914a277148480175,00771908,GYM LEADER CASTLE Entry,ジムリーダーの城 登録,Registro CASTELO do LÍDER de GIN.,Registr. SCHLOSS der ARENALEITER,체육관 관장의 성 등록,Registre CHATEAU des CHAMPIONS,Registro CASTELLO CAPOPALESTRA,
+T1A_070,9f253e940328696a914a277148480175,00771908,GYMNASIUM LEADER CASTLE Entry,ジムリーダーの城 登録,Registro CASTELO do LÍDER de GIN.,Registr. SCHLOSS der TURNHALLENLEITER,체육관 리더의 성 등록,Registre CHATEAU du CHEF GYM.,Registro CASTELLO del CAPO PAL.,
 T1A_071,2b3aa877c119e3e296ebf6c8175b60cc,00771929,VS MEWTWO Entry,VS ミュウツー 登録,Registro VS MEWTWO,Registr. VS MEWTU,VS 뮤츠 등록,Registre VS MEWTWO,Registro VS MEWTWO,
 T1A_072,d41d8cd98f00b204e9800998ecf8427e,0077193C,,,,,,,,
 T1A_073,0b37daa50c80d8c5b83d2184fef6bbdf,0077193D,Register Pokémon,ポケモンを登録,Registrar Pokémon,Registrieren,포켓몬 등록,Enregistrer Pokémon,Registra Pokémon,
@@ -7291,14 +7291,14 @@ Jusqu'à 10 équipes peuvent être enregistrées.","Una volta registrato, il Pok
 I Pokémon a noleggio saranno registrati.
 Si possono registrare fino a 10 voci.",
 T1A_078,081e68ad95c648b51777f76b47a6eb0c,00771A13,Turn of,の番,Vez de,Zug von,차례:,Tour de,Turno di,
-T1A_079,795bfb39036be59c06eb4ee58b87a536,00771A1C,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,DRESSEUR,ALLENATORE,
+T1A_079,795bfb39036be59c06eb4ee58b87a536,00771A1C,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,ENTRAINEUR,ALLENATORE,
 T1B_000,8ac00826945c69312c4e3d9c349bdb8b,00771B38,POKé CUP,ポケカップ,POKé COPA,POKé-POKAL,포켓컵,POKé COUPE,COPPA POKé,
 T1B_001,8ac00826945c69312c4e3d9c349bdb8b,00771B42,POKé CUP,ポケカップ,POKé COPA,POKé-POKAL,포켓컵,POKé COUPE,COPPA POKé,
 T1B_002,8ac00826945c69312c4e3d9c349bdb8b,00771B4C,POKé CUP,ポケカップ,POKé COPA,POKé-POKAL,포켓컵,POKé COUPE,COPPA POKé,
 T1B_003,f5e5c95b4c942aea2b65c9eaf9a0ad39,00771B56,MINI CUP,ミニカップ,MINI COPA,MINI-POKAL,미니컵,MINI COUPE,COPPA MINI,
 T1B_004,176ed3a7b0a0d87f0208399235348655,00771B60,PIKA CUP,ピカカップ,PIKA COPA,PIKA-POKAL,피카컵,PIKA COUPE,COPPA PIKA,
 T1B_005,08eed730dcc73de8e3ef99a03dd985b0,00771B6A,SUPER CUP,スーパーカップ,SUPER COPA,SUPER-POKAL,슈퍼컵,SUPER COUPE,SUPERCOPPA,
-T1B_006,27a8704959e648889ebcbd829e106daf,00771B75,GYM LEADER CASTLE,ジムリーダーの城,CASTELO do LÍDER de GIN.,SCHLOSS der ARENALEITER,체육관 관장의 성,CHATEAU des CHAMPIONS,CASTELLO CAPOPALESTRA,
+T1B_006,27a8704959e648889ebcbd829e106daf,00771B75,GYMNASIUM LEADER CASTLE,ジムリーダーの城,CASTELO do LÍDER de GIN.,SCHLOSS der TURNHALLENLEITER,체육관 리더의 성,CHATEAU du CHEF GYM.,CASTELLO del CAPO PAL.,
 T1B_007,e7a3c4f9b4a398df37e95b6428edf224,00771B8D,POKé BALL,ポケボール,POKé BALL,POKéBALL,포켓볼,POKé BALL,POKé BALL,
 T1B_008,9dc3fe28fe90585395d7ff07fbfd383e,00771B97,SUPER BALL,スーパーボール,SUPER BALL,SUPERBALL,슈퍼볼,SUPER BALL,SUPER BALL,
 T1B_009,dbb2d66033981e38f9e501dfaf376c33,00771BA2,ULTRA BALL,ウルトラボール,ULTRA BALL,ULTRABALL,울트라볼,ULTRA BALL,ULTRA BALL,
@@ -7311,15 +7311,15 @@ T1B_015,0267622d9a9006dbdcae1f4db534840f,00771BE1,BATTLE 5,バトル5,BATALHA 5,
 T1B_016,89ac00b4245ed287646d6ce84a75b979,00771BEB,BATTLE 6,バトル6,BATALHA 6,KAMPF 6,배틀 6,COMBAT 6,LOTTA 6,
 T1B_017,d8fb2bade95625df49089b9f2ff71aaa,00771BF5,SEMIFINAL,準決勝,SEMIFINAL,HALBFINALE,준결승,DEMI-FINALE,SEMIFINALE,
 T1B_018,bf79836f89ea41583d31766d4f592827,00771BFF,FINAL BATTLE,決勝,BATALHA FINAL,FINALKAMPF,결승전,COMBAT FINAL,LOTTA FINALE,
-T1B_019,966138eedf448d11081d4d0267769fae,00771C0D,SILVER GYM BATTLE,銀色ジム バトル,BATALHA GINÁSIO PRATEADA,KAMPF TURNHALLE SILBER,은색체육관 배틀,COMBAT GYMNASE ARGENTE,LOTTA PALESTRA ARGENTATA,
-T1B_020,2c32895ec360225911ff4b5fc0c4241a,00771C27,SKY BLUE GYM BATTLE,空色ジム バトル,BATALHA GINÁSIO CELESTE,KAMPF TURNHALLE HIMMELBLAU,하늘색체육관 배틀,COMBAT GYMNASE CELESTE,LOTTA PALESTRA CELESTE,
-T1B_021,e66d071c6a26b4ee6fced541150ec2d8,00771C40,CARMINE GYM BATTLE,深紅ジム バトル,BATALHA GINÁSIO CARMIM,KAMPF TURNHALLE KARMIN,진홍색체육관 배틀,COMBAT GYMNASE CARMIN,LOTTA PALESTRA CARMINIO,
-T1B_022,bd47f24e11462dcf4df01c9beb0b68ce,00771C58,DEEP BLUE GYM BATTLE,紺碧ジム バトル,BATALHA GINÁSIO AZULÃO,KAMPF TURNHALLE TIEFBLAU,짙은파랑체육관 배틀,COMBAT GYMNASE BLEU ROI,LOTTA PALESTRA AZZURRONA,
-T1B_023,19a5b264dc9a27ee97e1a05c2f766484,00771C70,FUCHSIA GYM BATTLE,赤紫ジム バトル,BATALHA GINÁSIO FÚCSIA,KAMPF TURNHALLE FUCHSIA,자홍색체육관 배틀,COMBAT GYMNASE FUCHSIA,LOTTA PALESTRA FUCSIA,
-T1B_024,63236c6988e77b1ea2cef702f5b180fc,00771C88,SAFFRON GYM BATTLE,サフランジム バトル,BATALHA GINÁSIO AÇAFRÃO,KAMPF TURNHALLE SAFRAN,사프란체육관 배틀,COMBAT GYMNASE SAFRAN,LOTTA PALESTRA ZAFFERANO,
-T1B_025,605786bde585693db3fb4365f4f61fd0,00771CA1,CINNAMON GYM BATTLE,シナモンジム バトル,BATALHA GINÁSIO CANELA,KAMPF TURNHALLE ZIMT,계피체육관 배틀,COMBAT GYMNASE CANNELLE,LOTTA PALESTRA CANNELLA,
-T1B_026,7f8d1f22bf8d9eb0a34c17dafb80139d,00771CB9,GREEN GYM BATTLE,緑ジム バトル,BATALHA GINÁSIO VERDE,KAMPF TURNHALLE GRÜN,초록체육관 배틀,COMBAT GYMNASE VERT,LOTTA PALESTRA VERDE,
-T1B_027,f7782ca85a881a99151b31b138ffaf48,00771CD0,ELITE FOUR,四天王,ALTO COMANDO,TOP VIER,사천왕,CONSEIL 4,SUPERQUATTRO,
+T1B_019,966138eedf448d11081d4d0267769fae,00771C0D,PEWTER GYM BATTLE,ニビジム バトル,BATALHA GINÁSIO PEWTER,KAMPF TURNHALLE MARMORIA,회색체육관 배틀,COMBAT GYMNASE ARGENTA,LOTTA PALESTRA PLUMBEOPOLI,
+T1B_020,2c32895ec360225911ff4b5fc0c4241a,00771C27,CERULEAN GYM BATTLE,ハナダジム バトル,BATALHA GINÁSIO CERULEAN,KAMPF TURNHALLE AZURIA,블루체육관 배틀,COMBAT GYMNASE AZURIA,LOTTA PALESTRA CELESTOPOLI,
+T1B_021,e66d071c6a26b4ee6fced541150ec2d8,00771C40,VERMILION GYM BATTLE,クチバジム バトル,BATALHA GINÁSIO VERMILION,KAMPF TURNHALLE ORANIA,갈색체육관 배틀,COMBAT GYMNASE CARMIN SUR MER,LOTTA PALESTRA ARANCIOPOLI,
+T1B_022,bd47f24e11462dcf4df01c9beb0b68ce,00771C58,CELADON GYM BATTLE,タマムシジム バトル,BATALHA GINÁSIO CELADON,KAMPF TURNHALLE PRISMANIA,무지개체육관 배틀,COMBAT GYMNASE CELADOPOLE,LOTTA PALESTRA AZZURROPOLI,
+T1B_023,19a5b264dc9a27ee97e1a05c2f766484,00771C70,FUCHSIA GYM BATTLE,セキチクジム バトル,BATALHA GINÁSIO FUCHSIA,KAMPF TURNHALLE FUCHSANIA,연분홍체육관 배틀,COMBAT GYMNASE PARMANIE,LOTTA PALESTRA FUCSIAPOLI,
+T1B_024,63236c6988e77b1ea2cef702f5b180fc,00771C88,SAFFRON GYM BATTLE,ヤマブキジム バトル,BATALHA GINÁSIO SAFFRON,KAMPF TURNHALLE SAFFRONIA,노랑체육관 배틀,COMBAT GYMNASE SAFRANIA,LOTTA PALESTRA ZAFFERANOPOLI,
+T1B_025,605786bde585693db3fb4365f4f61fd0,00771CA1,CINNABAR GYM BATTLE,グレンジム バトル,BATALHA GINÁSIO CINNABAR,KAMPF TURNHALLE ZINNOBERINSEL,홍련체육관 배틀,COMBAT GYMNASE CRAMOIS'ILE,LOTTA PALESTRA CANNELLA,
+T1B_026,7f8d1f22bf8d9eb0a34c17dafb80139d,00771CB9,VIRIDIAN GYM BATTLE,トキワジム バトル,BATALHA GINÁSIO VIRIDIAN,KAMPF TURNHALLE VERTANIA,상록체육관 배틀,COMBAT GYMNASE JADIELLE,LOTTA PALESTRA SMERALDOPOLI,
+T1B_027,f7782ca85a881a99151b31b138ffaf48,00771CD0,HIGH COMMAND,最高司令部,ALTO COMANDO,OBERKOMMANDO,최고사령부,HAUT COMMANDEMENT,ALTO COMANDO,
 T1B_028,92abd84e4bfcf1a679c713575bf54add,00771CDB,RIVAL,ライバル,RIVAL,RIVALE,라이벌,RIVAL,RIVALE,
 T1B_029,78e2bdf38f6cf41f4a23266a4562cffc,00771CE1,BROCK,タケシ,BROCK,ROCKO,웅,PIERRE,BROCK,
 T1B_030,624c7e68e3b2000d4e47cef8e3dea77f,00771CE7,MISTY,カスミ,MISTY,MISTY,이슬,ONDINE,MISTY,
@@ -7347,16 +7347,16 @@ T1B_051,fe5e00d5f2894cab06c61d01dbce1d97,00771DBE,Try once more,もう一度挑�
 T1B_052,cd4895e345282a7f83210d6638256ebb,00771DD3,Change the team,チームを変える,Mudar a equipe,Team ändern,팀 바꾸기,Changer d'équipe,Cambia la squadra,
 T1B_053,ca4018e7b21d616b53768feab86cf022,00771DE5,Battle again,もう一度戦う,Lutar de novo,Erneut kämpfen,다시 싸우기,Rejouer le combat,Lotta di nuovo,
 T1B_054,d41d8cd98f00b204e9800998ecf8427e,00771DF5,,,,,,,,
-T1B_055,795bfb39036be59c06eb4ee58b87a536,00771DF6,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,DRESSEUR,ALLENATORE,
+T1B_055,795bfb39036be59c06eb4ee58b87a536,00771DF6,TRAINER,トレーナー,TREINADOR,TRAINER,트레이너,ENTRAINEUR,ALLENATORE,
 T1B_056,42806ab54c7e2af5a02d1a7918ccd1a2,00771E01,Record,記録,Recorde,Rekord,기록,Record,Record,
 T1B_057,2d644311e7d5fc24841b442a89f21814,00771E08,wins,勝,vit.,Siege,승,vict.,vitt.,
 T1B_058,8c11f30dbeafff448f408cf5b766af40,00771E0E,Current battle data saved,今のバトルのデータをセーブ,Dados salvos da batalha atual,Aktueller Kampf gespeichert,현재 배틀 데이터 저장,Combat en cours sauvegardé,Dati salvati della lotta attuale,
 T1B_059,cd82bd818fa86dcc9e6a81096bf4d5d0,00771E2F,Overwrite previous data?,前のデータに上書きしますか？,Substituir dados anteriores?,Alte Daten überschreiben?,이전 데이터에 덮어쓸까요?,Ecraser les données ?,Sovrascrivere i dati precedenti?,
 T1B_060,d3270bdb8d2c1caaca4178dbe19be03a,00771E4D,Save,セーブ,Salvar,Speichern,저장,Sauver,Salva,
 T1B_061,718a49768cc9ece816e1f67c26abfda8,00771E55,Continue without saving,セーブしないで続ける,Continuar sem salvar,Ohne Speichern weiter,저장하지 않고 계속하기,Continuer sans sauver,Continua senza salvare,
-T1B_062,ed4a034153e9ba0c4d783f14939e0d93,00771E6B,GYM LEADER,ジムリーダー,LÍDER DE GINÁSIO,ARENALEITER,체육관 관장,CHAMPION D'ARENE,CAPOPALESTRA,
+T1B_062,ed4a034153e9ba0c4d783f14939e0d93,00771E6B,GYMNASIUM LEADER,ジムリーダー,LÍDER DE GINÁSIO,TURNHALLENLEITER,체육관 리더,CHEF DE GYMNASE,CAPO DI PALESTRA,
 T1B_063,021f67f0ad7f101ab3d6fdb3f28ec747,00771E7D,The previous data will be erased.,前のデータは消えます。,Os dados anteriores serão apagados.,Die alten Daten werden gelöscht.,이전 데이터가 삭제됩니다.,Les données seront effacées.,I dati precedenti saranno cancellati.,
-T1B_064,ca02bfb41ab15f206b060991a224482d,00771E9F,ELITE FOUR #01,四天王 #01,ALTO COMANDO #01,TOP VIER #01,사천왕 #01,CONSEIL 4 #01,SUPERQUATTRO #01,
+T1B_064,ca02bfb41ab15f206b060991a224482d,00771E9F,HIGH COMMAND #01,最高司令部 #01,ALTO COMANDO #01,OBERKOMMANDO #01,최고사령부 #01,HAUT COMMANDEMENT #01,ALTO COMANDO #01,
 T1C_000,fa93d4b57688c549c6fcdee44313590d,00771F0C,Way to go! You won with PIKACHU!,おめでとう！ ピカチュウを使って勝ったね！,Parabéns! Você venceu usando PIKACHU!,Glückwunsch! Du hast mit PIKACHU gewonnen!,축하합니다! 피카츄로 이겼습니다!,Bravo ! Tu as gagné avec PIKACHU !,Complimenti! Hai vinto usando PIKACHU!,
 T1C_001,bef5988360d7cfa2aa42a899e606bbae,00771F38,Special prize! PIKACHU will learn SURF!,特別なごほうび！ ピカチュウがなみのりを覚えるよ！,Prêmio especial! PIKACHU vai aprender SURF!,Sonderpreis! PIKACHU erlernt SURFER!,특별 상품! 피카츄가 파도타기를 배웁니다!,Prix spécial ! PIKACHU va apprendre SURF !,Premio speciale! PIKACHU imparerà SURF!,
 T1C_002,ae362ae858e61df36afd95f99befc90b,00771F63,Would you like PIKACHU to learn SURF?,ピカチュウになみのりを覚えさせる？,Gostaria que PIKACHU aprendesse SURF?,Soll PIKACHU SURFER erlernen?,피카츄에게 파도타기를 가르칠까요?,Veux-tu que PIKACHU apprenne SURF ?,Desideri che PIKACHU apprenda SURF?,
@@ -7419,7 +7419,7 @@ T1D_015,04be00323ea5625c9847311cb4519ed7,0077244F,DIG! DIG! DIG!,掘れ！掘れ
 T1D_016,19325b275ddd7f4ed02ab59539d74565,00772464,Selecting first game...,最初のゲームを選んでいます…,Selecionando o primeiro jogo...,Erstes Spiel wird gewählt...,첫 번째 게임 고르는 중...,Sélection du premier jeu...,Scelta del primo gioco...,
 T1D_017,82f3e428922601e0f44d881a291a10d8,00772482,Choose game,ゲームを選ぶ,Escolha o jogo,Spiel wählen,게임 고르기,Choisis un jeu,Scegli gioco,
 T1D_018,2a1b674683b8823251696ca09105749a,0077248F,Who's the best?,一番は誰だ？,Quem é o melhor?,Wer ist der Beste?,최고는 누구?,Qui est le meilleur ?,Chi è il numero uno?,
-T1D_019,2d9d30d24319dcc54076bfe27c2820fc,007724A3,#01 win(s) to be Champion,#01回の勝ちでチャンピオン,#01 vitória(s) para ser Campeão,#01 Sieg(e) zum Champion,#01승 하면 챔피언,#01 victoire(s) pour être Champion,#01 vittoria/e per essere Campione,
+T1D_019,2d9d30d24319dcc54076bfe27c2820fc,007724A3,#01 win(s) to be Champion,#01回の勝ちでチャンピオン,#01 vitória(s) para ser Campeão,#01 Sieg(e) zum Meister,#01승 하면 챔피언,#01 victoire(s) pour être Champion,#01 vittoria/e per essere Campione,
 T1D_020,52ac6c811b030b4da826874dc9232ef9,007724C4,Start game,ゲームスタート,Iniciar jogo,Spiel starten,게임 시작,Lancer le jeu,Inizia il gioco,
 T1D_021,34a6c325c6e784d371dbd279da219e16,007724D2,MAGIKARP'S SPLASH,コイキングのはねる大会,SALTO DE MAGIKARP,KARPADOR-PLATSCHER,잉어킹 튀어오르기,TREMPETTE DE MAGICARPE,SPLASH DI MAGIKARP,
 T1D_022,11e0d816258f5b4b994be1a7dab439a5,007724EA,"Make MAGIKARP jump and hit
@@ -7645,7 +7645,7 @@ au niveau ""HYPER"".","Ora la CPU può giocare
 al livello ""IPER"".",
 T1D_089,18215f6d22ccc073d1f6a236cc71f5f0,00772D55,XX WINS,XXの勝ち,VENCE XX,SIEG XX,XX 승리,GAGNE XX,VINCE XX,
 T1D_090,bfef9cf664033eb3a9c499833bc85353,00772D5D,DRAW,引き分け,EMPATE,REMIS,무승부,EGALITE,PAREGGIO,
-T1D_091,e9ca4b660ccd0bea116b75d73610ba44,00772D64,The Champion!,チャンピオン！,O Campeão!,Der Champion!,챔피언!,Le Champion !,Il Campione!,
+T1D_091,e9ca4b660ccd0bea116b75d73610ba44,00772D64,The Champion!,チャンピオン！,O Campeão!,Der Meister!,챔피언!,Le Champion !,Il Campione!,
 T1D_092,96303d80a13755b27a99bbfa1af2dca0,00772D71,···,···,···,···,···,···,···,
 T1D_093,1510537ad23594242442c05406c45d15,00772D75,TIME ,タイム ,TEMPO ,ZEIT ,시간 ,TEMPS ,TEMPO ,
 T1D_094,649876059539c2416705a13cc782402f,00772D7D,¥#06,#06¥,#06¥,#06¥,#06¥,#06¥,#06¥,
@@ -7957,7 +7957,7 @@ T1F_009,8ac00826945c69312c4e3d9c349bdb8b,00773FAD,POKé CUP,ポケカップ,POK�
 T1F_010,f5e5c95b4c942aea2b65c9eaf9a0ad39,00773FB7,MINI CUP,ミニカップ,MINI COPA,MINI-POKAL,미니컵,MINI COUPE,COPPA MINI,
 T1F_011,176ed3a7b0a0d87f0208399235348655,00773FC1,PIKA CUP,ピカカップ,PIKA COPA,PIKA-POKAL,피카컵,PIKA COUPE,COPPA PIKA,
 T1F_012,08eed730dcc73de8e3ef99a03dd985b0,00773FCB,SUPER CUP,スーパーカップ,SUPER COPA,SUPER-POKAL,슈퍼컵,SUPER COUPE,SUPERCOPPA,
-T1F_013,710f9e91461b2159677fd00d58ec197b,00773FD6,GYM LEADER CASTLE,ジムリーダーの城,CASTELO do LÍDER de GIN.,SCHLOSS ARENALEITER,체육관 관장의 성,CHATEAU CHAMPIONS,CASTELLO CAPOPALESTRA,
+T1F_013,710f9e91461b2159677fd00d58ec197b,00773FD6,GYMNASIUM LEADER CASTLE,ジムリーダーの城,CASTELO do LÍDER de GIN.,SCHLOSS TURNHALLENLEITER,체육관 리더의 성,CHATEAU CHEF GYM.,CASTELLO CAPO PAL.,
 T1F_014,d082e114b3fad4b2a9eae740fba0802e,00773FEA,"Game Pak
 not working.","カセットが
 使えません。","Cartucho
@@ -8124,14 +8124,14 @@ endormi. Il en va de même pour le gel.
 On peut avoir un Pokémon endormi et un autre gelé.","Se uno dei tre Pokémon si addormenta, nessun altro può
 essere addormentato. Lo stesso vale per il congelamento.
 Si può avere un Pokémon addormentato e uno congelato.",
-T20_040,8d0c3e8c2ff598e4141c0e244795f41c,007748FB,"MEW can only be used in the GYM LEADER
+T20_040,8d0c3e8c2ff598e4141c0e244795f41c,007748FB,"MEW can only be used in the GYMNASIUM LEADER
 CASTLE, the SUPER CUP and FREE BATTLE.","ミュウが使えるのはジムリーダーの城、
 スーパーカップ、フリーバトルだけ。","Só é possível usar MEW no CASTELO dos
-LÍDERES, na SUPER COPA e na BATALHA LIVRE.","MEW darfst du nur im SCHLOSS der ARENALEITER,
-im SUPER-POKAL und im FREIEN KAMPF einsetzen.","뮤는 체육관 관장의 성, 슈퍼컵,
-프리 배틀에서만 쓸 수 있다.","MEW n'est autorisé qu'au CHATEAU des
-CHAMPIONS, à la SUPER COUPE et au COMBAT LIBRE.","Puoi usare MEW solo nel CASTELLO
-CAPOPALESTRA, nella SUPERCOPPA e nella LOTTA LIBERA.",
+LÍDERES, na SUPER COPA e na BATALHA LIVRE.","MEW darfst du nur im SCHLOSS der TURNHALLENLEITER,
+im SUPER-POKAL und im FREIEN KAMPF einsetzen.","뮤는 체육관 리더의 성, 슈퍼컵,
+프리 배틀에서만 쓸 수 있다.","MEW n'est autorisé qu'au CHATEAU du
+CHEF GYM., à la SUPER COUPE et au COMBAT LIBRE.","Puoi usare MEW solo nel CASTELLO del CAPO
+PAL., nella SUPERCOPPA e nella LOTTA LIBERA.",
 T20_041,143d4131e29f6d793c0746da5921bee3,00774959,"You earn a CONTINUE for each battle you win
 without a fainted Pokémon. If you have a CONTINUE,
 you can try again after losing a battle.","ひんしのポケモンを出さずに勝つと
@@ -8251,7 +8251,7 @@ zusammen 50 nicht übersteigen.","배틀 포켓몬 3마리의 레벨 합계는
 50을 넘을 수 없다.","Le total des niveaux des trois Pokémon de Combat
 ne doit pas dépasser 50.","I livelli sommati dei tre Pokémon da Lotta
 non possono superare 50.",
-T20_055,f7bdbc994f363545b67fda98d176e2aa,00774EAF,"GYM LEADERS and their followers will use
+T20_055,f7bdbc994f363545b67fda98d176e2aa,00774EAF,"GYMNASIUM LEADERS and their followers will use
 level-50 Pokémon. However, if you use a Pokémon
 above 50, their Pokémon will be at the same level as
 your highest-level Pokémon.","ジムリーダーと弟子たちはレベル50のポケモンを
@@ -8260,16 +8260,16 @@ your highest-level Pokémon.","ジムリーダーと弟子たちはレベル50�
 高いレベルのポケモンに合わせる。","Os LÍDERES de GINÁSIO e seus subordinados usarão
 Pokémon de nível 50. Porém, se você usar um Pokémon
 acima de 50, os Pokémon deles ficarão no mesmo nível
-do seu Pokémon de nível mais alto.","Die ARENALEITER und ihre Schüler setzen Pokémon
+do seu Pokémon de nível mais alto.","Die TURNHALLENLEITER und ihre Schüler setzen Pokémon
 mit Level 50 ein. Nutzt du jedoch ein Pokémon über
 Level 50, haben ihre Pokémon dasselbe Level wie
-dein Pokémon mit dem höchsten Level.","체육관 관장과 부하들은 레벨 50의 포켓몬을
+dein Pokémon mit dem höchsten Level.","체육관 리더와 부하들은 레벨 50의 포켓몬을
 쓴다. 하지만 레벨 50이 넘는 포켓몬을 쓰면
 상대 포켓몬도 내 포켓몬 중 가장 높은
-레벨과 같아진다.","Les CHAMPIONS D'ARENE et leurs disciples utilisent des
+레벨과 같아진다.","Les CHEFS de GYMNASE et leurs disciples utilisent des
 Pokémon de niveau 50. Mais si tu utilises un Pokémon
 au-dessus de 50, leurs Pokémon seront au niveau
-de ton Pokémon le plus fort.","I CAPOPALESTRA e i loro allievi useranno
+de ton Pokémon le plus fort.","I CAPI di PALESTRA e i loro allievi useranno
 Pokémon di livello 50. Però, se usi un Pokémon
 oltre il 50, i loro Pokémon saranno allo stesso livello
 del tuo Pokémon di livello più alto.",
@@ -8380,7 +8380,7 @@ Trainers will all use level-100 Pokémon.","レベル100までのポケモンが
 treinadores oponentes usarão só Pokémon de nível 100.","Du kannst Pokémon bis Level 100 nutzen. Die
 gegnerischen Trainer setzen nur Pokémon mit Level 100 ein.","레벨 100까지의 포켓몬을 쓸 수 있다.
 상대 트레이너는 모두 레벨 100의 포켓몬을 쓴다.","Tu peux utiliser des Pokémon jusqu'au niveau 100. Les
-dresseurs adverses n'utilisent que des Pokémon niveau 100.","Puoi usare Pokémon fino al livello 100. Gli allenatori
+entraîneurs adverses n'utilisent que des Pokémon niveau 100.","Puoi usare Pokémon fino al livello 100. Gli allenatori
 avversari useranno tutti Pokémon di livello 100.",
 T20_067,fbe88573f9c1c47c78864d322a5eb03a,00775402,"If one Pokémon falls asleep, no other can be put
 to sleep by the opponent. The same goes for
@@ -8428,7 +8428,7 @@ tre per lottare. Ogni giocatore controlla solo
 i propri Pokémon.",
 T20_069,1af3d4c9a35bfba37e10c3b6f17eca06,00775589,FREE BATTLE,フリーバトル,BATALHA LIVRE,FREIER KAMPF,프리 배틀,COMBAT LIBRE,LOTTA LIBERA,
 T20_070,a193d1095e33c2184081e24530e82aa1,00775597,POKéMON STADIUM,ポケモンスタジアム,POKéMON STADIUM,POKéMON STADIUM,포켓몬 스타디움,POKéMON STADIUM,POKéMON STADIUM,
-T20_071,27a8704959e648889ebcbd829e106daf,007755A7,GYM LEADER CASTLE,ジムリーダーの城,CASTELO do LÍDER de GIN.,SCHLOSS der ARENALEITER,체육관 관장의 성,CHATEAU des CHAMPIONS,CASTELLO CAPOPALESTRA,
+T20_071,27a8704959e648889ebcbd829e106daf,007755A7,GYMNASIUM LEADER CASTLE,ジムリーダーの城,CASTELO do LÍDER de GIN.,SCHLOSS der TURNHALLENLEITER,체육관 리더의 성,CHATEAU du CHEF GYM.,CASTELLO del CAPO PAL.,
 T20_072,00b7879269946492815fb77bcfe65d8e,007755BF,VS MEWTWO,VS ミュウツー,VS MEWTWO,VS MEWTU,VS 뮤츠,VS MEWTWO,VS MEWTWO,
 T20_073,a644ecb0d1cd5c15ee90cea555a55f44,007755C9,BATTLE EVENT,イベントバトル,EVENTO de BATALHA,EVENT-KAMPF,이벤트 배틀,COMBAT EVENEMENT,EVENTO LOTTA,
 T20_074,b9630ae375f83b561ec9f75ac2014e9b,007755DB,ANYTHING GOES,何でもあり,VALE TUDO,ALLES GILT,무제한,TOUT PERMIS,TUTTO VALE,
@@ -8508,36 +8508,36 @@ GB, nettoie la zone du connecteur
 et remets-la en place.","Con il N64 acceso, togli la cassetta
 GB, pulisci i contatti del connettore
 e reinseriscila.",
-T22_000,683be0dcc848d2ec201fb7a9c06c3aa3,00775A20,COOL♀,エリート♀,LEGAL♀,ASS♀,엘리트♀,TOP♀,ASSO♀,
-T22_001,e185329b1f78c41c0e0789e784ed2efd,00775A26,COOL♂,エリート♂,LEGAL♂,ASS♂,엘리트♂,TOP♂,ASSO♂,
-T22_002,543970b9288b902be394df02891b2e40,00775A2C,BEAUTY,お姉さん,BELA,SCHÖNH.,아가씨,CANON,BELLA,
-T22_003,4935dec11fdb50c416c609168919165f,00775A32,JR.♀,スカウト♀,JR.♀,JR.♀,주니어♀,JR.♀,JR.♀,
-T22_004,c9ec9c5513b7a254e3b4769160f9a7b1,00775A37,GAMBLER,ギャンブラー,JOGADOR,SPIELER,겜블러,PARIEUR,GIOCAT.,
-T22_005,b159e4eec276bf44ce70140bdc08ae12,00775A3F,PSYCHIC,エスパー,MÉDIUM,MEDIUM,초능력자,MEDIUM,SENSIT.,
-T22_006,babedeb5ed9d59415de88d3f218c518b,00775A46,GENTLMN,ジェントル,SENHOR,HERR,신사,MONSIEUR,SIGNORE,
-T22_007,fd00c4152567d6444361bd4d747e5e2f,00775A4C,JUGGLER,ジャグラー,MALABAR,JONGLEUR,저글러,JONGLEUR,GIOCOL.,
-T22_008,1015d6ba2d1795a3d487198781c2ddf3,00775A54,CUE BALL,スキンヘッド,CARECA,ROWDY,빡빡이,LOUBARD,PELATO,
-T22_009,333c5947cad81eb82070f3b97980cf25,00775A5A,SCIENT.,研究員,CIÊNCIA,FORSCH.,과학자,SAVANT,SCIENZA,
-T22_010,60a6a97252a2c3c2be71316c5830c662,00775A62,JR.♂,スカウト♂,JR.♂,JR.♂,주니어♂,JR.♂,JR.♂,
-T22_011,89c2ae265b8f72c49e7757d51d54f250,00775A67,LASS,ミニスカ,GAROTA,GÖRE,짧은치마,FILLETTE,PUPA,
+T22_000,683be0dcc848d2ec201fb7a9c06c3aa3,00775A20,COOL♀,クール♀,LEGAL♀,COOL♀,멋쟁이♀,COOL♀,FIGO♀,
+T22_001,e185329b1f78c41c0e0789e784ed2efd,00775A26,COOL♂,クール♂,LEGAL♂,COOL♂,멋쟁이♂,COOL♂,FIGO♂,
+T22_002,543970b9288b902be394df02891b2e40,00775A2C,BEAUTY,美女,BELA,SCHÖNE,미녀,BELLE,BELLA,
+T22_003,4935dec11fdb50c416c609168919165f,00775A32,JR.♀,ジュニア♀,JR.♀,JR.♀,주니어♀,JR.♀,JR.♀,
+T22_004,c9ec9c5513b7a254e3b4769160f9a7b1,00775A37,PLAYER,プレイヤー,JOGADOR,SPIELER,도박꾼,JOUEUR,GIOCATORE,
+T22_005,b159e4eec276bf44ce70140bdc08ae12,00775A3F,MEDIUM,霊媒師,MÉDIUM,MEDIUM,영매,MEDIUM,MEDIUM,
+T22_006,babedeb5ed9d59415de88d3f218c518b,00775A46,SIR,旦那,SENHOR,HERR,나리,MONSIEUR,SIGNORE,
+T22_007,fd00c4152567d6444361bd4d747e5e2f,00775A4C,JUGGLER,曲芸,MALABAR,JONGLEUR,곡예,JONGLEUR,GIOCOLIERE,
+T22_008,1015d6ba2d1795a3d487198781c2ddf3,00775A54,BALDY,はげ頭,CARECA,GLATZE,대머리,CHAUVE,CALVO,
+T22_009,333c5947cad81eb82070f3b97980cf25,00775A5A,SCIENCE,科学,CIÊNCIA,WISSENSCH.,과학,SCIENCE,SCIENZA,
+T22_010,60a6a97252a2c3c2be71316c5830c662,00775A62,JR.♂,ジュニア♂,JR.♂,JR.♂,주니어♂,JR.♂,JR.♂,
+T22_011,89c2ae265b8f72c49e7757d51d54f250,00775A67,GIRL,女の子,GAROTA,MÄDCHEN,소녀,FILLE,RAGAZZA,
 T22_012,3c05d3767182498ce879e2e4f4bab59d,00775A6D,MEWTWO,ミュウツー,MEWTWO,MEWTU,뮤츠,MEWTWO,MEWTWO,
-T22_013,21d1b87a16549b8f1674bc0a8ca464ed,00775A74,ROCKET,ロケット,ROCKET,ROCKET,로켓단,ROCKET,ROCKET,
-T22_014,e4405b52d2c9cd85a50d7fabcbeb68b2,00775A7B,BURGLAR,泥棒,LADRÃO,DIEB,도둑,VOLEUR,LADRO,
-T22_015,81d2516fda1d19a16261427d7d050863,00775A82,POKéMAN,マニア,POKéMAN,POKéMAN,마니아,POKéMAN,POKéMAN,
-T22_016,b24e2d0a7ef607b92358343fa338a99c,00775A8A,SWIMMER,海パン,NADADOR,SCHWIMMER,수영선수,NAGEUR,NUOTAT.,
-T22_017,024377520a43ca476b86d86403e25d9e,00775A92,CHANNLR,祈祷師,BRUXO,EXORZ.,기도사,EXORCIST,MEDIUM,
-T22_018,5b28239fef959444df752875725c08ce,00775A98,BLKBELT,空手,CARATÊ,KARATE,태권왕,KARATE,KARATE,
-T22_019,f36df75d809d02f1c2fe20348ea7efd4,00775A9F,HIKER,山男,MONTANHA,WANDERER,등산가,MONTAGN.,MONTAGNA,
-T22_020,74d3ac36401240e45822969c4ce1ab84,00775AA7,SAILOR,船乗り,MARINHO,MATROSE,뱃사공,MARIN,MARINO,
-T22_021,085ef7b7d6d1fda95cabe04aea58b62b,00775AAE,YOUNGSTR,短パン,JOVEM,KNIRPS,반바지,GAMIN,GIOVANE,
-T22_022,a6a9231a06236dc96cacac6345c0ec2d,00775AB4,BUGCATCH,虫取り,CAÇADOR,KÄFER,곤충채집,SCOUT,PIGLIA,
-T22_023,384d282972b25c45596179440469d6d6,00775ABC,BIRDKPR,鳥使い,ORNITO,VOGEL,새조련사,ORNITHO,ORNITO,
-T22_024,c293c35715e40810b4400078b7e0fd09,00775AC3,FISHER,釣り人,PESCA,ANGLER,낚시꾼,PECHEUR,PESCA,
-T22_025,aa436f1da86e91ed36519a821accd5ba,00775AC9,ROCKER,ロッカー,ROQUEIRO,ROCKER,로커,ROCKER,ROCKER,
-T22_026,fc2de98e6c1d19cac917a637d66edffb,00775AD1,ENGINEER,エンジニア,MECÂN.,TECHNIK,기술자,MECANO,MECCAN.,
-T22_027,6d9599d615f7aa88b05579d1c6f31608,00775AD8,BIKER,暴走族,MOTOQ.,BIKER,폭주족,MOTARD,CENTAURO,
-T22_028,b27e2f3c0ee635ed5860dd92358779fb,00775ADF,TAMER,猛獣使い,DOMADOR,DOMPTEUR,조련사,DOMPTEUR,DOMATORE,
-T22_029,a3d24a6f50a85267ce38d8b7db28f4fd,00775AE7,NERD,理科系,NÉSCIO,NERD,괴짜,INTELLO,NERD,
+T22_013,21d1b87a16549b8f1674bc0a8ca464ed,00775A74,ROCKET,ロケット,ROCKET,ROCKET,로켓,ROCKET,ROCKET,
+T22_014,e4405b52d2c9cd85a50d7fabcbeb68b2,00775A7B,THIEF,泥棒,LADRÃO,DIEB,도둑,VOLEUR,LADRO,
+T22_015,81d2516fda1d19a16261427d7d050863,00775A82,POKéMAN,ポケマン,POKéMAN,POKéMAN,포켓맨,POKéMAN,POKéMAN,
+T22_016,b24e2d0a7ef607b92358343fa338a99c,00775A8A,SWIMMER,水泳選手,NADADOR,SCHWIMMER,수영선수,NAGEUR,NUOTATORE,
+T22_017,024377520a43ca476b86d86403e25d9e,00775A92,WARLOCK,魔法使い,BRUXO,HEXER,주술사,SORCIER,STREGONE,
+T22_018,5b28239fef959444df752875725c08ce,00775A98,KARATE,空手,CARATÊ,KARATE,가라테,KARATE,KARATE,
+T22_019,f36df75d809d02f1c2fe20348ea7efd4,00775A9F,MOUNTAIN,山,MONTANHA,BERG,산사람,MONTAGNE,MONTAGNA,
+T22_020,74d3ac36401240e45822969c4ce1ab84,00775AA7,MARINER,水兵,MARINHO,SEEMANN,선원,MARIN,MARINO,
+T22_021,085ef7b7d6d1fda95cabe04aea58b62b,00775AAE,YOUTH,若者,JOVEM,JUNGE,젊은이,JEUNE,GIOVANE,
+T22_022,a6a9231a06236dc96cacac6345c0ec2d,00775AB4,HUNTER,狩人,CAÇADOR,JÄGER,사냥꾼,CHASSEUR,CACCIATORE,
+T22_023,384d282972b25c45596179440469d6d6,00775ABC,ORNITHO,鳥類,ORNITO,ORNITHO,조류,ORNITHO,ORNITO,
+T22_024,c293c35715e40810b4400078b7e0fd09,00775AC3,FISHING,釣り,PESCA,FISCHEN,낚시,PECHE,PESCA,
+T22_025,aa436f1da86e91ed36519a821accd5ba,00775AC9,ROCKER,ロッカー,ROQUEIRO,ROCKER,로커,ROCKEUR,ROCKETTARO,
+T22_026,fc2de98e6c1d19cac917a637d66edffb,00775AD1,MECHANIC,メカ,MECÂN.,MECHANIK,정비,MECANO,MECCAN.,
+T22_027,6d9599d615f7aa88b05579d1c6f31608,00775AD8,BIKER,バイク乗り,MOTOQ.,BIKER,오토바이,MOTARD,MOTOCICLISTA,
+T22_028,b27e2f3c0ee635ed5860dd92358779fb,00775ADF,TAMER,調教師,DOMADOR,DOMPTEUR,조련사,DOMPTEUR,DOMATORE,
+T22_029,a3d24a6f50a85267ce38d8b7db28f4fd,00775AE7,FOOL,愚か者,NÉSCIO,NARR,바보,NIAIS,SCIOCCO,
 T22_030,78e2bdf38f6cf41f4a23266a4562cffc,00775AED,BROCK,タケシ,BROCK,ROCKO,웅,PIERRE,BROCK,
 T22_031,624c7e68e3b2000d4e47cef8e3dea77f,00775AF3,MISTY,カスミ,MISTY,MISTY,이슬,ONDINE,MISTY,
 T22_032,713644e69402067e6f828937283da145,00775AF9,SURGE,マチス,SURGE,MAJOR BOB,마티스,MAJOR BOB,SURGE,
@@ -8551,36 +8551,36 @@ T22_039,87166944679ff8a5b4c59af2e0cef56a,00775B29,BRUNO,シバ,BRUNO,BRUNO,시�
 T22_040,c23673726fec12a7ec9267c68afd4c3d,00775B2F,AGATHA,キクコ,AGATHA,AGATHE,국화,AGATHA,AGATHA,
 T22_041,938bce276b64c8ccdaeb079ff7a0bd84,00775B36,LANCE,ワタル,LANCE,SIEGFRIED,목호,PETER,LANCE,
 T22_042,92abd84e4bfcf1a679c713575bf54add,00775B3C,RIVAL,ライバル,RIVAL,RIVALE,라이벌,RIVAL,RIVALE,
-T23_000,445975657b563ef9fe2e28c5e0bdb16c,00775C00,COOLTRNR♀,エリートトレーナー♀,TR. LEGAL♀,ASS-TRAIN.♀,엘리트♀,TOPDRESS.♀,ALL. ASSO♀,
-T23_001,9439922c953f475fa78ea50dd1b5c4b1,00775C0B,COOLTRNR♂,エリートトレーナー♂,TR. LEGAL♂,ASS-TRAIN.♂,엘리트♂,TOPDRESS.♂,ALL. ASSO♂,
-T23_002,543970b9288b902be394df02891b2e40,00775C16,BEAUTY,お姉さん,BELA,SCHÖNH.,아가씨,CANON,BELLA,
-T23_003,c80f85551769e2e521c2020b782dd4b2,00775C1C,JR.TRAINER♀,ガールスカウト♀,TR. JR.♀,JR.TRAIN.♀,주니어♀,DRES. JR.♀,ALL. JR.♀,
-T23_004,c9ec9c5513b7a254e3b4769160f9a7b1,00775C26,GAMBLER,ギャンブラー,JOGADOR,SPIELER,겜블러,PARIEUR,GIOCAT.,
-T23_005,b159e4eec276bf44ce70140bdc08ae12,00775C2E,PSYCHIC,エスパー,MÉDIUM,MEDIUM,초능력자,MEDIUM,SENSIT.,
-T23_006,1c8dd1d958c8300df17eca1887afd350,00775C35,GENTLEMAN,ジェントルマン,CAVALHEIRO,GENTLEMAN,신사,GENTLEMAN,GENTILUOMO,
-T23_007,cad41b21a8ce5b517b5ca34579bf1276,00775C3F,JUGGLER,ジャグラー,MALABAR.,JONGLEUR,저글러,JONGLEUR,GIOCOLIERE,
-T23_008,1015d6ba2d1795a3d487198781c2ddf3,00775C48,CUE BALL,スキンヘッド,CARECA,ROWDY,빡빡이,LOUBARD,PELATO,
-T23_009,10819491542e96a0ece602588fc1ed9b,00775C4E,SCIENTIST,研究員,CIENTISTA,FORSCHER,과학자,SCIENTIFIQUE,SCIENZIATO,
-T23_010,e8d5d3f99e160c7eea2d3a5f65735e3c,00775C59,JR.TRAINER♂,ボーイスカウト♂,TR. JR.♂,JR.TRAIN.♂,주니어♂,DRES. JR.♂,ALL. JR.♂,
-T23_011,89c2ae265b8f72c49e7757d51d54f250,00775C63,LASS,ミニスカ,GAROTA,GÖRE,짧은치마,FILLETTE,PUPA,
+T23_000,445975657b563ef9fe2e28c5e0bdb16c,00775C00,COOL TRN.♀,クールトレーナー♀,TR. LEGAL♀,COOL-TRAIN.♀,멋쟁이트레이너♀,ENT. COOL♀,ALL. FIGO♀,
+T23_001,9439922c953f475fa78ea50dd1b5c4b1,00775C0B,COOL TRN.♂,クールトレーナー♂,TR. LEGAL♂,COOL-TRAIN.♂,멋쟁이트레이너♂,ENT. COOL♂,ALL. FIGO♂,
+T23_002,543970b9288b902be394df02891b2e40,00775C16,BEAUTY,美女,BELA,SCHÖNE,미녀,BELLE,BELLA,
+T23_003,c80f85551769e2e521c2020b782dd4b2,00775C1C,JR. TRN.♀,ジュニアトレーナー♀,TR. JR.♀,JR.-TRAIN.♀,주니어트레이너♀,ENT. JR.♀,ALL. JR.♀,
+T23_004,c9ec9c5513b7a254e3b4769160f9a7b1,00775C26,PLAYER,プレイヤー,JOGADOR,SPIELER,도박꾼,JOUEUR,GIOCATORE,
+T23_005,b159e4eec276bf44ce70140bdc08ae12,00775C2E,MEDIUM,霊媒師,MÉDIUM,MEDIUM,영매,MEDIUM,MEDIUM,
+T23_006,1c8dd1d958c8300df17eca1887afd350,00775C35,GENTLEMAN,紳士,CAVALHEIRO,EDELMANN,신사,GENTILHOMME,CAVALIERE,
+T23_007,cad41b21a8ce5b517b5ca34579bf1276,00775C3F,JUGGLER,曲芸師,MALABAR.,JONGLEUR,곡예사,JONGLEUR,GIOCOLIERE,
+T23_008,1015d6ba2d1795a3d487198781c2ddf3,00775C48,BALDY,はげ頭,CARECA,GLATZE,대머리,CHAUVE,CALVO,
+T23_009,10819491542e96a0ece602588fc1ed9b,00775C4E,SCIENTIST,科学者,CIENTISTA,WISSENSCHAFTLER,과학자,SCIENTIFIQUE,SCIENZIATO,
+T23_010,e8d5d3f99e160c7eea2d3a5f65735e3c,00775C59,JR. TRN.♂,ジュニアトレーナー♂,TR. JR.♂,JR.-TRAIN.♂,주니어트레이너♂,ENT. JR.♂,ALL. JR.♂,
+T23_011,89c2ae265b8f72c49e7757d51d54f250,00775C63,GIRL,女の子,GAROTA,MÄDCHEN,소녀,FILLE,RAGAZZA,
 T23_012,3c05d3767182498ce879e2e4f4bab59d,00775C69,MEWTWO,ミュウツー,MEWTWO,MEWTU,뮤츠,MEWTWO,MEWTWO,
-T23_013,21d1b87a16549b8f1674bc0a8ca464ed,00775C70,ROCKET,ロケット,ROCKET,ROCKET,로켓단,ROCKET,ROCKET,
-T23_014,e4405b52d2c9cd85a50d7fabcbeb68b2,00775C77,BURGLAR,泥棒,LADRÃO,DIEB,도둑,VOLEUR,LADRO,
-T23_015,f5b703474ecd6926df59cf553d1dd1ca,00775C7E,¼MANIAC,ポケモンマニア,¼MANÍACO,¼MANIAC,포켓몬마니아,¼MANIAQUE,¼MANIACO,
-T23_016,b24e2d0a7ef607b92358343fa338a99c,00775C87,SWIMMER,海パン,NADADOR,SCHWIMMER,수영선수,NAGEUR,NUOTAT.,
-T23_017,0a6fde3b994fea24f164a3daf541bad8,00775C8F,CHANNELER,祈祷師,EXORCISTA,EXORZISTIN,기도사,EXORCISTE,MEDIUM,
-T23_018,93a219e375374fa1bcd89a423c448cc1,00775C99,BLACKBELT,空手王,CARATECA,KARATEKA,태권왕,KARATEKA,KARATEKA,
-T23_019,15a65b59dcd7ee02ea1836ddc94fa503,00775CA2,HIKER,山男,MONTANHISTA,WANDERER,등산가,MONTAGNARD,MONTANARO,
-T23_020,ea64958c97454ca431ee8d178ff4ac74,00775CAC,SAILOR,船乗り,MARINHEIRO,MATROSE,뱃사공,MARIN,MARINAIO,
-T23_021,085ef7b7d6d1fda95cabe04aea58b62b,00775CB5,YOUNGSTR,短パン,JOVEM,KNIRPS,반바지,GAMIN,GIOVANE,
-T23_022,3ae414a3adac64b540598973c915b5fc,00775CBB,BUGCATCHER,虫取り少年,CAÇA-BICHOS,KÄFERSAMMLER,곤충채집 소년,SCOUT,PIGLIAMOSCHE,
-T23_023,00c05f836c49705820b263d7eed9baca,00775CC6,BIRDKEEPER,鳥使い,ORNITÓLOGO,VOGELFÄNGER,새조련사,ORNITHOLOGUE,ORNITOLOGO,
-T23_024,e715854b2e00ace94bc2cb7f71f2e2f4,00775CD1,FISHERMAN,釣り人,PESCADOR,ANGLER,낚시꾼,PECHEUR,PESCATORE,
-T23_025,aa436f1da86e91ed36519a821accd5ba,00775CDA,ROCKER,ロッカー,ROQUEIRO,ROCKER,로커,ROCKER,ROCKER,
-T23_026,99bec90f4fffb56da16f4e0d6e3fc736,00775CE2,ENGINEER,エンジニア,MECÂNICO,TECHNIKER,기술자,MECANICIEN,MECCANICO,
-T23_027,8a11f910dc4dbd6feeb597e2cad4dd62,00775CEB,BIKER,暴走族,MOTOQUEIRO,BIKER,폭주족,MOTARD,CENTAURO,
-T23_028,b27e2f3c0ee635ed5860dd92358779fb,00775CF5,TAMER,猛獣使い,DOMADOR,DOMPTEUR,조련사,DOMPTEUR,DOMATORE,
-T23_029,e2ff3c30f9d00c9f701dd9970d1536c4,00775CFD,SUPER NERD,理科系の男,SUPERNÉSCIO,SUPERNERD,대괴짜,INTELLO,SUPERNERD,
+T23_013,21d1b87a16549b8f1674bc0a8ca464ed,00775C70,ROCKET,ロケット,ROCKET,ROCKET,로켓,ROCKET,ROCKET,
+T23_014,e4405b52d2c9cd85a50d7fabcbeb68b2,00775C77,THIEF,泥棒,LADRÃO,DIEB,도둑,VOLEUR,LADRO,
+T23_015,f5b703474ecd6926df59cf553d1dd1ca,00775C7E,¼MANIAC,ポケマニア,¼MANÍACO,¼MANIAK,포켓마니아,¼MANIAQUE,¼MANIACO,
+T23_016,b24e2d0a7ef607b92358343fa338a99c,00775C87,SWIMMER,水泳選手,NADADOR,SCHWIMMER,수영선수,NAGEUR,NUOTATORE,
+T23_017,0a6fde3b994fea24f164a3daf541bad8,00775C8F,EXORCIST,祓魔師,EXORCISTA,EXORZIST,퇴마사,EXORCISTE,ESORCISTA,
+T23_018,93a219e375374fa1bcd89a423c448cc1,00775C99,KARATEKA,空手家,CARATECA,KARATEKA,가라테가,KARATEKA,KARATEKA,
+T23_019,15a65b59dcd7ee02ea1836ddc94fa503,00775CA2,MOUNTAINEER,登山家,MONTANHISTA,BERGSTEIGER,등산가,ALPINISTE,ALPINISTA,
+T23_020,ea64958c97454ca431ee8d178ff4ac74,00775CAC,SAILOR,船乗り,MARINHEIRO,SEEMANN,뱃사람,MARIN,MARINAIO,
+T23_021,085ef7b7d6d1fda95cabe04aea58b62b,00775CB5,YOUTH,若者,JOVEM,JUNGE,젊은이,JEUNE,GIOVANE,
+T23_022,3ae414a3adac64b540598973c915b5fc,00775CBB,BUG HUNTER,虫捕り,CAÇA-BICHOS,KÄFERJÄGER,벌레사냥꾼,CHASSE-BESTIOLES,CACCIAINSETTI,
+T23_023,00c05f836c49705820b263d7eed9baca,00775CC6,ORNITHOLOGIST,鳥類学者,ORNITÓLOGO,ORNITHOLOGE,조류학자,ORNITHOLOGUE,ORNITOLOGO,
+T23_024,e715854b2e00ace94bc2cb7f71f2e2f4,00775CD1,FISHERMAN,漁師,PESCADOR,FISCHER,낚시꾼,PECHEUR,PESCATORE,
+T23_025,aa436f1da86e91ed36519a821accd5ba,00775CDA,ROCKER,ロッカー,ROQUEIRO,ROCKER,로커,ROCKEUR,ROCKETTARO,
+T23_026,99bec90f4fffb56da16f4e0d6e3fc736,00775CE2,MECHANIC,整備士,MECÂNICO,MECHANIKER,정비공,MECANICIEN,MECCANICO,
+T23_027,8a11f910dc4dbd6feeb597e2cad4dd62,00775CEB,MOTORCYCLIST,オートバイ乗り,MOTOQUEIRO,MOTORRADFAHRER,오토바이꾼,MOTOCYCLISTE,MOTOCICLISTA,
+T23_028,b27e2f3c0ee635ed5860dd92358779fb,00775CF5,TAMER,調教師,DOMADOR,DOMPTEUR,조련사,DOMPTEUR,DOMATORE,
+T23_029,e2ff3c30f9d00c9f701dd9970d1536c4,00775CFD,SUPER FOOL,大馬鹿者,SUPERNÉSCIO,SUPERNARR,왕바보,SUPERNIAIS,SUPERSCIOCCO,
 T23_030,78e2bdf38f6cf41f4a23266a4562cffc,00775D08,BROCK,タケシ,BROCK,ROCKO,웅,PIERRE,BROCK,
 T23_031,624c7e68e3b2000d4e47cef8e3dea77f,00775D0E,MISTY,カスミ,MISTY,MISTY,이슬,ONDINE,MISTY,
 T23_032,713644e69402067e6f828937283da145,00775D14,SURGE,マチス,SURGE,MAJOR BOB,마티스,MAJOR BOB,SURGE,
@@ -9918,60 +9918,60 @@ T2E_021,4d35b8f6bba16e0b64e35aa62980dd99,00779DB9,"Keeping your N64 on, remove t
 T2E_022,801ebe4bc04c93faa98bf351c6c4d492,00779E1F,The Game Boy Game Pak or the data has been changed.,ゲームボーイのカセットかデータが変わりました。,O cartucho de Game Boy ou os dados foram alterados.,Das Game Boy-Modul oder die Daten wurden geändert.,게임보이 카트리지 또는 데이터가 바뀌었습니다.,La cartouche Game Boy ou ses données ont changé.,La cassetta Game Boy o i dati sono stati cambiati.,
 T2E_023,017f685baae989c0bf248c34a87c791b,00779E57,Loading. Please wait...,読み込み中。しばらくお待ちください…,"Carregando. Por favor, aguarde...",Lädt. Bitte warten...,불러오는 중. 잠시 기다려 주세요...,Chargement. Patiente...,Caricamento. Attendi...,
 T2E_024,d41d8cd98f00b204e9800998ecf8427e,00779E76,,,,,,,,
-ROM_008763F4,a6a9231a06236dc96cacac6345c0ec2d,008763F4 00877584 00881394 00893874 00894A04 0089E814,BUGCATCH,虫取り,CAÇADOR,KÄFER,곤충채집,SCOUT,PIGLIA,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00876400,3ae414a3adac64b540598973c915b5fc,00876400 00877590 008813A0 00893880 00894A10 0089E820,BUGCATCHER,虫取り少年,CAÇA-BICHOS,KÄFERSAMMLER,곤충채집 소년,SCOUT,PIGLIAMOSCHE,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00876624,085ef7b7d6d1fda95cabe04aea58b62b,00876624 00876630 008777B4 008777C0 008815C4 00893AA4 00893AB0 00894C34 00894C40 0089EA44 0089EA50,YOUNGSTR,短パン,JOVEM,KNIRPS,반바지,GAMIN,GIOVANE,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00876854,a3d24a6f50a85267ce38d8b7db28f4fd,00876854 00884CD4 00893F04 008A1F24,NERD,理科系,NÉSCIO,NERD,괴짜,INTELLO,NERD,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00876860,e2ff3c30f9d00c9f701dd9970d1536c4,00876860 00884CE0 00893F10 008A1F30,SUPER NERD,理科系の男,SUPERNÉSCIO,SUPERNERD,대괴짜,INTELLO,SUPERNERD,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00876A84,74d3ac36401240e45822969c4ce1ab84,00876A84 00882534 00893CD4 0089F9B4,SAILOR,船乗り,MARINHO,MATROSE,뱃사공,MARIN,MARINO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00876A90,ea64958c97454ca431ee8d178ff4ac74,00876A90 00882540 00893CE0 0089F9C0,SAILOR,船乗り,MARINHEIRO,MATROSE,뱃사공,MARIN,MARINAIO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00876CB4,4935dec11fdb50c416c609168919165f,00876CB4 00881E94 00894134 0089F314,JR.♀,スカウト♀,JR.♀,JR.♀,주니어♀,JR.♀,JR.♀,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00876CC0,c80f85551769e2e521c2020b782dd4b2,00876CC0 00881EA0 00894140 0089F320,JR.TRAINER♀,ガールスカウト♀,TR. JR.♀,JR.TRAIN.♀,주니어♀,DRES. JR.♀,ALL. JR.♀,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00876EE4,60a6a97252a2c3c2be71316c5830c662,00876EE4 008817F4 00894364 0089EC74,JR.♂,スカウト♂,JR.♂,JR.♂,주니어♂,JR.♂,JR.♂,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00876EF0,e8d5d3f99e160c7eea2d3a5f65735e3c,00876EF0 00881800 00894370 0089EC80,JR.TRAINER♂,ボーイスカウト♂,TR. JR.♂,JR.TRAIN.♂,주니어♂,DRES. JR.♂,ALL. JR.♂,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00877114,89c2ae265b8f72c49e7757d51d54f250,00877114 00877120 008782A4 008782B0 00882E04 00882E10 00894594 008945A0 00895724 00895730 008A0284 008A0290,LASS,ミニスカ,GAROTA,GÖRE,짧은치마,FILLETTE,PUPA,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00877344,81d2516fda1d19a16261427d7d050863,00877344 008947C4,POKéMAN,マニア,POKéMAN,POKéMAN,마니아,POKéMAN,POKéMAN,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00877350,f5b703474ecd6926df59cf553d1dd1ca,00877350 008947D0,¼MANIAC,ポケモンマニア,¼MANÍACO,¼MANIAC,포켓몬마니아,¼MANIAQUE,¼MANIACO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_008779E4,b24e2d0a7ef607b92358343fa338a99c,008779E4 008779F0 008820C4 008820D0 00894E64 00894E70 0089F544 0089F550,SWIMMER,海パン,NADADOR,SCHWIMMER,수영선수,NAGEUR,NUOTAT.,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00877C14,e4405b52d2c9cd85a50d7fabcbeb68b2,00877C14 00877C20 008841D4 008841E0 00895094 008950A0 008A1654 008A1660,BURGLAR,泥棒,LADRÃO,DIEB,도둑,VOLEUR,LADRO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00877E44,fc2de98e6c1d19cac917a637d66edffb,00877E44 008954F4,ENGINEER,エンジニア,MECÂN.,TECHNIK,기술자,MECANO,MECCAN.,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00877E50,99bec90f4fffb56da16f4e0d6e3fc736,00877E50 00895500,ENGINEER,エンジニア,MECÂNICO,TECHNIKER,기술자,MECANICIEN,MECCANICO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00878074,f36df75d809d02f1c2fe20348ea7efd4,00878074 008952C4,HIKER,山男,MONTANHA,WANDERER,등산가,MONTAGN.,MONTAGNA,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00878080,15a65b59dcd7ee02ea1836ddc94fa503,00878080 008952D0,HIKER,山男,MONTANHISTA,WANDERER,등산가,MONTAGNARD,MONTANARO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_008784D4,c293c35715e40810b4400078b7e0fd09,008784D4 00881C64 00895954 0089F0E4,FISHER,釣り人,PESCA,ANGLER,낚시꾼,PECHEUR,PESCA,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_008784E0,e715854b2e00ace94bc2cb7f71f2e2f4,008784E0 00881C70 00895960 0089F0F0,FISHERMAN,釣り人,PESCADOR,ANGLER,낚시꾼,PECHEUR,PESCATORE,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00878714,1015d6ba2d1795a3d487198781c2ddf3,00878714 00878720 008798A4 008798B0 0087AA34 0087AA40 0087BBC4 0087BBD0 00883FA4 00883FB0 00895B94 00895BA0 00896D24 00896D30 00897EB4 00897EC0 00899044 00899050 008A1424 008A1430,CUE BALL,スキンヘッド,CARECA,ROWDY,빡빡이,LOUBARD,PELATO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00878944,21d1b87a16549b8f1674bc0a8ca464ed,00878944 00878950 00879AD4 00879AE0 0087AC64 0087AC70 0087BDF4 0087BE00 00885144 00885150 00896224 00896230 008973B4 008973C0 00898544 00898550 008996D4 008996E0 008A25C4 008A25D0,ROCKET,ロケット,ROCKET,ROCKET,로켓단,ROCKET,ROCKET,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00878B74,5b28239fef959444df752875725c08ce,00878B74 00879D04 0087AE94 0087C024 00884874 00895DC4 00896F54 008980E4 00899274 008A1CF4,BLKBELT,空手,CARATÊ,KARATE,태권왕,KARATE,KARATE,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00878B80,93a219e375374fa1bcd89a423c448cc1,00878B80 00879D10 0087AEA0 0087C030 00884880 00895DD0 00896F60 008980F0 00899280 008A1D00,BLACKBELT,空手王,CARATECA,KARATEKA,태권왕,KARATEKA,KARATEKA,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00878DA4,c9ec9c5513b7a254e3b4769160f9a7b1,00878DA4 00878DB0 00879F34 00879F40 0087B0C4 0087B0D0 0087C254 0087C260 00895FF4 00896000 00897184 00897190 00898314 00898320 008994A4 008994B0,GAMBLER,ギャンブラー,JOGADOR,SPIELER,겜블러,PARIEUR,GIOCAT.,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00878FD4,683be0dcc848d2ec201fb7a9c06c3aa3,00878FD4 0087A164 0087B2F4 0087C484 00883264 00896684 00897814 008989A4 00899B34 008A06E4,COOL♀,エリート♀,LEGAL♀,ASS♀,엘리트♀,TOP♀,ASSO♀,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00878FE0,445975657b563ef9fe2e28c5e0bdb16c,00878FE0 0087A170 0087B300 0087C490 00883270 00896690 00897820 008989B0 00899B40 008A06F0,COOLTRNR♀,エリートトレーナー♀,TR. LEGAL♀,ASS-TRAIN.♀,엘리트♀,TOPDRESS.♀,ALL. ASSO♀,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00879204,384d282972b25c45596179440469d6d6,00879204 0087A394 0087B524 0087C6B4 008968B4 00897A44 00898BD4 00899D64,BIRDKPR,鳥使い,ORNITO,VOGEL,새조련사,ORNITHO,ORNITO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00879210,00c05f836c49705820b263d7eed9baca,00879210 0087A3A0 0087B530 008968C0 00897A50 00898BE0 00899D70,BIRDKEEPER,鳥使い,ORNITÓLOGO,VOGELFÄNGER,새조련사,ORNITHOLOGUE,ORNITOLOGO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00879434,333c5947cad81eb82070f3b97980cf25,00879434 0087A5C4 0087B754 0087C8E4 00885374 00896454 008975E4 00898774 00899904 008A27F4,SCIENT.,研究員,CIÊNCIA,FORSCH.,과학자,SAVANT,SCIENZA,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00879440,10819491542e96a0ece602588fc1ed9b,00879440 0087A5D0 0087B760 0087C8F0 00885380 00896460 008975F0 00898780 00899910 008A2800,SCIENTIST,研究員,CIENTISTA,FORSCHER,과학자,SCIENTIFIQUE,SCIENZIATO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00879664,e185329b1f78c41c0e0789e784ed2efd,00879664 0087A7F4 0087B984 0087CB14 008855A4 00896AE4 00897C74 00898E04 00899F94 008A2A24,COOL♂,エリート♂,LEGAL♂,ASS♂,엘리트♂,TOP♂,ASSO♂,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_00879670,9439922c953f475fa78ea50dd1b5c4b1,00879670 0087A800 0087B990 0087CB20 008855B0 00896AF0 00897C80 00898E10 00899FA0 008A2A30,COOLTRNR♂,エリートトレーナー♂,TR. LEGAL♂,ASS-TRAIN.♂,엘리트♂,TOPDRESS.♂,ALL. ASSO♂,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_0087C6C0,a08cf619267a6a575251c4c45d2b3174,0087C6C0,BIRDKEEPER,鳥使い,ORNITOLOGO,VOGELFÄNGER,새조련사,ORNITHO,ORNITOLOGO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_0087CD54,6d9599d615f7aa88b05579d1c6f31608,0087CD54 0087DEE4 0087F074 00880204 008836D4 0089A404 0089B594 0089C724 0089D8B4 008A0FB4,BIKER,暴走族,MOTOQ.,BIKER,폭주족,MOTARD,CENTAURO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_0087CD60,8a11f910dc4dbd6feeb597e2cad4dd62,0087CD60 0087DEF0 0087F080 00880210 008836E0 0089A410 0089B5A0 0089C730 0089D8C0 008A0FC0,BIKER,暴走族,MOTOQUEIRO,BIKER,폭주족,MOTARD,CENTAURO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_0087CF84,aa436f1da86e91ed36519a821accd5ba,0087CF84 0087CF90 0087E114 0087E120 0087F2A4 0087F2B0 00880434 00880440 00882764 00882770 0089A864 0089A870 0089B9F4 0089BA00 0089CB84 0089CB90 0089DD14 0089DD20 0089FBE4 0089FBF0,ROCKER,ロッカー,ROQUEIRO,ROCKER,로커,ROCKER,ROCKER,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_0087D1B4,fd00c4152567d6444361bd4d747e5e2f,0087D1B4 0087E344 0087F4D4 00880664 00883B34 0089A1D4 0089B364 0089C4F4 0089D684 008A0B54,JUGGLER,ジャグラー,MALABAR,JONGLEUR,저글러,JONGLEUR,GIOCOL.,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_0087D1C0,cad41b21a8ce5b517b5ca34579bf1276,0087D1C0 0087E350 0087F4E0 00880670 00883B40 0089A1E0 0089B370 0089C500 0089D690 008A0B60,JUGGLER,ジャグラー,MALABAR.,JONGLEUR,저글러,JONGLEUR,GIOCOLIERE,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_0087D3E4,543970b9288b902be394df02891b2e40,0087D3E4 0087D3F0 0087E574 0087E580 0087F704 0087F710 00880894 008808A0 00883034 00883040 0089ACC4 0089ACD0 0089BE54 0089BE60 0089CFE4 0089CFF0 0089E174 0089E180 008A04B4 008A04C0,BEAUTY,お姉さん,BELA,SCHÖNH.,아가씨,CANON,BELLA,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_0087D614,024377520a43ca476b86d86403e25d9e,0087D614 0087E7A4 0087F934 00880AC4 00884404 0089A634 0089B7C4 0089C954 0089DAE4 008A1884,CHANNLR,祈祷師,BRUXO,EXORZ.,기도사,EXORCIST,MEDIUM,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_0087D620,0a6fde3b994fea24f164a3daf541bad8,0087D620 0087E7B0 0087F940 00880AD0 00884410 0089A640 0089B7D0 0089C960 0089DAF0 008A1890,CHANNELER,祈祷師,EXORCISTA,EXORZISTIN,기도사,EXORCISTE,MEDIUM,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_0087D844,b27e2f3c0ee635ed5860dd92358779fb,0087D844 0087D850 0087E9D4 0087E9E0 0087FB64 0087FB70 00880CF4 00880D00 00883904 00883910 0089AEF4 0089AF00 0089C084 0089C090 0089D214 0089D220 0089E3A4 0089E3B0 008A0D84 008A0D90,TAMER,猛獣使い,DOMADOR,DOMPTEUR,조련사,DOMPTEUR,DOMATORE,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_0087DA74,b159e4eec276bf44ce70140bdc08ae12,0087DA74 0087DA80 0087EC04 0087EC10 0087FD94 0087FDA0 00880F24 00880F30 00884AA4 00884AB0 0089B124 0089B130 0089C2B4 0089C2C0 0089D444 0089D450 0089E5D4 0089E5E0 008A2154 008A2160,PSYCHIC,エスパー,MÉDIUM,MEDIUM,초능력자,MEDIUM,SENSIT.,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_0087DCA4,babedeb5ed9d59415de88d3f218c518b,0087DCA4 0087EE34 0087FFC4 00881154 00882994 0089AA94 0089BC24 0089CDB4 0089DF44 0089FE14,GENTLMN,ジェントル,SENHOR,HERR,신사,MONSIEUR,SIGNORE,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_0087DCB0,1c8dd1d958c8300df17eca1887afd350,0087DCB0 0087EE40 0087FFD0 00881160 008829A0 0089AAA0 0089BC30 0089CDC0 0089DF50 0089FE20,GENTLEMAN,ジェントルマン,CAVALHEIRO,GENTLEMAN,신사,GENTLEMAN,GENTILUOMO,COM trainer class/name in trainer data (12/40-byte fields)
-ROM_008815D0,15e7e9ea1a0266bb24805dc3bd5ad858,008815D0,"YOUNGSTER
-","短パン小僧
+ROM_008763F4,a6a9231a06236dc96cacac6345c0ec2d,008763F4 00877584 00881394 00893874 00894A04 0089E814,HUNTER,狩人,CAÇADOR,JÄGER,사냥꾼,CHASSEUR,CACCIATORE,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00876400,3ae414a3adac64b540598973c915b5fc,00876400 00877590 008813A0 00893880 00894A10 0089E820,BUG HUNTER,虫捕り,CAÇA-BICHOS,KÄFERJÄGER,벌레사냥꾼,CHASSE-BESTIOLES,CACCIAINSETTI,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00876624,085ef7b7d6d1fda95cabe04aea58b62b,00876624 00876630 008777B4 008777C0 008815C4 00893AA4 00893AB0 00894C34 00894C40 0089EA44 0089EA50,YOUTH,若者,JOVEM,JUNGE,젊은이,JEUNE,GIOVANE,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00876854,a3d24a6f50a85267ce38d8b7db28f4fd,00876854 00884CD4 00893F04 008A1F24,FOOL,愚か者,NÉSCIO,NARR,바보,NIAIS,SCIOCCO,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00876860,e2ff3c30f9d00c9f701dd9970d1536c4,00876860 00884CE0 00893F10 008A1F30,SUPER FOOL,大馬鹿者,SUPERNÉSCIO,SUPERNARR,왕바보,SUPERNIAIS,SUPERSCIOCCO,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00876A84,74d3ac36401240e45822969c4ce1ab84,00876A84 00882534 00893CD4 0089F9B4,MARINER,水兵,MARINHO,SEEMANN,선원,MARIN,MARINO,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00876A90,ea64958c97454ca431ee8d178ff4ac74,00876A90 00882540 00893CE0 0089F9C0,SAILOR,船乗り,MARINHEIRO,SEEMANN,뱃사람,MARIN,MARINAIO,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00876CB4,4935dec11fdb50c416c609168919165f,00876CB4 00881E94 00894134 0089F314,JR.♀,ジュニア♀,JR.♀,JR.♀,주니어♀,JR.♀,JR.♀,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00876CC0,c80f85551769e2e521c2020b782dd4b2,00876CC0 00881EA0 00894140 0089F320,JR. TRN.♀,ジュニアトレーナー♀,TR. JR.♀,JR.-TRAIN.♀,주니어트레이너♀,ENT. JR.♀,ALL. JR.♀,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00876EE4,60a6a97252a2c3c2be71316c5830c662,00876EE4 008817F4 00894364 0089EC74,JR.♂,ジュニア♂,JR.♂,JR.♂,주니어♂,JR.♂,JR.♂,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00876EF0,e8d5d3f99e160c7eea2d3a5f65735e3c,00876EF0 00881800 00894370 0089EC80,JR. TRN.♂,ジュニアトレーナー♂,TR. JR.♂,JR.-TRAIN.♂,주니어트레이너♂,ENT. JR.♂,ALL. JR.♂,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00877114,89c2ae265b8f72c49e7757d51d54f250,00877114 00877120 008782A4 008782B0 00882E04 00882E10 00894594 008945A0 00895724 00895730 008A0284 008A0290,GIRL,女の子,GAROTA,MÄDCHEN,소녀,FILLE,RAGAZZA,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00877344,81d2516fda1d19a16261427d7d050863,00877344 008947C4,POKéMAN,ポケマン,POKéMAN,POKéMAN,포켓맨,POKéMAN,POKéMAN,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00877350,f5b703474ecd6926df59cf553d1dd1ca,00877350 008947D0,¼MANIAC,ポケマニア,¼MANÍACO,¼MANIAK,포켓마니아,¼MANIAQUE,¼MANIACO,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_008779E4,b24e2d0a7ef607b92358343fa338a99c,008779E4 008779F0 008820C4 008820D0 00894E64 00894E70 0089F544 0089F550,SWIMMER,水泳選手,NADADOR,SCHWIMMER,수영선수,NAGEUR,NUOTATORE,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00877C14,e4405b52d2c9cd85a50d7fabcbeb68b2,00877C14 00877C20 008841D4 008841E0 00895094 008950A0 008A1654 008A1660,THIEF,泥棒,LADRÃO,DIEB,도둑,VOLEUR,LADRO,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00877E44,fc2de98e6c1d19cac917a637d66edffb,00877E44 008954F4,MECHANIC,メカ,MECÂN.,MECHANIK,정비,MECANO,MECCAN.,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00877E50,99bec90f4fffb56da16f4e0d6e3fc736,00877E50 00895500,MECHANIC,整備士,MECÂNICO,MECHANIKER,정비공,MECANICIEN,MECCANICO,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00878074,f36df75d809d02f1c2fe20348ea7efd4,00878074 008952C4,MOUNTAIN,山,MONTANHA,BERG,산사람,MONTAGNE,MONTAGNA,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00878080,15a65b59dcd7ee02ea1836ddc94fa503,00878080 008952D0,MOUNTAINEER,登山家,MONTANHISTA,BERGSTEIGER,등산가,ALPINISTE,ALPINISTA,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_008784D4,c293c35715e40810b4400078b7e0fd09,008784D4 00881C64 00895954 0089F0E4,FISHING,釣り,PESCA,FISCHEN,낚시,PECHE,PESCA,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_008784E0,e715854b2e00ace94bc2cb7f71f2e2f4,008784E0 00881C70 00895960 0089F0F0,FISHERMAN,漁師,PESCADOR,FISCHER,낚시꾼,PECHEUR,PESCATORE,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00878714,1015d6ba2d1795a3d487198781c2ddf3,00878714 00878720 008798A4 008798B0 0087AA34 0087AA40 0087BBC4 0087BBD0 00883FA4 00883FB0 00895B94 00895BA0 00896D24 00896D30 00897EB4 00897EC0 00899044 00899050 008A1424 008A1430,BALDY,はげ頭,CARECA,GLATZE,대머리,CHAUVE,CALVO,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00878944,21d1b87a16549b8f1674bc0a8ca464ed,00878944 00878950 00879AD4 00879AE0 0087AC64 0087AC70 0087BDF4 0087BE00 00885144 00885150 00896224 00896230 008973B4 008973C0 00898544 00898550 008996D4 008996E0 008A25C4 008A25D0,ROCKET,ロケット,ROCKET,ROCKET,로켓,ROCKET,ROCKET,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00878B74,5b28239fef959444df752875725c08ce,00878B74 00879D04 0087AE94 0087C024 00884874 00895DC4 00896F54 008980E4 00899274 008A1CF4,KARATE,空手,CARATÊ,KARATE,가라테,KARATE,KARATE,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00878B80,93a219e375374fa1bcd89a423c448cc1,00878B80 00879D10 0087AEA0 0087C030 00884880 00895DD0 00896F60 008980F0 00899280 008A1D00,KARATEKA,空手家,CARATECA,KARATEKA,가라테가,KARATEKA,KARATEKA,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00878DA4,c9ec9c5513b7a254e3b4769160f9a7b1,00878DA4 00878DB0 00879F34 00879F40 0087B0C4 0087B0D0 0087C254 0087C260 00895FF4 00896000 00897184 00897190 00898314 00898320 008994A4 008994B0,PLAYER,プレイヤー,JOGADOR,SPIELER,도박꾼,JOUEUR,GIOCATORE,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00878FD4,683be0dcc848d2ec201fb7a9c06c3aa3,00878FD4 0087A164 0087B2F4 0087C484 00883264 00896684 00897814 008989A4 00899B34 008A06E4,COOL♀,クール♀,LEGAL♀,COOL♀,멋쟁이♀,COOL♀,FIGO♀,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00878FE0,445975657b563ef9fe2e28c5e0bdb16c,00878FE0 0087A170 0087B300 0087C490 00883270 00896690 00897820 008989B0 00899B40 008A06F0,COOL TRN.♀,クールトレーナー♀,TR. LEGAL♀,COOL-TRAIN.♀,멋쟁이트레이너♀,ENT. COOL♀,ALL. FIGO♀,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00879204,384d282972b25c45596179440469d6d6,00879204 0087A394 0087B524 0087C6B4 008968B4 00897A44 00898BD4 00899D64,ORNITHO,鳥類,ORNITO,ORNITHO,조류,ORNITHO,ORNITO,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00879210,00c05f836c49705820b263d7eed9baca,00879210 0087A3A0 0087B530 008968C0 00897A50 00898BE0 00899D70,ORNITHOLOGIST,鳥類学者,ORNITÓLOGO,ORNITHOLOGE,조류학자,ORNITHOLOGUE,ORNITOLOGO,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00879434,333c5947cad81eb82070f3b97980cf25,00879434 0087A5C4 0087B754 0087C8E4 00885374 00896454 008975E4 00898774 00899904 008A27F4,SCIENCE,科学,CIÊNCIA,WISSENSCH.,과학,SCIENCE,SCIENZA,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00879440,10819491542e96a0ece602588fc1ed9b,00879440 0087A5D0 0087B760 0087C8F0 00885380 00896460 008975F0 00898780 00899910 008A2800,SCIENTIST,科学者,CIENTISTA,WISSENSCHAFTLER,과학자,SCIENTIFIQUE,SCIENZIATO,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00879664,e185329b1f78c41c0e0789e784ed2efd,00879664 0087A7F4 0087B984 0087CB14 008855A4 00896AE4 00897C74 00898E04 00899F94 008A2A24,COOL♂,クール♂,LEGAL♂,COOL♂,멋쟁이♂,COOL♂,FIGO♂,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_00879670,9439922c953f475fa78ea50dd1b5c4b1,00879670 0087A800 0087B990 0087CB20 008855B0 00896AF0 00897C80 00898E10 00899FA0 008A2A30,COOL TRN.♂,クールトレーナー♂,TR. LEGAL♂,COOL-TRAIN.♂,멋쟁이트레이너♂,ENT. COOL♂,ALL. FIGO♂,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_0087C6C0,a08cf619267a6a575251c4c45d2b3174,0087C6C0,ORNITHOLOGIST,鳥類学者,ORNITOLOGO,ORNITHOLOGE,조류학자,ORNITHOLOGUE,ORNITOLOGO,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_0087CD54,6d9599d615f7aa88b05579d1c6f31608,0087CD54 0087DEE4 0087F074 00880204 008836D4 0089A404 0089B594 0089C724 0089D8B4 008A0FB4,BIKER,バイク乗り,MOTOQ.,BIKER,오토바이,MOTARD,MOTOCICLISTA,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_0087CD60,8a11f910dc4dbd6feeb597e2cad4dd62,0087CD60 0087DEF0 0087F080 00880210 008836E0 0089A410 0089B5A0 0089C730 0089D8C0 008A0FC0,MOTORCYCLIST,オートバイ乗り,MOTOQUEIRO,MOTORRADFAHRER,오토바이꾼,MOTOCYCLISTE,MOTOCICLISTA,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_0087CF84,aa436f1da86e91ed36519a821accd5ba,0087CF84 0087CF90 0087E114 0087E120 0087F2A4 0087F2B0 00880434 00880440 00882764 00882770 0089A864 0089A870 0089B9F4 0089BA00 0089CB84 0089CB90 0089DD14 0089DD20 0089FBE4 0089FBF0,ROCKER,ロッカー,ROQUEIRO,ROCKER,로커,ROCKEUR,ROCKETTARO,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_0087D1B4,fd00c4152567d6444361bd4d747e5e2f,0087D1B4 0087E344 0087F4D4 00880664 00883B34 0089A1D4 0089B364 0089C4F4 0089D684 008A0B54,JUGGLER,曲芸,MALABAR,JONGLEUR,곡예,JONGLEUR,GIOCOLIERE,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_0087D1C0,cad41b21a8ce5b517b5ca34579bf1276,0087D1C0 0087E350 0087F4E0 00880670 00883B40 0089A1E0 0089B370 0089C500 0089D690 008A0B60,JUGGLER,曲芸師,MALABAR.,JONGLEUR,곡예사,JONGLEUR,GIOCOLIERE,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_0087D3E4,543970b9288b902be394df02891b2e40,0087D3E4 0087D3F0 0087E574 0087E580 0087F704 0087F710 00880894 008808A0 00883034 00883040 0089ACC4 0089ACD0 0089BE54 0089BE60 0089CFE4 0089CFF0 0089E174 0089E180 008A04B4 008A04C0,BEAUTY,美女,BELA,SCHÖNE,미녀,BELLE,BELLA,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_0087D614,024377520a43ca476b86d86403e25d9e,0087D614 0087E7A4 0087F934 00880AC4 00884404 0089A634 0089B7C4 0089C954 0089DAE4 008A1884,WARLOCK,魔法使い,BRUXO,HEXER,주술사,SORCIER,STREGONE,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_0087D620,0a6fde3b994fea24f164a3daf541bad8,0087D620 0087E7B0 0087F940 00880AD0 00884410 0089A640 0089B7D0 0089C960 0089DAF0 008A1890,EXORCIST,祓魔師,EXORCISTA,EXORZIST,퇴마사,EXORCISTE,ESORCISTA,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_0087D844,b27e2f3c0ee635ed5860dd92358779fb,0087D844 0087D850 0087E9D4 0087E9E0 0087FB64 0087FB70 00880CF4 00880D00 00883904 00883910 0089AEF4 0089AF00 0089C084 0089C090 0089D214 0089D220 0089E3A4 0089E3B0 008A0D84 008A0D90,TAMER,調教師,DOMADOR,DOMPTEUR,조련사,DOMPTEUR,DOMATORE,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_0087DA74,b159e4eec276bf44ce70140bdc08ae12,0087DA74 0087DA80 0087EC04 0087EC10 0087FD94 0087FDA0 00880F24 00880F30 00884AA4 00884AB0 0089B124 0089B130 0089C2B4 0089C2C0 0089D444 0089D450 0089E5D4 0089E5E0 008A2154 008A2160,MEDIUM,霊媒師,MÉDIUM,MEDIUM,영매,MEDIUM,MEDIUM,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_0087DCA4,babedeb5ed9d59415de88d3f218c518b,0087DCA4 0087EE34 0087FFC4 00881154 00882994 0089AA94 0089BC24 0089CDB4 0089DF44 0089FE14,SIR,旦那,SENHOR,HERR,나리,MONSIEUR,SIGNORE,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_0087DCB0,1c8dd1d958c8300df17eca1887afd350,0087DCB0 0087EE40 0087FFD0 00881160 008829A0 0089AAA0 0089BC30 0089CDC0 0089DF50 0089FE20,GENTLEMAN,紳士,CAVALHEIRO,EDELMANN,신사,GENTILHOMME,CAVALIERE,COM trainer class/name in trainer data (12/40-byte fields)
+ROM_008815D0,15e7e9ea1a0266bb24805dc3bd5ad858,008815D0,"YOUTH
+","若者
 ","JOVEM
-","KNIRPS
-","반바지
-","GAMIN
+","JUNGE
+","젊은이
+","JEUNE
 ","GIOVANE
 ",COM trainer class/name in trainer data (12/40-byte fields)
 ROM_00881A24,78e2bdf38f6cf41f4a23266a4562cffc,00881A24 00881A30 0089EEA4 0089EEB0,BROCK,タケシ,BROCK,ROCKO,웅,PIERRE,BROCK,COM trainer class/name in trainer data (12/40-byte fields)
