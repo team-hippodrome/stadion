@@ -249,12 +249,12 @@ BOX?","어느 박스를
 고를까요?","Choisir quelle
 BOITE ?","Quale
 BOX?",
-T02_011,ab9f06a29ae344ebe92ec107388c5efa,007841C1,No hay Pokémon para mover.,いどうする ポケモンが いません。,Não há Pokémon para mover.,Keine Pokémon zum Bewegen da.,이동할 포켓몬이 없습니다.,Aucun Pokémon à déplacer.,Non ci sono Pokémon da spostare.,
-T02_012,c53d1ce6f86d16d9b0953eca5b1d089a,007841DF,No hay Pokémon para reordenar.,ならびかえる ポケモンが いません。,Não há Pokémon para reordenar.,Keine Pokémon zum Ordnen da.,정렬할 포켓몬이 없습니다.,Aucun Pokémon à trier.,Non ci sono Pokémon da riordinare.,
-T02_013,8e5d6227a34bc485dac978ea6a5d74b9,00784201,No hay Pokémon para cambiar.,いれかえる ポケモンが いません。,Não há Pokémon para trocar.,Keine Pokémon zum Vertauschen da.,교체할 포켓몬이 없습니다.,Aucun Pokémon à échanger.,Non ci sono Pokémon da scambiare.,
-T02_014,5f798321a3cd43aca5928a0dd27dad12,00784223,No hay Pokémon para revisar.,みる ポケモンが いません。,Não há Pokémon para ver.,Keine Pokémon zum Ansehen da.,확인할 포켓몬이 없습니다.,Aucun Pokémon à voir.,Non ci sono Pokémon da esaminare.,
-T02_015,ab283a9886218689c62fc152cd2fbf7b,00784242,No hay Pokémon para liberar.,にがす ポケモンが いません。,Não há Pokémon para soltar.,Keine Pokémon zum Freilassen da.,놓아줄 포켓몬이 없습니다.,Aucun Pokémon à relâcher.,Non ci sono Pokémon da liberare.,
-T02_016,c8eaea95f67d558f4c9c3343c08b9b0e,00784263,El destino está lleno de Pokémon.,いどうさきは ポケモンで いっぱいです。,O destino está cheio de Pokémon.,Am Ziel ist kein Platz mehr.,이동할 곳이 포켓몬으로 가득합니다.,La destination est pleine.,La destinazione è piena di Pokémon.,
+T02_011,ab9f06a29ae344ebe92ec107388c5efa,007841C1,No hay Pokémon para mover.,いどうする ポケモンが いません。,Não há Pokémon para mover.,Keine Pokémon zum Bewegen da.,이동할 포켓몬이 없습니다.,Il n'y a aucun Pokémon à bouger.,Nessun Pokémon da spostare.,
+T02_012,c53d1ce6f86d16d9b0953eca5b1d089a,007841DF,No hay Pokémon para reordenar.,ならびかえる ポケモンが いません。,Não há Pokémon para reordenar.,Keine Pokémon zum Ordnen da.,정렬할 포켓몬이 없습니다.,Aucun Pokémon à trier.,Nessun Pokémon da riordinare.,
+T02_013,8e5d6227a34bc485dac978ea6a5d74b9,00784201,No hay Pokémon para cambiar.,いれかえる ポケモンが いません。,Não há Pokémon para trocar.,Keine Pokémon zum Vertauschen da.,교체할 포켓몬이 없습니다.,Il n'y a aucun Pokémon à échanger.,Nessun Pokémon da scambiare.,
+T02_014,5f798321a3cd43aca5928a0dd27dad12,00784223,No hay Pokémon para revisar.,みる ポケモンが いません。,Não há Pokémon para ver.,Keine Pokémon zum Ansehen da.,확인할 포켓몬이 없습니다.,Il n'y a aucun Pokémon à examiner.,Non ci sono Pokémon da esaminare.,
+T02_015,ab283a9886218689c62fc152cd2fbf7b,00784242,No hay Pokémon para liberar.,にがす ポケモンが いません。,Não há Pokémon para soltar.,Keine Pokémon zum Freilassen da.,놓아줄 포켓몬이 없습니다.,Il n'y a aucun Pokémon à relâcher.,Nessun Pokémon da liberare.,
+T02_016,c8eaea95f67d558f4c9c3343c08b9b0e,00784263,No caben más Pokémon en el destino.,いどうさきは ポケモンで いっぱいです。,O destino está cheio de Pokémon.,Am Ziel ist kein Platz mehr.,이동할 곳이 포켓몬으로 가득합니다.,La destination est pleine.,La destinazione è piena di Pokémon.,
 T02_017,984510d8e65486dd020b0775cfcf44a9,00784287,Guardado en #37.,#37へ あずけた,Guardado em #37.,In #37 abgelegt.,#37에 맡겼습니다.,Stocké dans #37.,Messo in #37.,
 T02_018,9b0a8abfff4a25fa07d73746ff59c822,00784296,PS:,HP：,PS:,KP:,HP:,PV:,PS:,
 T02_019,c6ddd0f72ff2fd344693b9ca8d483871,0078429A,ATAQUE,こうげき,ATAQUE,ANGRIFF,공격,ATTAQUE,ATTACCO,
@@ -317,7 +317,7 @@ T03_007,19acf887e4a9d876ff0e27bc36f64f88,007844FA,¿Qué CAJA?,どの ボック�
 T03_008,24c24a34330df185b9e672e27081b3b4,0078450C,No hay objetos para mover.,いどうする どうぐが ない。,Não há itens para mover.,Keine Items zum Bewegen da.,이동할 도구가 없습니다.,Aucun objet à déplacer.,Nessuno strumento da spostare.,
 T03_009,bfb52b0a51093c1f3c914bfb75418d05,00784528,No hay objetos para reordenar.,ならびかえる どうぐが ありません。,Não há itens para reordenar.,Keine Items zum Ordnen da.,정렬할 도구가 없습니다.,Aucun objet à trier.,Nessuno strumento da riordinare.,
 T03_010,8ddc0e1dd823a3ffd37607a8ff89086f,00784548,No hay objetos para cambiar.,いれかえる どうぐが ありません。,Não há itens para trocar.,Keine Items zum Vertauschen da.,교체할 도구가 없습니다.,Aucun objet à échanger.,Non ci sono strumenti da scambiare.,
-T03_011,c399df23b5aa36b9ec3f4e8a60ec5f7f,00784568,El destino está lleno de objetos.,いどうさきは どうぐで いっぱいです。,O destino está cheio de itens.,Am Ziel ist kein Platz für Items.,이동할 곳이 도구로 가득합니다.,La destination est pleine.,La destinazione è piena di strumenti.,
+T03_011,c399df23b5aa36b9ec3f4e8a60ec5f7f,00784568,No caben más objetos en el destino.,いどうさきは どうぐで いっぱいです。,O destino está cheio de itens.,Am Ziel ist kein Platz für Items.,이동할 곳이 도구로 가득합니다.,La destination est pleine.,La destinazione è piena di strumenti.,
 T03_012,3bb3efb58d57179a8c6886d6400ac9ef,0078458A,Ese objeto lo necesita un Pokémon GB.,GBの ポケモンが つかう どうぐです。,Pokémon do GB precisam desse item.,Das Item braucht ein GB-Pokémon.,GB 포켓몬에게 필요한 도구입니다.,Objet requis par un Pokémon GB.,Strumento necessario ai Pokémon GB.,
 T03_013,12927599b538506dea9c9239eaab5f45,007845AD,"No hay espacio en el cartucho N64.
 Solo hay CAJAS de objetos para cuatro
@@ -359,11 +359,11 @@ T04_002,7c9674612b5189af774cdf4d6e0b4319,00784793,Reordenar CAJA,ボックスな
 T04_003,aa54e8d5b7ae18d1d4d00633ddac5e23,007847A0,Cambiar CAJA,ボックスいれかえ,Trocar CAIXA,BOX vertauschen,박스 교체,Échanger BOITE,Scambia BOX,
 T04_004,00e80b5a66c6b30cdfa373f920dfcb08,007847AD,Ver CAJA,ボックスを みる,Ver CAIXA,BOX ansehen,박스 확인,Voir BOITE,Esamina BOX,
 T04_005,f44de6e200dc134a6ee13b67bad4702b,007847B7,Volver al menú,メニューに もどる,Voltar ao Menu,Zurück zum Menü,메뉴로 돌아가기,Retour au menu,Torna al menu,
-T04_006,2bf533767d4b30468385c613a9f1e373,007847C6,No hay CAJAS para mover.,いどうする ボックスが ない。,Não há CAIXAS para mover.,Keine BOXEN zum Bewegen da.,이동할 박스가 없습니다.,Aucune BOITE à déplacer.,Non ci sono BOX da spostare.,
-T04_007,9f8b7149406d90f05c39dfad51959cab,007847E2,No hay CAJAS para reordenar.,ならびかえる ボックスが ない。,Não há CAIXAS para reordenar.,Keine BOXEN zum Ordnen da.,정렬할 박스가 없습니다.,Aucune BOITE à trier.,Non ci sono BOX da riordinare.,
-T04_008,1b52013f9ad9331fad8d5c7b08751cc5,00784802,No hay CAJAS para cambiar.,いれかえる ボックスが ない。,Não há CAIXAS para trocar.,Keine BOXEN zum Vertauschen da.,교체할 박스가 없습니다.,Aucune BOITE à échanger.,Non ci sono BOX da scambiare.,
+T04_006,2bf533767d4b30468385c613a9f1e373,007847C6,No hay CAJAS para mover.,いどうする ボックスが ない。,Não há CAIXAS para mover.,Keine BOXEN zum Bewegen da.,이동할 박스가 없습니다.,Aucune BOITE à déplacer.,Nessun BOX da spostare.,
+T04_007,9f8b7149406d90f05c39dfad51959cab,007847E2,No hay CAJAS para reordenar.,ならびかえる ボックスが ない。,Não há CAIXAS para reordenar.,Keine BOXEN zum Ordnen da.,정렬할 박스가 없습니다.,Aucune BOITE à trier.,Nessun BOX da riordinare.,
+T04_008,1b52013f9ad9331fad8d5c7b08751cc5,00784802,No hay CAJAS para cambiar.,いれかえる ボックスが ない。,Não há CAIXAS para trocar.,Keine BOXEN zum Vertauschen da.,교체할 박스가 없습니다.,Aucune BOITE à échanger.,Nessun BOX da scambiare.,
 T04_009,ce3aabafae3a7e474ddead04434ac978,00784822,No hay CAJAS para revisar.,みる ボックスが ありません。,Não há CAIXAS para ver.,Keine BOXEN zum Ansehen da.,확인할 박스가 없습니다.,Aucune BOITE à voir.,Non ci sono BOX da esaminare.,
-T04_010,447e6320d701dd249530ab195171b178,0078483F,La CAJA de destino está llena.,いどうさきが いっぱいです。,A CAIXA de destino está cheia.,Die Ziel-BOX ist voll.,이동할 박스가 가득 찼습니다.,BOITE de destination pleine.,Il BOX di destinazione è pieno.,
+T04_010,447e6320d701dd249530ab195171b178,0078483F,La CAJA elegida ya está llena.,いどうさきが いっぱいです。,A CAIXA de destino está cheia.,Die Ziel-BOX ist voll.,이동할 박스가 가득 찼습니다.,BOITE de destination pleine.,Il BOX di destinazione è pieno.,
 T04_011,e5f3da4fff718be7bdc429a41529ff02,0078485C,Cartucho GB,GBカセット,Cartucho GB,GB-Modul,GB 팩,Cartouche GB,Cassetta GB,
 T04_012,5dcb204dd3e23581af1d7dd75d5769c3,00784868,Cartucho 64,64カセット,Cartucho 64,64-Modul,64 팩,Cartouche 64,Cassetta 64,
 T04_013,24d8cc79c3bf03f11eeedb22eb7e2448,00784874,CAJA 1,ボックス1,CAIXA 1,BOX 1,박스 1,BOITE 1,BOX 1,
@@ -430,9 +430,9 @@ T05_021,79cba1185463850dedba31f172f1dc5b,00784BD4,GB,GB,GB,GB,GB,GB,GB,
 T05_022,7ac2840a241d00a82aa085fa66622bd1,00784BD7,N64,64,N64,N64,N64,N64,N64,
 T05_023,fcbf68c1bd09d2477300df75b68e9f6a,00784BDB,Lista de A a Z,あいうえおじゅん,Ordem de A a Z,Von A bis Z,가나다순,Liste de A à Z,Ordine A-Z,
 T05_024,5e02950b8236f99ae0fd8bbc50c5a718,00784BE7,Lista por N.º,ばんごうじゅん,Ordem por Nº,Nach Nr. ordnen,번호순,Liste par No.,Ordine N.,
-T05_025,b12a24443951b41e879f7687ded25b53,00784BF3,Agrupar Pokémon por COPA,カップべつに わける,Agrupar Pokémon por COPA,Nach CUP gruppieren,컵별로 포켓몬 분류,Classer par COUPE,Raggruppa per COPPA,
+T05_025,b12a24443951b41e879f7687ded25b53,00784BF3,Ordenar Pokémon según COPA,カップべつに わける,Agrupar Pokémon por COPA,Nach CUP gruppieren,컵별로 포켓몬 분류,Classer par COUPE,Raggruppa per COPPA,
 T05_026,6e8db97182487d068fff78c271127d52,00784C08,Usar objeto,どうぐを つかう,Usar item,Item nutzen,도구 사용,Utiliser,Usa str.,
-T05_027,7abeeb1e2bb263478b5372af822c6067,00784C11,Elige Pokémon para listar,リストに だす ポケモンを えらぶ,Escolher Pokémon a listar,Pokémon für Liste wählen,표시할 포켓몬 선택,Choisir Pokémon à lister,Scegli i Pokémon da elencare,
+T05_027,7abeeb1e2bb263478b5372af822c6067,00784C11,Elige Pokémon para listar,リストに だす ポケモンを えらぶ,Escolher Pokémon a listar,Pokémon für Liste wählen,표시할 포켓몬 선택,Pokémon à afficher ?,Scegli i Pokémon da elencare,
 T05_028,b4056f7b25d46c5868f0c05a2cf0db76,00784C2D,Cancelar selección,せんたくを とりけす,Cancelar seleção,Auswahl aufheben,선택 취소,Annuler sélection,Annulla selezioni,
 T05_029,5e02950b8236f99ae0fd8bbc50c5a718,00784C3F,Lista por N.º,ばんごうじゅん,Ordem por Nº,Nach Nr. ordnen,번호순,Liste par No.,Ordine N.,
 T05_030,5c4fcfd310374109b90a9958fee5d687,00784C4B,Orden descendente,おおきい じゅんに ならべる,Ordem decrescente,Absteigend ordnen,내림차순으로 표시,Ordre décroissant,Ordine decrescente,
@@ -447,7 +447,7 @@ T05_038,ebc96d1515a6b6fdbcce740c8d1c86c0,00784CC7,Cancelar TIPO,タイプを と
 T05_039,6bc362dbf494c61ea117fe3c71ca48a5,00784CD3,Mover,いどう,Mover,Bewegen,이동,Déplacer,Sposta,
 T05_040,6e8db97182487d068fff78c271127d52,00784CD8,Usar objeto,どうぐを つかう,Usar item,Item nutzen,도구 사용,Utiliser,Usa str.,
 T05_041,060bf2d587991d8f090a1309b285291c,00784CE1,Ver,みる,Ver,Ansehen,확인,Voir,Esamina,
-T05_042,b12a24443951b41e879f7687ded25b53,00784CE7,Agrupar Pokémon por COPA,カップべつに わける,Agrupar Pokémon por COPA,Nach CUP gruppieren,컵별로 포켓몬 분류,Classer par COUPE,Raggruppa per COPPA,
+T05_042,b12a24443951b41e879f7687ded25b53,00784CE7,Ordenar Pokémon según COPA,カップべつに わける,Agrupar Pokémon por COPA,Nach CUP gruppieren,컵별로 포켓몬 분류,Classer par COUPE,Raggruppa per COPPA,
 T05_043,55f6afba25069d0f7d5ca1fca261b697,00784CFC,Colores,いろわけ,Cores,Farbcode,색깔 구분,Couleurs,Colori,
 T05_044,7ec25f77a73a480d5142c5ca57ceff36,00784D09,COPA PETIT,プチカップ,COPA PETIT,PETIT-CUP,쁘띠컵,PETITE COUPE,COPPA PETIT,
 T05_045,89f27e59f94bf02b622457aa8045c782,00784D13,COPA PIKA,ピカカップ,COPA PIKA,PIKA-CUP,피카컵,PIKA COUPE,COPPA PIKA,
@@ -586,7 +586,7 @@ T06_020,519663c80637790933c57c732aa68047,00785188,PRECISIÓN/,めいちゅう／
 T06_021,d20caec3b48a1eef164cb4ca81ba2587,00785192,Nv,L,Nv,L,L,N,Lv,
 T06_022,fbd39fe0ecd01afaf01ea1957ef4a57c,00785194,N.º,No.,Nº,Nr.,No.,No.,N.,
 T07_000,a8e68b7b05fcf9f1a28b2f1acb6bec5d,007851CC,Los datos fueron alterados.,データが かわっています。,Os dados foram alterados.,Die Daten wurden verändert.,데이터가 변경되었습니다.,Les données ont été modifiées.,I dati sono stati alterati.,
-T07_001,56e0d99c1ddde6f199642d88fe2552ea,007851E7,No llevas ningún Pokémon contigo.,ポケモンを 1ぴきも もっていません。,Você não tem nenhum Pokémon.,Du hast überhaupt keine Pokémon dabei.,가진 포켓몬이 한 마리도 없습니다.,Vous n'avez aucun Pokémon sur vous.,Non hai nessun Pokémon con te.,
+T07_001,56e0d99c1ddde6f199642d88fe2552ea,007851E7,No llevas ningún Pokémon contigo.,ポケモンを 1ぴきも もっていません。,Você não tem nenhum Pokémon.,Du hast überhaupt keine Pokémon dabei.,가진 포켓몬이 한 마리도 없습니다.,Vous n'avez aucun Pokémon sur vous.,Non porti con te nessun Pokémon.,
 T07_002,575f5f86d2c7ea113c6710c1037c4465,0078520C,Guardando...,セーブちゅう...,Salvando...,Speichere...,저장 중...,Sauvegarde...,Salvo...,
 T07_003,3689fb90a4a440c6a3a46736ad63a885,00785216,Guardar y salir,セーブして おわる,Salvar e sair,"Speichern, Ende",저장하고 끝내기,Sauver et quitter,Salva ed esci,
 T07_004,572ffabe3de1249c5a63f0cfa85b2fa1,00785224,Salir sin guardar,セーブしないで おわる,Sair sem salvar,Beenden ohne Speichern,저장하지 않고 끝내기,Quitter sans sauver,Esci senza salvare,
@@ -642,7 +642,7 @@ T09_004,b8a0bdd7c6ae11efbd1105c7658f9f2b,007855A1,NIDO DE #25,#25の すみか,N
 T09_005,37d1b4c8e85daf488ff2c18b5631bced,007855AC,MAPA GB,GBマップ,MAPA GB,GB-KARTE,GB 지도,CARTE GB,MAPPA GB,
 T09_006,c3f30a1af0a4e74088e73aa811fb57c9,007855B3,SIN MAPA GB,GBマップ オフ,SEM MAPA GB,GB-KARTE AUS,GB 지도 끄기,CARTE GB OFF,MAPPA GB OFF,
 T09_007,395b73b7a394d7a89c19865b80e0726f,007855BE,ZONA DESCONOCIDA,ばしょ ふめい,ÁREA INCERTA,GEBIET UNBEKANNT,지역 불명,ZONE INCONNUE,ZONA IGNOTA,
-T09_008,86e01ac73715cc0f4fc2d5eb090d271d,007855CB,Usa la CAÑA VIEJA donde sea.,ボロのつりざおで どこでも,Use a OLD ROD onde for.,Benutze überall die ANGEL.,낡은낚싯대: 어디서나 가능,CANNE partout.,Usa l'AMO VECCHIO ovunque.,
+T09_008,86e01ac73715cc0f4fc2d5eb090d271d,007855CB,Usa la CAÑA VIEJA donde sea.,ボロのつりざおで どこでも,Use a OLD ROD onde for.,Benutze überall die ANGEL.,낡은낚싯대: 어디서나 가능,CANNE partout.,L'AMO VECCHIO si usa ovunque.,
 T09_009,a0db49ba470c1c9ae2128c3470339153,007855E4,Nivel,レベル,Nível,Level,레벨,Niveau,Livello,
 T09_010,0d2765b30694ee9f4fb7be2ae3b676dc,007855EA,Probabilidad,かくりつ,Chance,Chance,확률,Probabilité,Probabilità,
 T09_011,80ba31cc9d111c8ef880737a23ab0c54,007855F6,Quizás,たぶん,Talvez,Eventuell,혹시,Peut-être,Forse,
@@ -5646,8 +5646,8 @@ tiempos prehistóricos.","おおむかしの きの やにが
 かせきに なったもの。","Resina fossilizada de uma árvore da
 pré-história.","Das versteinerte Harz eines Baumes
 aus der Urzeit.","선사 시대 나무의 수액이
-굳어서 된 화석.","La résine fossilisée d'un arbre
-préhistorique.","La resina fossile di un albero
+굳어서 된 화석.","Résine d'arbre préhistorique
+fossilisée.","La resina fossile di un albero
 preistorico.",
 T0C_031,cf34ed61d52cb080ab84d44cd331b89d,0078E0C1,"Una PIEDRA que hace evolucionar a
 ciertos tipos de Pokémon.","ある しゅるいの ポケモンを
@@ -6039,7 +6039,7 @@ movimientos del Pokémon elegido.","えらんだ ポケモンの すべての
 do Pokémon escolhido.","Füllt die AP aller Attacken des
 gewählten Pokémon vollständig auf.","고른 포켓몬의 모든 기술의
 PP를 모두 회복한다.","Restaure tous les PP de toutes les
-capacités du Pokémon choisi.","Ripristina tutti i PP di tutte le mosse
+capacités du Pokémon choisi.","Ricarica del tutto i PP delle mosse
 del Pokémon scelto.",
 T0C_083,d41d8cd98f00b204e9800998ecf8427e,0078EB77,,,,,,,,
 T0C_084,d41d8cd98f00b204e9800998ecf8427e,0078EB78,,,,,,,,
@@ -6159,7 +6159,7 @@ PP/30 いりょく/50 めいちゅう/95","CUT
 NORMAL PP/30 POD/50 PRECISÃO/95","ZERSCHNEIDER
 NORMAL AP/30 STÄ/50 GENAU/95","풀베기
 노말 PP/30 위력/50 명중/95","COUPE
-NORMAL PP/30 PUI/50 PRECISION/95","TAGLIO
+NORMAL PP/30 PUISS./50 PRÉC./95","TAGLIO
 NORMALE PP/30 POT/50 PRECIS./95",
 T0C_196,ddcb4406364071033e6f637183fdbec8,0078EC0B,"VUELO
 VOLADOR PP/15 POT/70 PREC./95","そらをとぶ ひこう
@@ -6167,7 +6167,7 @@ PP/15 いりょく/70 めいちゅう/95","FLY
 VOADOR PP/15 POD/70 PRECISÃO/95","FLIEGEN
 FLUG AP/15 STÄ/70 GENAU/95","공중날기
 비행 PP/15 위력/70 명중/95","VOL
-VOL PP/15 PUI/70 PRECISION/95","VOLO
+VOL PP/15 PUISS./70 PRÉC./95","VOLO
 VOLANTE PP/15 POT/70 PRECIS./95",
 T0C_197,c87c71583cb7c0b305776f6c1481cfa3,0078EC2F,"SURF
 AGUA PP/15 POT/95 PREC./100","なみのり みず
@@ -6175,7 +6175,7 @@ PP/15 いりょく/95 めいちゅう/100","SURF
 ÁGUA PP/15 POD/95 PRECISÃO/100","SURFER
 WASSER AP/15 STÄ/95 GENAU/100","파도타기
 물 PP/15 위력/95 명중/100","SURF
-EAU PP/15 PUI/95 PRECISION/100","SURF
+EAU PP/15 PUISS./95 PRÉC./100","SURF
 ACQUA PP/15 POT/95 PRECIS./100",
 T0C_198,b8c451e974fbc4bfff66302e1e8029d5,0078EC54,"FUERZA
 NORMAL PP/15 POT/80 PREC./100","かいりき ノーマル
@@ -6183,7 +6183,7 @@ PP/15 いりょく/80 めいちゅう/100","STRENGTH
 NORMAL PP/15 POD/80 PRECISÃO/100","STÄRKE
 NORMAL AP/15 STÄ/80 GENAU/100","괴력
 노말 PP/15 위력/80 명중/100","FORCE
-NORMAL PP/15 PUI/80 PRECISION/100","FORZA
+NORMAL PP/15 PUISS./80 PRÉC./100","FORZA
 NORMALE PP/15 POT/80 PRECIS./100",
 T0C_199,3b8b0c8eb79951abbd64665489ba94eb,0078EC7E,"DESTELLO
 NORMAL PP/20 POT/-- PREC./70","フラッシュ ノーマル
@@ -6191,7 +6191,7 @@ PP/20 いりょく/-- めいちゅう/70","FLASH
 NORMAL PP/20 POD /-- PRECISÃO/70","BLITZ
 NORMAL AP/20 STÄ /-- GENAU/70","플래시
 노말 PP/20 위력/-- 명중/70","FLASH
-NORMAL PP/20 PUI/-- PRECISION/70","FLASH
+NORMAL PP/20 PUISS./-- PRÉC./70","FLASH
 NORMALE PP/20 POT/-- PRECIS./70",
 T0C_200,7beb4420c19ec132bf80a00ce6eb3649,0078ECA5,"MEGAPUÑO
 NORMAL PP/20 POT/80 PREC./85","メガトンパンチ ノーマル
@@ -6199,7 +6199,7 @@ PP/20 いりょく/80 めいちゅう/85","MEGA PUNCH
 NORMAL PP/20 POD/80 PRECISÃO/85","MEGAHIEB
 NORMAL AP/20 STÄ/80 GENAU/85","메가톤펀치
 노말 PP/20 위력/80 명중/85","ULTIMAPOING
-NORMAL PP/20 PUI/80 PRECISION/85","MEGAPUGNO
+NORMAL PP/20 PUISS./80 PRÉC./85","MEGAPUGNO
 NORMALE PP/20 POT/80 PRECIS./85",
 T0C_201,b1c7bea478fdc2f30cb7f07066341593,0078ECD0,"VIENTO CORTANTE
 NORMAL PP/10 POT/80 PREC./75","かまいたち ノーマル
@@ -6207,7 +6207,7 @@ PP/10 いりょく/80 めいちゅう/75","RAZOR WIND
 NORMAL PP/10 POD/80 PRECISÃO/75","KLINGENSTURM
 NORMAL AP/10 STÄ/80 GENAU/75","칼바람
 노말 PP/10 위력/80 명중/75","COUPE-VENT
-NORMAL PP/10 PUI/80 PRECISION/75","VENTAGLIENTE
+NORMAL PP/10 PUISS./80 PRÉC./75","VENTAGLIENTE
 NORMALE PP/10 POT/80 PRECIS./75",
 T0C_202,b20ea67ef08b40a603e866aa8c2fda37,0078ECFB,"DANZA ESPADA
 NORMAL PP/30 POT/-- PREC./100","つるぎのまい ノーマル
@@ -6215,7 +6215,7 @@ PP/30 いりょく/-- めいちゅう/100","SWORDS DANCE
 NORMAL PP/30 POD/-- PRECISÃO/100","SCHWERTTANZ
 NORMAL AP/30 STÄ/-- GENAU/100","칼춤
 노말 PP/30 위력/-- 명중/100","DANSE LAMES
-NORMAL PP/30 PUI/-- PRECISION/100","DANZASPADA
+NORMAL PP/30 PUISS./-- PRÉC./100","DANZASPADA
 NORMALE PP/30 POT/-- PRECIS./100",
 T0C_203,428463ac21968c8bca6277b2663b9d2c,0078ED29,"REMOLINO
 NORMAL PP/20 POT/-- PREC./85","ふきとばし ノーマル
@@ -6223,7 +6223,7 @@ PP/20 いりょく/-- めいちゅう/85","WHIRLWIND
 NORMAL PP/20 POD/-- PRECISÃO/85","WIRBELWIND
 NORMAL AP/20 STÄ/-- GENAU/85","날려버리기
 노말 PP/20 위력/-- 명중/85","CYCLONE
-NORMAL PP/20 PUI/-- PRECISION/85","TURBINE
+NORMAL PP/20 PUISS./-- PRÉC./85","TURBINE
 NORMALE PP/20 POT/-- PRECIS./85",
 T0C_204,68a6863ba1459e342087361582878076,0078ED53,"MEGAPATADA
 NORMAL PP/5 POT/120 PREC./75","メガトンキック ノーマル
@@ -6231,7 +6231,7 @@ PP/5 いりょく/120 めいちゅう/75","MEGA KICK
 NORMAL PP/5 POD/120 PRECISÃO/75","MEGAKICK
 NORMAL AP/5 STÄ/120 GENAU/75","메가톤킥
 노말 PP/5 위력/120 명중/75","ULTIMAWASHI
-NORMAL PP/5 PUI/120 PRECISION/75","MEGACALCIO
+NORMAL PP/5 PUISS./120 PRÉC./75","MEGACALCIO
 NORMALE PP/5 POT/120 PRECIS./75",
 T0C_205,31bcd749d5616edbca5c2fa7608a1696,0078ED7D,"TÓXICO
 VENENO PP/10 POT/-- PREC./85","どくどく どく
@@ -6239,7 +6239,7 @@ PP/10 いりょく/-- めいちゅう/85","TOXIC
 VENENOSO PP/10 POD/-- PRECISÃO/85","TOXIN
 GIFT AP/10 STÄ/-- GENAU/85","맹독
 독 PP/10 위력/-- 명중/85","TOXIK
-POISON PP/10 PUI/-- PRECISION/85","TOSSINA
+POISON PP/10 PUISS./-- PRÉC./85","TOSSINA
 VELENO PP/10 POT/-- PRECIS./85",
 T0C_206,d536920f1c22b314d9f9eadc041a04e1,0078EDA3,"PERFORADOR
 NORMAL PP/5 POT/-- PREC./30","つのドリル ノーマル
@@ -6247,7 +6247,7 @@ PP/5 いりょく/-- めいちゅう/30","HORN DRILL
 NORMAL PP/5 POD/-- PRECISÃO/30","HORNBOHRER
 NORMAL AP/5 STÄ/-- GENAU/30","뿔드릴
 노말 PP/5 위력/-- 명중/30","EMPAL'KORNE
-NORMAL PP/5 PUI/-- PRECISION/30","PERFORCORNO
+NORMAL PP/5 PUISS./-- PRÉC./30","PERFORCORNO
 NORMALE PP/5 POT/-- PRECIS./30",
 T0C_207,b66e1a09009d8a48afa945d20a8251bc,0078EDCD,"GOLPE CUERPO
 NORMAL PP/15 POT/85 PREC./100","のしかかり ノーマル
@@ -6255,7 +6255,7 @@ PP/15 いりょく/85 めいちゅう/100","BODY SLAM
 NORMAL PP/15 POD/85 PRECISÃO/100","BODYSLAM
 NORMAL AP/15 STÄ/85 GENAU/100","누르기
 노말 PP/15 위력/85 명중/100","PLAQUAGE
-NORMAL PP/15 PUI/85 PRECISION/100","CORPOSCONTRO
+NORMAL PP/15 PUISS./85 PRÉC./100","CORPOSCONTRO
 NORMALE PP/15 POT/85 PRECIS./100",
 T0C_208,f067406ffb60895f424685ff57fe3cdf,0078EDF8,"DERRIBO
 NORMAL PP/20 POT/90 PREC./85","とっしん ノーマル
@@ -6263,7 +6263,7 @@ PP/20 いりょく/90 めいちゅう/85","TAKE DOWN
 NORMAL PP/20 POD/90 PRECISÃO/85","BODYCHECK
 NORMAL AP/20 STÄ/90 GENAU/85","돌진
 노말 PP/20 위력/90 명중/85","BELIER
-NORMAL PP/20 PUI/90 PRECISION/85","RIDUTTORE
+NORMAL PP/20 PUISS./90 PRÉC./85","RIDUTTORE
 NORMALE PP/20 POT/90 PRECIS./85",
 T0C_209,8a54866f8f8962de015b722f26877880,0078EE22,"DOBLE FILO
 NORMAL PP/15 POT/100 PREC./100","すてみタックル ノーマル
@@ -6271,7 +6271,7 @@ PP/15 いりょく/100 めいちゅう/100","DOUBLE-EDGE
 NORMAL PP/15 POD/100 PRECISÃO/100","RISIKOTACKLE
 NORMAL AP/15 STÄ/100 GENAU/100","이판사판태클
 노말 PP/15 위력/100 명중/100","DAMOCLES
-NORMAL PP/15 PUI/100 PRECISION/100","SDOPPIATORE
+NORMAL PP/15 PUISS./100 PRÉC./100","SDOPPIATORE
 NORMALE PP/15 POT/100 PRECIS./100",
 T0C_210,b43761023e6cf6c89c52d83335d8d57a,0078EE50,"RAYO BURBUJA
 AGUA PP/20 POT/65 PREC./100","バブルこうせん みず
@@ -6279,7 +6279,7 @@ PP/20 いりょく/65 めいちゅう/100","BUBBLE BEAM
 ÁGUA PP/20 POD/65 PRECISÃO/100","BLUBBSTRAHL
 WASSER AP/20 STÄ/65 GENAU/100","거품광선
 물 PP/20 위력/65 명중/100","BULLES D'O
-EAU PP/20 PUI/65 PRECISION/100","BOLLARAGGIO
+EAU PP/20 PUISS./65 PRÉC./100","BOLLARAGGIO
 ACQUA PP/20 POT/65 PRECIS./100",
 T0C_211,1622c6cd7bff691892ef8ac9922f9fe5,0078EE7B,"PISTOLA AGUA
 AGUA PP/25 POT/40 PREC./100","みずでっぽう みず
@@ -6287,7 +6287,7 @@ PP/25 いりょく/40 めいちゅう/100","WATER GUN
 ÁGUA PP/25 POD/40 PRECISÃO/100","AQUAKNARRE
 WASSER AP/25 STÄ/40 GENAU/100","물대포
 물 PP/25 위력/40 명중/100","PISTOLET A O
-EAU PP/25 PUI/40 PRECISION/100","PISTOLACQUA
+EAU PP/25 PUISS./40 PRÉC./100","PISTOLACQUA
 ACQUA PP/25 POT/40 PRECIS./100",
 T0C_212,bfd561c41f83cb7779f1725bca26cf1f,0078EEA5,"RAYO HIELO
 HIELO PP/10 POT/95 PREC./100","れいとうビーム こおり
@@ -6295,7 +6295,7 @@ PP/10 いりょく/95 めいちゅう/100","ICE BEAM
 GELO PP/10 POD/95 PRECISÃO/100","EISSTRAHL
 EIS AP/10 STÄ/95 GENAU/100","냉동빔
 얼음 PP/10 위력/95 명중/100","LASER GLACE
-GLACE PP/10 PUI/95 PRECISION/100","GELORAGGIO
+GLACE PP/10 PUISS./95 PRÉC./100","GELORAGGIO
 GHIACCIO PP/10 POT/95 PRECIS./100",
 T0C_213,36c9363e09cd7d0368d3056e320500de,0078EECC,"VENTISCA
 HIELO PP/5 POT/120 PREC./90","ふぶき こおり
@@ -6303,7 +6303,7 @@ PP/5 いりょく/120 めいちゅう/90","BLIZZARD
 GELO PP/5 POD/120 PRECISÃO/90","BLIZZARD
 EIS AP/5 STÄ/120 GENAU/90","눈보라
 얼음 PP/5 위력/120 명중/90","BLIZZARD
-GLACE PP/5 PUI/120 PRECISION/90","BORA
+GLACE PP/5 PUISS./120 PRÉC./90","BORA
 GHIACCIO PP/5 POT/120 PRECIS./90",
 T0C_214,7be2479153eb4608630691b2573f7823,0078EEF2,"HIPERRAYO
 NORMAL PP/5 POT/150 PREC./90","はかいこうせん ノーマル
@@ -6311,7 +6311,7 @@ PP/5 いりょく/150 めいちゅう/90","HYPER BEAM
 NORMAL PP/5 POD/150 PRECISÃO/90","HYPERSTRAHL
 NORMAL AP/5 STÄ/150 GENAU/90","파괴광선
 노말 PP/5 위력/150 명중/90","ULTRALASER
-NORMAL PP/5 PUI/150 PRECISION/90","IPER RAGGIO
+NORMAL PP/5 PUISS./150 PRÉC./90","IPER RAGGIO
 NORMALE PP/5 POT/150 PRECIS./90",
 T0C_215,509c303c8529b2a751a1380ef8fe77fe,0078EF1D,"DÍA DE PAGO
 NORMAL PP/20 POT/40 PREC./100","ネコにこばん ノーマル
@@ -6319,7 +6319,7 @@ PP/20 いりょく/40 めいちゅう/100","PAY DAY
 NORMAL PP/20 POD/40 PRECISÃO/100","ZAHLTAG
 NORMAL AP/20 STÄ/40 GENAU/100","고양이돈받기
 노말 PP/20 위력/40 명중/100","JACKPOT
-NORMAL PP/20 PUI/40 PRECISION/100","GIORNOPAGA
+NORMAL PP/20 PUISS./40 PRÉC./100","GIORNOPAGA
 NORMALE PP/20 POT/40 PRECIS./100",
 T0C_216,b0dc3045aca9324eb84a712532636ac1,0078EF46,"SUMISIÓN
 LUCHA PP/25 POT/80 PREC./80","じごくぐるま かくとう
@@ -6327,7 +6327,7 @@ PP/25 いりょく/80 めいちゅう/80","SUBMISSION
 LUTADOR PP/25 POD/80 PRECISÃO/80","ÜBERROLLER
 KAMPF AP/25 STÄ/80 GENAU/80","지옥의바퀴
 격투 PP/25 위력/80 명중/80","SACRIFICE
-COMBAT PP/25 PUI/80 PRECISION/80","SOTTOMISSIONE
+COMBAT PP/25 PUISS./80 PRÉC./80","SOTTOMISSIONE
 LOTTA PP/25 POT/80 PRECIS./80",
 T0C_217,1f0c6ef6435bc9adf1b872e47a30246d,0078EF73,"CONTRAATAQUE
 LUCHA PP/20 POT/-- PREC./100","カウンター かくとう
@@ -6335,7 +6335,7 @@ PP/20 いりょく/-- めいちゅう/100","COUNTER
 LUTADOR PP/20 POD/-- PRECISÃO/100","KONTER
 KAMPF AP/20 STÄ/-- GENAU/100","카운터
 격투 PP/20 위력/-- 명중/100","RIPOSTE
-COMBAT PP/20 PUI/-- PRECISION/100","CONTRATTACCO
+COMBAT PP/20 PUISS./-- PRÉC./100","CONTRATTACCO
 LOTTA PP/20 POT/-- PRECIS./100",
 T0C_218,1f4b5ea87dd452306762551815e7fdb5,0078EF9E,"SÍSMICO
 LUCHA PP/20 POT/-- PREC./100","ちきゅうなげ かくとう
@@ -6343,7 +6343,7 @@ PP/20 いりょく/-- めいちゅう/100","SEISMIC TOSS
 LUTADOR PP/20 POD/-- PRECISÃO/100","GEOWURF
 KAMPF AP/20 STÄ/-- GENAU/100","지구던지기
 격투 PP/20 위력/-- 명중/100","FRAPPE ATLAS
-COMBAT PP/20 PUI/-- PRECISION/100","MOVIM. SISMICO
+COMBAT PP/20 PUISS./-- PRÉC./100","MOVIM. SISMICO
 LOTTA PP/20 POT/-- PRECIS./100",
 T0C_219,cb85a366c9f49d0bba5e89c3e1e2f7a2,0078EFCE,"FURIA
 NORMAL PP/20 POT/20 PREC./100","いかり ノーマル
@@ -6351,7 +6351,7 @@ PP/20 いりょく/20 めいちゅう/100","RAGE
 NORMAL PP/20 POD/20 PRECISÃO/100","RASEREI
 NORMAL AP/20 STÄ/20 GENAU/100","분노
 노말 PP/20 위력/20 명중/100","FRENESIE
-NORMAL PP/20 PUI/20 PRECISION/100","IRA
+NORMAL PP/20 PUISS./20 PRÉC./100","IRA
 NORMALE PP/20 POT/20 PRECIS./100",
 T0C_220,b095e919959c7a40959b51673fc09b12,0078EFF4,"MEGAAGOTAR
 PLANTA PP/10 POT/40 PREC./100","メガドレイン くさ
@@ -6359,7 +6359,7 @@ PP/10 いりょく/40 めいちゅう/100","MEGA DRAIN
 PLANTA PP/10 POD/40 PRECISÃO/100","MEGASAUGER
 PFLANZE AP/10 STÄ/40 GENAU/100","메가드레인
 풀 PP/10 위력/40 명중/100","MEGA-SANGSUE
-PLANTE PP/10 PUI/40 PRECISION/100","MEGASSORBIMENTO
+PLANTE PP/10 PUISS./40 PRÉC./100","MEGASSORBIMENTO
 ERBA PP/10 POT/40 PRECIS./100",
 T0C_221,e44284b60992dc2438a1564eba45045d,0078F01F,"RAYO SOLAR
 PLANTA PP/10 POT/120 PREC./100","ソーラービーム くさ
@@ -6367,7 +6367,7 @@ PP/10 いりょく/120 めいちゅう/100","SOLAR BEAM
 PLANTA PP/10 POD/120 PRECISÃO/100","SOLARSTRAHL
 PFLANZE AP/10 STÄ/120 GENAU/100","솔라빔
 풀 PP/10 위력/120 명중/100","LANCE-SOLEIL
-PLANTE PP/10 PUI/120 PRECISION/100","SOLARRAGGIO
+PLANTE PP/10 PUISS./120 PRÉC./100","SOLARRAGGIO
 ERBA PP/10 POT/120 PRECIS./100",
 T0C_222,55d837ab6531507e2c5e27dbac43a2e6,0078F04A,"FURIA DRAGÓN
 DRAGÓN PP/10 POT/-- PREC./100","りゅうのいかり ドラゴン
@@ -6375,7 +6375,7 @@ PP/10 いりょく/-- めいちゅう/100","DRAGON RAGE
 DRAGÃO PP/10 POD/-- PRECISÃO/100","DRACHENWUT
 DRACHE AP/10 STÄ/-- GENAU/100","용의분노
 드래곤 PP/10 위력/-- 명중/100","DRACO-RAGE
-DRAGON PP/10 PUI/-- PRECISION/100","IRA DI DRAGO
+DRAGON PP/10 PUISS./-- PRÉC./100","IRA DI DRAGO
 DRAGO PP/10 POT/-- PRECIS./100",
 T0C_223,81accf43d8be11a6787fe156973ac4be,0078F077,"RAYO
 ELÉCTRICO PP/15 POT/95 PREC./100","10まんボルト でんき
@@ -6383,7 +6383,7 @@ PP/15 いりょく/95 めいちゅう/100","THUNDERBOLT
 ELÉTRICO PP/15 POD/95 PRECISÃO/100","DONNERBLITZ
 ELEKTRO AP/15 STÄ/95 GENAU/100","10만볼트
 전기 PP/15 위력/95 명중/100","TONNERRE
-ELECTRIK PP/15 PUI/95 PRECISION/100","FULMINE
+ELECTRIK PP/15 PUISS./95 PRÉC./100","FULMINE
 ELETTRO PP/15 POT/95 PRECIS./100",
 T0C_224,6c14458028eac7510b8326a71327b980,0078F0A6,"TRUENO
 ELÉCTRICO PP/10 POT/120 PREC./70","かみなり でんき
@@ -6391,7 +6391,7 @@ PP/10 いりょく/120 めいちゅう/70","THUNDER
 ELÉTRICO PP/10 POD/120 PRECISÃO/70","DONNER
 ELEKTRO AP/10 STÄ/120 GENAU/70","번개
 전기 PP/10 위력/120 명중/70","FATAL-FOUDRE
-ELECTRIK PP/10 PUI/120 PRECISION/70","TUONO
+ELECTRIK PP/10 PUISS./120 PRÉC./70","TUONO
 ELETTRO PP/10 POT/120 PRECIS./70",
 T0C_225,665fb945a49470abcc50d75615140a2c,0078F0D1,"TERREMOTO
 TIERRA PP/10 POT/100 PREC./100","じしん じめん
@@ -6399,7 +6399,7 @@ PP/10 いりょく/100 めいちゅう/100","EARTHQUAKE
 TERRESTRE PP/10 POD/100 PRECISÃO/100","ERDBEBEN
 BODEN AP/10 STÄ/100 GENAU/100","지진
 땅 PP/10 위력/100 명중/100","SEISME
-SOL PP/10 PUI/100 PRECISION/100","TERREMOTO
+SOL PP/10 PUISS./100 PRÉC./100","TERREMOTO
 TERRA PP/10 POT/100 PRECIS./100",
 T0C_226,12e447426d8878998fc717dcfe2d800d,0078F0FE,"FISURA
 TIERRA PP/5 POT/-- PREC./30","じわれ じめん
@@ -6407,7 +6407,7 @@ PP/5 いりょく/-- めいちゅう/30","FISSURE
 TERRESTRE PP/5 POD/-- PRECISÃO/30","GEOFISSUR
 BODEN AP/5 STÄ/-- GENAU/30","땅가르기
 땅 PP/5 위력/-- 명중/30","ABIME
-SOL PP/5 PUI/-- PRECISION/30","ABISSO
+SOL PP/5 PUISS./-- PRÉC./30","ABISSO
 TERRA PP/5 POT/-- PRECIS./30",
 T0C_227,11904825fbb6e9b3cedded22f6aeb29e,0078F125,"EXCAVAR
 TIERRA PP/10 POT/100 PREC./100","あなをほる じめん
@@ -6415,7 +6415,7 @@ PP/10 いりょく/100 めいちゅう/100","DIG
 TERRESTRE PP/10 POD/100 PRECISÃO/100","SCHAUFLER
 BODEN AP/10 STÄ/100 GENAU/100","구멍파기
 땅 PP/10 위력/100 명중/100","TUNNEL
-SOL PP/10 PUI/100 PRECISION/100","FOSSA
+SOL PP/10 PUISS./100 PRÉC./100","FOSSA
 TERRA PP/10 POT/100 PRECIS./100",
 T0C_228,2d94c604a680f2358512c4e1a0e76bf8,0078F14B,"PSÍQUICO
 PSÍQUICO PP/10 POT/90 PREC./100","サイコキネシス エスパー
@@ -6423,7 +6423,7 @@ PP/10 いりょく/90 めいちゅう/100","PSYCHIC
 PSÍQUICO PP/10 POD/90 PRECISÃO/100","PSYCHOKINESE
 PSYCHO AP/10 STÄ/90 GENAU/100","사이코키네시스
 에스퍼 PP/10 위력/90 명중/100","PSYKO
-PSY PP/10 PUI/90 PRECISION/100","PSICHICO
+PSY PP/10 PUISS./90 PRÉC./100","PSICHICO
 PSICO PP/10 POT/90 PRECIS./100",
 T0C_229,a31a40980150dc7c77a4f2a877a4494e,0078F175,"TELETRANSPORTE
 PSÍQUICO PP/20 POT/-- PREC./100","テレポート エスパー
@@ -6431,7 +6431,7 @@ PP/20 いりょく/-- めいちゅう/100","TELEPORT
 PSÍQUICO PP/20 POD/-- PRECISÃO/100","TELEPORT
 PSYCHO AP/20 STÄ/-- GENAU/100","순간이동
 에스퍼 PP/20 위력/-- 명중/100","TELEPORT
-PSY PP/20 PUI/-- PRECISION/100","TELETRASPORTO
+PSY PP/20 PUISS./-- PRÉC./100","TELETRASPORTO
 PSICO PP/20 POT/-- PRECIS./100",
 T0C_230,af1d2529e196e2f2d700d1f38e484cbc,0078F1A0,"MIMÉTICO
 NORMAL PP/10 POT/-- PREC./100","ものまね ノーマル
@@ -6439,7 +6439,7 @@ PP/10 いりょく/-- めいちゅう/100","MIMIC
 NORMAL PP/10 POD/-- PRECISÃO/100","MIMIKRY
 NORMAL AP/10 STÄ/-- GENAU/100","흉내내기
 노말 PP/10 위력/-- 명중/100","COPIE
-NORMAL PP/10 PUI/-- PRECISION/100","MIMICA
+NORMAL PP/10 PUISS./-- PRÉC./100","MIMICA
 NORMALE PP/10 POT/-- PRECIS./100",
 T0C_231,b330761d07be1a984ee6c268491ed8a9,0078F1C7,"DOBLE EQUIPO
 NORMAL PP/15 POT/-- PREC./100","かげぶんしん ノーマル
@@ -6447,7 +6447,7 @@ PP/15 いりょく/-- めいちゅう/100","DOUBLE TEAM
 NORMAL PP/15 POD/-- PRECISÃO/100","DOPPELTEAM
 NORMAL AP/15 STÄ/-- GENAU/100","그림자분신
 노말 PP/15 위력/-- 명중/100","REFLET
-NORMAL PP/15 PUI/-- PRECISION/100","DOPPIOTEAM
+NORMAL PP/15 PUISS./-- PRÉC./100","DOPPIOTEAM
 NORMALE PP/15 POT/-- PRECIS./100",
 T0C_232,9bd643ee8d4ca39cf52aee4ab469ae08,0078F1F4,"REFLEJO
 PSÍQUICO PP/20 POT/-- PREC./100","リフレクター エスパー
@@ -6455,7 +6455,7 @@ PP/20 いりょく/-- めいちゅう/100","REFLECT
 PSÍQUICO PP/20 POD/-- PRECISÃO/100","REFLEKTOR
 PSYCHO AP/20 STÄ/-- GENAU/100","리플렉터
 에스퍼 PP/20 위력/-- 명중/100","PROTECTION
-PSY PP/20 PUI/-- PRECISION/100","RIFLESSO
+PSY PP/20 PUISS./-- PRÉC./100","RIFLESSO
 PSICO PP/20 POT/-- PRECIS./100",
 T0C_233,b01c120d3b7ff2123474476f5f593f26,0078F21E,"VENGANZA
 NORMAL PP/10 POT/-- PREC./100","がまん ノーマル
@@ -6463,7 +6463,7 @@ PP/10 いりょく/-- めいちゅう/100","BIDE
 NORMAL PP/10 POD/-- PRECISÃO/100","GEDULD
 NORMAL AP/10 STÄ/-- GENAU/100","참기
 노말 PP/10 위력/-- 명중/100","PATIENCE
-NORMAL PP/10 PUI/-- PRECISION/100","PAZIENZA
+NORMAL PP/10 PUISS./-- PRÉC./100","PAZIENZA
 NORMALE PP/10 POT/-- PRECIS./100",
 T0C_234,23faee6ebb5b19d8c9f30b78d2cecc6c,0078F244,"METRÓNOMO
 NORMAL PP/10 POT/-- PREC./100","ゆびをふる ノーマル
@@ -6471,7 +6471,7 @@ PP/10 いりょく/-- めいちゅう/100","METRONOME
 NORMAL PP/10 POD/-- PRECISÃO/100","METRONOM
 NORMAL AP/10 STÄ/-- GENAU/100","손가락흔들기
 노말 PP/10 위력/-- 명중/100","METRONOME
-NORMAL PP/10 PUI/-- PRECISION/100","METRONOMO
+NORMAL PP/10 PUISS./-- PRÉC./100","METRONOMO
 NORMALE PP/10 POT/-- PRECIS./100",
 T0C_235,99498043fac22e824f5e4318c303b53d,0078F26F,"AUTODESTRUCCIÓN
 NORMAL PP/5 POT/260 PREC./100","じばく ノーマル
@@ -6479,7 +6479,7 @@ PP/5 いりょく/260 めいちゅう/100","SELF-DESTRUCT
 NORMAL PP/5 POD/260 PRECISÃO/100","FINALE
 NORMAL AP/5 STÄ/260 GENAU/100","자폭
 노말 PP/5 위력/260 명중/100","DESTRUCTION
-NORMAL PP/5 PUI/260 PRECISION/100","AUTODISTRUZIONE
+NORMAL PP/5 PUISS./260 PRÉC./100","AUTODISTRUZIONE
 NORMALE PP/5 POT/260 PRECIS./100",
 T0C_236,18dcb60f3250725d0754ee495f6f1041,0078F29D,"BOMBA HUEVO
 NORMAL PP/10 POT/100 PREC./75","タマゴばくだん ノーマル
@@ -6487,7 +6487,7 @@ PP/10 いりょく/100 めいちゅう/75","EGG BOMB
 NORMAL PP/10 POD/100 PRECISÃO/75","EIERBOMBE
 NORMAL AP/10 STÄ/100 GENAU/75","알폭탄
 노말 PP/10 위력/100 명중/75","BOMBE ŒUF
-NORMAL PP/10 PUI/100 PRECISION/75","UOVOBOMBA
+NORMAL PP/10 PUISS./100 PRÉC./75","UOVOBOMBA
 NORMALE PP/10 POT/100 PRECIS./75",
 T0C_237,56f8510163e70d5284ebe646725338f4,0078F2C7,"LLAMARADA
 FUEGO PP/5 POT/120 PREC./85","だいもんじ ほのお
@@ -6495,7 +6495,7 @@ PP/5 いりょく/120 めいちゅう/85","FIRE BLAST
 FOGO PP/5 POD/120 PRECISÃO/85","FEUERSTURM
 FEUER AP/5 STÄ/120 GENAU/85","불대문자
 불꽃 PP/5 위력/120 명중/85","DEFLAGRATION
-FEU PP/5 PUI/120 PRECISION/85","FUOCOBOMBA
+FEU PP/5 PUISS./120 PRÉC./85","FUOCOBOMBA
 FUOCO PP/5 POT/120 PRECIS./85",
 T0C_238,66b6de695196f7918021f96dd7cd3df0,0078F2F0,"METEOROS
 NORMAL PP/20 POT/60 PREC./100","スピードスター ノーマル
@@ -6503,7 +6503,7 @@ PP/20 いりょく/60 めいちゅう/100","SWIFT
 NORMAL PP/20 POD/60 PRECISÃO/100","STERNSCHAUER
 NORMAL AP/20 STÄ/60 GENAU/100","스피드스타
 노말 PP/20 위력/60 명중/100","METEORES
-NORMAL PP/20 PUI/60 PRECISION/100","COMETE
+NORMAL PP/20 PUISS./60 PRÉC./100","COMETE
 NORMALE PP/20 POT/60 PRECIS./100",
 T0C_239,d2afe5f11dc26b592fb216f3ebbee6ec,0078F317,"CABEZAZO
 NORMAL PP/15 POT/100 PREC./100","ロケットずつき ノーマル
@@ -6511,7 +6511,7 @@ PP/15 いりょく/100 めいちゅう/100","SKULL BASH
 NORMAL PP/15 POD/100 PRECISÃO/100","SCHÄDELWUMME
 NORMAL AP/15 STÄ/100 GENAU/100","로켓박치기
 노말 PP/15 위력/100 명중/100","COUD'KRANE
-NORMAL PP/15 PUI/100 PRECISION/100","CAPOCCIATA
+NORMAL PP/15 PUISS./100 PRÉC./100","CAPOCCIATA
 NORMALE PP/15 POT/100 PRECIS./100",
 T0C_240,7a5397105d10b3f2896373bee042c313,0078F344,"OVOCURACIÓN
 NORMAL PP/10 POT/-- PREC./100","タマゴうみ ノーマル
@@ -6519,7 +6519,7 @@ PP/10 いりょく/-- めいちゅう/100","SOFT-BOILED
 NORMAL PP/10 POD/-- PRECISÃO/100","WEICHEI
 NORMAL AP/10 STÄ/-- GENAU/100","알낳기
 노말 PP/10 위력/-- 명중/100","E-COQUE
-NORMAL PP/10 PUI/-- PRECISION/100","COVAUOVA
+NORMAL PP/10 PUISS./-- PRÉC./100","COVAUOVA
 NORMALE PP/10 POT/-- PRECIS./100",
 T0C_241,e66faa3a30354f97c4bda2b76b9a8a30,0078F370,"COMESUEÑOS
 PSÍQUICO PP/15 POT/100 PREC./100","ゆめくい エスパー
@@ -6527,7 +6527,7 @@ PP/15 いりょく/100 めいちゅう/100","DREAM EATER
 PSÍQUICO PP/15 POD/100 PRECISÃO/100","TRAUMFRESSER
 PSYCHO AP/15 STÄ/100 GENAU/100","꿈먹기
 에스퍼 PP/15 위력/100 명중/100","DEVOREVE
-PSY PP/15 PUI/100 PRECISION/100","MANGIASOGNI
+PSY PP/15 PUISS./100 PRÉC./100","MANGIASOGNI
 PSICO PP/15 POT/100 PRECIS./100",
 T0C_242,193a7346bc3090516ebfb96c28279524,0078F39F,"ATAQUE AÉREO
 VOLADOR PP/5 POT/140 PREC./90","ゴッドバード ひこう
@@ -6535,7 +6535,7 @@ PP/5 いりょく/140 めいちゅう/90","SKY ATTACK
 VOADOR PP/5 POD/140 PRECISÃO/90","HIMMELSFEGER
 FLUG AP/5 STÄ/140 GENAU/90","불새
 비행 PP/5 위력/140 명중/90","PIQUE
-VOL PP/5 PUI/140 PRECISION/90","AEROATTACCO
+VOL PP/5 PUISS./140 PRÉC./90","AEROATTACCO
 VOLANTE PP/5 POT/140 PRECIS./90",
 T0C_243,639911ef9bf199d5ca8d3704db3f0c7b,0078F3CA,"DESCANSO
 PSÍQUICO PP/10 POT/-- PREC./100","ねむる エスパー
@@ -6543,7 +6543,7 @@ PP/10 いりょく/-- めいちゅう/100","REST
 PSÍQUICO PP/10 POD/-- PRECISÃO/100","ERHOLUNG
 PSYCHO AP/10 STÄ/-- GENAU/100","잠자기
 에스퍼 PP/10 위력/-- 명중/100","REPOS
-PSY PP/10 PUI/-- PRECISION/100","RIPOSO
+PSY PP/10 PUISS./-- PRÉC./100","RIPOSO
 PSICO PP/10 POT/-- PRECIS./100",
 T0C_244,27692b83c6213bd9bb9b6b55e2d23320,0078F3F1,"ONDA TRUENO
 ELÉCTRICO PP/20 POT/-- PREC./100","でんじは でんき
@@ -6551,7 +6551,7 @@ PP/20 いりょく/-- めいちゅう/100","THUNDER WAVE
 ELÉTRICO PP/20 POD/-- PRECISÃO/100","DONNERWELLE
 ELEKTRO AP/20 STÄ/-- GENAU/100","전기자석파
 전기 PP/20 위력/-- 명중/100","CAGE ECLAIR
-ELECTRIK PP/20 PUI/-- PRECISION/100","TUONONDA
+ELECTRIK PP/20 PUISS./-- PRÉC./100","TUONONDA
 ELETTRO PP/20 POT/-- PRECIS./100",
 T0C_245,794a41d8c17f1f79edc65545753ab8ae,0078F421,"PSICOONDA
 PSÍQUICO PP/15 POT/-- PREC./80","ナイトヘッド エスパー
@@ -6559,7 +6559,7 @@ PP/15 いりょく/-- めいちゅう/80","PSYWAVE
 PSÍQUICO PP/15 POD/-- PRECISÃO/80","PSYWELLE
 PSYCHO AP/15 STÄ/-- GENAU/80","사이코웨이브
 에스퍼 PP/15 위력/-- 명중/80","VAGUE PSY
-PSY PP/15 PUI/-- PRECISION/80","PSICONDA
+PSY PP/15 PUISS./-- PRÉC./80","PSICONDA
 PSICO PP/15 POT/-- PRECIS./80",
 T0C_246,b19495923c5395c95ebdb88f416dd880,0078F44A,"EXPLOSIÓN
 NORMAL PP/5 POT/340 PREC./100","だいばくはつ ノーマル
@@ -6567,7 +6567,7 @@ PP/5 いりょく/340 めいちゅう/100","EXPLOSION
 NORMAL PP/5 POD/340 PRECISÃO/100","EXPLOSION
 NORMAL AP/5 STÄ/340 GENAU/100","대폭발
 노말 PP/5 위력/340 명중/100","EXPLOSION
-NORMAL PP/5 PUI/340 PRECISION/100","ESPLOSIONE
+NORMAL PP/5 PUISS./340 PRÉC./100","ESPLOSIONE
 NORMALE PP/5 POT/340 PRECIS./100",
 T0C_247,b887cab79b8685557266790fb82a9c5c,0078F475,"AVALANCHA
 ROCA PP/10 POT/75 PREC./90","いわなだれ いわ
@@ -6575,7 +6575,7 @@ PP/10 いりょく/75 めいちゅう/90","ROCK SLIDE
 PEDRA PP/10 POD/75 PRECISÃO/90","STEINHAGEL
 GESTEIN AP/10 STÄ/75 GENAU/90","스톤샤워
 바위 PP/10 위력/75 명중/90","EBOULEMENT
-ROCHE PP/10 PUI/75 PRECISION/90","FRANA
+ROCHE PP/10 PUISS./75 PRÉC./90","FRANA
 ROCCIA PP/10 POT/75 PRECIS./90",
 T0C_248,e39df60db20257462bbdfd7167213ffa,0078F49E,"TRIATAQUE
 NORMAL PP/10 POT/80 PREC./100","トライアタック ノーマル
@@ -6583,7 +6583,7 @@ PP/10 いりょく/80 めいちゅう/100","TRI ATTACK
 NORMAL PP/10 POD/80 PRECISÃO/100","TRIPLETTE
 NORMAL AP/10 STÄ/80 GENAU/100","트라이어택
 노말 PP/10 위력/80 명중/100","TRIPLATTAQUE
-NORMAL PP/10 PUI/80 PRECISION/100","TRIPLETTA
+NORMAL PP/10 PUISS./80 PRÉC./100","TRIPLETTA
 NORMALE PP/10 POT/80 PRECIS./100",
 T0C_249,904ed109dd4009852d2aaa502ec423bb,0078F4CA,"SUSTITUTO
 NORMAL PP/10 POT/-- PREC./100","みがわり ノーマル
@@ -6591,7 +6591,7 @@ PP/10 いりょく/-- めいちゅう/100","SUBSTITUTE
 NORMAL PP/10 POD/-- PRECISÃO/100","DELEGATOR
 NORMAL AP/10 STÄ/-- GENAU/100","대타출동
 노말 PP/10 위력/-- 명중/100","CLONAGE
-NORMAL PP/10 PUI/-- PRECISION/100","SOSTITUTO
+NORMAL PP/10 PUISS./-- PRÉC./100","SOSTITUTO
 NORMALE PP/10 POT/-- PRECIS./100",
 T0D_000,9ca79b3127fc6a19eb2fab71694c2ee4,0078F510,"El Transfer Pak no está bien
 colocado. APAGA la consola
@@ -6781,8 +6781,8 @@ vous choisissez CONTINUER.","Se scegli CONTINUA, i dati di lotta
 salvati saranno cancellati.",
 T0E_051,872960019f24b2c15c17bda6e31b217a,0078FAAA,No hay cartucho GB insertado.,GBカセットが ささっていません。,Cartucho GB não encaixado.,Kein GB-Modul eingesteckt.,GB 팩이 꽂혀 있지 않습니다.,Pas de cartouche GB.,Manca la cassetta GB.,
 T0E_052,aa46b23192913b668d0284e58da20959,0078FAC6,Cartucho no utilizable.,この カセットは つかえません。,Cartucho não pode ser usado.,Modul nicht nutzbar.,이 게임 팩은 쓸 수 없습니다.,Cartouche inutilisable.,Questa cassetta non è usabile.,
-T0E_053,3a94fa817b81ed3410b3ec9c59c46593,0078FAE1,"No tienes seis Pokémon
-en tu equipo.","てもちに ポケモンが
+T0E_053,3a94fa817b81ed3410b3ec9c59c46593,0078FAE1,"Tu equipo no tiene
+seis Pokémon.","てもちに ポケモンが
 6ぴき いません。","Você não tem seis Pokémon
 na sua equipe.","Du hast keine sechs Pokémon
 in deinem Team.","파티에 포켓몬이
@@ -6794,8 +6794,8 @@ conectado.","コントローラが
 つながっていません。","O controle não está
 conectado.","Der Controller ist nicht
 angeschlossen.","컨트롤러가 연결되어
-있지 않습니다.","La manette n'est pas
-branchée.","Il controller non è
+있지 않습니다.","Aucune manette
+n'est branchée.","Il controller non è
 collegato.",
 T0E_055,53774582410ec4b3dce3edb3b5493d5c,0078FB2C,"Aquí están el ESTADIO, las sedes, el LAB. POKéMON
 y los minijuegos.","スタジアムや たいせんじょう ポケモンラボ
@@ -6927,7 +6927,7 @@ Attackenwahl einstellen.","이 토너먼트에서는 배틀 시간과
 기술 선택 시간을 설정할 수 있습니다.","La durée du combat et le temps de choix des capacités
 sont réglables dans ce tournoi.","In questo torneo si possono impostare il tempo di
 lotta e il tempo di scelta delle mosse.",
-T10_007,8839f1fe2af5ef0dc36728ecb42dbf36,0079007B,Volver a la selección.,せんたく がめんに もどる,Voltar à tela de Escolha.,Zurück zum Auswahlbildschirm.,선택 화면으로 돌아갑니다.,Retour à l'écran de sélection.,Torna alla schermata di scelta.,
+T10_007,8839f1fe2af5ef0dc36728ecb42dbf36,0079007B,Volver a la selección.,せんたく がめんに もどる,Voltar à tela de Escolha.,Zurück zum Auswahlbildschirm.,선택 화면으로 돌아갑니다.,Revenir à l'écran de sélection.,Torna alla schermata di scelta.,
 T10_008,f70a909becc79a98e92782d7f0f11d87,00790098,COMBATE EVENTO,イベントバトル,BATALHA EVENTO,EVENT-KAMPF,이벤트 배틀,COMBAT SPECIAL,LOTTA EVENTO,
 T10_009,f64a575a3ff04628ec3614838f344b87,007900A5,"La suma de niveles de los 3 Pokémon
 de menor nivel supera #03.","レベルの ひくい 3びきの
@@ -7132,7 +7132,7 @@ T19_005,96da3a3ea1cdd678fad0f87f84a391a6,00790B32,GIM. AZAFRÁN,ヤマブキジ�
 T19_006,989bef84289453aefc0a60dd09ca6c26,00790B3E,GIM. CANELA,グレンジム,GINÁSIO CINNABAR,ZINNOBER-ARENA,홍련체육관,ARENE CRAMOIS'ILE,CANNELLA,
 T19_007,8f9dd226eff29c7602679094f4829f3a,00790B4B,GIM. VERDE,トキワジム,GINÁSIO VIRIDIAN,VERTANIA-ARENA,상록체육관,ARENE JADIELLE,SMERALDOPOLI,
 T19_008,e71746a0a44827cc4aeaf9ace149c87a,00790B58,LÍDER GIM.,ジムリーダー,LÍDER GIN.,ARENALEITER,체육관 관장,CHAMPION,CAPOPALESTRA,
-T19_009,0ef6972516e62dc6fc7ddfabcff5d939,00790B63,A la torre de GIOVANNI,サカキの とうへ,Torre de GIOVANNI,Zu GIOVANNIs Turm,비주기의 탑으로,Tour de GIOVANNI,Alla torre di GIOVANNI,
+T19_009,0ef6972516e62dc6fc7ddfabcff5d939,00790B63,Hacia la torre de GIOVANNI,サカキの とうへ,Torre de GIOVANNI,Zu GIOVANNIs Turm,비주기의 탑으로,Tour de GIOVANNI,Verso la torre di GIOVANNI,
 T19_010,23f7617f8d71d097a6990d78701cae57,00790B76,ALTO MANDO,してんのう,ELITE DOS 4,TOP VIER,사천왕,CONSEIL 4,SUPERQUATTRO,
 T19_011,92abd84e4bfcf1a679c713575bf54add,00790B81,RIVAL,ライバル,RIVAL,RIVALE,라이벌,RIVAL,RIVALE,
 T19_012,2f8f4d4d78c358d12fa1ad8101be115b,00790B87,"Recibiste la llave de GIOVANNI y
@@ -7211,7 +7211,7 @@ Anmeldung gescheitert.","파일이 가득 차서
 inscription impossible.","File pieno:
 iscrizione fallita.",
 T1A_036,d7b59904cad66e63a7872f1c24a6057e,00790F85,"El DITTO transformado
-volvió a la normalidad.","へんしんした メタモンが
+recuperó su forma.","へんしんした メタモンが
 もとに もどった。","O DITTO transformado
 voltou ao normal.","Das verwandelte DITTO
 ist wieder normal.","변신한 메타몽이
@@ -7347,21 +7347,21 @@ T1B_061,e3b71a21c722b01ffbb3c051194f5c80,0079165D,Seguir sin guardar,セーブ�
 T1B_062,e71746a0a44827cc4aeaf9ace149c87a,00791671,LÍDER GIM.,ジムリーダー,LÍDER GIN.,ARENALEITER,체육관 관장,CHAMPION,CAPOPALESTRA,
 T1B_063,f0971553a172ef2ced30c12fff217d9a,0079167C,Se borrarán los datos anteriores.,まえの セーブデータは きえます。,Os dados anteriores serão apagados.,Alte Daten werden gelöscht.,이전 저장 데이터가 삭제됩니다.,L'ancienne sauvegarde sera effacée.,I dati salvati prima saranno cancellati.,
 T1C_000,a88c098b4b609e27b46bb5f0895006cb,0079170C,¡Felicidades! ¡Ganaste usando a PIKACHU!,おめでとう！ ピカチュウで ゆうしょうした！,Parabéns! Você venceu usando PIKACHU!,Glückwunsch! Du hast mit PIKACHU gewonnen!,축하합니다! 피카츄로 우승했습니다!,Bravo ! Vous avez gagné avec PIKACHU !,Complimenti! Hai vinto usando PIKACHU!,
-T1C_001,4c9edacbb869a93047d7160bac409d09,00791734,¡Premio especial! ¡PIKACHU puede aprender SURF!,ごほうび！ ピカチュウが なみのりを おぼえる！,Prêmio especial! PIKACHU já pode aprender SURF!,Sonderpreis! PIKACHU kann jetzt SURFER lernen!,특별 상품! 피카츄가 파도타기를 배울 수 있다!,Prix spécial ! PIKACHU peut apprendre SURF !,Premio speciale! PIKACHU può imparare SURF!,
+T1C_001,4c9edacbb869a93047d7160bac409d09,00791734,¡Premio especial! ¡PIKACHU puede aprender SURF!,ごほうび！ ピカチュウが なみのりを おぼえる！,Prêmio especial! PIKACHU já pode aprender SURF!,Sonderpreis! PIKACHU kann jetzt SURFER lernen!,특별 상품! 피카츄가 파도타기를 배울 수 있다!,Prix spécial ! PIKACHU peut apprendre SURF !,Premio extra! Ora PIKACHU può imparare SURF!,
 T1C_002,301554d70a366bc94bb0f0f2a5953964,00791760,¿Quieres que tu PIKACHU aprenda SURF?,ピカチュウに なみのりを おぼえさせますか？,Quer que seu PIKACHU aprenda SURF?,Soll dein PIKACHU SURFER erlernen?,피카츄에게 파도타기를 가르칠까요?,Voulez-vous que PIKACHU apprenne SURF ?,Vuoi che il tuo PIKACHU impari SURF?,
 T1C_003,50cf45733e47b6c8a519030b3588ac34,0079178B,¿Que PIKACHU no aprenda SURF?,なみのりを あきらめますか？,Desistir de ensinar SURF ao PIKACHU?,PIKACHU SURFER doch nicht lehren?,피카츄 파도타기 배우기를 포기?,Renoncer à apprendre SURF à PIKACHU ?,Rinunciare a SURF per PIKACHU?,
-T1C_004,58fa58aa06a5cc0e666abf14634c3365,007917AD,PIKACHU no aprendió SURF.,なみのりを おぼえなかった！,PIKACHU não aprendeu SURF.,PIKACHU lernt SURFER nicht.,피카츄는 파도타기를 안 배웠다.,PIKACHU n'a pas appris SURF.,PIKACHU non ha imparato SURF.,
+T1C_004,58fa58aa06a5cc0e666abf14634c3365,007917AD,PIKACHU no aprendió SURF.,なみのりを おぼえなかった！,PIKACHU não aprendeu SURF.,PIKACHU lernt SURFER nicht.,피카츄는 파도타기를 안 배웠다.,PIKACHU n'a pas retenu SURF.,PIKACHU non ha appreso SURF.,
 T1C_005,e6a945737e75ff75f717266a0871ebe1,007917C9,¡PIKACHU intenta aprender SURF!,ピカチュウは なみのりを おぼえたい！,PIKACHU está tentando aprender SURF!,PIKACHU will SURFER erlernen!,피카츄는 파도타기를 배우려 한다!,PIKACHU veut apprendre SURF !,PIKACHU vuole imparare SURF!,
 T1C_006,fb2d87011d33c869720e944d529332db,007917EA,¡Pero PIKACHU no puede saber más de 4 mov.!,わざは 4つまでしか おぼえられない！,Mas PIKACHU não pode ter mais de 4 golpes!,Doch PIKACHU kann nur 4 Attacken haben!,하지만 피카츄는 기술을 4개까지만 배운다!,Mais PIKACHU ne peut pas avoir plus de 4 cap. !,Ma PIKACHU non può avere più di 4 mosse!,
 T1C_007,18ef7324bf71310c87f75409f08501b9,00791816,¿Olvidar un mov. para aprender SURF?,わざを わすれて なみのりを おぼえる？,Esquecer um golpe para dar lugar a SURF?,"Attacke vergessen, um SURFER zu lernen?",기술을 잊게 하고 파도타기를 배울까요?,Oublier une capacité pour SURF ?,Dimenticare una mossa per SURF?,
 T1C_008,2c716ebebd5e1d0059176b012fe96f06,0079183B,¿No dejar que tu PIKACHU aprenda SURF?,なみのりを おぼえさせない？,Não ensinar SURF ao seu PIKACHU?,PIKACHU SURFER nicht lernen lassen?,피카츄에게 파도타기를 안 가르칠까?,Ne pas apprendre SURF à PIKACHU ?,Non far imparare SURF a PIKACHU?,
 T1C_009,d31c5685031c55456e16c43bd07b43a2,0079185E,¿Qué movimiento debe olvidar?,どの わざを わすれさせる？,Qual golpe deve ser esquecido?,Welche Attacke vergessen?,어느 기술을 잊게 할까요?,Quelle capacité oublier ?,Quale mossa dimenticare?,
 T1C_010,cf037bef260c08df975a6f00bf93d788,0079187E,"1, 2 y...",1 2の…,"1, 2 e...","1, 2 und...","1, 2...","1, 2 et...","1, 2 e...",
-T1C_011,4b21b874f0d8820f6359a617a73a141b,0079188A,"1, 2 y... ¡Puf!",1 2の… ポカン！,"1, 2 e... Puf!","1, 2 und... Schwupp!","1, 2... 짠!","1, 2 et... Tadaa !","1, 2 e... Puf!",
-T1C_012,b3a7cc1f8df0cb045ee0e86bcbd5890e,0079189C,¡PIKACHU olvidó cómo usar #29!,ピカチュウは #29を わすれた！,PIKACHU esqueceu como usar #29!,PIKACHU hat #29 vergessen!,피카츄는 #29 쓰는 법을 잊었다!,PIKACHU a oublié #29 !,PIKACHU ha dimenticato #29!,
+T1C_011,4b21b874f0d8820f6359a617a73a141b,0079188A,"Uno, dos y... ¡zas!",1 2の… ポカン！,"1, 2 e... Puf!","1, 2 und... Schwupp!","1, 2... 짠!","1, 2 et... Tadaa !","1, 2 e... Puf!",
+T1C_012,b3a7cc1f8df0cb045ee0e86bcbd5890e,0079189C,¡PIKACHU ya no sabe usar #29!,ピカチュウは #29を わすれた！,PIKACHU esqueceu como usar #29!,PIKACHU kann #29 nicht mehr!,피카츄는 #29 쓰는 법을 잊었다!,PIKACHU a oublié #29 !,PIKACHU ha dimenticato #29!,
 T1C_013,92e7ed2c6eba86b1b6e3141312277580,007918BB,Y...,そして…,E...,Und...,그리고...,Et...,E...,
 T1C_014,bdc94d5f080da1e10cbb6b0efef037e8,007918C2,¡PIKACHU aprendió SURF!,なみのりを おぼえた！,PIKACHU aprendeu SURF!,PIKACHU erlernt SURFER!,피카츄가 파도타기를 배웠다!,PIKACHU a appris SURF !,PIKACHU ha imparato SURF!,
-T1C_015,595ad568bcc9897054bd58ec8a99d334,007918D8,¡Cuida mucho a PIKACHU!,ピカチュウを だいじに してね！,Cuide bem do PIKACHU!,Pass gut auf PIKACHU auf!,피카츄를 소중히 키워 줘!,Prenez soin de PIKACHU !,Abbi cura di PIKACHU!,
+T1C_015,595ad568bcc9897054bd58ec8a99d334,007918D8,¡Trata bien a PIKACHU!,ピカチュウを だいじに してね！,Cuide bem do PIKACHU!,Pass gut auf PIKACHU auf!,피카츄를 소중히 키워 줘!,Prenez soin de PIKACHU !,Abbi cura di PIKACHU!,
 T1C_016,93cba07454f06a4a960172bbd6e2a435,007918F3,Sí,はい,Sim,Ja,예,Oui,Sì,
 T1C_017,bafd7322c6e97d25b6299b5d6fe8920b,007918F7,No,いいえ,Não,Nein,아니오,Non,No,
 T1C_018,575f5f86d2c7ea113c6710c1037c4465,007918FA,Guardando...,セーブちゅう...,Salvando...,Speichere...,저장 중...,Sauvegarde...,Salvo...,
@@ -7402,12 +7402,12 @@ T1D_009,47902c5b85ba959c36cd2bf3585412ff,00791BB0,"CORRE, RATTATA",はしれ コ
 T1D_010,5e87e45524a20d7474a65abc731a6972,00791BC2,RONQUIDOS,いびき たいけつ,GUERRA RONCO,SCHNARCHKAMPF,코골이 대결,RONFLE-GUERRE,RUSSATONA,
 T1D_011,b2d783dfcb4e0c4b59cb3fb931c3ac20,00791BCC,DINAMO TRONADORA,でんき ダイナモ,DÍNAMO TROVEJANTE,DONNER-DYNAMO,번쩍번쩍 발전기,DYNAMO FOUDROYANTE,DINAMO TONANTE,
 T1D_012,13f865dc523b076027d67429415bd883,00791BDE,SUSHI GIRATORIO,かいてんずし,SUSHI GIRATÓRIO,SUSHI-KARUSSELL,회전 초밥,SUSHI-TOURNANT,GIRO DI SUSHI,
-T1D_013,e0ce7dcb0ca7cc9325163a63f990d705,00791BED,ARO DE EKANS,アーボの わなげ,ARGOLAS DO EKANS,RETTANS RINGWURF,아보의 고리 던지기,LANCER D'ABO,I CERCHI DI EKANS,
+T1D_013,e0ce7dcb0ca7cc9325163a63f990d705,00791BED,ARO DE EKANS,アーボの わなげ,ARGOLAS DO EKANS,RETTANS RINGWURF,아보의 고리 던지기,LANCER D'ABO,LANCIO DI EKANS,
 T1D_014,a845b6dca9df8725cd98e8aa31546e17,00791BFE,ROCA DURA,かたくなる いわ,ROCHA DURA,HART WIE STEIN,바위 단단해지기,ROCHE ARMURE,ROCCIA DURA,
 T1D_015,8754edfa7c08726fc6ca05e81e870953,00791C0A,"¡CAVA, CAVA!",ほれ！ ほれ！ ほれ！,CAVA! CAVA! CAVA!,GRAB! GRAB! GRAB!,파라! 파라! 파라!,CREUSE ! CREUSE !,SCAVA! SCAVA!,
-T1D_016,37859b9dd0ae76b0b4832effd52686b6,00791C19,Eligiendo 1.er juego...,ゲームを えらんでいます...,Escolhendo o 1º jogo...,Erstes Spiel wählen...,첫 게임 선택 중...,Choix du premier jeu...,Scelta del primo gioco...,
+T1D_016,37859b9dd0ae76b0b4832effd52686b6,00791C19,Eligiendo 1.er juego...,ゲームを えらんでいます...,Escolhendo o 1º jogo...,Erstes Spiel wählen...,첫 게임 선택 중...,Sélection du 1er jeu...,Scelta del primo gioco...,
 T1D_017,fa5b5aa5125fa7d01096745876618c20,00791C31,Elige un juego.,ゲームを えらぶ,Escolha um jogo.,Wähle ein Spiel.,게임을 골라 줘.,Choix du jeu.,Scegli un gioco.,
-T1D_018,96588f90244ae5a104ce576e332642de,00791C3E,¿Quién es el mejor?,だれが いちばん？,Quem é o melhor?,Wer ist der Beste?,누가 최고일까?,Qui gagnera ?,Chi è il migliore?,
+T1D_018,96588f90244ae5a104ce576e332642de,00791C3E,¿Quién gana?,だれが いちばん？,Quem é o melhor?,Wer ist der Beste?,누가 최고일까?,Qui gagnera ?,Chi sarà il migliore?,
 T1D_019,a3aa562969ead9a493a05850095ba372,00791C4E,#01 victoria(s) para ser campeón,#01かい かつと チャンピオン,#01 vitória(s) para ser Campeão,#01 Sieg(e) bis zum Champion,#01승 하면 챔피언,#01 victoire(s) pour gagner,#01 vittorie per il titolo,
 T1D_020,d9aefc864b17e88a52ca02447923e3ed,00791C6D,Empezar juego,ゲーム スタート,Começar jogo,Spiel starten,게임 시작,Commencer,Inizia,
 T1D_021,1626c3d93b732c41fe85c9a5b2d86dce,00791C78,"SALTA, MAGIKARP",コイキングの はねる,SPLASH DO MAGIKARP,KARPADOR-PLATSCHER,잉어킹의 튀어오르기,SAUT DE MAGICARPE,SPLASH DI MAGIKARP,
@@ -7535,7 +7535,7 @@ T1D_058,9ba32844a4a53b76cd3efed4d6cab36d,007920C8,¥200,¥200,¥200,¥200,¥200,
 T1D_059,60140b332ada9ed03e19b3722a4e799c,007920CD,¥150,¥150,¥150,¥150,¥150,150¥,¥150,
 T1D_060,b9cc9fc7c0f57240c9be1ff486561526,007920D2,¥50,¥50,¥50,¥50,¥50,50¥,¥50,
 T1D_061,e7425fbd983d93db2c924f09ff2e436a,007920D6,¥20,¥20,¥20,¥20,¥20,20¥,¥20,
-T1D_062,e0ce7dcb0ca7cc9325163a63f990d705,007920DA,ARO DE EKANS,アーボの わなげ,ARGOLAS DO EKANS,RETTANS RINGWURF,아보의 고리 던지기,LANCER D'ABO,I CERCHI DI EKANS,
+T1D_062,e0ce7dcb0ca7cc9325163a63f990d705,007920DA,ARO DE EKANS,アーボの わなげ,ARGOLAS DO EKANS,RETTANS RINGWURF,아보의 고리 던지기,LANCER D'ABO,LANCIO DI EKANS,
 T1D_063,353311670193a78089ede94c18c2465e,007920EB,"Apunta con el + Panel de Control. Jala y suelta
 la Palanca de Control para lanzar a EKANS.","+じボタンで ねらいを さだめ スティックを
 ひいて はじくと アーボが とんでいく。","Mire com o Direcional +. Puxe e solte rápido
@@ -7642,12 +7642,12 @@ T1D_095,194aec8ce32ce2ebaea534b8f7e9bab1,0079241E,Botón A,Aボタン,Botão A,A
 T1D_096,220c1fcfaf74948799cbd8e49db3d8c7,00792427,Botón B,Bボタン,Botão B,B-Knopf,B버튼,Bouton B,Pulsante B,
 T1D_097,e53fe0a7d9ff1b25e9f3d8ac49e3aeb6,00792430,+ Panel Ctrl.,+じボタン,Direcional +,Steuerkreuz,+컨트롤 패드,Croix multidir.,Pulsantiera +,
 T1D_098,dcfc4b060d994d65f37543a032762206,0079243E,Palanca Ctrl.,スティック,Control Stick,Control Stick,3D 스틱,Stick,Leva di comando,
-T1D_099,1d41bd6b99fd2b649366d81e6a2e8f10,0079244C,Botones L y R,Lと Rボタン,Botões L e R,L- und R-Knopf,L·R버튼,Boutons L et R,Pulsanti L e R,
+T1D_099,1d41bd6b99fd2b649366d81e6a2e8f10,0079244C,Botón L y Botón R,Lと Rボタン,Botões L e R,L- und R-Knopf,L·R버튼,Boutons L et R,Tasti L e R,
 T1E_000,5169418f4773a7ca31e966ddabff7be0,00792710,¡#25 no tiene más mov.!,#25は だせる わざが ない！,#25 não tem mais golpes!,#25: keine Attacken mehr!,#25에게 남은 기술이 없다!,#25 n'a plus d'attaque !,#25 non ha più mosse!,
 T1E_001,c1009e925c5a0b9d64dc08de353fd4f2,00792727,¡No quedan PP!,わざの PPが ない！,Sem PP para este golpe!,Keine AP mehr!,기술의 PP가 없다!,Plus de PP pour ça !,Mossa senza PP!,
 T1E_002,702ae793c5dee407f14b7fc48a560597,0079273C,¡Mov. anulado!,わざが ふうじられている！,O golpe está desativado!,Attacke ist blockiert!,기술이 봉인되어 있다!,Capacité bloquée !,La mossa è bloccata!,
-T1E_003,518d4f061b8f2b4e572142291dea7cf8,00792752,¡No tiene ganas de luchar!,たたかう きりょくが ない！,Não há vontade de lutar!,Kein Kampfgeist mehr!,싸울 의지가 없다!,Pas envie de se battre !,Non ha voglia di lottare!,
-T1E_004,2d256cedbf89b541bf61c77085f997c7,0079276C,¡#25 ya está fuera!,#25は もう でている！,#25 já está em campo!,#25 kämpft schon!,#25 이미 나와 있다!,#25 est déjà là !,#25 è già in campo!,
+T1E_003,518d4f061b8f2b4e572142291dea7cf8,00792752,¡No quiere pelear!,たたかう きりょくが ない！,Não há vontade de lutar!,Kein Kampfgeist mehr!,싸울 의지가 없다!,Pas envie de se battre !,Non ha voglia di lottare!,
+T1E_004,2d256cedbf89b541bf61c77085f997c7,0079276C,¡#25 ya está en combate!,#25は もう でている！,#25 já está em campo!,#25 kämpft schon!,#25 이미 나와 있다!,#25 est déjà là !,#25 sta già lottando!,
 T1E_005,c73666b8bf6bd6d1658284fb38b1e04c,00792780,¡El veneno le resta PS!,どくの ダメージ！,É ferido pelo veneno!,Es leidet unter Gift!,독에 의한 데미지!,Le poison le blesse !,Il veleno lo ferisce!,
 T1E_006,013b314765d90f6f6144876dc0f520f7,00792795,¡La quemadura le resta PS!,やけどの ダメージ！,É ferido pela queimadura!,Verbrennung schadet!,화상에 의한 데미지!,La brûlure le blesse !,La scottatura lo ferisce!,
 T1E_007,269e32754583a9330fe1a1c230f23947,007927AC,¡DRENADORAS le quitó PS!,やどりぎが HPを うばう！,LEECH SEED drenou PS!,EGELSAMEN saugt KP ab!,씨뿌리기가 HP를 빼앗았다!,VAMPIGRAINE vole PV !,PARASSISEME ruba PS!,
@@ -7660,9 +7660,9 @@ T1E_013,06310133e7cbebb335ca51ece3d2e44f,0079280F,¡No se mueve!,うごけない
 T1E_014,126e87702463c3b87cae8b0939cbcdbf,0079281E,¡Retrocedió!,ひるんだ！,Recuou!,Es zuckt zurück!,풀이 죽었다!,Il a peur !,Tentenna!,
 T1E_015,11e42d37a6ec5d9f406ac76b6f0f1423,0079282B,¡Debe recargar energía!,はんどうで うごけない！,Precisa recarregar!,Es muss sich erholen!,반동으로 쉬어야 한다!,Il doit se recharger !,Deve ricaricarsi!,
 T1E_016,afc00eb8e786e34e9f4ee0257b2a6b0a,0079283F,¡Ya no está anulado!,ふうじが とけた！,Não está mais desativado!,Es ist nicht mehr blockiert!,봉인이 풀렸다!,Il n'est plus bloqué !,Non è più bloccato!,
-T1E_017,aff3b505bed306a69adb24e28d2cef54,00792858,¡Ya no está confundido!,こんらんが とけた！,Não está mais confuso!,Es ist nicht mehr verwirrt!,혼란이 풀렸다!,Il n'est plus confus !,Non è più confuso!,
+T1E_017,aff3b505bed306a69adb24e28d2cef54,00792858,¡Ya no está confundido!,こんらんが とけた！,Não está mais confuso!,Es ist nicht mehr verwirrt!,혼란이 풀렸다!,Il n'est plus confus !,Non è più in confusione!,
 T1E_018,682f49b8ffc65a35589cce31ad62e710,00792871,¡Está confundido!,こんらん している！,Está confuso!,Es ist verwirrt!,혼란에 빠져 있다!,Il est confus !,È confuso!,
-T1E_019,011bceb250a6ce6c0a1fc570527427fa,00792880,¡Se hirió a sí mismo!,じぶんを こうげきした！,Atacou a si mesmo!,Es trifft sich selbst!,자신을 공격했다!,Il se blesse lui-même !,Si colpisce da solo!,
+T1E_019,011bceb250a6ce6c0a1fc570527427fa,00792880,¡Se hirió a sí mismo!,じぶんを こうげきした！,Atacou a si mesmo!,Es trifft sich selbst!,자신을 공격했다!,Il se blesse lui-même !,Ha colpito sé stesso!,
 T1E_020,4f1b51afe2f163e99e3fc9f9e8adbb4a,00792894,¡#29 está anulado!,#29が ふうじられている！,Seu #29 está desativado!,#29 ist blockiert!,#29(이)가 봉인되어 있다!,#29 est bloqué !,#29 è bloccata!,
 T1E_021,2a4d270dad2441d20ea0f185b6e6b7ca,007928A9,¡Está paralizado!,しびれて うごけない！,Está paralisado!,Es ist voll paralysiert!,몸이 저려 움직일 수 없다!,Il est paralysé !,È paralizzato!,
 T1E_022,f69bc2a8e223f0daa76f0b7a5cf36160,007928BF,¡Liberó energía!,エネルギーを はなった！,Liberou energia!,Es setzt Energie frei!,에너지를 방출했다!,Il libère son énergie !,Scatena energia!,
@@ -7694,7 +7694,7 @@ T1E_047,a1fa1a21eb51ee1b2c9619c100aec98f,00792A5D,¡Basta! ¡Regresa!,もうい�
 T1E_048,91ddce0dd81f8c7732ac872ccd39b37a,00792A70,¡Bien! ¡Regresa!,よし！ もどれ！,OK! Volte!,OK! Komm zurück!,좋아! 돌아와!,OK ! Reviens !,OK! Rientra!,
 T1E_049,8398eadefb206762311ebe1ed454bcd7,00792A7F,¡Muy bien! ¡Regresa!,いいぞ！ もどれ！,Muito bem! Volte!,Gut! Komm zurück!,잘했어! 돌아와!,Bien ! Reviens !,Bravo! Rientra!,
 T1E_050,e58229a073165e3fa70b51cfd78ffd61,00792A90,¡Es súper eficaz!,こうかは ばつぐんだ！,É supereficaz!,Das ist sehr effektiv!,효과가 굉장했다!,C'est super efficace !,È superefficace!,
-T1E_051,037dec78d05a7d0fcc8a15b969636d01,00792AA6,No es muy eficaz...,こうかは いまひとつ...,Não é muito eficaz...,Das ist nicht sehr effektiv...,효과가 별로인 듯하다...,Ce n'est pas très efficace...,Non è molto efficace...,
+T1E_051,037dec78d05a7d0fcc8a15b969636d01,00792AA6,No es muy eficaz...,こうかは いまひとつ...,Não é muito eficaz...,Das ist nicht sehr effektiv...,효과가 별로인 듯하다...,L'effet est faible...,Ha poco effetto...,
 T1E_052,ab299d4d28be4c3bda8b988144c71b06,00792AC1,¡El SUSTITUTO recibió el ataque!,みがわりが こうげきを うけた！,O SUBSTITUTE levou o ataque!,Der DELEGATOR steckt ein!,대타가 공격을 받았다!,Le CLONAGE prend le coup !,Il SOSTITUTO subisce il colpo!,
 T1E_053,b7bf3eade245678af66b6676879b4e4e,00792AE1,¡El SUSTITUTO se rompió!,みがわりが きえた！,O SUBSTITUTE quebrou!,DELEGATOR ging kaputt!,대타는 사라졌다!,Le CLONAGE est détruit !,Il SOSTITUTO si rompe!,
 T1E_054,1a6f5d3beef07f4ccd2c4474b8f0ce8e,00792AF7,¡Perdió contra #21!,#21に まけた！,Perdeu para #21!,Verloren gegen #21!,#21에게 졌다!,Vaincu par #21 !,Battuto da #21!,
@@ -7711,7 +7711,7 @@ T1E_064,dc0d2060204b41a6697862009ed61952,00792BA1,¡Se derritió!,こおりが �
 T1E_065,859f5954313f6f779be113701713221a,00792BB1,¡Fue quemado!,やけどを おった！,Foi queimado!,Es ist verbrannt!,화상을 입었다!,Il est brûlé !,È scottato!,
 T1E_066,859f5954313f6f779be113701713221a,00792BC0,¡Fue quemado!,やけどを おった！,Foi queimado!,Es ist verbrannt!,화상을 입었다!,Il est brûlé !,È scottato!,
 T1E_067,b514ddff57ecdf741b045007afad9305,00792BCF,¡Fue congelado!,こおりついた！,Foi congelado!,Es wurde eingefroren!,꽁꽁 얼어 버렸다!,Il est gelé !,È stato congelato!,
-T1E_068,b1910095d626bac005c7df2c9cf57fc3,00792BE4,¡Puede que no ataque!,こうげき できないかも！,Pode não atacar!,Angriff unsicher!,공격 못 할 수도 있다!,Il peut rester figé !,Può non attaccare!,
+T1E_068,b1910095d626bac005c7df2c9cf57fc3,00792BE4,¡Quizá no pueda atacar!,こうげき できないかも！,Pode não atacar!,Angriff unsicher!,공격 못 할 수도 있다!,Il peut rester figé !,Può non attaccare!,
 T1E_069,46c17c53625ad9d29b6513199021da70,00792BF7,¡El ATAQUE subió mucho!,こうげき ぐーんと アップ！,ATAQUE subiu muito!,ANGRIFF steigt stark!,공격이 크게 올랐다!,ATTAQUE augmente beaucoup !,L'ATTACCO sale molto!,
 T1E_070,4cfa61a3f2f26fe975546404f09660a7,00792C11,¡La DEFENSA subió mucho!,ぼうぎょが ぐーんと あがった！,DEFESA subiu muito!,VERTEIDIGUNG steigt stark!,방어가 크게 올랐다!,DEFENSE augmente beaucoup !,La DIFESA sale molto!,
 T1E_071,5af65da42e4ea0b3ad83d6222b8d5d70,00792C2C,¡La VELOCIDAD subió mucho!,すばやさ ぐーんと アップ！,VELOC. subiu muito!,INITIATIVE steigt stark!,스피드가 크게 올랐다!,VITESSE augmente beaucoup !,La VELOCITÀ sale molto!,
@@ -7751,11 +7751,11 @@ T1E_104,d6acec96b2e211a87cd77c08ab26c8a6,00792EB6,¡Absorbió luz solar!,ひか�
 T1E_105,9cd64a98bacf8a3cbbc653e7e72519cd,00792ECB,¡Escondió la cabeza!,くびを ひっこめた！,Recolheu a cabeça!,Es zieht den Kopf ein!,목을 움츠렸다!,Il rentre sa tête !,Ritrae la testa!,
 T1E_106,2188f59d1bba4b64a6db48702429a66a,00792EE1,¡Está brillando!,ひかりだした！,Está brilhando!,Es leuchtet!,빛나고 있다!,Il brille !,Si illumina!,
 T1E_107,98f31413ee184eb31605f375bab61a07,00792EEF,¡Voló muy alto!,そらへ とびあがった！,Voou bem alto!,Es fliegt hoch!,하늘 높이 날았다!,Il s'envole !,Vola in alto!,
-T1E_108,513dde9d3a3c9cbf6acea9cde17f3e5e,00792F00,¡Cavó un hoyo!,あなを ほった！,Cavou um buraco!,Es gräbt ein Loch!,구멍을 팠다!,Il creuse !,Scava una buca!,
+T1E_108,513dde9d3a3c9cbf6acea9cde17f3e5e,00792F00,¡Cavó un hoyo!,あなを ほった！,Cavou um buraco!,Es buddelt sich ein!,구멍을 팠다!,Il creuse !,Scava una buca!,
 T1E_109,73a4d35d33ac5b4b82d20fdfedd73fd2,00792F0F,¡Pero falló!,しかし しっぱい！,Mas falhou!,Doch es misslang!,하지만 실패했다!,Mais cela échoue !,Ma fallisce!,
-T1E_110,c45c800e0ba3dd793de2172a24847882,00792F1F,¡Lo envuelve la neblina!,しろい きりに つつまれた！,Está envolto em névoa!,Es ist in Nebel gehüllt!,흰 안개에 휩싸였다!,Il est entouré de brume !,È avvolto nella nebbia!,
+T1E_110,c45c800e0ba3dd793de2172a24847882,00792F1F,¡Lo envuelve la neblina!,しろい きりに つつまれた！,Está envolto em névoa!,Es ist in Nebel gehüllt!,흰 안개에 휩싸였다!,Il est entouré de brume !,È circondato dalla nebbia!,
 T1E_111,73a4d35d33ac5b4b82d20fdfedd73fd2,00792F36,¡Pero falló!,しかし しっぱい！,Mas falhou!,Doch es misslang!,하지만 실패했다!,Mais cela échoue !,Ma fallisce!,
-T1E_112,03e76b903aab21977dfc73f23fa1da88,00792F46,¡Se está concentrando!,はりきっている！,Está se animando!,Es pumpt sich auf!,의욕이 넘친다!,Il se concentre !,Si carica!,
+T1E_112,03e76b903aab21977dfc73f23fa1da88,00792F46,¡Se está concentrando!,はりきっている！,Está se animando!,Es gerät in Fahrt!,의욕이 넘친다!,Il se concentre !,Si carica!,
 T1E_113,d21a091ae15bd885699e404d0b1c58cb,00792F5B,¡Recibió daño de rebote!,はんどうを うけた！,Sofreu dano de recuo!,Es erleidet Rückstoß!,반동으로 데미지를 입었다!,Il subit le contrecoup !,Subisce il contraccolpo!,
 T1E_114,47b8710a145f92c7ca6f0366dcd31b33,00792F71,¡Quedó confundido!,こんらん してしまった！,Ficou confuso!,Es wurde verwirrt!,혼란에 빠졌다!,Il devient confus !,È confuso!,
 T1E_115,47b8710a145f92c7ca6f0366dcd31b33,00792F85,¡Quedó confundido!,こんらん してしまった！,Ficou confuso!,Es wurde verwirrt!,혼란에 빠졌다!,Il devient confus !,È confuso!,
@@ -7778,7 +7778,7 @@ T1E_131,8dcf4bbd778823e7fa44b2dd2fe29cda,007930C7,¡Se durmió y se curó!,ね�
 T1E_132,8f67287bb373fc412aaa050109ddeb74,007930E6,¡Se puso a dormir!,ねむりはじめた！,Começou a dormir!,Es schläft ein!,잠들기 시작했다!,Il s'endort !,Si mette a dormire!,
 T1E_133,9d30a20bb7927ed31a80006d260c03cb,007930FB,¡Recuperó salud!,げんきに なった！,Recuperou a saúde!,Es hat sich erholt!,체력을 회복했다!,Il récupère des PV !,Ha recuperato salute!,
 T1E_134,73a4d35d33ac5b4b82d20fdfedd73fd2,0079310F,¡Pero falló!,しかし しっぱい！,Mas falhou!,Doch es misslang!,하지만 실패했다!,Mais cela échoue !,Ma fallisce!,
-T1E_135,2b51cc3d56883e8f76b432f25d5fa863,0079311F,¡Se transformó en #27!,#27に へんしんした！,Transformou-se em #27!,Es verwandelte sich in #27!,#27(으)로 변신했다!,Il se transforme en #27 !,Si è trasformato in #27!,
+T1E_135,2b51cc3d56883e8f76b432f25d5fa863,0079311F,¡Ahora tiene la forma de #27!,#27に へんしんした！,Transformou-se em #27!,Es verwandelte sich in #27!,#27(으)로 변신했다!,Il se transforme en #27 !,Si è trasformato in #27!,
 T1E_136,73a4d35d33ac5b4b82d20fdfedd73fd2,00793138,¡Pero falló!,しかし しっぱい！,Mas falhou!,Doch es misslang!,하지만 실패했다!,Mais cela échoue !,Ma fallisce!,
 T1E_137,c8c386d2b559a26113155d2544c4baae,00793148,¡No pudo transformarse en DITTO!,メタモンには へんしん できない！,Não pôde se transformar em DITTO!,Verwandlung in DITTO unmöglich!,메타몽으로는 변신할 수 없었다!,Il ne peut pas copier METAMORPH !,Non può trasformarsi in DITTO!,
 T1E_138,63009ccf5e4825f91e4681e383f487a0,0079316A,¡Está protegido de ataques ESPECIALES!,とくしゅこうげきに つよくなった！,Está protegido de ataques ESPECIAIS!,Es ist vor SPEZIAL-Attacken geschützt!,특수 공격에 강해졌다!,Protégé contre les attaques SPECIALES !,È protetto dagli attacchi SPECIALI!,
@@ -7787,7 +7787,7 @@ T1E_140,f49ea758c19fc48729ea1bc255694df8,0079319F,¡Ganó una armadura!,かた�
 T1E_141,73a4d35d33ac5b4b82d20fdfedd73fd2,007931B0,¡Pero falló!,しかし しっぱい！,Mas falhou!,Doch es misslang!,하지만 실패했다!,Mais cela échoue !,Ma fallisce!,
 T1E_142,e5c84eb64b5aa5cd98abc1fde11e536f,007931C0,¡Tiene un SUSTITUTO!,みがわりが でている！,Já tem um SUBSTITUTE!,Es hat einen DELEGATOR!,이미 대타가 있다!,Il a un CLONE !,Ha un SOSTITUTO!,
 T1E_143,0a7e0bf264722d41a9557d68ab9674b5,007931D5,¡Faltan PS!,HPが たりない！,PS insuficientes!,Nicht genug KP!,HP가 모자란다!,Pas assez de PV !,PS insufficienti!,
-T1E_144,5f5167e1c38513df23bf06ba4ff57294,007931E4,¡Creó un SUSTITUTO!,みがわりを つくった！,Criou um SUBSTITUTE!,Es erschuf einen DELEGATOR!,대타가 나타났다!,Il crée un CLONE !,Ha creato un SOSTITUTO!,
+T1E_144,5f5167e1c38513df23bf06ba4ff57294,007931E4,¡Creó un SUSTITUTO!,みがわりを つくった！,Criou um SUBSTITUTE!,Es erschuf einen DELEGATOR!,대타가 나타났다!,Il crée un CLONE !,Ha generato un SOSTITUTO!,
 T1E_145,60f5d27388fcb363997a03029f81be4f,007931FD,"¡Felicidades!
 ¡Ganaste un GAME BOY DODUO!","おめでとう！
 ドードーの GBを もらった！","Parabéns!
@@ -7820,8 +7820,8 @@ GB-TURM ist hyper!","GB타워의 게임보이가
 하이퍼 모드가 되었다!","La GAME BOY de la
 TOUR GB passe en hyper !","Il GAME BOY nella
 TORRE GB va a mille!",
-T1E_149,68acab50d2fbfc1c18ebb4e42819572d,007932A0,"¡Magnífico!
-¡Acabas de ganar #31!","すばらしい！
+T1E_149,68acab50d2fbfc1c18ebb4e42819572d,007932A0,"¡Espléndido!
+¡Has ganado #31!","すばらしい！
 #31を もらった！","Magnífico!
 Você ganhou #31!","Großartig!
 Du hast #31 gewonnen!","훌륭하다!
@@ -8016,33 +8016,33 @@ T20_002,63ab4932d99c86ff10443b5e97fa7c23,007937D2,Más detalles,くわしく み
 T20_003,562dc6bfb454e1c40d3897cc75539a08,007937DE,Paneles azules: Pokémon válidos: #03,あおい パネル：さんか ポケモン：#03,Painéis azuis: Pokémon aptos: #03,Blaue Felder: Zugelassene Pokémon: #03,파란 패널: 참가 가능 포켓몬: #03,Panneaux bleus : Pokémon admis : #03,Pannelli blu: Pokémon ammessi: #03,
 T20_004,db51a2dcf58d265fe96091617be8f1d5,00793803,Participa con seis Pokémon,6ぴきで エントリー,Entre com seis Pokémon,Mit sechs Pokémon antreten,포켓몬 6마리로 참가,Six Pokémon à inscrire,Partecipa con sei Pokémon,
 T20_005,e5472249c8ee5d5dc67019d4068cfd32,0079381A,Elige tres de los seis Pokémon,6ぴきから 3びきを えらぶ,Escolha três de seis Pokémon,Drei von sechs Pokémon wählen,6마리 중 3마리 선택,Trois Pokémon choisis sur six,Scegli tre Pokémon su sei,
-T20_006,f0aafc0bf3ede735ddd45cc241de306a,0079383A,Nivel de Pokémon de 50 a 55,ポケモンの レベルは 50～55,Pokémon de nível 50 a 55,Pokémon-Level von 50 bis 55,레벨 50~55의 포켓몬,Pokémon de niveau 50 à 55,Pokémon dal livello 50 al 55,
+T20_006,f0aafc0bf3ede735ddd45cc241de306a,0079383A,Nivel de Pokémon de 50 a 55,ポケモンの レベルは 50～55,Pokémon de nível 50 a 55,Pokémon-Level von 50 bis 55,레벨 50~55의 포켓몬,Niveaux des Pokémon : 50 à 55,Pokémon dal livello 50 al 55,
 T20_007,53db9e1ace6b0b3f9d7a6cc19441be37,00793856,Suma máxima de niveles de 3 Pokémon: 155,3びきの レベルの ごうけいは 155まで,Soma máx. dos níveis dos três: 155,Level-Summe von drei Pokémon max. 155,3마리의 레벨 합계 155까지,Total des trois niveaux : 155 max,Somma livelli di tre Pokémon max 155,
 T20_008,afd822ac4c822de1cde2b0970a8b88c6,0079387C,Sin dos dormidos o congelados,ねむり こおりは 1ぴきまで,Só um Pokémon dormindo ou congelado,Nie zwei Pokémon schlafend/gefroren,2마리 이상 잠듦·얼음 금지,Pas deux Pokémon endormis ou gelés,Mai due Pokémon addorm. o congelati,
 T20_009,1a57a31ac554ac82209a9e500ca4c571,0079389C,MEW no participa,ミュウは さんか ふか,Sem MEW,Kein MEW erlaubt,뮤는 참가 불가,MEW interdit,MEW non ammesso,
 T20_010,ed937197feeaffcc8c435ccefb18a1e9,007938AD,CONTINUAR por combate perfecto,かんぜんしょうりで コンティニュー,Ganhe CONTINUE numa vitória perfeita,Ein WEITER für einen perfekten Sieg,완벽한 승리로 컨티뉴 획득,Sans-faute = un CONTINUER gagné,CONTINUA con una lotta perfetta,
 T20_011,9867d5cce574773c3aff47d73464f902,007938D0,Paneles azules (Pokémon válidos): 149,あおい パネル (さんか ポケモン)：149,Painéis azuis (Pokémon aptos): 149,Blaue Felder (Zugelassene Pokémon): 149,파란 패널(참가 가능 포켓몬): 149,Panneaux bleus (Pokémon admis) : 149,Pannelli blu (Pokémon ammessi): 149,
 T20_012,1cb40eab54c1f751080af090e762ed66,007938F6,Con límite de tiempo,じかんせいげん あり,Com limite de tempo,Zeitbeschränkung aktiv,시간 제한 있음,Temps limité,Limiti di tempo attivi,
-T20_013,40516c5d0f8322540c1766181f4775ac,00793910,Se puede cambiar el tiempo,せいげんじかん へんこう かのう,Limites de tempo ajustáveis,Zeitlimits änderbar,시간 제한 변경 가능,Temps limite modifiable,Limiti di tempo modificabili,
+T20_013,40516c5d0f8322540c1766181f4775ac,00793910,Se puede cambiar el tiempo,せいげんじかん へんこう かのう,Limites de tempo ajustáveis,Zeitlimits änderbar,시간 제한 변경 가능,Temps limite modifiable,I limiti di tempo sono regolabili,
 T20_014,d0db2a6fec621d35235bce132883ca12,0079392B,Nivel máximo 30,レベル 30まで,Nível máximo 30,Maximal Level 30,최대 레벨 30,Niveau 30 maximum,Livello massimo 30,
 T20_015,8240b8c5240b85f03156e9c335160194,0079393C,Paneles azules (Pokémon válidos): 33,あおい パネル (さんか ポケモン)：33,Painéis azuis (Pokémon aptos): 33,Blaue Felder (Zugelassene Pokémon): 33,파란 패널(참가 가능 포켓몬): 33,Panneaux bleus (Pokémon admis) : 33,Pannelli blu (Pokémon ammessi): 33,
 T20_016,9483e974cf699457a27c4d384e974bf8,00793961,Nivel máximo 50,レベル 50まで,Nível máximo 50,Maximal Level 50,최대 레벨 50,Niveau 50 maximum,Livello massimo 50,
 T20_017,8ea9e2b402aa0e789f41ef8fa701ec9a,00793972,Sin Pokémon de torneo nacional,ぜんこくたいかいの ポケモンは だめ,Sem Pokémon do torneio nacional,Keine Pokémon nationaler Turniere,전국 대회 포켓몬 불가,Pas de Pokémon de tournoi national,No Pokémon da torneo nazionale,
 T20_018,91ea58df29928f566c89308309174f23,00793991,Paneles azules (Pokémon válidos): 126,あおい パネル (さんか ポケモン)：126,Painéis azuis (Pokémon aptos): 126,Blaue Felder (Zugelassene Pokémon): 126,파란 패널(참가 가능 포켓몬): 126,Panneaux bleus (Pokémon admis) : 126,Pannelli blu (Pokémon ammessi): 126,
-T20_019,025d4fbc5078bec55e9f878a2acceee5,007939B7,Niveles 25 a 30,レベル 25～30,Níveis 25 a 30,Level 25 bis 30,레벨 25~30,Niveaux 25 à 30,Livelli 25-30,
+T20_019,025d4fbc5078bec55e9f878a2acceee5,007939B7,Del nivel 25 al 30,レベル 25～30,Níveis 25 a 30,Level 25 bis 30,레벨 25~30,Niveaux 25 à 30,Livelli 25-30,
 T20_020,eb5705bf8f92526441c492100fd8c66e,007939C7,Suma máxima de niveles de 3 Pokémon: 80,3びきの レベルの ごうけいは 80まで,Soma máx. dos níveis dos três: 80,Level-Summe von drei Pokémon max. 80,3마리의 레벨 합계 80까지,Total des trois niveaux : 80 max,Somma livelli di tre Pokémon max 80,
 T20_021,8191d290c41e78faee9cf45f338c59fe,007939EC,Altura máx. 2.0 m y peso máx. 20.0 kg,たかさ 2.0m おもさ 20.0kg まで,"ALT máx. 2,0 m e PESO máx. 20,0 kg","Max. GR. 2,0 m und max. GEW. 20,0 kg","키 2.0m, 몸무게 20.0kg까지","Taille max 2,0 m, poids max 20,0 kg","Alt. max 2,0 m e peso max 20,0 kg",
-T20_022,fddcdd8191fa98a674f8de19dcbc9c7a,00793A0F,Solo sin evolucionar,しんかまえの ポケモン のみ,Só Pokémon não evoluídos,Nur unentwickelte Pokémon,진화하지 않은 포켓몬만,Non évolués seulement,Solo Pokémon non evoluti,
+T20_022,fddcdd8191fa98a674f8de19dcbc9c7a,00793A0F,Solo sin evolucionar,しんかまえの ポケモン のみ,Só Pokémon não evoluídos,Nur unentwickelte Pokémon,진화하지 않은 포켓몬만,Non évolués seulement,Ammessi solo Pokémon non evoluti,
 T20_023,b39767e2915c4f4d65748c91f58da3ae,00793A27,Paneles azules (Pokémon válidos): 45,あおい パネル (さんか ポケモン)：45,Painéis azuis (Pokémon aptos): 45,Blaue Felder (Zugelassene Pokémon): 45,파란 패널(참가 가능 포켓몬): 45,Panneaux bleus (Pokémon admis) : 45,Pannelli blu (Pokémon ammessi): 45,
-T20_024,ed3e0bd9c8cc99c59502f37ee0e3ef1b,00793A4C,Sin límite de nivel,レベル せいげん なし,Sem restrição de nível,Keine Level-Beschränkung,레벨 제한 없음,Aucune limite de niveau,Nessun limite di livello,
+T20_024,ed3e0bd9c8cc99c59502f37ee0e3ef1b,00793A4C,Sin límite de nivel,レベル せいげん なし,Sem restrição de nível,Keine Level-Beschränkung,레벨 제한 없음,Aucune limite de niveau,Livello libero,
 T20_025,8569c042e1ae0cf67870e440ed701711,00793A62,Todos los Pokémon,ぜんポケモン さんか かのう,Todos os Pokémon,Offen für alle Pokémon,모든 포켓몬 참가 가능,Tous les Pokémon admis,Tutti i Pokémon,
-T20_026,0774ecad8e69b8a49db1aef38d423f61,00793A76,Niveles 15 a 20,レベル 15～20,Níveis 15 a 20,Level 15 bis 20,레벨 15~20,Niveaux 15 à 20,Livelli 15-20,
+T20_026,0774ecad8e69b8a49db1aef38d423f61,00793A76,Del nivel 15 al 20,レベル 15～20,Níveis 15 a 20,Level 15 bis 20,레벨 15~20,Niveaux 15 à 20,Livelli 15-20,
 T20_027,db96f15b8a728f2eb50033b89eed01f2,00793A86,Suma máxima de niveles de 3 Pokémon: 50,3びきの レベルの ごうけいは 50まで,Soma máx. dos níveis dos três: 50,Level-Summe von drei Pokémon max. 50,3마리의 레벨 합계 50까지,Total des trois niveaux : 50 max,Somma livelli di tre Pokémon max 50,
 T20_028,4c3d25d5fd0239aeb32deb4c89a6d9fa,00793AAB,Paneles azules (Pokémon válidos): 101,あおい パネル (さんか ポケモン)：101,Painéis azuis (Pokémon aptos): 101,Blaue Felder (Zugelassene Pokémon): 101,파란 패널(참가 가능 포켓몬): 101,Panneaux bleus (Pokémon admis) : 101,Pannelli blu (Pokémon ammessi): 101,
 T20_029,c01e2355280ce5f007bf684c101b573f,00793AD1,Nivel Pokémon rivales,あいての ポケモンの レベル,Nível dos Pokémon rivais,Level der Gegner-Pokémon,상대 포켓몬의 레벨,Niveau des Pokémon ennemis,Livelli dei Pokémon avversari,
 T20_030,b22d42f3b883c4003d3ae641c15887c4,00793AEB,Pueden competir de 1 a 4 jugadores,1～4にんで たいせん できる,De um a quatro jogadores,Ein bis vier Spieler möglich,1~4명이 대전 가능,De un à quatre joueurs,Da uno a quattro giocatori,
 T20_031,9540b2ff1d455aa39faa9e5095ceeac5,00793B0B,Elige el número de Pokémon deseado,すきな かずの ポケモンで エントリー,Inscreva quantos Pokémon quiser,Gewünschte Pokémon-Anzahl wählen,원하는 수의 포켓몬으로 참가,Inscrivez le nombre de Pokémon voulu,Iscrivi il numero di Pokémon voluto,
-T20_032,e4b91629008ea62e0d048a93a5f73576,00793B2F,MEWTWO es el único rival,あいては ミュウツー だけ,MEWTWO é o único oponente,Einziger Gegner ist MEWTU,상대는 뮤츠뿐,MEWTWO est le seul adversaire,L'unico avversario è MEWTWO,
+T20_032,e4b91629008ea62e0d048a93a5f73576,00793B2F,MEWTWO es el único rival,あいては ミュウツー だけ,MEWTWO é o único oponente,Einziger Gegner ist MEWTU,상대는 뮤츠뿐,MEWTWO est le seul adversaire,Si affronta solo MEWTWO,
 T20_033,a790cb0fa8d4e9d26d3a79ddf5958fbb,00793B4B,Sin AUTODESTRUCCIÓN con el último Pokémon,さいごの ポケモンで じばくは だめ,Sem SELF-DESTRUCT no último Pokémon,Kein FINALE mit dem letzten Pokémon,마지막 포켓몬의 자폭 금지,Pas de DESTRUCTION avec le dernier,No AUTODISTRUZIONE con l'ultimo Pokémon,
 T20_034,559d92c7678303c0fbecad760f762862,00793B72,Combate por equipos,タッグバトル,Batalha em duplas,Tag-Team-Kampf,태그 배틀,Combat par équipes,Lotta a squadre,
 T20_035,c18ba07b02e7dddebf28eb7384f31653,00793B82,"Elige seis Pokémon antes del combate.
@@ -8223,7 +8223,7 @@ De même, le poids maximum autorisé est de 20,0 kg.","L'altezza dei Pokémon no
 Allo stesso modo, il peso massimo è di 20,0 kg.",
 T20_050,84d9e4c30fa2874fe1cf20c7b6c57cc8,007941C7,Solo se usan Pokémon sin evolucionar.,しんかまえの ポケモンだけが つかえる。,Só Pokémon não evoluídos podem lutar.,Nur unentwickelte Pokémon sind erlaubt.,진화하지 않은 포켓몬만 쓸 수 있다.,Seuls les Pokémon non évolués admis.,Solo Pokémon non evoluti ammessi.,
 T20_051,8ab83c339fc48cff7e666c67b9f5adb9,007941EC,Cualquier Pokémon hasta el nivel 100.,レベル 100までの ポケモンが つかえる。,Vale qualquer Pokémon até o nível 100.,Alle Pokémon bis Level 100 sind erlaubt.,레벨 100까지 모든 포켓몬을 쓸 수 있다.,Tout Pokémon jusqu'au niveau 100 est admis.,Qualunque Pokémon fino al Lv. 100.,
-T20_052,cbea5b6a3fd2c9e1f52196ab629e548b,00794215,Participan los 151 Pokémon.,151ぴき ぜんぶ さんか できる。,Os 151 Pokémon podem entrar.,Alle 151 Pokémon sind erlaubt.,151마리 모두 참가할 수 있다.,Les 151 Pokémon sont admis.,Tutti i 151 Pokémon.,
+T20_052,cbea5b6a3fd2c9e1f52196ab629e548b,00794215,Participan los 151 Pokémon.,151ぴき ぜんぶ さんか できる。,Os 151 Pokémon podem entrar.,Alle 151 Pokémon sind erlaubt.,151마리 모두 참가할 수 있다.,Les 151 Pokémon peuvent participer.,Tutti i 151 Pokémon.,
 T20_053,efe2da0e610767c4b4b36e854b991367,00794230,"Puedes usar casi todos los Pokémon de nivel 15 a 20.
 Si no tienes seis Pokémon, puedes añadir Pokémon de alquiler.","レベル 15～20の ほぼ すべての ポケモンが つかえる。
 6ぴき いないときは レンタル ポケモンを くわえられる。","Podem ser usados quase todos os Pokémon de nível 15 a 20.
@@ -8332,7 +8332,7 @@ Alle Pokémon dürfen Level 50 haben.","레벨 50까지의 포켓몬을 쓸 수 
 Tous peuvent être de niveau 50.","Ammessi Pokémon fino al Lv. 50.
 Tutti possono essere di Lv. 50.",
 T20_062,3a4b1f98d091eb088d90e94a1f9ae5d7,0079460C,Puedes usar Pokémon de nivel 25 a 30.,レベル 25～30の ポケモンが つかえる。,Podem ser usados Pokémon de nível 25 a 30.,Pokémon mit Level 25 bis 30 sind erlaubt.,레벨 25~30의 포켓몬을 쓸 수 있다.,Pokémon de niveau 25 à 30 admis.,Ammessi Pokémon dal Lv. 25 al 30.,
-T20_063,0ce15f40af1463c26c4ec5790362278d,00794634,Puedes usar casi todos los Pokémon de nivel 15 a 20.,レベル 15～20の ほぼ すべての ポケモンが つかえる。,Podem ser usados quase todos os Pokémon de nível 15 a 20.,Fast alle Pokémon mit Level 15 bis 20 sind erlaubt.,레벨 15~20의 거의 모든 포켓몬을 쓸 수 있다.,Presque tous les Pokémon de niveau 15 à 20 sont admis.,Si possono usare quasi tutti i Pokémon dal livello 15 al 20.,
+T20_063,0ce15f40af1463c26c4ec5790362278d,00794634,Puedes usar casi todos los Pokémon de nivel 15 a 20.,レベル 15～20の ほぼ すべての ポケモンが つかえる。,Podem ser usados quase todos os Pokémon de nível 15 a 20.,Fast alle Pokémon mit Level 15 bis 20 sind erlaubt.,레벨 15~20의 거의 모든 포켓몬을 쓸 수 있다.,Ouvert à presque tous les Pokémon des niveaux 15 à 20.,Si possono usare quasi tutti i Pokémon dal livello 15 al 20.,
 T20_064,636f8771d2639d306b050f028de24873,0079466D,"Puedes usar de uno a seis Pokémon. Cuando hayas elegido
 el número deseado de Pokémon, pulsa START.
 Todos los Pokémon elegidos deben combatir.","ポケモンは 1～6ぴき つかえる。すきな かずを
@@ -8433,7 +8433,7 @@ T21_002,64acad63513ba17e2292e11e32d12779,00794AB0,Elige los cartuchos a intercam
 T21_003,44e49c0fa64dd748c736ec4c3c7d9109,00794AD2,¿Están bien?,これで いい？,Está bem assim?,Ist das so OK?,괜찮습니까?,C'est bon ?,Vanno bene?,
 T21_004,93cba07454f06a4a960172bbd6e2a435,00794AE0,Sí,はい,Sim,Ja,예,Oui,Sì,
 T21_005,bafd7322c6e97d25b6299b5d6fe8920b,00794AE4,No,いいえ,Não,Nein,아니오,Non,No,
-T21_006,ada311318468c0d2ca7d916fee4778e9,00794AE7,Este cartucho no se puede usar.,この カセットは つかえません。,Este cartucho não pode ser usado.,Dieses Modul ist nicht nutzbar.,이 게임 팩은 쓸 수 없습니다.,Cette cartouche est inutilisable.,Questa cassetta non è usabile.,
+T21_006,ada311318468c0d2ca7d916fee4778e9,00794AE7,Este cartucho no se puede usar.,この カセットは つかえません。,Este cartucho não pode ser usado.,Dieses Modul ist nicht nutzbar.,이 게임 팩은 쓸 수 없습니다.,Impossible d'utiliser cette cartouche.,Questa cassetta non è usabile.,
 T21_007,1ff837b277b65831c096e0d8a8944971,00794B05,No hay archivo guardado.,データが ありません。,Arquivo não encontrado.,Keine Datei gefunden.,저장 파일 없음.,Sauvegarde introuvable.,Salvataggio non trovato.,
 T21_008,328a8ed2d16ba1dbf2acc947eae9f464,00794B1A,"Este cartucho no se guardó en un
 CENTRO POKéMON.","この カセットは ポケモン
@@ -8459,7 +8459,7 @@ T21_021,583dce1e7a2507b30a9eb71314c47d1c,00794BB0,EO,おや,TO,OT,어버이,DO,A
 T21_022,d537e36e73e3e56e5361b1f704ba3adb,00794BB3,¿Cambiar?,こうかん？,Trocar?,Tauschen?,교환?,Échanger ?,Scambiare?,
 T21_023,93cba07454f06a4a960172bbd6e2a435,00794BBA,Sí,はい,Sim,Ja,예,Oui,Sì,
 T21_024,bafd7322c6e97d25b6299b5d6fe8920b,00794BBE,No,いいえ,Não,Nein,아니오,Non,No,
-T21_025,fd99eb2ffd1cc8e9540a0d7d4915288d,00794BC1,#33 evolucionó a #34.,#33は #34に しんかした。,#33 evoluiu para #34.,#33 wurde zu #34.,#33 → #34(으)로 진화했다.,#33 évolue en #34.,#33 si è evoluto in #34.,
+T21_025,fd99eb2ffd1cc8e9540a0d7d4915288d,00794BC1,#33 evolucionó a #34.,#33は #34に しんかした。,#33 evoluiu para #34.,#33 wurde zu #34.,#33 → #34(으)로 진화했다.,#33 est devenu #34.,#33 si è evoluto in #34.,
 T21_026,3689fb90a4a440c6a3a46736ad63a885,00794BD7,Guardar y salir,セーブして おわる,Salvar e sair,"Speichern, Ende",저장하고 끝내기,Sauver et quitter,Salva ed esci,
 T21_027,26030c760e6e50206710389d768204a9,00794BE5,Guardar y seguir,セーブして つづける,Salvar e continuar,Speichern und weiter,저장하고 계속,Sauver et continuer,Salva e continua,
 T21_028,572ffabe3de1249c5a63f0cfa85b2fa1,00794BF7,Salir sin guardar,セーブしないで おわる,Sair sem salvar,Beenden ohne Speichern,저장하지 않고 끝내기,Quitter sans sauver,Esci senza salvare,
@@ -9318,7 +9318,7 @@ T29_005,22fb77eba93786121faa55c581785893,0079712D,HIELO,こおり,GELO,EIS,얼�
 T29_006,15bc7fae5fd40adb37117420c880682b,00797131,PARALIZADO,まひ,PARALISIA,PARALYSE,마비,PAR,PARALISI,
 T2A_000,b718adec73e04ce3ec720dd11a06a308,00797148,ID,ID,ID,ID,ID,ID,ID,
 T2B_000,c097c909f51490edbd3ed205ba0d28f3,00797184,¡Sin rollo!,フィルムが ない！,Acabou o filme!,Kein Film mehr!,필름이 없다!,Film épuisé !,Rullino finito!,
-T2B_001,575ecc95f86955746752e8bf766dcc5f,00797191,Cómo tomar una foto.,しゃしんの とりかた,Como tirar uma foto.,So machst du ein Foto.,사진 찍는 법.,Prendre une photo.,Come scattare una foto.,
+T2B_001,575ecc95f86955746752e8bf766dcc5f,00797191,Cómo sacar una foto.,しゃしんの とりかた,Como tirar uma foto.,So machst du ein Foto.,사진 찍는 법.,Prendre une photo.,Come si scatta una foto.,
 T2B_002,129580426a1035c6022d9808a2f27d22,007971A6,Pulsa el Botón A para tomar una foto.,Aボタンで しゃしんを とる。,Use o Botão A para tirar uma foto.,Mit dem A-Knopf machst du ein Foto.,A버튼으로 사진을 찍는다.,Bouton A : prendre une photo.,Premi il pulsante A per scattare.,
 T2B_003,cf48f5777cdde59428430b3f85c933e8,007971C8,"Usa el + Panel de Control para
 cambiar el punto de vista.","+じボタンで してんを
@@ -9461,7 +9461,7 @@ GALERIE.","갤러리에 사진이 있어야
 합니다.","Il faut une photo dans la
 GALERIE.","Devi avere una foto
 nella GALLERIA.",
-T2C_020,01ee274350d4bd5dd7005626bb592e91,007976A1,Debes tener 4 fotos en la GALERÍA.,ギャラリーに しゃしんが 4まい ひつよう。,Precisa haver 4 fotos na GALERIA.,Du brauchst 4 Fotos in der GALERIE.,갤러리에 사진이 4장 있어야 합니다.,Il faut 4 photos dans la GALERIE.,Devi avere 4 foto nella GALLERIA.,
+T2C_020,01ee274350d4bd5dd7005626bb592e91,007976A1,Debes tener 4 fotos en la GALERÍA.,ギャラリーに しゃしんが 4まい ひつよう。,Precisa haver 4 fotos na GALERIA.,Du brauchst 4 Fotos in der GALERIE.,갤러리에 사진이 4장 있어야 합니다.,La GALERIE doit contenir 4 photos.,Devi avere 4 foto nella GALLERIA.,
 T2C_021,fe0283d9a76fa636398094763b74c691,007976C8,"Esta opción solo está disponible en una
 Pokémon Snap Station TM.","ポケモンスナップステーション
 でのみ えらべます。","Esta opção só está disponível numa Pokémon
@@ -9470,8 +9470,8 @@ Snap Station TM.","이 기능은 포켓몬스냅
 스테이션TM에서만 쓸 수 있습니다.","Option disponible uniquement sur une
 Pokémon Snap Station TM.","Opzione disponibile solo in una Pokémon
 Snap Station TM.",
-T2C_022,67a8ce63fed6b9db9619084bffeecb0c,00797704,Pulsa el Botón A para colocar la(s) foto(s).,Aボタンで しゃしんを おく。,Aperte o Botão A para pôr a(s) foto(s).,"Drücke A, um die Fotos zu platzieren.",A버튼을 눌러 사진을 놓으세요.,Appuyez sur A pour placer la/les photo(s).,Premi A per collocare le foto.,
-T2C_023,a99260640194c39ecd4aa7f94a790f14,0079772E,"¿Está bien?
+T2C_022,67a8ce63fed6b9db9619084bffeecb0c,00797704,Usa el Botón A para poner la(s) foto(s).,Aボタンで しゃしんを おく。,Aperte o Botão A para pôr a(s) foto(s).,"Drücke A, um die Fotos zu platzieren.",A버튼을 눌러 사진을 놓으세요.,Appuyez sur A pour placer la/les photo(s).,Premi A per collocare le foto.,
+T2C_023,a99260640194c39ecd4aa7f94a790f14,0079772E,"¿Te parece bien?
 Botón A: Sí     Botón B: No","これで いい？
 Aボタン：はい     Bボタン：いいえ","Está bem assim?
 Botão A: Sim     Botão B: Não","Ist das OK?
@@ -9480,8 +9480,8 @@ A버튼: 예     B버튼: 아니오","C'est bon ?
 Bouton A : Oui     Bouton B : Non","Va bene?
 Pulsante A: Sì     Pulsante B: No",
 T2C_024,d41d8cd98f00b204e9800998ecf8427e,00797759,,,,,,,,
-T2C_025,f268366ae376ad18b3a886516b3e4380,0079775A,"Puedes colocar tus fotos en el orden
-que quieras.","しゃしんは すきな じゅんばんに
+T2C_025,f268366ae376ad18b3a886516b3e4380,0079775A,"Las fotos pueden ir en el orden
+que prefieras.","しゃしんは すきな じゅんばんに
 ならべられます。","Você pode pôr as fotos na ordem
 que quiser.","Du kannst deine Fotos in beliebiger
 Reihenfolge anordnen.","사진을 원하는 순서대로
@@ -9620,7 +9620,7 @@ Drücke zur Bestätigung A.","선택한 사진이 삭제됩니다.
 A버튼을 눌러 확인하세요.","La photo choisie sera effacée.
 Appuyez sur A pour confirmer.","La foto scelta sarà cancellata.
 Premi il pulsante A per confermare.",
-T2C_039,5515978ba1c752564acc25146978c37d,00797AD7,Volver a la GALERÍA.,ギャラリーに もどる,Voltar à GALERIA.,Zurück zur GALERIE.,갤러리로 돌아갑니다.,Retour à la GALERIE.,Torna alla GALLERIA.,
+T2C_039,5515978ba1c752564acc25146978c37d,00797AD7,Volver a la GALERÍA.,ギャラリーに もどる,Voltar à GALERIA.,Zurück zur GALERIE.,갤러리로 돌아갑니다.,Revenir à la GALERIE.,Torna alla GALLERIA.,
 T2C_040,13b6f1426e739b0171963703d6f5005e,00797AEE,Volver al ROLLO.,フィルムに もどる,Voltar ao FILME.,Zurück zum FILM.,필름으로 돌아감.,Retour au FILM.,Torna al RULLINO.,
 T2C_041,a6aab8b4459c555bd8fd9c0b3597f9d5,00797AFE,"Pulsa el Botón A para elegir la foto
 que quieres convertir en calcomanía.","Aボタンで シールに したい
@@ -9632,9 +9632,9 @@ dem du einen Sticker machen willst.","A버튼을 눌러 스티커로 만들
 da trasformare in adesivo.",
 T2C_042,f3c78f19298543c7125d39e0a38e77eb,00797B47,Aquí están las fotos que tomaste.,とった しゃしんは ここに あるよ。,Aqui estão as fotos que você tirou.,Hier sind deine Fotos.,찍은 사진이 여기 있습니다.,Voici vos photos.,Ecco le foto che hai scattato.,
 T2C_043,657170d6d5997ebfc6aa71b2277c25bb,00797B69,Ir a la pantalla ROLLO,フィルム がめんへ,Ir à tela de FILME,Zum FILM-Bildschirm,필름 화면으로,Écran FILM,Vai al RULLINO,
-T2C_044,0e3f47fe052293836eabe15b48562a3c,00797B7F,Ir a la GALERÍA,ギャラリーへ,Ir à GALERIA,Zur GALERIE,갤러리로,Aller à la GALERIE,Vai alla GALLERIA,
+T2C_044,0e3f47fe052293836eabe15b48562a3c,00797B7F,Ir a la GALERÍA,ギャラリーへ,Ir à GALERIA,Zur GALERIE,갤러리로,Vers la GALERIE,Vai alla GALLERIA,
 T2C_045,ea4788705e6873b424c65e91c2846b19,00797B91,Cancelar,やめる,Cancelar,Abbrechen,취소,Annuler,Annulla,
-T2C_046,3392c48208f30df8a799fde824bc8b80,00797B98,Se cambió el contenido.,ないようが かわりました。,O conteúdo foi alterado.,Der Inhalt wurde geändert.,내용이 변경되었습니다.,Le contenu a changé.,Il contenuto è cambiato.,
+T2C_046,3392c48208f30df8a799fde824bc8b80,00797B98,Se cambió el contenido.,ないようが かわりました。,O conteúdo foi alterado.,Der Inhalt wurde geändert.,내용이 변경되었습니다.,Le contenu a été modifié.,Il contenuto è cambiato.,
 T2C_047,3689fb90a4a440c6a3a46736ad63a885,00797BB6,Guardar y salir,セーブして おわる,Salvar e sair,"Speichern, Ende",저장하고 끝내기,Sauver et quitter,Salva ed esci,
 T2C_048,572ffabe3de1249c5a63f0cfa85b2fa1,00797BC4,Salir sin guardar,セーブしないで おわる,Sair sem salvar,Beenden ohne Speichern,저장하지 않고 끝내기,Quitter sans sauver,Esci senza salvare,
 T2C_049,ea4788705e6873b424c65e91c2846b19,00797BD8,Cancelar,やめる,Cancelar,Abbrechen,취소,Annuler,Annulla,
@@ -9694,10 +9694,10 @@ Sticker. Du musst 16 Fotos wählen.","갤러리의 사진을 인쇄해서 스티
 만든다. 사진 16장을 골라야 한다.","Imprimez les photos de la GALERIE en
 autocollants. Choisissez 16 photos.","Stampa le foto della GALLERIA per creare
 adesivi. Devi scegliere 16 foto.",
-T2C_064,93c6d879d463f38e00c3a42f474a8e5d,00797D56,Debes tener 16 fotos en la GALERÍA.,ギャラリーに しゃしんが 16まい ひつよう。,Precisa haver 16 fotos na GALERIA.,Du brauchst 16 Fotos in der GALERIE.,갤러리에 사진이 16장 있어야 합니다.,Il faut 16 photos dans la GALERIE.,Devi avere 16 foto nella GALLERIA.,
+T2C_064,93c6d879d463f38e00c3a42f474a8e5d,00797D56,Necesitas 16 fotos en la GALERÍA.,ギャラリーに しゃしんが 16まい ひつよう。,Precisa haver 16 fotos na GALERIA.,Du brauchst 16 Fotos in der GALERIE.,갤러리에 사진이 16장 있어야 합니다.,La GALERIE doit contenir 16 photos.,Servono 16 foto nella GALLERIA.,
 T2C_065,4e11db406c6c9f234fe8579cc9bc5ef6,00797D7E,Guardando,セーブちゅう,Salvando,Speichere,저장 중,Sauvegarde,Salvo,
 T2C_066,7367f76f6a7896155ec672e97760431f,00797D85,Pokémon de tu equipo,てもちの ポケモン,Pokémon da sua equipe,Pokémon in deinem Team,파티의 포켓몬,Pokémon de l'équipe,Pokémon della squadra,
-T2C_067,96814f0bab2548ae0d0ca8b3b098cbd4,00797D9B,Pokémon de la CAJA GB,GBボックスの ポケモン,Pokémon da CAIXA GB,Pokémon in der GB-BOX,GB 박스의 포켓몬,Pokémon de la BOITE GB,Pokémon nel BOX GB,
+T2C_067,96814f0bab2548ae0d0ca8b3b098cbd4,00797D9B,Pokémon de la CAJA GB,GBボックスの ポケモン,Pokémon da CAIXA GB,Pokémon in der BOX des GB-Spiels,GB 박스의 포켓몬,Pokémon de la BOITE GB,Pokémon nel BOX GB,
 T2C_068,3c0ee4bacc905ad4abb857127975acfc,00797DB1,Extra,ボーナス,Bônus,Bonus,보너스,Bonus,Bonus,
 T2C_069,e0fa6c41bb3f55831cd4220757413dfa,00797DB7,"¿Imprimir ""Calcomanías extra""
 y guardar?
@@ -9843,7 +9843,7 @@ T2D_110,c1c2c4f5506e02605159ae8d8396eccf,00798826,LOCUTOR DEL ESTADIO,スタジ�
 T2D_111,7ee3f22b4547b90b5a29c803c90043af,00798838,Ted Lewis,Ted Lewis,Ted Lewis,Ted Lewis,Ted Lewis,Ted Lewis,Ted Lewis,
 T2D_112,b7865acfd1e54b472fc97e48e08af732,00798842,INGENIERO DE GRABACIÓN,レコーディング エンジニア,ENGENHEIRO DE GRAVAÇÃO,TONTECHNIK,녹음 엔지니어,INGENIEUR DU SON,TECNICO DEL SUONO,
 T2D_113,2a1afc7c059ea8169da7ba979b53475a,00798855,Questar Welsh,Questar Welsh,Questar Welsh,Questar Welsh,Questar Welsh,Questar Welsh,Questar Welsh,
-T2D_114,b3969ea2097777df999e0ef53762f88f,00798863,"(Real to Reel Recording, Inc.)","(Real to Reel Recording, Inc.)","(Real to Reel Recording, Inc.)","(Real to Reel Recording, Inc.)","(Real to Reel Recording, Inc.)","(Real to Reel Recording, Inc.)","(Real to Reel Recording, Inc.)",
+T2D_114,b3969ea2097777df999e0ef53762f88f,00798863,"(Real to Reel Recording, Inc.)","(Real to Reel Recording, Inc.)","(Real to Reel Recording, Inc.)","(Real to Reel Recording, Inc.)","(Real to Reel Recording, Inc.)","(Real to Reel Recording, Inc.)","(Real to Reel Recording, Inc.)","Company name, left as written"
 T2D_115,2734ce7ae613acc950eb8b51a64ecfb1,00798882,EQUIPO TRANSFER PAK,64GBパック スタッフ,EQUIPE DO TRANSFER PAK,TRANSFER-PAK-TEAM,트랜스퍼 팩 스태프,EQUIPE TRANSFER PAK,STAFF TRANSFER PAK,
 T2D_116,ceac52e8eba40d9d583c652b657ed48c,00798895,Kazuo Koushima,Kazuo Koushima,Kazuo Koushima,Kazuo Koushima,Kazuo Koushima,Kazuo Koushima,Kazuo Koushima,
 T2D_117,a2393814f2c4f349f73e46ecba821e41,007988A4,Yuji Kimijima,Yuji Kimijima,Yuji Kimijima,Yuji Kimijima,Yuji Kimijima,Yuji Kimijima,Yuji Kimijima,
