@@ -641,15 +641,17 @@ void Trade_DrawSaveSeqMessageBackdrop(s16 arg0, s16 arg1, s16 arg2, s16 arg3) {
 #define U64_NOP(x) ((u32)((u64)(x) | 0ULL))
 
 #if defined(VERSION_US_REV2) && defined(PORT_STATIC_FRAGMENTS)
-// PORT: Rev 2's version is not decompiled in the decomp yet (GLOBAL_ASM there); written from its assembly, not matching.
+// PORT: Rev 2's version is still GLOBAL_ASM in the decomp. This C was compiled with the decomp's own compiler setup in place
+// of that asm and compared with Rev 2's instructions: the same 215 instructions, calls and constants in the same order,
+// differing only in which temporary registers hold values and in how the counter's address is formed (not a byte match).
 // It is the 1.0/1.1 function with every message centred in the 0x198-wide box at x 0x74 instead of placed at fixed x.
-#define TRADE_SAVE_SEQ_CENTRED_X(str) ((0x198 - Font_MeasureTextExtent(0, 0, (str))) / 2 + 0x74)
-
 void func_82F0BEF8(unk_D_82F210E0* arg0) {
-    static s16 D_82F14068_us_rev2 = 0;
+    static s16 D_82F14068_us_rev2 = 0; // PORT: an absolute symbol in the decomp
 
-    char sp38[64];
     char* text;
+    s32 x;
+    char sp38[64];
+    s32 pad[2];
     unk_func_82F00838_sp30 sp20;
 
     if (arg0->unk_08 < 2) {
@@ -672,7 +674,7 @@ void func_82F0BEF8(unk_D_82F210E0* arg0) {
             Font_EnableTwoCycleTexturing();
             Gfx_SetPrimColor(0xFF, 0xF1, 0x78, 0xFF);
             text = Text_GetString(NULL, 0, gTradeStrings, 0x1F);
-            Font_Printf(TRADE_SAVE_SEQ_CENTRED_X(text), 0xA8, text);
+            Font_Printf(((0x198 - Font_MeasureTextExtent(0, 0, text)) / 2) + 0x74, 0xA8, text);
             Font_DisableTwoCycleTexturing();
             break;
 
@@ -682,15 +684,15 @@ void func_82F0BEF8(unk_D_82F210E0* arg0) {
             Gfx_SetPrimColor(0xFF, 0xF1, 0x78, 0xFF);
             Text_SetNumberToken(1, sp20.unk_02 + 1);
             text = Text_GetString(sp38, sizeof(sp38), gTradeStrings, 0x20);
-            Font_Printf(TRADE_SAVE_SEQ_CENTRED_X(text), 0x90, text);
+            Font_Printf(((0x198 - Font_MeasureTextExtent(0, 0, text)) / 2) + 0x74, 0x90, text);
             Font_DisableTwoCycleTexturing();
             break;
 
         case 3:
             Font_EnableTwoCycleTexturing();
             Gfx_SetPrimColor(0xFF, 0xF1, 0x78, 0xFF);
-            text = Text_GetString(NULL, 0, gTradeStrings, 0x21);
-            Font_Printf(TRADE_SAVE_SEQ_CENTRED_X(text), 0x90, text);
+            x = (0x198 - Font_MeasureTextExtent(0, 0, Text_GetString(NULL, 0, gTradeStrings, 0x21))) / 2;
+            Font_Printf(x + 0x74, 0x90, Text_GetString(NULL, 0, gTradeStrings, 0x21));
             Font_DisableTwoCycleTexturing();
             break;
     }
@@ -700,8 +702,8 @@ void func_82F0BEF8(unk_D_82F210E0* arg0) {
         Gfx_SetPrimColor(0xFF, 0xF1, 0x78, 0xFF);
         Gfx_SetEnvColor(0xFF, 0xFF, 0xFF, 0xFF);
         Font_SetLineHeight(0x24);
-        text = Text_GetString(NULL, 0, gTradeStrings, 0x22);
-        Font_Printf(TRADE_SAVE_SEQ_CENTRED_X(text), 0xF0, text);
+        x = (0x198 - Font_MeasureTextExtent(0, 0, Text_GetString(NULL, 0, gTradeStrings, 0x22))) / 2;
+        Font_Printf(x + 0x74, 0xF0, Text_GetString(NULL, 0, gTradeStrings, 0x22));
     }
 
     Font_EndTexturedTextRendering();
