@@ -82,10 +82,12 @@ python3 tools/text/check_names.py --download                # PokeAPI's name tab
 python3 tools/text/check_names.py --rom <rom.z64> ...       # official names
 ```
 
-`check_names.py` checks every species, move, type and item name (the western ROMs' tables T24, T25, T26, T27; the
-Japanese ROM's rows whose text is such a name) against TPCI's official name in each target language from PokeAPI,
-ignoring case, accents, spaces and punctuation. Spanish takes Spain's or Latin America's names; Portuguese species
-names are the English ones; targets PokeAPI has no names for are not checked.
+Translate everything **literally from the source ROM's wording**, moves, items, types and categories included (German
+HYPERBALL is "Hyper Ball" in English, not "Ultra Ball"). Only Pokémon species and character names take the official
+names. `check_names.py` checks the species names (the western ROMs' table T24; the Japanese ROM's rows whose text is a
+species name) against TPCI's official name in each target language from PokeAPI, ignoring case, accents, spaces and
+punctuation. Spanish takes Spain's or Latin America's names. Portuguese has no official localization: its species and
+character names are the English ones, and everything else is translated from the source.
 
 `translation/rom-text/` is gitignored: it holds your ROM's text, which must never be committed. Give
 `check_tables.py` several official ROMs and it also reports a cell that is identical to another official ROM's own
