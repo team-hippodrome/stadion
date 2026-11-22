@@ -110,9 +110,20 @@ strings it misses by hand with `ROM_` ids.
 (`src/port/language_prompt.cpp`), in every language. It is not ROM text. `{rom}` and `{locale}` stand for the
 `LANGUAGE_NAME_*` of the ROM's and the system's language in the cell's language; English `{a_rom}` adds "a" or "an".
 
+## In the game
+
+The loaded ROM's language picks `<src>.csv` (packed into `pokestadium.o2r` with Unifont's and Pop's glyphs), and the
+text language picks its column: the first-boot prompt or the game's own OPTIONS screen (a LANGUAGE row between VOICE
+and DELETE SAVED DATA) sets it, saved as `gPort.TextLanguage`. Every textdata string (`T` ids) is then the cell, or
+the ROM's own when the cell is empty (`src/port/text_lookup.cpp`, `game/src/text_system.c`). A character the ROM
+font has is drawn by it; any other (kana, kanji, Hangul, ...) by hippodrome-utils' Unifont (Pop with
+`gPort.TextFont` 1) at the font size's height (`game/src/graphics_textures.c`).
+
 ## Not done yet
 
-- The port does not read these tables at run time yet, and only boots the USA 1.0 ROM.
+- The port only boots the USA 1.0 ROM, so only `en.csv` is drawn so far.
+- `ROM_` rows (the GB Tower's menu, COM trainer names) and `<src>_localized.csv` (COM nicknames) are not drawn yet:
+  that text is not read through textdata.
 - Strings outside textdata in the western ROMs (code data, COM trainer tables) are not listed by the tool, except the
   Game Boy Tower's in-game menu (17 draw lists near 0x8E000 in each western ROM: `ROM_<offset>`, md5 of the whole
   draw list, the cell is its lines joined by spaces). The rest are added by hand with `ROM_` ids.

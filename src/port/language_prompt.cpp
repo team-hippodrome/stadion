@@ -40,7 +40,7 @@ std::string FromIso(std::string lang) {
 // translation/port.csv: id -> language -> cell (RFC 4180)
 using Table = std::map<std::string, std::map<std::string, std::string>>;
 
-std::vector<std::vector<std::string>> ParseCsv(const std::string& text) {
+std::vector<std::vector<std::string>> ParseCsvRows(const std::string& text) {
     std::vector<std::vector<std::string>> rows(1);
     std::string cell;
     bool quoted = false;
@@ -87,18 +87,12 @@ const Table& Strings() {
         return table;
     }
     loaded = true;
-    std::string text;
-    auto rm = ResourceGetResourceManager();
-    if (rm != nullptr && rm->GetArchiveManager() != nullptr) {
-        if (auto file = rm->GetArchiveManager()->LoadFile("translation/port.csv"); file && file->Buffer) {
-            text.assign(file->Buffer->begin(), file->Buffer->end());
-        }
-    }
+    std::string text = ArchiveText("translation/port.csv");
     if (text.empty()) {
         SDL_Log("[language] translation/port.csv is not in pokestadium.o2r: the language prompt is off");
         return table;
     }
-    auto rows = ParseCsv(text);
+    auto rows = ParseCsvRows(text);
     if (rows.empty()) {
         return table;
     }
@@ -141,6 +135,27 @@ void ReplaceAll(std::string& s, const std::string& from, const std::string& to) 
 
 } // namespace
 
+std::vector<std::vector<std::string>> ParseCsv(const std::string& text) {
+    return ParseCsvRows(text);
+}
+
+std::string ArchiveText(const char* path) {
+    std::string text;
+    auto rm = ResourceGetResourceManager();
+    if (rm != nullptr && rm->GetArchiveManager() != nullptr) {
+        if (auto file = rm->GetArchiveManager()->LoadFile(path); file && file->Buffer) {
+            text.assign(file->Buffer->begin(), file->Buffer->end());
+        }
+    }
+    return text;
+}
+
+std::string NativeLanguageName(const std::string& code) {
+    std::string upper = code;
+    std::transform(upper.begin(), upper.end(), upper.begin(), [](unsigned char c) { return (char)std::toupper(c); });
+    return Cell(("LANGUAGE_NATIVE_" + upper).c_str(), code);
+}
+
 bool IsOfficialLanguage(const std::string& code) {
     return !code.empty() && code != "pt" && code != "ko" && FromIso(code) == code;
 }
@@ -167,7 +182,11 @@ std::string RomLanguage(const std::string& path) {
     unsigned char h[0x40] = {};
     const size_t n = fread(h, 1, sizeof h, f);
     fclose(f);
-    if (n < sizeof h || h[0] != 0x80 || h[1] != 0x37) {
+    return n < sizeof h ? std::string() : RomLanguageFromHeader(h);
+}
+
+std::string RomLanguageFromHeader(const unsigned char* h) {
+    if (h == nullptr || h[0] != 0x80 || h[1] != 0x37) {
         return "";
     }
     // the game code: NPO + region for the Western releases, CP2J for Japan's ポケモンスタジアム２

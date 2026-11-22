@@ -58,6 +58,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   add_compile_definitions(FMT_CONSTEVAL=)
 endif()
 add_subdirectory(libultraship ${CMAKE_BINARY_DIR}/libultraship)
+# text_font (translated text's glyphs, src/port/text_lookup.cpp)
+add_subdirectory(hippodrome-utils ${CMAKE_BINARY_DIR}/hippodrome-utils)
 
 set(PORT_MAIN_SOURCES
   src/port/main.cpp
@@ -68,6 +70,7 @@ set(PORT_MAIN_SOURCES
   src/port/launcher_files.cpp
   src/port/launcher_reliability.cpp
   src/port/language_prompt.cpp
+  src/port/text_lookup.cpp
   src/port/rom_check.cpp
   src/port/shader_warmup.cpp
   src/port/touch_controls.cpp
@@ -98,7 +101,7 @@ target_include_directories(pokestadium PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include/libultraship
 )
 target_compile_definitions(pokestadium PRIVATE F3DEX_GBI_2)
-target_link_libraries(pokestadium PRIVATE libultraship)
+target_link_libraries(pokestadium PRIVATE libultraship hippodrome::utils)
 if(NOT ANDROID AND NOT EMSCRIPTEN)
   # the save library's command-line driver, for tools/save_editor/tests/test_native.py (not shipped)
   add_executable(stadium_save_cli EXCLUDE_FROM_ALL src/port/save_editor/cli_main.cpp src/port/save_editor/stadium_save.cpp)
@@ -408,7 +411,7 @@ if(EMSCRIPTEN)
   file(GLOB_RECURSE PORT_WEB_RESOURCE_INPUTS CONFIGURE_DEPENDS
        ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*
        ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png
-       ${CMAKE_CURRENT_SOURCE_DIR}/translation/port.csv
+       ${CMAKE_CURRENT_SOURCE_DIR}/translation/*.csv
        ${CMAKE_CURRENT_SOURCE_DIR}/hippodrome-utils/assets/font/*)
   set_property(TARGET pokestadium APPEND PROPERTY LINK_DEPENDS
                ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
@@ -425,7 +428,7 @@ else()
 file(GLOB_RECURSE PORT_O2R_INPUTS CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/src/fast/shaders/*
      ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png
-     ${CMAKE_CURRENT_SOURCE_DIR}/translation/port.csv
+     ${CMAKE_CURRENT_SOURCE_DIR}/translation/*.csv
      ${CMAKE_CURRENT_SOURCE_DIR}/hippodrome-utils/assets/font/*)
 add_custom_command(
   OUTPUT ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c

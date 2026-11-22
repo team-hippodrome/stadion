@@ -13,12 +13,20 @@ namespace Port {
 // The supported languages, in the tables' column order: en, es, jp, pt, de, ko, fr, it.
 extern const char* const kLanguageCodes[8];
 bool IsOfficialLanguage(const std::string& code); // has its own Stadium ROM (not pt or ko)
+// The language's name in its own language (LANGUAGE_NATIVE_*: "Deutsch", "日本語").
+std::string NativeLanguageName(const std::string& code);
 
 // The system's preferred language as a code above ("" when it is none of them). PORT_LOCALE=<code or locale such as
 // ja_JP> overrides it (a test aid).
 std::string SystemLanguage();
 // The language of the Stadium ROM at `path` from its header's country byte ("" when it is not a Stadium ROM).
 std::string RomLanguage(const std::string& path);
+// The same from a ROM's first 0x40 bytes.
+std::string RomLanguageFromHeader(const unsigned char* header);
+
+// A file in pokestadium.o2r as text ("" when it is missing), and RFC 4180 CSV text as rows of cells.
+std::string ArchiveText(const char* path);
+std::vector<std::vector<std::string>> ParseCsv(const std::string& text);
 
 // translation/port.csv's cell for `id` in `lang`, with {rom} / {locale} (and English {a_rom}: "a"/"an" + the name)
 // replaced by those languages' names in `lang`. The English cell when `lang`'s is empty; `id` itself when missing.

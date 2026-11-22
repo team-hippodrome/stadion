@@ -37,8 +37,14 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
     # the port's own strings in every language (translation/port.csv: the first-boot language prompt,
     # src/port/language_prompt.cpp) and the fonts that draw them (hippodrome-utils' assets/font, with their licences)
     z.write(root / "translation/port.csv", "translation/port.csv")
+    # the translations of each source ROM's text the game draws in the chosen language (src/port/text_lookup.cpp;
+    # translation/README.md). Only the tables: they hold no ROM text.
+    for src in ("en", "es", "fr", "de", "it", "jp"):
+        if (root / f"translation/{src}.csv").exists():
+            z.write(root / f"translation/{src}.csv", f"translation/{src}.csv")
     fonts = root / "hippodrome-utils/assets/font"
-    for name in ("pop_subset.ttf", "unifont_subset.otf", "LICENSE-pop.txt", "LICENSE-unifont.txt"):
+    for name in ("pop_subset.ttf", "unifont_subset.otf", "unifont_subset.hex", "LICENSE-pop.txt",
+                 "LICENSE-unifont.txt"):
         z.write(fonts / name, "fonts/" + name)
     # launcher pictures (cartridges, N64), shown by src/port/launcher.cpp
     for p in sorted((root / "tools/launcher/assets").glob("*.png")):
