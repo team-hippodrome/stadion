@@ -16,6 +16,7 @@
 #include "launcher.h"
 #include "launcher_files.h"
 #include "launcher_reliability.h"
+#include "language_prompt.h"
 #include "port_platform.h"
 #include "Engine.h"
 #include "rom_check.h"
@@ -46,6 +47,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cfloat>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -632,17 +634,69 @@ struct FontSet {
 };
 std::vector<FontSet> gFontSets;
 
-void LoadFonts() {
+// The fonts for text beyond ImGui's built-in Latin-1 (the language prompt, language_prompt.h): hippodrome-utils' Pop,
+// then Unifont for anything Pop lacks (assets/font there, packed into pokestadium.o2r as fonts/). Only while the
+// prompt can still be due, only port.csv's characters in the system's and the ROM's languages, and only into the body
+// size the prompt uses: that keeps the atlas at its usual 2048x2048 (all languages in two sizes doubled it).
+struct ExtraFont {
+    std::vector<char> data;
+};
+ExtraFont gPopFont, gUnifont;
+ImVector<ImWchar> gExtraRanges;
+
+bool LoadExtraFont(ExtraFont& font, const char* path) {
+    auto rm = ResourceGetResourceManager();
+    if (rm == nullptr || rm->GetArchiveManager() == nullptr) {
+        return false;
+    }
+    auto file = rm->GetArchiveManager()->LoadFile(path);
+    if (!file || !file->Buffer || file->Buffer->empty()) {
+        SDL_Log("[launcher] %s is not in pokestadium.o2r", path);
+        return false;
+    }
+    font.data.assign(file->Buffer->begin(), file->Buffer->end());
+    return true;
+}
+
+void LoadFonts(const State& s) {
     ImGuiIO& io = ImGui::GetIO();
-    auto add = [&](float size, float rasterScale) {
+    bool extra = false;
+    if (Port::LanguagePromptPossible()) {
+        const bool pop = LoadExtraFont(gPopFont, "fonts/pop_subset.ttf");
+        const bool uni = LoadExtraFont(gUnifont, "fonts/unifont_subset.otf");
+        std::vector<std::string> langs = { Port::SystemLanguage(), Port::RomLanguage(s.rom) };
+        if (langs[1].empty()) { // no ROM chosen yet: any official one
+            for (const char* code : Port::kLanguageCodes) {
+                if (Port::IsOfficialLanguage(code)) langs.push_back(code);
+            }
+        }
+        ImFontGlyphRangesBuilder builder;
+        builder.AddText(Port::PortTextCharacters(langs).c_str());
+        builder.BuildRanges(&gExtraRanges);
+        extra = (pop || uni) && !gExtraRanges.empty();
+    }
+    auto merge = [&](ExtraFont& font, float pixels) {
+        if (font.data.empty()) return;
+        ImFontConfig cfg;
+        cfg.MergeMode = true;
+        cfg.FontDataOwnedByAtlas = false; // (gPopFont / gUnifont keep the bytes)
+        cfg.PixelSnapH = true;
+        io.Fonts->AddFontFromMemoryTTF(font.data.data(), (int)font.data.size(), pixels, &cfg, gExtraRanges.Data);
+    };
+    auto add = [&](float size, float rasterScale, bool withExtra = false) {
         ImFontConfig cfg;
         cfg.SizePixels = size * rasterScale;
         ImFont* font = io.Fonts->AddFontDefault(&cfg);
+        if (withExtra && extra) {
+            // the built-in font's glyphs win (merged fonts only add what it lacks): Latin keeps its look
+            merge(gPopFont, size * rasterScale);
+            merge(gUnifont, size * rasterScale);
+        }
         font->Scale = 1.0f / rasterScale;
         return font;
     };
     for (float scale : {0.625f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f}) {
-        gFontSets.push_back({scale, {add(13, scale), add(11, scale), add(16, scale),
+        gFontSets.push_back({scale, {add(13, scale, true), add(11, scale), add(16, scale),
                                     add(20, scale), add(32, scale)}});
     }
 }
@@ -923,6 +977,10 @@ class LauncherWindow : public Ship::GuiWindow {
 
     void DrawElement() override {
         State& s = *mState;
+        if (mPromptStep != kPromptNone) {
+            LanguagePromptPanel();
+            return;
+        }
         mChanged = ApplyPick();
         if (Handheld()) {
             DrawHandheld();
@@ -975,6 +1033,93 @@ class LauncherWindow : public Ship::GuiWindow {
     }
 
   private:
+    // ---- the first-boot language prompt (language_prompt.h) ----
+    static constexpr int kPromptNone = 0, kPromptAsk = 1, kPromptAfter = 2;
+    int mPromptStep = kPromptNone;
+    Port::LanguagePrompt mPrompt;
+    std::string mPromptChoice;
+
+    // PLAY: the language prompt first when it is due, else start
+    void RequestPlay(State& s) {
+        if (!ReadyToPlay(s)) {
+            return;
+        }
+        if (Port::LanguagePromptDue(s.rom, &mPrompt)) {
+            mPromptStep = kPromptAsk;
+            mFocusReset = true;
+            return;
+        }
+        *mPlay = true;
+    }
+
+    // a paragraph wrapped to `w` design units at (x, y); returns its height in design units
+    float Paragraph(float x, float y, float w, const std::string& t, ImFont* font, uint32_t color = Theme::text) {
+        ImFont* f = font != nullptr ? font : ImGui::GetFont();
+        const float size = (font != nullptr ? font->FontSize * font->Scale : ImGui::GetFontSize()) * mScale;
+        ImGui::GetWindowDrawList()->AddText(f, size, P(x, y), Hex(color), t.c_str(), nullptr, w * mScale);
+        return f->CalcTextSizeA(size, FLT_MAX, w * mScale, t.c_str()).y / mScale;
+    }
+
+    // The prompt, in the system's language and then the ROM's (hippodrome-utils TRANSLATION.md): the question, then
+    // "No, continue in <ROM language>" / "Yes, use the AI translation", then where to change it and an OK.
+    void LanguagePromptPanel() {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        const float designH = Handheld() ? kHandheldH : kH;
+        const float x = 40, w = kW - 80, top = 24;
+        dl->AddRectFilled(P(x - 16, top), P(x + w + 16, designH - 24), Hex(Theme::card), 10 * mScale);
+        dl->AddRect(P(x - 16, top), P(x + w + 16, designH - 24), Hex(Theme::cardBorder), 10 * mScale);
+        const std::string langs[2] = { mPrompt.locale, mPrompt.rom };
+        float y = top + 20;
+        if (mPromptStep == kPromptAsk) {
+            const char* body = mPrompt.official ? "LANGUAGE_PROMPT_OFFICIAL" : "LANGUAGE_PROMPT_UNOFFICIAL";
+            for (int i = 0; i < 2; i++) {
+                const std::string& lang = langs[i];
+                y += Paragraph(x, y, w, Port::PortText(body, lang, mPrompt.rom, mPrompt.locale), gFonts.body) + 8;
+                y += Paragraph(x, y, w, Port::PortText("LANGUAGE_PROMPT_QUESTION", lang), gFonts.body, Theme::green) + 18;
+                if (i == 0) {
+                    dl->AddRectFilled(P(x, y - 10), P(x + w, y - 9), Hex(Theme::cardBorder));
+                }
+            }
+            const float bw = (w - 20) / 2, bh = 72, by = designH - 24 - 20 - bh;
+            const std::string no = Port::PortText("LANGUAGE_PROMPT_NO", langs[0], mPrompt.rom) + "\n" +
+                                   Port::PortText("LANGUAGE_PROMPT_NO", langs[1], mPrompt.rom);
+            const std::string yes = Port::PortText("LANGUAGE_PROMPT_YES", langs[0], "", mPrompt.locale) + "\n" +
+                                    Port::PortText("LANGUAGE_PROMPT_YES", langs[1], "", mPrompt.locale);
+            if (Button((no + "##lang-no").c_str(), x, by, bw, bh, gFonts.body)) {
+                mPromptChoice.clear();
+                mPromptStep = kPromptAfter;
+                mFocusReset = true;
+            }
+            ImGui::PushStyleColor(ImGuiCol_Button, HexV(Theme::green));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(Hex(0x37B24D)));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::ColorConvertU32ToFloat4(Hex(0x268A39)));
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
+            mDefaultFocus = (int)mNavItems.size();
+            if (Button((yes + "##lang-yes").c_str(), x + bw + 20, by, bw, bh, gFonts.body)) {
+                mPromptChoice = mPrompt.locale;
+                mPromptStep = kPromptAfter;
+                mFocusReset = true;
+            }
+            ImGui::PopStyleColor(4);
+            return;
+        }
+        for (int i = 0; i < 2; i++) {
+            y += Paragraph(x, y, w, Port::PortText("LANGUAGE_PROMPT_AFTER", langs[i]), gFonts.body) + 18;
+        }
+        const float bw = 260, bh = 56, by = designH - 24 - 20 - bh;
+        const std::string ok = Port::PortText("LANGUAGE_PROMPT_OK", langs[0]) == Port::PortText("LANGUAGE_PROMPT_OK", langs[1])
+                                   ? Port::PortText("LANGUAGE_PROMPT_OK", langs[0])
+                                   : Port::PortText("LANGUAGE_PROMPT_OK", langs[0]) + " / " +
+                                         Port::PortText("LANGUAGE_PROMPT_OK", langs[1]);
+        mDefaultFocus = (int)mNavItems.size();
+        if (Button((ok + "##lang-ok").c_str(), x + (w - bw) / 2, by, bw, bh, gFonts.body) ||
+            ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+            Port::LanguagePromptAnswered(mPromptChoice);
+            mPromptStep = kPromptNone;
+            *mPlay = true;
+        }
+    }
+
     std::string mToolsStatus;
     bool mToolsTestOpened = false, mTools = false;
     void Tools() {
@@ -1811,7 +1956,7 @@ class LauncherWindow : public Ship::GuiWindow {
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 2 * mScale);
         ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1, 1, 1, 0.85f));
         if (Button("PLAY", x + w - 206, y + 12, 182, 66, gFonts.play)) {
-            *mPlay = ReadyToPlay(s);
+            RequestPlay(s);
         }
         ImGui::PopStyleColor(5);
         ImGui::PopStyleVar(2);
@@ -1821,7 +1966,7 @@ class LauncherWindow : public Ship::GuiWindow {
             ImGui::SetTooltip("Start the game directly next time (hold Shift while starting to see this launcher)");
         }
         if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mTools && !mGraphics && !mSound) {
-            *mPlay = ReadyToPlay(s);
+            RequestPlay(s);
         }
         (void)mQuit;
     }
@@ -2018,7 +2163,7 @@ class LauncherWindow : public Ship::GuiWindow {
         ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1, 1, 1, 0.85f));
         mDefaultFocus = (int)mNavItems.size();
         if (Button("PLAY", rx, cy, rw, 150, gFonts.play) && romError.empty()) {
-            *mPlay = ReadyToPlay(s);
+            RequestPlay(s);
         }
         ImGui::PopStyleColor(5);
         ImGui::PopStyleVar(2);
@@ -2234,7 +2379,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
             }
         }
 #endif
-        LoadFonts(); // add the launcher fonts before the first frame builds the atlas
+        LoadFonts(state); // add the launcher fonts before the first frame builds the atlas
         auto gui = std::dynamic_pointer_cast<Fast::Fast3dGui>(window->GetGui());
         // the controller deck, for the controls panel (the game's osContInit sets it up again, which is harmless)
         static uint8_t controllerBits;

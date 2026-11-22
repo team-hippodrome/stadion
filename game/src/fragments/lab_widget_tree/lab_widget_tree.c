@@ -1240,7 +1240,6 @@ s32 WidgetTree_DrawTextList(WidgetTextList* arg0, s32 arg1, s32 arg2) {
     s32 var_v1;
     u8* var_s4;
     s32 temp_v0_3;
-    u8 var_s0;
 
     if (arg0->unk_2C == NULL) {
         return 0;
@@ -1256,15 +1255,18 @@ s32 WidgetTree_DrawTextList(WidgetTextList* arg0, s32 arg1, s32 arg2) {
     Gfx_SetEnvColor(arg0->unk_38.r, arg0->unk_38.g, arg0->unk_38.b, arg0->unk_38.a);
     var_s3 = 0;
     if (temp_fp > 0) {
-        var_s0 = *var_s4++;
+        // PORT: by character (Font_NextCode), so a translated string's two-byte characters draw as one
+        const u8* text = var_s4;
+        s32 code;
 
-        while (var_s0 != 0) {
-            if (var_s0 == (0, 0xA)) {
+        while ((code = Font_NextCode(&text)) != 0) {
+            if (code == 0xA) {
                 var_s2 = arg1;
                 var_s5 += arg0->unk_36;
             } else {
-                Font_DrawCharAt(var_s2, var_s5, var_s0);
-                temp_v0_3 = Font_GetGlyphAdvance(&arg0->unk_3C->unk_00[arg0->unk_3C->setIndex], temp_v0_3 = var_s0);
+                Font_DrawCode(var_s2 - 1, var_s5, code);
+                temp_v0_3 = Font_CodeAdvance(&arg0->unk_3C->unk_00[arg0->unk_3C->setIndex], arg0->unk_3C->setIndex,
+                                             code);
                 if (arg0->unk_3C->setIndex >= 2) {
                     var_v1 = temp_v0_3 - 2;
                 } else {
@@ -1277,8 +1279,6 @@ s32 WidgetTree_DrawTextList(WidgetTextList* arg0, s32 arg1, s32 arg2) {
             if (var_s3 >= temp_fp) {
                 break;
             }
-
-            var_s0 = *var_s4++;
         }
     }
 

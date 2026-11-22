@@ -2,11 +2,16 @@
 #include "text_system.h"
 #include "src/jpeg_stream.h"
 #include "src/memory.h"
+#include "StadionPort.h"
 
 #define D_800AF740_NUM_FILES 42
 
 static BinArchive* gTextArchive;
 static char** gTextTokenTable;
+// PORT: each file's string table as last returned, so Text_GetString knows which table a string is from (its
+// translation's id is T<file>_<index>, src/port/text_lookup.cpp)
+#define TEXT_MAX_FILES 64
+static char** sTextTables[TEXT_MAX_FILES];
 
 void Text_InitStringTables(void) {
     s32 i;
@@ -28,6 +33,15 @@ char** Text_GetStringTable(s32 file_number) {
 
     if (table == NULL) {
         return NULL;
+    }
+    if (file_number >= 0 && file_number < TEXT_MAX_FILES) {
+        s32 t;
+        for (t = 0; t < TEXT_MAX_FILES; t++) { // another file loaded at this address before
+            if (sTextTables[t] == (char**)table) {
+                sTextTables[t] = NULL;
+            }
+        }
+        sTextTables[file_number] = (char**)table;
     }
     if (!(table[0] < 0x10000 && table[1] >= (table[0] + 1) * 4 && table[1] < (table[0] + 1) * 4 + 0x10)) {
         u32 count = Port_Swap32(table[0]);
@@ -138,6 +152,19 @@ char* Text_GetString(char* text, s32 text_length, char** string_array, u32 file_
         return "";
     }
     char* string_array_lookup = (char*)string_array + ((u32*)string_array)[file_number + 1];
+    {
+        // PORT: the chosen text language's string, if it has one (`file_number` is the string's index here)
+        s32 t;
+        for (t = 0; t < TEXT_MAX_FILES; t++) {
+            if (sTextTables[t] == string_array) {
+                const char* translated = Port_TextLookup((u32)t, file_number);
+                if (translated != NULL) {
+                    string_array_lookup = (char*)translated;
+                }
+                break;
+            }
+        }
+    }
 
     if (text == NULL) {
         string = string_array_lookup;

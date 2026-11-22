@@ -47,6 +47,12 @@ void Font_UnloadSizes(s32 arg0);
 void Font_SetActive(s32 mask, s32 letter_spacing);
 s32 Font_GetSetInfo(s32 arg0, FontSet* arg1);
 s16 Font_DrawChar(s16 arg0, s16 arg1, s16 arg2);
+// PORT: translated text's characters (StadionPort.h "Translated text"): a string's next character as a code, a
+// byte (1-0xFF) or FONT_WIDE_CODE | a wide character's index (0 at the end), drawn and measured like the ROM font's.
+#define FONT_WIDE_CODE 0x10000
+s32 Font_NextCode(const u8** text);
+s16 Font_DrawCode(s16 x, s16 y, s32 code);
+s32 Font_CodeAdvance(FontSet* font_set, s32 set_index, s32 code);
 char* String_CopyBytesAndAdvance(char* buffer, const char* data, size_t size);
 void Font_Printf(s32 x, s32 y, const char* fmt, ...);
 void Font_DrawCharAt(s32 x, s32 y, s32 char_index);
