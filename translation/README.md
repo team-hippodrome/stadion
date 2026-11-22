@@ -53,6 +53,8 @@ ROM). `kanji.csv` is `id,md5,address,kanji,note` with the same ids as `jp.csv`.
   `\xNN`. Keep the `#NN` text tokens (`Text_SubstituteTokens`: `#01`–`#09` numbers, `#20`–`#41` names) and printf
   conversions (`%s`, `%d` …) in the same order; if a language needs another order, use positional forms
   (`%2$s`) and say so in `note`. An empty cell falls through to the source text.
+- The western ROMs' font draws byte 0xBE as ♀ and 0xA9 as ♂ (latin-1 ¾ and ©), in all five ROMs; the dumps show
+  them as ♀ and ♂, and cells use ♀ and ♂ too. 0xA5 (¥) is the Pokédollar sign.
 - `note` is context for translators. It never holds the source text.
 - Rows are sorted: `T` ids in table and index order, then `ROM_` ids by offset, then named rows.
 

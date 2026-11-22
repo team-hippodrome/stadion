@@ -75,6 +75,11 @@ def identify(rom):
     return SOURCES[md5]
 
 
+# Bytes the western ROMs' font draws as something other than their latin-1 character (same in all five ROMs):
+# NIDORAN + 0xBE is Nidoran female, NIDORAN + 0xA9 Nidoran male. 0xA5 (¥) is the Pokédollar sign.
+LATIN1_GLYPHS = {0xBE: "\u2640", 0xA9: "\u2642"}
+
+
 def escape(raw, encoding):
     """Raw ROM bytes as cell text: decoded, '\\n' kept, other control bytes and undecodable bytes as \\xNN."""
     out, i = [], 0
@@ -88,7 +93,7 @@ def escape(raw, encoding):
             except UnicodeDecodeError:
                 pass
         if encoding == "latin-1" and b >= 0xA0:
-            out.append(chr(b)); i += 1; continue
+            out.append(LATIN1_GLYPHS.get(b, chr(b))); i += 1; continue
         out.append(f"\\x{b:02X}"); i += 1
     return "".join(out)
 
