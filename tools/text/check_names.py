@@ -45,8 +45,11 @@ LAST_ID = {"species": 151, "move": 165}
 JP_MOVES = (0x80AC0, 0x81370)
 
 
+LIGATURES = str.maketrans({"Œ": "OE", "œ": "oe", "Æ": "AE", "æ": "ae", "ß": "ss"})
+
+
 def norm(s):
-    s = unicodedata.normalize("NFKD", s.replace("\\n", " ").replace("\n", " "))
+    s = unicodedata.normalize("NFKD", s.replace("\\n", " ").replace("\n", " ").translate(LIGATURES))
     s = "".join(c for c in s if not unicodedata.combining(c))
     return "".join(c for c in s.casefold() if c.isalnum() or c in "♀♂")
 
