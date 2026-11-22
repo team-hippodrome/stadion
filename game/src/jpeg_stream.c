@@ -944,6 +944,12 @@ void* Port_ResolveCode(uintptr_t addr) {
                 // (all 60 targets read their callback data ROM-aware: big-endian records with 32-bit addresses)
                 u32 target = (u32)((addr & 0xF0000000) | ((insn & 0x03FFFFFF) << 2));
                 void* fn;
+                // the image is the loaded ROM's code: on a 1.0 or Rev 1 ROM the target is that version's link address
+                if (target >= 0x81000000 && target < 0x90000000) {
+                    target = Port_RomCodeAddrToGame(sPortSlotRom[((target & 0x0FF00000) >> 20) - 0x10], target);
+                } else {
+                    target = Port_RomCodeAddrToGame(0, target);
+                }
                 depth++;
                 fn = Port_ResolveCode(target);
                 depth--;

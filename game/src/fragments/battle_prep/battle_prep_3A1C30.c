@@ -9,6 +9,7 @@
 #include "src/math_util.h"
 #include "src/memmap.h"
 #include "src/memory.h"
+#include "src/text_system.h" // Text_SetNumberToken (Rev 2)
 
 static BattlePrepRuleWindowLayout gBattlePrepRuleWindowLayouts[] = {
     {

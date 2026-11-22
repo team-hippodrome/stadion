@@ -137,8 +137,16 @@ merge: base = the recorded commit, theirs = the new commit, ours = `game/`), for
 `.clang-format` (clang-format 14), build, and update `game/UPSTREAM.md`. Then regenerate the tables in
 `src/port/generated/` with `tools/gen_func_table.py`, `tools/gen_fragment_entries.py` and `tools/gen_abs_syms.py`
 (after one build, since they read `build/libstadium_game.a`; run them twice when names changed, as the old table is
-part of that library), and `tools/ares_ref/battle_engine.syms`. The generators read the map of an unmodified decomp
-build of the new commit (`build/pokestadium-us.map`) in `$PORT_DECOMP_DIR`, by default `../pokestadium`.
+part of that library), `tools/gen_rom_layouts.py`, and `tools/ares_ref/battle_engine.syms`. The generators read the
+maps of unmodified decomp builds of the new commit in `$PORT_DECOMP_DIR`, by default `../pokestadium`
+(`tools/decomp_paths.py`).
+
+The game is compiled as US Rev 2 (`VERSION_US_REV2`) whichever US ROM the player loads, so the tables come from the
+decomp's `us_rev2` build (`build/us_rev2/pokestadium-us_rev2.map`, `assets/us_rev2`). `tools/gen_rom_layouts.py` also
+reads the `us` and `us_rev1` maps: it writes `src/port/generated/rom_layouts.c`, where each piece of the Rev 2 ROM is in
+the 1.0 and Rev 1 ROMs, which `src/port/rom_version.cpp` uses to read those ROMs. Build all three in the decomp first,
+each with its own `baseroms/<version>/baserom.z64`: `make init VERSION=us && make VERSION=us`, then
+`make extract VERSION=us_rev1 && make VERSION=us_rev1` and the same for `us_rev2`.
 
 ## Shader coverage
 

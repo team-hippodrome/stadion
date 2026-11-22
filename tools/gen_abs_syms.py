@@ -5,9 +5,10 @@ Values come from the decomp's linker map, so they are the ROM offsets / virtual 
 original build used. Leftover undefined names are written to build/leftover_syms.txt."""
 import re, subprocess, pathlib, sys
 root = pathlib.Path(__file__).resolve().parent.parent
-# the unmodified decomp checkout and build the game is patched from (PORT_DECOMP_DIR, default ../pokestadium)
-decomp = pathlib.Path(__import__("os").environ.get("PORT_DECOMP_DIR", root.parent / "pokestadium"))
-mapfile = decomp / "build/pokestadium-us.map"
+import sys as _sys
+_sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parent))
+import decomp_paths  # the decomp build the port's code corresponds to (US Rev 2)
+mapfile = decomp_paths.CODE_MAP
 # C symbols carry a leading underscore in Mach-O (macOS) object files, not in ELF (Linux)
 CPFX = "_" if __import__("sys").platform == "darwin" else ""
 lib = root / "build/libstadium_game.a"
@@ -19,7 +20,7 @@ for l in nm.splitlines():
     elif len(f) == 3 and f[1] in "TDBSRC": defd.add(f[2])
 need = sorted(s[len(CPFX):] for s in undef - defd if s.startswith(CPFX))
 vals = {}
-pat = re.compile(r"^\s+0x([0-9a-fA-F]{8,16})\s+([A-Za-z_]\w*)\s*(?:=.*)?$")
+pat = re.compile(r"^\s+0x([0-9a-fA-F]{8,16})\s+(?:PROVIDE \()?([A-Za-z_]\w*)\s*(?:=.*)?$")
 for l in mapfile.read_text(errors="replace").splitlines():
     m = pat.match(l)
     if m:

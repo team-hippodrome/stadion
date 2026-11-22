@@ -179,6 +179,10 @@ s32 port_osContStartReadData(OSMesgQueue* mq);
 void port_osContGetReadData(OSContPad* pad);
 #define osContGetReadData port_osContGetReadData
 
+// Debugger output (the N64 development board's rmon). Rev 2 code still calls it on some error paths; a retail
+// console has no debugger, so it prints nothing (src/port/stubs.c).
+void rmonPrintf(const char* fmt, ...);
+
 // RSP microcode symbols (linked from ROM data in the original)
 extern long long int rspbootTextStart[], rspbootTextEnd[];
 extern long long int aspMainTextStart[], aspMainTextEnd[];

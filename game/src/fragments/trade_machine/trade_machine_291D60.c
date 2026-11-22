@@ -640,7 +640,74 @@ void Trade_DrawSaveSeqMessageBackdrop(s16 arg0, s16 arg1, s16 arg2, s16 arg3) {
 // which this function needs to match.
 #define U64_NOP(x) ((u32)((u64)(x) | 0ULL))
 
-#if defined(VERSION_US_REV2)
+#if defined(VERSION_US_REV2) && defined(PORT_STATIC_FRAGMENTS)
+// PORT: Rev 2's version is not decompiled in the decomp yet (GLOBAL_ASM there); written from its assembly, not matching.
+// It is the 1.0/1.1 function with every message centred in the 0x198-wide box at x 0x74 instead of placed at fixed x.
+#define TRADE_SAVE_SEQ_CENTRED_X(str) ((0x198 - Font_MeasureTextExtent(0, 0, (str))) / 2 + 0x74)
+
+void func_82F0BEF8(unk_D_82F210E0* arg0) {
+    static s16 D_82F14068_us_rev2 = 0;
+
+    char sp38[64];
+    char* text;
+    unk_func_82F00838_sp30 sp20;
+
+    if (arg0->unk_08 < 2) {
+        Trade_GetPickScreenSnapshot(arg0->unk_08, &sp20);
+    } else {
+        Trade_GetPickScreenSnapshot(arg0->unk_0A, &sp20);
+    }
+
+    if (arg0->unk_10 == -1) {
+        return;
+    }
+
+    Trade_DrawSaveSeqMessageBackdrop(0x6E, 0x72, 0x1A4, 0x114);
+    Font_BeginTranslucentTextRendering();
+    Font_SetActive(0x10, 0);
+    Gfx_SetEnvColor(0xFF, 0xFF, 0xFF, 0xFF);
+
+    switch (arg0->unk_10) {
+        case 0:
+            Font_EnableTwoCycleTexturing();
+            Gfx_SetPrimColor(0xFF, 0xF1, 0x78, 0xFF);
+            text = Text_GetString(NULL, 0, gTradeStrings, 0x1F);
+            Font_Printf(TRADE_SAVE_SEQ_CENTRED_X(text), 0xA8, text);
+            Font_DisableTwoCycleTexturing();
+            break;
+
+        case 2:
+            Font_EnableTwoCycleTexturing();
+            Gfx_SetEnvColor(0xFF, 0xFF, 0xFF, 0xFF);
+            Gfx_SetPrimColor(0xFF, 0xF1, 0x78, 0xFF);
+            Text_SetNumberToken(1, sp20.unk_02 + 1);
+            text = Text_GetString(sp38, sizeof(sp38), gTradeStrings, 0x20);
+            Font_Printf(TRADE_SAVE_SEQ_CENTRED_X(text), 0x90, text);
+            Font_DisableTwoCycleTexturing();
+            break;
+
+        case 3:
+            Font_EnableTwoCycleTexturing();
+            Gfx_SetPrimColor(0xFF, 0xF1, 0x78, 0xFF);
+            text = Text_GetString(NULL, 0, gTradeStrings, 0x21);
+            Font_Printf(TRADE_SAVE_SEQ_CENTRED_X(text), 0x90, text);
+            Font_DisableTwoCycleTexturing();
+            break;
+    }
+
+    if (arg0->unk_10 != 0) {
+        Font_EnableTwoCycleTexturing();
+        Gfx_SetPrimColor(0xFF, 0xF1, 0x78, 0xFF);
+        Gfx_SetEnvColor(0xFF, 0xFF, 0xFF, 0xFF);
+        Font_SetLineHeight(0x24);
+        text = Text_GetString(NULL, 0, gTradeStrings, 0x22);
+        Font_Printf(TRADE_SAVE_SEQ_CENTRED_X(text), 0xF0, text);
+    }
+
+    Font_EndTexturedTextRendering();
+    D_82F14068_us_rev2 += 0x800;
+}
+#elif defined(VERSION_US_REV2)
 #pragma GLOBAL_ASM("asm/us/nonmatchings/fragments/trade_machine/trade_machine_291D60/func_82F0BEF8.s")
 #else
 void func_82F0BEF8(unk_D_82F210E0* arg0) {

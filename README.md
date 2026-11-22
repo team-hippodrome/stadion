@@ -22,15 +22,19 @@ ROMs and saves.
 
 ### 1. Verify your ROM
 
-The supported base ROM is the **US release**, in **big-endian `.z64` format**, with
-the following size and SHA-1:
+The supported base ROMs are the **US releases** (1.0, Rev 1 and Rev 2), in **big-endian
+`.z64` format**, 32 MiB (33,554,432 bytes), with one of these SHA-1s:
 
-| Size | SHA-1 |
+| Release | SHA-1 |
 | --- | --- |
-| 32 MiB (33,554,432 bytes) | `ed7bef5a306f88c0a6e96b15e71fee2ef32058f3` |
+| USA 1.0 | `ed7bef5a306f88c0a6e96b15e71fee2ef32058f3` |
+| USA Rev 1 (1.1) | `488bb6d112427823d77fcecdd9297fd86875263d` |
+| USA Rev 2 (1.2), retail or kiosk | `0d3b1d740c6ee6da6923550bf24ad827262fd8c0` |
 
-The launcher verifies the dump before starting. Other revisions, regions, patched
-ROMs and byte-swapped `.n64` or `.v64` files are not accepted.
+Whichever you use, stadion runs the Rev 2 game code, which fixes the earlier releases' bug with
+nicknames that contain a space; the ROM provides the game's data (graphics, text,
+teams). The launcher verifies the dump before starting. Other regions, patched ROMs and
+byte-swapped `.n64` or `.v64` files are not accepted yet.
 
 ### 2. Download and launch
 
