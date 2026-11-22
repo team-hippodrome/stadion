@@ -40,6 +40,9 @@ NAME_TABLES = {"T24": "species", "T25": "move", "T26": "type", "T27": "item"}
 # Stadium 1 has the first 151 species and 165 moves: a later one's name is a false match (ブルー is Blue the trainer,
 # not Snubbull).
 LAST_ID = {"species": 151, "move": 165}
+# The Japanese ROM's move-name list (ROM offsets): its species table also holds the Pokédex categories, some of which
+# spell a move (どくばり, ねんりき, かいりき ...), so only rows here count as moves.
+JP_MOVES = (0x80AC0, 0x81370)
 
 
 def norm(s):
@@ -104,6 +107,10 @@ def main():
                 if things and src != "jp":
                     kind = NAME_TABLES.get(d["id"][:3])
                     things = {t for t in things if t[0] == kind}
+                elif things:
+                    first = int(d["address"].split()[0], 16) if d["address"] else -1
+                    if not JP_MOVES[0] <= first < JP_MOVES[1]:
+                        things = {t for t in things if t[0] != "move"}
                 if not things:
                     continue
                 for col in head[3:-1]:
