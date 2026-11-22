@@ -153,6 +153,35 @@ def eucjp_strings(rom, min_chars=2):
             i += 4
 
 
+# The Game Boy Tower's in-game menu (the western ROMs' code fragment near 0x8E000-0x8EB00): draw lists of positioned
+# lines, each 0x80, x, y, w, h, length and that many characters, a NUL after the last. Its font puts accented letters
+# on ASCII punctuation (POK@MON is POKéMON).
+GBTOWER_RANGE = (0x8D000, 0x8F000)
+GBTOWER_GLYPHS = {ord("@"): 0xE9, ord("#"): 0xFC, ord("$"): 0xE4, ord("<"): 0xF6}
+
+
+def gbtower_strings(rom):
+    """(address, draw-list bytes, its lines joined by spaces as latin-1) for each GB Tower menu string."""
+    out, a = [], GBTOWER_RANGE[0]
+    while a < GBTOWER_RANGE[1]:
+        if rom[a] == 0x80 and a % 2 == 0 and (a % 4 == 0 or rom[a - 1] == 0):
+            p, lines = a, []
+            while rom[p] == 0x80:
+                n = rom[p + 5]
+                t = rom[p + 6:p + 6 + n]
+                if n < 1 or len(t) < n or any(c < 0x20 for c in t):
+                    lines = []
+                    break
+                lines.append(bytes(GBTOWER_GLYPHS.get(c, c) for c in t))
+                p += 6 + n
+            if lines and rom[p] == 0:
+                out.append((a, rom[a:p], b" ".join(lines)))
+                a = p
+                continue
+        a += 1
+    return out
+
+
 def rom_rows(rom):
     """The source code and its rows: dicts with id, md5, address, raw."""
     src, start, enc = identify(rom)
@@ -161,6 +190,9 @@ def rom_rows(rom):
         for t, i, a, raw in textdata_strings(rom, start):
             rows.append({"id": f"T{t:02X}_{i:03d}", "md5": hashlib.md5(raw).hexdigest(), "address": f"{a:08X}",
                          "raw": raw})
+        for a, chain, text in gbtower_strings(rom):
+            rows.append({"id": f"ROM_{a:08X}", "md5": hashlib.md5(chain).hexdigest(), "address": f"{a:08X}",
+                         "raw": text})
     else:
         by_bytes = {}
         for a, raw in eucjp_strings(rom):

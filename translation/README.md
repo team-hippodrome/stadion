@@ -113,5 +113,6 @@ strings it misses by hand with `ROM_` ids.
 ## Not done yet
 
 - The port does not read these tables at run time yet, and only boots the USA 1.0 ROM.
-- Strings outside textdata in the western ROMs (code data, compressed COM trainer tables) are not listed by the
-  tool; they are added by hand with `ROM_` ids.
+- Strings outside textdata in the western ROMs (code data, COM trainer tables) are not listed by the tool, except the
+  Game Boy Tower's in-game menu (17 draw lists near 0x8E000 in each western ROM: `ROM_<offset>`, md5 of the whole
+  draw list, the cell is its lines joined by spaces). The rest are added by hand with `ROM_` ids.
