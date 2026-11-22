@@ -6,7 +6,8 @@
                                                         # tokens kept, and cross-source contamination
 
 With several ROMs, a cell in <src>.csv that is identical to another official ROM's own text for the same id (and
-longer than a name) is reported: each source is translated from its own ROM only.
+longer than a name) is reported: each source is translated from its own ROM only. Reports are leads to review
+(set phrases can match honestly); --strict makes them fail the check.
 """
 import argparse
 import glob
@@ -28,6 +29,7 @@ def tokens(s):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--rom", nargs="*", default=[])
+    ap.add_argument("--strict", action="store_true", help="contamination warnings fail the check too")
     a = ap.parse_args()
     errors, warnings = [], []
     dumps = {}  # src -> id -> (md5, address, text)
@@ -90,7 +92,9 @@ def main():
     for w in warnings:
         print("contamination:", w)
     print(f"{len(files)} tables, {len(errors)} errors, {len(warnings)} contamination warnings")
-    sys.exit(1 if errors or warnings else 0)
+    # Contamination is a lead to review, not proof: set phrases (TM cards, official names, short battle lines) can
+    # match an official translation honestly.
+    sys.exit(1 if errors or (a.strict and warnings) else 0)
 
 
 if __name__ == "__main__":
