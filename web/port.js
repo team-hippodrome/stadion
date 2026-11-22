@@ -11,6 +11,12 @@ const ROM_SHA1S = [
   "ed7bef5a306f88c0a6e96b15e71fee2ef32058f3",
   "488bb6d112427823d77fcecdd9297fd86875263d",
   "0d3b1d740c6ee6da6923550bf24ad827262fd8c0",
+  "6f26e3c8b35c3232058375e30d19665facb23123", // Europe 1.0
+  "9470f899ad0107677b7dfd24e1dd567723a5f84f", // Europe Rev 1
+  "4f7267ccaba4a8a9b0ae2cb89e191bc69b153ddc", // France
+  "6a25903e733f071e7d6ea54529b7fd60b760cda3", // Germany
+  "f39911ad0bedccc3e44d4338507c73bfa97856bf", // Spain
+  "db5f2797c377fa8957b97465fc5738d6999ff240", // Italy
 ];
 const DATA = "/data";
 const ROM_PATH = DATA + "/rom/stadium.z64";

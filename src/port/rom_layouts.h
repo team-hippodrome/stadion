@@ -12,6 +12,12 @@ typedef enum PortRomVersion {
     PORT_ROM_US,      // USA 1.0
     PORT_ROM_US_REV1, // USA Rev 1 (1.1)
     PORT_ROM_US_REV2, // USA Rev 2 (1.2), retail and kiosk: the version the code is compiled as
+    PORT_ROM_EU,      // Europe (English) 1.0
+    PORT_ROM_EU_REV1, // Europe (English) Rev 1
+    PORT_ROM_FR,      // France
+    PORT_ROM_DE,      // Germany
+    PORT_ROM_ES,      // Spain
+    PORT_ROM_IT,      // Italy
     PORT_ROM_VERSION_COUNT
 } PortRomVersion;
 

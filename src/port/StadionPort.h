@@ -74,6 +74,10 @@ uint32_t Port_GbAudioQueuedBytes(void);
 // A link address read from the loaded ROM's own code (a fragment image) as the Rev 2 link address of the same symbol.
 // fragmentRom is the Rev 2 ROM offset of the fragment holding it, 0 for the main segment.
 uint32_t Port_RomCodeAddrToGame(uint32_t fragmentRom, uint32_t addr);
+uint32_t Port_RomToRaw(uint32_t gameOffset);              // src/port/rom_version.h
+uint32_t Port_RomRangeEndToRaw(uint32_t gameStart, uint32_t gameEnd);
+// 0 when the loaded ROM has no Gallery graphics (the French, German, Spanish and Italian releases)
+int Port_RomHasGallery(void);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Input and saves (src/port/os_devices.cpp)

@@ -141,12 +141,14 @@ part of that library), `tools/gen_rom_layouts.py`, and `tools/ares_ref/battle_en
 maps of unmodified decomp builds of the new commit in `$PORT_DECOMP_DIR`, by default `../pokestadium`
 (`tools/decomp_paths.py`).
 
-The game is compiled as US Rev 2 (`VERSION_US_REV2`) whichever US ROM the player loads, so the tables come from the
+The game is compiled as US Rev 2 (`VERSION_US_REV2`) whichever ROM the player loads, so the tables come from the
 decomp's `us_rev2` build (`build/us_rev2/pokestadium-us_rev2.map`, `assets/us_rev2`). `tools/gen_rom_layouts.py` also
-reads the `us` and `us_rev1` maps: it writes `src/port/generated/rom_layouts.c`, where each piece of the Rev 2 ROM is in
-the 1.0 and Rev 1 ROMs, which `src/port/rom_version.cpp` uses to read those ROMs. Build all three in the decomp first,
-each with its own `baseroms/<version>/baserom.z64`: `make init VERSION=us && make VERSION=us`, then
-`make extract VERSION=us_rev1 && make VERSION=us_rev1` and the same for `us_rev2`.
+reads the maps of every other accepted ROM (`us`, `us_rev1`, `eu`, `eu_rev1`, `fr`, `de`, `es`, `it`): it writes
+`src/port/generated/rom_layouts.c`, where each piece of the Rev 2 ROM is in those ROMs, which
+`src/port/rom_version.cpp` uses to read them. Build them all in the decomp first, each with its own
+`baseroms/<version>/baserom.z64`: `make init VERSION=us && make VERSION=us`, then
+`make extract VERSION=<version> && make VERSION=<version>` for each of the others (the European ones build the code
+they change from assembly, so they need no further decompilation).
 
 ## Shader coverage
 

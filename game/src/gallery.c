@@ -324,6 +324,15 @@ void Gallery_Dispatch(void) {
     var_s2 = 0;
     var_s5 = 0;
 
+#ifdef PORT_STATIC_FRAGMENTS
+    // PORT: the French, German, Spanish and Italian ROMs have no Gallery graphics; their Gallery_Dispatch is only
+    // this push and pop (the Gallery cannot be entered there)
+    if (!Port_RomHasGallery()) {
+        main_pool_push_state('SNPM');
+        main_pool_pop_state('SNPM');
+        return;
+    }
+#endif
     main_pool_push_state('SNPM');
     Audio_StartMusicTrack(0x4B);
 

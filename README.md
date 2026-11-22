@@ -22,7 +22,7 @@ ROMs and saves.
 
 ### 1. Verify your ROM
 
-The supported base ROMs are the **US releases** (1.0, Rev 1 and Rev 2), in **big-endian
+The supported base ROMs are the **US and European releases**, in **big-endian
 `.z64` format**, 32 MiB (33,554,432 bytes), with one of these SHA-1s:
 
 | Release | SHA-1 |
@@ -30,11 +30,22 @@ The supported base ROMs are the **US releases** (1.0, Rev 1 and Rev 2), in **big
 | USA 1.0 | `ed7bef5a306f88c0a6e96b15e71fee2ef32058f3` |
 | USA Rev 1 (1.1) | `488bb6d112427823d77fcecdd9297fd86875263d` |
 | USA Rev 2 (1.2), retail or kiosk | `0d3b1d740c6ee6da6923550bf24ad827262fd8c0` |
+| Europe (English) 1.0 | `6f26e3c8b35c3232058375e30d19665facb23123` |
+| Europe (English) Rev 1 | `9470f899ad0107677b7dfd24e1dd567723a5f84f` |
+| France | `4f7267ccaba4a8a9b0ae2cb89e191bc69b153ddc` |
+| Germany | `6a25903e733f071e7d6ea54529b7fd60b760cda3` |
+| Spain | `f39911ad0bedccc3e44d4338507c73bfa97856bf` |
+| Italy | `db5f2797c377fa8957b97465fc5738d6999ff240` |
 
 Whichever you use, stadion runs the Rev 2 game code, which fixes the earlier releases' bug with
 nicknames that contain a space; the ROM provides the game's data (graphics, text,
-teams). The launcher verifies the dump before starting. Other regions, patched ROMs and
+teams). The launcher verifies the dump before starting. The Japanese release, patched ROMs and
 byte-swapped `.n64` or `.v64` files are not accepted yet.
+
+The French, German, Spanish and Italian releases are partly supported: their text shows, but
+some menus whose layout those releases changed for longer words draw a few graphics wrongly
+or overlap (the game code adjusting them is not decompiled yet), and the Gallery cannot be
+entered, as on the original cartridges, which have no Gallery graphics.
 
 ### 2. Download and launch
 

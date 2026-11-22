@@ -84,10 +84,52 @@ uint32_t Port_RomOffset(uint32_t gameOffset) {
     return gameOffset - s->gameStart + s->romStart;
 }
 
+uint32_t Port_RomToRaw(uint32_t gameOffset) {
+    if (gameOffset & PORT_ROM_RAW) {
+        return gameOffset;
+    }
+    return Port_RomOffset(gameOffset) | PORT_ROM_RAW;
+}
+
+uint32_t Port_RomRangeEndToRaw(uint32_t gameStart, uint32_t gameEnd) {
+    if (gameEnd & PORT_ROM_RAW) {
+        return gameEnd;
+    }
+    if (gameEnd <= gameStart) {
+        return Port_RomToRaw(gameStart) + (gameEnd - gameStart);
+    }
+    if (gLayout != nullptr && gLayout->segments != nullptr) {
+        const PortRomSegment* begin = gLayout->segments;
+        const PortRomSegment* end = begin + gLayout->segmentCount;
+        // the innermost piece holding the start that ends exactly at gameEnd
+        for (const PortRomSegment* s = begin; s < end && s->gameStart <= gameStart; s++) {
+            if (gameStart < s->gameEnd && s->gameEnd == gameEnd) {
+                return s->romEnd | PORT_ROM_RAW;
+            }
+        }
+        // a piece that starts at gameEnd (ranges such as "this fragment up to the next asset")
+        for (const PortRomSegment* s = begin; s < end && s->gameStart <= gameEnd; s++) {
+            if (s->gameStart == gameEnd) {
+                return s->romStart | PORT_ROM_RAW;
+            }
+        }
+    }
+    return (Port_RomOffset(gameEnd - 1) + 1) | PORT_ROM_RAW;
+}
+
 size_t Port_RomRead(uint32_t gameOffset, void* dst, size_t size) {
     const uint8_t* rom = Port::RomData();
     const size_t romSize = Port::RomSize();
     uint8_t* out = static_cast<uint8_t*>(dst);
+    if (gameOffset & PORT_ROM_RAW) {
+        const uint32_t src = gameOffset & ~PORT_ROM_RAW;
+        if (src >= romSize) {
+            return 0;
+        }
+        const size_t n = std::min<size_t>(size, romSize - src);
+        memcpy(out, rom + src, n);
+        return n;
+    }
     size_t done = 0;
     while (done < size) {
         const uint32_t off = gameOffset + (uint32_t)done;
@@ -118,6 +160,18 @@ size_t Port_RomRead(uint32_t gameOffset, void* dst, size_t size) {
         }
     }
     return done;
+}
+
+int Port_RomHasGallery(void) {
+    switch (gVersion) {
+        case PORT_ROM_FR:
+        case PORT_ROM_DE:
+        case PORT_ROM_ES:
+        case PORT_ROM_IT:
+            return 0; // gallery_ui and album_ui are 48-byte stubs, snap_select_ui is gone
+        default:
+            return 1;
+    }
 }
 
 uint32_t Port_RomCodeAddrToGame(uint32_t fragmentRom, uint32_t addr) {
