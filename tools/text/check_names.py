@@ -37,6 +37,9 @@ DIR = os.path.join(T.TABLE_DIR, "pokeapi")
 # The western ROMs' name tables (textdata; the same in all five): only their rows are checked, so a Pokédex category
 # or a menu word that happens to spell a name is not. The Japanese ROM has none: its rows are matched by text.
 NAME_TABLES = {"T24": "species", "T25": "move", "T26": "type", "T27": "item"}
+# Stadium 1 has the first 151 species and 165 moves: a later one's name is a false match (ブルー is Blue the trainer,
+# not Snubbull).
+LAST_ID = {"species": 151, "move": 165}
 
 
 def norm(s):
@@ -84,7 +87,7 @@ def main():
         src, enc, rows = T.rom_rows(open(rom_path, "rb").read())
         index = defaultdict(set)  # normalized source-language name -> things
         for thing, langs in names.items():
-            if thing[0] not in a.kinds:
+            if thing[0] not in a.kinds or thing[1] > LAST_ID.get(thing[0], 1 << 30):
                 continue
             for i in SOURCE_IDS[src]:
                 for n in langs.get(i, []):
