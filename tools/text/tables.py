@@ -34,8 +34,9 @@ ENCODING = {s: e for s, _, e in SOURCES.values()}
 ID_RE = re.compile(r"^(T[0-9A-F]{2}_[0-9]{3}|ROM_[0-9A-F]{8}|[A-Z][A-Z0-9_]*)$")
 MD5_RE = re.compile(r"^[0-9a-f]{32}$")
 ADDR_RE = re.compile(r"^([0-9A-F]{8}( [0-9A-F]{8})*)?$")
-# What a translation must keep: text tokens (#NN, see Text_SubstituteTokens) and printf conversions.
-TOKEN_RE = re.compile(r"#[0-9]{2}|%(?:[0-9]+\$)?[-+ 0#]*[0-9]*(?:\.[0-9]+)?[hl]*[diuxXocsfp%]")
+# What a translation must keep: text tokens (#NN, see Text_SubstituteTokens) and printf conversions. No space
+# flag: "100% sure" is a literal percent sign followed by text, not "% s".
+TOKEN_RE = re.compile(r"#[0-9]{2}|%(?:[0-9]+\$)?[-+0#]*[0-9]*(?:\.[0-9]+)?[hl]*[diuxXocsfp%]")
 
 
 def targets(src):

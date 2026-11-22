@@ -12,6 +12,7 @@ import argparse
 import glob
 import hashlib
 import os
+import re
 import sys
 from collections import Counter
 
@@ -20,7 +21,8 @@ import tables as T
 
 
 def tokens(s):
-    return Counter(T.TOKEN_RE.findall(s.replace("%%", "")))
+    # A positional %2$s counts as %s, so a translation may reorder the arguments.
+    return Counter(re.sub(r"^%[0-9]+\$", "%", t) for t in T.TOKEN_RE.findall(s.replace("%%", "")))
 
 
 def main():
