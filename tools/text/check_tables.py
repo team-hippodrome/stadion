@@ -6,7 +6,8 @@
                                                         # tokens kept, and cross-source contamination
 
 With several ROMs, a cell in <src>.csv that is identical to another official ROM's own text for the same id (and
-longer than a name) is reported: each source is translated from its own ROM only.
+longer than a name) is reported: each source is translated from its own ROM only. Reports are leads to review
+(set phrases can match honestly); --strict makes them fail the check.
 """
 import argparse
 import glob
@@ -28,6 +29,7 @@ def tokens(s):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--rom", nargs="*", default=[])
+    ap.add_argument("--strict", action="store_true", help="contamination warnings fail the check too")
     a = ap.parse_args()
     errors, warnings = [], []
     dumps = {}  # src -> id -> (md5, address, text)
@@ -49,6 +51,11 @@ def main():
         if h != head:
             errors.append(f"{name}: header {','.join(h)}\n  expected {','.join(head)}"); continue
         src = T.source_of(path)
+        if src is None:  # port.csv: ids unique, the English cell filled
+            ids = [d["id"] for d in dicts]
+            errors += [f"{name}: duplicate id {i}" for i in sorted({i for i in ids if ids.count(i) > 1})]
+            errors += [f"{name}: {d['id']} has no English" for d in dicts if not d["en"]]
+            continue
         seen, prev = set(), None
         for n, (d, rr) in enumerate(zip(dicts, raw_rows), start=2):
             where = f"{name}:{n} {d.get('id', '')}"
@@ -82,7 +89,8 @@ def main():
                                       f"!= source {sorted(want.elements())}")
             for col in head[3:-1]:
                 cell = d[col]
-                other = dumps.get(col, {}).get(rid) if rid.startswith("T") else None
+                # (T24 and T25 are the species and move names, which are meant to be the official ones)
+                other = dumps.get(col, {}).get(rid) if rid.startswith("T") and rid[:4] not in ("T24_", "T25_") else None
                 if cell and other and len(cell.split()) > 3 and cell == other[2]:
                     warnings.append(f"{where} [{col}]: identical to the official {col} ROM's text")
     for e in errors:
@@ -90,7 +98,9 @@ def main():
     for w in warnings:
         print("contamination:", w)
     print(f"{len(files)} tables, {len(errors)} errors, {len(warnings)} contamination warnings")
-    sys.exit(1 if errors or warnings else 0)
+    # Contamination is a lead to review, not proof: set phrases (TM cards, official names, short battle lines) can
+    # match an official translation honestly.
+    sys.exit(1 if errors or (a.strict and warnings) else 0)
 
 
 if __name__ == "__main__":
