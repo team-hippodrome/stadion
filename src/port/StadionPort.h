@@ -212,6 +212,38 @@ void Port_BattleBootPhase(int phase);
 void Port_BattleBootFinished(void);
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Translated text (src/port/text_lookup.cpp; hippodrome-utils docs/specs/TRANSLATION.md)
+// ---------------------------------------------------------------------------------------------------------------------
+
+// The text language the player chose (gPort.TextLanguage): translation/<ROM language>.csv's column for it replaces
+// the ROM's textdata strings, an empty cell keeping the ROM's own. The strings are in the game's encoding: its
+// font's bytes (ASCII, Latin-1, 0xBE/0xA9 for the female/male signs), and two bytes for a character the font lacks:
+// lead 0x81-0x9F (PORT_TEXT_WIDE_FIRST..LAST), then 0x80-0xFF (the font draws it from hippodrome-utils' Unifont or Pop).
+#define PORT_TEXT_WIDE_FIRST 0x81
+#define PORT_TEXT_WIDE_LAST 0x9F
+// Table `table`'s string `index` in the chosen language, or NULL for the ROM's own (none chosen, or an empty cell).
+// The pointer stays valid until the language changes.
+const char* Port_TextLookup(uint32_t table, uint32_t index);
+// A wide character's glyph at the font set's height (10 to 32 pixels): an IA8 texture of tex_width (a multiple of 8)
+// by height texels, draw_width of them drawn, then the pen moves advance pixels. 0 when there is none.
+typedef struct PortTextGlyph {
+    const uint8_t* tex;
+    int tex_width;
+    int draw_width;
+    int advance;
+    int height;
+} PortTextGlyph;
+int Port_TextGlyph(uint32_t wide_index, int height, PortTextGlyph* out);
+// The options screen's text-language row (game/src/fragments/options/options.c): its label, the choices (0 is the
+// ROM's own text, then each language translation/<ROM language>.csv has a column for), the current choice, and
+// setting it (saved in the port's settings). Labels are in the game's encoding.
+const char* Port_TextLanguageLabel(void);
+int Port_TextLanguageCount(void);
+const char* Port_TextLanguageName(int choice);
+int Port_TextLanguageChoice(void);
+void Port_TextLanguageSet(int choice);
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Hooks the game implements for the port
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -229,6 +261,9 @@ void Port_XcheckApplyCaseParties(void);
 void Port_DlBufferWhere(uintptr_t p, int* which, long* off);
 int Port_DlBufferActive(void);
 uintptr_t Port_DlBufferBase(void);
+// The ROM font's glyph for a byte, 0 for none (game/src/graphics_textures.c): text_lookup.cpp keeps a character as
+// one byte only where the font draws it.
+uint8_t Font_MapGlyphCode(uint16_t index);
 // Field offsets of the Game Boy Tower's emulator context, used by src/port/gb_core.c
 // (game/src/fragments/gb_tower_emulator/gb_tower_emulator_7F9A0.c).
 extern const size_t Port_GbEmuOffsets[9];

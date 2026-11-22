@@ -158,6 +158,8 @@ void BattleMenu_DrawBottomActionButtons(void) {
 void BattleMenu_DrawScrollingHelpText(void) {
     s32 i;
     s32 char_index;
+    s32 char_count;
+    const u8* walk;
     s32 y;
     s8 pad[1];
     s8* scrolling_text;
@@ -185,11 +187,31 @@ void BattleMenu_DrawScrollingHelpText(void) {
         scrolling_text = Text_GetString(NULL, 0, sTeamSelectText, 0);
     }
 
+    // PORT: by character (Font_NextCode), so a translated string's two-byte characters draw as one
+    char_count = 0;
+    walk = (const u8*)scrolling_text;
+    while (Font_NextCode(&walk) != 0) {
+        char_count++;
+    }
     for (i = 0; i < 16; i++) {
-        Font_DrawCharAt(((46 - Font_GetCharWidth(0x10, scrolling_text[char_index])) / 2) + 552, y,
-                        scrolling_text[char_index]);
+        s32 code = 0;
+        s32 k;
+
+        walk = (const u8*)scrolling_text;
+        for (k = 0; k <= char_index; k++) {
+            code = Font_NextCode(&walk);
+            if (code == 0) {
+                break;
+            }
+        }
+        if (code != 0) {
+            Font_DrawCode(((46 - Font_CodeAdvance(&gFontContext->unk_00[gFontContext->setIndex], gFontContext->setIndex,
+                                                  code)) /
+                           2) + 552 - 1,
+                          y, code);
+        }
         char_index += 1;
-        if (strlen(scrolling_text) < char_index) {
+        if (char_count < char_index) {
             char_index = 0;
         }
         y += 24;
@@ -200,7 +222,7 @@ void BattleMenu_DrawScrollingHelpText(void) {
                       depth_buffer->height * 4.0f);
 
     sScrollingTextProgress += 2;
-    if (sScrollingTextProgress >= ((strlen(scrolling_text) * 24) + 24)) {
+    if (sScrollingTextProgress >= ((char_count * 24) + 24)) {
         sScrollingTextProgress = 0;
     }
 }
