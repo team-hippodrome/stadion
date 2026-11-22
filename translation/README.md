@@ -55,6 +55,9 @@ ROM). `kanji.csv` is `id,md5,address,kanji,note` with the same ids as `jp.csv`.
   (`%2$s`) and say so in `note`. An empty cell falls through to the source text.
 - The western ROMs' font draws byte 0xBE as ♀ and 0xA9 as ♂ (latin-1 ¾ and ©), in all five ROMs; the dumps show
   them as ♀ and ♂, and cells use ♀ and ♂ too. 0xA5 (¥) is the Pokédollar sign.
+- The `jp` column (in every source file) is Japanese written with kanji, not the kana-only style of the original ROM.
+- Leave overflowing lines to the human pass, and leave Pokédex heights and weights as they are: the units (PAL
+  English is probably metric) will be handled in the ROM data separately.
 - `note` is context for translators. It never holds the source text.
 - Rows are sorted: `T` ids in table and index order, then `ROM_` ids by offset, then named rows.
 
@@ -74,12 +77,30 @@ python3 tools/text/check_tables.py                         # format
 python3 tools/text/check_tables.py --rom <rom.z64> ...     # also md5, address and tokens against those ROMs
 ```
 
+```
+python3 tools/text/check_names.py --download                # PokeAPI's name tables -> translation/pokeapi/
+python3 tools/text/check_names.py --rom <rom.z64> ...       # official names
+```
+
+Translate everything **literally from the source ROM's wording**, items, types, categories, places and modes included
+(German HYPERBALL is "Hyper Ball" in English, not "Ultra Ball"). Only Pokémon species, move and trainer/character
+names take the official names. `check_names.py` checks the species and move names (the western ROMs' tables T24 and
+T25; the Japanese ROM's rows whose text is one) against TPCI's official name in each target language from PokeAPI, ignoring case, accents, spaces and
+punctuation. Spanish takes Spain's or Latin America's names. Portuguese has no official localization: its species and
+character names are the English ones, and everything else is translated from the source.
+
 `translation/rom-text/` is gitignored: it holds your ROM's text, which must never be committed. Give
 `check_tables.py` several official ROMs and it also reports a cell that is identical to another official ROM's own
 text for the same id (longer than a few words): a sign that a source borrowed an official translation.
 
 The Japanese scan is a heuristic (aligned, NUL-terminated EUC-JP runs that are mostly two-byte characters); add the
 strings it misses by hand with `ROM_` ids.
+
+## The port's own strings
+
+`port.csv` (`id,en,es,jp,pt,de,ko,fr,it,note`) holds text the port draws itself, such as the first-boot language prompt
+(`src/port/language_prompt.cpp`), in every language. It is not ROM text. `{rom}` and `{locale}` stand for the
+`LANGUAGE_NAME_*` of the ROM's and the system's language in the cell's language; English `{a_rom}` adds "a" or "an".
 
 ## Not done yet
 
