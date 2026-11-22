@@ -7,7 +7,7 @@ TPCI's localizations, queried through PokeAPI).
 
 Everything is translated literally from the source ROM's wording (Julius, 2026-11-22: German HYPERBALL is "Hyper
 Ball", not "Ultra Ball") except species, move, trainer/character and city names, which take the official names (trainer
-classes are literal). This checks species, moves and the gyms' city names (PokeAPI has no trainer names): a row whose source text is the official name of one in the source's language
+classes are literal). This checks species, moves and Kanto's city names (translation/names/cities.csv; PokeAPI has no trainer names): a row whose source text is the official name of one in the source's language
 must have, in each target column, its official name in the target language. --kinds item type checks those too (for
 reference only: they are meant to be literal). Names are
 compared ignoring case, accents, spaces and punctuation, so "THUNDERSHOCK" matches "Thunder Shock". Targets with no
@@ -29,12 +29,16 @@ BASE = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv/"
 KINDS = {"species": ("pokemon_species_names.csv", "pokemon_species_id"), "move": ("move_names.csv", "move_id"),
          "item": ("item_names.csv", "item_id"), "type": ("type_names.csv", "type_id"),
          "city": ("location_names.csv", "location_id")}
-# The gyms' rows (T19_000-007, the same in the five western ROMs) name a city in every language, each in its own form
-# (PEWTER GYM, GIM. PLATEADO, MARMORIA CITY): a target cell must contain the city's official name, without its
-# City/Town/Island word. PokeAPI has Kanto's city names only in English, German and French.
-CITY_ROWS = {"T19_000": 231, "T19_001": 68, "T19_002": 151, "T19_003": 67, "T19_004": 76, "T19_005": 234,
-             "T19_006": 71, "T19_007": 154}
-CITY_WORDS = ("city", "town", "island", "insel", "ile")
+# Kanto's city names: translation/names/cities.csv, the hub's one table for every source (en, de and fr are
+# PokeAPI's location_names.csv and checked against it; PokeAPI has no es, it, ja or ko Kanto names, so those are
+# the games' names written down by hand, and pt is English). A target cell naming a city must contain its name there,
+# without its City/Town/Island word, so GIMNASIO DE CIUDAD PLATEADA, PLUMBEOPOLI and ニビジム all pass.
+CITY_TABLE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "translation", "names", "cities.csv")
+# The gyms' rows (T19_000-007, the same in the five western ROMs): Spanish GIM. PLATEADO does not spell its city.
+GYM_ROWS = {"T19_000": "PEWTER", "T19_001": "CERULEAN", "T19_002": "VERMILION", "T19_003": "CELADON",
+            "T19_004": "FUCHSIA", "T19_005": "SAFFRON", "T19_006": "CINNABAR", "T19_007": "VIRIDIAN"}
+CITY_SUFFIXES = ("city", "town", "island", "insel", "ile", "シティ", "タウン", "じま", "島", "시티", "타운", "마을", "섬")
+CITY_PREFIXES = ("ciudad", "pueblo", "isla", "isola", "bourg")
 # PokeAPI local_language_id per table language: 1 ja-hrkt (kana), 11 ja (kanji), 3 ko, 5 fr, 6 de, 7 es, 14 es-419,
 # 8 it, 9 en, 13 pt-br. Spanish accepts Spain's and Latin America's names (the dialect rules).
 LANG_IDS = {"en": [9], "es": [7, 14], "jp": [11, 1], "kanji": [11, 1], "pt": [13], "de": [6], "ko": [3], "fr": [5],
@@ -63,15 +67,59 @@ def norm(s):
 
 def city_core(name):
     n = norm(name)
-    for w in CITY_WORDS:
-        if n.endswith(w) and len(n) > len(w) + 3:
-            return n[: -len(w)]
+    for w in map(norm, CITY_SUFFIXES):
+        if n.endswith(w) and len(n) >= len(w) + 2:
+            n = n[: -len(w)]
+            break
+    for w in map(norm, CITY_PREFIXES):
+        if n.startswith(w) and len(n) >= len(w) + 4:
+            return n[len(w):]
     return n
+
+
+def load_cities(names):
+    """cities.csv as {city: {lang: name}}; exits when its en/de/fr names are not PokeAPI's."""
+    with open(CITY_TABLE, encoding="utf-8", newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    bad = []
+    for r in rows:
+        api = names.get(("city", int(r["pokeapi_id"])), {})
+        for col in ("en", "de", "fr"):
+            if norm(r[col]) not in {norm(n) for n in api.get(LANG_IDS[col][0], [])}:
+                bad.append(f"{r['id']} [{col}] {r[col]!r} is not PokeAPI's {api.get(LANG_IDS[col][0])}")
+    if bad:
+        sys.exit("translation/names/cities.csv: " + "; ".join(bad))
+    return {r["id"]: r for r in rows}
+
+
+def words(s):
+    """`s` normalized like norm() but with its words kept apart: " pewter gym " (Latin and Hangul text only)."""
+    s = unicodedata.normalize("NFKD", s.replace("\\n", " ").translate(LIGATURES))
+    s = "".join(c for c in s if not unicodedata.combining(c)).casefold()
+    return " " + " ".join("".join(c if c.isalnum() else " " for c in s).split()) + " "
+
+
+def names_city(text, name, lang):
+    """Whether a source text names the city `name` (in the source's language): Japanese by the core anywhere (no
+    spaces), Spanish by the whole name (the core of Ciudad Verde is a common word), the others by the core as whole
+    words (French ARGENT A is not Argenta)."""
+    if lang == "jp":
+        return city_core(name) in norm(text)
+    w = words(name)
+    if lang != "es":
+        for x in CITY_SUFFIXES:
+            if w.endswith(" " + x + " ") and len(w) > len(x) + 4:
+                w = w[: -len(x) - 1]
+        for x in CITY_PREFIXES:
+            if w.startswith(" " + x + " ") and len(w) > len(x) + 4:
+                w = w[len(x) + 1:]
+    return w in words(text)
 
 
 def load():
     names = defaultdict(lambda: defaultdict(list))  # (kind, id) -> language id -> names
-    cities = set(CITY_ROWS.values())
+    with open(CITY_TABLE, encoding="utf-8", newline="") as fh:
+        cities = {int(r["pokeapi_id"]) for r in csv.DictReader(fh)}
     for kind, (f, key) in KINDS.items():
         path = os.path.join(DIR, f)
         if not os.path.exists(path):
@@ -106,6 +154,7 @@ def main():
         if not a.rom:
             return
     names = load()
+    city_names = load_cities(names) if "city" in a.kinds else {}
     problems, checked = [], 0
     for rom_path in a.rom:
         src, enc, rows = T.rom_rows(open(rom_path, "rb").read())
@@ -123,17 +172,20 @@ def main():
                 continue
             head, dicts, _ = T.read_table(path)
             for n, d in enumerate(dicts, start=2):
-                if "city" in a.kinds and d["id"] in CITY_ROWS:
-                    thing = ("city", CITY_ROWS[d["id"]])
+                text = source.get(d["id"])
+                if "city" in a.kinds:
+                    named = {GYM_ROWS[d["id"]]} if src != "jp" and d["id"] in GYM_ROWS else set()
+                    if text:
+                        named |= {c for c, r in city_names.items() if names_city(text, r[src], src)}
                     for col in head[3:-1]:
-                        want = expected(names, thing, col) if col != "pt" else names[thing].get(9, [])
-                        if not d[col] or not want:
-                            continue
-                        checked += 1
-                        if not any(city_core(w) in norm(d[col]) for w in want):
-                            problems.append(f"{fname}:{n} {d['id']} [{col}] city: {d[col]!r} should name "
-                                            + " or ".join(sorted(set(want))))
-                    continue
+                        for c in sorted(named):
+                            if not d[col]:
+                                continue
+                            checked += 1
+                            want = city_names[c]["jp" if col == "kanji" else col]
+                            if city_core(want) not in norm(d[col]):
+                                problems.append(f"{fname}:{n} {d['id']} [{col}] city: {d[col]!r} should name "
+                                                + want)
                 text = source.get(d["id"])
                 things = index.get(norm(text)) if text else None
                 if things and src != "jp":
