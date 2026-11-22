@@ -48,6 +48,8 @@ def header(name):
     base = os.path.basename(name)[:-4]
     if base == "kanji":
         return ["id", "md5", "address", "kanji", "note"]
+    if base == "port":  # the port's own strings (not ROM text): every language
+        return ["id"] + LANGS + ["note"]
     src = base[: -len("_localized")] if base.endswith("_localized") else base
     if src not in SOURCE_CODES:
         return None
@@ -56,6 +58,8 @@ def header(name):
 
 def source_of(name):
     base = os.path.basename(name)[:-4]
+    if base == "port":
+        return None
     return "jp" if base == "kanji" else base.split("_")[0]
 
 

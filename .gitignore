@@ -24,3 +24,5 @@ build_android/
 /build-win-llvm/*
 # your own ROM text, written by tools/text/extract_text.py: never commit it (ROM text rule)
 /translation/rom-text/
+# PokeAPI name tables, fetched by tools/text/check_names.py --download
+/translation/pokeapi/
