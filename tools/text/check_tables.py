@@ -89,8 +89,8 @@ def main():
                                       f"!= source {sorted(want.elements())}")
             for col in head[3:-1]:
                 cell = d[col]
-                # (T24 is the species names, which are meant to be the official ones)
-                other = dumps.get(col, {}).get(rid) if rid.startswith("T") and not rid.startswith("T24_") else None
+                # (T24 and T25 are the species and move names, which are meant to be the official ones)
+                other = dumps.get(col, {}).get(rid) if rid.startswith("T") and rid[:4] not in ("T24_", "T25_") else None
                 if cell and other and len(cell.split()) > 3 and cell == other[2]:
                     warnings.append(f"{where} [{col}]: identical to the official {col} ROM's text")
     for e in errors:

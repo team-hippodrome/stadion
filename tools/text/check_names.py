@@ -5,10 +5,11 @@ TPCI's localizations, queried through PokeAPI).
     python3 tools/text/check_names.py --download                  # PokeAPI's name CSVs -> translation/pokeapi/
     python3 tools/text/check_names.py --rom <source ROM> ...       # check those sources' files
 
-Everything is translated literally from the source ROM's wording (Julius, 2026-11-22: even HYPERBALL from German is
-"Hyper Ball", not "Ultra Ball"), so only Pokémon species names are held to the official names: a row whose source
-text is the official name of a species in the source's language must have, in each target column, that species'
-official name in the target language. --kinds also checks moves, items or types (for reference only). Names are
+Everything is translated literally from the source ROM's wording (Julius, 2026-11-22: German HYPERBALL is "Hyper
+Ball", not "Ultra Ball") except species, move and trainer names, which take the official names. This checks species
+and moves (PokeAPI has no trainer names): a row whose source text is the official name of one in the source's language
+must have, in each target column, its official name in the target language. --kinds item type checks those too (for
+reference only: they are meant to be literal). Names are
 compared ignoring case, accents, spaces and punctuation, so "THUNDERSHOCK" matches "Thunder Shock". Targets with no
 PokeAPI data are not checked (Portuguese moves and items; Portuguese species names are the English ones).
 translation/pokeapi/ is gitignored. PokeAPI's data is BSD-3-Clause (https://github.com/PokeAPI/pokeapi).
@@ -68,7 +69,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--download", action="store_true")
     ap.add_argument("--rom", nargs="*", default=[])
-    ap.add_argument("--kinds", nargs="*", default=["species"], choices=sorted(KINDS))
+    ap.add_argument("--kinds", nargs="*", default=["species", "move"], choices=sorted(KINDS))
     a = ap.parse_args()
     if a.download:
         os.makedirs(DIR, exist_ok=True)
