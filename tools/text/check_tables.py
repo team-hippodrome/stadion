@@ -51,6 +51,11 @@ def main():
         if h != head:
             errors.append(f"{name}: header {','.join(h)}\n  expected {','.join(head)}"); continue
         src = T.source_of(path)
+        if src is None:  # port.csv: ids unique, the English cell filled
+            ids = [d["id"] for d in dicts]
+            errors += [f"{name}: duplicate id {i}" for i in sorted({i for i in ids if ids.count(i) > 1})]
+            errors += [f"{name}: {d['id']} has no English" for d in dicts if not d["en"]]
+            continue
         seen, prev = set(), None
         for n, (d, rr) in enumerate(zip(dicts, raw_rows), start=2):
             where = f"{name}:{n} {d.get('id', '')}"
