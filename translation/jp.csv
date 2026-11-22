@@ -5252,12 +5252,12 @@ Pokémon quelque part.","Chiave della porta di una
 Palestra Pokémon da qualche parte.",
 ROM_000823F8,1afce48a0e7e4c483839f6f6303afbd8,000823F8,"Can be exchanged for a bicycle at
 Miracle Cycle in Cerulean City.","Se canjea por una bicicleta en
-el Ciclo Milagro de Ciudad Celeste.","Pode ser trocado por uma bicicleta
-na Bicicletaria Milagre de Hanada.","Kann im Mirakel-Zyklus in Blaustadt
-gegen ein Fahrrad getauscht werden.","쪽빛시티의 미라클 사이클에서
+el Ciclo Milagro de Ciudad Celeste.","Pode ser trocado por bicicleta na
+Bicicletaria Milagre de Cerulean City.","Im Mirakel-Zyklus in Azuria City
+gegen ein Fahrrad eintauschbar.","블루시티의 미라클 사이클에서
 자전거와 교환할 수 있다.","À échanger contre une bicyclette
-au Vélo Miracle de Hanada.","Si scambia con una bici al
-negozio di bici di Città Celeste.",
+au Vélo Miracle d'Azuria.","Si scambia con una bici al
+negozio di bici di Celestopoli.",
 ROM_0008243C,85ff1cd0434efc2807f37098e71e61d6,0008243C,"Makes moves hit more easily for
 the rest of that battle.","Aumenta la precisión durante
 ese combate.","Aumenta a precisão dos ataques
@@ -6960,17 +6960,17 @@ ROM_0024FE38,ab9c49efe12e32d42f5d6770b786daf7,0024FE38,Swarming,¡Está lleno!,A
 ROM_0024FE4A,f0cbb1824c60a0e3381af5f09e5b721c,0024FE4A,Always found,Siempre aparece,Sempre encontrado,Immer zu finden,반드시 발견된다,Toujours trouvé,Sempre presente,
 ROM_0024FE5C,44b4b38164eb2a6ec9a92b06c897fc4b,0024FE5C,Route 1,Ruta 1,Rota 1,Route 1,1번도로,Route 1,Strada 1,
 ROM_0024FE70,c314a167246f602746760c74e3aa38d8,0024FE70,Route 2,Ruta 2,Rota 2,Route 2,2번도로,Route 2,Strada 2,
-ROM_0024FE84,93eaf7f751e5d31421c52e681be7a154,0024FE84,Viridian Forest,Bosque Siempreverde,Floresta Tokiwa,Immergrün-Wald,상록숲,Forêt de Tokiwa,Bosco Sempreverde,
+ROM_0024FE84,93eaf7f751e5d31421c52e681be7a154,0024FE84,Viridian Forest,Bosque Verde,Viridian Forest,Vertania-Wald,상록숲,Forêt de Jade,Bosco Smeraldo,
 ROM_0024FE98,3068a179eb27772bebffd88f01aafb80,0024FE98,Diglett's Hole,Agujero de Diglett,Buraco do Diglett,Digdas Loch,디그다의 굴,Trou de Taupiqueur,Tana di Diglett,
 ROM_0024FEAC,a943aa1b5acb54ec970e3a02daffdcdf,0024FEAC,Route 3,Ruta 3,Rota 3,Route 3,3번도로,Route 3,Strada 3,
-ROM_0024FEC0,73f35cd23b4041291408e77a2d29af0b,0024FEC0,Mt. Moon-Viewing,Monte Contemplaluna,Monte Otsukimi,Mondschau-Berg,달맞이산,Mont Otsukimi,Monte Guardaluna,
+ROM_0024FEC0,73f35cd23b4041291408e77a2d29af0b,0024FEC0,Mt. Moon,Monte Moon,Mt. Moon,Mondberg,달맞이산,Mont Sélénite,Monte Luna,
 ROM_0024FED4,f0c64a4bcfc547150abf065a281b1660,0024FED4,Route 4,Ruta 4,Rota 4,Route 4,4번도로,Route 4,Strada 4,
 ROM_0024FEE8,ce780a71eaf29b07648d21d70dd6629d,0024FEE8,Route 24,Ruta 24,Rota 24,Route 24,24번도로,Route 24,Strada 24,
 ROM_0024FEFC,80e7a4eb34a8500ca59aa634c591a257,0024FEFC,Route 25,Ruta 25,Rota 25,Route 25,25번도로,Route 25,Strada 25,
 ROM_0024FF10,dab5c39169e499a666333217039bbf83,0024FF10,Route 5,Ruta 5,Rota 5,Route 5,5번도로,Route 5,Strada 5,
 ROM_0024FF24,9d9cd73ac82131e7ea39f0fdd48dfe2a,0024FF24,Route 6,Ruta 6,Rota 6,Route 6,6번도로,Route 6,Strada 6,
 ROM_0024FF38,7ff846adaf8cac17ad1ba7b583183f91,0024FF38,Route 9,Ruta 9,Rota 9,Route 9,9번도로,Route 9,Strada 9,
-ROM_0024FF4C,370a2c45f05cf745d9c6fb17306a7d7e,0024FF4C,Rocky Mountain Tunnel,Túnel Montaña Rocosa,Túnel Iwayama,Felsberg-Tunnel,바위산 터널,Tunnel Iwayama,Tunnel Monterocca,
+ROM_0024FF4C,370a2c45f05cf745d9c6fb17306a7d7e,0024FF4C,Rock Tunnel,Túnel Roca,Rock Tunnel,Felstunnel,돌산터널,Grotte,Tunnelroccioso,
 ROM_0024FF60,5ebe0c8b4d4ccacf80ff06493e6686c1,0024FF60,Route 10,Ruta 10,Rota 10,Route 10,10번도로,Route 10,Strada 10,
 ROM_0024FF74,d1940a6b3a019f865cc9f573a20a25ec,0024FF74,Pokémon Tower,Torre Pokémon,Torre Pokémon,Pokémon-Turm,포켓몬타워,Tour Pokémon,Torre Pokémon,
 ROM_0024FF88,592062d825202b8bb9659402d45f1e6f,0024FF88,Route 8,Ruta 8,Rota 8,Route 8,8번도로,Route 8,Strada 8,
@@ -8085,14 +8085,14 @@ ROM_002CD290,bb7a9330f3b241a2a0206033865234ae,002CD290 003AE170,Battle 5,Combate
 ROM_002CD29C,ff92d744f3292805ee6cd05306a765e6,002CD29C 003AE17C,Battle 6,Combate 6,Batalha 6,Kampf 6,배틀6,Combat 6,Lotta 6,
 ROM_002CD2A8,c8aea74750e7e6c83768770389047d9a,002CD2A8 003AE188,Semifinal,Semifinal,Semifinal,Halbfinale,세미파이널,Demi-finale,Semifinale,
 ROM_002CD2B8,4cb7767939e10db37dc5212fbadd9340,002CD2B8 003AE198,Final Battle,Combate final,Batalha Final,Finalkampf,파이널 배틀,Finale,Finale,
-ROM_002CD2CC,0ad6273e90fd173bebf5818f26b67290,002CD2CC 003AE1AC 003B6490,Pewter Gym,Gimnasio Gris,Ginásio de Nibi,Graustadt-Arena,회색체육관,Arène de Nibi,Palestra Grigia,
-ROM_002CD2D8,c625fc5fb3c667880be117a324a4b1fe,002CD2D8 003AE1B8 003B64A4,Cerulean Gym,Gimnasio Celeste,Ginásio de Hanada,Blaustadt-Arena,쪽빛체육관,Arène de Hanada,Palestra Celeste,
-ROM_002CD2E4,56730c7753a9a64b6703ad3df0436d74,002CD2E4 003AE1C4 003B64B8,Vermilion Gym,Gimnasio Hoja Seca,Ginásio de Kuchiba,Laubstadt-Arena,낙엽색체육관,Arène de Kuchiba,Palestra Foglia Secca,
-ROM_002CD2F0,ed472c1a3b44acedddf05ec6d48808a7,002CD2F0 003AE1D0 003B64CC,Celadon Gym,Gimnasio Tornasol,Ginásio de Tamamushi,Glanzstadt-Arena,비단벌레체육관,Arène de Tamamushi,Palestra Cangiante,
-ROM_002CD300,2ac58297c9e44b3f1df294c44674f295,002CD300 003AE1E0 003B64E4,Fuchsia Gym,Gimnasio Clavel,Ginásio de Sekichiku,Nelkenstadt-Arena,패랭이꽃체육관,Arène de Sekichiku,Palestra Garofano,
-ROM_002CD310,d9d5d74bbbf063a6edc86e45cbf609b5,002CD310 003AE1F0 003B64FC,Saffron Gym,Gimnasio Dorado,Ginásio de Yamabuki,Goldstadt-Arena,황매화체육관,Arène de Yamabuki,Palestra Giallo Oro,
-ROM_002CD320,9e663b2e3e4d5238e3aec53b86e97c7d,002CD320 003AE200 003B6514,Cinnabar Gym,Gimnasio Carmesí,Ginásio de Guren,Purpurstadt-Arena,홍련체육관,Arène de Guren,Palestra Cremisi,
-ROM_002CD32C,896890097890c39736e652f45bcbe2b1,002CD32C 003AE20C 003B6528,Viridian Gym,Gimnasio Siempreverde,Ginásio de Tokiwa,Immergrün-Arena,상록체육관,Arène de Tokiwa,Palestra Sempreverde,
+ROM_002CD2CC,0ad6273e90fd173bebf5818f26b67290,002CD2CC 003AE1AC 003B6490,Pewter Gym,Gimnasio de Ciudad Plateada,Ginásio de Pewter,Marmoria-Arena,회색체육관,Arène d'Argenta,Palestra di Plumbeopoli,
+ROM_002CD2D8,c625fc5fb3c667880be117a324a4b1fe,002CD2D8 003AE1B8 003B64A4,Cerulean Gym,Gimnasio de Ciudad Celeste,Ginásio de Cerulean,Azuria-Arena,블루체육관,Arène d'Azuria,Palestra di Celestopoli,
+ROM_002CD2E4,56730c7753a9a64b6703ad3df0436d74,002CD2E4 003AE1C4 003B64B8,Vermilion Gym,Gimnasio de Ciudad Carmín,Ginásio de Vermilion,Orania-Arena,갈색체육관,Arène de Carmin sur Mer,Palestra di Aranciopoli,
+ROM_002CD2F0,ed472c1a3b44acedddf05ec6d48808a7,002CD2F0 003AE1D0 003B64CC,Celadon Gym,Gimnasio de Ciudad Azulona,Ginásio de Celadon,Prismania-Arena,무지개체육관,Arène de Céladopole,Palestra di Azzurropoli,
+ROM_002CD300,2ac58297c9e44b3f1df294c44674f295,002CD300 003AE1E0 003B64E4,Fuchsia Gym,Gimnasio de Ciudad Fucsia,Ginásio de Fuchsia,Fuchsania-Arena,연분홍체육관,Arène de Parmanie,Palestra di Fucsiapoli,
+ROM_002CD310,d9d5d74bbbf063a6edc86e45cbf609b5,002CD310 003AE1F0 003B64FC,Saffron Gym,Gimnasio de Ciudad Azafrán,Ginásio de Saffron,Saffronia-Arena,노랑체육관,Arène de Safrania,Palestra di Zafferanopoli,
+ROM_002CD320,9e663b2e3e4d5238e3aec53b86e97c7d,002CD320 003AE200 003B6514,Cinnabar Gym,Gimnasio de Isla Canela,Ginásio de Cinnabar,Zinnober-Arena,홍련체육관,Arène de Cramois'Île,Palestra di Isola Cannella,
+ROM_002CD32C,896890097890c39736e652f45bcbe2b1,002CD32C 003AE20C 003B6528,Viridian Gym,Gimnasio de Ciudad Verde,Ginásio de Viridian,Vertania-Arena,상록체육관,Arène de Jadielle,Palestra di Smeraldopoli,
 ROM_002CD338,d165234c6995f9252f2d9f10c56d4d33,002CD338 003AE218 003B654C 003B6558,Four Heavenly Kings,Cuatro Reyes,Elite dos Quatro,Vier Könige,사천왕,4 Rois,Quattro Re,
 ROM_002CD344,00239a81a5349501e88a47bee46c1ba5,002CD344 003AE224 003B6568 007865B0 008A19B0 008A1A1C 008A1A6C 008A1ABC 008A1B0C 008A1B5C 008A1BAC 008A1BBC 008A1BC8 008A1C34 008A1C84 008A1CD4 008A1D24 008A1D74 008A1DC4 008A1DD4 008A1DE0 008A1E4C 008A1E9C 008A1EEC 008A1F3C 008A1F8C 008A1FDC 008A1FEC 008A1FF8 008A2064 008A20B4 008A2104 008A2154 008A21A4 008A21F4 008A2204 008A2210 008A227C 008A22CC 008A231C 008A236C 008A23BC 008A240C 008A241C 008A2428 008A2494 008A24E4 008A2534 008A2584 008A25D4 008A2624 008A2634 008A2640 008A26AC 008A26FC 008A274C 008A279C 008A27EC 008A283C 008C2CC0 008C2D2C 008C2D7C 008C2DCC 008C2E1C 008C2E6C 008C2EBC 008C2ECC 008C2ED8 008C2F44 008C2F94 008C2FE4 008C3034 008C3084 008C30D4 008C30E4 008C30F0 008C315C 008C31AC 008C31FC 008C324C 008C329C 008C32EC 008C32FC 008C3308 008C3374 008C33C4 008C3414 008C3464 008C34B4 008C3504 008C3514 008C3520 008C358C 008C35DC 008C362C 008C367C 008C36CC 008C371C 008C372C 008C3738 008C37A4 008C37F4 008C3844 008C3894 008C38E4 008C3934 008C3944 008C3950 008C39BC 008C3A0C 008C3A5C 008C3AAC 008C3AFC 008C3B4C,Rival,Rival,Rival,Rivale,라이벌,Rival,Rivale,
 ROM_002CD350,2a9b8bf5ee90eb6af7706fd71b9284f7,002CD350 002CD384,Game Pak,Cartucho,Cartucho,Modul,카트리지,Cartouche,Cassetta,
