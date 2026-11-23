@@ -24,6 +24,7 @@
 #include "rom_check.h"
 #include "save_editor/save_editor_ui.h"
 #include "pad_assign.h"
+#include "enhancements/enhancements.h"
 
 #include <chrono>
 #include <libultraship/libultraship.h>
@@ -1117,6 +1118,12 @@ class LauncherWindow : public Ship::GuiWindow {
         if (getenv("PORT_LAUNCHER_OPEN_GRAPHICS") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
             mGraphicsTestOpened = mGraphics = true;
         }
+        if (getenv("PORT_LAUNCHER_OPEN_ENHANCEMENTS") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
+            mGraphicsTestOpened = mGraphics = mEnhancements = true;
+        }
+        if (getenv("PORT_LAUNCHER_OPEN_STATEXP") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
+            mGraphicsTestOpened = mGraphics = mEnhancements = mStatDifficulty = true;
+        }
         if (getenv("PORT_LAUNCHER_OPEN_SOUND") != nullptr && !mSoundTestOpened) { // test hook (as OPEN_TOOLS)
             mSoundTestOpened = mSound = true;
         }
@@ -1132,6 +1139,10 @@ class LauncherWindow : public Ship::GuiWindow {
             ToolsPanel(16, 58, kW - 32, 366);
         } else if (mControls) {
             ControlsPanel(16, 58, kW - 32, 366);
+        } else if (mGraphics && mEnhancements && mStatDifficulty) {
+            StatDifficultyPanel(16, 58, kW - 32, 366);
+        } else if (mGraphics && mEnhancements) {
+            EnhancementsPanel(16, 58, kW - 32, 366);
         } else if (mGraphics) {
             GraphicsPanel(16, 58, kW - 32, 366);
         } else if (mSound) {
@@ -2113,6 +2124,12 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button("Done", x + w - 108, y + 9, 94, 26)) {
             mGraphics = false;
         }
+        if (Button("Enhancements", x + w - 248, y + 9, 130, 26)) {
+            mEnhancements = true;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Optional additions to the game from hippodrome-utils (all off by default)");
+        }
         dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
 
         const float lx = x + 14, cx = x + 190, tx = x + 560, pitch = 37;
@@ -2256,6 +2273,115 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(x + w - 160, by + 7, std::string("Current: ") + (recommended ? "Recommended" : lowPower ? "Low-power" : "Custom"),
              gFonts.small, Theme::dim);
         CVarSave();
+    }
+
+    // launcher > Graphics > Enhancements: the hippodrome-utils options (enhancements/enhancements.h), all off (or
+    // Vanilla) by default so the game plays and looks as on the N64
+    void EnhancementsPanel(float x, float y, float w, float h) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "ENHANCEMENTS", gFonts.body, Theme::text);
+        Text(x + 140, y + 15, "Additions to the original game. All are off by default.", gFonts.small, Theme::dim);
+        if (Button("Back", x + w - 108, y + 9, 94, 26)) {
+            mEnhancements = mStatDifficulty = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+        const float lx = x + 14, cx = x + 190, tx = x + 370;
+        float ry = y + 60;
+        // (the On / Off rows of the other enhancements go here)
+        {
+            hu_se_setting r[2];
+            Port_Enh_StatExpDifficulty(PORT_SE_RENTAL, &r[0]);
+            Port_Enh_StatExpDifficulty(PORT_SE_OPPONENT, &r[1]);
+            const bool vanilla = r[0].mode == HU_SE_VANILLA && r[1].mode == HU_SE_VANILLA;
+            Text(lx, ry + 5, "Stat Exp difficulty", gFonts.body);
+            if (ColorButton(vanilla ? "Vanilla" : "Changed", cx, ry, 132, 26, vanilla ? Theme::button : 0x23406B,
+                            vanilla ? Theme::buttonHover : 0x23406B)) {
+                mStatDifficulty = true;
+            }
+            Text(tx, ry + 1,
+                 std::string("The lowest and highest Stat Exp of the rental Pokémon and of the opponents, as a\n"
+                             "preset (Casual to Kaizo) or your own range. Now: rentals ") +
+                     hu_se_mode_name(r[0].mode) + ", opponents " + hu_se_mode_name(r[1].mode) + ".",
+                 gFonts.small, Theme::dim);
+            ry += 60;
+        }
+    }
+
+    // launcher > Graphics > Enhancements > Stat Exp (STATEXP_DIFFICULTY): a column per group with Vanilla, the five
+    // presets and Custom; the range in use, and once custom its two sliders and any error (a range with its maximum
+    // below its minimum stays vanilla until it is fixed).
+    void StatDifficultyPanel(float x, float y, float w, float h) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "STAT EXP DIFFICULTY", gFonts.body, Theme::text);
+        Text(x + 190, y + 15, "Vanilla keeps the game's own values. Harder: more Stat Exp for opponents, less for rentals.",
+             gFonts.small, Theme::dim);
+        if (Button("Back", x + w - 108, y + 9, 94, 26)) {
+            mStatDifficulty = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+        static const char* const kNames[2] = { "Rental Pokémon", "Opponent Pokémon" };
+        static const char* const kHints[2] = {
+            "The rentals on the Pokémon select screen and Battle Now's\nteams, as their cards show them.",
+            "The cup, Gym Leader Castle and Mewtwo trainers, Battle Now's\nCOM and the team you give the COM in Free Battle." };
+        const float colW = (w - 42) / 2;
+        for (int g = 0; g < 2; g++) {
+            const float cx = x + 14 + g * (colW + 14);
+            float ry = y + 58;
+            hu_se_setting r;
+            Port_Enh_StatExpDifficulty(g, &r);
+            Text(cx, ry + 5, kNames[g], gFonts.body);
+            Text(cx, ry + 28, kHints[g], gFonts.small, Theme::dim);
+            ry += 66;
+            ImGui::PushID(g);
+            bool changed = false;
+            // two rows of modes: Vanilla Casual Easy Medium / Hard Kaizo Custom
+            const int c1 = Choice("m1", { "Vanilla", "Casual", "Easy", "Medium" }, r.mode <= HU_SE_MEDIUM ? r.mode : -1,
+                                  cx, ry, 100);
+            const int c2 = Choice("m2", { "Hard", "Kaizo", "Custom" }, r.mode >= HU_SE_HARD ? r.mode - HU_SE_HARD : -1,
+                                  cx, ry + 30, 100);
+            if (c1 >= 0 || c2 >= 0) {
+                r.mode = (uint8_t)(c1 >= 0 ? c1 : HU_SE_HARD + c2);
+                changed = true;
+            }
+            ry += 68;
+            if (r.mode == HU_SE_CUSTOM) {
+                auto slider = [&](const char* name, const char* id, int value) {
+                    Text(cx, ry + 4, name, gFonts.body);
+                    ImGui::SetCursorScreenPos(P(cx + 150, ry));
+                    ImGui::SetNextItemWidth((colW - 150) * mScale);
+                    ImGui::PushStyleColor(ImGuiCol_SliderGrab, HexV(0x4C7BD9));
+                    ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, HexV(0x6E95E6));
+                    int v = value;
+                    if (ImGui::SliderInt(id, &v, 0, 65535, "%d", ImGuiSliderFlags_AlwaysClamp)) {
+                        changed = true;
+                    }
+                    ImGui::PopStyleColor(2);
+                    ry += 36;
+                    return v;
+                };
+                r.custom_min = (uint16_t)slider("Lowest Stat Exp", "##semin", r.custom_min);
+                r.custom_max = (uint16_t)slider("Highest Stat Exp", "##semax", r.custom_max);
+            }
+            uint16_t lo, hi;
+            if (hu_se_errors(&r) != 0) {
+                Text(cx, ry, hu_se_error_text(HU_SE_ORDER), gFonts.small, Theme::red);
+                Text(cx, ry + 18, "Vanilla values are used until this is fixed.", gFonts.small, Theme::red);
+            } else if (hu_se_range(&r, g == PORT_SE_RENTAL ? HU_SE_RENTAL : HU_SE_OPPONENT, &lo, &hi)) {
+                Text(cx, ry, "Stat Exp " + std::to_string(lo) + " to " + std::to_string(hi) +
+                                 " (out of 65535). Values outside\nmove to the nearer end; DVs are not changed.",
+                     gFonts.small, Theme::dim);
+            } else {
+                Text(cx, ry, "The game's own Stat Exp.", gFonts.small, Theme::dim);
+            }
+            ImGui::PopID();
+            if (changed) {
+                Port_Enh_SetStatExpDifficulty(g, &r);
+            }
+        }
     }
 
     // launcher > Sound: CVars gSound.*, handed to the audio paths at once (Port::ApplySoundSettings, sound_settings.h)
@@ -2417,6 +2543,7 @@ class LauncherWindow : public Ship::GuiWindow {
         }
         if (Button(mGraphics ? "Players" : "Graphics", x + 340, y + 86, 100, 26)) {
             mGraphics = !mGraphics;
+            mEnhancements = mStatDifficulty = false;
             mControls = mTools = mSound = false;
         }
         if (ImGui::IsItemHovered()) {
@@ -2770,6 +2897,8 @@ class LauncherWindow : public Ship::GuiWindow {
     Port::GpuFacts mGpu;     // the graphics chip (Recommended)
     bool mGpuKnown = false;
     Port::GraphicsPick mPick;
+    bool mEnhancements = false;   // in the graphics panel: the enhancements page
+    bool mStatDifficulty = false; // in the enhancements page: the Stat Exp difficulty page
     bool mSound = false;    // the sound panel instead of the player cards
     bool mSoundTestOpened = false;
     bool mGraphicsTestOpened = false;

@@ -254,6 +254,20 @@ int Port_TextLanguageChoice(void);
 void Port_TextLanguageSet(int choice);
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Enhancements (src/port/enhancements/; hippodrome-utils docs/specs). Each hook does nothing while its option is off.
+// ---------------------------------------------------------------------------------------------------------------------
+
+struct BattleMon;
+struct TeamRoster;
+// Stat Exp difficulty (statexp_difficulty.c): the rental setting on the Pokémon select screen's rental roster as it
+// is loaded (fragment61 Rental_LoadRosterForMode); a setting (0 rental, 1 opponent) on a roster's Pokémon (Battle
+// Now's preset teams, Team_BuildQuickBattleTeams); the opponent setting on every COM roster as a battle starts
+// (BattleScene_Init, before Battle_SelectComRoster).
+void PortEnh_StatExpRentals(struct BattleMon* mons, int count);
+void PortEnh_StatExpRoster(struct TeamRoster* roster, int group);
+void PortEnh_StatExpBattleTeams(void);
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Hooks the game implements for the port
 // ---------------------------------------------------------------------------------------------------------------------
 

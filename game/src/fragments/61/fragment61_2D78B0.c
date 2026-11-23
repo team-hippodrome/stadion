@@ -1,3 +1,4 @@
+#include "StadionPort.h"
 #include "fragments/rental_team_selection/rental_team_selection.h"
 #include "src/display_object_textures.h"
 #include "src/poke_icon.h"
@@ -1089,6 +1090,8 @@ void Rental_LoadRosterForMode(void) {
                 BattleMon tmp = D_84211B38->unk_04[k];
                 Port_BattleMonFromBE(&D_84211B38->unk_04[k], &tmp);
             }
+            // PORT: Stat Exp difficulty (an enhancement, off by default), once per loaded roster
+            PortEnh_StatExpRentals(D_84211B38->unk_04, n);
         }
     }
 }

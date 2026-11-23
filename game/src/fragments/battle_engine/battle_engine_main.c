@@ -789,6 +789,7 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
     sStageBackdrop = (void*)Port_CallBlobEntry(arena_entry, 2, 0);
 
     model = Model_LoadByArchiveIndex(0x9A);
+    PortEnh_StatExpBattleTeams(); // PORT: Stat Exp difficulty (an enhancement, off by default) on the COM teams
     Battle_SelectComRoster();
     BattleScene_InitializeParticipantPresentation(&sBattleSides[0], model);
     BattleScene_InitializeParticipantPresentation(&sBattleSides[1], model);
