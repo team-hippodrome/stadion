@@ -344,4 +344,19 @@ void Port_TextLanguageSet(int choice) {
     CVarSave();
 }
 
+const char* Port_TextPortString(const char* id) {
+    // (language, id) -> the cell in the game's encoding; kept for the whole run, so the pointers stay valid
+    static std::map<std::string, std::string> sCache;
+    std::string lang = Chosen();
+    if (lang.empty()) {
+        lang = gState.source.empty() ? "en" : gState.source;
+    }
+    const std::string key = lang + '\n' + id;
+    auto it = sCache.find(key);
+    if (it == sCache.end()) {
+        it = sCache.emplace(key, Encode(Port::PortText(id, lang))).first;
+    }
+    return it->second.c_str();
+}
+
 } // extern "C"

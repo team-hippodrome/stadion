@@ -252,6 +252,9 @@ int Port_TextLanguageCount(void);
 const char* Port_TextLanguageName(int choice);
 int Port_TextLanguageChoice(void);
 void Port_TextLanguageSet(int choice);
+// The port's own string `id` (translation/port.csv) in the chosen text language, or the ROM's language when none is
+// chosen, in the game's encoding (as Port_TextLookup's); English when that cell is empty, `id` when there is none.
+const char* Port_TextPortString(const char* id);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Enhancements (src/port/enhancements/; hippodrome-utils docs/specs). Each hook does nothing while its option is off.
@@ -266,6 +269,18 @@ struct TeamRoster;
 void PortEnh_StatExpRentals(struct BattleMon* mons, int count);
 void PortEnh_StatExpRoster(struct TeamRoster* roster, int group);
 void PortEnh_StatExpBattleTeams(void);
+
+struct ActivePokemon;
+// A battle starts (BattleScene_Init, once its participants are set up) and, every frame the battle draws its HUD, after
+// it (battle_engine_messages.c Battle_RenderHud). battle_enhancements.c.
+void PortEnh_BattleBegin(void);
+void PortEnh_BattleFrame(void);
+// The battle's command menus (battle_menus.c): mid-battle move descriptions and order queueing.
+// BattleScene_HandlePlayerMoveSelection, before its C buttons; BattleScene_CollectPlayerAction, first (with the
+// command phase's frame count, sElapsedOrderSelectionTime) and last.
+void PortEnh_MoveMenuInput(struct ActivePokemon* a);
+void PortEnh_PlayerCommandBegin(struct ActivePokemon* a, struct ActivePokemon* foe, float elapsed_frames);
+void PortEnh_PlayerCommandEnd(struct ActivePokemon* a);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Hooks the game implements for the port
@@ -288,6 +303,8 @@ uintptr_t Port_DlBufferBase(void);
 // The ROM font's glyph for a byte, 0 for none (game/src/graphics_textures.c): text_lookup.cpp keeps a character as
 // one byte only where the font draws it.
 uint8_t Font_MapGlyphCode(uint16_t index);
+// A controller port's menu gradient, top and bottom colours as RGB (battle_engine_hud.c), for the enhancements' windows.
+void BattleHud_PortMenuColors(int port, uint8_t start[3], uint8_t end[3]);
 // Field offsets of the Game Boy Tower's emulator context, used by src/port/gb_core.c
 // (game/src/fragments/gb_tower_emulator/gb_tower_emulator_7F9A0.c).
 extern const size_t Port_GbEmuOffsets[9];

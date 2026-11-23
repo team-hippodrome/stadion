@@ -14,6 +14,13 @@
 extern "C" {
 #endif
 
+// The On / Off enhancements (port CVars gEnhancements.<Name>, 0 by default). PORT_MOVE_DESCRIPTIONS=0/1 and
+// PORT_ORDER_QUEUE=0/1 override them (test aids).
+int Port_Enh_MoveDescriptionsEnabled(void); // MIDBATTLE_MOVE_DESCRIPTION
+void Port_Enh_SetMoveDescriptionsEnabled(int on);
+int Port_Enh_OrderQueueEnabled(void); // ORDER_QUEUEING
+void Port_Enh_SetOrderQueueEnabled(int on);
+
 // Stat Exp difficulty (STATEXP_DIFFICULTY): a setting for the rental Pokémon and one for the opponent (COM) Pokémon,
 // each Vanilla (the default), Casual / Easy / Medium / Hard / Kaizo (fifths of 65535, the other way round for
 // rentals) or Custom (gEnhancements.StatExpDifficulty.<Rental|Opponent>.Mode / Min / Max; Mode is hu_se_mode).

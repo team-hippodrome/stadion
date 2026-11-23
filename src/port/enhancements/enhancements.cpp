@@ -17,6 +17,46 @@ extern "C" int Port_Enh_Log(void) {
     return on;
 }
 
+// ---- the On / Off settings ----
+
+namespace {
+
+int EnvOverride(const char* name) {
+    const char* v = getenv(name);
+    if (v == nullptr || *v == '\0') {
+        return -1;
+    }
+    return atoi(v) != 0 ? 1 : 0;
+}
+
+int Setting(const char* env_name, const char* cvar) {
+    const int env = EnvOverride(env_name);
+    return env >= 0 ? env : CVarGetInteger(cvar, 0) != 0;
+}
+
+void SetSetting(const char* cvar, int on) {
+    CVarSetInteger(cvar, on ? 1 : 0);
+    CVarSave();
+}
+
+} // namespace
+
+extern "C" int Port_Enh_MoveDescriptionsEnabled(void) {
+    return Setting("PORT_MOVE_DESCRIPTIONS", "gEnhancements.MoveDescriptions");
+}
+
+extern "C" void Port_Enh_SetMoveDescriptionsEnabled(int on) {
+    SetSetting("gEnhancements.MoveDescriptions", on);
+}
+
+extern "C" int Port_Enh_OrderQueueEnabled(void) {
+    return Setting("PORT_ORDER_QUEUE", "gEnhancements.OrderQueue");
+}
+
+extern "C" void Port_Enh_SetOrderQueueEnabled(int on) {
+    SetSetting("gEnhancements.OrderQueue", on);
+}
+
 // ---- Stat Exp difficulty ----
 
 namespace {

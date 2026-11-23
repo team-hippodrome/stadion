@@ -2289,7 +2289,28 @@ class LauncherWindow : public Ship::GuiWindow {
         dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
         const float lx = x + 14, cx = x + 190, tx = x + 370;
         float ry = y + 60;
-        // (the On / Off rows of the other enhancements go here)
+        auto row = [&](const char* name, const char* id, const char* hint, bool on) {
+            Text(lx, ry + 5, name, gFonts.body);
+            Text(tx, ry + 1, hint, gFonts.small, Theme::dim);
+            const int c = Choice(id, { "On", "Off" }, on ? 0 : 1, cx, ry);
+            ry += 52;
+            return c;
+        };
+        int c = row("Move descriptions", "movedesc",
+                    "In battle, hold a Control Pad direction in the move menu to read the move on the\n"
+                    "C button of that direction: type, power, accuracy and what it does.",
+                    Port_Enh_MoveDescriptionsEnabled() != 0);
+        if (c >= 0) {
+            Port_Enh_SetMoveDescriptionsEnabled(c == 0);
+        }
+        c = row("Order queueing", "queue",
+                "Against the COM, press Z while the turn plays out to pick your next move or Pokémon\n"
+                "(A / B, then its button). It is entered when your menu comes up, as fast as mashing\n"
+                "the buttons; Z takes it back, L goes back a step.",
+                Port_Enh_OrderQueueEnabled() != 0);
+        if (c >= 0) {
+            Port_Enh_SetOrderQueueEnabled(c == 0);
+        }
         {
             hu_se_setting r[2];
             Port_Enh_StatExpDifficulty(PORT_SE_RENTAL, &r[0]);

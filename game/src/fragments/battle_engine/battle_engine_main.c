@@ -793,6 +793,7 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
     Battle_SelectComRoster();
     BattleScene_InitializeParticipantPresentation(&sBattleSides[0], model);
     BattleScene_InitializeParticipantPresentation(&sBattleSides[1], model);
+    PortEnh_BattleBegin(); // PORT: the enhancements (StadionPort.h), all off by default
 
     Battle_ResetFaintBatches();
     GeoNode_CreateCamera(NULL, &sStageCamera, 0, 0, 0x140, 0xF0);
