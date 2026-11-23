@@ -69,7 +69,22 @@ static Controller* Chooser(void) {
     return (D_8423E570 != NULL) ? D_8423E570 : gPlayer1Controller;
 }
 
-// The screen under it sees no buttons while the memory screen has them.
+// Buttons are read as edges from the pad's own state (buttonDown, which Controller_PollInputs always sets from the
+// pad), against the state of the frame before: clearing a controller's buttonDown below makes the game's next poll see
+// every held button as newly pressed, so its buttonPressed can't be used while the memory screen has the buttons.
+static u16 sPrevDown;
+// Buttons held when the screen took them or let them go: the screen under it sees them only once they are released,
+// so the press that closes the memory screen (or one still held) doesn't also act on the team select.
+static u16 sSwallow;
+
+static u16 Pressed(Controller* c) {
+    u16 down = (c != NULL) ? c->buttonDown : 0;
+    u16 pressed = down & ~sPrevDown;
+    sPrevDown = down;
+    return pressed;
+}
+
+// The screen under it sees no buttons (and no stick) while the memory screen has them.
 static void TakeButtons(void) {
     Controller* c[2];
     s32 i;
@@ -77,11 +92,38 @@ static void TakeButtons(void) {
     c[1] = gPlayer1Controller;
     for (i = 0; i < 2; i++) {
         if (c[i] != NULL) {
+            sSwallow |= c[i]->buttonDown;
             c[i]->buttonPressed = 0;
             c[i]->buttonDown = 0;
             c[i]->buttonReleased = 0;
+            c[i]->rawStickX = 0;
+            c[i]->rawStickY = 0;
+            c[i]->stickX = 0.0f;
+            c[i]->stickY = 0.0f;
+            c[i]->stickMag = 0.0f;
         }
     }
+}
+
+// After it closes: the buttons still held from it stay hidden from the screen under it until they are released.
+static void SwallowHeld(void) {
+    Controller* c[2];
+    u16 held = 0;
+    s32 i;
+    if (sSwallow == 0) {
+        return;
+    }
+    c[0] = Chooser();
+    c[1] = gPlayer1Controller;
+    for (i = 0; i < 2; i++) {
+        if (c[i] != NULL) {
+            held |= c[i]->buttonDown & sSwallow;
+            c[i]->buttonPressed &= ~sSwallow;
+            c[i]->buttonDown &= ~sSwallow;
+            c[i]->buttonReleased &= ~sSwallow;
+        }
+    }
+    sSwallow = held;
 }
 
 // The screen starts: its trainers, and everything the window shows of them made ready now rather than on opening.
@@ -90,6 +132,8 @@ static void Enter(void) {
     s32 i, j;
     sEntered = 1;
     sCursor = 0;
+    sPrevDown = (Chooser() != NULL) ? Chooser()->buttonDown : 0xFFFF; // (a button held on entering is not a press)
+    sSwallow = 0;
     hu_window_anim_init(&sAnim, 8, 6);
     sRows = PortEnh_TmScreenKeys(sKeys, PORT_MEM_ROWS);
     for (i = 0; i < sRows; i++) {
@@ -172,8 +216,9 @@ void PortEnh_MemoryScreenFrame(void) {
         return; // Free Battle and the other modes without fixed trainers
     }
     c = Chooser();
-    pressed = (c != NULL) ? c->buttonPressed : 0;
+    pressed = Pressed(c); // (one step per press, however long it is held)
     if (!hu_window_anim_visible(&sAnim)) {
+        SwallowHeld();
         if (pressed & MS_BTN_CANY) {
             Audio_PlaySoundEffectById(SFX_PANEL_OPEN);
             hu_window_anim_set(&sAnim, true);

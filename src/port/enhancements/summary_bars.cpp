@@ -61,7 +61,15 @@ ImU32 Rgba(int r, int g, int b, int a) {
 }
 
 const char* Str(const char* id) {
+    // (drawn on the render thread: kept per id, and read again when the chosen language changes)
     static std::map<std::string, std::string> cache;
+    static std::string lang;
+    const char* now = CVarGetString("gPort.TextLanguage", "");
+    if (now == nullptr) now = "";
+    if (lang != now) {
+        cache.clear();
+        lang = now;
+    }
     auto it = cache.find(id);
     if (it == cache.end()) {
         char buf[96];
@@ -74,7 +82,11 @@ const char* Str(const char* id) {
 void Text(ImDrawList* dl, ImFont* f, float x, float y, float size, float maxw, const char* s, ImU32 col) {
     if (s == nullptr || *s == '\0') return;
     float w = f->CalcTextSizeA(size, FLT_MAX, 0, s).x;
-    if (w > maxw && maxw > 0) size = std::max(size * 0.7f, size * maxw / w);
+    if (maxw <= 0) { // no width limit (a clip rectangle 0 wide would hide the whole text)
+        dl->AddText(f, size, ImVec2(x, y), col, s);
+        return;
+    }
+    if (w > maxw) size = std::max(size * 0.7f, size * maxw / w);
     dl->PushClipRect(ImVec2(x, y - size), ImVec2(x + maxw, y + size * 2), true);
     dl->AddText(f, size, ImVec2(x, y), col, s);
     dl->PopClipRect();
