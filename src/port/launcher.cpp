@@ -23,6 +23,7 @@
 #include "Engine.h"
 #include "rom_check.h"
 #include "save_editor/save_editor_ui.h"
+#include "pad_assign.h"
 
 #include <chrono>
 #include <libultraship/libultraship.h>
@@ -55,6 +56,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#if defined(__ANDROID__)
+#include <jni.h>
+#endif
 #include <fstream>
 #include <mutex>
 #include <string>
@@ -411,6 +415,32 @@ std::string gPickExportSource;
 // Android's file picker returns content:// URIs, which the game's file functions cannot open: copy the picked file into
 // the app's files (a separate imported/pick-N/<name> for each selection) and use that. The name comes from the URI's last part, e.g.
 // ".../document/primary%3ADownload%2FPokemon%20Stadium.z64" -> "Pokemon Stadium.z64".
+// the picked file's name as the file picker shows it (StadionActivity.displayName); "" if Android does not say
+std::string ContentDisplayName(const std::string& uri) {
+    auto* env = static_cast<JNIEnv*>(SDL_GetAndroidJNIEnv());
+    auto activity = static_cast<jobject>(SDL_GetAndroidActivity());
+    if (env == nullptr || activity == nullptr) return "";
+    std::string name;
+    jclass cls = env->GetObjectClass(activity);
+    jmethodID method = env->GetMethodID(cls, "displayName", "(Ljava/lang/String;)Ljava/lang/String;");
+    if (method != nullptr) {
+        jstring juri = env->NewStringUTF(uri.c_str());
+        auto result = static_cast<jstring>(env->CallObjectMethod(activity, method, juri));
+        if (result != nullptr) {
+            if (const char* chars = env->GetStringUTFChars(result, nullptr)) {
+                name = chars;
+                env->ReleaseStringUTFChars(result, chars);
+            }
+            env->DeleteLocalRef(result);
+        }
+        env->DeleteLocalRef(juri);
+    }
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    env->DeleteLocalRef(cls);
+    env->DeleteLocalRef(activity);
+    return name.find('/') == std::string::npos ? name : "";
+}
+
 std::string ImportPicked(const std::string& uri, std::string& error) {
     if (uri.rfind("content://", 0) != 0) {
         return uri;
@@ -424,7 +454,9 @@ std::string ImportPicked(const std::string& uri, std::string& error) {
             decoded += uri[i];
         }
     }
-    std::string name = decoded.substr(decoded.find_last_of("/:") + 1);
+    // the link's last part, unless Android knows the name (the Downloads folder's links end in a number)
+    std::string name = ContentDisplayName(uri);
+    if (name.empty()) name = decoded.substr(decoded.find_last_of("/:") + 1);
     if (name.empty() || name == "." || name == "..") name = "picked";
     std::error_code ec;
     const auto root = fs::u8path(Ship::Context::GetPathRelativeToAppDirectory("imported"));
@@ -794,8 +826,14 @@ std::vector<Binding> Bindings(int port, const Input& in) {
         return list;
     }
     auto add = [&](const std::string& id, const auto& m) {
-        list.push_back({ id, InputName(m->GetPhysicalInputName()),
-                         m->GetPhysicalDeviceType() == Ship::PhysicalDeviceType::SDLGamepad });
+        const bool pad = m->GetPhysicalDeviceType() == Ship::PhysicalDeviceType::SDLGamepad;
+        std::string name = InputName(m->GetPhysicalInputName());
+        if (pad) { // as the player's controller labels it ("Cross", "L1"; "D-Pad Up" and sticks stay)
+            const size_t sp = name.find(' ');
+            const std::string head = name.substr(0, sp), label = Port::PadInputLabel(port, head);
+            if (label != head) name = label + (sp == std::string::npos ? "" : name.substr(sp));
+        }
+        list.push_back({ id, name, pad });
     };
     if (in.button != 0) {
         for (auto& [id, m] : c->GetButton(in.button)->GetAllButtonMappings()) add(id, m);
@@ -950,6 +988,26 @@ class LauncherWindow : public Ship::GuiWindow {
     }
 
     void Draw() override {
+        // The launcher does its own scaling (mScale, the font sets). libultraship doubles ImGui's sizes and fonts on
+        // Android for its own menus (Gui.cpp: ScaleAllSizes(2), FontGlobalScale = 2); on top of mScale that drew every
+        // label twice too large for its button. Undo it for the launcher's frame and put it back after.
+        ImGuiIO& io = ImGui::GetIO();
+        ImGuiStyle& style = ImGui::GetStyle();
+        const float globalScale = io.FontGlobalScale;
+        const ImGuiStyle savedStyle = style;
+        if (globalScale != 1.0f) {
+            style.ScaleAllSizes(1.0f / globalScale);
+            io.FontGlobalScale = 1.0f;
+        }
+        DrawLauncher();
+        if (globalScale != 1.0f) {
+            io.FontGlobalScale = globalScale;
+            style = savedStyle;
+        }
+    }
+
+    void DrawLauncher() {
+        Port::UpdatePadAssignment(); // (a controller connected or disconnected: each its own player)
         ImGuiViewport* vp = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(vp->Pos);
         ImGui::SetNextWindowSize(vp->Size);
@@ -1180,6 +1238,8 @@ class LauncherWindow : public Ship::GuiWindow {
         if ((opened && mCapture < 0) || testOpen) {
             mToolsTestOpened = true;
             mTools = !mTools;
+            mCheckFresh = false; // (the setup check runs again when the page opens)
+            mToolsStatus.clear();
             if (Handheld()) GoToPage(mTools ? kPageTools : kPageHome);
         }
     }
@@ -1197,71 +1257,193 @@ class LauncherWindow : public Ship::GuiWindow {
         style.resetFocus = [this] { mFocusReset = true; };
         gSaveEditor.Draw(style, P(x, y), P(x + w, y + h));
     }
-    bool ToolAction(const char* label) {
-        const bool clicked = ImGui::Button(label, ImVec2(std::min(280.0f * mScale, ImGui::GetContentRegionAvail().x),
-                                                       (Handheld() ? 44.0f : 26.0f) * mScale));
-        return NavItem() || clicked;
-    }
-    void ToolsPanel(float x, float y, float w, float h) {
+    // ---- Files & help: the setup check, the Stadium save, troubleshooting and where the files are ----
+    Port::LauncherCheck mCheck;
+    std::string mCheckRom; // CheckRom's answer when the check ran
+    bool mCheckFresh = false;
+    void RunCheck() {
         const auto directory = fs::u8path(Ship::Context::GetAppDirectoryPath());
-        ImGui::SetCursorScreenPos(P(x, y));
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, HexV(Theme::card));
-        ImGui::BeginChild("launcher-files", ImVec2(w * mScale, h * mScale), true);
-        ImGui::SetWindowFontScale(mScale);
-            ImGui::TextWrapped("Settings folder: %s", Port::PathUtf8(directory).c_str());
-            ImGui::TextWrapped("Active Stadium save: %s", mState->save.c_str());
-            if (ToolAction("Check setup")) {
-                auto check = Port::CheckLauncherFiles(directory, mState->save, PreflightSlots(*mState));
-                const auto romError = CheckRom(mState->rom);
-                if (!romError.empty()) check.errors.insert(check.errors.begin(), "Stadium ROM: " + romError);
-                mToolsStatus = CheckText(check);
-            }
-            if (Handheld() && ToolAction("Save editor")) { // (the desktop layout has it under Debug)
-                OpenSaveEditor(*mState);
-                if (gSaveEditor.IsOpen()) {
-                    mTools = false;
+        mCheck = Port::CheckLauncherFiles(directory, mState->save, PreflightSlots(*mState));
+        mCheckRom = CheckRom(mState->rom);
+        mCheckFresh = true;
+    }
+    // "3 min ago" for a file's last change, "" if it is not there
+    static std::string Age(const fs::path& path) {
+        std::error_code ec;
+        const auto when = fs::last_write_time(path, ec);
+        if (ec) return "";
+        const auto secs = std::chrono::duration_cast<std::chrono::seconds>(fs::file_time_type::clock::now() - when).count();
+        char buf[48];
+        if (secs < 60) return "just now";
+        if (secs < 3600) snprintf(buf, sizeof buf, "%lld min ago", (long long)(secs / 60));
+        else if (secs < 86400) snprintf(buf, sizeof buf, "%lld h ago", (long long)(secs / 3600));
+        else snprintf(buf, sizeof buf, "%lld days ago", (long long)(secs / 86400));
+        return buf;
+    }
+    // a small grey section title with a line under it
+    void Section(float x, float y, float w, const char* title) {
+        Text(x, y, title, gFonts.small, Theme::dim);
+        ImGui::GetWindowDrawList()->AddRectFilled(P(x, y + 18), P(x + w, y + 19), Hex(Theme::cardBorder));
+    }
+    // a status line: coloured dot and wrapped text; returns its height
+    float StatusLine(float x, float y, float w, uint32_t color, const std::string& t) {
+        ImGui::GetWindowDrawList()->AddCircleFilled(P(x + 5, y + 8), 4 * mScale, Hex(color));
+        return std::max(18.0f, Paragraph(x + 16, y, w - 16, t, gFonts.small, Theme::text)) + 4;
+    }
+
+    void ToolsPanel(float x, float y, float w, float h) {
+        State& s = *mState;
+        const auto directory = fs::u8path(Ship::Context::GetAppDirectoryPath());
+        const bool hh = Handheld();
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "FILES & HELP", gFonts.body, Theme::text);
+        Text(x + 130, y + 15, "Check your setup, manage the Stadium save, get help.", gFonts.small, Theme::dim);
+        if (Button("Done", x + w - 108, y + 9, 94, 26)) {
+            mTools = false;
+            if (hh) GoToPage(kPageHome);
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+        if (!mCheckFresh || mChanged) RunCheck();
+
+        const float colW = (w - 42) / 2, lx = x + 14, rx = x + 28 + colW;
+        const float bh = hh ? 34 : 26; // (fingers)
+
+        // left: setup check
+        float ly = y + 56;
+        Section(lx, ly, colW, "SETUP");
+        ly += 26;
+        if (mCheckRom.empty()) ly += StatusLine(lx, ly, colW, Theme::green, "Stadium ROM: Pokémon Stadium (USA), the expected dump.");
+        else ly += StatusLine(lx, ly, colW, Theme::red, "Stadium ROM: " + (s.rom.empty() ? std::string("none chosen yet.") : mCheckRom));
+        int shown = 0;
+        for (const auto& e : mCheck.errors) if (shown++ < 3) ly += StatusLine(lx, ly, colW, Theme::red, e);
+        for (const auto& wn : mCheck.warnings) if (shown++ < 3) ly += StatusLine(lx, ly, colW, 0xE0A030, wn);
+        if (shown > 3) ly += StatusLine(lx, ly, colW, Theme::dim, std::to_string(shown - 3) + " more: press Check again after fixing these.");
+        if (mCheck.errors.empty() && mCheck.warnings.empty()) {
+            int paks = 0;
+            for (const GbSlot& g : s.gb) paks += g.enabled && !g.rom.empty();
+            ly += StatusLine(lx, ly, colW, Theme::green,
+                             paks == 0 ? "Save folder ready. No Transfer Pak in use."
+                                       : "Save folder and " + std::to_string(paks) + " Game Boy cartridge" + (paks > 1 ? "s" : "") + " ready.");
+        }
+        if (Button("Check again", lx, ly + 4, 120, bh)) {
+            RunCheck();
+            mToolsStatus = mCheckRom.empty() && mCheck.errors.empty() && mCheck.warnings.empty() ? "Checked: everything is ready." : "Checked.";
+        }
+        ly += bh + 18;
+
+        // left: the Stadium save
+        Section(lx, ly, colW, "STADIUM SAVE");
+        ly += 26;
+        {
+            const fs::path save = fs::u8path(s.save);
+            std::error_code ec;
+            const auto size = fs::file_size(save, ec);
+            std::string line = FileName(s.save);
+            if (!ec) line += "  ·  " + std::to_string(size / 1024) + " KB  ·  changed " + Age(save);
+            else line += "  ·  not created yet";
+            ly += Paragraph(lx, ly, colW, line, gFonts.body) + 4;
+            int backups = 0;
+            for (fs::directory_iterator it(fs::u8path(s.save + ".backups"), ec), end; !ec && it != end; it.increment(ec)) backups++;
+            ly += 4 + Paragraph(lx, ly, colW, ec && backups == 0 ? "The game creates it the first time it saves."
+                                     : backups == 0 ? "A copy of the save is kept each time the game starts (the last five)."
+                                                 : std::to_string(backups) + " earlier cop" + (backups == 1 ? "y" : "ies") +
+                                                       " kept (one per game start, the last five).",
+                      gFonts.small, Theme::dim);
+            ly += 6;
+        }
+        float bx = lx;
+        if (Button("Save editor", bx, ly, 110, bh)) {
+            OpenSaveEditor(s);
+            if (gSaveEditor.IsOpen()) {
+                mTools = false;
+                if (hh) {
                     GoToPage(kPageSaveEditor);
                     mFocusReset = true; // (this frame still draws the old page: its default would win)
-                } else {
-                    mToolsStatus = gEditorStatus;
                 }
+            } else {
+                mToolsStatus = gEditorStatus;
             }
-            if (ToolAction("Open settings folder")) OpenFolder(directory);
-            if (ToolAction("Open saves folder")) OpenFolder(fs::u8path(mState->save).parent_path());
-            if (ToolAction("Export N64 save")) {
-                std::string path, error;
-                if (Port::ExportStadiumSave(fs::u8path(mState->save), directory, path, error)) {
-                    mToolsStatus = "Exported: " + path + "\nThe active save was kept unchanged.";
-                    OfferExport(path);
-                } else mToolsStatus = error;
-            }
-            if (ToolAction("Export diagnostics")) {
-                std::string path, error;
-                if (Port::ExportLauncherDiagnostics(directory, PORT_BUILD_VERSION,
-                    RendererName(mState->renderer), RendererName(ActiveRenderer()), path, error)) {
-                    mToolsStatus = "Exported: " + path + "\nReview the report before sharing it.";
-                    OfferExport(path);
-                } else mToolsStatus = error;
-            }
-            if (ToolAction("Disable Auto-play")) { mState->autoPlay = false; mChanged = true; mToolsStatus = "Auto-play disabled."; }
-            if (ToolAction("Use safe renderer next start")) {
-#ifdef __APPLE__
-                mState->renderer = Fast::FAST3D_SDL_METAL;
-#else
-                mState->renderer = Fast::FAST3D_SDL_OPENGL;
-#endif
-                mState->autoPlay = false; mChanged = true;
-                mToolsStatus = "Auto-play disabled and safe renderer selected. Restart to apply.";
-            }
-            ImGui::TextWrapped("Recovery: start with --launcher to bypass Auto-play, or --safe-mode to reset the renderer. Saves and controller mappings are kept.");
-            ImGui::TextWrapped("Five previous session saves are kept in <save>.backups. Exports are under exports/; reports under diagnostics/.");
-            if (!mToolsStatus.empty()) ImGui::TextWrapped("%s", mToolsStatus.c_str());
-            if (ToolAction("Back to players")) { mTools = false; if (Handheld()) GoToPage(kPageHome); }
+        }
+        bx += 116;
+        if (Button("Export save", bx, ly, 110, bh)) {
+            std::string path, error;
+            if (Port::ExportStadiumSave(fs::u8path(s.save), directory, path, error)) {
+                mToolsStatus = (hh ? "Exported. Choose where to keep the copy." : "Exported to " + path) + " The active save is unchanged.";
+                OfferExport(path);
+            } else mToolsStatus = error;
+        }
+        bx += 116;
+        if (!hh && Button("Show in folder", bx, ly, 120, bh)) OpenFolder(save_parent(s.save));
+        ly += bh + 8;
 
-        ImGui::SetWindowFontScale(1.0f);
-        ImGui::EndChild();
-        ImGui::PopStyleColor();
+        // right: troubleshooting
+        float ry = y + 56;
+        Section(rx, ry, colW, "TROUBLESHOOTING");
+        ry += 26;
+        auto action = [&](const char* label, float bw, const std::string& hint) {
+            const bool clicked = Button(label, rx, ry, bw, bh);
+            Paragraph(rx + bw + 10, ry + (hint.find('\n') == std::string::npos ? (bh - 14) / 2 : 0), colW - bw - 10, hint,
+                      gFonts.small, Theme::dim);
+            ry += bh + 8;
+            return clicked;
+        };
+        if (action("Export diagnostics", 170, "A report on this setup for a bug report.\nRead it before you share it.")) {
+            std::string path, error;
+            if (Port::ExportLauncherDiagnostics(directory, PORT_BUILD_VERSION, RendererName(s.renderer),
+                                                RendererName(ActiveRenderer()), path, error)) {
+                mToolsStatus = (hh ? std::string("Report written. Choose where to keep it.") : "Report written: " + path);
+                OfferExport(path);
+            } else mToolsStatus = error;
+        }
+        if (!hh) {
+            if (s.autoPlay && action("Turn off Auto-play", 170, "Auto-play skips this launcher.\nHold Shift while starting to see it.")) {
+                s.autoPlay = false;
+                mChanged = true;
+                mToolsStatus = "Auto-play is off: the launcher shows at every start.";
+            }
+            if (Renderers().size() > 1 &&
+                action("Use the safe renderer", 170, "If the game window stays black or crashes:\nswitches to the most compatible one.")) {
+#ifdef __APPLE__
+                s.renderer = Fast::FAST3D_SDL_METAL;
+#else
+                s.renderer = Fast::FAST3D_SDL_OPENGL;
+#endif
+                s.autoPlay = false; mChanged = true;
+                mToolsStatus = std::string("Next start uses ") + RendererName(s.renderer) + ". Auto-play is off.";
+            }
+        }
+        ry += 6;
+
+        // right: where things are
+        Section(rx, ry, colW, "WHERE YOUR FILES ARE");
+        ry += 26;
+        if (hh) {
+            ry += Paragraph(rx, ry, colW, "Android/data/com.teamhippodrome.stadion/files on the device: reach it over USB "
+                                          "or with a file manager that shows app files.", gFonts.small) + 6;
+            ry += Paragraph(rx, ry, colW, "saves/ the Stadium and Game Boy saves   imported/ the files you picked   "
+                                          "exports/ and diagnostics/ what Export wrote", gFonts.small, Theme::dim) + 6;
+        } else {
+            ry += Paragraph(rx, ry, colW, Port::PathUtf8(directory), gFonts.small) + 6;
+            ry += Paragraph(rx, ry, colW, "saves/ the Stadium and Game Boy saves   exports/ and diagnostics/ what Export "
+                                          "wrote   stadion.cfg.json the settings", gFonts.small, Theme::dim) + 6;
+            if (Button("Open folder", rx, ry, 110, bh)) OpenFolder(directory);
+            Paragraph(rx + 120, ry + 6, colW - 120, "Start with --launcher to skip Auto-play, --safe-mode to reset the renderer.",
+                      gFonts.small, Theme::dim);
+        }
+
+        // the last action's result, along the bottom
+        if (!mToolsStatus.empty()) {
+            const float sy = y + h - 30;
+            dl->AddRectFilled(P(x, sy - 6), P(x + w, sy - 5), Hex(Theme::cardBorder));
+            std::string status = mToolsStatus;
+            std::replace(status.begin(), status.end(), '\n', ' ');
+            Paragraph(lx, sy, w - 28, status, gFonts.small, Theme::text);
+        }
     }
+    static fs::path save_parent(const std::string& save) { return fs::u8path(save).parent_path(); }
+
     int mRendererFailed = 0; // the requested renderer, when the game started with another (it could not start)
     // design coordinates -> screen
     ImVec2 P(float x, float y) const {
@@ -1469,7 +1651,15 @@ class LauncherWindow : public Ship::GuiWindow {
         if (mCapture >= 0) {
             UpdateCapture();
         }
-        ImGui::BeginDisabled(mCapture >= 0);
+        if (mSetup != nullptr) {
+            UpdateSetup();
+        }
+        const auto pads = Port::ConnectedPads();
+        const Port::PadInfo* mine = nullptr;
+        for (const auto& pd : pads) {
+            if (pd.port == mPort) mine = &pd;
+        }
+        ImGui::BeginDisabled(mCapture >= 0 || mSetup != nullptr);
 
         Text(x + 14, y + 14, "CONTROLS", gFonts.body, Theme::players[mPort]);
         for (int i = 0; i < 4; i++) {
@@ -1482,21 +1672,57 @@ class LauncherWindow : public Ship::GuiWindow {
             if (on) {
                 dl->AddRectFilled(P(x + 110 + i * 84, y + 35), P(x + 188 + i * 84, y + 37), Hex(Theme::players[i]));
             }
+            // a dot on the tab when the player has a controller; bright while it is pressed
+            if (Port::PadPortBits() & (1 << i)) {
+                dl->AddCircleFilled(P(x + 181 + i * 84, y + 15), 3 * mScale,
+                                    Hex(Port::PadActive(i) ? 0x7CFC9A : Theme::green, Port::PadActive(i) ? 1.0f : 0.6f));
+            }
             ImGui::PopID();
         }
-        // whether the game sees this controller (Port_ControllerBits): player 1's always, 2-4 only when switched on,
-        // so the multiplayer choices (2-4 players, team battles) are offered only with players to make them
-        if (mPort == 0) {
-            Text(x + 462, y + 15, "Always plugged in", gFonts.small, Theme::dim);
-        } else {
-            std::string key = "gPort.Controller" + std::to_string(mPort + 1) + ".PluggedIn";
-            bool plugged = CVarGetInteger(key.c_str(), 0) != 0;
-            if (Check("Plugged in", &plugged, x + 458, y + 11)) {
-                CVarSetInteger(key.c_str(), plugged ? 1 : 0);
-                CVarSave();
+        // the player's controller (pad_assign.h: each connected controller gets a player, in the order they were
+        // connected); Change gives the player the next one. A player with a controller is plugged in for the game
+        // (Port_ControllerBits); without one, players 2-4 can still be plugged in by hand.
+        {
+            const float hx = x + 458, hw = (x + w - 252) - hx;
+            if (mine != nullptr) {
+                dl->AddCircleFilled(P(hx + 5, y + 22), 4 * mScale, Hex(Port::PadActive(mPort) ? 0x7CFC9A : Theme::green));
+                std::string name = mine->name;
+                if (name.size() > 20) name = name.substr(0, 18) + "...";
+                Text(hx + 14, y + 8, name, gFonts.small, Theme::text);
+                Text(hx + 14, y + 23, Port::PadActive(mPort) ? "input coming in" : "press a button to test",
+                     gFonts.small, Theme::dim);
+            } else if (mPort == 0) {
+                Text(hx, y + 8, "Keyboard", gFonts.small, Theme::text);
+                Text(hx, y + 23, "no controller connected", gFonts.small, Theme::dim);
+            } else {
+                std::string key = "gPort.Controller" + std::to_string(mPort + 1) + ".PluggedIn";
+                bool plugged = CVarGetInteger(key.c_str(), 0) != 0;
+                if (Check("Plugged in", &plugged, hx, y + 11)) {
+                    CVarSetInteger(key.c_str(), plugged ? 1 : 0);
+                    CVarSave();
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("No controller: the game sees controller %d anyway (for 2-4 player battles)", mPort + 1);
+                }
             }
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("The game sees controller %d (it offers 2-4 player battles and team battles)", mPort + 1);
+            // the next connected controller in connection order (another player's gives up its place)
+            if (!pads.empty() && !(pads.size() == 1 && mine != nullptr)) {
+                std::vector<Port::PadInfo> byId = pads;
+                std::sort(byId.begin(), byId.end(), [](const auto& a, const auto& b) { return a.id < b.id; });
+                size_t next = 0;
+                if (mine != nullptr) {
+                    for (size_t k = 0; k < byId.size(); k++) {
+                        if (byId[k].id == mine->id) next = (k + 1) % byId.size();
+                    }
+                }
+                const float bw = mine != nullptr ? 58 : 126;
+                if (Button(mine != nullptr ? "Change##pad" : "Use a controller##pad", hx + hw - bw, y + 9, bw, 26, gFonts.small)) {
+                    Port::SetPadPort(byId[next].id, mPort);
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Give player %d %s (the player who had it gets this one's place)", mPort + 1,
+                                      byId[next].name.c_str());
+                }
             }
         }
         if (Button("Reset to defaults", x + w - 246, y + 9, 130, 26)) {
@@ -1516,10 +1742,26 @@ class LauncherWindow : public Ship::GuiWindow {
             float cx = x + 14 + (i / kRows) * 466, cy = y + 56 + (i % kRows) * 29;
             InputRow(i, cx, cy);
         }
-        Text(x + 14, y + h - 22,
-             "Click a binding to change it, right-click to remove it, + to add one. Grey: keyboard, blue: controller.",
-             gFonts.small, Theme::dim);
+        // a connected controller SDL does not know (no mapping): offer to set it up, else the usual hint
+        const auto unknown = Port::UnknownJoysticks();
+        if (!unknown.empty()) {
+            dl->AddCircleFilled(P(x + 19, y + h - 15), 4 * mScale, Hex(0xE0A030));
+            Text(x + 30, y + h - 22, "\"" + unknown[0].name + "\" is connected but not recognized: its buttons are unknown.",
+                 gFonts.small, Theme::text);
+            if (Button("Set it up##padsetup", x + w - 124, y + h - 28, 110, 24, gFonts.small)) {
+                StartSetup(unknown[0]);
+            }
+        } else if (!mSetupResult.empty()) {
+            Text(x + 14, y + h - 22, mSetupResult, gFonts.small, Theme::green);
+        } else {
+            Text(x + 14, y + h - 22,
+                 "Click a binding to change it, right-click to remove it, + to add one. Grey: keyboard, blue: controller.",
+                 gFonts.small, Theme::dim);
+        }
         ImGui::EndDisabled();
+        if (mSetup != nullptr) {
+            SetupOverlay(x, y, w, h);
+        }
 
         if (mCapture >= 0) {
             dl->AddRectFilled(P(x, y + 45), P(x + w, y + h), Hex(Theme::window, 0.75f), 8 * mScale,
@@ -1563,6 +1805,125 @@ class LauncherWindow : public Ship::GuiWindow {
             StartCapture(i, "");
         }
         ImGui::PopID();
+    }
+
+    // ---- setting up a controller SDL does not know: press each button in turn, giving an SDL mapping ----
+    // (saved to gamecontrollerdb.txt, Port::AddPadMapping). Buttons, hats and axes are read from the raw joystick;
+    // each step waits until everything is released again.
+    struct SetupStep {
+        const char* key;   // SDL's mapping name
+        const char* prompt;
+        bool stick;        // an axis pushed right/down (else a button, maybe an axis or hat standing in for one)
+    };
+    static constexpr SetupStep kSetupSteps[] = {
+        { "a", "Press the bottom face button (N64 A)", false },
+        { "b", "Press the right face button (N64 B)", false },
+        { "x", "Press the left face button", false },
+        { "y", "Press the top face button", false },
+        { "start", "Press Start", false },
+        { "back", "Press Select / Back / Share", false },
+        { "leftshoulder", "Press the left shoulder button (L)", false },
+        { "rightshoulder", "Press the right shoulder button (R)", false },
+        { "lefttrigger", "Press the left trigger (Z)", false },
+        { "righttrigger", "Press the right trigger", false },
+        { "dpup", "Press D-pad up", false },
+        { "dpdown", "Press D-pad down", false },
+        { "dpleft", "Press D-pad left", false },
+        { "dpright", "Press D-pad right", false },
+        { "leftx", "Push the left stick to the right", true },
+        { "lefty", "Push the left stick down", true },
+        { "rightx", "Push the right stick to the right (C-buttons)", true },
+        { "righty", "Push the right stick down", true },
+    };
+    SDL_Joystick* mSetup = nullptr;
+    Port::UnknownJoystick mSetupPad;
+    int mSetupStep = 0;
+    bool mSetupArmed = false;
+    std::vector<int16_t> mSetupRest; // each axis at rest
+    std::string mSetupMap, mSetupResult;
+
+    void StartSetup(const Port::UnknownJoystick& pad) {
+        mSetup = SDL_OpenJoystick(pad.id);
+        if (mSetup == nullptr) return;
+        mSetupPad = pad;
+        mSetupStep = 0;
+        mSetupArmed = false;
+        mSetupMap.clear();
+        mSetupResult.clear();
+        mSetupRest.assign(SDL_GetNumJoystickAxes(mSetup), 0);
+        for (int a = 0; a < (int)mSetupRest.size(); a++) mSetupRest[a] = SDL_GetJoystickAxis(mSetup, a);
+    }
+    void EndSetup() {
+        if (mSetup != nullptr) SDL_CloseJoystick(mSetup);
+        mSetup = nullptr;
+    }
+    // what is held on the joystick, in SDL's mapping words ("b3", "h0.1", "a2", "-a1"...), or "" when nothing is
+    std::string SetupInput(bool stick) {
+        for (int b = 0; b < SDL_GetNumJoystickButtons(mSetup); b++) {
+            if (SDL_GetJoystickButton(mSetup, b)) return "b" + std::to_string(b);
+        }
+        for (int hh = 0; hh < SDL_GetNumJoystickHats(mSetup); hh++) {
+            const Uint8 v = SDL_GetJoystickHat(mSetup, hh);
+            if (v == SDL_HAT_UP || v == SDL_HAT_DOWN || v == SDL_HAT_LEFT || v == SDL_HAT_RIGHT) {
+                return "h" + std::to_string(hh) + "." + std::to_string(v);
+            }
+        }
+        for (int a = 0; a < (int)mSetupRest.size(); a++) {
+            const int rest = mSetupRest[a], v = SDL_GetJoystickAxis(mSetup, a), d = v - rest;
+            if (std::abs(d) < 20000) continue;
+            const std::string n = std::to_string(a);
+            if (stick) return d > 0 ? "a" + n : "a" + n + "~"; // ~: the axis runs the other way
+            if (rest < -16000) return "a" + n;                 // a trigger resting at one end
+            return (d > 0 ? "+a" : "-a") + n;                  // half an axis as a button
+        }
+        return "";
+    }
+    void SetupNext(const std::string& input) {
+        if (!input.empty()) mSetupMap += std::string(kSetupSteps[mSetupStep].key) + ":" + input + ",";
+        mSetupArmed = false;
+        if (++mSetupStep < (int)std::size(kSetupSteps)) return;
+        std::string name = mSetupPad.name;
+        std::replace(name.begin(), name.end(), ',', ' ');
+        const std::string mapping = mSetupPad.guid + "," + name + "," + mSetupMap + "platform:" + SDL_GetPlatform() + ",";
+        std::string error;
+        mSetupResult = Port::AddPadMapping(mapping, error) ? name + " is set up: it now plays like any other controller."
+                                                           : error;
+        EndSetup();
+    }
+    void UpdateSetup() {
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+            EndSetup();
+            return;
+        }
+        if (!SDL_JoystickConnected(mSetup)) {
+            mSetupResult = "The controller was disconnected.";
+            EndSetup();
+            return;
+        }
+        const std::string input = SetupInput(kSetupSteps[mSetupStep].stick);
+        if (!mSetupArmed) {
+            mSetupArmed = input.empty(); // (the last step's input released)
+            return;
+        }
+        if (!input.empty()) SetupNext(input);
+    }
+    void SetupOverlay(float x, float y, float w, float h) {
+        if (mSetup == nullptr) return;
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y + 45), P(x + w, y + h), Hex(Theme::window, 0.8f), 8 * mScale, ImDrawFlags_RoundCornersBottom);
+        const float bw = 460, bh = 150, bx = x + (w - bw) / 2, by = y + (h - bh) / 2;
+        dl->AddRectFilled(P(bx, by), P(bx + bw, by + bh), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(bx, by), P(bx + bw, by + bh), Hex(Theme::players[mPort]), 8 * mScale);
+        Text(bx + 20, by + 14, "Set up " + mSetupPad.name, gFonts.small, Theme::dim);
+        Text(bx + 20, by + 40, kSetupSteps[mSetupStep].prompt, gFonts.game);
+        char step[48];
+        snprintf(step, sizeof step, "Step %d of %d", mSetupStep + 1, (int)std::size(kSetupSteps));
+        Text(bx + 20, by + 76, mSetupArmed ? step : "Release all buttons...", gFonts.small, Theme::dim);
+        dl->AddRectFilled(P(bx + 20, by + 96), P(bx + bw - 20, by + 99), Hex(Theme::button));
+        dl->AddRectFilled(P(bx + 20, by + 96), P(bx + 20 + (bw - 40) * mSetupStep / (float)std::size(kSetupSteps), by + 99),
+                          Hex(Theme::players[mPort]));
+        if (Button("Skip##setup", bx + bw - 214, by + bh - 40, 90, 28)) SetupNext("");
+        if (Button("Cancel##setup", bx + bw - 114, by + bh - 40, 94, 28)) EndSetup();
     }
 
     void StartCapture(int input, const std::string& replaceId) {
@@ -1695,6 +2056,18 @@ class LauncherWindow : public Ship::GuiWindow {
         if (pick >= 0 && pick != cur) SetResolution(kResEntries[pick]);
     }
 
+    // Internal resolution for the D-pad: < the size >, stepping through the same list as ResolutionCombo
+    void ResolutionStepper(float x, float y, float w) {
+        const int cur = ResIndex(Port::GetResolutionSetting());
+        const int n = (int)std::size(kResEntries);
+        if (Button("<##res", x, y, 34, 26) && cur > 0) SetResolution(kResEntries[cur - 1]);
+        if (Button(">##res", x + w - 34, y, 34, 26)) SetResolution(kResEntries[cur < 0 ? 0 : std::min(cur + 1, n - 1)]);
+        const std::string label = cur >= 0 ? Port::ResolutionLabel(kResEntries[cur].mode, kResEntries[cur].value) : "Custom";
+        ImGui::GetWindowDrawList()->AddRectFilled(P(x + 40, y), P(x + w - 40, y + 26), Hex(Theme::button), 5 * mScale);
+        const float tw = gFonts.body->CalcTextSizeA(gFonts.body->FontSize * gFonts.body->Scale, FLT_MAX, 0, label.c_str()).x;
+        Text(x + (w - tw) / 2, y + 5, label, gFonts.body);
+    }
+
     // the pixel height of the display the window is on (a Retina display's pixels, not its points); 0 if unknown
     static int DisplayPixelHeight() {
         SDL_Window* sdl = MainWindow();
@@ -1741,8 +2114,16 @@ class LauncherWindow : public Ship::GuiWindow {
         };
         auto onOff = [&](const char* id, bool on) { return Choice(id, { "On", "Off" }, on ? 0 : 1, cx, ry); };
 
-        // Display: windowed or (borderless) fullscreen; the launcher keeps its own window, the game gets this on Play
-        {
+        // Display: windowed or (borderless) fullscreen; the launcher keeps its own window, the game gets this on Play.
+        // A handheld is always full screen: there it is the picture's shape instead (the desktop's bottom bar has that).
+        if (Handheld()) {
+            label("Screen", s.aspect == 1 ? "16:9: 3D scenes show more at the sides." : "4:3: the N64's picture shape.");
+            int c = Choice("aspect", { "4:3", "16:9" }, s.aspect, cx, ry);
+            if (c >= 0 && c != s.aspect) {
+                s.aspect = c;
+                mChanged = true;
+            }
+        } else {
             auto config = WindowConfig();
             const bool full = config != nullptr && config->GetBool("Window.Fullscreen.Enabled", false);
             label("Display", "Fullscreen is borderless;\nF11 switches in-game.");
@@ -1773,7 +2154,8 @@ class LauncherWindow : public Ship::GuiWindow {
                 snprintf(hint, sizeof hint, "Lower it if the game is slow.");
             }
             label("Internal resolution", hint);
-            ResolutionCombo(cx, ry, 4 * 64 + 3 * 4);
+            if (Handheld()) ResolutionStepper(cx, ry, 4 * 64 + 3 * 4);
+            else ResolutionCombo(cx, ry, 4 * 64 + 3 * 4);
         }
         ry += pitch;
         // Scaling: how a fixed resolution's picture is stretched to the window (not used by Match window)
@@ -1891,6 +2273,20 @@ class LauncherWindow : public Ship::GuiWindow {
             ImGui::PushStyleColor(ImGuiCol_SliderGrab, HexV(0x4C7BD9));
             ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, HexV(0x6E95E6));
             const std::string id = std::string("##") + cvar;
+            if (Handheld()) { // the D-pad cannot drag a slider: - and + in steps of 10
+                ImGui::PopStyleColor(2);
+                const auto set = [&](int nv) { nv = std::clamp(nv, 0, 100); if (nv != v) { CVarSetInteger(cvar, nv); changed = true; } };
+                if (Button(("-" + id).c_str(), sx, ry, 34, 26)) set(v - 10);
+                if (Button(("+" + id).c_str(), sx + sw - 34, ry, 34, 26)) set(v + 10);
+                ImDrawList* d = ImGui::GetWindowDrawList();
+                d->AddRectFilled(P(sx + 40, ry), P(sx + sw - 40, ry + 26), Hex(Theme::button), 5 * mScale);
+                d->AddRectFilled(P(sx + 40, ry), P(sx + 40 + (sw - 80) * v / 100.0f, ry + 26), Hex(0x2C4C80), 5 * mScale);
+                char pct[16];
+                snprintf(pct, sizeof pct, v == 0 ? "off" : "%d%%", v);
+                Text(sx + sw / 2 - 14, ry + 5, pct, gFonts.body);
+                ry += 44;
+                return;
+            }
             if (ImGui::SliderInt(id.c_str(), &v, 0, 100, v == 0 ? "off" : "%d%%", ImGuiSliderFlags_AlwaysClamp)) {
                 CVarSetInteger(cvar, v);
                 changed = true;
@@ -2189,6 +2585,8 @@ class LauncherWindow : public Ship::GuiWindow {
     void GoToPage(int page) {
         mPage = page;
         mControls = page == kPageControls;
+        mGraphics = page == kPageGraphics;
+        mSound = page == kPageSound;
         mFocus = -1; // the page's default item
         mNavItems.clear();
     }
@@ -2201,7 +2599,8 @@ class LauncherWindow : public Ship::GuiWindow {
             GoToPage(kPageHome);
             mNavBack = false;
         }
-        if (mPage == kPageControls && !mControls) { // the panel's Done button
+        if ((mPage == kPageControls && !mControls) || (mPage == kPageGraphics && !mGraphics) ||
+            (mPage == kPageSound && !mSound)) { // the panel's Done button
             GoToPage(kPageHome);
         }
         if (mPage == kPageSaveEditor) {
@@ -2219,6 +2618,7 @@ class LauncherWindow : public Ship::GuiWindow {
         ImDrawList* dl = ImGui::GetWindowDrawList();
         Text(24, 14, "stadion", gFonts.title);
         const char* pageName = mPage == kPageTransferPak ? "Transfer Pak" : mPage == kPageControls ? "Controls"
+                               : mPage == kPageGraphics ? "Graphics" : mPage == kPageSound ? "Sound"
                                : mPage == kPageTools ? "Files & help" : mPage == kPageSaveEditor ? "Save editor" : "";
         Text(220, 17, pageName, gFonts.body, Theme::dim);
         dl->AddRectFilled(P(0, 50), P(kW, 51), Hex(Theme::cardBorder));
@@ -2228,12 +2628,19 @@ class LauncherWindow : public Ship::GuiWindow {
             EditorPanel(16, 62, kW - 32, 438);
         } else if (mPage == kPageTools) {
             ToolsPanel(16, 62, kW - 32, 430);
-            mDefaultFocus = 0;
+            mDefaultFocus = 2; // Check again (0: the header's Files & help, 1: Done)
         } else if (mPage == kPageTransferPak) {
             for (int i = 0; i < 4; i++) {
                 PlayerCard(i, 16 + i * (222 + 14), 62, 222, 366);
             }
             mDefaultFocus = 0;
+            if (Button("Back", 16, 444, 160, 48, gFonts.game)) {
+                GoToPage(kPageHome);
+            }
+        } else if (mPage == kPageGraphics || mPage == kPageSound) {
+            if (mPage == kPageGraphics) GraphicsPanel(16, 62, kW - 32, 366);
+            else SoundPanel(16, 62, kW - 32, 366);
+            mDefaultFocus = 2; // the first setting (0: the header's Files & help, 1: Done)
             if (Button("Back", 16, 444, 160, 48, gFonts.game)) {
                 GoToPage(kPageHome);
             }
@@ -2311,18 +2718,20 @@ class LauncherWindow : public Ship::GuiWindow {
             GoToPage(kPageControls);
         }
         y += bh + 14;
-        if (Button(s.aspect == 1 ? "Screen · 16:9" : "Screen · 4:3", rx, y, bw, bh, gFonts.game)) {
-            s.aspect = 1 - s.aspect;
-            mChanged = true;
+        if (Button("Graphics", rx, y, bw, bh, gFonts.game)) {
+            GoToPage(kPageGraphics);
         }
-        if (Button(s.smooth ? "Smooth motion · on" : "Smooth motion · off", rx + bw + 14, y, bw, bh, gFonts.game)) {
-            s.smooth = !s.smooth;
-            mChanged = true;
+        if (Button(CVarGetInteger("gSound.On", 1) != 0 ? "Sound" : "Sound · off", rx + bw + 14, y, bw, bh, gFonts.game)) {
+            GoToPage(kPageSound);
         }
         y += bh + 14;
-        Text(rx + 4, y + 8, s.aspect == 1 ? "16:9: 3D scenes show more at the sides." : "4:3: the N64's picture shape.",
-             gFonts.small, Theme::dim);
-        Text(rx + 4, y + 28, "Smooth motion draws in-between frames (one frame of extra delay).", gFonts.small, Theme::dim);
+        // what Graphics is set to, at a glance
+        const Port::ResolutionSetting r = Port::GetResolutionSetting();
+        const int cur = ResIndex(r);
+        const std::string res = cur >= 0 ? Port::ResolutionLabel(kResEntries[cur].mode, kResEntries[cur].value) : "Custom";
+        Text(rx + 4, y + 8, std::string("Screen ") + (s.aspect == 1 ? "16:9" : "4:3") + "  ·  " + res + "  ·  Smooth motion " +
+                                (s.smooth ? "on" : "off"), gFonts.small, Theme::dim);
+        Text(rx + 4, y + 28, "Save editor, setup check and exports: Files & help.", gFonts.small, Theme::dim);
         if (mDefaultFocus < 0) {
             mDefaultFocus = 0; // no valid ROM: the first item, Load ROM
         }
@@ -2331,7 +2740,8 @@ class LauncherWindow : public Ship::GuiWindow {
     struct NavRect {
         ImVec2 min, max;
     };
-    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2, kPageTools = 3, kPageSaveEditor = 4;
+    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2, kPageTools = 3, kPageSaveEditor = 4,
+                         kPageGraphics = 5, kPageSound = 6;
     int mPage = kPageHome;
     std::vector<NavRect> mNavItems, mNavPrev; // this frame's and last frame's focus targets, in drawing order
     int mFocus = -1, mDefaultFocus = 0;
@@ -2434,6 +2844,8 @@ bool RunScriptStep(const ScriptStep& st) {
                 if (ctrl) io.AddKeyEvent(ImGuiMod_Ctrl, false);
             }
         }
+    } else if (st.cmd == "vpad") { // the test pad (PORT_TEST_UNKNOWN_PAD): press button N, "-" releases
+        Port::PressTestPad(st.arg == "-" ? -1 : atoi(st.arg.c_str()));
     } else if (st.cmd == "quit") {
         return true;
     }
@@ -2525,6 +2937,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
         // PORT_TRACE_PACING=1: launcher frames more than 40 ms apart
         static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
         auto lastFrame = std::chrono::steady_clock::now();
+        if (getenv("PORT_TEST_UNKNOWN_PAD") != nullptr) Port::AttachTestPad();
         static const char* scriptPath = getenv("PORT_LAUNCHER_SCRIPT");
         std::vector<ScriptStep> script = scriptPath != nullptr ? LoadScript(scriptPath) : std::vector<ScriptStep>{};
         for (int frame = 0; !play && !quit && !restart && window->IsRunning(); frame++) {

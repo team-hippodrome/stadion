@@ -43,16 +43,28 @@ In the launcher, select your base ROM. Optionally use **Import save** to bring i
 an existing N64 cartridge save, and choose a Game Boy ROM and battery save for each
 player's Transfer Pak. Select **PLAY** to start; your choices are remembered.
 
-Use **Files & help → Check setup** to check your ROMs, save files and writable
-folders. Without an imported N64 save, stadion creates a fresh one.
+**Files & help** checks your ROMs, save files and writable folders when it opens
+(**Check again** repeats it). Without an imported N64 save, stadion creates a fresh one.
 
 ## Configuration
 
 ### Controllers and local multiplayer
 
-Use **Controls** in the launcher to map a keyboard or controller for each player.
-Player 1 is enabled by default. Enable **Plugged in** for players 2–4 to make the
-corresponding multiplayer modes available.
+Controllers are detected automatically. Each one gets its own player in the order
+they were connected: the first is player 1 (on a handheld such as the AYN Thor, its
+built-in controls), the second player 2, and so on; the keyboard always plays player 1.
+A player with a controller is plugged in for the game, so the multiplayer modes appear
+without any setup. Controllers SDL knows (Xbox, PlayStation, Switch Pro, 8BitDo and
+most others) work with the default buttons; the Controls panel names them as printed
+on the controller (Cross and L1 on a PlayStation pad, for example).
+
+Use **Controls** in the launcher to change a player's buttons. Its header shows the
+player's controller with a light that shows button presses; **Change** gives the
+player the next connected controller (the player who had it takes this one's place),
+and the choice is remembered. A player without a controller can still be marked
+**Plugged in**. A connected controller that SDL does not recognize is announced at the
+bottom of the panel: **Set it up** asks you to press each button in turn and saves the
+result to `gamecontrollerdb.txt` in the data folder, so it is recognized from then on.
 
 | N64 input | Keyboard | Controller |
 | --- | --- | --- |
@@ -76,7 +88,8 @@ apply** reopens the launcher with the selected renderer.
 
 **Graphics** opens the drawing settings; changes apply at once and are kept:
 - **Display**: windowed or fullscreen (borderless), applied when the game starts.
-  F11 switches in-game.
+  F11 switches in-game. On Android the game is always full screen, and this row is
+  **Screen** (4:3 or 16:9) instead.
 - **Internal resolution**: the pixels the game is drawn with. **Match window** (the
   default) draws every pixel of the window, Retina and other HiDPI displays included.
   **Native** is the N64's own 320 x 240 (426 x 240 in 16:9); **2x** to **6x** are
@@ -152,8 +165,9 @@ Files selected through its picker are copied into the app's `imported/` folder.
 working copy in `saves/` and preserves the original. Emulator save states and
 Controller Pak files are not supported cartridge saves.
 
-**Files & help** can open the settings and saves folders and export an N64 save.
-Android exports also offer the system **Save as** picker.
+**Files & help** shows the active N64 save (size, last change, backups kept) with
+**Save editor** and **Export save**, and where the settings and saves are; on desktop
+it can open those folders. Android exports also offer the system **Save as** picker.
 
 Save writes replace the active file atomically. Before the first overwrite in each
 session, the previous save is backed up in `<save filename>.backups/`; the five newest
