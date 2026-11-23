@@ -15,6 +15,7 @@
 // moves the focus, A presses, B goes back) as well as by touch.
 #include "launcher.h"
 #include "launcher_files.h"
+#include "gb_cart_art.h"
 #include "launcher_reliability.h"
 #include "language_prompt.h"
 #include "graphics_advisor.h"
@@ -296,7 +297,7 @@ std::string CheckRom(const std::string& path) {
 }
 
 struct CartInfo {
-    std::string kind;  // "yellow" | "red" | "blue" | "" : picks the cartridge picture
+    std::string kind;  // "yellow" | "red" | "blue" | "green" | "" : picks the cartridge colour
     std::string label; // e.g. "Pokémon Gelb"
     std::string trainer, trainerId; // from the save, when its main-data checksum is right
 };
@@ -340,6 +341,7 @@ CartInfo InspectCart(const std::string& rom, const std::string& save) {
         info.kind = "blue";
         info.label = german ? "Pokémon Blau" : "Pokémon Blue";
     } else if (title.find("GREEN") != std::string::npos) {
+        info.kind = "green";
         info.label = "Pokémon Green";
     } else {
         size_t end = title.find_last_not_of(' ');
@@ -362,6 +364,34 @@ CartInfo InspectCart(const std::string& rom, const std::string& save) {
         }
     }
     return info;
+}
+
+// the cartridge's title Pokémon, decoded from the ROM (gb_cart_art.h); read again only when the file changes
+const Port::GbCartArt& CartArt(const std::string& rom) {
+    struct Entry {
+        uintmax_t size = 0;
+        fs::file_time_type time;
+        Port::GbCartArt art;
+    };
+    static std::vector<std::pair<std::string, Entry>> sCache; // one per player slot in practice
+    std::error_code ec;
+    const fs::path p = fs::u8path(rom);
+    const uintmax_t size = rom.empty() ? 0 : fs::file_size(p, ec);
+    const fs::file_time_type time = ec || rom.empty() ? fs::file_time_type() : fs::last_write_time(p, ec);
+    for (auto& [path, e] : sCache) {
+        if (path == rom) {
+            if (e.size != size || e.time != time) {
+                e = Entry{ size, time, {} };
+                if (size > 0 && size <= 8u << 20) Port::DecodeGbCartArt(ReadFile(rom), e.art);
+            }
+            return e.art;
+        }
+    }
+    if (sCache.size() >= 8) sCache.erase(sCache.begin());
+    Entry e{ size, time, {} };
+    if (size > 0 && size <= 8u << 20) Port::DecodeGbCartArt(ReadFile(rom), e.art);
+    sCache.emplace_back(rom, std::move(e));
+    return sCache.back().second.art;
 }
 
 std::string FileName(const std::string& path) {
@@ -694,7 +724,8 @@ void LoadFonts(const State& s) {
 }
 
 
-// cartridge and N64 pictures (tools/launcher/assets, packed into stadion.o2r)
+// the N64 and app pictures (tools/launcher/assets, packed into stadion.o2r); Game Boy cartridges are drawn by
+// Cartridge() from the ROM
 ImTextureID Picture(Fast::Fast3dGui* gui, const char* name) {
     if (gui == nullptr) {
         return nullptr;
@@ -1285,6 +1316,76 @@ class LauncherWindow : public Ship::GuiWindow {
                                              ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, (int)(alpha * 255)));
     }
 
+    // a Game Boy Game Pak drawn in code: the shell in the game's colour, and on the label the title Pokémon that
+    // gb_cart_art.cpp rebuilt from the ROM (no picture files: nothing of the games is bundled)
+    void Cartridge(const std::string& kind, const Port::GbCartArt* art, float x, float y, float w, float h, float alpha) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        const uint32_t shell = kind == "red" ? 0xC4323A : kind == "blue" ? 0x3456C0 : kind == "green" ? 0x3A9446
+                               : kind == "yellow" ? 0xEDC232 : 0x7B8089;
+        auto shade = [](uint32_t c, float f) {
+            auto ch = [&](int s) { return (uint32_t)std::min(255.0f, ((c >> s) & 0xFF) * f) << s; };
+            return ch(16) | ch(8) | ch(0);
+        };
+        const uint32_t dark = shade(shell, 0.72f), light = shade(shell, 1.18f);
+        // shell, with the Game Pak's cut top-right corner
+        const float cut = 12, r = 6;
+        dl->PathLineTo(P(x + r, y));
+        dl->PathLineTo(P(x + w - cut, y));
+        dl->PathLineTo(P(x + w, y + cut));
+        dl->PathArcTo(P(x + w - r, y + h - r), r * mScale, 0.0f, IM_PI * 0.5f);
+        dl->PathArcTo(P(x + r, y + h - r), r * mScale, IM_PI * 0.5f, IM_PI);
+        dl->PathArcTo(P(x + r, y + r), r * mScale, IM_PI, IM_PI * 1.5f);
+        dl->PathFillConvex(Hex(shell, alpha));
+        dl->PathLineTo(P(x + r, y));
+        dl->PathLineTo(P(x + w - cut, y));
+        dl->PathLineTo(P(x + w, y + cut));
+        dl->PathArcTo(P(x + w - r, y + h - r), r * mScale, 0.0f, IM_PI * 0.5f);
+        dl->PathArcTo(P(x + r, y + h - r), r * mScale, IM_PI * 0.5f, IM_PI);
+        dl->PathArcTo(P(x + r, y + r), r * mScale, IM_PI, IM_PI * 1.5f);
+        dl->PathStroke(Hex(dark, alpha), ImDrawFlags_Closed, 1.5f * mScale);
+        // grip: the recessed bar along the top and ridges down both sides
+        dl->AddRectFilled(P(x + 16, y + 7), P(x + w - 22, y + 19), Hex(dark, alpha), 6 * mScale);
+        dl->AddRectFilled(P(x + 17, y + 8), P(x + w - 23, y + 12), Hex(light, alpha * 0.35f), 4 * mScale);
+        for (int i = 0; i < 5; i++) {
+            const float ry = y + 9 + i * 4.0f;
+            dl->AddLine(P(x + 4, ry), P(x + 11, ry), Hex(dark, alpha), 1.5f * mScale);
+            dl->AddLine(P(x + w - 9, ry + 6), P(x + w - 3, ry + 6), Hex(dark, alpha), 1.5f * mScale);
+        }
+        // label recess, then the label: SGB colour 0 (white) behind the Pokémon, as on the title screen
+        const float lx = x + 10, ly = y + 25, lw = w - 20, lh = h - 46;
+        dl->AddRectFilled(P(lx - 2, ly - 2), P(lx + lw + 2, ly + lh + 2), Hex(dark, alpha), 4 * mScale);
+        const bool hasArt = art != nullptr && art->width > 0;
+        dl->AddRectFilled(P(lx, ly), P(lx + lw, ly + lh), Hex(hasArt ? art->rgb[0] : shade(shell, 0.88f), alpha),
+                          3 * mScale);
+        if (hasArt) {
+            // as large as fits; every edge snapped to the device pixel grid so the pixels stay sharp (whole device
+            // pixels per GB pixel when the window is large enough, else a nearest-neighbour look)
+            const float dens = mScale * mPixelDensity;
+            float n = std::min((lw - 6) / art->width, (lh - 6) / art->height) * dens; // device pixels per GB pixel
+            if (n >= 2) n = std::floor(n);
+            const float px = n / mPixelDensity; // one GB pixel in ImGui screen units
+            const ImVec2 o = P(lx + (lw - art->width * n / dens) / 2, ly + (lh - art->height * n / dens) / 2);
+            auto snap = [&](float v) { return std::round(v * mPixelDensity) / mPixelDensity; };
+            for (int yy = 0; yy < art->height; yy++) {
+                const uint8_t* row = &art->shade[(size_t)yy * art->width];
+                for (int xx = 0; xx < art->width;) {
+                    const uint8_t c = row[xx];
+                    int run = 1;
+                    while (xx + run < art->width && row[xx + run] == c) run++;
+                    if (c != 0) {
+                        dl->AddRectFilled(ImVec2(snap(o.x + xx * px), snap(o.y + yy * px)),
+                                          ImVec2(snap(o.x + (xx + run) * px), snap(o.y + (yy + 1) * px)),
+                                          Hex(art->rgb[c], alpha));
+                    }
+                    xx += run;
+                }
+            }
+        }
+        // the arrow pressed into the bottom of the shell
+        const float ax = x + w / 2, ay = y + h - 17;
+        dl->AddTriangleFilled(P(ax - 8, ay), P(ax + 8, ay), P(ax, ay + 8), Hex(dark, alpha));
+    }
+
     void PlayerCard(int i, float x, float y, float w, float h) {
         State& s = *mState;
         GbSlot& g = s.gb[i];
@@ -1303,8 +1404,8 @@ class LauncherWindow : public Ship::GuiWindow {
         }
 
         CartInfo info = InspectCart(g.rom, GbSave(g));
-        const char* picture = g.rom.empty() ? "empty" : info.kind.empty() ? "empty" : info.kind.c_str();
-        Image(picture, x + (w - 128) / 2, y + 40, 128, 134, g.enabled || g.rom.empty() ? 1.0f : 0.45f);
+        Cartridge(g.rom.empty() ? "" : info.kind, g.rom.empty() ? nullptr : &CartArt(g.rom), x + (w - 128) / 2, y + 40,
+                  128, 134, g.enabled || g.rom.empty() ? 1.0f : 0.45f);
 
         if (g.rom.empty()) {
             if (Button("Load ROM", x + w / 2 - 45, y + 182, 90, 26)) {
