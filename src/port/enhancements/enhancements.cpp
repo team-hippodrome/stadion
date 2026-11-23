@@ -291,6 +291,7 @@ PortEnhBattleView gView;
 std::chrono::steady_clock::time_point gViewTime;
 bool gViewSet = false;
 std::map<uint32_t, std::vector<uint8_t>> gIcons; // never erased: the pointers handed out stay valid
+std::map<uint32_t, std::vector<uint8_t>> gPortraits; // (the same)
 
 } // namespace
 
@@ -344,6 +345,24 @@ extern "C" void Port_Enh_SetCardIcon(uint32_t key, const uint8_t* rgba) {
     if (gIcons.count(key) == 0) {
         gIcons[key].assign(rgba, rgba + PORT_ENH_ICON * PORT_ENH_ICON * 4);
     }
+}
+
+extern "C" int Port_Enh_HasPortrait(uint32_t index) {
+    std::lock_guard<std::mutex> lock(gViewMutex);
+    return gPortraits.count(index) != 0;
+}
+
+extern "C" void Port_Enh_SetPortrait(uint32_t index, const uint8_t* rgba) {
+    std::lock_guard<std::mutex> lock(gViewMutex);
+    if (gPortraits.count(index) == 0) {
+        gPortraits[index].assign(rgba, rgba + PORT_ENH_PORTRAIT * PORT_ENH_PORTRAIT * 4);
+    }
+}
+
+extern "C" const uint8_t* Port_Enh_Portrait(uint32_t index) {
+    std::lock_guard<std::mutex> lock(gViewMutex);
+    auto it = gPortraits.find(index);
+    return it == gPortraits.end() ? nullptr : it->second.data();
 }
 
 extern "C" const uint8_t* Port_Enh_CardIcon(uint32_t key) {

@@ -1,7 +1,7 @@
 // The trainer memory screen's window (memory_screen.c keeps its state and publishes what it shows): drawn by ImGui over
 // the team select screen, in the game's own 640 x 480 stage coordinates scaled to the picture. Closed, only a hint
 // shows in the bottom right corner; open, a window lists the trainers on the left and the highlighted one's team on
-// the right: each Pokémon's icon, name, level, speed estimate and the moves seen. It expands from its middle, then its
+// the right: its portrait, then each Pokémon's icon, name, level, speed estimate and the moves seen. It expands from its middle, then its
 // contents fade in (hu_window_anim, as the game's windows do).
 #include "enhancements.h"
 #include "overlay.h"
@@ -121,10 +121,20 @@ class MemoryScreenWindow : public Ship::GuiWindow {
         // the highlighted trainer's team
         const float x = kWinX + kListW + 30.0f, w = kWinX + kWinW - 12.0f - x;
         float y = listY;
-        if (v.cursor >= 0 && v.cursor < PORT_MEM_ROWS && v.reached[v.cursor]) {
-            Txt(x, y, 18.0f, w, v.rowNames[v.cursor], Col(0xFF, 0xFF, 0xFF, 0xFF));
+        // the trainer's portrait (the VS screen's, once met), its name beside it
+        ImTextureID portrait = PortOverlay::PortraitTexture(v.portrait);
+        const float pic = 52.0f;
+        if (portrait != nullptr) {
+            Rect(x, y, pic, pic, Col(0x30, 0x3C, 0x60, 0xFF), 6.0f);
+            mDl->AddImageRounded(portrait, P(x, y), P(x + pic, y + pic), ImVec2(0, 0), ImVec2(1, 1),
+                                 Col(0xFF, 0xFF, 0xFF, 0xFF), 6.0f * mScale);
         }
-        y += 30.0f;
+        if (v.cursor >= 0 && v.cursor < PORT_MEM_ROWS && v.reached[v.cursor]) {
+            const float nx = portrait != nullptr ? x + pic + 12.0f : x;
+            Txt(nx, portrait != nullptr ? y + (pic - 18.0f) / 2 : y, 18.0f, x + w - nx, v.rowNames[v.cursor],
+                Col(0xFF, 0xFF, 0xFF, 0xFF));
+        }
+        y += portrait != nullptr ? pic + 8.0f : 30.0f;
         if (v.teamCount == 0) {
             Txt(x, y, 14.0f, w, Str("PORT_MEMORY_TEAM_UNKNOWN"), Col(0xA0, 0xA0, 0xA0, 0xFF));
             return;

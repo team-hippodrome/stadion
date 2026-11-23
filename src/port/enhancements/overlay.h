@@ -14,6 +14,7 @@ ImFont* CardFont(float pixels); // launcher.cpp
 namespace PortOverlay {
 // A card icon's texture (Port_Enh_CardIcon), uploaded on first use; nullptr if there is none.
 ImTextureID IconTexture(uint32_t key);
+ImTextureID PortraitTexture(int32_t index); // a trainer portrait (Port_Enh_Portrait), nullptr if none
 ImU32 Rgba(int r, int g, int b, int a);
 // A port string as UTF-8 (port.csv; the text language's, else English).
 const char* Str(const char* id);

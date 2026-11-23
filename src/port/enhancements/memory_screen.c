@@ -42,6 +42,7 @@ static s32 sEntered; // the select screen is up and the keys below are its train
 static s32 sRows;
 static hu_tm_key sKeys[PORT_MEM_ROWS];
 static s32 sCursor;
+static s32 sPortrait[PORT_MEM_ROWS]; // each row's VS screen portrait, -1 none (not met)
 static hu_window_anim sAnim;
 
 static u8 HuType(u8 t) { // (as battle_enhancements.c's: Stadium's Gen 1 type ids -> the library's)
@@ -129,6 +130,7 @@ static void SwallowHeld(void) {
 // The screen starts: its trainers, and everything the window shows of them made ready now rather than on opening.
 static void Enter(void) {
     const hu_tm* tm = Port_Enh_Memory(); // (the file, read once)
+    u8 met[PORT_MEM_ROWS];
     s32 i, j;
     sEntered = 1;
     sCursor = 0;
@@ -138,10 +140,12 @@ static void Enter(void) {
     sRows = PortEnh_TmScreenKeys(sKeys, PORT_MEM_ROWS);
     for (i = 0; i < sRows; i++) {
         const hu_tm_trainer* t = hu_tm_find(tm, sKeys[i]);
+        met[i] = (t != NULL && (t->flags & HU_TM_REACHED)) ? 1 : 0;
         for (j = 0; t != NULL && j < t->team_count; j++) {
             PortEnh_SpeciesIcon(t->team[j].species);
         }
     }
+    PortEnh_TmLoadPortraits(sKeys, met, sRows, sPortrait); // (the met trainers' only, as the spec says)
     if (Port_Enh_Log()) {
         fprintf(stderr, "[enh] memory screen: mode %d division %d round2 %d, %d trainers\n", gSessionContext.mode,
                 gSessionContext.modeSelection, gSessionContext.inRound2, (int)sRows);
@@ -175,6 +179,7 @@ static void Publish(void) {
         }
     }
     t = hu_tm_find(tm, sKeys[sCursor]);
+    v.portrait = (v.reached[sCursor]) ? sPortrait[sCursor] : -1;
     Port_Enh_OpponentStatExp(&se_lo, &se_hi);
     v.teamCount = (t != NULL) ? t->team_count : 0;
     for (i = 0; i < v.teamCount; i++) {

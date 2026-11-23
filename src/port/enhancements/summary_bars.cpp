@@ -57,6 +57,26 @@ ImTextureID IconTexture(uint32_t key) {
     return tex;
 }
 
+static std::map<int32_t, ImTextureID> gPortraitTextures;
+
+ImTextureID PortraitTexture(int32_t index) {
+    if (index < 0) return nullptr;
+    auto it = gPortraitTextures.find(index);
+    if (it != gPortraitTextures.end()) return it->second;
+    const uint8_t* rgba = Port_Enh_Portrait((uint32_t)index);
+    auto window = Port::GetWindow();
+    auto interp = window ? window->GetInterpreterWeak().lock() : nullptr;
+    if (rgba == nullptr || !interp) return nullptr;
+    auto* api = interp->GetCurrentRenderingAPI();
+    const uint32_t id = api->NewTexture();
+    api->SelectTexture(0, id);
+    api->SetSamplerParameters(0, false, 0, 0);
+    api->UploadTexture(rgba, PORT_ENH_PORTRAIT, PORT_ENH_PORTRAIT);
+    ImTextureID tex = api->GetTextureById((int)id);
+    gPortraitTextures[index] = tex;
+    return tex;
+}
+
 ImU32 Rgba(int r, int g, int b, int a) {
     return IM_COL32(std::clamp(r, 0, 255), std::clamp(g, 0, 255), std::clamp(b, 0, 255), std::clamp(a, 0, 255));
 }

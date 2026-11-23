@@ -22,3 +22,6 @@ s32 PortEnh_TmKeyForSession(hu_tm_key* key);
 void PortEnh_TmTrainerLoaded(void);
 // The trainers the team select screen lists for the session's mode, division and round (at most `max`).
 s32 PortEnh_TmScreenKeys(hu_tm_key* keys, s32 max);
+// The VS screen portraits of the trainers of `keys` whose `want` is set, made ready for the memory screen
+// (Port_Enh_SetPortrait); out[i] the portrait's number, -1 none.
+void PortEnh_TmLoadPortraits(const hu_tm_key* keys, const u8* want, s32 n, s32* out);

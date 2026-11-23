@@ -91,6 +91,7 @@ typedef struct PortEnhMemoryView {
     char title[PORT_ENH_TEXT * 2];
     char rowNames[PORT_MEM_ROWS][PORT_ENH_TEXT * 2]; // a trainer's name once reached, else "Not met yet"
     uint8_t reached[PORT_MEM_ROWS];
+    int32_t portrait;  // the highlighted trainer's portrait (Port_Enh_Portrait), -1 none
     int32_t teamCount; // the highlighted trainer's Pokémon shown (0: its team is not known)
     PortEnhMemoryMon team[HU_TM_TEAM_MAX];
 } PortEnhMemoryView;
@@ -127,6 +128,13 @@ int Port_Enh_HasCardIcon(uint32_t key);
 void Port_Enh_SetCardIcon(uint32_t key, const uint8_t* rgba);
 // The picture for `key` (NULL if none), on the render thread.
 const uint8_t* Port_Enh_CardIcon(uint32_t key);
+
+// The trainers' portraits, as the VS screen shows them (the battle_portraits archive's picture of the trainer):
+// PORT_ENH_PORTRAIT x PORT_ENH_PORTRAIT RGBA8 pixels, kept under the archive's file number.
+#define PORT_ENH_PORTRAIT 56
+int Port_Enh_HasPortrait(uint32_t index);
+void Port_Enh_SetPortrait(uint32_t index, const uint8_t* rgba);
+const uint8_t* Port_Enh_Portrait(uint32_t index); // (render thread)
 
 // PORT_ENH_LOG=1: what the enhancements do, on stderr (tests).
 int Port_Enh_Log(void);

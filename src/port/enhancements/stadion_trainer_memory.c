@@ -14,6 +14,10 @@
 #include "global.h"
 #include "game_state.h"
 #include "variables.h"
+#include "sections.h"
+#include "versions.h"
+#include "src/jpeg_stream.h"
+#include "src/memory.h"
 
 #include "StadionPort.h"
 #include "enhancements.h"
@@ -123,4 +127,76 @@ s32 PortEnh_TmScreenKeys(hu_tm_key* keys, s32 max) {
             break;
     }
     return n;
+}
+
+// The trainers' portraits (the VS screen's: Team_LoadPresetTrainer puts the trainer record's picture number,
+// the high byte of its big-endian word at +0x34, in rosterInfo->unk_003, and the battle prep screen draws that file of
+// the battle_portraits archive). For the memory screen: the record of each trainer of `keys` whose `want` is set, then
+// its picture, copied out as RGBA8 (Port_Enh_SetPortrait); out[i] its number, -1 none. The archives and files only for
+// the copy: the pool goes back to where the screen left it.
+#define TRAINER_FILE_ROUND2 0x1F
+#define TRAINER_SLOT_BYTES 0x230 // PresetTrainerSlot (session.c)
+#define TRAINER_PICTURE_AT 0x38  // its PresetTrainer (at +4)'s word at +0x34
+#define PORTRAIT_W 64            // a 64-wide RGBA16 image; the picture is its 56 x 56 from (4, 4)
+
+static s32 TrainerFile(hu_tm_key k) {
+    s32 f;
+    switch (k.cup) {
+        case SESSION_MODE_NINTENDO_CUP_97: f = 6; break;
+        case SESSION_MODE_NINTENDO_CUP_98: f = 7; break;
+        case SESSION_MODE_NINTENDO_CUP_99: f = k.division + 8; break;
+        case SESSION_MODE_PETIT_CUP: f = 0; break;
+        case SESSION_MODE_PIKA_CUP: f = 1; break;
+        case SESSION_MODE_PRIME_CUP: f = k.division + 2; break;
+        case SESSION_MODE_GYM_LEADER_CASTLE: f = k.division + 0xC; break;
+        case SESSION_MODE_VS_MEWTWO: f = 0x16; break;
+        default: return -1;
+    }
+    return f + (k.round ? TRAINER_FILE_ROUND2 : 0);
+}
+
+void PortEnh_TmLoadPortraits(const hu_tm_key* keys, const u8* want, s32 n, s32* out) {
+    static u8 rgba[PORT_ENH_PORTRAIT * PORT_ENH_PORTRAIT * 4];
+    BinArchive* trainers;
+    BinArchive* pictures = NULL;
+    s32 i, x, y;
+
+    for (i = 0; i < n; i++) out[i] = -1;
+    main_pool_push_state('TMPT');
+    trainers = BinArchive_Open(TRAINER_DATA_ROM_START, NULL, 1, 0);
+    for (i = 0; trainers != NULL && i < n; i++) {
+        const u8* file;
+        s32 f = TrainerFile(keys[i]);
+        if (!want[i] || f < 0 || f >= trainers->num_files) continue;
+        file = (const u8*)BinArchive_GetFile(trainers, f);
+        if (file != NULL) {
+            out[i] = file[keys[i].trainer * TRAINER_SLOT_BYTES + TRAINER_PICTURE_AT];
+        }
+    }
+    for (i = 0; i < n; i++) {
+        const u8* img;
+        if (out[i] < 0 || Port_Enh_HasPortrait((uint32_t)out[i])) continue;
+        if (pictures == NULL) {
+            pictures = ASSET_LOAD2(battle_portraits, 1, 1);
+            if (pictures == NULL) break;
+        }
+        img = (out[i] < pictures->num_files) ? (const u8*)BinArchive_GetFile(pictures, out[i]) : NULL;
+        if (img == NULL) {
+            out[i] = -1;
+            continue;
+        }
+        for (y = 0; y < PORT_ENH_PORTRAIT; y++) {
+            for (x = 0; x < PORT_ENH_PORTRAIT; x++) {
+                const u8* p = img + ((y + 4) * PORTRAIT_W + (x + 4)) * 2;
+                u16 px = (u16)((p[0] << 8) | p[1]);
+                u8* o = &rgba[(y * PORT_ENH_PORTRAIT + x) * 4];
+                o[0] = (u8)(((px >> 11) & 0x1F) * 255 / 31);
+                o[1] = (u8)(((px >> 6) & 0x1F) * 255 / 31);
+                o[2] = (u8)(((px >> 1) & 0x1F) * 255 / 31);
+                o[3] = (px & 1) ? 0xFF : 0x00;
+            }
+        }
+        Port_Enh_SetPortrait((uint32_t)out[i], rgba);
+    }
+    main_pool_pop_state('TMPT');
 }
