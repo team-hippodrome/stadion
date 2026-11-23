@@ -657,14 +657,14 @@ void PortEnh_OrderSelectFrame(void) {
         none[s].obj = NULL;
         none[s].idleAnim = none[s].faintAnim = none[s].sleepAnim = -1;
     }
-    // (the screen's display list buffer is smaller than the battle's: the models only when there is room for them,
-    // otherwise their pictures keep the last frame's)
-    if (Gfx_GetDisplayListRemaining() >= 0x10000) {
-        PortEnh_CardModelsDraw(sSides, none);
-    } else {
-        EnhLog("order select: %d bytes of display list left, card models not drawn", Gfx_GetDisplayListRemaining());
-    }
+    PortEnh_CardModelsDraw(sSides, none); // (in the room PortEnh_OrderSelectDisplayListRoom adds; it checks per model)
     Publish();
+}
+
+// The screen's display list buffer is sized for the screen alone; the twelve card models take about 110 KB of it a
+// frame (6-12 KB each), so it gets that much more while the bars are on.
+u32 PortEnh_OrderSelectDisplayListRoom(void) {
+    return Port_Enh_SummaryBarsEnabled() ? 0x10000 : 0; // (Gfx_InitDisplayListBuffers' size: the buffers are twice it)
 }
 
 void PortEnh_OrderSelectEnd(void) {

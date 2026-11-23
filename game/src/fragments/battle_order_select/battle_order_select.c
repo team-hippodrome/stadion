@@ -1411,10 +1411,11 @@ s32 BattleMenu_RunOrderSelectScreen(s32 arg0, s32 arg1) {
 
     main_pool_push_state('MSEL');
 
+    // PORT: + room for the summary bars' card models (an enhancement, on by default)
 #if defined(VERSION_US_REV2)
-    Gfx_InitDisplayListBuffers(0x18000, 0);
+    Gfx_InitDisplayListBuffers(0x18000 + PortEnh_OrderSelectDisplayListRoom(), 0);
 #else
-    Gfx_InitDisplayListBuffers(0x10000, 0);
+    Gfx_InitDisplayListBuffers(0x10000 + PortEnh_OrderSelectDisplayListRoom(), 0);
 #endif
     stage_context = StageContext_Allocate(1, 1, 2, 0, 2, 1);
     Text_InitStringTables();

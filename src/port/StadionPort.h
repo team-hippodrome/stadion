@@ -297,6 +297,8 @@ void PortEnh_MoveStart(void);
 // image the screen tiles), so the bars there sit on the screen's own background; nothing at 4:3.
 void PortEnh_OrderSelectFrame(void);
 void PortEnh_OrderSelectEnd(void);
+// More room for its display list buffer (Gfx_InitDisplayListBuffers' size) for the bars' card models.
+uint32_t PortEnh_OrderSelectDisplayListRoom(void);
 void PortEnh_OrderSelectBackdrop(const void* image);
 // Hue choice (hue_picker.c). PortEnh_HueShift: the hue to build `mon`'s model and icon with, `game_shift` being the
 // game's own (Model_ComputeNicknameColorVariant); PortEnh_HueBypass(1) keeps the game's own for the calls until

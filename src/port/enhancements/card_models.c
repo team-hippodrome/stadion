@@ -22,6 +22,7 @@
 #include "src/geo_node.h"
 #include "src/geo_render.h"
 #include "src/gfx_rect.h"
+#include "src/gfx_buffer.h"
 #include "src/matrix.h"
 #include "src/memory.h"
 #include "src/model_animation.h"
@@ -34,6 +35,7 @@ void Port_VFree(void* host); // memmap.c: forgets a data blob's pseudo addresses
 
 #define CARD_MODEL_POOL (1536 * 1024)
 #define CARD_MODEL_SCRATCH 0x28000 // the compressed file (PokeIcon_OpenModelArchives' buffer size)
+#define CARD_MODEL_DL_ROOM 0x6000 // display list bytes kept free for one model (see PortEnh_CardModelsDraw)
 #define IDLE_ANIM 1                // the model previews' idle (PokeIcon_SetPreviewMon)
 
 typedef struct CardModel {
@@ -345,6 +347,11 @@ void PortEnh_CardModelsDraw(const hu_side sides[2], const PortEnhCardBattle batt
             GeoCamera_SetViewport((CameraNode*)c->root->children, i * PORT_ENH_CARD_CELL, 0, PORT_ENH_CARD_CELL,
                                   PORT_ENH_CARD_CELL);
             GeoCamera_SetPerspective((CameraNode*)c->root->children, 30.0f, 100.0f, 12800.0f);
+            // a model takes 6-12 KB of the frame's display list buffer (its commands and matrices): with less room
+            // left it is not drawn this frame (its cell keeps the last picture), rather than the matrices running out
+            if (Gfx_GetDisplayListRemaining() < CARD_MODEL_DL_ROOM) {
+                continue;
+            }
             Geo_RenderRootNode(c->root);
         }
         SetFramebuffer(0);
