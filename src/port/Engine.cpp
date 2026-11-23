@@ -244,8 +244,14 @@ bool Init() {
         cvars->SetInteger("gPort.Resolution.Height", 1080);
         cvars->SetInteger("gPort.Resolution.Upscale", kUpscaleSmooth);
         cvars->SetFloat("gInternalResolution", 1.0f);
+        const bool fresh = old >= 0.99f && cvars->GetInteger("gMSAAValue", 0) == 0 &&
+                           cvars->GetInteger("gPort.Interpolate", -1) < 0;
         if (cvars->GetInteger("gMSAAValue", 0) == 0) cvars->SetInteger("gMSAAValue", 4);
         if (cvars->GetInteger("gPort.Interpolate", -1) < 0) cvars->SetInteger("gPort.Interpolate", 1);
+        // a new configuration (none of the above was set): the launcher replaces these with the settings that suit
+        // this machine's graphics chip once it is up (launcher.cpp ApplyFirstRunGraphics). A game started without the
+        // launcher (a ROM on the command line: replays, tests) keeps these.
+        if (fresh) cvars->SetInteger("gPort.Graphics.TunePending", 1);
         cvars->Save();
     }
 #if !defined(__ANDROID__)

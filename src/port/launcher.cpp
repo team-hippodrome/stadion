@@ -17,6 +17,7 @@
 #include "launcher_files.h"
 #include "launcher_reliability.h"
 #include "language_prompt.h"
+#include "graphics_advisor.h"
 #include "port_platform.h"
 #include "Engine.h"
 #include "rom_check.h"
@@ -966,6 +967,32 @@ class LauncherWindow : public Ship::GuiWindow {
     void UpdateElement() override {
     }
 
+    // the Recommended settings for this machine, worked out again when the game window's size or shape changes
+    const Port::GraphicsPick& Recommended() {
+        if (!mGpuKnown) {
+            mGpu = Port::QueryGpuFacts();
+            mGpuKnown = true;
+        }
+        mPick = Port::RecommendedGraphics();
+        return mPick;
+    }
+    // A new configuration starts with the Recommended settings of this machine (Engine.cpp marks it): set them the
+    // first time the launcher is up, when the renderer can say which graphics chip it has.
+    void ApplyFirstRunGraphics() {
+        if (CVarGetInteger("gPort.Graphics.TunePending", 0) == 0) return;
+        CVarClear("gPort.Graphics.TunePending");
+        const Port::GraphicsPick& pick = Recommended();
+        SetResolution({ pick.resMode, pick.resValue });
+        SetUpscale(Port::kUpscaleSmooth);
+        SetMsaa(pick.msaa);
+        mState->smooth = pick.smooth;
+        mChanged = true;
+        SPDLOG_INFO("Graphics for this computer: {}", Port::DescribePick(mGpu, pick));
+        fprintf(stderr, "[graphics] for this computer: %s (graphics memory %.1f GB, system %.1f GB)\n",
+                Port::DescribePick(mGpu, pick).c_str(), mGpu.memoryBytes / 1073741824.0, mGpu.systemRamBytes / 1073741824.0);
+        CVarSave();
+    }
+
     void DrawElement() override {
         State& s = *mState;
         if (mPromptStep != kPromptNone) {
@@ -973,6 +1000,7 @@ class LauncherWindow : public Ship::GuiWindow {
             return;
         }
         mChanged = ApplyPick();
+        ApplyFirstRunGraphics();
         if (Handheld()) {
             DrawHandheld();
             if (mChanged) {
@@ -1695,8 +1723,13 @@ class LauncherWindow : public Ship::GuiWindow {
             if (c >= 0) CVarSetInteger("gPort.FrameSkip", c == 0 ? 1 : 0);
         }
 
-        // presets: lit when the settings match one (Display is not part of them)
-        const bool recommended = r.mode == Port::kResWindow && msaa == 4 && vsync && s.smooth && skip;
+        // presets: lit when the settings match one (Display is not part of them). Recommended is picked for this
+        // machine's graphics chip and the game window's size (graphics_advisor.h).
+        const Port::GraphicsPick& pick = Recommended();
+        const bool pickedRes = r.mode == pick.resMode && (pick.resMode == Port::kResWindow ||
+                                                          (pick.resMode == Port::kResN64 && r.multiple == pick.resValue) ||
+                                                          (pick.resMode == Port::kResHeight && r.height == pick.resValue));
+        const bool recommended = pickedRes && msaa == pick.msaa && vsync && s.smooth == pick.smooth && skip;
         const bool lowPower = r.mode == Port::kResN64 && r.multiple == 2 && r.upscale == Port::kUpscaleSmooth &&
                               msaa == 1 && vsync && !s.smooth && skip;
         auto apply = [&](const ResEntry& e, int msaaLevel, bool smooth) {
@@ -1714,10 +1747,11 @@ class LauncherWindow : public Ship::GuiWindow {
         const uint32_t lit = 0x23406B;
         if (ColorButton("Recommended", lx + 66, by, 120, 28, recommended ? lit : Theme::button,
                         recommended ? lit : Theme::buttonHover)) {
-            apply({ Port::kResWindow, 0 }, 4, true);
+            apply({ pick.resMode, pick.resValue }, pick.msaa, pick.smooth);
         }
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Match window, 4x anti-aliasing, VSync, Smooth motion and Keep full speed on.");
+            ImGui::SetTooltip("Picked for this computer: %s.\nVSync and Keep full speed on.",
+                              Port::DescribePick(mGpu, pick).c_str());
         }
         if (ColorButton("Low-power", lx + 192, by, 110, 28, lowPower ? lit : Theme::button,
                         lowPower ? lit : Theme::buttonHover)) {
@@ -2213,6 +2247,9 @@ class LauncherWindow : public Ship::GuiWindow {
     std::shared_ptr<Ship::Window> mWindow;
     bool mControls = false; // the controls panel instead of the player cards
     bool mGraphics = false; // the graphics panel instead of the player cards
+    Port::GpuFacts mGpu;     // the graphics chip (Recommended)
+    bool mGpuKnown = false;
+    Port::GraphicsPick mPick;
     bool mSound = false;    // the sound panel instead of the player cards
     bool mSoundTestOpened = false;
     bool mGraphicsTestOpened = false;
