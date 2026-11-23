@@ -55,6 +55,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#if defined(__ANDROID__)
+#include <jni.h>
+#endif
 #include <fstream>
 #include <mutex>
 #include <string>
@@ -411,6 +414,32 @@ std::string gPickExportSource;
 // Android's file picker returns content:// URIs, which the game's file functions cannot open: copy the picked file into
 // the app's files (a separate imported/pick-N/<name> for each selection) and use that. The name comes from the URI's last part, e.g.
 // ".../document/primary%3ADownload%2FPokemon%20Stadium.z64" -> "Pokemon Stadium.z64".
+// the picked file's name as the file picker shows it (StadionActivity.displayName); "" if Android does not say
+std::string ContentDisplayName(const std::string& uri) {
+    auto* env = static_cast<JNIEnv*>(SDL_GetAndroidJNIEnv());
+    auto activity = static_cast<jobject>(SDL_GetAndroidActivity());
+    if (env == nullptr || activity == nullptr) return "";
+    std::string name;
+    jclass cls = env->GetObjectClass(activity);
+    jmethodID method = env->GetMethodID(cls, "displayName", "(Ljava/lang/String;)Ljava/lang/String;");
+    if (method != nullptr) {
+        jstring juri = env->NewStringUTF(uri.c_str());
+        auto result = static_cast<jstring>(env->CallObjectMethod(activity, method, juri));
+        if (result != nullptr) {
+            if (const char* chars = env->GetStringUTFChars(result, nullptr)) {
+                name = chars;
+                env->ReleaseStringUTFChars(result, chars);
+            }
+            env->DeleteLocalRef(result);
+        }
+        env->DeleteLocalRef(juri);
+    }
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    env->DeleteLocalRef(cls);
+    env->DeleteLocalRef(activity);
+    return name.find('/') == std::string::npos ? name : "";
+}
+
 std::string ImportPicked(const std::string& uri, std::string& error) {
     if (uri.rfind("content://", 0) != 0) {
         return uri;
@@ -424,7 +453,9 @@ std::string ImportPicked(const std::string& uri, std::string& error) {
             decoded += uri[i];
         }
     }
-    std::string name = decoded.substr(decoded.find_last_of("/:") + 1);
+    // the link's last part, unless Android knows the name (the Downloads folder's links end in a number)
+    std::string name = ContentDisplayName(uri);
+    if (name.empty()) name = decoded.substr(decoded.find_last_of("/:") + 1);
     if (name.empty() || name == "." || name == "..") name = "picked";
     std::error_code ec;
     const auto root = fs::u8path(Ship::Context::GetPathRelativeToAppDirectory("imported"));
@@ -950,6 +981,25 @@ class LauncherWindow : public Ship::GuiWindow {
     }
 
     void Draw() override {
+        // The launcher does its own scaling (mScale, the font sets). libultraship doubles ImGui's sizes and fonts on
+        // Android for its own menus (Gui.cpp: ScaleAllSizes(2), FontGlobalScale = 2); on top of mScale that drew every
+        // label twice too large for its button. Undo it for the launcher's frame and put it back after.
+        ImGuiIO& io = ImGui::GetIO();
+        ImGuiStyle& style = ImGui::GetStyle();
+        const float globalScale = io.FontGlobalScale;
+        const ImGuiStyle savedStyle = style;
+        if (globalScale != 1.0f) {
+            style.ScaleAllSizes(1.0f / globalScale);
+            io.FontGlobalScale = 1.0f;
+        }
+        DrawLauncher();
+        if (globalScale != 1.0f) {
+            io.FontGlobalScale = globalScale;
+            style = savedStyle;
+        }
+    }
+
+    void DrawLauncher() {
         ImGuiViewport* vp = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(vp->Pos);
         ImGui::SetNextWindowSize(vp->Size);
@@ -1257,6 +1307,11 @@ class LauncherWindow : public Ship::GuiWindow {
             ImGui::TextWrapped("Five previous session saves are kept in <save>.backups. Exports are under exports/; reports under diagnostics/.");
             if (!mToolsStatus.empty()) ImGui::TextWrapped("%s", mToolsStatus.c_str());
             if (ToolAction("Back to players")) { mTools = false; if (Handheld()) GoToPage(kPageHome); }
+            // a finger drags the list (ImGui scrolls only with a wheel or the scrollbar)
+            if (Handheld() && ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) &&
+                ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+                ImGui::SetScrollY(ImGui::GetScrollY() - ImGui::GetIO().MouseDelta.y);
+            }
 
         ImGui::SetWindowFontScale(1.0f);
         ImGui::EndChild();
