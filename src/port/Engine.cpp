@@ -197,6 +197,10 @@ bool Init() {
     auto cvars = std::make_shared<Ship::ConsoleVariable>(config);
     sContext->GetChildren().Add(cvars);
     CVarSetConsoleVariable(cvars);
+    // First, before anything below sets values for this run only: dropping the old controller block reloads every
+    // variable from the file (ConsoleVariable::ClearBlock), which lost them. On a first run (no ControlsVersion yet)
+    // multi-viewports came back on, and the Metal backend crashed creating an OS window for the launcher's tooltip.
+    MigrateControls(cvars);
     if (getenv("PORT_SAFE_MODE") != nullptr) {
 #ifdef __APPLE__
         config->SetInt("Window.Backend.Id", Fast::FAST3D_SDL_METAL);
@@ -240,8 +244,14 @@ bool Init() {
         cvars->SetInteger("gPort.Resolution.Height", 1080);
         cvars->SetInteger("gPort.Resolution.Upscale", kUpscaleSmooth);
         cvars->SetFloat("gInternalResolution", 1.0f);
+        const bool fresh = old >= 0.99f && cvars->GetInteger("gMSAAValue", 0) == 0 &&
+                           cvars->GetInteger("gPort.Interpolate", -1) < 0;
         if (cvars->GetInteger("gMSAAValue", 0) == 0) cvars->SetInteger("gMSAAValue", 4);
         if (cvars->GetInteger("gPort.Interpolate", -1) < 0) cvars->SetInteger("gPort.Interpolate", 1);
+        // a new configuration (none of the above was set): the launcher replaces these with the settings that suit
+        // this machine's graphics chip once it is up (launcher.cpp ApplyFirstRunGraphics). A game started without the
+        // launcher (a ROM on the command line: replays, tests) keeps these.
+        if (fresh) cvars->SetInteger("gPort.Graphics.TunePending", 1);
         cvars->Save();
     }
 #if !defined(__ANDROID__)
@@ -268,7 +278,6 @@ bool Init() {
     sContext->GetChildren().Add(resourceManager);
     ResourceSetResourceManager(resourceManager);
 
-    MigrateControls(cvars);
     ApplyAspect();
     ApplySoundSettings();
     auto controlDeck = std::make_shared<LUS::ControlDeck>(std::vector<CONTROLLERBUTTONS_T>(), DefaultMappings(),
@@ -630,23 +639,47 @@ void SaveScreen(const char* path) {
     }
 }
 
-// Shows the presented-frame rate in the window title (updated twice a second).
+// Shows the presented-frame rate in the window title (updated about twice a second). Stretches in which the game
+// submits no display list at all (loading the next scene: the intro's black screens and its still title, about
+// 0.1-0.4 s each) are left out: the screen holds its picture there as on the N64, and the port is not behind, but the
+// rate dipped to 40-50 FPS for no visible reason. A gap with display lists the port did not draw (frame skipping on a
+// slow host) still counts, as does a slow picture (few retraces, much time).
 static void UpdateFpsTitle() {
-    static auto last = std::chrono::steady_clock::now();
+    using Clock = std::chrono::steady_clock;
+    static auto prev = Clock::now();
+    static uint64_t prevTick = Port_ViTick(), prevSubmitted = Port_GameFramesSubmitted();
+    static double active = 0.0, wall = 0.0;
     static int frames = 0;
+    const auto now = Clock::now();
+    const uint64_t tick = Port_ViTick(), submitted = Port_GameFramesSubmitted();
+    const double interval = std::chrono::duration<double>(now - prev).count();
+    // held: more than 4 retraces since the last picture, and no display list but the one drawn now
+    const bool held = tick - prevTick > 4 && submitted - prevSubmitted <= 1;
+    static const bool sTraceGaps = getenv("PORT_TRACE_FPS") != nullptr;
+    if (sTraceGaps && interval > 0.040)
+        fprintf(stderr, "[fps] gap at frame %llu: %.0f ms, %llu retraces, %llu display lists: %s\n", (unsigned long long)tick,
+                interval * 1000, (unsigned long long)(tick - prevTick), (unsigned long long)(submitted - prevSubmitted),
+                held ? "held (left out)" : "counted");
+    prev = now;
+    prevTick = tick;
+    prevSubmitted = submitted;
     frames++;
-    auto now = std::chrono::steady_clock::now();
-    double dt = std::chrono::duration<double>(now - last).count();
-    if (dt < 0.5) return;
+    wall += interval;
+    if (!held) active += interval;
+    if (active < 0.5) return;
     char title[96];
-    snprintf(title, sizeof title, "stadion - %.1f FPS", frames / dt);
+    snprintf(title, sizeof title, "stadion - %.1f FPS", frames / active);
+    static const bool sTrace = getenv("PORT_TRACE_FPS") != nullptr; // the title's value next to the plain rate
+    if (sTrace) fprintf(stderr, "[fps] frame %llu: title %.1f FPS (pictures per wall-clock second %.1f)\n",
+                        (unsigned long long)tick, frames / active, frames / wall);
     int count = 0;
     if (SDL_Window** ws = SDL_GetWindows(&count)) {
         for (int i = 0; i < count; i++) SDL_SetWindowTitle(ws[i], title);
         SDL_free(ws);
     }
     frames = 0;
-    last = now;
+    active = 0.0;
+    wall = 0.0;
 }
 
 // A frame that is not drawn still updates the RSP's persistent segment table, as on the N64; later frames rely on it.

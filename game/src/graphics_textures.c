@@ -490,6 +490,18 @@ s32 Font_GetSetInfo(s32 arg0, FontSet* arg1) {
     return var_v1;
 }
 
+/* PORT: the second texture two-cycle text blends with (Font_EnableTwoCycleTexturing), loaded once per string. */
+static void Font_LoadAuxTexture(FontSet* character) {
+    if ((gFontContext->flags & 1) && !(gFontContext->flags & 2)) {
+        gFontContext->flags |= 2;
+
+        gDPLoadMultiBlock(gDisplayListHead++,
+                          (uintptr_t)character->texture + (character->width * 0x90 * character->height), 0x0100, 1,
+                          G_IM_FMT_I, G_IM_SIZ_8b, character->width, character->height, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+                          G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+    }
+}
+
 s16 Font_DrawChar(s16 x, s16 y, s16 char_index) {
     FontSet* character;
     s32 sp88;
@@ -516,14 +528,7 @@ s16 Font_DrawChar(s16 x, s16 y, s16 char_index) {
         }
     }
 
-    if ((gFontContext->flags & 1) && !(gFontContext->flags & 2)) {
-        gFontContext->flags |= 2;
-
-        gDPLoadMultiBlock(gDisplayListHead++,
-                          (uintptr_t)character->texture + (character->width * 0x90 * character->height), 0x0100, 1,
-                          G_IM_FMT_I, G_IM_SIZ_8b, character->width, character->height, 0, G_TX_NOMIRROR | G_TX_CLAMP,
-                          G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
-    }
+    Font_LoadAuxTexture(character);
 
     if (character->texture + sp88 != gFontContext->unk_4C) {
         gFontContext->unk_4C = character->texture + sp88;
@@ -545,6 +550,63 @@ s16 Font_DrawChar(s16 x, s16 y, s16 char_index) {
     return x;
 }
 
+s32 Font_NextCode(const u8** text) {
+    s32 chr = *(*text)++;
+
+    while (chr >= PORT_TEXT_WIDE_FIRST && chr <= PORT_TEXT_WIDE_LAST) {
+        s32 trail = **text;
+
+        if (trail >= 0x80) {
+            (*text)++;
+            return FONT_WIDE_CODE | (((chr - PORT_TEXT_WIDE_FIRST) << 7) | (trail & 0x7F));
+        }
+        chr = *(*text)++; // a lead byte cut from its trail (a string shortened to fit a buffer): nothing to draw
+    }
+    return chr;
+}
+
+s32 Font_CodeAdvance(FontSet* font_set, s32 set_index, s32 code) {
+    if (code & FONT_WIDE_CODE) {
+        PortTextGlyph glyph;
+
+        if (!Port_TextGlyph(code & 0xFFFF, font_set->height, &glyph)) {
+            return 0;
+        }
+        return glyph.advance;
+    }
+    return Font_GetGlyphAdvance(font_set, code & 0xFF);
+}
+
+s16 Font_DrawCode(s16 x, s16 y, s32 code) {
+    FontSet* character;
+    PortTextGlyph glyph;
+
+    if (!(code & FONT_WIDE_CODE)) {
+        return Font_DrawChar(x, y, code & 0xFF);
+    }
+    character = &gFontContext->unk_00[gFontContext->setIndex];
+    if (!Port_TextGlyph(code & 0xFFFF, character->height, &glyph)) {
+        return x;
+    }
+    Font_LoadAuxTexture(character);
+    if ((u8*)glyph.tex != gFontContext->unk_4C) {
+        gFontContext->unk_4C = (u8*)glyph.tex;
+
+        gDPLoadTextureBlock(gDisplayListHead++, (uintptr_t)glyph.tex, G_IM_FMT_IA, G_IM_SIZ_8b, glyph.tex_width,
+                            glyph.height, 0, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK,
+                            G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+    }
+    Gfx_DrawTexturedRectClipped(x, y, glyph.draw_width, glyph.height, 0, 0, 0x400, 0x400, 0);
+
+    x += glyph.advance + gFontContext->letterSpacing;
+    if (gFontContext->setIndex >= 2) {
+        x -= 2;
+    } else {
+        x -= 1;
+    }
+    return x;
+}
+
 char* String_CopyBytesAndAdvance(char* buffer, const char* data, size_t size) {
     return (char*)memcpy(buffer, data, size) + size;
 }
@@ -555,8 +617,6 @@ void Font_Printf(s32 x, s32 y, const char* fmt, ...) {
     s32 var_s1 = x - 1;
     s32 temp_v0;
     s32 var_v0;
-    char* var_s0;
-    s16 chr;
 
     va_list args;
     va_start(args, fmt);
@@ -564,25 +624,22 @@ void Font_Printf(s32 x, s32 y, const char* fmt, ...) {
     temp_v0 = _Printf(String_CopyBytesAndAdvance, sp50, fmt, args);
 
     if (temp_v0 > 0) {
-        sp50[temp_v0] = 0;
-        chr = *sp50;
-        var_s0 = &sp50[1];
+        const u8* text = (const u8*)sp50; // PORT: by character (Font_NextCode), translated text's included
+        s32 code;
 
-        while (chr != 0) {
+        sp50[temp_v0] = 0;
+        while ((code = Font_NextCode(&text)) != 0) {
             var_v0 = 1;
 
-            if (!(gFontContext->flags & 4) && (chr == 0xA)) {
+            if (!(gFontContext->flags & 4) && (code == 0xA)) {
                 var_s1 = temp_s5;
                 var_v0 = 0;
                 y += gFontContext->lineHeight;
             }
 
             if (var_v0 != 0) {
-                var_s1 = Font_DrawChar(var_s1, y, chr & 0xFF);
+                var_s1 = Font_DrawCode(var_s1, y, code);
             }
-
-            chr = *var_s0;
-            var_s0++;
         }
     }
 
@@ -652,7 +709,6 @@ s32 Font_MeasureTextExtent(s32 x, s32 y, const char* fmt, ...) {
     char sp5C[0x100];
     s32 var_a0;
     s32 chr;
-    u8* var_s1;
     FontSet* temp_s4;
 
     va_list args;
@@ -670,16 +726,14 @@ s32 Font_MeasureTextExtent(s32 x, s32 y, const char* fmt, ...) {
         temp_s0 = 0;
         temp_v0 = _Printf(String_CopyBytesAndAdvance, sp5C, fmt, args);
         if (temp_v0 > 0) {
+            const u8* text = (const u8*)sp5C; // PORT: by character (Font_NextCode)
+
             sp5C[temp_v0] = 0;
-
-            chr = *sp5C;
-            var_s1 = &sp5C[1];
-
-            while (chr != 0) {
+            while ((chr = Font_NextCode(&text)) != 0) {
                 if (chr == 0xA) {
                     temp_s0 = 0;
                 } else {
-                    temp_s0 += Font_GetGlyphAdvance(temp_s4, chr & 0xFF) + y;
+                    temp_s0 += Font_CodeAdvance(temp_s4, var_a0, chr) + y;
                     if (var_a0 >= 2) {
                         temp_s0 -= 2;
                     } else {
@@ -690,9 +744,6 @@ s32 Font_MeasureTextExtent(s32 x, s32 y, const char* fmt, ...) {
                 if (var_s2 < temp_s0) {
                     var_s2 = temp_s0;
                 }
-
-                chr = *var_s1;
-                var_s1++;
             }
         }
     }

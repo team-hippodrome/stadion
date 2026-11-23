@@ -1,4 +1,5 @@
 #include "options.h"
+#include "StadionPort.h"
 #include "src/graphics_textures.h"
 #include "src/ui_graphics.h"
 #include "src/save_data.h"
@@ -15,6 +16,13 @@
 static char** sOptionsText;
 static s16 sSelectedOption;
 static u16 sPendingSoundSettings;
+// PORT: the text-language row (src/port/text_lookup.cpp) between VOICE and DELETE SAVED DATA, so the rows are
+// SOUND, VOICE, LANGUAGE, DELETE SAVED DATA, QUIT; the choice applies on QUIT like the sound settings.
+#define OPTIONS_ROW_LANGUAGE 2
+#define OPTIONS_ROW_DELETE 3
+#define OPTIONS_ROW_QUIT 4
+#define OPTIONS_ROW_COUNT 5
+static s32 sPendingTextLanguage;
 
 /* Tiles the options background with the menu's intensity texture and colors. */
 void Options_DrawBackground(void) {
@@ -72,8 +80,8 @@ void Options_DrawMainPanel(s16 opening_progress, s32 show_cursor) {
     // FAKE: unused stack slot retained for matching.
     UNUSED s32 pad;
     s32 text_blue;
-    s16 height = (opening_progress * 22) + 10;
-    s16 y = ((186 - height) / 2) + 229;
+    s16 height = (opening_progress * 26) + 10; // PORT: one row taller (was * 22, 186 open, centred at 322)
+    s16 y = ((218 - height) / 2) + 213;
 
     if (opening_progress > 0) {
         Ui_DrawBorderedPanelNoFill(137, y, 366, height);
@@ -82,7 +90,7 @@ void Options_DrawMainPanel(s16 opening_progress, s32 show_cursor) {
             char* text;
 
             Options_DrawFilledPanel(144, y + 7, 352, 0x20, 0x3C, 0x3C, 0xA0, 0xFF); // #3C3CA0
-            Options_DrawFilledPanel(144, y + 39, 352, 140, 0x1E, 0x1E, 0x64, 0xFF); // #1E1E64
+            Options_DrawFilledPanel(144, y + 39, 352, 172, 0x1E, 0x1E, 0x64, 0xFF); // #1E1E64 (PORT: was 140)
 
             if (show_cursor != 0) {
                 Ui_DrawAnimatedTextureMarker(149, y + (sSelectedOption * 32) + 49);
@@ -92,6 +100,7 @@ void Options_DrawMainPanel(s16 opening_progress, s32 show_cursor) {
 
             Options_DrawValueCapsule(360, y + 48);
             Options_DrawValueCapsule(360, y + 80);
+            Options_DrawValueCapsule(360, y + 112);
 
             gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 
@@ -122,23 +131,34 @@ void Options_DrawMainPanel(s16 opening_progress, s32 show_cursor) {
             text = Text_GetString(NULL, 0, sOptionsText, ((sPendingSoundSettings & 0x2) != 0) + 2);
             Font_Printf(420 - (Font_MeasureTextExtent(0x10, 0, text) / 2), y + 81, text);
 
-            if (sSelectedOption == 2) {
+            if (sSelectedOption == OPTIONS_ROW_LANGUAGE) {
                 text_blue = 0;
             } else {
                 text_blue = 0xFF;
             }
 
             Gfx_SetEnvColor(0xFF, 0xFF, text_blue, 0xFF);
-            Font_Printf(187, y + 113, Text_GetString(NULL, 0, sOptionsText, 7));
+            Font_Printf(187, y + 113, "%s", Port_TextLanguageLabel());
+            text = (char*)Port_TextLanguageName(sPendingTextLanguage);
+            Font_Printf(420 - (Font_MeasureTextExtent(0x10, 0, "%s", text) / 2), y + 113, "%s", text);
 
-            if (sSelectedOption == 3) {
+            if (sSelectedOption == OPTIONS_ROW_DELETE) {
                 text_blue = 0;
             } else {
                 text_blue = 0xFF;
             }
 
             Gfx_SetEnvColor(0xFF, 0xFF, text_blue, 0xFF);
-            Font_Printf(187, y + 145, Text_GetString(NULL, 0, sOptionsText, 8));
+            Font_Printf(187, y + 145, Text_GetString(NULL, 0, sOptionsText, 7));
+
+            if (sSelectedOption == OPTIONS_ROW_QUIT) {
+                text_blue = 0;
+            } else {
+                text_blue = 0xFF;
+            }
+
+            Gfx_SetEnvColor(0xFF, 0xFF, text_blue, 0xFF);
+            Font_Printf(187, y + 177, Text_GetString(NULL, 0, sOptionsText, 8));
             Font_EndTexturedTextRendering();
         }
     }
@@ -361,7 +381,12 @@ s16 Options_HandleSelection(void) {
             sPendingSoundSettings ^= 0x2;
             break;
 
-        case 2:
+        case OPTIONS_ROW_LANGUAGE:
+            Audio_PlaySoundEffectById(SFX_MENU_CONFIRM);
+            sPendingTextLanguage = (sPendingTextLanguage + 1) % Port_TextLanguageCount();
+            break;
+
+        case OPTIONS_ROW_DELETE:
             Audio_PlaySoundEffectById(SFX_MENU_CONFIRM);
             if ((Options_ConfirmSaveErasure(0) != 0) && (Options_ConfirmSaveErasure(1) != 0)) {
                 Options_EraseSaveData();
@@ -369,9 +394,12 @@ s16 Options_HandleSelection(void) {
             }
             break;
 
-        case 3:
+        case OPTIONS_ROW_QUIT:
             Audio_PlaySoundEffectById(29);
             Options_ApplySoundSettings(sPendingSoundSettings);
+            if (sPendingTextLanguage != Port_TextLanguageChoice()) {
+                Port_TextLanguageSet(sPendingTextLanguage);
+            }
             should_exit = 1;
             break;
     }
@@ -398,10 +426,18 @@ void Options_RunMenu(void) {
     while (exit_reason == 0) {
         Controller_PollInputs();
         if (BTN_IS_PRESSED(gPlayer1Controller, BTN_DUP)) {
-            sSelectedOption = (sSelectedOption + 3) % 4;
+            sSelectedOption = (sSelectedOption + OPTIONS_ROW_COUNT - 1) % OPTIONS_ROW_COUNT;
             Audio_PlaySoundEffectById(SFX_MENU_SCROLL);
         } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_DDOWN)) {
-            sSelectedOption = (sSelectedOption + 1) % 4;
+            sSelectedOption = (sSelectedOption + 1) % OPTIONS_ROW_COUNT;
+            Audio_PlaySoundEffectById(SFX_MENU_SCROLL);
+        } else if ((sSelectedOption == OPTIONS_ROW_LANGUAGE) &&
+                   (BTN_IS_PRESSED(gPlayer1Controller, BTN_DLEFT) || BTN_IS_PRESSED(gPlayer1Controller, BTN_DRIGHT))) {
+            // PORT: left and right step through the languages too
+            s32 count = Port_TextLanguageCount();
+
+            sPendingTextLanguage = (sPendingTextLanguage + (BTN_IS_PRESSED(gPlayer1Controller, BTN_DLEFT) ? count - 1 : 1)) %
+                                   count;
             Audio_PlaySoundEffectById(SFX_MENU_SCROLL);
         } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_A)) {
             exit_reason = Options_HandleSelection();
@@ -444,6 +480,7 @@ s32 Options_Main(UNUSED s32 arg0, UNUSED s32 arg1) {
     sOptionsText = Text_GetStringTable(21);
     Save_EnsureAllBanksLoaded();
     Save_GetOptionsField02(&sPendingSoundSettings);
+    sPendingTextLanguage = Port_TextLanguageChoice();
     sSelectedOption = 0;
     StageContext_Activate(stage);
     Options_RunMenu();

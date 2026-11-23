@@ -4,6 +4,7 @@
 #include "pacing.h"
 #include <algorithm>
 #include "port_platform.h"
+#include "graphics_advisor.h"
 #include "launcher.h"
 #include "launcher_files.h"
 #include "launcher_reliability.h"
@@ -399,6 +400,10 @@ static int RunGame(int argc, char** argv) {
             Port::ExportStadiumSave(std::filesystem::u8path(argv[2]), directory, path, error);
         if (!ok) { fprintf(stderr, "%s\n", error.c_str()); return 1; }
         printf("%s\n", path.c_str()); return 0;
+    }
+    if (argc > 1 && strcmp(argv[1], "--graphics-advice-table") == 0) { // the Recommended settings for example chips
+        Port::PrintGraphicsAdviceTable();
+        return 0;
     }
     if (argc > 1 && strcmp(argv[1], "--help") == 0) {
         printf("stadion [ROM.z64]\n--launcher: bypass Auto-play\n--safe-mode: bypass Auto-play and select OpenGL (Metal on macOS)\nLauncher Files & help: check setup, open folders, export saves and diagnostics.\n");
