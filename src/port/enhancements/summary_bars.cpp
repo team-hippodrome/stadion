@@ -5,8 +5,9 @@
 // are never moved or covered.
 //
 // The battle code (battle_enhancements.c) publishes what the cards show each frame; this file only draws it. A card's
-// picture is the game's own menu icon of the Pokémon (in its colours), tinted the way the spec's model look says
-// (hu_card_model_look): the status colour, grey once fainted, darkened while unknown or not picked.
+// picture is its own animated copy of the Pokémon's 3D model (card_models.c draws them into one off-screen picture per
+// side, which this file creates), tinted and animated the way the spec's model look says (hu_card_model_look). If a
+// model could not be loaded, the card shows the game's menu icon of the Pokémon instead.
 #include "enhancements.h"
 #include "summary_bars.h"
 #include "overlay.h"
@@ -19,6 +20,7 @@
 #include <ship/window/gui/GuiWindow.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
@@ -82,6 +84,49 @@ void Text(ImDrawList* dl, ImFont* f, float x, float y, float size, float maxw, c
 
 namespace {
 
+// the cards' model pictures (card_models.c draws into them): created on the render thread, read by the game thread.
+// One picture per side, a row of cells each.
+std::atomic<int> gCardFb[2] = { 0, 0 };
+ImTextureID gCardTexture[2] = { 0, 0 };
+
+void EnsureCardPictures() {
+    auto window = Port::GetWindow();
+    auto interp = window ? window->GetInterpreterWeak().lock() : nullptr;
+    if (!interp) return;
+    for (int s = 0; s < 2; s++) {
+        if (gCardFb[s].load() <= 0) {
+            // fixed size, no widescreen adjustment: the game's coordinates are the picture's pixels
+            const int fb = gfx_create_framebuffer(PORT_ENH_CARD_ATLAS_W, PORT_ENH_CARD_CELL, PORT_ENH_CARD_ATLAS_W,
+                                                  PORT_ENH_CARD_CELL, 0, false);
+            if (fb > 0) gCardFb[s].store(fb);
+        }
+        if (gCardFb[s].load() > 0) {
+            gCardTexture[s] = (ImTextureID)interp->GetCurrentRenderingAPI()->GetFramebufferTextureId(gCardFb[s].load());
+        }
+    }
+}
+
+// Large Pokémon: the part of the cell with the face, while it has not fainted (the spec's "Model").
+void FaceFrame(int species, float* zoom, float* cx, float* cy) {
+    struct Frame {
+        int species;
+        float zoom, cx, cy;
+    };
+    static const Frame kFrames[] = {
+        { 95, 1.9f, 0.62f, 0.36f },  // Onix
+        { 103, 1.6f, 0.50f, 0.36f }, // Exeggutor
+        { 131, 1.5f, 0.48f, 0.34f }, // Lapras
+    };
+    for (const Frame& f : kFrames) {
+        if (f.species == species) {
+            *zoom = f.zoom;
+            *cx = f.cx;
+            *cy = f.cy;
+            return;
+        }
+    }
+}
+
 using PortOverlay::IconTexture;
 using PortOverlay::Rgba;
 using PortOverlay::Str;
@@ -109,7 +154,18 @@ void DrawCard(ImDrawList* dl, ImFont* f, const PortEnhBattleView& v, int s, int 
     const float m = std::min(h - 2 * pad, w * 0.34f);
     const ImVec2 m0(right ? p1.x - pad - m : p0.x + pad, p0.y + (h - m) / 2), m1(m0.x + m, m0.y + m);
     dl->AddRectFilled(m0, m1, Rgba(0x30, 0x3C, 0x60, 0xFF), m * 0.18f);
-    if (ImTextureID tex = IconTexture(v.iconKey[s][i])) {
+    if (v.modelReady[s][i] && gCardTexture[s]) {
+        float zoom = 1.0f, cx = 0.5f, cy = 0.5f;
+        if (state != HU_CARD_FAINTED) FaceFrame(v.modelSpecies[s][i], &zoom, &cx, &cy);
+        const float half = 0.5f / zoom;
+        const float x0 = std::clamp(cx - half, 0.0f, 1.0f - 2 * half), y0 = std::clamp(cy - half, 0.0f, 1.0f - 2 * half);
+        const float cu = 1.0f / HU_SIDE_MAX;
+        // the right trainer's cards show their models mirrored, so they face the left trainer's (the card itself is a
+        // mirror image of the left trainer's); the tint is the model's own (card_models.c)
+        const float u0 = (i + x0) * cu, u1 = (i + x0 + 2 * half) * cu;
+        const ImVec2 uv0(right ? u1 : u0, y0), uv1(right ? u0 : u1, y0 + 2 * half);
+        dl->AddImageRounded(gCardTexture[s], m0, m1, uv0, uv1, IM_COL32_WHITE, m * 0.18f);
+    } else if (ImTextureID tex = IconTexture(v.iconKey[s][i])) {
         // the look: the status colour or grey multiplied in by its amount, darker while its pick is not known
         const hu_model_look look = hu_card_model_look(&c, 40);
         hu_rgb tint = look.tint;
@@ -200,6 +256,7 @@ class SummaryBarsWindow : public Ship::GuiWindow {
     }
     void Draw() override {
         if (!Port_Enh_SummaryBarsEnabled()) return;
+        EnsureCardPictures();
         PortEnhBattleView v;
         if (!Port_Enh_LatestBattle(&v)) return;
         const ImGuiViewport* vp = ImGui::GetMainViewport();
@@ -235,6 +292,10 @@ class SummaryBarsWindow : public Ship::GuiWindow {
 };
 
 } // namespace
+
+extern "C" int Port_Enh_CardModelFramebuffer(int side) {
+    return (side == 0 || side == 1) ? gCardFb[side].load() : 0;
+}
 
 void Port_Enh_InstallOverlay(void* gui) {
     static bool added = false;

@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 #define PORT_ENH_TEXT 32 // the overlays' strings (UTF-8)
-#define PORT_ENH_ICON 40 // the cards' picture: the game's own menu icon of the Pokémon (40 x 40)
+#define PORT_ENH_ICON 40 // the game's own menu icon of a Pokémon (40 x 40): the memory screen's pictures
 
 // The On / Off enhancements (port CVars gEnhancements.<Name>, 1 by default). PORT_MOVE_DESCRIPTIONS=0/1 and
 // PORT_ORDER_QUEUE=0/1 override them (test aids).
@@ -107,7 +107,16 @@ typedef struct PortEnhBattleView {
     hu_speed_range speed[2][HU_SIDE_MAX];             // as shown: the active one's with its stage and paralysis
     uint32_t iconKey[2][HU_SIDE_MAX];                 // which picture the card shows (0: none); see the icons below
     int32_t viewer; // the side whose own Pokémon are known (0 against the COM), -1 if none
+    uint8_t modelReady[2][HU_SIDE_MAX];   // the card's 3D model is drawn into its cell of the side's picture
+    uint8_t modelSpecies[2][HU_SIDE_MAX]; // whose model it is
 } PortEnhBattleView;
+// The cards' 3D models (card_models.c) are drawn into one off-screen picture per side, a row of
+// PORT_ENH_CARD_CELL x PORT_ENH_CARD_CELL cells, one per card; summary_bars.cpp creates it on the render thread and
+// shows each card's cell. The framebuffer's id (0 until it exists).
+#define PORT_ENH_CARD_CELL 160
+#define PORT_ENH_CARD_ATLAS_W (PORT_ENH_CARD_CELL * HU_SIDE_MAX)
+#define PORT_ENH_FAINT_FRAMES 40
+int Port_Enh_CardModelFramebuffer(int side);
 void Port_Enh_PublishBattle(const PortEnhBattleView* view);
 // The last view if one was published in the last few frames (a battle is on screen); 0 otherwise.
 int Port_Enh_LatestBattle(PortEnhBattleView* out);

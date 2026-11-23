@@ -4,7 +4,8 @@
 //
 // Side summary bars and speed estimates (PARTY_SUMMARY_BARS.md, SPEED_STAT_ESTIMATE.md): a card per Pokémon of each
 // side, kept here from the battle's own state, and published each frame for summary_bars.cpp, which draws the cards
-// in the window's room beside the game's picture. Besides the two hooks above, the battle tells this file who acts
+// in the window's room beside the game's picture. Each card shows its own animated copy of the Pokémon's 3D model
+// (card_models.c). Besides the two hooks above, the battle tells this file who acts
 // first (PortEnh_TurnOrder, Battle_StartTurn), that the acting Pokémon cannot act this turn (PortEnh_MoveNotUsed,
 // ProcessBattleTurn) and that a move's presentation starts (PortEnh_MoveStart, BattleScene_ActionSetupCameraStep).
 // Nothing the game does changes.
@@ -29,6 +30,7 @@
 #include "rom_version.h"
 #include "enhancements.h"
 #include "battle_enhancements.h"
+#include "card_models.h"
 
 #include <hippodrome/summary_card.h>
 
@@ -243,7 +245,13 @@ static void InitSide(s32 s) {
                 c->transform_speed = c->speed;
             }
         }
-        sIconKey[s][i] = Port_Enh_SummaryBarsEnabled() ? LoadIcon(sCardMon[s][i]) : 0;
+        sIconKey[s][i] = 0;
+        if (Port_Enh_SummaryBarsEnabled()) {
+            PortEnh_CardModelsLoad(s, i, sCardMon[s][i]); // the card's own copy of the 3D model
+            if (!PortEnh_CardModelSpecies(s, i)) {
+                sIconKey[s][i] = LoadIcon(sCardMon[s][i]); // (only if the model could not be loaded)
+            }
+        }
     }
     if (s == sViewer || members == 2) {
         hu_side_set_picked(&sSides[s], picked_mask);
@@ -289,6 +297,7 @@ static void Init(void) {
     s32 com0 = IsCom(sActivePokemon[0]->teamRoster), com1 = IsCom(sActivePokemon[1]->teamRoster);
 
     sViewer = (!com0 && com1) ? 0 : (com0 && !com1) ? 1 : -1;
+    PortEnh_CardModelsFree();
     InitSide(0);
     InitSide(1);
     sPendingSlot[0] = sPendingSlot[1] = -1;
@@ -387,11 +396,15 @@ static void Poll(void) {
                 hu_speed_range copied = (oc >= 0) ? sSides[o].cards[oc].speed : side->cards[active].speed;
                 hu_side_transform(side, active, (u8)sActivePokemon[s]->state.transformedIntoSpecies, copied);
                 if (oc >= 0 && Port_Enh_SummaryBarsEnabled()) {
-                    sIconKey[s][active] = sIconKey[o][oc]; // the picture of the one it copied
+                    PortEnh_CardModelsLoadFrom(s, active, o, oc); // the model of the one it copied
+                    sIconKey[s][active] = sIconKey[o][oc];
                 }
             } else if (!transformed && sTransformed[s]) {
                 hu_side_transform(side, active, side->cards[active].species, side->cards[active].speed);
-                sIconKey[s][active] = LoadIcon(sCardMon[s][active]);
+                if (Port_Enh_SummaryBarsEnabled()) {
+                    PortEnh_CardModelsRestore(s, active);
+                    sIconKey[s][active] = PortEnh_CardModelSpecies(s, active) ? 0 : LoadIcon(sCardMon[s][active]);
+                }
             }
             sTransformed[s] = transformed;
         }
@@ -534,9 +547,31 @@ static void Publish(void) {
             }
             v.speed[s][i] = sr;
             v.iconKey[s][i] = sIconKey[s][i];
+            v.modelReady[s][i] = (u8)PortEnh_CardModelReady(s, i);
+            v.modelSpecies[s][i] = (u8)PortEnh_CardModelSpecies(s, i);
         }
     }
     Port_Enh_PublishBattle(&v);
+}
+
+// The cards' 3D models, drawn into their pictures (card_models.c) with what the battle shows of the Pokémon in it:
+// its battle model, and its idle, fainting and sleeping animations from the species' battle cues.
+static void DrawModels(void) {
+    PortEnhCardBattle battle[2];
+    s32 s;
+    for (s = 0; s < 2; s++) {
+        ActivePokemon* a = sActivePokemon[s];
+        const PokemonBattleCues* cues = sSideBattleCues[BattleScene_GetParticipantSideIndex(a) & 1];
+        u16 type = (u16)a->displayObject.objectType;
+        s32 k, alt = 0;
+        for (k = 0; k < 8; k++) alt |= (sPokemonWithAlternateSleepIdle[k] == type);
+        battle[s].active = CardOf(s, 1);
+        battle[s].obj = &a->displayObject;
+        battle[s].idleAnim = (cues != NULL) ? cues->idleCues.id : -1;
+        battle[s].faintAnim = (cues != NULL) ? cues->faintCue.id : -1;
+        battle[s].sleepAnim = (cues != NULL && alt) ? cues->sleepIdleCue.id : -1;
+    }
+    PortEnh_CardModelsDraw(sSides, battle);
 }
 
 void PortEnh_BattleFrame(void) {
@@ -554,6 +589,7 @@ void PortEnh_BattleFrame(void) {
     // the battle is decided: no cards over the winner's parade and what follows (Publish stops, the bars go)
     if (sBattleScene.scene->winner == 0) {
         if (Port_Enh_SummaryBarsEnabled()) {
+            DrawModels();
             Publish();
         }
     } else if (sHasKey && !sSaved) {
