@@ -41,7 +41,7 @@ AppImage is built differently, so that it runs on other distributions too (see t
 `.github/workflows/build.yml`): on Ubuntu 24.04, with SDL3 built from source and libzip, spdlog, tinyxml2 and
 nlohmann-json from vcpkg (`x64-linux`), linked statically along with the C++ runtime
 (`-DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc"`), then packed by
-`python3 tools/make_appimage.py build pokestadium.AppImage <version> <path to appimagetool>`. See the packaging script for its shared-library allowlist.
+`python3 tools/make_appimage.py build stadion.AppImage <version> <path to appimagetool>`. See the packaging script for its shared-library allowlist.
 
 **Windows** (cross-compiled from Linux with [llvm-mingw](https://github.com/mstorsjo/llvm-mingw), as the CI does; its
 `bin` directory on `PATH`, vcpkg in `$VCPKG_ROOT`):
@@ -58,12 +58,12 @@ For Windows on ARM: export `MINGW_TRIPLE=aarch64-w64-mingw32` and the `arm64-min
 `bin` on `PATH` for the vcpkg install too, or vcpkg may build glslang with a GCC mingw that does not link). SDL3 needs
 its `vulkan` feature (vcpkg leaves it out by default) for the Vulkan renderer. Keep the build type: without one,
 vcpkg's debug libraries are linked, and the debug SDL3 stops DirectX 11 at startup with an assertion dialog
-(`SDL_IsMainThread` in `SDL_PumpEventsInternal`). `pokestadium.exe` is a
+(`SDL_IsMainThread` in `SDL_PumpEventsInternal`). `stadion.exe` is a
 window-only program (no console window; set `PORT_CONSOLE=1` to open one) with the icon and version information of
-`src/port/pokestadium.rc.in`. For logs from testers, `PORT_LOG_FILE=<file>` makes the game write its stderr (the
+`src/port/stadion.rc.in`. For logs from testers, `PORT_LOG_FILE=<file>` makes the game write its stderr (the
 `PORT_TRACE_*` and `PORT_INTERP_LOG` output, crash reports) to that file itself, next to the executable for a relative
 name: `2> log.txt` came back empty on a tester's machine (in PowerShell, `set` makes no environment variable and the
-redirect does not reach a windowed program). `tools/windows/smooth_motion_trace.bat`, put next to `pokestadium.exe`
+redirect does not reach a windowed program). `tools/windows/smooth_motion_trace.bat`, put next to `stadion.exe`
 and double-clicked, runs the game that way with the Smooth motion trace and leaves `smooth_motion_log.txt`.
 
 **Android** (64-bit ARM, Android 10 or newer; tested target: AYN Thor). Needs JDK 17 or 21, the Android SDK with NDK
@@ -78,7 +78,7 @@ adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 
 The app is `android/` (SDL's Java activity, from the SDL version libultraship fetches) around the game built from
 `CMakeLists.txt` as `libmain.so`, with the OpenGL ES 3 renderer. Config, logs and saves live in the app's folder,
-`/sdcard/Android/data/com.teamhippodrome.pokestadium/files`; files picked in the launcher (ROMs, saves) are copied into
+`/sdcard/Android/data/com.teamhippodrome.stadion/files`; files picked in the launcher (ROMs, saves) are copied into
 its `imported/` folder, since Android's file picker hands out content links rather than paths.
 
 The version (Windows file version, AppImage, `Info.plist`) is the `project()` version in `CMakeLists.txt` unless
@@ -109,7 +109,6 @@ moves `latest` and creates the GitHub release, after asking. `--only macos,windo
   against the sound, for ares or the port, against a video such as a console capture; `tools/interp_check/` checks
   Smooth motion's in-between pictures and pacing)
 - `replays/` — input recordings used as regression tests
-- `PORTING_NOTES.md` — what was done, how it was checked against ares, debug switches
 
 ## The libultraship submodule
 
@@ -138,7 +137,7 @@ merge: base = the recorded commit, theirs = the new commit, ours = `game/`), for
 `src/port/generated/` with `tools/gen_func_table.py`, `tools/gen_fragment_entries.py` and `tools/gen_abs_syms.py`
 (after one build, since they read `build/libstadium_game.a`; run them twice when names changed, as the old table is
 part of that library), and `tools/ares_ref/battle_engine.syms`. The generators read the map of an unmodified decomp
-build of the new commit (`build/pokestadium-us.map`) in `$PORT_DECOMP_DIR`, by default `../pokestadium`.
+build of the new commit (`build/pokestadium-us.map`) in `$PORT_DECOMP_DIR`, by default `../stadion`.
 
 ## Shader coverage
 

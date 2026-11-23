@@ -150,7 +150,7 @@ cert)
         sudo test -f /etc/letsencrypt/live/$WEB_HOST/fullchain.pem && echo certificate ready"
     ;;
 site)
-    ls "$SITE_DIR"/pokestadium.*.wasm.br >/dev/null 2>&1 || { echo "no build in $SITE_DIR (tools/build_web.sh, with brotli)"; exit 1; }
+    ls "$SITE_DIR"/stadion.*.wasm.br >/dev/null 2>&1 || { echo "no build in $SITE_DIR (tools/build_web.sh, with brotli)"; exit 1; }
     { http_block; https_block; } > /tmp/$WEB_SITE.nginx.conf
     COPYFILE_DISABLE=1 tar --no-xattrs -C "$SITE_DIR" -czf /tmp/$WEB_SITE.site.tgz --exclude serve.py .
     if [ "$WEB_AUTH" = cert ]; then
@@ -185,7 +185,7 @@ verify)
     get() { printf 'user = "%s:%s"\n' "$WEB_USER" "$(cat "${WEB_PASSWORD_FILE:-/dev/null}")" | curl -s "$@"; }
     without=$(curl -s -o /dev/null -w "%{http_code}" "$url" || true)
     with=$(get -o /dev/null -w "%{http_code}" "${cred[@]}" "$url")
-    wasm=$(get "${cred[@]}" "${url}port.js" | grep -o 'pokestadium\.[0-9a-f]*\.wasm' | head -1)
+    wasm=$(get "${cred[@]}" "${url}port.js" | grep -o 'stadion\.[0-9a-f]*\.wasm' | head -1)
     headers=$(get -I -H "Accept-Encoding: br, gzip" "${cred[@]}" "${url}$wasm" \
         | grep -iE "^(content-type|content-encoding|cache-control|cross-origin-opener-policy|cross-origin-embedder-policy):" \
         | tr -d '\r')

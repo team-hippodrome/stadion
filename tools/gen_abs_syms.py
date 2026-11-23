@@ -5,8 +5,8 @@ Values come from the decomp's linker map, so they are the ROM offsets / virtual 
 original build used. Leftover undefined names are written to build/leftover_syms.txt."""
 import re, subprocess, pathlib, sys
 root = pathlib.Path(__file__).resolve().parent.parent
-# the unmodified decomp checkout and build the game is patched from (PORT_DECOMP_DIR, default ../pokestadium)
-decomp = pathlib.Path(__import__("os").environ.get("PORT_DECOMP_DIR", root.parent / "pokestadium"))
+# the unmodified decomp checkout and build the game is patched from (PORT_DECOMP_DIR, default ../stadion)
+decomp = pathlib.Path(__import__("os").environ.get("PORT_DECOMP_DIR", root.parent / "stadion"))
 mapfile = decomp / "build/pokestadium-us.map"
 # C symbols carry a leading underscore in Mach-O (macOS) object files, not in ELF (Linux)
 CPFX = "_" if __import__("sys").platform == "darwin" else ""

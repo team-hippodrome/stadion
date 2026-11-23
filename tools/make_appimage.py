@@ -3,7 +3,7 @@
 
 Usage: tools/make_appimage.py <build dir> <output .AppImage> [version] [appimagetool]
 
-- usr/bin/pokestadium (its resources are built in); started without arguments the game shows the launcher
+- usr/bin/stadion (its resources are built in); started without arguments the game shows the launcher
 - AppRun keeps config, logs and saves beside the original .AppImage, outside its read-only mount. SHIP_HOME overrides it.
 - a .desktop file and the icon from tools/launcher/assets
 - no bundled libraries: the release build links SDL3, libzip, spdlog, tinyxml2 and the C++ runtime statically
@@ -18,7 +18,7 @@ SYSTEM_LIBS = re.compile(r"^(linux-vdso|linux-gate|ld-linux.*|libc|libm|libdl|li
                          r"libOpenGL|libGL|libGLX|libEGL|libGLdispatch)\.so")
 
 APPRUN = """#!/bin/sh
-# Pokémon Stadium AppImage entry point. Keep data beside the original artifact, outside its read-only mount.
+# stadion AppImage entry point. Keep data beside the original artifact, outside its read-only mount.
 HERE="$(dirname "$(readlink -f "$0")")"
 if [ -z "$SHIP_HOME" ]; then
     if [ -n "$APPIMAGE" ]; then
@@ -30,16 +30,16 @@ if [ -z "$SHIP_HOME" ]; then
 fi
 mkdir -p "$SHIP_HOME"
 # the window's app id matches the .desktop file (taskbar icon on Wayland)
-export SDL_APP_ID="${SDL_APP_ID:-pokestadium}"
-exec "$HERE/usr/bin/pokestadium" "$@"
+export SDL_APP_ID="${SDL_APP_ID:-stadion}"
+exec "$HERE/usr/bin/stadion" "$@"
 """
 
 DESKTOP = """[Desktop Entry]
 Type=Application
-Name=Pokémon Stadium
-Comment=Native PC port of Pokémon Stadium (needs your own ROM)
-Exec=pokestadium %f
-Icon=pokestadium
+Name=stadion
+Comment=Native N64 game port (needs your own ROM)
+Exec=stadion %f
+Icon=stadion
 Terminal=false
 Categories=Game;
 X-AppImage-Version={ver}
@@ -65,11 +65,11 @@ def main():
     version = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] else "0.0.0"
     appimagetool = sys.argv[4] if len(sys.argv) > 4 else "appimagetool"
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    exe_src = os.path.join(build, "pokestadium")
+    exe_src = os.path.join(build, "stadion")
 
     extra = [l for l in needed_libs(exe_src) if not SYSTEM_LIBS.match(l)]
     if extra:
-        print("pokestadium links libraries an AppImage cannot rely on:", ", ".join(extra))
+        print("stadion links libraries an AppImage cannot rely on:", ", ".join(extra))
         print("(build with the static dependencies of build.yml)")
         sys.exit(1)
 
@@ -81,13 +81,13 @@ def main():
     icons = os.path.join(appdir, "usr", "share", "icons", "hicolor", "256x256", "apps")
     for d in (bindir, apps, icons):
         os.makedirs(d)
-    shutil.copy2(exe_src, os.path.join(bindir, "pokestadium"))
-    icon = os.path.join(root, "tools", "launcher", "assets", "pokestadium.png")
-    shutil.copy2(icon, os.path.join(icons, "pokestadium.png"))
-    shutil.copy2(icon, os.path.join(appdir, "pokestadium.png"))
+    shutil.copy2(exe_src, os.path.join(bindir, "stadion"))
+    icon = os.path.join(root, "tools", "launcher", "assets", "stadion.png")
+    shutil.copy2(icon, os.path.join(icons, "stadion.png"))
+    shutil.copy2(icon, os.path.join(appdir, "stadion.png"))
     shutil.copy2(icon, os.path.join(appdir, ".DirIcon"))
     for d in (appdir, apps):
-        with open(os.path.join(d, "pokestadium.desktop"), "w") as f:
+        with open(os.path.join(d, "stadion.desktop"), "w") as f:
             f.write(DESKTOP.format(ver=version))
     apprun = os.path.join(appdir, "AppRun")
     with open(apprun, "w") as f:

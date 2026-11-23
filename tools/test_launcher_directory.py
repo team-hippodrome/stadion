@@ -55,7 +55,7 @@ int main() {
     def test_macos_bundle_uses_the_folder_beside_the_signed_app(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            for bundle in ('Pokemon Stadium.app', 'Pokemon Stadium.APP'):
+            for bundle in ('stadion.app', 'stadion.APP'):
                 for child in ('Contents/MacOS', 'Contents/Resources'):
                     with self.subTest(bundle=bundle, child=child):
                         result = self.resolve(base=root / bundle / child, mac=True)
@@ -65,14 +65,14 @@ int main() {
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             for folder in ('downloads', 'moved folder'):
-                image = root / folder / 'Pokémon Stadium.AppImage'
+                image = root / folder / 'stadion.AppImage'
                 result = self.resolve(base=root / '.mount_readonly/usr/bin', image=image)
                 self.assertEqual(Path(result.stdout), image.parent)
 
     def test_sandboxed_launcher_uses_its_writable_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            files = root / 'Android/data/com.teamhippodrome.pokestadium/files'
+            files = root / 'Android/data/com.teamhippodrome.stadion/files'
             result = self.resolve(base=root / 'readonly/apk/lib/arm64', sandbox=files)
             self.assertEqual(Path(result.stdout), files)
             result = self.resolve(sandbox=root / 'iOS/Documents')

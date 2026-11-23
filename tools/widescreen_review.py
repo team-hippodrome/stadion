@@ -1,5 +1,5 @@
 #!/usr/bin/env python3 -I
-"""Before/after pictures of the widescreen (16:9) fixes, for review (PORTING_NOTES: Battle HUD at the widescreen edges).
+"""Before/after pictures of the widescreen (16:9) fixes, for review (the battle HUD at the widescreen edges).
 
 Each case runs a route twice in 16:9: "before" with the fixes off (the case's "off" switches, by default
 PORT_NO_HUD_ANCHOR=1: the anchor/no-cut markers are ignored, as before the change) and "after" with them on, and saves the chosen frames:
@@ -26,7 +26,7 @@ HERE = os.path.abspath(_opt("--out", os.path.join(WT, "build", "widescreen_revie
 ROM = _opt("--rom", os.environ.get("PORT_ROM", os.path.expanduser("~/Downloads/romis/Pokemon Stadium (USA).z64")))
 GBROM = _opt("--gb-rom", os.path.join(WT, "gb", "yellow_de.gb"))
 FIX = _opt("--fixtures", "")
-BIN = os.path.join(WT, "build", "pokestadium.exe" if os.name == "nt" else "pokestadium")
+BIN = os.path.join(WT, "build", "stadion.exe" if os.name == "nt" else "stadion")
 
 CASES = [
     dict(id="battle_hud_slide_in", title="Battle HUD slides in",

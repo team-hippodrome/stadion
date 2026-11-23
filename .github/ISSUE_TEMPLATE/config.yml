@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and help
+    url: https://discord.com/invite/8EvuQxbxu8
+    about: Ask setup questions and get help on our Discord server.
+  - name: Setup, settings and troubleshooting
+    url: https://github.com/team-hippodrome/stadion/blob/main/docs/USAGE.md
+    about: Most setup problems (ROM checks, saves, controllers, renderers) are covered here.

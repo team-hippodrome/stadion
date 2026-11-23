@@ -168,23 +168,23 @@ static void EnsureControllerDb() {
 }
 
 #if !defined(__EMSCRIPTEN__)
-extern "C" const unsigned char gPortO2r[]; // generated/pokestadium_o2r.c
+extern "C" const unsigned char gPortO2r[]; // generated/stadion_o2r.c
 extern "C" const size_t gPortO2rSize;
 #endif
 
 bool Init() {
     Fast::gPortAddressResolver = Port_ResolveN64Address;
-    sContext = Ship::Context::CreateInstance("Pokemon Stadium", "pokestadium");
+    sContext = Ship::Context::CreateInstance("stadion", "stadion");
     sContext->Init();
 
     auto logger = std::make_shared<Ship::Logger>(
-        "Pokemon Stadium", Ship::Context::GetPathRelativeToAppDirectory("logs/pokestadium.log"));
+        "stadion", Ship::Context::GetPathRelativeToAppDirectory("logs/stadion.log"));
     sContext->GetChildren().Add(logger);
     logger->Init();
     EnsureControllerDb();
 
     auto config = std::make_shared<Ship::Config>(
-        Ship::Context::GetPathRelativeToAppDirectory("pokestadium.cfg.json"), nullptr);
+        Ship::Context::GetPathRelativeToAppDirectory("stadion.cfg.json"), nullptr);
     sContext->GetChildren().Add(config);
     if (const char* res = getenv("PORT_BATTLE_RES")) { // battle boot: the window (so the picture) at that size
         int rw = 0, rh = 0;
@@ -303,15 +303,15 @@ bool Init() {
 
     // The port's archive (shaders, fonts, the shader warm-up list, launcher pictures; no game data, which is read from
     // the ROM) is built into the executable (CMakeLists.txt, tools/make_o2r.py --c). It used to be a separate
-    // pokestadium.o2r next to the executable, and a damaged, unreadable or missing copy crashed the game a moment later
-    // (an uncaught exception on Windows). A pokestadium.o2r left over from an older version is not read.
+    // stadion.o2r next to the executable, and a damaged, unreadable or missing copy crashed the game a moment later
+    // (an uncaught exception on Windows). A stadion.o2r left over from an older version is not read.
     std::string archiveError;
     try {
         nlohmann::json rmArgs;
 #if defined(__EMSCRIPTEN__)
-        rmArgs["archivePaths"] = std::vector<std::string>{ AppPath("pokestadium.o2r") };
+        rmArgs["archivePaths"] = std::vector<std::string>{ AppPath("stadion.o2r") };
 #else
-        resourceManager->SetBuiltInArchive("pokestadium.o2r (built in)", gPortO2r, gPortO2rSize);
+        resourceManager->SetBuiltInArchive("stadion.o2r (built in)", gPortO2r, gPortO2rSize);
         rmArgs["archivePaths"] = std::vector<std::string>{};
 #endif
         rmArgs["validHashes"] = std::vector<uint32_t>{};
@@ -326,7 +326,7 @@ bool Init() {
         std::string message = "The game's resources could not be loaded (" + archiveError + ").";
         SPDLOG_CRITICAL("{}", message);
         fprintf(stderr, "%s\n", message.c_str());
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pokémon Stadium", message.c_str(), nullptr);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "stadion", message.c_str(), nullptr);
         return false;
     }
 #if defined(__EMSCRIPTEN__)
@@ -668,7 +668,7 @@ static void UpdateFpsTitle() {
     if (!held) active += interval;
     if (active < 0.5) return;
     char title[96];
-    snprintf(title, sizeof title, "Pokemon Stadium - %.1f FPS", frames / active);
+    snprintf(title, sizeof title, "stadion - %.1f FPS", frames / active);
     static const bool sTrace = getenv("PORT_TRACE_FPS") != nullptr; // the title's value next to the plain rate
     if (sTrace) fprintf(stderr, "[fps] frame %llu: title %.1f FPS (pictures per wall-clock second %.1f)\n",
                         (unsigned long long)tick, frames / active, frames / wall);
@@ -1164,11 +1164,11 @@ std::shared_ptr<Fast::Fast3dWindow> GetWindow() {
     }
     std::string message = std::string("The Vulkan renderer stopped working.\n\n") + reason +
                           (saved ? "\n\nOpenGL has been selected for the next launch. Please restart the game."
-                                 : "\n\nPlease select OpenGL or DirectX 11 in pokestadium.cfg.json before restarting.");
+                                 : "\n\nPlease select OpenGL or DirectX 11 in stadion.cfg.json before restarting.");
     SPDLOG_ERROR("{}", message);
     fprintf(stderr, "%s\n", message.c_str());
     if (getenv("PORT_HIDDEN_WINDOW") == nullptr) { // (scripted runs: no dialog waiting for a click)
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Pokémon Stadium: Vulkan error", message.c_str(), nullptr);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "stadion: Vulkan error", message.c_str(), nullptr);
     }
     // A failed swapchain may already have retired the old one. Do not unwind driver objects or run static
     // destructors while game threads are still alive (the normal shutdown path also exits the process directly).

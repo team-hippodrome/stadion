@@ -31,7 +31,7 @@ Outputs (all into DIR):
   --camlog / --partlog               DIR/cam.txt (camera per frame) / DIR/part.txt (drawn particles)
   --anim [--anim-frames N]           DIR/anim/m<k>_<move>/f_<n>.ppm: 160x120 frames of each move animation (xcheck)
   --twice                            run a second time into DIR_b and compare every output (determinism check)
-Needs the built port (--bin, default build-macos/pokestadium or build/pokestadium) and the ROM (--rom or $ROM). One game
+Needs the built port (--bin, default build-macos/stadion or build/stadion) and the ROM (--rom or $ROM). One game
 instance runs at a time; the window is hidden.
 """
 import hashlib, os, shutil, subprocess, sys, time
@@ -109,8 +109,8 @@ def run(out, a):
     home = os.path.join(out, "home")
     os.makedirs(home, exist_ok=True)
     binary = os.path.abspath(a.get("--bin") or next(
-        (p for p in (os.path.join(ROOT, "build-macos", "pokestadium"), os.path.join(ROOT, "build", "pokestadium"))
-         if os.path.exists(p)), os.path.join(ROOT, "build", "pokestadium")))
+        (p for p in (os.path.join(ROOT, "build-macos", "stadion"), os.path.join(ROOT, "build", "stadion"))
+         if os.path.exists(p)), os.path.join(ROOT, "build", "stadion")))
     env = dict(os.environ, PORT_HIDDEN_WINDOW="1", PORT_SPEED="max", PORT_INTERPOLATE="0", PORT_BATTLE=case,
                SHIP_HOME=home)  # (an own home: the window size and settings of this run only)
     # the options of this run alone, not the caller's environment

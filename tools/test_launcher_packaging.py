@@ -20,16 +20,16 @@ def module(name):
 
 class LauncherPackagingTests(unittest.TestCase):
     def test_signed_macos_bundle_does_not_override_portable_directory(self):
-        plist = plistlib.loads(module('make_macos_bundle').PLIST.format(bid='test.pokestadium', ver='test').encode())
+        plist = plistlib.loads(module('make_macos_bundle').PLIST.format(bid='test.stadion', ver='test').encode())
         self.assertNotIn('SHIP_HOME', plist.get('LSEnvironment', {}))
-        self.assertEqual(plist['CFBundleExecutable'], 'pokestadium')
+        self.assertEqual(plist['CFBundleExecutable'], 'stadion')
 
     @unittest.skipUnless(sys.platform.startswith('linux'), 'AppRun executes on Linux')
     def test_appimage_entry_point_uses_sidecar_directory_and_override(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             mount = root / 'readonly mount'
-            executable = mount / 'usr/bin/pokestadium'
+            executable = mount / 'usr/bin/stadion'
             executable.parent.mkdir(parents=True)
             executable.write_text('#!/bin/sh\nprintf "%s" "$SHIP_HOME"\n', encoding='utf-8')
             executable.chmod(0o755)

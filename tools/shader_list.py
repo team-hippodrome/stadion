@@ -1,6 +1,6 @@
 #!/usr/bin/env python3 -I
 """Writes src/port/shader_warmup.txt, the shader programs the port builds ahead while the launcher shows
-(src/port/shader_warmup.cpp; packed into pokestadium.o2r), from the programs the stored recordings draw.
+(src/port/shader_warmup.cpp; packed into stadion.o2r), from the programs the stored recordings draw.
 
 For coverage work, merge successful --shader-capture runs into a staging directory:
   tools/shader_list.py --capture-dir DIR [--capture-dir DIR ...] --candidate-dir DIR
@@ -8,7 +8,7 @@ This mode preserves the shipped warm-up lists and writes both candidate manifest
 
 Usage: tools/shader_list.py [--run] [shaders.txt ...]
   --run         first plays all recordings (tools/run_replays.py --all) with PORT_TRACE_SHADERS=1
-  shaders.txt   lists the port recorded while playing (next to pokestadium.cfg.json, or PORT_SHADER_LIST): added too
+  shaders.txt   lists the port recorded while playing (next to stadion.cfg.json, or PORT_SHADER_LIST): added too
 Reads the "[shader] <id0>/<id1> ..." lines of build/replays/*.log. Programs drawn by more recordings come first
 (the boot and menu ones), then by their average position in the logs. Programs in the current list that no log
 draws (e.g. from recordings skipped for want of a cartridge dump) stay, after those of the given files.

@@ -1,0 +1,89 @@
+name: Bug report
+description: Report a crash, graphics or sound problem, input problem, or a difference from the original game
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve stadion. Before filling this out, reproduce the problem once, close the game,
+        open the launcher and use **Files & help → Export diagnostics**. The report is saved in the `diagnostics/`
+        folder next to your settings.
+
+        Please check [Setup, settings and troubleshooting](https://github.com/team-hippodrome/stadion/blob/main/docs/USAGE.md)
+        and the existing issues first.
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows x64 (release)
+        - Windows ARM64 (release)
+        - macOS Apple Silicon (release)
+        - Linux AppImage (release)
+        - Android (release)
+        - Local build (say which system below)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: The release you downloaded, or the commit you built. The diagnostic report's "Build" line has it too.
+      placeholder: "For example: 1.0.0 or a commit SHA"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: renderer
+    attributes:
+      label: Renderer
+      options:
+        - DirectX 11
+        - OpenGL
+        - Metal
+        - Vulkan
+        - Don't know
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start ...
+        2. Go to ...
+        3. Do ...
+        4. The problem appears
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostic_report
+    attributes:
+      label: Diagnostic report
+      description: >
+        Paste the text from Files & help → Export diagnostics. Paths are redacted, but skim it once in case an error
+        message quotes something private.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, video, or other details
+      description: >
+        Drag files here if they help show the problem. Never upload a ROM. Only attach a save file if a maintainer
+        asks for it.

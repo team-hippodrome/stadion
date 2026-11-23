@@ -2,7 +2,7 @@
 # The audio sweep: every song and every FX bank entry the game's play functions select, with the sound engine on,
 # on the Options screen (options.rec: A on the title screen, then state 0x13 through the game's loop; it plays
 # nothing on its own). usage: runs.sh <out dir>   (from the repository root)
-O=$1; D=evidence/whole_game/routes/audio_seq; B=build-evidence-all2/pokestadium; R=$D/options.rec
+O=$1; D=evidence/whole_game/routes/audio_seq; B=build-evidence-all2/stadion; R=$D/options.rec
 mkdir -p "$O"
 one() { name=$1 frames=$2; shift 2
   env PORT_GAME_AUDIO=1 "$@" nice -n 15 python3 -I tools/evidence/run.py "$O/$name" --bin $B --frames "$frames" --rec $R \

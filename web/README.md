@@ -37,7 +37,7 @@ The build runs at low priority with 4 jobs (`PORT_WEB_JOBS`).
   (`src/port/web_audio.cpp`); SDL's own browser output runs on the main thread and stutters when it is busy.
 - Fragment data: on the N64 a fragment's data starts fresh each time it is loaded; the other builds reset it through
   per-fragment sections (`tools/gen_frag_sections.py`), whose bounds wasm-ld does not provide. The web build takes them
-  from the linker map instead (`tools/gen_frag_ranges.py`, packed into `pokestadium.o2r`; without it the area-select
+  from the linker map instead (`tools/gen_frag_ranges.py`, packed into `stadion.o2r`; without it the area-select
   screen stayed black, its cursor stuck, on the second visit).
 - HiDPI: window sizes in points (as on macOS), the game drawn at `devicePixelRatio` (`gInternalResolution`, at most 2).
 - Files: the game's files get versioned names (`name.<hash>.ext`) and Brotli copies; the server sends `.br` to browsers

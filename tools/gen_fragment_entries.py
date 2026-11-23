@@ -4,8 +4,8 @@ base address and the C function the fragment header jumps to. Fragment code is s
 so loading a fragment only needs to find that function."""
 import re, struct, pathlib
 root = pathlib.Path(__file__).resolve().parent.parent
-# the unmodified decomp checkout and build the game is patched from (PORT_DECOMP_DIR, default ../pokestadium)
-dec = pathlib.Path(__import__("os").environ.get("PORT_DECOMP_DIR", root.parent / "pokestadium"))
+# the unmodified decomp checkout and build the game is patched from (PORT_DECOMP_DIR, default ../stadion)
+dec = pathlib.Path(__import__("os").environ.get("PORT_DECOMP_DIR", root.parent / "stadion"))
 mp = (dec / "build/pokestadium-us.map").read_text(errors="replace").split("\n")
 syms = {}   # address -> first symbol name seen
 sympat = re.compile(r"^\s+0x([0-9a-f]{8,16})\s+([A-Za-z_]\w*)\s*(?:=.*)?$")

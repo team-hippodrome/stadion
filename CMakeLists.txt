@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
-project(PokemonStadiumPort VERSION 0.0.2 LANGUAGES C CXX ASM)
+project(Stadion VERSION 0.0.2 LANGUAGES C CXX ASM)
 # The release version (release.yml passes it as -DPORT_VERSION=<version>); defaults to the project version above.
 # Used for the Windows file version and the AppImage/app bundle metadata.
 set(PORT_VERSION "${PROJECT_VERSION}" CACHE STRING "Version of this build")
@@ -86,23 +86,23 @@ if(NOT EMSCRIPTEN)  # web: an object file written by tools/gen_wasm_abs_syms.py 
 endif()
 if(ANDROID)
   # SDL's Java activity (android/) loads the game as libmain.so and calls its main (SDL_main)
-  add_library(pokestadium SHARED ${PORT_MAIN_SOURCES})
-  set_target_properties(pokestadium PROPERTIES OUTPUT_NAME main)
-  target_link_libraries(pokestadium PRIVATE android log EGL)
-  target_sources(pokestadium PRIVATE src/port/pacing_android.cpp)
+  add_library(stadion SHARED ${PORT_MAIN_SOURCES})
+  set_target_properties(stadion PROPERTIES OUTPUT_NAME main)
+  target_link_libraries(stadion PRIVATE android log EGL)
+  target_sources(stadion PRIVATE src/port/pacing_android.cpp)
   # bind the library's own symbols inside it: the N64 addresses in src/port/generated/abs_syms.S are absolute symbols,
   # which must stay fixed numbers rather than go through the dynamic loader (which would relocate them)
-  target_link_options(pokestadium PRIVATE -Wl,-Bsymbolic)
+  target_link_options(stadion PRIVATE -Wl,-Bsymbolic)
 else()
-  add_executable(pokestadium ${PORT_MAIN_SOURCES})
+  add_executable(stadion ${PORT_MAIN_SOURCES})
 endif()
-target_include_directories(pokestadium PRIVATE
+target_include_directories(stadion PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include/libultraship
 )
-target_compile_definitions(pokestadium PRIVATE F3DEX_GBI_2)
-target_link_libraries(pokestadium PRIVATE libultraship hippodrome::utils)
+target_compile_definitions(stadion PRIVATE F3DEX_GBI_2)
+target_link_libraries(stadion PRIVATE libultraship hippodrome::utils)
 if(NOT ANDROID AND NOT EMSCRIPTEN)
   # the save library's command-line driver, for tools/save_editor/tests/test_native.py (not shipped)
   add_executable(stadium_save_cli EXCLUDE_FROM_ALL src/port/save_editor/cli_main.cpp src/port/save_editor/stadium_save.cpp)
@@ -122,8 +122,8 @@ if(NOT ANDROID AND NOT EMSCRIPTEN)
   endif()
 endif()
 if(APPLE)
-  target_sources(pokestadium PRIVATE src/port/pacing_mac.mm)
-  target_link_libraries(pokestadium PRIVATE "-framework CoreVideo" "-framework QuartzCore" "-framework Metal")
+  target_sources(stadion PRIVATE src/port/pacing_mac.mm)
+  target_link_libraries(stadion PRIVATE "-framework CoreVideo" "-framework QuartzCore" "-framework Metal")
 endif()
 
 # ---------------------------------------------------------------------------------------------
@@ -157,7 +157,7 @@ if(WIN32)
   if(NOT PORT_XCHECK_SYMBOL_RESULT EQUAL 0)
     message(FATAL_ERROR "Could not generate Windows cross-check caller symbols")
   endif()
-  target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/xcheck_symbols.c)
+  target_sources(stadion PRIVATE ${CMAKE_BINARY_DIR}/generated/xcheck_symbols.c)
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
       ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_xcheck_symbols.py
       ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_func_table.c)
@@ -246,7 +246,7 @@ if(_n GREATER 0)
     endif()
   endforeach()
 endif()
-target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/frag_sections.c)
+target_sources(stadion PRIVATE ${CMAKE_BINARY_DIR}/generated/frag_sections.c)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_frag_sections.py
              ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_fragment_entries.c)
 set_target_properties(stadium_game PROPERTIES C_STANDARD 11 C_EXTENSIONS ON)
@@ -322,7 +322,7 @@ if(NOT PORT_SOURCE_REVISION)
   set(PORT_SOURCE_REVISION "unknown")
 endif()
 string(APPEND PORT_BUILD_DESCRIPTION " revision ${PORT_SOURCE_REVISION}")
-target_compile_definitions(pokestadium PRIVATE PORT_BUILD_VERSION="${PORT_BUILD_DESCRIPTION}")
+target_compile_definitions(stadion PRIVATE PORT_BUILD_VERSION="${PORT_BUILD_DESCRIPTION}")
 target_compile_definitions(port_os PRIVATE LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 NDEBUG _FINALROM N_MICRO VERSION_US BUILD_VERSION=VERSION_I_P)
 target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/port_compat.h
   ${PORT_ALL_WARNINGS} -Wno-error)
@@ -333,31 +333,31 @@ else()
   find_path(PORT_SDL3_INCLUDE SDL3/SDL.h HINTS /opt/homebrew/include /usr/local/include)
   set_source_files_properties(src/port/gb_audio_out.cpp src/port/audio_out.cpp PROPERTIES INCLUDE_DIRECTORIES "${PORT_SDL3_INCLUDE}")
 endif()
-target_link_libraries(pokestadium PRIVATE port_os stadium_game port_os)
+target_link_libraries(stadion PRIVATE port_os stadium_game port_os)
 if(WIN32)
   # a window-only program (no console window next to the game; main.cpp attaches to the console it was started from),
-  # with the icon and version information from src/port/pokestadium.rc.in
-  set_target_properties(pokestadium PROPERTIES WIN32_EXECUTABLE TRUE)
-  target_link_libraries(pokestadium PRIVATE winmm) # timeBeginPeriod (pacing.cpp)
+  # with the icon and version information from src/port/stadion.rc.in
+  set_target_properties(stadion PROPERTIES WIN32_EXECUTABLE TRUE)
+  target_link_libraries(stadion PRIVATE winmm) # timeBeginPeriod (pacing.cpp)
   string(REGEX MATCHALL "[0-9]+" _v "${PORT_VERSION}.0.0.0.0")
   list(SUBLIST _v 0 4 _v)
   list(JOIN _v "," PORT_VERSION_RC)
-  set(PORT_ICON ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/pokestadium.ico)
-  configure_file(src/port/pokestadium.rc.in ${CMAKE_BINARY_DIR}/generated/pokestadium.rc @ONLY)
-  set_source_files_properties("${CMAKE_BINARY_DIR}/generated/pokestadium.rc" PROPERTIES
-    OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/port/pokestadium.manifest")
-  target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/pokestadium.rc)
+  set(PORT_ICON ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/stadion.ico)
+  configure_file(src/port/stadion.rc.in ${CMAKE_BINARY_DIR}/generated/stadion.rc @ONLY)
+  set_source_files_properties("${CMAKE_BINARY_DIR}/generated/stadion.rc" PROPERTIES
+    OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/port/stadion.manifest")
+  target_sources(stadion PRIVATE ${CMAKE_BINARY_DIR}/generated/stadion.rc)
 endif()
 if(WIN32 AND NOT MSVC) # mingw (gcc or clang)
   # system libraries MSVC links through #pragma comment(lib) in libultraship (DX11 shader compiler, DWM, audio GUIDs)
-  target_link_libraries(pokestadium PRIVATE d3dcompiler dwmapi ksuser dbghelp)
+  target_link_libraries(stadion PRIVATE d3dcompiler dwmapi ksuser dbghelp)
   # one self-contained exe: the C++ runtime (libc++/libstdc++, unwinder) linked in, no extra DLLs to ship
-  target_link_options(pokestadium PRIVATE -static)
+  target_link_options(stadion PRIVATE -static)
 endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # lld resolves symbols across the static libraries in any order (GNU ld is single-pass: the game library uses
   # libultra functions from libultraship, which is linked first)
-  target_link_options(pokestadium PRIVATE -fuse-ld=lld)
+  target_link_options(stadion PRIVATE -fuse-ld=lld)
 endif()
 
 if(EMSCRIPTEN)
@@ -371,7 +371,7 @@ if(EMSCRIPTEN)
   # many types, so PORT_WEB_FPCAST=OFF still traps at the first geo callback.
   option(PORT_WEB_FPCAST "Web build: emulate function pointer casts" ON)
   if(PORT_WEB_FPCAST)
-    target_link_options(pokestadium PRIVATE -sEMULATE_FUNCTION_POINTER_CASTS=1
+    target_link_options(stadion PRIVATE -sEMULATE_FUNCTION_POINTER_CASTS=1
                         "-sBINARYEN_EXTRA_PASSES=--pass-arg=max-func-params@64")
   endif()
   # the game's absolute symbols (src/port/generated/abs_syms.S), as a wasm object; it must come first on the link line
@@ -383,17 +383,17 @@ if(EMSCRIPTEN)
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_wasm_abs_syms.py ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/abs_syms.S)
   add_custom_target(port_web_abs_syms DEPENDS ${PORT_WEB_ABS_OBJ})
   # each fragment's static data, from the linker map (tools/gen_frag_ranges.py); make_o2r.py packs it (below)
-  add_custom_command(TARGET pokestadium POST_BUILD
-    COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_frag_ranges.py ${CMAKE_BINARY_DIR}/pokestadium.map
+  add_custom_command(TARGET stadion POST_BUILD
+    COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_frag_ranges.py ${CMAKE_BINARY_DIR}/stadion.map
             ${CMAKE_CURRENT_SOURCE_DIR}/game/src ${CMAKE_BINARY_DIR}/generated/frag_sections.txt
             ${CMAKE_BINARY_DIR}/frag_ranges.txt
     COMMENT "Finding the fragments' data in the linker map")
   set(PORT_O2R_EXTRA --add port/frag_ranges.txt=${CMAKE_BINARY_DIR}/frag_ranges.txt)
-  add_dependencies(pokestadium port_web_abs_syms)
-  set_property(TARGET pokestadium APPEND PROPERTY LINK_DEPENDS ${PORT_WEB_ABS_OBJ})
-  set_target_properties(pokestadium PROPERTIES SUFFIX ".js")
-  target_link_options(pokestadium BEFORE PRIVATE ${PORT_WEB_ABS_OBJ})
-  target_link_options(pokestadium PRIVATE
+  add_dependencies(stadion port_web_abs_syms)
+  set_property(TARGET stadion APPEND PROPERTY LINK_DEPENDS ${PORT_WEB_ABS_OBJ})
+  set_target_properties(stadion PROPERTIES SUFFIX ".js")
+  target_link_options(stadion BEFORE PRIVATE ${PORT_WEB_ABS_OBJ})
+  target_link_options(stadion PRIVATE
     -sGLOBAL_BASE=${PORT_WEB_GLOBAL_BASE}
     # 4 GB unused below the program, plus room for it (the game, the renderer's caches, the ROM)
     -sINITIAL_MEMORY=5GB -sALLOW_MEMORY_GROWTH=0
@@ -406,7 +406,7 @@ if(EMSCRIPTEN)
     "-sEXPORTED_RUNTIME_METHODS=callMain,ccall,FS,IDBFS" "-sEXPORTED_FUNCTIONS=_main,_setenv,_Port_ViTick"
     # PORT_WEB_EXTRA_LINK: link flags for debugging, e.g. "-sASSERTIONS=1 -sSAFE_HEAP=1" (checks every memory access)
     # the linker map: tools/gen_frag_ranges.py finds each fragment's static data in it (see frag_sections.c)
-    "-Wl,--Map=${CMAKE_BINARY_DIR}/pokestadium.map"
+    "-Wl,--Map=${CMAKE_BINARY_DIR}/stadion.map"
     -sENVIRONMENT=web,worker ${PORT_WEB_EXTRA_LINK}
     --profiling-funcs) # function names in the browser's stack traces
   file(GLOB_RECURSE PORT_WEB_RESOURCE_INPUTS CONFIGURE_DEPENDS
@@ -414,16 +414,16 @@ if(EMSCRIPTEN)
        ${CMAKE_CURRENT_SOURCE_DIR}/tools/launcher/assets/*.png
        ${CMAKE_CURRENT_SOURCE_DIR}/translation/*.csv
        ${CMAKE_CURRENT_SOURCE_DIR}/hippodrome-utils/assets/font/*)
-  set_property(TARGET pokestadium APPEND PROPERTY LINK_DEPENDS
+  set_property(TARGET stadion APPEND PROPERTY LINK_DEPENDS
                ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
                ${CMAKE_CURRENT_SOURCE_DIR}/src/port/vulkan_pipeline_warmup.txt
                ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt ${PORT_WEB_RESOURCE_INPUTS})
-  add_custom_command(TARGET pokestadium POST_BUILD
+  add_custom_command(TARGET stadion POST_BUILD
     COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
-            $<TARGET_FILE_DIR:pokestadium>/pokestadium.o2r ${PORT_O2R_EXTRA}
+            $<TARGET_FILE_DIR:stadion>/stadion.o2r ${PORT_O2R_EXTRA}
     COMMENT "Packing web resources")
 else()
-# Runtime resources (shaders, the shader warm-up list, launcher pictures) packed into pokestadium.o2r and built
+# Runtime resources (shaders, the shader warm-up list, launcher pictures) packed into stadion.o2r and built
 # into the executable as a C array (tools/make_o2r.py --c): no separate file to lose or damage. The archive itself is
 # left in generated/ for inspection.
 file(GLOB_RECURSE PORT_O2R_INPUTS CONFIGURE_DEPENDS
@@ -432,14 +432,14 @@ file(GLOB_RECURSE PORT_O2R_INPUTS CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/translation/*.csv
      ${CMAKE_CURRENT_SOURCE_DIR}/hippodrome-utils/assets/font/*)
 add_custom_command(
-  OUTPUT ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c
+  OUTPUT ${CMAKE_BINARY_DIR}/generated/stadion_o2r.c
   COMMAND ${Python3_EXECUTABLE} -I ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py
-          ${CMAKE_BINARY_DIR}/generated/pokestadium.o2r --c ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c
+          ${CMAKE_BINARY_DIR}/generated/stadion.o2r --c ${CMAKE_BINARY_DIR}/generated/stadion_o2r.c
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/make_o2r.py ${CMAKE_CURRENT_SOURCE_DIR}/src/port/shader_warmup.txt
           ${CMAKE_CURRENT_SOURCE_DIR}/src/port/vulkan_pipeline_warmup.txt
           ${PORT_O2R_INPUTS}
-  COMMENT "Packing pokestadium.o2r")
-target_sources(pokestadium PRIVATE ${CMAKE_BINARY_DIR}/generated/pokestadium_o2r.c)
+  COMMENT "Packing stadion.o2r")
+target_sources(stadion PRIVATE ${CMAKE_BINARY_DIR}/generated/stadion_o2r.c)
 endif()
 
 # Debug aid: cmake -DPORT_ASAN=ON builds the game code and the port layer with AddressSanitizer (finds the
@@ -449,5 +449,5 @@ if(PORT_ASAN)
   foreach(t stadium_game port_os)
     target_compile_options(${t} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
   endforeach()
-  target_link_options(pokestadium PRIVATE -fsanitize=address)
+  target_link_options(stadion PRIVATE -fsanitize=address)
 endif()

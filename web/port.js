@@ -1,4 +1,4 @@
-// Web build page logic (web/index.html): loads the game (pokestadium.js/.wasm, built by tools/build_web.sh), keeps the
+// Web build page logic (web/index.html): loads the game (stadion.js/.wasm, built by tools/build_web.sh), keeps the
 // player's own ROM and the saves in the browser, and starts the game on the canvas.
 //
 // Nothing of the game is on the server: the ROM is picked here, checked (SHA-1) and kept in the browser's storage
@@ -12,7 +12,7 @@ const ROM_PATH = DATA + "/rom/stadium.z64";
 const SAVE_PATH = DATA + "/saves/stadium.flash";
 const GB_DIR = DATA + "/gb";
 // the game's files; tools/build_web.sh puts their versioned names (name.<hash>.ext) here, so browsers can cache them
-const FILES = { js: "pokestadium.js", wasm: "pokestadium.wasm", o2r: "pokestadium.o2r" };
+const FILES = { js: "stadion.js", wasm: "stadion.wasm", o2r: "stadion.o2r" };
 
 const $ = (id) => document.getElementById(id);
 const statusLine = $("status");
@@ -221,7 +221,7 @@ function showFullscreenButton() {
 var Module = {
   canvas: $("canvas"),
   onSaveWritten: () => scheduleSaveSync(),
-  locateFile: (path) => (path === "pokestadium.wasm" ? FILES.wasm : path),
+  locateFile: (path) => (path === "stadion.wasm" ? FILES.wasm : path),
   print: (text) => console.log(text),
   printErr: (text) => console.warn(text),
   setStatus: (text) => { if (text && !started) setStatus(text); },
@@ -239,7 +239,7 @@ var Module = {
     await sync(true);
     // the port's own resources (shaders, fonts): fetched every time, next to the game
     const o2r = await fetch(FILES.o2r).then((r) => r.arrayBuffer());
-    Module.FS.writeFile(DATA + "/pokestadium.o2r", new Uint8Array(o2r));
+    Module.FS.writeFile(DATA + "/stadion.o2r", new Uint8Array(o2r));
     showMenu();
   },
 };

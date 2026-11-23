@@ -5,10 +5,10 @@ The other builds find a fragment's writable data through its own sections (__DAT
 __start_/__stop_ symbols on ELF and COFF). wasm-ld defines no such symbols: a fragment's data could not be reset, so it
 kept what the previous visit left (the area-select screen stayed black, its cursor stuck, on the second visit). It
 does keep each object's #pragma clang section data together, as one chunk of the map with an empty name; this script
-writes those chunks as "<fragment index> <address> <size>" lines (hexadecimal), packed into pokestadium.o2r as
+writes those chunks as "<fragment index> <address> <size>" lines (hexadecimal), packed into stadion.o2r as
 port/frag_ranges.txt and read at startup (Engine.cpp).
 
-Usage: gen_frag_ranges.py <pokestadium.map> <game/src> <frag_sections.txt> <out.txt>"""
+Usage: gen_frag_ranges.py <stadion.map> <game/src> <frag_sections.txt> <out.txt>"""
 import pathlib
 import re
 import sys

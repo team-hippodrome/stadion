@@ -1,13 +1,13 @@
 #!/bin/bash
-# Builds "Pokemon Stadium.app" (a double-clickable macOS launcher for the port) in the project folder.
+# Builds "stadion.app" (a double-clickable macOS launcher for the port) in the project folder.
 # Usage: tools/make_app.sh [title screenshot .png for the icon]
 # The app opens a launcher (styled after PokemonStadiumRecomp's): the Stadium ROM + save and a Game Boy cartridge + save
 # per player's Transfer Pak, remembered in the shared JSON config; PLAY starts
-# build/pokestadium. Auto-play skips the launcher next time (hold Option while opening the app to see it again).
+# build/stadion. Auto-play skips the launcher next time (hold Option while opening the app to see it again).
 # Config and saves live beside the .app (or in SHIP_HOME); the last run's log is saves/last_run.log.
 set -e
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-APP="$HERE/Pokemon Stadium.app"
+APP="$HERE/stadion.app"
 ICON_SRC="${1:-$HERE/build/tour/r3_menus/00_title.png}"
 
 rm -rf "$APP"
@@ -18,9 +18,9 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key><string>Pokemon Stadium</string>
-    <key>CFBundleDisplayName</key><string>Pokémon Stadium</string>
-    <key>CFBundleIdentifier</key><string>local.pokestadium-port.launcher</string>
+    <key>CFBundleName</key><string>stadion</string>
+    <key>CFBundleDisplayName</key><string>stadion</string>
+    <key>CFBundleIdentifier</key><string>local.stadion.launcher</string>
     <key>CFBundleVersion</key><string>1.0</string>
     <key>CFBundleShortVersionString</key><string>1.0</string>
     <key>CFBundlePackageType</key><string>APPL</string>
@@ -34,13 +34,13 @@ EOF
 
 # launcher window (tools/launcher/Launcher.swift): pick ROM, save, GB cartridge and GB save, then Play
 printf '%s\n' "$HERE" > "$APP/Contents/Resources/project-path.txt"
-cp "$HERE"/tools/launcher/assets/*.png "$APP/Contents/Resources/"  # cartridge pictures (from PokemonStadiumRecomp)
+cp "$HERE"/tools/launcher/assets/*.png "$APP/Contents/Resources/"  # cartridge pictures
 xcrun swiftc -parse-as-library -O -target arm64-apple-macos13 -o "$APP/Contents/MacOS/launcher" \
     "$HERE/tools/launcher/PortableLauncherStore.swift" "$HERE/tools/launcher/Launcher.swift"
 
 # icon: the title screen, cropped square
 if [ -f "$ICON_SRC" ]; then
-    TMP="$(mktemp -d /tmp/pokestadium_icon.XXXXXX)"
+    TMP="$(mktemp -d /tmp/stadion_icon.XXXXXX)"
     python3 -I - "$ICON_SRC" "$TMP/square.png" <<'PY'
 import struct, sys, zlib
 def read_png(p):

@@ -3,7 +3,7 @@
 call data to function names.
 
 Usage:
-  tools/evidence/run.py <out dir> --bin build-evidence/pokestadium [--seed N] [--queue FILE] [--frames N]
+  tools/evidence/run.py <out dir> --bin build-evidence/stadion [--seed N] [--queue FILE] [--frames N]
                         [--watch Name1,Name2] [--seq-max N] [--ares] [--moves m1,m2,m3,m4[:p1,p2,p3,p4]]
                         [--set "Fn[#n]:sym[*][+off]...:size=value;..."]
                         [--call "AtFn[#n][@exit]:Target:ret:args;..." [--call-file F] [--call-fork] [--call-buf HEX]]
@@ -163,7 +163,7 @@ def main():
         sys.exit(1)
     out = os.path.abspath(args[0])
     opt = lambda k, d=None: args[args.index(k) + 1] if k in args else d
-    binary = os.path.abspath(opt("--bin", os.path.join(ROOT, "build-evidence", "pokestadium")))
+    binary = os.path.abspath(opt("--bin", os.path.join(ROOT, "build-evidence", "stadion")))
     os.makedirs(out, exist_ok=True)
     res = Resolver(symbols(binary))
     DATA.update(data_symbols(binary))

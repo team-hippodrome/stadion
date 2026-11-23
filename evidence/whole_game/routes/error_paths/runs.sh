@@ -7,7 +7,7 @@ set -e
 OUT=$1; shift
 S=${S:-/private/tmp/claude-501/-Users-michael-Projects-Pokemon/1fd4be59-42a7-4591-b1e0-223ce98f21f6/scratchpad}
 G=${G:-/Users/michael/Projects/Pokemon/pokestadium-port/gb}
-B=${B:-build-evidence-all2/pokestadium}
+B=${B:-build-evidence-all2/stadion}
 R=evidence/whole_game/routes
 E=$R/error_paths
 V=$OUT/var

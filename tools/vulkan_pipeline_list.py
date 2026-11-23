@@ -1,6 +1,6 @@
 #!/usr/bin/env python3 -I
 """Writes src/port/vulkan_pipeline_warmup.txt, the Vulkan pipelines the warm-up builds ahead (gfx_vulkan.cpp,
-PrebuildShadersAsync; packed into pokestadium.o2r), from vulkan_pipelines.txt files the port recorded.
+PrebuildShadersAsync; packed into stadion.o2r), from vulkan_pipelines.txt files the port recorded.
 
 Usage: tools/vulkan_pipeline_list.py [--msaa N] FILE ... [--msaa N] FILE ... [--check FILE ...]
   FILE        a vulkan_pipelines.txt (a profile's, or a capture: run_replays.py --shader-capture, shader-recipes/*/)

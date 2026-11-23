@@ -73,7 +73,7 @@ LauncherCheck CheckLauncherFiles(const fs::path& directory, const std::string& s
                                  const std::array<LauncherSlot, 4>& slots) {
     LauncherCheck result;
     std::string error;
-    if (!Writable(directory / "pokestadium.cfg.json", error)) result.errors.push_back("Settings: " + error);
+    if (!Writable(directory / "stadion.cfg.json", error)) result.errors.push_back("Settings: " + error);
     auto checkSave = [&](const std::string& path, const std::string& label, bool stadium, size_t size) {
         if (path.empty()) { result.errors.push_back(label + "Choose a save location."); return; }
         const auto p = fs::u8path(path);
@@ -287,9 +287,9 @@ std::string RedactDiagnosticLog(const std::string& text) {
 bool ExportLauncherDiagnostics(const fs::path& directory, const std::string& build,
                                 const std::string& requested, const std::string& active,
                                 std::string& exported, std::string& error) {
-    std::string report = "Pokemon Stadium launcher diagnostics\nBuild: " + build + "\nRequested renderer: " + requested +
+    std::string report = "stadion launcher diagnostics\nBuild: " + build + "\nRequested renderer: " + requested +
         "\nActive renderer: " + active + "\nNo ROM, save, config contents or environment variables included.\n";
-    for (const auto& relative : {"logs/pokestadium.log", "saves/last_run.log"}) {
+    for (const auto& relative : {"logs/stadion.log", "saves/last_run.log"}) {
         std::ifstream log(directory / relative, std::ios::binary | std::ios::ate);
         if (!log) continue;
         const auto size = log.tellg(); if (size <= 0) continue;

@@ -9,7 +9,7 @@ namespace Fast {
 class Fast3dWindow;
 }
 
-// Owns the libultraship context and window for the Pokemon Stadium port.
+// Owns the libultraship context and window for stadion.
 namespace Port {
 bool Init();
 // Reports a Vulkan swapchain failure, saves a usable renderer for the next start, and exits without driver teardown.
@@ -34,7 +34,7 @@ void Shutdown();
 
 // Cartridge ROM image the game reads through PI DMA (osEPiStartDma).
 bool LoadRom(const char* path);
-// a file in the app's data folder (next to pokestadium.cfg.json: SHIP_HOME, e.g. the macOS app's Application Support)
+// a file in the app's data folder (next to stadion.cfg.json: SHIP_HOME, e.g. the macOS app's Application Support)
 std::string AppPath(const char* name);
 // The game picture's shape (Engine.cpp): 0 = 4:3, 1 = 16:9. ApplyAspect hands it to the renderer.
 int AspectSetting();

@@ -7,12 +7,12 @@ plugins {
 def repo = rootProject.projectDir.parentFile
 
 android {
-    namespace = "com.teamhippodrome.pokestadium"
+    namespace = "com.teamhippodrome.stadion"
     compileSdk = 36
     ndkVersion = "29.0.14206865"
 
     defaultConfig {
-        applicationId = "com.teamhippodrome.pokestadium"
+        applicationId = "com.teamhippodrome.stadion"
         minSdk = 29
         targetSdk = 36
         versionCode = 1
