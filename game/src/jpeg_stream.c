@@ -373,6 +373,15 @@ void* Asset_LoadCompressed(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
     UNUSED s32 pad;
     int side;
 
+#ifdef PORT_STATIC_FRAGMENTS
+    // PORT: read the whole asset in the loaded ROM's own offsets (src/port/rom_version.h), so one that is bigger
+    // there than in Rev 2 is read, and sized, whole
+    {
+        u32 rawEnd = Port_RomRangeEndToRaw((u32)(uintptr_t)romStart, (u32)(uintptr_t)romEnd);
+        romStart = (u8*)(uintptr_t)Port_RomToRaw((u32)(uintptr_t)romStart);
+        romEnd = (u8*)(uintptr_t)rawEnd;
+    }
+#endif
     side = (arg2 == 0) ? MEMORY_POOL_RIGHT : MEMORY_POOL_LEFT;
     addr = main_pool_alloc(0x18, side);
 
@@ -1015,6 +1024,14 @@ BinArchive* BinArchive_Open(u8* romStart, u8* romEnd, s32 arg2, s32 arg3) {
     u32 sp28_2;
     u16* newaddr;
 
+#ifdef PORT_STATIC_FRAGMENTS
+    // PORT: the archive's files are read at its start plus their offsets, in the loaded ROM's own offsets
+    // (src/port/rom_version.h): a translated archive's later files lie past the Rev 2 archive's end
+    if (romEnd != NULL) {
+        romEnd = (u8*)(uintptr_t)Port_RomRangeEndToRaw((u32)(uintptr_t)romStart, (u32)(uintptr_t)romEnd);
+    }
+    romStart = (u8*)(uintptr_t)Port_RomToRaw((u32)(uintptr_t)romStart);
+#endif
     switch (arg2) {
         case 0:
             newaddr = Asset_LoadCompressed(romStart, romEnd, 0, 0);

@@ -23,6 +23,8 @@ constexpr KnownRom kKnownRoms[] = {
     { "ed7bef5a306f88c0a6e96b15e71fee2ef32058f3", PORT_ROM_US, "USA 1.0" },
     { "488bb6d112427823d77fcecdd9297fd86875263d", PORT_ROM_US_REV1, "USA Rev 1" },
     { "0d3b1d740c6ee6da6923550bf24ad827262fd8c0", PORT_ROM_US_REV2, "USA Rev 2" },
+    { "6f26e3c8b35c3232058375e30d19665facb23123", PORT_ROM_EU, "Europe 1.0" },
+    { "9470f899ad0107677b7dfd24e1dd567723a5f84f", PORT_ROM_EU_REV1, "Europe Rev 1" },
 };
 constexpr size_t kRomSize = 32 * 1024 * 1024;
 
