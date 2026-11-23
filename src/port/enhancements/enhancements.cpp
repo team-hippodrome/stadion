@@ -79,65 +79,89 @@ namespace {
 
 const char* const kSeGroup[2] = { "Rental", "Opponent" };
 
-std::string SeCvar(int group, const char* field) {
-    return std::string("gEnhancements.StatExpDifficulty.") + kSeGroup[group] + "." + field;
+std::string SeCvar(int group, const char* bound, const char* field) {
+    return std::string("gEnhancements.StatExpDifficulty.") + kSeGroup[group] + "." + bound + "." + field;
 }
 
-// PORT_STATEXP_*: a mode name or "<min>-<max>" (Custom); false when unset or unreadable
-bool SeEnv(int group, hu_se_setting* out) {
-    const char* v = getenv(group == PORT_SE_RENTAL ? "PORT_STATEXP_RENTAL" : "PORT_STATEXP_OPPONENT");
-    if (v == nullptr || *v == '\0') {
-        return false;
-    }
-    *out = hu_se_vanilla();
-    auto same = [](const char* a, const char* b) { // ASCII, ignoring case
-        for (; *a && *b; a++, b++) {
-            if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) {
-                return false;
-            }
+bool SameAscii(const char* a, const char* b, size_t n) { // the first n characters of a are b, ignoring case
+    size_t i = 0;
+    for (; i < n && b[i] != '\0'; i++) {
+        if (tolower((unsigned char)a[i]) != tolower((unsigned char)b[i])) {
+            return false;
         }
-        return *a == *b;
-    };
+    }
+    return i == n && b[i] == '\0';
+}
+
+// one bound of PORT_STATEXP_*: a mode name or a number (Custom)
+bool SeEnvBound(const char* v, size_t n, hu_se_bound* out) {
     for (int m = 0; m < HU_SE_MODE_COUNT; m++) {
-        if (m != HU_SE_CUSTOM && same(v, hu_se_mode_name(m))) {
+        if (m != HU_SE_CUSTOM && SameAscii(v, hu_se_mode_name(m), n)) {
             out->mode = (uint8_t)m;
             return true;
         }
     }
-    unsigned a, b;
-    if (sscanf(v, "%u-%u", &a, &b) != 2) {
-        fprintf(stderr, "[enhancements] could not read %s (use vanilla, casual ... kaizo, or 0-65535)\n", v);
+    char* end = nullptr;
+    const unsigned long value = strtoul(std::string(v, n).c_str(), &end, 10);
+    if (n == 0 || end == nullptr || *end != '\0') {
         return false;
     }
     out->mode = HU_SE_CUSTOM;
-    out->custom_min = (uint16_t)std::min(a, 65535u);
-    out->custom_max = (uint16_t)std::min(b, 65535u);
+    out->custom = (uint16_t)std::min(value, 65535ul);
     return true;
+}
+
+bool SeEnv(int group, hu_se_bounds* out) {
+    const char* v = getenv(group == PORT_SE_RENTAL ? "PORT_STATEXP_RENTAL" : "PORT_STATEXP_OPPONENT");
+    if (v == nullptr || *v == '\0') {
+        return false;
+    }
+    *out = hu_se_bounds_vanilla();
+    const char* colon = strchr(v, ':');
+    const bool ok = colon != nullptr
+                        ? SeEnvBound(v, (size_t)(colon - v), &out->min) && SeEnvBound(colon + 1, strlen(colon + 1), &out->max)
+                        : SeEnvBound(v, strlen(v), &out->min) && SeEnvBound(v, strlen(v), &out->max);
+    if (!ok) {
+        fprintf(stderr, "[enhancements] could not read %s (use <min>:<max>, each vanilla, casual ... kaizo or 0-65535)\n", v);
+        *out = hu_se_bounds_vanilla();
+        return false;
+    }
+    return true;
+}
+
+hu_se_bound SeRead(int group, const char* bound, uint16_t fallback) {
+    hu_se_bound b;
+    const int mode = CVarGetInteger(SeCvar(group, bound, "Mode").c_str(), HU_SE_VANILLA);
+    b.mode = (uint8_t)((mode >= 0 && mode < HU_SE_MODE_COUNT) ? mode : HU_SE_VANILLA);
+    b.custom = (uint16_t)std::clamp(CVarGetInteger(SeCvar(group, bound, "Value").c_str(), fallback), 0, 65535);
+    return b;
+}
+
+void SeWrite(int group, const char* bound, const hu_se_bound& b) {
+    CVarSetInteger(SeCvar(group, bound, "Mode").c_str(), b.mode);
+    CVarSetInteger(SeCvar(group, bound, "Value").c_str(), b.custom);
 }
 
 } // namespace
 
-extern "C" void Port_Enh_StatExpDifficulty(int group, hu_se_setting* out) {
-    *out = hu_se_vanilla();
+extern "C" void Port_Enh_StatExpBounds(int group, hu_se_bounds* out) {
+    *out = hu_se_bounds_vanilla();
     if (group != PORT_SE_RENTAL && group != PORT_SE_OPPONENT) {
         return;
     }
     if (SeEnv(group, out)) {
         return;
     }
-    const int mode = CVarGetInteger(SeCvar(group, "Mode").c_str(), HU_SE_VANILLA);
-    out->mode = (uint8_t)((mode >= 0 && mode < HU_SE_MODE_COUNT) ? mode : HU_SE_VANILLA);
-    out->custom_min = (uint16_t)std::clamp(CVarGetInteger(SeCvar(group, "Min").c_str(), 0), 0, 65535);
-    out->custom_max = (uint16_t)std::clamp(CVarGetInteger(SeCvar(group, "Max").c_str(), 65535), 0, 65535);
+    out->min = SeRead(group, "Min", 0);
+    out->max = SeRead(group, "Max", 65535);
 }
 
-extern "C" void Port_Enh_SetStatExpDifficulty(int group, const hu_se_setting* setting) {
+extern "C" void Port_Enh_SetStatExpBounds(int group, const hu_se_bounds* bounds) {
     if (group != PORT_SE_RENTAL && group != PORT_SE_OPPONENT) {
         return;
     }
-    CVarSetInteger(SeCvar(group, "Mode").c_str(), setting->mode);
-    CVarSetInteger(SeCvar(group, "Min").c_str(), setting->custom_min);
-    CVarSetInteger(SeCvar(group, "Max").c_str(), setting->custom_max);
+    SeWrite(group, "Min", bounds->min);
+    SeWrite(group, "Max", bounds->max);
     CVarSave();
 }
 

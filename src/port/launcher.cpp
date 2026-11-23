@@ -2353,19 +2353,23 @@ class LauncherWindow : public Ship::GuiWindow {
             if (c >= 0) Port_Enh_SetHueChoiceMode(kModes[c]);
         }
         {
-            hu_se_setting r[2];
-            Port_Enh_StatExpDifficulty(PORT_SE_RENTAL, &r[0]);
-            Port_Enh_StatExpDifficulty(PORT_SE_OPPONENT, &r[1]);
-            const bool vanilla = r[0].mode == HU_SE_VANILLA && r[1].mode == HU_SE_VANILLA;
+            hu_se_bounds r[2];
+            Port_Enh_StatExpBounds(PORT_SE_RENTAL, &r[0]);
+            Port_Enh_StatExpBounds(PORT_SE_OPPONENT, &r[1]);
+            const bool vanilla = !hu_se_bounds_active(&r[0]) && !hu_se_bounds_active(&r[1]);
             Text(lx, ry + 5, "Stat Exp difficulty", gFonts.body);
             if (ColorButton(vanilla ? "Vanilla" : "Changed", cx, ry, 132, 26, vanilla ? Theme::button : 0x23406B,
                             vanilla ? Theme::buttonHover : 0x23406B)) {
                 mStatDifficulty = true;
             }
+            auto name = [](const hu_se_bounds& b) {
+                return b.min.mode == b.max.mode ? std::string(hu_se_mode_name(b.min.mode))
+                                                : std::string(hu_se_mode_name(b.min.mode)) + " to " + hu_se_mode_name(b.max.mode);
+            };
             Text(tx, ry + 1,
-                 std::string("The lowest and highest Stat Exp of the rental Pokémon and of the opponents, as a\n"
-                             "preset (Casual to Kaizo) or your own range. Now: rentals ") +
-                     hu_se_mode_name(r[0].mode) + ", opponents " + hu_se_mode_name(r[1].mode) + ".",
+                 std::string("The lowest and highest Stat Exp of the rental Pokémon and of the opponents, each a\n"
+                             "preset (Casual to Kaizo) or your own value. Now: rentals ") +
+                     name(r[0]) + ", opponents " + name(r[1]) + ".",
                  gFonts.small, Theme::dim);
             ry += 60;
         }
@@ -2387,61 +2391,83 @@ class LauncherWindow : public Ship::GuiWindow {
         dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
         static const char* const kNames[2] = { "Rental Pokémon", "Opponent Pokémon" };
         static const char* const kHints[2] = {
-            "The rentals on the Pokémon select screen and Battle Now's\nteams, as their cards show them.",
-            "The cup, Gym Leader Castle and Mewtwo trainers, Battle Now's\nCOM and the team you give the COM in Free Battle." };
+            "The rentals on the Pokémon select screen and Battle Now's teams,\nas their cards show them. Not in Free Battle.",
+            "The cup, Gym Leader Castle and Mewtwo trainers and Battle Now's\nCOM. Not in Free Battle." };
         const float colW = (w - 42) / 2;
         for (int g = 0; g < 2; g++) {
             const float cx = x + 14 + g * (colW + 14);
+            const hu_se_side side = g == PORT_SE_RENTAL ? HU_SE_RENTAL : HU_SE_OPPONENT;
             float ry = y + 58;
-            hu_se_setting r;
-            Port_Enh_StatExpDifficulty(g, &r);
+            hu_se_bounds r;
+            Port_Enh_StatExpBounds(g, &r);
             Text(cx, ry + 5, kNames[g], gFonts.body);
-            Text(cx, ry + 28, kHints[g], gFonts.small, Theme::dim);
-            ry += 66;
+            Text(cx, ry + 26, kHints[g], gFonts.small, Theme::dim);
+            ry += 62;
             ImGui::PushID(g);
             bool changed = false;
-            // two rows of modes: Vanilla Casual Easy Medium / Hard Kaizo Custom
-            const int c1 = Choice("m1", { "Vanilla", "Casual", "Easy", "Medium" }, r.mode <= HU_SE_MEDIUM ? r.mode : -1,
-                                  cx, ry, 100);
-            const int c2 = Choice("m2", { "Hard", "Kaizo", "Custom" }, r.mode >= HU_SE_HARD ? r.mode - HU_SE_HARD : -1,
-                                  cx, ry + 30, 100);
-            if (c1 >= 0 || c2 >= 0) {
-                r.mode = (uint8_t)(c1 >= 0 ? c1 : HU_SE_HARD + c2);
-                changed = true;
-            }
-            ry += 68;
-            if (r.mode == HU_SE_CUSTOM) {
-                auto slider = [&](const char* name, const char* id, int value) {
-                    Text(cx, ry + 4, name, gFonts.body);
-                    ImGui::SetCursorScreenPos(P(cx + 150, ry));
-                    ImGui::SetNextItemWidth((colW - 150) * mScale);
+            // a bound: its seven modes in two rows (Vanilla Casual Easy Medium / Hard Kaizo Custom), the value of a
+            // preset beside them, and a slider once it is Custom; a Minimum above the Maximum moves the other one
+            auto bound = [&](const char* label, const char* id, hu_se_bound& b, bool is_min) {
+                const float bx = cx + 84;
+                Text(cx, ry + 5, label, gFonts.body);
+                ImGui::PushID(id);
+                const int c1 = Choice("m1", { "Vanilla", "Casual", "Easy", "Medium" },
+                                      b.mode <= HU_SE_MEDIUM ? b.mode : -1, bx, ry, 70);
+                const int c2 = Choice("m2", { "Hard", "Kaizo", "Custom" },
+                                      b.mode >= HU_SE_HARD ? b.mode - HU_SE_HARD : -1, bx, ry + 30, 70);
+                bool bound_changed = false;
+                if (c1 >= 0 || c2 >= 0) {
+                    const uint8_t mode = (uint8_t)(c1 >= 0 ? c1 : HU_SE_HARD + c2);
+                    if (mode == HU_SE_CUSTOM && b.mode != HU_SE_CUSTOM) {
+                        uint16_t v; // Custom starts from the value the bound had
+                        b.custom = hu_se_bound_value(&b, side, &v) ? v : (is_min ? 0 : 65535);
+                    }
+                    b.mode = mode;
+                    bound_changed = true;
+                }
+                uint16_t v;
+                if (b.mode != HU_SE_CUSTOM && hu_se_bound_value(&b, side, &v)) {
+                    Text(bx + 4 * 74 + 6, ry + 5, std::to_string(v), gFonts.body, Theme::dim);
+                }
+                ry += 62;
+                if (b.mode == HU_SE_CUSTOM) {
+                    ImGui::SetCursorScreenPos(P(bx, ry));
+                    ImGui::SetNextItemWidth((colW - 84) * mScale);
                     ImGui::PushStyleColor(ImGuiCol_SliderGrab, HexV(0x4C7BD9));
                     ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, HexV(0x6E95E6));
-                    int v = value;
-                    if (ImGui::SliderInt(id, &v, 0, 65535, "%d", ImGuiSliderFlags_AlwaysClamp)) {
-                        changed = true;
+                    int value = b.custom;
+                    if (ImGui::SliderInt("##value", &value, 0, 65535, "%d", ImGuiSliderFlags_AlwaysClamp)) {
+                        b.custom = (uint16_t)value;
+                        bound_changed = true;
                     }
                     ImGui::PopStyleColor(2);
-                    ry += 36;
-                    return v;
-                };
-                r.custom_min = (uint16_t)slider("Lowest Stat Exp", "##semin", r.custom_min);
-                r.custom_max = (uint16_t)slider("Highest Stat Exp", "##semax", r.custom_max);
-            }
+                    ry += 34;
+                }
+                ImGui::PopID();
+                if (bound_changed) {
+                    hu_se_bounds_fix(&r, side, is_min);
+                    changed = true;
+                }
+            };
+            bound("Minimum", "min", r.min, true);
+            bound("Maximum", "max", r.max, false);
             uint16_t lo, hi;
-            if (hu_se_errors(&r) != 0) {
-                Text(cx, ry, hu_se_error_text(HU_SE_ORDER), gFonts.small, Theme::red);
-                Text(cx, ry + 18, "Vanilla values are used until this is fixed.", gFonts.small, Theme::red);
-            } else if (hu_se_range(&r, g == PORT_SE_RENTAL ? HU_SE_RENTAL : HU_SE_OPPONENT, &lo, &hi)) {
-                Text(cx, ry, "Stat Exp " + std::to_string(lo) + " to " + std::to_string(hi) +
-                                 " (out of 65535). Values outside\nmove to the nearer end; DVs are not changed.",
-                     gFonts.small, Theme::dim);
-            } else {
-                Text(cx, ry, "The game's own Stat Exp.", gFonts.small, Theme::dim);
+            const bool has_lo = hu_se_bound_value(&r.min, side, &lo), has_hi = hu_se_bound_value(&r.max, side, &hi);
+            std::string summary = "The game's own Stat Exp.";
+            if (has_lo && has_hi) {
+                summary = "Stat Exp from " + std::to_string(lo) + " to " + std::to_string(hi) + " (out of 65535).";
+            } else if (has_lo) {
+                summary = "Stat Exp at least " + std::to_string(lo) + " (out of 65535).";
+            } else if (has_hi) {
+                summary = "Stat Exp at most " + std::to_string(hi) + " (out of 65535).";
             }
+            if (has_lo || has_hi) {
+                summary += "\nThe stats are worked out again; DVs are not changed.";
+            }
+            Text(cx, ry + 2, summary, gFonts.small, Theme::dim);
             ImGui::PopID();
             if (changed) {
-                Port_Enh_SetStatExpDifficulty(g, &r);
+                Port_Enh_SetStatExpBounds(g, &r);
             }
         }
     }
