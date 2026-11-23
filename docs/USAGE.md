@@ -43,8 +43,8 @@ In the launcher, select your base ROM. Optionally use **Import save** to bring i
 an existing N64 cartridge save, and choose a Game Boy ROM and battery save for each
 player's Transfer Pak. Select **PLAY** to start; your choices are remembered.
 
-Use **Files & help → Check setup** to check your ROMs, save files and writable
-folders. Without an imported N64 save, stadion creates a fresh one.
+**Files & help** checks your ROMs, save files and writable folders when it opens
+(**Check again** repeats it). Without an imported N64 save, stadion creates a fresh one.
 
 ## Configuration
 
@@ -76,7 +76,8 @@ apply** reopens the launcher with the selected renderer.
 
 **Graphics** opens the drawing settings; changes apply at once and are kept:
 - **Display**: windowed or fullscreen (borderless), applied when the game starts.
-  F11 switches in-game.
+  F11 switches in-game. On Android the game is always full screen, and this row is
+  **Screen** (4:3 or 16:9) instead.
 - **Internal resolution**: the pixels the game is drawn with. **Match window** (the
   default) draws every pixel of the window, Retina and other HiDPI displays included.
   **Native** is the N64's own 320 x 240 (426 x 240 in 16:9); **2x** to **6x** are
@@ -152,8 +153,9 @@ Files selected through its picker are copied into the app's `imported/` folder.
 working copy in `saves/` and preserves the original. Emulator save states and
 Controller Pak files are not supported cartridge saves.
 
-**Files & help** can open the settings and saves folders and export an N64 save.
-Android exports also offer the system **Save as** picker.
+**Files & help** shows the active N64 save (size, last change, backups kept) with
+**Save editor** and **Export save**, and where the settings and saves are; on desktop
+it can open those folders. Android exports also offer the system **Save as** picker.
 
 Save writes replace the active file atomically. Before the first overwrite in each
 session, the previous save is backed up in `<save filename>.backups/`; the five newest

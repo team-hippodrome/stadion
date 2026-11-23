@@ -1230,6 +1230,8 @@ class LauncherWindow : public Ship::GuiWindow {
         if ((opened && mCapture < 0) || testOpen) {
             mToolsTestOpened = true;
             mTools = !mTools;
+            mCheckFresh = false; // (the setup check runs again when the page opens)
+            mToolsStatus.clear();
             if (Handheld()) GoToPage(mTools ? kPageTools : kPageHome);
         }
     }
@@ -1247,76 +1249,193 @@ class LauncherWindow : public Ship::GuiWindow {
         style.resetFocus = [this] { mFocusReset = true; };
         gSaveEditor.Draw(style, P(x, y), P(x + w, y + h));
     }
-    bool ToolAction(const char* label) {
-        const bool clicked = ImGui::Button(label, ImVec2(std::min(280.0f * mScale, ImGui::GetContentRegionAvail().x),
-                                                       (Handheld() ? 44.0f : 26.0f) * mScale));
-        return NavItem() || clicked;
-    }
-    void ToolsPanel(float x, float y, float w, float h) {
+    // ---- Files & help: the setup check, the Stadium save, troubleshooting and where the files are ----
+    Port::LauncherCheck mCheck;
+    std::string mCheckRom; // CheckRom's answer when the check ran
+    bool mCheckFresh = false;
+    void RunCheck() {
         const auto directory = fs::u8path(Ship::Context::GetAppDirectoryPath());
-        ImGui::SetCursorScreenPos(P(x, y));
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, HexV(Theme::card));
-        ImGui::BeginChild("launcher-files", ImVec2(w * mScale, h * mScale), true);
-        ImGui::SetWindowFontScale(mScale);
-            ImGui::TextWrapped("Settings folder: %s", Port::PathUtf8(directory).c_str());
-            ImGui::TextWrapped("Active Stadium save: %s", mState->save.c_str());
-            if (ToolAction("Check setup")) {
-                auto check = Port::CheckLauncherFiles(directory, mState->save, PreflightSlots(*mState));
-                const auto romError = CheckRom(mState->rom);
-                if (!romError.empty()) check.errors.insert(check.errors.begin(), "Stadium ROM: " + romError);
-                mToolsStatus = CheckText(check);
-            }
-            if (Handheld() && ToolAction("Save editor")) { // (the desktop layout has it under Debug)
-                OpenSaveEditor(*mState);
-                if (gSaveEditor.IsOpen()) {
-                    mTools = false;
+        mCheck = Port::CheckLauncherFiles(directory, mState->save, PreflightSlots(*mState));
+        mCheckRom = CheckRom(mState->rom);
+        mCheckFresh = true;
+    }
+    // "3 min ago" for a file's last change, "" if it is not there
+    static std::string Age(const fs::path& path) {
+        std::error_code ec;
+        const auto when = fs::last_write_time(path, ec);
+        if (ec) return "";
+        const auto secs = std::chrono::duration_cast<std::chrono::seconds>(fs::file_time_type::clock::now() - when).count();
+        char buf[48];
+        if (secs < 60) return "just now";
+        if (secs < 3600) snprintf(buf, sizeof buf, "%lld min ago", (long long)(secs / 60));
+        else if (secs < 86400) snprintf(buf, sizeof buf, "%lld h ago", (long long)(secs / 3600));
+        else snprintf(buf, sizeof buf, "%lld days ago", (long long)(secs / 86400));
+        return buf;
+    }
+    // a small grey section title with a line under it
+    void Section(float x, float y, float w, const char* title) {
+        Text(x, y, title, gFonts.small, Theme::dim);
+        ImGui::GetWindowDrawList()->AddRectFilled(P(x, y + 18), P(x + w, y + 19), Hex(Theme::cardBorder));
+    }
+    // a status line: coloured dot and wrapped text; returns its height
+    float StatusLine(float x, float y, float w, uint32_t color, const std::string& t) {
+        ImGui::GetWindowDrawList()->AddCircleFilled(P(x + 5, y + 8), 4 * mScale, Hex(color));
+        return std::max(18.0f, Paragraph(x + 16, y, w - 16, t, gFonts.small, Theme::text)) + 4;
+    }
+
+    void ToolsPanel(float x, float y, float w, float h) {
+        State& s = *mState;
+        const auto directory = fs::u8path(Ship::Context::GetAppDirectoryPath());
+        const bool hh = Handheld();
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "FILES & HELP", gFonts.body, Theme::text);
+        Text(x + 130, y + 15, "Check your setup, manage the Stadium save, get help.", gFonts.small, Theme::dim);
+        if (Button("Done", x + w - 108, y + 9, 94, 26)) {
+            mTools = false;
+            if (hh) GoToPage(kPageHome);
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+        if (!mCheckFresh || mChanged) RunCheck();
+
+        const float colW = (w - 42) / 2, lx = x + 14, rx = x + 28 + colW;
+        const float bh = hh ? 34 : 26; // (fingers)
+
+        // left: setup check
+        float ly = y + 56;
+        Section(lx, ly, colW, "SETUP");
+        ly += 26;
+        if (mCheckRom.empty()) ly += StatusLine(lx, ly, colW, Theme::green, "Stadium ROM: Pokémon Stadium (USA), the expected dump.");
+        else ly += StatusLine(lx, ly, colW, Theme::red, "Stadium ROM: " + (s.rom.empty() ? std::string("none chosen yet.") : mCheckRom));
+        int shown = 0;
+        for (const auto& e : mCheck.errors) if (shown++ < 3) ly += StatusLine(lx, ly, colW, Theme::red, e);
+        for (const auto& wn : mCheck.warnings) if (shown++ < 3) ly += StatusLine(lx, ly, colW, 0xE0A030, wn);
+        if (shown > 3) ly += StatusLine(lx, ly, colW, Theme::dim, std::to_string(shown - 3) + " more: press Check again after fixing these.");
+        if (mCheck.errors.empty() && mCheck.warnings.empty()) {
+            int paks = 0;
+            for (const GbSlot& g : s.gb) paks += g.enabled && !g.rom.empty();
+            ly += StatusLine(lx, ly, colW, Theme::green,
+                             paks == 0 ? "Save folder ready. No Transfer Pak in use."
+                                       : "Save folder and " + std::to_string(paks) + " Game Boy cartridge" + (paks > 1 ? "s" : "") + " ready.");
+        }
+        if (Button("Check again", lx, ly + 4, 120, bh)) {
+            RunCheck();
+            mToolsStatus = mCheckRom.empty() && mCheck.errors.empty() && mCheck.warnings.empty() ? "Checked: everything is ready." : "Checked.";
+        }
+        ly += bh + 18;
+
+        // left: the Stadium save
+        Section(lx, ly, colW, "STADIUM SAVE");
+        ly += 26;
+        {
+            const fs::path save = fs::u8path(s.save);
+            std::error_code ec;
+            const auto size = fs::file_size(save, ec);
+            std::string line = FileName(s.save);
+            if (!ec) line += "  ·  " + std::to_string(size / 1024) + " KB  ·  changed " + Age(save);
+            else line += "  ·  not created yet";
+            ly += Paragraph(lx, ly, colW, line, gFonts.body) + 4;
+            int backups = 0;
+            for (fs::directory_iterator it(fs::u8path(s.save + ".backups"), ec), end; !ec && it != end; it.increment(ec)) backups++;
+            ly += 4 + Paragraph(lx, ly, colW, ec && backups == 0 ? "The game creates it the first time it saves."
+                                     : backups == 0 ? "A copy of the save is kept each time the game starts (the last five)."
+                                                 : std::to_string(backups) + " earlier cop" + (backups == 1 ? "y" : "ies") +
+                                                       " kept (one per game start, the last five).",
+                      gFonts.small, Theme::dim);
+            ly += 6;
+        }
+        float bx = lx;
+        if (Button("Save editor", bx, ly, 110, bh)) {
+            OpenSaveEditor(s);
+            if (gSaveEditor.IsOpen()) {
+                mTools = false;
+                if (hh) {
                     GoToPage(kPageSaveEditor);
                     mFocusReset = true; // (this frame still draws the old page: its default would win)
-                } else {
-                    mToolsStatus = gEditorStatus;
                 }
+            } else {
+                mToolsStatus = gEditorStatus;
             }
-            if (ToolAction("Open settings folder")) OpenFolder(directory);
-            if (ToolAction("Open saves folder")) OpenFolder(fs::u8path(mState->save).parent_path());
-            if (ToolAction("Export N64 save")) {
-                std::string path, error;
-                if (Port::ExportStadiumSave(fs::u8path(mState->save), directory, path, error)) {
-                    mToolsStatus = "Exported: " + path + "\nThe active save was kept unchanged.";
-                    OfferExport(path);
-                } else mToolsStatus = error;
-            }
-            if (ToolAction("Export diagnostics")) {
-                std::string path, error;
-                if (Port::ExportLauncherDiagnostics(directory, PORT_BUILD_VERSION,
-                    RendererName(mState->renderer), RendererName(ActiveRenderer()), path, error)) {
-                    mToolsStatus = "Exported: " + path + "\nReview the report before sharing it.";
-                    OfferExport(path);
-                } else mToolsStatus = error;
-            }
-            if (ToolAction("Disable Auto-play")) { mState->autoPlay = false; mChanged = true; mToolsStatus = "Auto-play disabled."; }
-            if (ToolAction("Use safe renderer next start")) {
-#ifdef __APPLE__
-                mState->renderer = Fast::FAST3D_SDL_METAL;
-#else
-                mState->renderer = Fast::FAST3D_SDL_OPENGL;
-#endif
-                mState->autoPlay = false; mChanged = true;
-                mToolsStatus = "Auto-play disabled and safe renderer selected. Restart to apply.";
-            }
-            ImGui::TextWrapped("Recovery: start with --launcher to bypass Auto-play, or --safe-mode to reset the renderer. Saves and controller mappings are kept.");
-            ImGui::TextWrapped("Five previous session saves are kept in <save>.backups. Exports are under exports/; reports under diagnostics/.");
-            if (!mToolsStatus.empty()) ImGui::TextWrapped("%s", mToolsStatus.c_str());
-            if (ToolAction("Back to players")) { mTools = false; if (Handheld()) GoToPage(kPageHome); }
-            // a finger drags the list (ImGui scrolls only with a wheel or the scrollbar)
-            if (Handheld() && ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) &&
-                ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-                ImGui::SetScrollY(ImGui::GetScrollY() - ImGui::GetIO().MouseDelta.y);
-            }
+        }
+        bx += 116;
+        if (Button("Export save", bx, ly, 110, bh)) {
+            std::string path, error;
+            if (Port::ExportStadiumSave(fs::u8path(s.save), directory, path, error)) {
+                mToolsStatus = (hh ? "Exported. Choose where to keep the copy." : "Exported to " + path) + " The active save is unchanged.";
+                OfferExport(path);
+            } else mToolsStatus = error;
+        }
+        bx += 116;
+        if (!hh && Button("Show in folder", bx, ly, 120, bh)) OpenFolder(save_parent(s.save));
+        ly += bh + 8;
 
-        ImGui::SetWindowFontScale(1.0f);
-        ImGui::EndChild();
-        ImGui::PopStyleColor();
+        // right: troubleshooting
+        float ry = y + 56;
+        Section(rx, ry, colW, "TROUBLESHOOTING");
+        ry += 26;
+        auto action = [&](const char* label, float bw, const std::string& hint) {
+            const bool clicked = Button(label, rx, ry, bw, bh);
+            Paragraph(rx + bw + 10, ry + (hint.find('\n') == std::string::npos ? (bh - 14) / 2 : 0), colW - bw - 10, hint,
+                      gFonts.small, Theme::dim);
+            ry += bh + 8;
+            return clicked;
+        };
+        if (action("Export diagnostics", 170, "A report on this setup for a bug report.\nRead it before you share it.")) {
+            std::string path, error;
+            if (Port::ExportLauncherDiagnostics(directory, PORT_BUILD_VERSION, RendererName(s.renderer),
+                                                RendererName(ActiveRenderer()), path, error)) {
+                mToolsStatus = (hh ? std::string("Report written. Choose where to keep it.") : "Report written: " + path);
+                OfferExport(path);
+            } else mToolsStatus = error;
+        }
+        if (!hh) {
+            if (s.autoPlay && action("Turn off Auto-play", 170, "Auto-play skips this launcher.\nHold Shift while starting to see it.")) {
+                s.autoPlay = false;
+                mChanged = true;
+                mToolsStatus = "Auto-play is off: the launcher shows at every start.";
+            }
+            if (Renderers().size() > 1 &&
+                action("Use the safe renderer", 170, "If the game window stays black or crashes:\nswitches to the most compatible one.")) {
+#ifdef __APPLE__
+                s.renderer = Fast::FAST3D_SDL_METAL;
+#else
+                s.renderer = Fast::FAST3D_SDL_OPENGL;
+#endif
+                s.autoPlay = false; mChanged = true;
+                mToolsStatus = std::string("Next start uses ") + RendererName(s.renderer) + ". Auto-play is off.";
+            }
+        }
+        ry += 6;
+
+        // right: where things are
+        Section(rx, ry, colW, "WHERE YOUR FILES ARE");
+        ry += 26;
+        if (hh) {
+            ry += Paragraph(rx, ry, colW, "Android/data/com.teamhippodrome.stadion/files on the device: reach it over USB "
+                                          "or with a file manager that shows app files.", gFonts.small) + 6;
+            ry += Paragraph(rx, ry, colW, "saves/ the Stadium and Game Boy saves   imported/ the files you picked   "
+                                          "exports/ and diagnostics/ what Export wrote", gFonts.small, Theme::dim) + 6;
+        } else {
+            ry += Paragraph(rx, ry, colW, Port::PathUtf8(directory), gFonts.small) + 6;
+            ry += Paragraph(rx, ry, colW, "saves/ the Stadium and Game Boy saves   exports/ and diagnostics/ what Export "
+                                          "wrote   stadion.cfg.json the settings", gFonts.small, Theme::dim) + 6;
+            if (Button("Open folder", rx, ry, 110, bh)) OpenFolder(directory);
+            Paragraph(rx + 120, ry + 6, colW - 120, "Start with --launcher to skip Auto-play, --safe-mode to reset the renderer.",
+                      gFonts.small, Theme::dim);
+        }
+
+        // the last action's result, along the bottom
+        if (!mToolsStatus.empty()) {
+            const float sy = y + h - 30;
+            dl->AddRectFilled(P(x, sy - 6), P(x + w, sy - 5), Hex(Theme::cardBorder));
+            std::string status = mToolsStatus;
+            std::replace(status.begin(), status.end(), '\n', ' ');
+            Paragraph(lx, sy, w - 28, status, gFonts.small, Theme::text);
+        }
     }
+    static fs::path save_parent(const std::string& save) { return fs::u8path(save).parent_path(); }
+
     int mRendererFailed = 0; // the requested renderer, when the game started with another (it could not start)
     // design coordinates -> screen
     ImVec2 P(float x, float y) const {
@@ -1750,6 +1869,18 @@ class LauncherWindow : public Ship::GuiWindow {
         if (pick >= 0 && pick != cur) SetResolution(kResEntries[pick]);
     }
 
+    // Internal resolution for the D-pad: < the size >, stepping through the same list as ResolutionCombo
+    void ResolutionStepper(float x, float y, float w) {
+        const int cur = ResIndex(Port::GetResolutionSetting());
+        const int n = (int)std::size(kResEntries);
+        if (Button("<##res", x, y, 34, 26) && cur > 0) SetResolution(kResEntries[cur - 1]);
+        if (Button(">##res", x + w - 34, y, 34, 26)) SetResolution(kResEntries[cur < 0 ? 0 : std::min(cur + 1, n - 1)]);
+        const std::string label = cur >= 0 ? Port::ResolutionLabel(kResEntries[cur].mode, kResEntries[cur].value) : "Custom";
+        ImGui::GetWindowDrawList()->AddRectFilled(P(x + 40, y), P(x + w - 40, y + 26), Hex(Theme::button), 5 * mScale);
+        const float tw = gFonts.body->CalcTextSizeA(gFonts.body->FontSize * gFonts.body->Scale, FLT_MAX, 0, label.c_str()).x;
+        Text(x + (w - tw) / 2, y + 5, label, gFonts.body);
+    }
+
     // the pixel height of the display the window is on (a Retina display's pixels, not its points); 0 if unknown
     static int DisplayPixelHeight() {
         SDL_Window* sdl = MainWindow();
@@ -1796,8 +1927,16 @@ class LauncherWindow : public Ship::GuiWindow {
         };
         auto onOff = [&](const char* id, bool on) { return Choice(id, { "On", "Off" }, on ? 0 : 1, cx, ry); };
 
-        // Display: windowed or (borderless) fullscreen; the launcher keeps its own window, the game gets this on Play
-        {
+        // Display: windowed or (borderless) fullscreen; the launcher keeps its own window, the game gets this on Play.
+        // A handheld is always full screen: there it is the picture's shape instead (the desktop's bottom bar has that).
+        if (Handheld()) {
+            label("Screen", s.aspect == 1 ? "16:9: 3D scenes show more at the sides." : "4:3: the N64's picture shape.");
+            int c = Choice("aspect", { "4:3", "16:9" }, s.aspect, cx, ry);
+            if (c >= 0 && c != s.aspect) {
+                s.aspect = c;
+                mChanged = true;
+            }
+        } else {
             auto config = WindowConfig();
             const bool full = config != nullptr && config->GetBool("Window.Fullscreen.Enabled", false);
             label("Display", "Fullscreen is borderless;\nF11 switches in-game.");
@@ -1828,7 +1967,8 @@ class LauncherWindow : public Ship::GuiWindow {
                 snprintf(hint, sizeof hint, "Lower it if the game is slow.");
             }
             label("Internal resolution", hint);
-            ResolutionCombo(cx, ry, 4 * 64 + 3 * 4);
+            if (Handheld()) ResolutionStepper(cx, ry, 4 * 64 + 3 * 4);
+            else ResolutionCombo(cx, ry, 4 * 64 + 3 * 4);
         }
         ry += pitch;
         // Scaling: how a fixed resolution's picture is stretched to the window (not used by Match window)
@@ -1946,6 +2086,20 @@ class LauncherWindow : public Ship::GuiWindow {
             ImGui::PushStyleColor(ImGuiCol_SliderGrab, HexV(0x4C7BD9));
             ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, HexV(0x6E95E6));
             const std::string id = std::string("##") + cvar;
+            if (Handheld()) { // the D-pad cannot drag a slider: - and + in steps of 10
+                ImGui::PopStyleColor(2);
+                const auto set = [&](int nv) { nv = std::clamp(nv, 0, 100); if (nv != v) { CVarSetInteger(cvar, nv); changed = true; } };
+                if (Button(("-" + id).c_str(), sx, ry, 34, 26)) set(v - 10);
+                if (Button(("+" + id).c_str(), sx + sw - 34, ry, 34, 26)) set(v + 10);
+                ImDrawList* d = ImGui::GetWindowDrawList();
+                d->AddRectFilled(P(sx + 40, ry), P(sx + sw - 40, ry + 26), Hex(Theme::button), 5 * mScale);
+                d->AddRectFilled(P(sx + 40, ry), P(sx + 40 + (sw - 80) * v / 100.0f, ry + 26), Hex(0x2C4C80), 5 * mScale);
+                char pct[16];
+                snprintf(pct, sizeof pct, v == 0 ? "off" : "%d%%", v);
+                Text(sx + sw / 2 - 14, ry + 5, pct, gFonts.body);
+                ry += 44;
+                return;
+            }
             if (ImGui::SliderInt(id.c_str(), &v, 0, 100, v == 0 ? "off" : "%d%%", ImGuiSliderFlags_AlwaysClamp)) {
                 CVarSetInteger(cvar, v);
                 changed = true;
@@ -2244,6 +2398,8 @@ class LauncherWindow : public Ship::GuiWindow {
     void GoToPage(int page) {
         mPage = page;
         mControls = page == kPageControls;
+        mGraphics = page == kPageGraphics;
+        mSound = page == kPageSound;
         mFocus = -1; // the page's default item
         mNavItems.clear();
     }
@@ -2256,7 +2412,8 @@ class LauncherWindow : public Ship::GuiWindow {
             GoToPage(kPageHome);
             mNavBack = false;
         }
-        if (mPage == kPageControls && !mControls) { // the panel's Done button
+        if ((mPage == kPageControls && !mControls) || (mPage == kPageGraphics && !mGraphics) ||
+            (mPage == kPageSound && !mSound)) { // the panel's Done button
             GoToPage(kPageHome);
         }
         if (mPage == kPageSaveEditor) {
@@ -2274,6 +2431,7 @@ class LauncherWindow : public Ship::GuiWindow {
         ImDrawList* dl = ImGui::GetWindowDrawList();
         Text(24, 14, "stadion", gFonts.title);
         const char* pageName = mPage == kPageTransferPak ? "Transfer Pak" : mPage == kPageControls ? "Controls"
+                               : mPage == kPageGraphics ? "Graphics" : mPage == kPageSound ? "Sound"
                                : mPage == kPageTools ? "Files & help" : mPage == kPageSaveEditor ? "Save editor" : "";
         Text(220, 17, pageName, gFonts.body, Theme::dim);
         dl->AddRectFilled(P(0, 50), P(kW, 51), Hex(Theme::cardBorder));
@@ -2283,12 +2441,19 @@ class LauncherWindow : public Ship::GuiWindow {
             EditorPanel(16, 62, kW - 32, 438);
         } else if (mPage == kPageTools) {
             ToolsPanel(16, 62, kW - 32, 430);
-            mDefaultFocus = 0;
+            mDefaultFocus = 2; // Check again (0: the header's Files & help, 1: Done)
         } else if (mPage == kPageTransferPak) {
             for (int i = 0; i < 4; i++) {
                 PlayerCard(i, 16 + i * (222 + 14), 62, 222, 366);
             }
             mDefaultFocus = 0;
+            if (Button("Back", 16, 444, 160, 48, gFonts.game)) {
+                GoToPage(kPageHome);
+            }
+        } else if (mPage == kPageGraphics || mPage == kPageSound) {
+            if (mPage == kPageGraphics) GraphicsPanel(16, 62, kW - 32, 366);
+            else SoundPanel(16, 62, kW - 32, 366);
+            mDefaultFocus = 2; // the first setting (0: the header's Files & help, 1: Done)
             if (Button("Back", 16, 444, 160, 48, gFonts.game)) {
                 GoToPage(kPageHome);
             }
@@ -2366,18 +2531,20 @@ class LauncherWindow : public Ship::GuiWindow {
             GoToPage(kPageControls);
         }
         y += bh + 14;
-        if (Button(s.aspect == 1 ? "Screen · 16:9" : "Screen · 4:3", rx, y, bw, bh, gFonts.game)) {
-            s.aspect = 1 - s.aspect;
-            mChanged = true;
+        if (Button("Graphics", rx, y, bw, bh, gFonts.game)) {
+            GoToPage(kPageGraphics);
         }
-        if (Button(s.smooth ? "Smooth motion · on" : "Smooth motion · off", rx + bw + 14, y, bw, bh, gFonts.game)) {
-            s.smooth = !s.smooth;
-            mChanged = true;
+        if (Button(CVarGetInteger("gSound.On", 1) != 0 ? "Sound" : "Sound · off", rx + bw + 14, y, bw, bh, gFonts.game)) {
+            GoToPage(kPageSound);
         }
         y += bh + 14;
-        Text(rx + 4, y + 8, s.aspect == 1 ? "16:9: 3D scenes show more at the sides." : "4:3: the N64's picture shape.",
-             gFonts.small, Theme::dim);
-        Text(rx + 4, y + 28, "Smooth motion draws in-between frames (one frame of extra delay).", gFonts.small, Theme::dim);
+        // what Graphics is set to, at a glance
+        const Port::ResolutionSetting r = Port::GetResolutionSetting();
+        const int cur = ResIndex(r);
+        const std::string res = cur >= 0 ? Port::ResolutionLabel(kResEntries[cur].mode, kResEntries[cur].value) : "Custom";
+        Text(rx + 4, y + 8, std::string("Screen ") + (s.aspect == 1 ? "16:9" : "4:3") + "  ·  " + res + "  ·  Smooth motion " +
+                                (s.smooth ? "on" : "off"), gFonts.small, Theme::dim);
+        Text(rx + 4, y + 28, "Save editor, setup check and exports: Files & help.", gFonts.small, Theme::dim);
         if (mDefaultFocus < 0) {
             mDefaultFocus = 0; // no valid ROM: the first item, Load ROM
         }
@@ -2386,7 +2553,8 @@ class LauncherWindow : public Ship::GuiWindow {
     struct NavRect {
         ImVec2 min, max;
     };
-    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2, kPageTools = 3, kPageSaveEditor = 4;
+    static constexpr int kPageHome = 0, kPageTransferPak = 1, kPageControls = 2, kPageTools = 3, kPageSaveEditor = 4,
+                         kPageGraphics = 5, kPageSound = 6;
     int mPage = kPageHome;
     std::vector<NavRect> mNavItems, mNavPrev; // this frame's and last frame's focus targets, in drawing order
     int mFocus = -1, mDefaultFocus = 0;
