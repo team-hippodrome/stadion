@@ -1,5 +1,5 @@
 #!/usr/bin/env python3 -I
-"""Before/after pictures of the widescreen (16:9) fixes, for review (PORTING_NOTES: Battle HUD at the widescreen edges).
+"""Before/after pictures of the widescreen (16:9) fixes, for review (the battle HUD at the widescreen edges).
 
 Each case runs a route twice in 16:9: "before" with the fixes off (the case's "off" switches, by default
 PORT_NO_HUD_ANCHOR=1: the anchor/no-cut markers are ignored, as before the change) and "after" with them on, and saves the chosen frames:

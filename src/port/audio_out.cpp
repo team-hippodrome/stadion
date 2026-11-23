@@ -9,7 +9,7 @@
 // Accepted buffers are copied to an SDL3 audio stream. Playback starts once the queue reaches its target. The playback
 // ratio then follows the fill level to absorb the difference between host frame pacing and the N64 DAC rate. If the
 // stream falls far behind, the queue is dropped and filled again instead of lagging. A queue that ran dry without a
-// long stall raises the target (a host whose frames come unevenly, e.g. a slow GPU; see PORTING_NOTES, Slow GPUs).
+// long stall raises the target (a host whose frames come unevenly, e.g. a slow GPU).
 // Output is on at normal speed; PORT_SPEED other than 1 turns it off, PORT_SOUND=0/1 overrides.
 // The launcher's Sound settings (sound_settings.h) set the stream's gain (master, Sound off, background mute) and
 // the queue target (Sound delay).
