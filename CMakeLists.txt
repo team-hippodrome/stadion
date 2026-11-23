@@ -67,6 +67,7 @@ set(PORT_MAIN_SOURCES
   src/port/pacing.cpp
   src/port/interp.cpp
   src/port/launcher.cpp
+  src/port/graphics_advisor.cpp
   src/port/launcher_files.cpp
   src/port/launcher_reliability.cpp
   src/port/language_prompt.cpp
