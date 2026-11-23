@@ -50,9 +50,21 @@ player's Transfer Pak. Select **PLAY** to start; your choices are remembered.
 
 ### Controllers and local multiplayer
 
-Use **Controls** in the launcher to map a keyboard or controller for each player.
-Player 1 is enabled by default. Enable **Plugged in** for players 2–4 to make the
-corresponding multiplayer modes available.
+Controllers are detected automatically. Each one gets its own player in the order
+they were connected: the first is player 1 (on a handheld such as the AYN Thor, its
+built-in controls), the second player 2, and so on; the keyboard always plays player 1.
+A player with a controller is plugged in for the game, so the multiplayer modes appear
+without any setup. Controllers SDL knows (Xbox, PlayStation, Switch Pro, 8BitDo and
+most others) work with the default buttons; the Controls panel names them as printed
+on the controller (Cross and L1 on a PlayStation pad, for example).
+
+Use **Controls** in the launcher to change a player's buttons. Its header shows the
+player's controller with a light that shows button presses; **Change** gives the
+player the next connected controller (the player who had it takes this one's place),
+and the choice is remembered. A player without a controller can still be marked
+**Plugged in**. A connected controller that SDL does not recognize is announced at the
+bottom of the panel: **Set it up** asks you to press each button in turn and saves the
+result to `gamecontrollerdb.txt` in the data folder, so it is recognized from then on.
 
 | N64 input | Keyboard | Controller |
 | --- | --- | --- |

@@ -76,6 +76,7 @@ set(PORT_MAIN_SOURCES
   src/port/rom_check.cpp
   src/port/shader_warmup.cpp
   src/port/touch_controls.cpp
+  src/port/pad_assign.cpp
   src/port/xcheck.cpp
   src/port/save_editor/stadium_save.cpp
   src/port/save_editor/save_editor_ui.cpp

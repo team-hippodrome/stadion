@@ -23,6 +23,7 @@
 #include "Engine.h"
 #include "rom_check.h"
 #include "save_editor/save_editor_ui.h"
+#include "pad_assign.h"
 
 #include <chrono>
 #include <libultraship/libultraship.h>
@@ -825,8 +826,14 @@ std::vector<Binding> Bindings(int port, const Input& in) {
         return list;
     }
     auto add = [&](const std::string& id, const auto& m) {
-        list.push_back({ id, InputName(m->GetPhysicalInputName()),
-                         m->GetPhysicalDeviceType() == Ship::PhysicalDeviceType::SDLGamepad });
+        const bool pad = m->GetPhysicalDeviceType() == Ship::PhysicalDeviceType::SDLGamepad;
+        std::string name = InputName(m->GetPhysicalInputName());
+        if (pad) { // as the player's controller labels it ("Cross", "L1"; "D-Pad Up" and sticks stay)
+            const size_t sp = name.find(' ');
+            const std::string head = name.substr(0, sp), label = Port::PadInputLabel(port, head);
+            if (label != head) name = label + (sp == std::string::npos ? "" : name.substr(sp));
+        }
+        list.push_back({ id, name, pad });
     };
     if (in.button != 0) {
         for (auto& [id, m] : c->GetButton(in.button)->GetAllButtonMappings()) add(id, m);
@@ -1000,6 +1007,7 @@ class LauncherWindow : public Ship::GuiWindow {
     }
 
     void DrawLauncher() {
+        Port::UpdatePadAssignment(); // (a controller connected or disconnected: each its own player)
         ImGuiViewport* vp = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(vp->Pos);
         ImGui::SetNextWindowSize(vp->Size);
@@ -1643,7 +1651,15 @@ class LauncherWindow : public Ship::GuiWindow {
         if (mCapture >= 0) {
             UpdateCapture();
         }
-        ImGui::BeginDisabled(mCapture >= 0);
+        if (mSetup != nullptr) {
+            UpdateSetup();
+        }
+        const auto pads = Port::ConnectedPads();
+        const Port::PadInfo* mine = nullptr;
+        for (const auto& pd : pads) {
+            if (pd.port == mPort) mine = &pd;
+        }
+        ImGui::BeginDisabled(mCapture >= 0 || mSetup != nullptr);
 
         Text(x + 14, y + 14, "CONTROLS", gFonts.body, Theme::players[mPort]);
         for (int i = 0; i < 4; i++) {
@@ -1656,21 +1672,57 @@ class LauncherWindow : public Ship::GuiWindow {
             if (on) {
                 dl->AddRectFilled(P(x + 110 + i * 84, y + 35), P(x + 188 + i * 84, y + 37), Hex(Theme::players[i]));
             }
+            // a dot on the tab when the player has a controller; bright while it is pressed
+            if (Port::PadPortBits() & (1 << i)) {
+                dl->AddCircleFilled(P(x + 181 + i * 84, y + 15), 3 * mScale,
+                                    Hex(Port::PadActive(i) ? 0x7CFC9A : Theme::green, Port::PadActive(i) ? 1.0f : 0.6f));
+            }
             ImGui::PopID();
         }
-        // whether the game sees this controller (Port_ControllerBits): player 1's always, 2-4 only when switched on,
-        // so the multiplayer choices (2-4 players, team battles) are offered only with players to make them
-        if (mPort == 0) {
-            Text(x + 462, y + 15, "Always plugged in", gFonts.small, Theme::dim);
-        } else {
-            std::string key = "gPort.Controller" + std::to_string(mPort + 1) + ".PluggedIn";
-            bool plugged = CVarGetInteger(key.c_str(), 0) != 0;
-            if (Check("Plugged in", &plugged, x + 458, y + 11)) {
-                CVarSetInteger(key.c_str(), plugged ? 1 : 0);
-                CVarSave();
+        // the player's controller (pad_assign.h: each connected controller gets a player, in the order they were
+        // connected); Change gives the player the next one. A player with a controller is plugged in for the game
+        // (Port_ControllerBits); without one, players 2-4 can still be plugged in by hand.
+        {
+            const float hx = x + 458, hw = (x + w - 252) - hx;
+            if (mine != nullptr) {
+                dl->AddCircleFilled(P(hx + 5, y + 22), 4 * mScale, Hex(Port::PadActive(mPort) ? 0x7CFC9A : Theme::green));
+                std::string name = mine->name;
+                if (name.size() > 20) name = name.substr(0, 18) + "...";
+                Text(hx + 14, y + 8, name, gFonts.small, Theme::text);
+                Text(hx + 14, y + 23, Port::PadActive(mPort) ? "input coming in" : "press a button to test",
+                     gFonts.small, Theme::dim);
+            } else if (mPort == 0) {
+                Text(hx, y + 8, "Keyboard", gFonts.small, Theme::text);
+                Text(hx, y + 23, "no controller connected", gFonts.small, Theme::dim);
+            } else {
+                std::string key = "gPort.Controller" + std::to_string(mPort + 1) + ".PluggedIn";
+                bool plugged = CVarGetInteger(key.c_str(), 0) != 0;
+                if (Check("Plugged in", &plugged, hx, y + 11)) {
+                    CVarSetInteger(key.c_str(), plugged ? 1 : 0);
+                    CVarSave();
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("No controller: the game sees controller %d anyway (for 2-4 player battles)", mPort + 1);
+                }
             }
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("The game sees controller %d (it offers 2-4 player battles and team battles)", mPort + 1);
+            // the next connected controller in connection order (another player's gives up its place)
+            if (!pads.empty() && !(pads.size() == 1 && mine != nullptr)) {
+                std::vector<Port::PadInfo> byId = pads;
+                std::sort(byId.begin(), byId.end(), [](const auto& a, const auto& b) { return a.id < b.id; });
+                size_t next = 0;
+                if (mine != nullptr) {
+                    for (size_t k = 0; k < byId.size(); k++) {
+                        if (byId[k].id == mine->id) next = (k + 1) % byId.size();
+                    }
+                }
+                const float bw = mine != nullptr ? 58 : 126;
+                if (Button(mine != nullptr ? "Change##pad" : "Use a controller##pad", hx + hw - bw, y + 9, bw, 26, gFonts.small)) {
+                    Port::SetPadPort(byId[next].id, mPort);
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("Give player %d %s (the player who had it gets this one's place)", mPort + 1,
+                                      byId[next].name.c_str());
+                }
             }
         }
         if (Button("Reset to defaults", x + w - 246, y + 9, 130, 26)) {
@@ -1690,10 +1742,26 @@ class LauncherWindow : public Ship::GuiWindow {
             float cx = x + 14 + (i / kRows) * 466, cy = y + 56 + (i % kRows) * 29;
             InputRow(i, cx, cy);
         }
-        Text(x + 14, y + h - 22,
-             "Click a binding to change it, right-click to remove it, + to add one. Grey: keyboard, blue: controller.",
-             gFonts.small, Theme::dim);
+        // a connected controller SDL does not know (no mapping): offer to set it up, else the usual hint
+        const auto unknown = Port::UnknownJoysticks();
+        if (!unknown.empty()) {
+            dl->AddCircleFilled(P(x + 19, y + h - 15), 4 * mScale, Hex(0xE0A030));
+            Text(x + 30, y + h - 22, "\"" + unknown[0].name + "\" is connected but not recognized: its buttons are unknown.",
+                 gFonts.small, Theme::text);
+            if (Button("Set it up##padsetup", x + w - 124, y + h - 28, 110, 24, gFonts.small)) {
+                StartSetup(unknown[0]);
+            }
+        } else if (!mSetupResult.empty()) {
+            Text(x + 14, y + h - 22, mSetupResult, gFonts.small, Theme::green);
+        } else {
+            Text(x + 14, y + h - 22,
+                 "Click a binding to change it, right-click to remove it, + to add one. Grey: keyboard, blue: controller.",
+                 gFonts.small, Theme::dim);
+        }
         ImGui::EndDisabled();
+        if (mSetup != nullptr) {
+            SetupOverlay(x, y, w, h);
+        }
 
         if (mCapture >= 0) {
             dl->AddRectFilled(P(x, y + 45), P(x + w, y + h), Hex(Theme::window, 0.75f), 8 * mScale,
@@ -1737,6 +1805,125 @@ class LauncherWindow : public Ship::GuiWindow {
             StartCapture(i, "");
         }
         ImGui::PopID();
+    }
+
+    // ---- setting up a controller SDL does not know: press each button in turn, giving an SDL mapping ----
+    // (saved to gamecontrollerdb.txt, Port::AddPadMapping). Buttons, hats and axes are read from the raw joystick;
+    // each step waits until everything is released again.
+    struct SetupStep {
+        const char* key;   // SDL's mapping name
+        const char* prompt;
+        bool stick;        // an axis pushed right/down (else a button, maybe an axis or hat standing in for one)
+    };
+    static constexpr SetupStep kSetupSteps[] = {
+        { "a", "Press the bottom face button (N64 A)", false },
+        { "b", "Press the right face button (N64 B)", false },
+        { "x", "Press the left face button", false },
+        { "y", "Press the top face button", false },
+        { "start", "Press Start", false },
+        { "back", "Press Select / Back / Share", false },
+        { "leftshoulder", "Press the left shoulder button (L)", false },
+        { "rightshoulder", "Press the right shoulder button (R)", false },
+        { "lefttrigger", "Press the left trigger (Z)", false },
+        { "righttrigger", "Press the right trigger", false },
+        { "dpup", "Press D-pad up", false },
+        { "dpdown", "Press D-pad down", false },
+        { "dpleft", "Press D-pad left", false },
+        { "dpright", "Press D-pad right", false },
+        { "leftx", "Push the left stick to the right", true },
+        { "lefty", "Push the left stick down", true },
+        { "rightx", "Push the right stick to the right (C-buttons)", true },
+        { "righty", "Push the right stick down", true },
+    };
+    SDL_Joystick* mSetup = nullptr;
+    Port::UnknownJoystick mSetupPad;
+    int mSetupStep = 0;
+    bool mSetupArmed = false;
+    std::vector<int16_t> mSetupRest; // each axis at rest
+    std::string mSetupMap, mSetupResult;
+
+    void StartSetup(const Port::UnknownJoystick& pad) {
+        mSetup = SDL_OpenJoystick(pad.id);
+        if (mSetup == nullptr) return;
+        mSetupPad = pad;
+        mSetupStep = 0;
+        mSetupArmed = false;
+        mSetupMap.clear();
+        mSetupResult.clear();
+        mSetupRest.assign(SDL_GetNumJoystickAxes(mSetup), 0);
+        for (int a = 0; a < (int)mSetupRest.size(); a++) mSetupRest[a] = SDL_GetJoystickAxis(mSetup, a);
+    }
+    void EndSetup() {
+        if (mSetup != nullptr) SDL_CloseJoystick(mSetup);
+        mSetup = nullptr;
+    }
+    // what is held on the joystick, in SDL's mapping words ("b3", "h0.1", "a2", "-a1"...), or "" when nothing is
+    std::string SetupInput(bool stick) {
+        for (int b = 0; b < SDL_GetNumJoystickButtons(mSetup); b++) {
+            if (SDL_GetJoystickButton(mSetup, b)) return "b" + std::to_string(b);
+        }
+        for (int hh = 0; hh < SDL_GetNumJoystickHats(mSetup); hh++) {
+            const Uint8 v = SDL_GetJoystickHat(mSetup, hh);
+            if (v == SDL_HAT_UP || v == SDL_HAT_DOWN || v == SDL_HAT_LEFT || v == SDL_HAT_RIGHT) {
+                return "h" + std::to_string(hh) + "." + std::to_string(v);
+            }
+        }
+        for (int a = 0; a < (int)mSetupRest.size(); a++) {
+            const int rest = mSetupRest[a], v = SDL_GetJoystickAxis(mSetup, a), d = v - rest;
+            if (std::abs(d) < 20000) continue;
+            const std::string n = std::to_string(a);
+            if (stick) return d > 0 ? "a" + n : "a" + n + "~"; // ~: the axis runs the other way
+            if (rest < -16000) return "a" + n;                 // a trigger resting at one end
+            return (d > 0 ? "+a" : "-a") + n;                  // half an axis as a button
+        }
+        return "";
+    }
+    void SetupNext(const std::string& input) {
+        if (!input.empty()) mSetupMap += std::string(kSetupSteps[mSetupStep].key) + ":" + input + ",";
+        mSetupArmed = false;
+        if (++mSetupStep < (int)std::size(kSetupSteps)) return;
+        std::string name = mSetupPad.name;
+        std::replace(name.begin(), name.end(), ',', ' ');
+        const std::string mapping = mSetupPad.guid + "," + name + "," + mSetupMap + "platform:" + SDL_GetPlatform() + ",";
+        std::string error;
+        mSetupResult = Port::AddPadMapping(mapping, error) ? name + " is set up: it now plays like any other controller."
+                                                           : error;
+        EndSetup();
+    }
+    void UpdateSetup() {
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+            EndSetup();
+            return;
+        }
+        if (!SDL_JoystickConnected(mSetup)) {
+            mSetupResult = "The controller was disconnected.";
+            EndSetup();
+            return;
+        }
+        const std::string input = SetupInput(kSetupSteps[mSetupStep].stick);
+        if (!mSetupArmed) {
+            mSetupArmed = input.empty(); // (the last step's input released)
+            return;
+        }
+        if (!input.empty()) SetupNext(input);
+    }
+    void SetupOverlay(float x, float y, float w, float h) {
+        if (mSetup == nullptr) return;
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y + 45), P(x + w, y + h), Hex(Theme::window, 0.8f), 8 * mScale, ImDrawFlags_RoundCornersBottom);
+        const float bw = 460, bh = 150, bx = x + (w - bw) / 2, by = y + (h - bh) / 2;
+        dl->AddRectFilled(P(bx, by), P(bx + bw, by + bh), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(bx, by), P(bx + bw, by + bh), Hex(Theme::players[mPort]), 8 * mScale);
+        Text(bx + 20, by + 14, "Set up " + mSetupPad.name, gFonts.small, Theme::dim);
+        Text(bx + 20, by + 40, kSetupSteps[mSetupStep].prompt, gFonts.game);
+        char step[48];
+        snprintf(step, sizeof step, "Step %d of %d", mSetupStep + 1, (int)std::size(kSetupSteps));
+        Text(bx + 20, by + 76, mSetupArmed ? step : "Release all buttons...", gFonts.small, Theme::dim);
+        dl->AddRectFilled(P(bx + 20, by + 96), P(bx + bw - 20, by + 99), Hex(Theme::button));
+        dl->AddRectFilled(P(bx + 20, by + 96), P(bx + 20 + (bw - 40) * mSetupStep / (float)std::size(kSetupSteps), by + 99),
+                          Hex(Theme::players[mPort]));
+        if (Button("Skip##setup", bx + bw - 214, by + bh - 40, 90, 28)) SetupNext("");
+        if (Button("Cancel##setup", bx + bw - 114, by + bh - 40, 94, 28)) EndSetup();
     }
 
     void StartCapture(int input, const std::string& replaceId) {
@@ -2657,6 +2844,8 @@ bool RunScriptStep(const ScriptStep& st) {
                 if (ctrl) io.AddKeyEvent(ImGuiMod_Ctrl, false);
             }
         }
+    } else if (st.cmd == "vpad") { // the test pad (PORT_TEST_UNKNOWN_PAD): press button N, "-" releases
+        Port::PressTestPad(st.arg == "-" ? -1 : atoi(st.arg.c_str()));
     } else if (st.cmd == "quit") {
         return true;
     }
@@ -2748,6 +2937,7 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
         // PORT_TRACE_PACING=1: launcher frames more than 40 ms apart
         static const bool tracePacing = getenv("PORT_TRACE_PACING") != nullptr;
         auto lastFrame = std::chrono::steady_clock::now();
+        if (getenv("PORT_TEST_UNKNOWN_PAD") != nullptr) Port::AttachTestPad();
         static const char* scriptPath = getenv("PORT_LAUNCHER_SCRIPT");
         std::vector<ScriptStep> script = scriptPath != nullptr ? LoadScript(scriptPath) : std::vector<ScriptStep>{};
         for (int frame = 0; !play && !quit && !restart && window->IsRunning(); frame++) {

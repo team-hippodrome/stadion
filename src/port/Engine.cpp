@@ -1,3 +1,4 @@
+#include "pad_assign.h"
 #include "Engine.h"
 #include "launcher_reliability.h"
 #include "touch_controls.h"
@@ -896,6 +897,7 @@ bool PumpFrame() {
         // The game may not have requested controller initialization yet; polling an uninitialized deck throws
         // because its wheel handler has not been installed.
         try {
+            Port::UpdatePadAssignment(); // each controller its own player (pad_assign.h)
             deck->WriteToPad(pads);
         } catch (const std::runtime_error&) {
         }
