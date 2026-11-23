@@ -23,7 +23,7 @@ ROMs and byte-swapped `.n64` or `.v64` files are not accepted.
 ### 2. Download and launch
 
 Choose the package for your system from the
-[latest release](https://github.com/team-hippodrome/pokestadium-port/releases/latest).
+[latest release](https://github.com/team-hippodrome/stadion/releases/latest).
 Current downloads and executables use the `stadion` filename prefix.
 
 | Platform | Package | Start |
@@ -174,6 +174,6 @@ launcher with OpenGL, or Metal on macOS. Windows commands use `stadion.exe`.
 
 Use **Files & help → Export diagnostics** when reporting a problem. Review the
 report before attaching it to an
-[issue](https://github.com/team-hippodrome/pokestadium-port/issues), along with your
+[issue](https://github.com/team-hippodrome/stadion/issues/new/choose), along with your
 release version, platform, renderer and steps to reproduce.
 
