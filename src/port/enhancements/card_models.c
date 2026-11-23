@@ -286,7 +286,10 @@ static void SetLook(CardModel* c, const hu_card* card, const PortEnhCardBattle* 
             } else if (c->faintStarted && c->obj->transformAnim.data != NULL && ModelAnim_IsFinished(c->obj)) {
                 c->faintHeld = 1;
                 SetSpeed(c, 0);
-                c->obj->transformAnim.frameFixed = (s32)(c->obj->transformAnim.data->endFrame - 1) << 16;
+                // it is on its last frame (ModelAnim_IsFinished): held there on the whole frame. (Not set from
+                // data->endFrame: the animation data is the ROM's, big-endian, read through the TAD_ accessors; read
+                // directly it is byte-swapped and the frame was far past the end, which shows the model's rest pose)
+                c->obj->transformAnim.frameFixed &= ~0xFFFF;
             } else if (!c->faintStarted) {
                 Play(c, c->idleAnim, 0x10000); // idling until the battle model faints
             }
