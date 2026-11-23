@@ -57,6 +57,23 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # fmt 10.1 (distro spdlog) + clang 20: FMT_STRING's consteval check fails to compile; plain constexpr is enough
   add_compile_definitions(FMT_CONSTEVAL=)
 endif()
+# git checkout / pull never move the submodules: a checkout whose submodules are behind the commits this tree records
+# fails later on missing headers, so say so now, with the command that fixes it
+find_package(Git QUIET)
+if(GIT_FOUND AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/.git)
+  foreach(sub libultraship hippodrome-utils)
+    execute_process(COMMAND ${GIT_EXECUTABLE} ls-tree HEAD ${sub} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                    OUTPUT_VARIABLE sub_tree OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse HEAD WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${sub}
+                    OUTPUT_VARIABLE sub_head OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    string(REGEX MATCH "[0-9a-f]+\t" sub_want "${sub_tree}")
+    string(STRIP "${sub_want}" sub_want)
+    if(sub_want AND sub_head AND NOT sub_want STREQUAL sub_head)
+      message(WARNING "The ${sub} submodule is at ${sub_head}, but this checkout expects ${sub_want}. "
+                      "Run `git submodule update --init --recursive` (the build will likely fail otherwise).")
+    endif()
+  endforeach()
+endif()
 add_subdirectory(libultraship ${CMAKE_BINARY_DIR}/libultraship)
 # text_font (translated text's glyphs, src/port/text_lookup.cpp) and the enhancements (src/port/enhancements)
 add_subdirectory(hippodrome-utils ${CMAKE_BINARY_DIR}/hippodrome-utils)
