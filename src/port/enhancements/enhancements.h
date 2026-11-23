@@ -1,6 +1,7 @@
 // The port's enhancements from hippodrome-utils (the team's shared library, the hippodrome-utils submodule; specs in
-// hippodrome-utils/docs/specs). Each one is an option, off (or Vanilla) by default, so the game plays and looks as on
-// the N64 unless it is turned on in the launcher (Graphics > Enhancements).
+// hippodrome-utils/docs/specs). Each one is an option the player can turn off in the launcher (Graphics >
+// Enhancements). Unlike Plethron's, they are on by default (the project's choice: customisability first); Stat Exp
+// difficulty starts at Vanilla, as its spec says.
 //
 // enhancements.cpp keeps the settings (port CVars gEnhancements.*, not the N64 save). The game-side parts
 // (statexp_difficulty.c and the others in this folder) are compiled with the game code, since they read its structs;
@@ -16,7 +17,7 @@
 extern "C" {
 #endif
 
-// The On / Off enhancements (port CVars gEnhancements.<Name>, 0 by default). PORT_MOVE_DESCRIPTIONS=0/1 and
+// The On / Off enhancements (port CVars gEnhancements.<Name>, 1 by default). PORT_MOVE_DESCRIPTIONS=0/1 and
 // PORT_ORDER_QUEUE=0/1 override them (test aids).
 int Port_Enh_MoveDescriptionsEnabled(void); // MIDBATTLE_MOVE_DESCRIPTION
 void Port_Enh_SetMoveDescriptionsEnabled(int on);
@@ -36,8 +37,8 @@ void Port_Enh_StatExpBounds(int group, hu_se_bounds* out);
 void Port_Enh_SetStatExpBounds(int group, const hu_se_bounds* bounds);
 
 // Hue choice (HUE_CHANGE): the colour of each Pokémon, picked on the Pokémon card of the team select screens and kept
-// in <N64 save>.hue beside the save (gEnhancements.HueChoice: PORT_HUE_OFF, the default, PORT_HUE_UNRESTRICTED or
-// PORT_HUE_RESTRICTED, inside the species' own nickname hue range). PORT_HUE_CHOICE=off / restricted / unrestricted
+// in <N64 save>.hue beside the save (gEnhancements.HueChoice: PORT_HUE_OFF, PORT_HUE_UNRESTRICTED or
+// PORT_HUE_RESTRICTED, the default, inside the species' own nickname hue range). PORT_HUE_CHOICE=off / restricted / unrestricted
 // overrides it (tests).
 #define PORT_HUE_OFF 0
 #define PORT_HUE_UNRESTRICTED 1

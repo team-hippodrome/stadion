@@ -39,7 +39,7 @@ int EnvOverride(const char* name) {
 
 int Setting(const char* env_name, const char* cvar) {
     const int env = EnvOverride(env_name);
-    return env >= 0 ? env : CVarGetInteger(cvar, 0) != 0;
+    return env >= 0 ? env : CVarGetInteger(cvar, 1) != 0; // on by default (Julius: customisability first)
 }
 
 void SetSetting(const char* cvar, int on) {
@@ -176,7 +176,7 @@ extern "C" int Port_Enh_HueChoiceMode(void) {
         if (strcmp(v, "off") == 0) return PORT_HUE_OFF;
         mode = atoi(v);
     } else {
-        mode = CVarGetInteger("gEnhancements.HueChoice", PORT_HUE_OFF);
+        mode = CVarGetInteger("gEnhancements.HueChoice", PORT_HUE_RESTRICTED);
     }
     return (mode == PORT_HUE_UNRESTRICTED || mode == PORT_HUE_RESTRICTED) ? mode : PORT_HUE_OFF;
 }

@@ -2145,7 +2145,7 @@ class LauncherWindow : public Ship::GuiWindow {
             mEnhancements = true;
         }
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Optional additions to the game from hippodrome-utils (all off by default)");
+            ImGui::SetTooltip("Optional additions to the game from hippodrome-utils (on by default; each can be turned off)");
         }
         dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
 
@@ -2299,7 +2299,7 @@ class LauncherWindow : public Ship::GuiWindow {
         dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
         dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
         Text(x + 14, y + 14, "ENHANCEMENTS", gFonts.body, Theme::text);
-        Text(x + 140, y + 15, "Additions to the original game. All are off by default.", gFonts.small, Theme::dim);
+        Text(x + 140, y + 15, "Additions to the original game. On by default; turn off any you do not want.", gFonts.small, Theme::dim);
         if (Button("Back", x + w - 108, y + 9, 94, 26)) {
             mEnhancements = mStatDifficulty = false;
         }

@@ -1,4 +1,4 @@
-// Two enhancements on the battle's command menus (hippodrome-utils docs/specs), both off by default. Compiled with the
+// Two enhancements on the battle's command menus (hippodrome-utils docs/specs), both on by default. Compiled with the
 // game code: they read the battle structs and draw with the battle HUD's own panels, font and sounds.
 //
 // Mid-battle move description (MIDBATTLE_MOVE_DESCRIPTION): in the fight menu, holding a D-pad direction shows the
