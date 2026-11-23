@@ -1239,6 +1239,10 @@ s32 BattleMenu_UpdateOrderSelect(s32 fade_mode) {
     BattleMenu_DrawTeamOrderSidebarTeam0();
     BattleMenu_DrawTeamOrderSidebarTeam1();
     BattleMenu_DrawScrollingHelpText();
+    // PORT: widescreen: the background on into the picture's sides (every frame: the sides are cleared each frame);
+    // the summary bars (enhancements, on by default) show both parties
+    PortEnh_OrderSelectBackdrop(sBackgroundImage);
+    PortEnh_OrderSelectFrame();
 
     if (fade_mode == 0) {
         if (ready_panel_count == sOrderSelectPanelCount) {
@@ -1434,6 +1438,7 @@ s32 BattleMenu_RunOrderSelectScreen(s32 arg0, s32 arg1) {
     BgStage_WaitForCondition(BattleMenu_UpdateOrderSelect, 8, 8);
     StageContext_Deactivate();
     BattleMenu_CommitOrderSelection();
+    PortEnh_OrderSelectEnd(); // PORT: the summary bars' order screen cards (the battle starts its own)
     Font_Free();
     Gfx_FreeDisplayListBuffers();
 

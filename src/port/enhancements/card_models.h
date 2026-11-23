@@ -3,6 +3,9 @@
 #include "global.h"
 #include <hippodrome/summary_card.h>
 
+// The model archive the copies load from until it is set back to NULL (then: the one the game has open, the battle's).
+// For a screen that has none open (the battle order screen).
+void PortEnh_CardModelsSetArchive(BinArchive* archive);
 // Frees every copy (a new battle).
 void PortEnh_CardModelsFree(void);
 // Loads card `card` of `side`'s copy of `mon`'s model (nothing if that one is already there).

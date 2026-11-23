@@ -291,6 +291,13 @@ void PortEnh_PlayerCommandEnd(struct ActivePokemon* a);
 void PortEnh_TurnOrder(int first_side);
 void PortEnh_MoveNotUsed(void);
 void PortEnh_MoveStart(void);
+// The battle order screen (battle_order_select.c): the summary bars show both parties there too. Each frame it draws
+// (BattleMenu_UpdateOrderSelect, after the screen), and once it has closed (BattleMenu_RunOrderSelectScreen).
+// PortEnh_OrderSelectBackdrop: in widescreen its tiled background goes on into the sides of the picture (with the
+// image the screen tiles), so the bars there sit on the screen's own background; nothing at 4:3.
+void PortEnh_OrderSelectFrame(void);
+void PortEnh_OrderSelectEnd(void);
+void PortEnh_OrderSelectBackdrop(const void* image);
 // Hue choice (hue_picker.c). PortEnh_HueShift: the hue to build `mon`'s model and icon with, `game_shift` being the
 // game's own (Model_ComputeNicknameColorVariant); PortEnh_HueBypass(1) keeps the game's own for the calls until
 // PortEnh_HueBypass(0) (a Hall of Fame record, which has no DVs). The team select screens' Pokémon card

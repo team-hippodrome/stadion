@@ -22,6 +22,9 @@
 #include "variables.h"
 #include "moves.h"
 #include "src/gb_data.h"
+#include "src/gfx_buffer.h"
+#include "src/jpeg_stream.h"
+#include "src/memory.h"
 #include "src/matrix.h"
 #include "src/text_system.h"
 #include "fragments/battle_engine/battle_engine.h"
@@ -173,11 +176,13 @@ static s32 OpponentStatExp(u16* lo, u16* hi) {
     return 1;
 }
 
-static void InitSide(s32 s) {
-    ActivePokemon* a = sActivePokemon[s];
-    BattleSessionTeams* t = a->sessionTeams;
+static s32 sOrderSelect; // the cards are the battle order screen's (PortEnh_OrderSelectFrame), not a battle's
+
+// A side's cards from its trainers (`t`; `fallback` its roster without them). On the battle order screen nothing is
+// picked yet: every Pokémon of the party is a card, all of them brought.
+static void InitSideFrom(s32 s, BattleSessionTeams* t, TeamRoster* fallback) {
     s32 members = (t != NULL && t->tagTeamSize == 2) ? 2 : 1;
-    TeamRoster* r = (t != NULL && t->tagTeamMember[0] != NULL) ? t->tagTeamMember[0] : a->teamRoster;
+    TeamRoster* r = (t != NULL && t->tagTeamMember[0] != NULL) ? t->tagTeamMember[0] : fallback;
     s32 count, brought, i, j, m;
     u8 picked_mask = 0;
 
@@ -192,7 +197,7 @@ static void InitSide(s32 s) {
         ExtendedRosterInfo* info = r->rosterInfo;
         BattleMon* party = (info != NULL) ? info->battleMon : r->pokemonPicked;
         u8 used = 0;
-        brought = r->numberOfPokemonBrought;
+        brought = sOrderSelect ? 6 : r->numberOfPokemonBrought;
         count = (info != NULL) ? info->numberOfPokemonCanBePicked : brought;
         if (count <= 0 || count > 6) count = brought;
         if (brought <= 0 || brought > count) brought = count;
@@ -200,7 +205,7 @@ static void InitSide(s32 s) {
         for (i = 0; i < count; i++) {
             sCardMon[s][i] = &party[i];
         }
-        for (i = 0; i < brought; i++) {
+        for (i = 0; i < brought && !sOrderSelect; i++) {
             for (j = 0; j < count; j++) {
                 if (!(used & (1 << j)) && SameMon(&r->pokemonPicked[i], &party[j])) break;
             }
@@ -253,9 +258,16 @@ static void InitSide(s32 s) {
             }
         }
     }
-    if (s == sViewer || members == 2) {
+    if (sOrderSelect) {
+        picked_mask = (u8)((1 << count) - 1); // (none picked yet: none is held)
+    }
+    if (s == sViewer || members == 2 || sOrderSelect) {
         hu_side_set_picked(&sSides[s], picked_mask);
     }
+}
+
+static void InitSide(s32 s) {
+    InitSideFrom(s, sActivePokemon[s]->sessionTeams, sActivePokemon[s]->teamRoster);
 }
 
 // The trainer memory of the opponent's side, and what it already knows (the moves seen, the speed estimates).
@@ -297,6 +309,7 @@ static void Init(void) {
     s32 com0 = IsCom(sActivePokemon[0]->teamRoster), com1 = IsCom(sActivePokemon[1]->teamRoster);
 
     sViewer = (!com0 && com1) ? 0 : (com0 && !com1) ? 1 : -1;
+    sOrderSelect = 0;
     PortEnh_CardModelsFree();
     InitSide(0);
     InitSide(1);
@@ -515,9 +528,10 @@ static void Publish(void) {
 
     memset(&v, 0, sizeof(v));
     v.viewer = sViewer;
+    v.orderSelect = (u8)sOrderSelect;
     for (s = 0; s < 2; s++) {
-        const BattleMonRuntime* rt = &sActivePokemon[s]->state.runtime;
-        const BattleMon* active_mon = ActiveMon(s);
+        const BattleMonRuntime* rt = sOrderSelect ? NULL : &sActivePokemon[s]->state.runtime;
+        const BattleMon* active_mon = sOrderSelect ? NULL : ActiveMon(s);
         v.sides[s] = sSides[s];
         for (i = 0; i < sSides[s].count; i++) {
             const hu_card* c = &sSides[s].cards[i];
@@ -596,4 +610,115 @@ void PortEnh_BattleFrame(void) {
         Port_Enh_SaveMemory();
         sSaved = 1;
     }
+}
+
+// ---- the battle order screen (BattleMenu_UpdateOrderSelect) ----
+// The summary bars show both parties there too, as the battle will start them: the player's own Pokémon in full, the
+// opponent's with what the trainer memory knows. A tag battle's sides are two trainers picking from two parties: no
+// cards there (a side has room for six). The battle starts its own cards (PortEnh_BattleBegin).
+
+void PortEnh_OrderSelectFrame(void) {
+    BattleSessionTeams* t = gSessionContext.battleSides;
+    PortEnhCardBattle none[2];
+    BinArchive* archive;
+    s32 s;
+
+    if (PortEnh_BattleIsDemo() || !Port_Enh_SummaryBarsEnabled() || t[0].tagTeamSize != 1 || t[1].tagTeamSize != 1 ||
+        t[0].tagTeamMember[0] == NULL || t[1].tagTeamMember[0] == NULL ||
+        t[0].tagTeamMember[0]->rosterInfo == NULL || t[1].tagTeamMember[0]->rosterInfo == NULL) {
+        return;
+    }
+    if (!sOrderSelect) {
+        s32 com0 = IsCom(t[0].tagTeamMember[0]), com1 = IsCom(t[1].tagTeamMember[0]);
+        sOrderSelect = 1;
+        sReady = 0;
+        sNeedInit = 1; // (the battle starts its own)
+        sViewer = (!com0 && com1) ? 0 : (com0 && !com1) ? 1 : -1;
+        PortEnh_CardModelsFree();
+        // the screen has no model archive open (the battle opens its own): a table of our own for the loads, from the
+        // screen's pool and freed right after (the copies are host buffers of their own)
+#if defined(VERSION_US_REV2)
+        archive = BinArchive_Open((u8*)0x919000, NULL, 1, 1);
+#else
+        archive = BinArchive_Open((u8*)0x920000, NULL, 1, 1);
+#endif
+        PortEnh_CardModelsSetArchive(archive);
+        InitSideFrom(0, &t[0], t[0].tagTeamMember[0]);
+        InitSideFrom(1, &t[1], t[1].tagTeamMember[0]);
+        PortEnh_CardModelsSetArchive(NULL);
+        if (archive != NULL) {
+            main_pool_try_free(archive);
+        }
+        InitMemory();
+        EnhLog("order select: viewer %d, sides %d/%d", (int)sViewer, sSides[0].count, sSides[1].count);
+    }
+    for (s = 0; s < 2; s++) {
+        none[s].active = -1;
+        none[s].obj = NULL;
+        none[s].idleAnim = none[s].faintAnim = none[s].sleepAnim = -1;
+    }
+    // (the screen's display list buffer is smaller than the battle's: the models only when there is room for them,
+    // otherwise their pictures keep the last frame's)
+    if (Gfx_GetDisplayListRemaining() >= 0x10000) {
+        PortEnh_CardModelsDraw(sSides, none);
+    } else {
+        EnhLog("order select: %d bytes of display list left, card models not drawn", Gfx_GetDisplayListRemaining());
+    }
+    Publish();
+}
+
+void PortEnh_OrderSelectEnd(void) {
+    if (sOrderSelect) {
+        PortEnh_CardModelsFree();
+        sOrderSelect = 0;
+    }
+}
+
+// The battle order screen's background in widescreen (StadionPort.h). The screen tiles a 640 x 480 image as 20 x 15
+// squares of 32 x 32 (Gfx_DrawTiledRgba16Image: a 16 x 16 tile each, drawn at twice its size); the sides of the picture
+// get the image's columns continued as if it repeated: on the left its last columns, on the right its first ones. They
+// are drawn anchored to the picture's sides (gDPPortAnchorLeft/Right), so a 2D screen's 4:3 lock does not cut them.
+void PortEnh_OrderSelectBackdrop(const void* image) {
+    const s32 margin = Port_WideMarginN64() * 2; // (the screen is 640 wide: two of the N64's 320-wide pixels)
+    const s32 cols = (margin + 31) / 32;
+    const u8* tiles = (const u8*)image;
+    s32 side, row, k;
+
+    if (margin <= 0 || tiles == NULL) {
+        return;
+    }
+    gDPPipeSync(gDisplayListHead++);
+    gDPSetCycleType(gDisplayListHead++, G_CYC_1CYCLE);
+    gDPSetRenderMode(gDisplayListHead++, G_RM_OPA_SURF, G_RM_OPA_SURF2);
+    gDPSetTexturePersp(gDisplayListHead++, G_TP_NONE);
+    gDPSetScissor(gDisplayListHead++, G_SC_NON_INTERLACE, 0, 0, 640, 480);
+    gDPSetCombineMode(gDisplayListHead++, G_CC_DECALRGB, G_CC_DECALRGB);
+    gDPPipeSync(gDisplayListHead++);
+    for (side = 0; side < 2; side++) {
+        if (side == 0) {
+            gDPPortAnchorLeft(gDisplayListHead++); // (drawn `margin` to the right of where it shows)
+        } else {
+            gDPPortAnchorRight(gDisplayListHead++);
+        }
+        for (row = 0; row < 15; row++) {
+            for (k = 0; k < cols; k++) {
+                const s32 col = (side == 0) ? 20 - cols + k : k;
+                s32 x0 = (side == 0) ? 32 * col - 640 + margin : 640 + 32 * col - margin;
+                const s32 x1 = x0 + 32;
+                s32 s = 0;
+                if (x0 < 0) { // (a part of the square: its texture starts further in, at half a texel per pixel)
+                    s = -x0 * 16;
+                    x0 = 0;
+                }
+                if (x1 <= x0) continue;
+                gDPLoadTextureBlock(gDisplayListHead++, tiles + (row * 20 + col) * 0x200, G_IM_FMT_RGBA, G_IM_SIZ_16b,
+                                    16, 16, 0, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK,
+                                    G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+                gSPTextureRectangle(gDisplayListHead++, x0 << 2, (row * 32) << 2, x1 << 2, (row * 32 + 32) << 2,
+                                    G_TX_RENDERTILE, s, 0, 0x0200, 0x0200);
+            }
+        }
+        gDPPortAnchorEnd(gDisplayListHead++);
+    }
+    gDPPipeSync(gDisplayListHead++);
 }

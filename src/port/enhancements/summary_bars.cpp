@@ -2,7 +2,8 @@
 // game's picture during a battle, the left trainer's party on the left and the right one's on the right. They are
 // drawn by ImGui in the window's room beside the picture, never over it: a 4:3 picture in a wider window, or a 16:9
 // picture on an ultrawide screen. When the window has no such room there are no bars; the game's own picture and HUD
-// are never moved or covered.
+// are never moved or covered. The battle order screen shows them too (both parties, before the battle): a 2D screen,
+// so in a widescreen picture they go beside its 4:3 frame, over its background continued into the sides.
 //
 // The battle code (battle_enhancements.c) publishes what the cards show each frame; this file only draws it. A card's
 // picture is its own animated copy of the Pokémon's 3D model (card_models.c draws them into one off-screen picture per
@@ -274,7 +275,9 @@ class SummaryBarsWindow : public Ship::GuiWindow {
         const ImGuiViewport* vp = ImGui::GetMainViewport();
         const float W = vp->Size.x, H = vp->Size.y;
         if (W <= 0 || H <= 0) return;
-        const float aspect = Port::AspectSetting() == 1 ? 16.0f / 9.0f : 4.0f / 3.0f;
+        // the battle order screen is a 2D screen, kept in its 4:3 frame even in a widescreen picture (whose sides then
+        // show its background continued, PortEnh_OrderSelectBackdrop): its bars go beside that frame
+        const float aspect = (Port::AspectSetting() == 1 && !v.orderSelect) ? 16.0f / 9.0f : 4.0f / 3.0f;
         const float picW = std::min(W, H * aspect);
         const float side = (W - picW) / 2;
         if (side < kMinSide * H) return; // no room beside the picture: no bars

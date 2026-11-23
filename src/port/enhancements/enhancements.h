@@ -109,6 +109,7 @@ typedef struct PortEnhBattleView {
     int32_t viewer; // the side whose own Pokémon are known (0 against the COM), -1 if none
     uint8_t modelReady[2][HU_SIDE_MAX];   // the card's 3D model is drawn into its cell of the side's picture
     uint8_t modelSpecies[2][HU_SIDE_MAX]; // whose model it is
+    uint8_t orderSelect; // the battle order screen's (a 2D screen: the bars go beside its 4:3 frame, PortEnh_OrderSelectFrame)
 } PortEnhBattleView;
 // The cards' 3D models (card_models.c) are drawn into one off-screen picture per side, a row of
 // PORT_ENH_CARD_CELL x PORT_ENH_CARD_CELL cells, one per card; summary_bars.cpp creates it on the render thread and

@@ -105,8 +105,14 @@ void PortEnh_CardModelsFree(void) {
 // The model file into the card's own pool (PokeIcon_LoadModelArchive's steps). The archive caches a loaded file in its
 // entry (BinArchive_LoadFileToPool keeps a handle to it): the entry is put back as it was, so the game never reuses
 // this copy.
+static BinArchive* sArchive; // PortEnh_CardModelsSetArchive's (NULL: the one the game has open)
+
+void PortEnh_CardModelsSetArchive(BinArchive* archive) {
+    sArchive = archive;
+}
+
 static Fragment* LoadModelFile(CardModel* c, s32 species) {
-    BinArchive* archive = D_800ABE10.unk_A04.unk_00;
+    BinArchive* archive = (sArchive != NULL) ? sArchive : D_800ABE10.unk_A04.unk_00;
     BinArchiveFile* entry;
     u32 kept;
     Fragment* f;
