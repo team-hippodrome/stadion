@@ -69,6 +69,7 @@ set(PORT_MAIN_SOURCES
   src/port/launcher.cpp
   src/port/graphics_advisor.cpp
   src/port/launcher_files.cpp
+  src/port/gb_cart_art.cpp
   src/port/launcher_reliability.cpp
   src/port/language_prompt.cpp
   src/port/text_lookup.cpp

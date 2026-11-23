@@ -34,7 +34,7 @@ EOF
 
 # launcher window (tools/launcher/Launcher.swift): pick ROM, save, GB cartridge and GB save, then Play
 printf '%s\n' "$HERE" > "$APP/Contents/Resources/project-path.txt"
-cp "$HERE"/tools/launcher/assets/*.png "$APP/Contents/Resources/"  # cartridge pictures
+cp "$HERE"/tools/launcher/assets/*.png "$APP/Contents/Resources/"  # the N64 and app pictures (Game Boy cartridges are drawn from the ROM)
 xcrun swiftc -parse-as-library -O -target arm64-apple-macos13 -o "$APP/Contents/MacOS/launcher" \
     "$HERE/tools/launcher/PortableLauncherStore.swift" "$HERE/tools/launcher/Launcher.swift"
 
