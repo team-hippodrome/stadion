@@ -14,6 +14,7 @@
 #include "overlay.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <libultraship/libultraship.h>
 #include <fast/Fast3dWindow.h>
 #include <fast/interpreter.h>
@@ -295,14 +296,39 @@ class SummaryBarsWindow : public Ship::GuiWindow {
         const ImGuiViewport* vp = ImGui::GetMainViewport();
         const float W = vp->Size.x, H = vp->Size.y;
         if (W <= 0 || H <= 0) return;
-        // the battle order screen is a 2D screen, kept in its 4:3 frame even in a widescreen picture (whose sides then
-        // show its background continued, PortEnh_OrderSelectBackdrop): its bars go beside that frame
-        const float aspect = (Port::AspectSetting() == 1 && !v.orderSelect) ? 16.0f / 9.0f : 4.0f / 3.0f;
-        const float picW = std::min(W, H * aspect);
+        // the bars go beside the picture. The battle order screen is a 2D screen, kept in its 4:3 frame even in a
+        // widescreen picture (whose sides then show its background continued, PortEnh_OrderSelectBackdrop): its bars go
+        // beside that frame, unless the window is wide enough to hold them beside the whole 16:9 picture (ultrawide)
+        const bool wide = Port::AspectSetting() == 1;
+        float picW = std::min(W, H * (wide ? 16.0f / 9.0f : 4.0f / 3.0f));
+        if (wide && v.orderSelect && (W - picW) / 2 < kMinSide * H) picW = std::min(W, H * 4.0f / 3.0f);
         const float side = (W - picW) / 2;
         if (side < kMinSide * H) return; // no room beside the picture: no bars
 
-        ImDrawList* dl = ImGui::GetBackgroundDrawList(); // under ImGui's own windows (menus), over the black bars
+        // a window of its own, kept just above libultraship's game view ("Main Game") and under every other window
+        // (menus): the cards beside the order screen's 4:3 frame lie over the picture, which would cover a background
+        // draw list's
+        ImGui::SetNextWindowPos(vp->Pos);
+        ImGui::SetNextWindowSize(vp->Size);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+        ImGui::Begin("##summarybars", nullptr,
+                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground |
+                         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav |
+                         ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGui::PopStyleVar(2);
+        // (the game view is docked: its dock host is what sits in the display order)
+        // (the game view is docked in "Main - Deck", which is what sits in the display order and holds the menu bar:
+        // the cards stay under that bar)
+        ImGui::BringWindowToDisplayBack(ImGui::GetCurrentWindow());
+        float top = vp->Pos.y;
+        if (ImGuiWindow* game = ImGui::FindWindowByName("Main Game")) {
+            ImGuiWindow* deck = game->RootWindowDockTree ? game->RootWindowDockTree : game;
+            ImGui::BringWindowToDisplayBack(deck);
+            if (deck->Flags & ImGuiWindowFlags_MenuBar) top = std::max(top, deck->MenuBarRect().Max.y);
+        }
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->PushClipRect(ImVec2(vp->Pos.x, top), ImVec2(vp->Pos.x + W, vp->Pos.y + H), false);
         const float margin = H * 0.012f, gap = H * 0.008f;
         const float cw = std::min(side - 2 * margin, H * 0.34f);
         const float ch = (H - 2 * margin - (HU_SIDE_MAX - 1) * gap) / HU_SIDE_MAX;
@@ -317,6 +343,8 @@ class SummaryBarsWindow : public Ship::GuiWindow {
                 DrawCard(dl, f, v, s, i, ImVec2(x0, y0), ImVec2(x0 + cw, y0 + ch));
             }
         }
+        dl->PopClipRect();
+        ImGui::End();
     }
 
   protected:
