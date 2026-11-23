@@ -4,6 +4,10 @@
 #include <libultraship/libultraship.h>
 
 #include <algorithm>
+#include <chrono>
+#include <map>
+#include <mutex>
+#include <vector>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -51,6 +55,14 @@ extern "C" int Port_Enh_MoveDescriptionsEnabled(void) {
 
 extern "C" void Port_Enh_SetMoveDescriptionsEnabled(int on) {
     SetSetting("gEnhancements.MoveDescriptions", on);
+}
+
+extern "C" int Port_Enh_SummaryBarsEnabled(void) {
+    return Setting("PORT_SUMMARY_BARS", "gEnhancements.SummaryBars");
+}
+
+extern "C" void Port_Enh_SetSummaryBarsEnabled(int on) {
+    SetSetting("gEnhancements.SummaryBars", on);
 }
 
 extern "C" int Port_Enh_OrderQueueEnabled(void) {
@@ -191,4 +203,51 @@ extern "C" void Port_Enh_SaveHues(void) {
     if (hu_hue_save(gHues, gHuePath.c_str()) != HU_HUE_OK) {
         fprintf(stderr, "[enhancements] could not write %s\n", gHuePath.c_str());
     }
+}
+
+// ---- the summary bars' view (game thread -> render thread) ----
+
+namespace {
+
+std::mutex gViewMutex;
+PortEnhBattleView gView;
+std::chrono::steady_clock::time_point gViewTime;
+bool gViewSet = false;
+std::map<uint32_t, std::vector<uint8_t>> gIcons; // never erased: the pointers handed out stay valid
+
+} // namespace
+
+extern "C" void Port_Enh_PublishBattle(const PortEnhBattleView* view) {
+    std::lock_guard<std::mutex> lock(gViewMutex);
+    gView = *view;
+    gViewTime = std::chrono::steady_clock::now();
+    gViewSet = true;
+}
+
+extern "C" int Port_Enh_LatestBattle(PortEnhBattleView* out) {
+    std::lock_guard<std::mutex> lock(gViewMutex);
+    // a battle draws its HUD every game frame: a view older than a quarter of a second is a battle that has ended
+    if (!gViewSet || std::chrono::steady_clock::now() - gViewTime > std::chrono::milliseconds(250)) {
+        return 0;
+    }
+    *out = gView;
+    return 1;
+}
+
+extern "C" int Port_Enh_HasCardIcon(uint32_t key) {
+    std::lock_guard<std::mutex> lock(gViewMutex);
+    return gIcons.count(key) != 0;
+}
+
+extern "C" void Port_Enh_SetCardIcon(uint32_t key, const uint8_t* rgba) {
+    std::lock_guard<std::mutex> lock(gViewMutex);
+    if (gIcons.count(key) == 0) {
+        gIcons[key].assign(rgba, rgba + PORT_ENH_ICON * PORT_ENH_ICON * 4);
+    }
+}
+
+extern "C" const uint8_t* Port_Enh_CardIcon(uint32_t key) {
+    std::lock_guard<std::mutex> lock(gViewMutex);
+    auto it = gIcons.find(key);
+    return it == gIcons.end() ? nullptr : it->second.data();
 }

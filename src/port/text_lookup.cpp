@@ -13,6 +13,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <SDL3/SDL.h>
 
+#include <cstring>
 #include <map>
 #include <memory>
 #include <string>
@@ -342,6 +343,64 @@ void Port_TextLanguageSet(int choice) {
     }
     CVarSetString("gPort.TextLanguage", choices[choice].c_str());
     CVarSave();
+}
+
+int Port_TextToUtf8(const char* text, char* out, int size) {
+    // the reverse of Encode: ASCII, the ROM font's own Latin-1 bytes, the font's ♀ / ♂ and the port's wide codes
+    int n = 0;
+    auto put = [&](uint32_t cp) {
+        char buf[4];
+        int len;
+        if (cp < 0x80) {
+            buf[0] = (char)cp;
+            len = 1;
+        } else if (cp < 0x800) {
+            buf[0] = (char)(0xC0 | (cp >> 6));
+            buf[1] = (char)(0x80 | (cp & 0x3F));
+            len = 2;
+        } else if (cp < 0x10000) {
+            buf[0] = (char)(0xE0 | (cp >> 12));
+            buf[1] = (char)(0x80 | ((cp >> 6) & 0x3F));
+            buf[2] = (char)(0x80 | (cp & 0x3F));
+            len = 3;
+        } else {
+            buf[0] = (char)(0xF0 | (cp >> 18));
+            buf[1] = (char)(0x80 | ((cp >> 12) & 0x3F));
+            buf[2] = (char)(0x80 | ((cp >> 6) & 0x3F));
+            buf[3] = (char)(0x80 | (cp & 0x3F));
+            len = 4;
+        }
+        if (n + len >= size) {
+            return false;
+        }
+        memcpy(out + n, buf, (size_t)len);
+        n += len;
+        return true;
+    };
+    if (out == nullptr || size <= 0) {
+        return 0;
+    }
+    for (const unsigned char* p = (const unsigned char*)(text != nullptr ? text : ""); *p != 0; p++) {
+        uint32_t cp = *p;
+        if (cp >= PORT_TEXT_WIDE_FIRST && cp <= PORT_TEXT_WIDE_LAST && (p[1] & 0x80) != 0) {
+            const uint32_t code = (cp - PORT_TEXT_WIDE_FIRST) * kWideTrail + (p[1] & 0x7F);
+            p++;
+            cp = code < gWide.size() ? gWide[code] : '?';
+        } else if (cp == 0xBE) {
+            cp = 0x2640;
+        } else if (cp == 0xA9) {
+            cp = 0x2642;
+        } else if (cp == '\n') {
+            cp = ' ';
+        } else if (cp >= 0x80 && cp < 0xA0) {
+            cp = '?';
+        }
+        if (!put(cp)) {
+            break;
+        }
+    }
+    out[n] = '\0';
+    return n;
 }
 
 const char* Port_TextPortString(const char* id) {

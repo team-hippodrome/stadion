@@ -74,6 +74,7 @@ set(PORT_MAIN_SOURCES
   src/port/language_prompt.cpp
   src/port/text_lookup.cpp
   src/port/enhancements/enhancements.cpp
+  src/port/enhancements/summary_bars.cpp
   src/port/rom_check.cpp
   src/port/shader_warmup.cpp
   src/port/touch_controls.cpp

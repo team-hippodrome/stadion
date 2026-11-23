@@ -2,6 +2,7 @@
 #include "Engine.h"
 #include "launcher_reliability.h"
 #include "touch_controls.h"
+#include "enhancements/summary_bars.h"
 #include "pacing.h"
 
 #include <libultraship/libultraship.h>
@@ -937,6 +938,7 @@ bool PumpFrame() {
             last = pads[0].button;
         }
         Port_TouchControlsApply(&pads[0], sWindow->GetGui().get()); // the on-screen controller (touch_controls.cpp)
+        Port_Enh_InstallOverlay(sWindow->GetGui().get()); // the summary bars (enhancements/summary_bars.cpp)
         PublishPads(pads);
     }
     return true;

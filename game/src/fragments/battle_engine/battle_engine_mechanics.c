@@ -1507,6 +1507,7 @@ s32 Battle_CheckMonCanAct(void) {
 /* Resolve the current action through move selection, hit/damage checks and effect dispatch. */
 void ProcessBattleTurn(void) {
     s8 sp2C[12];
+    s32 port_can_act;
 
     if (sBattleUser->usedMove != 0xFF) {
         sBattleMoveFailed = 0;
@@ -1514,7 +1515,13 @@ void ProcessBattleTurn(void) {
         D_843C4DA9 = 0;
         D_843C4DB3 = 0xA;
 
-        switch (Battle_CheckMonCanAct()) {
+        // PORT: 0 = the Pokémon does not use its move this turn (asleep, frozen, recharging, flinched, fully
+        // paralysed, hurt itself in confusion...): the summary bars must not reveal the picked move (enhancements)
+        port_can_act = Battle_CheckMonCanAct();
+        if (port_can_act == 0) {
+            PortEnh_MoveNotUsed();
+        }
+        switch (port_can_act) {
             case 2:
                 Battle_LoadMoveCache();
                 if (sBattleUser->immobilizedReason & 0x10) {

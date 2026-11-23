@@ -255,6 +255,9 @@ void Port_TextLanguageSet(int choice);
 // The port's own string `id` (translation/port.csv) in the chosen text language, or the ROM's language when none is
 // chosen, in the game's encoding (as Port_TextLookup's); English when that cell is empty, `id` when there is none.
 const char* Port_TextPortString(const char* id);
+// `text` (the game's encoding) as UTF-8 into out (size bytes, always terminated): for the port's own windows (ImGui).
+// Returns the bytes written.
+int Port_TextToUtf8(const char* text, char* out, int size);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Enhancements (src/port/enhancements/; hippodrome-utils docs/specs). Each hook does nothing while its option is off.
@@ -281,6 +284,13 @@ void PortEnh_BattleFrame(void);
 void PortEnh_MoveMenuInput(struct ActivePokemon* a);
 void PortEnh_PlayerCommandBegin(struct ActivePokemon* a, struct ActivePokemon* foe, float elapsed_frames);
 void PortEnh_PlayerCommandEnd(struct ActivePokemon* a);
+// The side summary bars and speed estimates (battle_enhancements.c): who acts first, once Battle_StartTurn has the
+// order (-1 from BattleScene_InitializeSwitchActions: a side switches, Speed decided nothing); the acting Pokémon
+// cannot act this turn (ProcessBattleTurn: asleep, frozen, flinched, fully paralysed...); a move's presentation
+// starts (BattleScene_ActionSetupCameraStep, as its message box opens), which reveals the move on its card.
+void PortEnh_TurnOrder(int first_side);
+void PortEnh_MoveNotUsed(void);
+void PortEnh_MoveStart(void);
 // Hue choice (hue_picker.c). PortEnh_HueShift: the hue to build `mon`'s model and icon with, `game_shift` being the
 // game's own (Model_ComputeNicknameColorVariant); PortEnh_HueBypass(1) keeps the game's own for the calls until
 // PortEnh_HueBypass(0) (a Hall of Fame record, which has no DVs). The team select screens' Pokémon card

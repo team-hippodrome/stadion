@@ -759,8 +759,25 @@ void LoadFonts(const State& s) {
         font->Scale = 1.0f / rasterScale;
         return font;
     };
+    // the game size also draws the summary bars' cards (Port::CardFont): Pokémon names may hold ♀ / ♂
+    static const ImWchar kGenderSigns[] = { 0x2640, 0x2640, 0x2642, 0x2642, 0 };
+    if (gUnifont.data.empty()) {
+        LoadExtraFont(gUnifont, "fonts/unifont_subset.otf");
+    }
+    auto addGame = [&](float rasterScale) {
+        ImFont* font = add(16, rasterScale);
+        if (!gUnifont.data.empty()) {
+            ImFontConfig cfg;
+            cfg.MergeMode = true;
+            cfg.FontDataOwnedByAtlas = false;
+            cfg.PixelSnapH = true;
+            io.Fonts->AddFontFromMemoryTTF(gUnifont.data.data(), (int)gUnifont.data.size(), 16 * rasterScale, &cfg,
+                                           kGenderSigns);
+        }
+        return font;
+    };
     for (float scale : {0.625f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f}) {
-        gFontSets.push_back({scale, {add(13, scale, true), add(11, scale), add(16, scale),
+        gFontSets.push_back({scale, {add(13, scale, true), add(11, scale), addGame(scale),
                                     add(20, scale), add(32, scale)}});
     }
 }
@@ -2311,6 +2328,13 @@ class LauncherWindow : public Ship::GuiWindow {
         if (c >= 0) {
             Port_Enh_SetOrderQueueEnabled(c == 0);
         }
+        c = row("Summary bars", "bars",
+                "During a battle, a card for each Pokémon of both sides beside the picture (in the room a\n"
+                "wider window leaves): HP, status, the moves seen so far and the opponent's Speed estimate.",
+                Port_Enh_SummaryBarsEnabled() != 0);
+        if (c >= 0) {
+            Port_Enh_SetSummaryBarsEnabled(c == 0);
+        }
         {
             // three wider choices: the hint goes under them
             static const int kModes[3] = { PORT_HUE_RESTRICTED, PORT_HUE_UNRESTRICTED, PORT_HUE_OFF };
@@ -3031,6 +3055,17 @@ bool RunScriptStep(const ScriptStep& st) {
 } // namespace
 
 namespace Port {
+
+// The launcher's game-size font (16 px, ♀ / ♂ included) in the raster closest to `pixels`, for the port's own windows
+// during play (the summary bars: summary_bars.cpp). nullptr before the launcher has built its fonts.
+ImFont* CardFont(float pixels) {
+    if (gFontSets.empty()) return nullptr;
+    const float target = std::max(0.01f, pixels / 16.0f);
+    const auto nearest = std::min_element(gFontSets.begin(), gFontSets.end(), [target](const FontSet& a, const FontSet& b) {
+        return std::abs(std::log(a.rasterScale / target)) < std::abs(std::log(b.rasterScale / target));
+    });
+    return nearest->fonts.game;
+}
 
 std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool& restart) {
     State state = Load();

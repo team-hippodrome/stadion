@@ -10,6 +10,7 @@
 
 #include <hippodrome/hue_choice.h>
 #include <hippodrome/statexp_difficulty.h>
+#include <hippodrome/summary_card.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,6 +47,34 @@ int Port_Enh_HueChoiceEnabled(void); // mode != PORT_HUE_OFF
 // The hues picked so far (read from the file on first use) and writing them back when they changed.
 hu_hue_store* Port_Enh_Hues(void);
 void Port_Enh_SaveHues(void);
+
+// Side summary bars and speed estimates (PARTY_SUMMARY_BARS, SPEED_STAT_ESTIMATE): gEnhancements.SummaryBars, 0 by
+// default; PORT_SUMMARY_BARS=0/1 overrides it.
+int Port_Enh_SummaryBarsEnabled(void);
+void Port_Enh_SetSummaryBarsEnabled(int on);
+
+// What the summary bars show, published by the battle each frame it draws its HUD (battle_enhancements.c, game thread)
+// and drawn by summary_bars.cpp beside the game's picture (render thread). Strings are UTF-8.
+#define PORT_ENH_TEXT 32
+#define PORT_ENH_ICON 40 // the cards' picture: the game's own menu icon of the Pokémon (40 x 40)
+typedef struct PortEnhBattleView {
+    hu_side sides[2]; // 0 = the left trainer (1P), 1 = the right one
+    char names[2][HU_SIDE_MAX][PORT_ENH_TEXT];
+    char moves[2][HU_SIDE_MAX][HU_CARD_MOVES][PORT_ENH_TEXT];
+    uint8_t moveTypes[2][HU_SIDE_MAX][HU_CARD_MOVES]; // hu_type, for the move names' colours
+    hu_speed_range speed[2][HU_SIDE_MAX];             // as shown: the active one's with its stage and paralysis
+    uint32_t iconKey[2][HU_SIDE_MAX];                 // which picture the card shows (0: none); see the icons below
+    int32_t viewer; // the side whose own Pokémon are known (0 against the COM), -1 if none
+} PortEnhBattleView;
+void Port_Enh_PublishBattle(const PortEnhBattleView* view);
+// The last view if one was published in the last few frames (a battle is on screen); 0 otherwise.
+int Port_Enh_LatestBattle(PortEnhBattleView* out);
+// The cards' pictures, PORT_ENH_ICON x PORT_ENH_ICON RGBA8 pixels each, kept under a key (species, hue) the view
+// names. Port_Enh_HasCardIcon: 1 once that key's picture is kept.
+int Port_Enh_HasCardIcon(uint32_t key);
+void Port_Enh_SetCardIcon(uint32_t key, const uint8_t* rgba);
+// The picture for `key` (NULL if none), on the render thread.
+const uint8_t* Port_Enh_CardIcon(uint32_t key);
 
 // PORT_ENH_LOG=1: what the enhancements do, on stderr (tests).
 int Port_Enh_Log(void);
