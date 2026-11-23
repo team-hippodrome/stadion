@@ -1,6 +1,7 @@
 #include "launcher_reliability.h"
 #include "launcher_files.h"
 #include "file_io.h"
+#include "gb_jp_save.h"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -74,7 +75,7 @@ LauncherCheck CheckLauncherFiles(const fs::path& directory, const std::string& s
     LauncherCheck result;
     std::string error;
     if (!Writable(directory / "pokestadium.cfg.json", error)) result.errors.push_back("Settings: " + error);
-    auto checkSave = [&](const std::string& path, const std::string& label, bool stadium, size_t size) {
+    auto checkSave = [&](const std::string& path, const std::string& label, bool stadium, size_t size, bool japanese = false) {
         if (path.empty()) { result.errors.push_back(label + "Choose a save location."); return; }
         const auto p = fs::u8path(path);
         if (!Writable(p, error)) result.errors.push_back(label + error);
@@ -90,8 +91,9 @@ LauncherCheck CheckLauncherFiles(const fs::path& directory, const std::string& s
         if (stadium && (!NormalizeStadiumSave(bytes, normalized, error) || bytes != normalized))
             result.errors.push_back(label + "Invalid or byte-swapped cartridge save. Use Import save to select a working copy. " + path);
         if (!stadium && size == 0x8000) {
-            unsigned sum = 0; for (size_t i = 0x2598; i <= 0x3522; ++i) sum += bytes[i];
-            if (static_cast<uint8_t>(~sum) != bytes[0x3523])
+            const size_t end = japanese ? 0x3594 : 0x3523; // the Japanese layout's checksum (gb_jp_save.h)
+            unsigned sum = 0; for (size_t i = 0x2598; i < end; ++i) sum += bytes[i];
+            if (static_cast<uint8_t>(~sum) != bytes[end])
                 result.warnings.push_back(label + "Trainer checksum is not valid; the save may be blank, damaged or incompatible with this cartridge.");
         }
     };
@@ -115,7 +117,7 @@ LauncherCheck CheckLauncherFiles(const fs::path& directory, const std::string& s
         static const size_t sizes[] = {0, 0x800, 0x2000, 0x8000, 0x20000, 0x10000};
         const size_t size = rom[0x149] < 6 ? sizes[rom[0x149]] : 0;
         if (size == 0) { result.errors.push_back(label + "Cartridge has no supported battery RAM."); continue; }
-        checkSave(slot.save, label, false, size);
+        checkSave(slot.save, label, false, size, Port::IsJapaneseGen1Rom(rom.data(), rom.size()));
         if (!slot.save.empty()) {
             const auto battery = fs::absolute(fs::u8path(slot.save)).lexically_normal();
             for (const auto& other : selected) {

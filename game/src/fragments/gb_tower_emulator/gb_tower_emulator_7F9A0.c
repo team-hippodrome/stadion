@@ -1173,6 +1173,7 @@ void GbPak_ServiceThread(s32 arg0) {
                 if (osGbpakInit(gGbPakSiEventQueue, (OSPfs*)&emu->pfs, emu->pakPort) != 0) {
                     goto retry;
                 }
+                Port_GbPakRawSave(&emu->pfs); // PORT: the Game Boy runs a Japanese cartridge with its own save layout
                 if (osGbpakReadId((OSPfs*)&emu->pfs, &emu->cartridgeId, &emu->status) != 0) {
                     goto retry;
                 }
@@ -1329,6 +1330,7 @@ void GbPak_ServiceThread(s32 arg0) {
                 if (osGbpakInit(gGbPakSiEventQueue, (OSPfs*)&emu->pfs, emu->pakPort) != 0) {
                     retries = 5;
                 } else {
+                    Port_GbPakRawSave(&emu->pfs); // PORT: as above
                     if (GbPak_CheckTransferStatus(emu) == 0) {
                         if (--retries == 0) {
                             i = GbPak_ProbeCartridge(emu);

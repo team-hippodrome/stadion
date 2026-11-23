@@ -264,6 +264,9 @@ uintptr_t Port_DlBufferBase(void);
 // The ROM font's glyph for a byte, 0 for none (game/src/graphics_textures.c): text_lookup.cpp keeps a character as
 // one byte only where the font draws it.
 uint8_t Font_MapGlyphCode(uint16_t index);
+// The GB Tower's Transfer Pak handle (an OSPfs): it gets a Japanese cartridge's battery RAM as it is, not the
+// international view the rest of Stadium reads (src/port/transfer_pak.cpp, gb_jp_save.h).
+void Port_GbPakRawSave(void* pfs);
 // Field offsets of the Game Boy Tower's emulator context, used by src/port/gb_core.c
 // (game/src/fragments/gb_tower_emulator/gb_tower_emulator_7F9A0.c).
 extern const size_t Port_GbEmuOffsets[9];
