@@ -161,6 +161,13 @@ void FlashSave() {
 bool IsFlash(OSPiHandle* h) { return h->type == DEVICE_TYPE_FLASH; }
 } // namespace
 
+// The N64 save's file (pokestadium.flash, or PORT_FLASH_FILE): enhancements keep side files beside it.
+extern "C" const char* Port_FlashFilePath(void) {
+    static std::string path;
+    path = FlashPath();
+    return path.c_str();
+}
+
 extern "C" void Port_BeginFlashBankWrite() {
     gFlashBankWrite = true;
     gFlashBankWriteDirty = false;

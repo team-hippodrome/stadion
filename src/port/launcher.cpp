@@ -2312,6 +2312,23 @@ class LauncherWindow : public Ship::GuiWindow {
             Port_Enh_SetOrderQueueEnabled(c == 0);
         }
         {
+            // three wider choices: the hint goes under them
+            static const int kModes[3] = { PORT_HUE_RESTRICTED, PORT_HUE_UNRESTRICTED, PORT_HUE_OFF };
+            const int mode = Port_Enh_HueChoiceMode();
+            int chosen = 2;
+            for (int i = 0; i < 3; i++) {
+                if (kModes[i] == mode) chosen = i;
+            }
+            Text(lx, ry + 5, "Hue choice", gFonts.body);
+            c = Choice("hue", { "Restricted", "Unrestricted", "Off" }, chosen, cx, ry, 96);
+            Text(lx, ry + 33,
+                 "Pick each Pokémon's colour on its card in the team select screens: L / R (15° steps) or the stick (smooth),\n"
+                 "Z for the game's own. Restricted: only the hues a nickname can give that species. Kept in a file beside the save.",
+                 gFonts.small, Theme::dim);
+            ry += 76;
+            if (c >= 0) Port_Enh_SetHueChoiceMode(kModes[c]);
+        }
+        {
             hu_se_setting r[2];
             Port_Enh_StatExpDifficulty(PORT_SE_RENTAL, &r[0]);
             Port_Enh_StatExpDifficulty(PORT_SE_OPPONENT, &r[1]);

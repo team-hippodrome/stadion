@@ -214,6 +214,7 @@ arg1_func_80010CA8* Model_ComputeNicknameColorVariant(arg1_func_80010CA8* arg0, 
 
         sp34.unk_00 = ((((sp30->unk_12 - sp30->unk_10) << 6) * var_a0) / 255) + (sp30->unk_10 << 6);
     }
+    sp34.unk_00 = PortEnh_HueShift(arg1, sp34.unk_00); // PORT: the player's hue choice (an enhancement, off by default)
 
     if (PORT_GETENV_ONCE("PORT_TRACE_VARIANT")) {
         fprintf(stderr,
@@ -233,7 +234,9 @@ void Model_ComputeNicknameColorVariantFromRecord(arg1_func_80010CA8* arg0, unk_f
 
     _bcopy(arg1->unk_04, stack.nickname, 0x10);
     _bcopy(arg1->unk_14, stack.unk_3B, 0x10);
+    PortEnh_HueBypass(1); // PORT: a record keeps no DVs, so no hue choice applies to it
     Model_ComputeNicknameColorVariant(arg0, &stack);
+    PortEnh_HueBypass(0);
 }
 
 void Trainer_RequestPokeIcon(BattleSessionTeams* arg0) {

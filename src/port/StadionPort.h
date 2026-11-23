@@ -281,6 +281,15 @@ void PortEnh_BattleFrame(void);
 void PortEnh_MoveMenuInput(struct ActivePokemon* a);
 void PortEnh_PlayerCommandBegin(struct ActivePokemon* a, struct ActivePokemon* foe, float elapsed_frames);
 void PortEnh_PlayerCommandEnd(struct ActivePokemon* a);
+// Hue choice (hue_picker.c). PortEnh_HueShift: the hue to build `mon`'s model and icon with, `game_shift` being the
+// game's own (Model_ComputeNicknameColorVariant); PortEnh_HueBypass(1) keeps the game's own for the calls until
+// PortEnh_HueBypass(0) (a Hall of Fame record, which has no DVs). The team select screens' Pokémon card
+// (TeamSelection_Preview): PortEnh_HuePickerInput takes its L / R / Z and stick, 1 when the hue changed (the card then
+// rebuilds the model and the icon); PortEnh_HuePickerDraw draws the hue bar over the card's model picture.
+int16_t PortEnh_HueShift(struct BattleMon* mon, int16_t game_shift);
+void PortEnh_HueBypass(int on);
+int PortEnh_HuePickerInput(struct BattleMon* mon, uint16_t pressed, float stick_x);
+void PortEnh_HuePickerDraw(int x, int y, int w, int h, struct BattleMon* mon);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Hooks the game implements for the port

@@ -7,7 +7,11 @@
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <filesystem>
 #include <string>
+
+extern "C" const char* Port_FlashFilePath(void); // os_devices.cpp
 
 extern "C" int Port_Enh_Log(void) {
     static const int on = [] {
@@ -123,4 +127,68 @@ extern "C" void Port_Enh_SetStatExpDifficulty(int group, const hu_se_setting* se
     CVarSetInteger(SeCvar(group, "Min").c_str(), setting->custom_min);
     CVarSetInteger(SeCvar(group, "Max").c_str(), setting->custom_max);
     CVarSave();
+}
+
+// ---- Hue choice ----
+
+extern "C" int Port_Enh_HueChoiceMode(void) {
+    const char* v = getenv("PORT_HUE_CHOICE");
+    int mode;
+    if (v != nullptr && *v != '\0') {
+        if (strcmp(v, "restricted") == 0) return PORT_HUE_RESTRICTED;
+        if (strcmp(v, "unrestricted") == 0) return PORT_HUE_UNRESTRICTED;
+        if (strcmp(v, "off") == 0) return PORT_HUE_OFF;
+        mode = atoi(v);
+    } else {
+        mode = CVarGetInteger("gEnhancements.HueChoice", PORT_HUE_OFF);
+    }
+    return (mode == PORT_HUE_UNRESTRICTED || mode == PORT_HUE_RESTRICTED) ? mode : PORT_HUE_OFF;
+}
+
+extern "C" void Port_Enh_SetHueChoiceMode(int mode) {
+    CVarSetInteger("gEnhancements.HueChoice", mode);
+    CVarSave();
+}
+
+extern "C" int Port_Enh_HueChoiceEnabled(void) {
+    return Port_Enh_HueChoiceMode() != PORT_HUE_OFF;
+}
+
+namespace {
+
+hu_hue_store* gHues = nullptr;
+std::string gHuePath;
+
+// A side file that could not be read is kept as <file>.bad, so the next write does not lose what was in it.
+void KeepDamaged(const std::string& path, int code) {
+    std::error_code ec;
+    const auto from = std::filesystem::u8path(path);
+    const auto to = std::filesystem::u8path(path + ".bad");
+    std::filesystem::remove(to, ec);
+    std::filesystem::rename(from, to, ec);
+    fprintf(stderr, "[enhancements] %s could not be read (%d), kept as %s.bad\n", path.c_str(), code, path.c_str());
+}
+
+} // namespace
+
+extern "C" hu_hue_store* Port_Enh_Hues(void) {
+    if (gHues != nullptr) {
+        return gHues;
+    }
+    gHues = hu_hue_store_new();
+    gHuePath = std::string(Port_FlashFilePath()) + ".hue";
+    const hu_hue_io r = hu_hue_load(gHues, gHuePath.c_str());
+    if (r == HU_HUE_CORRUPT || r == HU_HUE_IO_ERROR) {
+        KeepDamaged(gHuePath, (int)r);
+    }
+    return gHues;
+}
+
+extern "C" void Port_Enh_SaveHues(void) {
+    if (gHues == nullptr || !hu_hue_dirty(gHues)) {
+        return;
+    }
+    if (hu_hue_save(gHues, gHuePath.c_str()) != HU_HUE_OK) {
+        fprintf(stderr, "[enhancements] could not write %s\n", gHuePath.c_str());
+    }
 }

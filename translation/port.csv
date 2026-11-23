@@ -26,3 +26,6 @@ OPTIONS_TEXT_LANGUAGE,Language,Idioma,言語,Idioma,Sprache,언어,Langue,Lingua
 PORT_QUEUE_TITLE,Next order,Próxima orden,次の命令,Próxima ordem,Nächster Befehl,다음 명령,Ordre suivant,Prossimo ordine,"Order queueing (an enhancement): the tab above the window where the next order is picked while a turn plays out"
 PORT_QUEUE_NEXT,Next:,Siguiente:,次：,Próximo:,Nächster:,다음:,Suivant :,Prossimo:,"Order queueing: before the queued move or Pokémon's name"
 PORT_QUEUE_HINT,L: Back  Z: Cancel,L: Atrás  Z: Cancelar,L：戻る  Z：取り消し,L: Voltar  Z: Cancelar,L: Zurück  Z: Abbrechen,L: 뒤로  Z: 취소,L : Retour  Z : Annuler,L: Indietro  Z: Annulla,"Order queueing: the buttons that step back or drop the queued order (keep it short: it shares a 200-pixel bar with the order)"
+PORT_HUE_ORIGINAL,Original,Original,元の色,Original,Original,원래 색,Origine,Originale,"Hue choice (an enhancement): the bar under the Pokémon card's model when its colour is the original one (about 60 pixels; the number 0° is shown when it does not fit)"
+PORT_HUE_DEGREES,°,°,°,°,°,°,°,°,"Hue choice: the unit after a colour's angle on the hue bar (+15°)"
+PORT_HUE_RESET,Z: Reset,Z: Restablecer,Z：元に戻す,Z: Repor,Z: Zurück,Z: 되돌리기,Z : Rétablir,Z: Ripristina,"Hue choice: over the Pokémon card's model while a colour is picked; Z goes back to the original colour (keep it short: about 90 pixels)"
