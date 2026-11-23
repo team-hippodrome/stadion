@@ -2310,7 +2310,7 @@ class LauncherWindow : public Ship::GuiWindow {
             Text(lx, ry + 5, name, gFonts.body);
             Text(tx, ry + 1, hint, gFonts.small, Theme::dim);
             const int c = Choice(id, { "On", "Off" }, on ? 0 : 1, cx, ry);
-            ry += 52;
+            ry += 46;
             return c;
         };
         int c = row("Move descriptions", "movedesc",
@@ -2321,9 +2321,8 @@ class LauncherWindow : public Ship::GuiWindow {
             Port_Enh_SetMoveDescriptionsEnabled(c == 0);
         }
         c = row("Order queueing", "queue",
-                "Against the COM, press Z while the turn plays out to pick your next move or Pokémon\n"
-                "(A / B, then its button). It is entered when your menu comes up, as fast as mashing\n"
-                "the buttons; Z takes it back, L goes back a step.",
+                "Against the COM, press Z while the turn plays out to pick your next order (A / B, then its\n"
+                "button). It is entered as soon as your menu comes up; Z takes it back, L goes back a step.",
                 Port_Enh_OrderQueueEnabled() != 0);
         if (c >= 0) {
             Port_Enh_SetOrderQueueEnabled(c == 0);
@@ -2334,6 +2333,13 @@ class LauncherWindow : public Ship::GuiWindow {
                 Port_Enh_SummaryBarsEnabled() != 0);
         if (c >= 0) {
             Port_Enh_SetSummaryBarsEnabled(c == 0);
+        }
+        c = row("Trainer memory", "memory",
+                "Before you pick your Pokémon for a cup or the castle, press a C button to see what you have\n"
+                "learned about its trainers: their teams, the moves seen and Speed estimates. Kept beside the save.",
+                Port_Enh_TrainerMemoryEnabled() != 0);
+        if (c >= 0) {
+            Port_Enh_SetTrainerMemoryEnabled(c == 0);
         }
         {
             // three wider choices: the hint goes under them
@@ -2349,7 +2355,7 @@ class LauncherWindow : public Ship::GuiWindow {
                  "Pick each Pokémon's colour on its card in the team select screens: L / R (15° steps) or the stick (smooth),\n"
                  "Z for the game's own. Restricted: only the hues a nickname can give that species. Kept in a file beside the save.",
                  gFonts.small, Theme::dim);
-            ry += 76;
+            ry += 70;
             if (c >= 0) Port_Enh_SetHueChoiceMode(kModes[c]);
         }
         {

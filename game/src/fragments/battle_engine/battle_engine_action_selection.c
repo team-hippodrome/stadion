@@ -1098,7 +1098,7 @@ void BattleScene_HandlePlayerMoveSelection(ActivePokemon* pokemon) {
                     BattleAnim_PlayMenuScrollSoundEffect();
                 }
 
-                PortEnh_MoveMenuInput(pokemon); // PORT: mid-battle move descriptions (an enhancement, off by default)
+                PortEnh_MoveMenuInput(pokemon); // PORT: mid-battle move descriptions (an enhancement, on by default)
                 BattleScene_SelectMoveFromButtons(pokemon);
             }
         }
@@ -1347,7 +1347,7 @@ void BattleScene_CollectPlayerAction(ActivePokemon* pokemon1, ActivePokemon* pok
     BattleMonRuntime* runtime1 = &pokemon1->state.runtime;
     BattleMonRuntime* runtime2 = &pokemon2->state.runtime;
 
-    // PORT: order queueing (an enhancement, off by default) enters a queued order with the buttons the player would
+    // PORT: order queueing (an enhancement, on by default) enters a queued order with the buttons the player would
     // press; PortEnh_PlayerCommandEnd takes them back
     PortEnh_PlayerCommandBegin(pokemon1, pokemon2, sElapsedOrderSelectionTime);
     BattleScene_CollectPlayerActionInner(pokemon1, pokemon2);

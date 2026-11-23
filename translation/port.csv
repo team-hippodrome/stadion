@@ -30,3 +30,8 @@ PORT_HUE_ORIGINAL,Original,Original,元の色,Original,Original,원래 색,Origi
 PORT_HUE_DEGREES,°,°,°,°,°,°,°,°,"Hue choice: the unit after a colour's angle on the hue bar (+15°)"
 PORT_HUE_RESET,Z: Reset,Z: Restablecer,Z：元に戻す,Z: Repor,Z: Zurück,Z: 되돌리기,Z : Rétablir,Z: Ripristina,"Hue choice: over the Pokémon card's model while a colour is picked; Z goes back to the original colour (keep it short: about 90 pixels)"
 PORT_SUMMARY_SPEED,Spe,Vel,すばやさ,Vel,Init,스피드,Vit,Vel,"Summary bars (an enhancement): before a Pokémon's Speed or its estimated range on its card (keep it short)"
+PORT_MEMORY_HINT,C: Trainer memory,C: Memoria de entrenadores,C：トレーナーの記憶,C: Memória de treinadores,C: Trainer-Gedächtnis,C: 트레이너 기억,C : Mémoire des dresseurs,C: Memoria allenatori,"Trainer memory (an enhancement): a hint in the corner of the screen before the player picks their Pokémon for a cup or the castle; a C button opens the memory"
+PORT_MEMORY_TITLE,Trainer memory,Memoria de entrenadores,トレーナーの記憶,Memória de treinadores,Trainer-Gedächtnis,트레이너 기억,Mémoire des dresseurs,Memoria allenatori,"Trainer memory: the title of its window"
+PORT_MEMORY_BACK,B: Back,B: Volver,B：戻る,B: Voltar,B: Zurück,B: 돌아가기,B : Retour,B: Indietro,"Trainer memory: B closes the window (keep it short)"
+PORT_MEMORY_NOT_MET,Not met yet,Aún no visto,まだ会っていない,Ainda não encontrado,Noch nicht getroffen,아직 만나지 않음,Pas encore rencontré,Non ancora incontrato,"Trainer memory: in the list, for a trainer the player has not reached yet (about 160 pixels)"
+PORT_MEMORY_TEAM_UNKNOWN,Team not seen yet,Equipo aún no visto,手持ちはまだ分からない,Equipe ainda não vista,Team noch nicht gesehen,아직 모르는 팀,Équipe pas encore vue,Squadra non ancora vista,"Trainer memory: instead of the highlighted trainer's team when the player has not seen it"

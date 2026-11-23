@@ -829,5 +829,5 @@ void Battle_RenderHud(void) {
             BattleScene_DrawStripWipeIfActive();
             break;
     }
-    PortEnh_BattleFrame(); // PORT: the enhancements (StadionPort.h), all off by default
+    PortEnh_BattleFrame(); // PORT: the enhancements (StadionPort.h), all on by default
 }

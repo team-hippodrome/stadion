@@ -214,7 +214,7 @@ arg1_func_80010CA8* Model_ComputeNicknameColorVariant(arg1_func_80010CA8* arg0, 
 
         sp34.unk_00 = ((((sp30->unk_12 - sp30->unk_10) << 6) * var_a0) / 255) + (sp30->unk_10 << 6);
     }
-    sp34.unk_00 = PortEnh_HueShift(arg1, sp34.unk_00); // PORT: the player's hue choice (an enhancement, off by default)
+    sp34.unk_00 = PortEnh_HueShift(arg1, sp34.unk_00); // PORT: the player's hue choice (an enhancement, on by default)
 
     if (PORT_GETENV_ONCE("PORT_TRACE_VARIANT")) {
         fprintf(stderr,

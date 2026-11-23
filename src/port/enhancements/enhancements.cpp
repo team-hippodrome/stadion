@@ -73,6 +73,14 @@ extern "C" void Port_Enh_SetOrderQueueEnabled(int on) {
     SetSetting("gEnhancements.OrderQueue", on);
 }
 
+extern "C" int Port_Enh_TrainerMemoryEnabled(void) {
+    return Setting("PORT_TRAINER_MEMORY", "gEnhancements.TrainerMemory");
+}
+
+extern "C" void Port_Enh_SetTrainerMemoryEnabled(int on) {
+    SetSetting("gEnhancements.TrainerMemory", on);
+}
+
 // ---- Stat Exp difficulty ----
 
 namespace {
@@ -165,6 +173,15 @@ extern "C" void Port_Enh_SetStatExpBounds(int group, const hu_se_bounds* bounds)
     CVarSave();
 }
 
+extern "C" void Port_Enh_OpponentStatExp(uint16_t* lo, uint16_t* hi) {
+    hu_se_bounds b;
+    Port_Enh_StatExpBounds(PORT_SE_OPPONENT, &b);
+    *lo = 0;
+    *hi = 65535;
+    hu_se_bound_value(&b.min, HU_SE_OPPONENT, lo);
+    hu_se_bound_value(&b.max, HU_SE_OPPONENT, hi);
+}
+
 // ---- Hue choice ----
 
 extern "C" int Port_Enh_HueChoiceMode(void) {
@@ -229,7 +246,43 @@ extern "C" void Port_Enh_SaveHues(void) {
     }
 }
 
-// ---- the summary bars' view (game thread -> render thread) ----
+// ---- trainer memory ----
+
+namespace {
+hu_tm* gMemory = nullptr;
+std::string gMemoryPath;
+} // namespace
+
+extern "C" const char* Port_Enh_MemoryPath(void) {
+    if (gMemoryPath.empty()) {
+        gMemoryPath = std::string(Port_FlashFilePath()) + ".memory";
+    }
+    return gMemoryPath.c_str();
+}
+
+extern "C" hu_tm* Port_Enh_Memory(void) {
+    if (gMemory != nullptr) {
+        return gMemory;
+    }
+    gMemory = hu_tm_new();
+    const char* path = Port_Enh_MemoryPath();
+    const hu_tm_io r = hu_tm_load(gMemory, path);
+    if (r == HU_TM_CORRUPT || r == HU_TM_IO_ERROR) {
+        KeepDamaged(path, (int)r);
+    }
+    return gMemory;
+}
+
+extern "C" void Port_Enh_SaveMemory(void) {
+    if (gMemory == nullptr || !hu_tm_dirty(gMemory)) {
+        return;
+    }
+    if (hu_tm_save(gMemory, Port_Enh_MemoryPath()) != HU_TM_OK) {
+        fprintf(stderr, "[enhancements] could not write %s\n", Port_Enh_MemoryPath());
+    }
+}
+
+// ---- the summary bars' and the memory screen's views (game thread -> render thread) ----
 
 namespace {
 
@@ -255,6 +308,29 @@ extern "C" int Port_Enh_LatestBattle(PortEnhBattleView* out) {
         return 0;
     }
     *out = gView;
+    return 1;
+}
+
+namespace {
+PortEnhMemoryView gMemoryView;
+std::chrono::steady_clock::time_point gMemoryViewTime;
+bool gMemoryViewSet = false;
+} // namespace
+
+extern "C" void Port_Enh_PublishMemory(const PortEnhMemoryView* view) {
+    std::lock_guard<std::mutex> lock(gViewMutex);
+    gMemoryView = *view;
+    gMemoryViewTime = std::chrono::steady_clock::now();
+    gMemoryViewSet = true;
+}
+
+extern "C" int Port_Enh_LatestMemory(PortEnhMemoryView* out) {
+    std::lock_guard<std::mutex> lock(gViewMutex);
+    // the screen publishes every frame it runs: an older view is a screen that has gone
+    if (!gMemoryViewSet || std::chrono::steady_clock::now() - gMemoryViewTime > std::chrono::milliseconds(250)) {
+        return 0;
+    }
+    *out = gMemoryView;
     return 1;
 }
 

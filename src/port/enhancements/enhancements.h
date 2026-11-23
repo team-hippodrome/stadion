@@ -12,10 +12,14 @@
 #include <hippodrome/hue_choice.h>
 #include <hippodrome/statexp_difficulty.h>
 #include <hippodrome/summary_card.h>
+#include <hippodrome/trainer_memory.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define PORT_ENH_TEXT 32 // the overlays' strings (UTF-8)
+#define PORT_ENH_ICON 40 // the cards' picture: the game's own menu icon of the Pokémon (40 x 40)
 
 // The On / Off enhancements (port CVars gEnhancements.<Name>, 1 by default). PORT_MOVE_DESCRIPTIONS=0/1 and
 // PORT_ORDER_QUEUE=0/1 override them (test aids).
@@ -50,15 +54,51 @@ int Port_Enh_HueChoiceEnabled(void); // mode != PORT_HUE_OFF
 hu_hue_store* Port_Enh_Hues(void);
 void Port_Enh_SaveHues(void);
 
-// Side summary bars and speed estimates (PARTY_SUMMARY_BARS, SPEED_STAT_ESTIMATE): gEnhancements.SummaryBars, 0 by
-// default; PORT_SUMMARY_BARS=0/1 overrides it.
+// Side summary bars and speed estimates (PARTY_SUMMARY_BARS, SPEED_STAT_ESTIMATE): gEnhancements.SummaryBars;
+// PORT_SUMMARY_BARS=0/1 overrides it.
 int Port_Enh_SummaryBarsEnabled(void);
 void Port_Enh_SetSummaryBarsEnabled(int on);
 
+// The opponents' stat experience range under Stat Exp difficulty, as the game holds it (0 and 65535 when both bounds
+// are Vanilla), for the speed estimates.
+void Port_Enh_OpponentStatExp(uint16_t* lo, uint16_t* hi);
+
+// Trainer memory (TRAINER_MEMORY): gEnhancements.TrainerMemory (PORT_TRAINER_MEMORY=0/1 overrides it). The memory is
+// <N64 save>.memory beside the save (read on first use), written when it changed. Battles keep it up to date even
+// while the setting is off; the setting decides whether the screen and the cards use it.
+int Port_Enh_TrainerMemoryEnabled(void);
+void Port_Enh_SetTrainerMemoryEnabled(int on);
+hu_tm* Port_Enh_Memory(void);
+void Port_Enh_SaveMemory(void);
+const char* Port_Enh_MemoryPath(void);
+
+// What the trainer memory screen shows, published by the team select screen each frame (memory_screen.c, game
+// thread) and drawn by memory_screen.cpp over the game's picture (render thread). Strings are UTF-8.
+#define PORT_MEM_ROWS 8
+typedef struct PortEnhMemoryMon {
+    char name[PORT_ENH_TEXT];
+    uint8_t level;      // 0: not shown
+    uint8_t hasSpeed;
+    uint32_t iconKey;   // the card icons' key (Port_Enh_CardIcon), 0 for none
+    hu_speed_range speed;
+    char moves[HU_TM_MOVES][PORT_ENH_TEXT]; // "" for an empty slot; "-" for one not seen yet
+    uint8_t moveTypes[HU_TM_MOVES];         // hu_type
+} PortEnhMemoryMon;
+typedef struct PortEnhMemoryView {
+    int32_t open;       // 0: only the hint shows
+    float size, fill;   // the window's animation (hu_window_anim_size / _fill)
+    int32_t rows, cursor;
+    char title[PORT_ENH_TEXT * 2];
+    char rowNames[PORT_MEM_ROWS][PORT_ENH_TEXT * 2]; // a trainer's name once reached, else "Not met yet"
+    uint8_t reached[PORT_MEM_ROWS];
+    int32_t teamCount; // the highlighted trainer's Pokémon shown (0: its team is not known)
+    PortEnhMemoryMon team[HU_TM_TEAM_MAX];
+} PortEnhMemoryView;
+void Port_Enh_PublishMemory(const PortEnhMemoryView* view);
+int Port_Enh_LatestMemory(PortEnhMemoryView* out); // 0 when the screen is not showing
+
 // What the summary bars show, published by the battle each frame it draws its HUD (battle_enhancements.c, game thread)
 // and drawn by summary_bars.cpp beside the game's picture (render thread). Strings are UTF-8.
-#define PORT_ENH_TEXT 32
-#define PORT_ENH_ICON 40 // the cards' picture: the game's own menu icon of the Pokémon (40 x 40)
 typedef struct PortEnhBattleView {
     hu_side sides[2]; // 0 = the left trainer (1P), 1 = the right one
     char names[2][HU_SIDE_MAX][PORT_ENH_TEXT];

@@ -300,6 +300,14 @@ int16_t PortEnh_HueShift(struct BattleMon* mon, int16_t game_shift);
 void PortEnh_HueBypass(int on);
 int PortEnh_HuePickerInput(struct BattleMon* mon, uint16_t pressed, float stick_x);
 void PortEnh_HuePickerDraw(int x, int y, int w, int h, struct BattleMon* mon);
+// Trainer memory (stadion_trainer_memory.c, memory_screen.c). Team_LoadOpponentPreset has loaded the COM trainer (its
+// name and team go into the memory). The screen right before the player picks their Game Boy or rental Pokémon
+// (TeamSelection_RunModal, each frame after Controller_PollInputs): the choosing player's C button opens the memory
+// screen; while it is open it takes the buttons (it clears them, so the screen under it sees none).
+// PortEnh_MemoryScreenEnd: that screen has closed.
+void PortEnh_TmTrainerLoaded(void);
+void PortEnh_MemoryScreenFrame(void);
+void PortEnh_MemoryScreenEnd(void);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Hooks the game implements for the port

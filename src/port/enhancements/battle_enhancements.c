@@ -8,6 +8,10 @@
 // first (PortEnh_TurnOrder, Battle_StartTurn), that the acting Pokémon cannot act this turn (PortEnh_MoveNotUsed,
 // ProcessBattleTurn) and that a move's presentation starts (PortEnh_MoveStart, BattleScene_ActionSetupCameraStep).
 // Nothing the game does changes.
+//
+// Trainer memory (TRAINER_MEMORY.md): against a COM trainer with a memory key (stadion_trainer_memory.c), what the
+// cards learn is kept in the memory as the battle shows it: each Pokémon sent out, each move used (as the cards reveal
+// it) and each narrowed speed estimate. With the setting on, the cards start from what the memory already knows.
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -58,6 +62,9 @@ static s32 sViewer = -1;    // the side whose own Pokémon are fully known (1P a
 static s32 sPendingSlot[2]; // the move slot each side committed this turn, revealed when the move is presented
 static s32 sTransformed[2];
 static uint32_t sIconKey[2][HU_SIDE_MAX];
+static s32 sHasKey; // the opponent is a trainer of the memory (sKey)
+static hu_tm_key sKey;
+static s32 sSaved;
 
 void PortEnh_BattleBegin(void) {
     PortEnh_BattleMenusBegin();
@@ -99,33 +106,31 @@ static u32 ReadBE32(const u8* p) {
     return ((u32)p[0] << 24) | ((u32)p[1] << 16) | ((u32)p[2] << 8) | p[3];
 }
 
-static uint32_t LoadIcon(BattleMon* mon) {
+static uint32_t LoadIconVariant(u8 species, arg1_func_80010CA8 variant) {
     static u8 raw[ICON_BYTES];
     static u8 rgba[PORT_ENH_ICON * PORT_ENH_ICON * 4];
-    arg1_func_80010CA8 variant;
     u8 head[0x10], entry[0x10];
     u32 base, offset, size;
     uint32_t key;
     s32 i;
 
-    if (mon == NULL || mon->species.id < 1 || mon->species.id > 151) {
+    if (species < 1 || species > 151) {
         return 0;
     }
-    Model_ComputeNicknameColorVariant(&variant, mon);
-    key = (uint32_t)mon->species.id | ((uint32_t)(u16)variant.unk_00 << 8) | 0x80000000u;
+    key = (uint32_t)species | ((uint32_t)(u16)variant.unk_00 << 8) | 0x80000000u;
     if (Port_Enh_HasCardIcon(key)) {
         return key;
     }
     base = Port_RomToRaw(ICON_ARCHIVE);
     if (Port_RomRead(base, head, sizeof head) != sizeof head || ReadBE32(head + 0x0C) < 151 ||
         ReadBE32(head + 0x0C) > 0x400 ||
-        Port_RomRead(base + (u32)mon->species.id * 0x10, entry, sizeof entry) != sizeof entry) {
+        Port_RomRead(base + (u32)species * 0x10, entry, sizeof entry) != sizeof entry) {
         return 0;
     }
     offset = ReadBE32(entry);
     size = ReadBE32(entry + 4);
     if (size != ICON_BYTES || Port_RomRead(base + offset, raw, sizeof raw) != sizeof raw) {
-        EnhLog("card icon: species %d not readable (size 0x%x)", mon->species.id, (unsigned)size);
+        EnhLog("card icon: species %d not readable (size 0x%x)", species, (unsigned)size);
         return 0;
     }
     for (i = 0; i < PORT_ENH_ICON * PORT_ENH_ICON; i++) {
@@ -138,6 +143,32 @@ static uint32_t LoadIcon(BattleMon* mon) {
     }
     Port_Enh_SetCardIcon(key, rgba);
     return key;
+}
+
+static uint32_t LoadIcon(BattleMon* mon) {
+    arg1_func_80010CA8 variant;
+    if (mon == NULL || mon->species.id < 1 || mon->species.id > 151) {
+        return 0;
+    }
+    Model_ComputeNicknameColorVariant(&variant, mon);
+    return LoadIconVariant(mon->species.id, variant);
+}
+
+uint32_t PortEnh_SpeciesIcon(u8 species) {
+    arg1_func_80010CA8 variant;
+    variant.raw = 0; // the species' own colours (a COM trainer's Pokémon have no nickname)
+    return LoadIconVariant(species, variant);
+}
+
+// Whether Stat Exp difficulty holds this battle's COM Pokémon (statexp_difficulty.c: not in Free Battle or the demos).
+static s32 OpponentStatExp(u16* lo, u16* hi) {
+    *lo = 0;
+    *hi = 65535;
+    if (gSessionContext.mode == SESSION_MODE_ANYTHING_GOES || PortEnh_BattleIsDemo()) {
+        return 0;
+    }
+    Port_Enh_OpponentStatExp(lo, hi);
+    return 1;
 }
 
 static void InitSide(s32 s) {
@@ -202,10 +233,55 @@ static void InitSide(s32 s) {
         for (j = 0; j < 4; j++) moves[j] = mon->moves[j];
         hu_side_set_mon(&sSides[s], i, mon->species.id, mon->level, mon->hp, mon->maxHp, moves,
                         BaseSpeed(mon->species.id), s == sViewer ? mon->speed : 0);
+        if (s != sViewer) {
+            // the widest range under the opponents' Stat Exp setting (SPEED_STAT_ESTIMATE)
+            u16 lo, hi;
+            if (OpponentStatExp(&lo, &hi) && IsCom(r)) {
+                hu_card* c = &sSides[s].cards[i];
+                c->speed = hu_speed_intersect(c->speed, hu_speed_initial_se(BaseSpeed(mon->species.id), mon->level,
+                                                                            lo, hi));
+                c->transform_speed = c->speed;
+            }
+        }
         sIconKey[s][i] = Port_Enh_SummaryBarsEnabled() ? LoadIcon(sCardMon[s][i]) : 0;
     }
     if (s == sViewer || members == 2) {
         hu_side_set_picked(&sSides[s], picked_mask);
+    }
+}
+
+// The trainer memory of the opponent's side, and what it already knows (the moves seen, the speed estimates).
+static void InitMemory(void) {
+    s32 hidden = (sViewer == 0) ? 1 : -1;
+    const hu_tm_trainer* t;
+    u16 lo, hi;
+    s32 i, k;
+
+    sHasKey = (hidden >= 0) && sMembers[hidden] == 1 && PortEnh_TmKeyForSession(&sKey);
+    if (!sHasKey) {
+        return;
+    }
+    t = hu_tm_find(Port_Enh_Memory(), sKey);
+    if (t == NULL || !(t->flags & HU_TM_TEAM_KNOWN)) {
+        PortEnh_TmTrainerLoaded(); // (the prep screen normally records it)
+        t = hu_tm_find(Port_Enh_Memory(), sKey);
+    }
+    if (!Port_Enh_TrainerMemoryEnabled() || t == NULL) {
+        return; // the memory is still kept, but this battle's cards start from scratch
+    }
+    OpponentStatExp(&lo, &hi);
+    for (i = 0; i < sSides[hidden].count; i++) {
+        hu_card* c = &sSides[hidden].cards[i];
+        const hu_tm_mon* m = hu_tm_find_mon(t, c->species);
+        hu_speed_range known;
+        if (m == NULL) continue;
+        if (hu_tm_mon_speed(m, BaseSpeed(c->species), lo, hi, &known)) {
+            c->speed = hu_speed_intersect(c->speed, known);
+            c->transform_speed = c->speed;
+        }
+        for (k = 0; k < HU_CARD_MOVES; k++) {
+            if (hu_tm_move_seen(m, c->moves[k])) c->revealed |= (u8)(1 << k);
+        }
     }
 }
 
@@ -217,9 +293,15 @@ static void Init(void) {
     InitSide(1);
     sPendingSlot[0] = sPendingSlot[1] = -1;
     sTransformed[0] = sTransformed[1] = 0;
+    sSaved = 0;
+    InitMemory();
     EnhLog("battle: viewer %d, sides %d/%d (brought %d/%d), mode %d, isHuman %d/%d", (int)sViewer, sSides[0].count,
            sSides[1].count, sSides[0].brought, sSides[1].brought, (int)gSessionContext.mode,
            sActivePokemon[0]->teamRoster->isHuman, sActivePokemon[1]->teamRoster->isHuman);
+    if (sHasKey) {
+        EnhLog("memory key: cup %d division %d round %d trainer %d", sKey.cup, sKey.division, sKey.round,
+               sKey.trainer);
+    }
     sNeedInit = 0;
     sReady = 1;
 }
@@ -277,6 +359,9 @@ static void Poll(void) {
         if (shown >= 0 && !(side->cards[shown].flags & HU_CARD_F_ACTIVE)) {
             hu_side_send_out(side, shown);
             sTransformed[s] = 0;
+            if (sHasKey && s != sViewer) {
+                hu_tm_record_sent_out(Port_Enh_Memory(), sKey, side->cards[shown].species, side->cards[shown].level);
+            }
         }
         for (m = 0; m < sMembers[s]; m++) {
             TeamRoster* r = sRosters[s][m];
@@ -351,8 +436,17 @@ void PortEnh_TurnOrder(int first_side) {
             if (hu_speed_observe(&card->speed, first_side == h ? HU_MOVED_FIRST : HU_MOVED_SECOND, mine->modifiedSpeed,
                                  &hu_gb_speed_rules, ModsOf(theirs, (their_mon->statusCondition & 0x40) != 0))) {
                 EnhLog("speed estimate: side %d card %d now %u-%u", (int)h, (int)c, card->speed.min, card->speed.max);
+                if (sHasKey) {
+                    u16 lo, hi;
+                    OpponentStatExp(&lo, &hi);
+                    hu_tm_record_speed_se(Port_Enh_Memory(), sKey, card->species, BaseSpeed(card->species),
+                                          card->speed, lo, hi);
+                }
             }
         }
+    }
+    if (sHasKey) {
+        Port_Enh_SaveMemory(); // last turn's moves and speed (a battle can end by surrender or a reset)
     }
 }
 
@@ -371,6 +465,9 @@ void PortEnh_MoveStart(void) {
     if (slot < 0 || c < 0) return;
     hu_side_move_used(&sSides[s], c, slot);
     EnhLog("move: side %d card %d slot %d move %u", (int)s, (int)c, (int)slot, sSides[s].cards[c].moves[slot]);
+    if (sHasKey && s != sViewer) {
+        hu_tm_record_move(Port_Enh_Memory(), sKey, sSides[s].cards[c].species, sSides[s].cards[c].moves[slot]);
+    }
     sPendingSlot[s] = -1;
 }
 
@@ -444,8 +541,9 @@ static void Publish(void) {
 
 void PortEnh_BattleFrame(void) {
     PortEnh_BattleMenusFrame(); // move descriptions, order queueing (they check their own settings)
-    if (PortEnh_BattleIsDemo() || !Port_Enh_SummaryBarsEnabled() || sActivePokemon[0] == NULL ||
-        sActivePokemon[1] == NULL || sBattleScene.scene == NULL) {
+    // (the cards are kept with the summary bars off too: trainer memory learns from them)
+    if (PortEnh_BattleIsDemo() || sActivePokemon[0] == NULL || sActivePokemon[1] == NULL ||
+        sBattleScene.scene == NULL) {
         sReady = 0;
         return;
     }
@@ -455,6 +553,11 @@ void PortEnh_BattleFrame(void) {
     Poll();
     // the battle is decided: no cards over the winner's parade and what follows (Publish stops, the bars go)
     if (sBattleScene.scene->winner == 0) {
-        Publish();
+        if (Port_Enh_SummaryBarsEnabled()) {
+            Publish();
+        }
+    } else if (sHasKey && !sSaved) {
+        Port_Enh_SaveMemory();
+        sSaved = 1;
     }
 }

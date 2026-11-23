@@ -9,6 +9,7 @@
 // (hu_card_model_look): the status colour, grey once fainted, darkened while unknown or not picked.
 #include "enhancements.h"
 #include "summary_bars.h"
+#include "overlay.h"
 
 #include <imgui.h>
 #include <libultraship/libultraship.h>
@@ -23,24 +24,17 @@
 #include <cstdio>
 #include <map>
 #include <memory>
+#include <string>
 
-extern "C" const char* Port_TextPortString(const char* id); // text_lookup.cpp (the game's encoding)
-extern "C" int Port_TextToUtf8(const char* text, char* out, int size);
 
 namespace Port {
-int AspectSetting();                                // Engine.cpp: 0 = 4:3, 1 = 16:9
-std::shared_ptr<Fast::Fast3dWindow> GetWindow();    // Engine.cpp
-ImFont* CardFont(float pixels);                     // launcher.cpp
+std::shared_ptr<Fast::Fast3dWindow> GetWindow(); // Engine.cpp
 } // namespace Port
 
-namespace {
-
-// the cards need at least this much room beside the picture (a fraction of the window's height): a 4:3 picture in
-// a 16:9 window leaves 0.22, a 16:9 picture in a 21:9 window 0.29, a 4:3 picture in a 16:10 window only 0.13 (no bars)
-constexpr float kMinSide = 0.18f;
+namespace PortOverlay {
 
 // the cards' pictures, uploaded once each on the render thread
-std::map<uint32_t, ImTextureID> gTextures;
+static std::map<uint32_t, ImTextureID> gTextures;
 
 ImTextureID IconTexture(uint32_t key) {
     if (key == 0) return nullptr;
@@ -64,19 +58,17 @@ ImU32 Rgba(int r, int g, int b, int a) {
     return IM_COL32(std::clamp(r, 0, 255), std::clamp(g, 0, 255), std::clamp(b, 0, 255), std::clamp(a, 0, 255));
 }
 
-// A port string as UTF-8 (port.csv; the text language's, else English).
 const char* Str(const char* id) {
     static std::map<std::string, std::string> cache;
     auto it = cache.find(id);
     if (it == cache.end()) {
-        char buf[64];
+        char buf[96];
         Port_TextToUtf8(Port_TextPortString(id), buf, sizeof buf);
         it = cache.emplace(id, buf).first;
     }
     return it->second.c_str();
 }
 
-// text at `size` pixels, squeezed down (to 70%) when it is wider than `maxw`, then clipped
 void Text(ImDrawList* dl, ImFont* f, float x, float y, float size, float maxw, const char* s, ImU32 col) {
     if (s == nullptr || *s == '\0') return;
     float w = f->CalcTextSizeA(size, FLT_MAX, 0, s).x;
@@ -85,6 +77,19 @@ void Text(ImDrawList* dl, ImFont* f, float x, float y, float size, float maxw, c
     dl->AddText(f, size, ImVec2(x, y), col, s);
     dl->PopClipRect();
 }
+
+} // namespace PortOverlay
+
+namespace {
+
+using PortOverlay::IconTexture;
+using PortOverlay::Rgba;
+using PortOverlay::Str;
+using PortOverlay::Text;
+
+// the cards need at least this much room beside the picture (a fraction of the window's height): a 4:3 picture in
+// a 16:9 window leaves 0.22, a 16:9 picture in a 21:9 window 0.29, a 4:3 picture in a 16:10 window only 0.13 (no bars)
+constexpr float kMinSide = 0.18f;
 
 void DrawCard(ImDrawList* dl, ImFont* f, const PortEnhBattleView& v, int s, int i, ImVec2 p0, ImVec2 p1) {
     const hu_card& c = v.sides[s].cards[i];
@@ -238,4 +243,5 @@ void Port_Enh_InstallOverlay(void* gui) {
     auto w = std::make_shared<SummaryBarsWindow>();
     static_cast<Ship::Gui*>(gui)->AddGuiWindow(w);
     w->Show();
+    PortOverlay::InstallMemoryScreen(gui); // memory_screen.cpp
 }
