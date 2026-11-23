@@ -42,15 +42,15 @@ static hu_hue_id HueId(const BattleMon* mon) {
     return hu_hue_id_of(head, sizeof head);
 }
 
-// Restricted: the species' range in hue units (out_min/out_max) and 1; unrestricted: 0.
+// Restricted: the species' range in degrees (out_min/out_max, as hippodrome/hue_choice.h takes it) and 1; unrestricted: 0.
 static s32 HueRange(const BattleMon* mon, s16* out_min, s16* out_max) {
     const unk_D_8006FF00* info;
     if (Port_Enh_HueChoiceMode() != PORT_HUE_RESTRICTED || mon->species.id == 0 || mon->species.id > 151) {
         return 0;
     }
     info = &D_8006FF00[mon->species.id - 1];
-    *out_min = (s16)(info->unk_10 * HU_HUE_UNITS_PER_DEGREE);
-    *out_max = (s16)(info->unk_12 * HU_HUE_UNITS_PER_DEGREE);
+    *out_min = info->unk_10;
+    *out_max = info->unk_12;
     return 1;
 }
 
@@ -216,7 +216,7 @@ void PortEnh_HuePickerDraw(int x, int y, int w, int h, struct BattleMon* mon) {
     }
     if (hu_hue_degrees(shift) == 0) {
         snprintf(buf, sizeof buf, "%s", Port_TextPortString("PORT_HUE_ORIGINAL"));
-    } else if (restricted && hi - lo < 360 * HU_HUE_UNITS_PER_DEGREE) {
+    } else if (restricted && hi - lo < 360) {
         snprintf(buf, sizeof buf, "%+d%s", hu_hue_signed(shift) / HU_HUE_UNITS_PER_DEGREE,
                  Port_TextPortString("PORT_HUE_DEGREES"));
     } else {
