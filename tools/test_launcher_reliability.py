@@ -46,6 +46,7 @@ int main(int argc, char** argv) {
         cls.exe = Path(cls.build.name) / ('driver.exe' if os.name == 'nt' else 'driver')
         subprocess.run([compiler, '-std=c++17', '-pthread', *(['-static'] if os.name == 'nt' else []), '-I' + str(ROOT / 'src/port'), str(source),
                         str(ROOT / 'src/port/launcher_files.cpp'), str(ROOT / 'src/port/launcher_reliability.cpp'),
+                        str(ROOT / 'src/port/gb_jp_save.cpp'),
                         '-o', str(cls.exe)], check=True, capture_output=True)
         cls.fixture = (ROOT / 'tools/save_editor/fixtures/first_save.flash').read_bytes()
 
@@ -99,6 +100,23 @@ int main(int argc, char** argv) {
             self.assertNotEqual(self.invoke('check', save, home, f'{rom}\n{gb}\n').returncode, 0)
             data = bytearray(rom.read_bytes()); data[0x14d] ^= 1; rom.write_bytes(data)
             self.assertIn('header', self.invoke('check', save, home, f'{rom}\n{gb}\n').stdout)
+
+    def test_japanese_save_checksum_is_read_in_its_own_layout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp); rom = home/'green.gb'
+            data = bytearray(0x80000)
+            data[0x134:0x141] = b'POKEMON GREEN'
+            data[0x146:0x14c] = bytes([3, 3, 4, 3, 0, 0x33])  # SGB, MBC1+RAM+battery, 512 KB, 32 KB, Japan
+            data[0x14d] = (-sum(data[0x134:0x14d])-25) & 255
+            rom.write_bytes(data)
+            save = home/'stadium.flash'; save.write_bytes(self.fixture)
+            gb = home/'green.sav'; sav = bytearray(32768)
+            sav[0x2598:0x259e] = bytes([0x8a, 0x93, 0x8b, 0x50, 0x50, 0x50])  # サトシ
+            sav[0x3594] = (~sum(sav[0x2598:0x3594])) & 255
+            gb.write_bytes(sav)
+            result = self.invoke('check', save, home, f'{rom}\n{gb}\n')
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertNotIn('Trainer checksum', result.stdout)
 
     def test_protected_write_backs_up_once_per_session(self):
         with tempfile.TemporaryDirectory() as tmp:

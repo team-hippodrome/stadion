@@ -1,6 +1,7 @@
 #include "file_io.h"
 #include "launcher_reliability.h"
 #include "launcher_files.h"
+#include "gb_jp_save.h"
 // Transfer Pak (64GB-Pak) emulation: the libultra osGbpak* calls, served by a Game Boy cartridge held in memory.
 //
 // Configuration (environment):
@@ -8,7 +9,11 @@
 //   PORT_GB_SAVE=<file.sav>     its battery RAM (default: the ROM path with .sav); written back after every write
 //   PORT_GB_REGION_COMPAT=0     off: present the cartridge header as it is. On (default): European Pokémon
 //                               Red/Blue/Yellow are presented under their US title ("POKEMON YELLOW" ...), which the
-//                               US Stadium requires (on hardware it only accepts the US/English carts).
+//                               US Stadium requires (on hardware it only accepts the US/English carts). Japanese
+//                               Red/Green/Blue/Yellow are presented as overseas cartridges too (gb_jp_save.h): a 1 MB ROM
+//                               image with an overseas header, and their battery RAM in the international layout,
+//                               converted back on every write. The GB Tower, which runs the Japanese game itself
+//                               (Port_GbPakRawSave), reads and writes the RAM as it is.
 //
 // The game reaches the cartridge through osGbpakReadWrite with Game Boy bus addresses: 0x0000-0x7FFF read ROM through
 // the cartridge's mapper and write mapper registers, 0xA000-0xBFFF read/write the battery RAM. The mapper (MBC1, MBC3
@@ -40,15 +45,68 @@ struct Cart {
     uint32_t ramBank = 0;
     uint32_t mbc1Mode = 0;
     bool ramDirty = false;
+    // Japanese cartridge: 'ram' is the cartridge's own RAM; Stadium sees 'view', the international layout of it.
+    bool japanese = false;
+    std::vector<uint8_t> view;
+    bool viewValid = false;
+    bool viewWritten = false;
+    Port::GbJpSaveMap jpMap;
 };
 
 std::mutex gLock;
 Cart gCarts[4];
 bool gLoaded = false;
+const OSPfs* gRawPfs[4] = {}; // the GB Tower's Transfer Pak handles: the cartridge's RAM as it is
+
+bool RegionCompat() {
+    const char* e = getenv("PORT_GB_REGION_COMPAT");
+    return e == nullptr || strcmp(e, "0") != 0;
+}
+
+uint8_t Sum(const uint8_t* p, size_t n) {
+    uint8_t sum = 0;
+    while (n--) sum = static_cast<uint8_t>(sum + *p++);
+    return static_cast<uint8_t>(~sum);
+}
+
+// The international view of a Japanese cartridge's RAM. Checksums the cartridge fails stay wrong in the view, so that
+// Stadium treats a blank or damaged save as it would on the cartridge.
+void EnsureView(Cart& c) {
+    if (c.viewValid) {
+        return;
+    }
+    c.view.assign(Port::kGbSaveSize, 0);
+    Port::JapaneseSaveToInternational(c.ram.data(), c.view.data(), c.jpMap);
+    const uint8_t* jp = c.ram.data();
+    uint8_t* v = c.view.data();
+    if (jp[0x3594] != Sum(jp + 0x2598, 0x3594 - 0x2598)) {
+        v[0x3523] ^= 0xFF;
+    }
+    if (jp[0x2842] & 0x80) {
+        for (int bank = 0x4000; bank <= 0x6000; bank += 0x2000) {
+            if (jp[bank + 0x1598] != Sum(jp + bank, 0x1598)) {
+                v[bank + 0x1A4C] ^= 0xFF;
+            }
+        }
+    }
+    c.viewValid = true;
+}
+
+// After Stadium wrote to the view: the cartridge's RAM in the Japanese layout.
+void ApplyViewWrites(Cart& c) {
+    if (!c.viewWritten) {
+        return;
+    }
+    c.viewWritten = false;
+    const std::vector<uint8_t> before = c.ram;
+    Port::InternationalSaveToJapanese(c.view.data(), c.ram.data(), c.jpMap);
+    if (c.ram != before) {
+        c.ramDirty = true;
+    }
+}
 
 void PatchRegion(std::vector<uint8_t>& rom) {
-    const char* e = getenv("PORT_GB_REGION_COMPAT");
-    if (e != nullptr && strcmp(e, "0") == 0) {
+    if (!RegionCompat()) {
         return;
     }
     if (rom.size() < 0x150 || rom[0x14A] != 1) {
@@ -130,6 +188,13 @@ void LoadCarts() {
             fprintf(stderr, "[gbpak] controller %d: no save file %s (empty battery RAM)\n", ch + 1, c.savePath.c_str());
         }
         PatchRegion(c.rom);
+        if (RegionCompat() && c.ram.size() == Port::kGbSaveSize && Port::IsJapaneseGen1Rom(c.rom.data(), c.rom.size())) {
+            c.rom = Port::OverseasRomImage(c.rom);
+            c.mbc = c.rom[0x147] == 0x13 ? 3 : c.mbc;
+            c.japanese = true;
+            fprintf(stderr, "[gbpak] controller %d: Japanese cartridge, presented as an overseas one (%zu KB ROM image, "
+                            "international save layout; PORT_GB_REGION_COMPAT=0 to turn off)\n", ch + 1, c.rom.size() / 1024);
+        }
         c.present = true;
         fprintf(stderr, "[gbpak] controller %d: %s, MBC%d, ROM %zu KB, RAM %zu KB\n", ch + 1, romPath, c.mbc,
                 c.rom.size() / 1024, c.ram.size() / 1024);
@@ -150,7 +215,7 @@ void FlushSave(Cart& c) {
     }
 }
 
-uint8_t BusRead(Cart& c, uint32_t a) {
+uint8_t BusRead(Cart& c, uint32_t a, bool raw) {
     if (a < 0x4000) {
         return c.rom[a % c.rom.size()];
     }
@@ -162,13 +227,17 @@ uint8_t BusRead(Cart& c, uint32_t a) {
         if (!c.ramEnabled || c.ram.empty()) {
             return 0xFF;
         }
-        size_t off = (size_t)c.ramBank * 0x2000 + (a - 0xA000);
-        return c.ram[off % c.ram.size()];
+        size_t off = ((size_t)c.ramBank * 0x2000 + (a - 0xA000)) % c.ram.size();
+        if (c.japanese && !raw) {
+            EnsureView(c);
+            return c.view[off];
+        }
+        return c.ram[off];
     }
     return 0xFF;
 }
 
-void BusWrite(Cart& c, uint32_t a, uint8_t v) {
+void BusWrite(Cart& c, uint32_t a, uint8_t v, bool raw) {
     if (a < 0x2000) {
         c.ramEnabled = (v & 0x0F) == 0x0A;
     } else if (a < 0x4000) {
@@ -202,6 +271,15 @@ void BusWrite(Cart& c, uint32_t a, uint8_t v) {
     } else if (a >= 0xA000 && a < 0xC000) {
         if (c.ramEnabled && !c.ram.empty()) {
             size_t off = ((size_t)c.ramBank * 0x2000 + (a - 0xA000)) % c.ram.size();
+            if (c.japanese && !raw) {
+                EnsureView(c);
+                c.view[off] = v;
+                c.viewWritten = true;
+                return;
+            }
+            if (c.japanese) {
+                c.viewValid = false; // the Japanese game changed its RAM: rebuild the view on Stadium's next access
+            }
             if (c.ram[off] != v) {
                 c.ram[off] = v;
                 c.ramDirty = true;
@@ -279,13 +357,15 @@ s32 osGbpakReadWrite(OSPfs* pfs, u16 flag, u16 address, u8* buffer, u16 size) {
     if (c == nullptr) {
         return PFS_ERR_NOPACK;
     }
+    const bool raw = c->japanese && (gRawPfs[pfs->channel] == pfs);
     for (u32 i = 0; i < size; i++) {
         if (flag == OS_READ) {
-            buffer[i] = BusRead(*c, (u32)address + i);
+            buffer[i] = BusRead(*c, (u32)address + i, raw);
         } else {
-            BusWrite(*c, (u32)address + i, buffer[i]);
+            BusWrite(*c, (u32)address + i, buffer[i], raw);
         }
     }
+    ApplyViewWrites(*c);
     if (getenv("PORT_TRACE_GBPAK") && flag == OS_READ && (address < 0x8000 || size >= 0x100)) {
         unsigned sum = 0;
         for (unsigned i = 0; i < size; i++) sum += buffer[i];
@@ -338,6 +418,16 @@ s32 osGbpakCheckConnector(OSPfs* pfs, u8* status) {
     return 0;
 }
 
+// The GB Tower's Transfer Pak handle (gb_tower_emulator_7F9A0.c): it loads the cartridge into the Game Boy it runs,
+// so a Japanese cartridge's RAM goes to it as it is, not in the international layout the rest of Stadium reads.
+void Port_GbPakRawSave(void* handle) {
+    std::lock_guard<std::mutex> g(gLock);
+    const OSPfs* pfs = static_cast<const OSPfs*>(handle);
+    if (pfs != nullptr && pfs->channel >= 0 && pfs->channel < 4) {
+        gRawPfs[pfs->channel] = pfs;
+    }
+}
+
 // Direct access for a host-side Game Boy core (GB Tower): the cartridge bus of controller 'channel'.
 int Port_GbCartPresent(int channel) {
     std::lock_guard<std::mutex> g(gLock);
@@ -346,12 +436,12 @@ int Port_GbCartPresent(int channel) {
 }
 uint8_t Port_GbCartRead(int channel, uint32_t address) {
     std::lock_guard<std::mutex> g(gLock);
-    return gCarts[channel].present ? BusRead(gCarts[channel], address) : 0xFF;
+    return gCarts[channel].present ? BusRead(gCarts[channel], address, true) : 0xFF;
 }
 void Port_GbCartWrite(int channel, uint32_t address, uint8_t value) {
     std::lock_guard<std::mutex> g(gLock);
     if (gCarts[channel].present) {
-        BusWrite(gCarts[channel], address, value);
+        BusWrite(gCarts[channel], address, value, true);
     }
 }
 void Port_GbCartFlush(int channel) {

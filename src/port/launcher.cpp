@@ -16,6 +16,7 @@
 #include "launcher.h"
 #include "launcher_files.h"
 #include "launcher_reliability.h"
+#include "gb_jp_save.h"
 #include "language_prompt.h"
 #include "graphics_advisor.h"
 #include "port_platform.h"
@@ -346,7 +347,17 @@ CartInfo InspectCart(const std::string& rom, const std::string& save) {
         info.label = end == std::string::npos ? "Unknown cartridge" : title.substr(0, end + 1);
     }
     std::vector<uint8_t> s = ReadFile(save);
-    if (s.size() >= 0x3524) {
+    if (Port::IsJapaneseGen1Rom(r.data(), r.size())) { // Japanese layout, names in kana: shown in romaji
+        info.label += " (Japan)";
+        std::string name;
+        unsigned id = 0;
+        if (Port::JapaneseSaveTrainer(s.data(), s.size(), name, id)) {
+            char text[8];
+            snprintf(text, sizeof text, "%05u", id);
+            info.trainer = name;
+            info.trainerId = text;
+        }
+    } else if (s.size() >= 0x3524) {
         uint32_t sum = 0;
         for (int i = 0x2598; i <= 0x3522; i++) {
             sum += s[i];
