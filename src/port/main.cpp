@@ -1,5 +1,6 @@
 #include "Engine.h"
 #include "rom_check.h"
+#include "rom_version.h"
 #include "interp.h"
 #include "pacing.h"
 #include <algorithm>
@@ -251,19 +252,23 @@ static void LoadEnvFile() {
 }
 #endif
 
-// The loaded ROM must be the original dump (rom_check.h): any other starts and then crashes in the middle of the game.
-// The message goes to stderr and, as there is no console on Windows or in the macOS app, to a message box.
+// The loaded ROM must be one of the original USA dumps (rom_check.h): any other starts and then crashes in the middle of
+// the game. The message goes to stderr and, as there is no console on Windows or in the macOS app, to a message box.
+// For an accepted ROM, selects how its data is read (rom_version.cpp).
 static bool RomIsOriginal(const std::string& path) {
+    const std::string sha1 = Port::Sha1Hex(Port::RomData(), Port::RomSize());
     const std::string error = Port::CheckRomDump(Port::RomData(), Port::RomSize());
     if (error.empty()) {
+        const PortRomVersion version = Port::RomVersionOfSha1(sha1);
+        // PORT_ANY_ROM: an unrecognized ROM is read as laid out like Rev 2
+        Port::SelectRomVersion(version == PORT_ROM_VERSION_COUNT ? PORT_ROM_US_REV2 : version);
         return true;
     }
-    const std::string sha1 = Port::Sha1Hex(Port::RomData(), Port::RomSize());
     char message[1024];
     snprintf(message, sizeof message,
-             "%s is not the original Pokemon Stadium (USA) ROM.\n\nSHA-1 %s (%zu bytes)\nexpected %s (%zu bytes, .z64)\n\n"
-             "A different revision, a patched or translated ROM or a damaged dump does not work with the port.",
-             path.c_str(), sha1.c_str(), Port::RomSize(), Port::kRomSha1, Port::kRomSize);
+             "%s is not an original Pokemon Stadium (USA) ROM.\n\nSHA-1 %s (%zu bytes)\nexpected one of (%zu bytes, .z64):\n%s\n"
+             "Other regions, a patched or translated ROM or a damaged dump do not work with the port yet.",
+             path.c_str(), sha1.c_str(), Port::RomSize(), Port::kRomSize, Port::KnownRomList().c_str());
     fprintf(stderr, "%s\n", message);
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "stadion: wrong ROM", message, nullptr);
     return false;

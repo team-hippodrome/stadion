@@ -4,11 +4,14 @@ base address and the C function the fragment header jumps to. Fragment code is s
 so loading a fragment only needs to find that function."""
 import re, struct, pathlib
 root = pathlib.Path(__file__).resolve().parent.parent
-# the unmodified decomp checkout and build the game is patched from (PORT_DECOMP_DIR, default ../stadion)
-dec = pathlib.Path(__import__("os").environ.get("PORT_DECOMP_DIR", root.parent / "stadion"))
-mp = (dec / "build/pokestadium-us.map").read_text(errors="replace").split("\n")
+import sys as _sys
+_sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parent))
+import decomp_paths  # the decomp build the port's code corresponds to (US Rev 2)
+dec = decomp_paths.DECOMP
+mp = decomp_paths.CODE_MAP.read_text(errors="replace").split("\n")
+assets = dec / "assets" / decomp_paths.CODE_VERSION
 syms = {}   # address -> first symbol name seen
-sympat = re.compile(r"^\s+0x([0-9a-f]{8,16})\s+([A-Za-z_]\w*)\s*(?:=.*)?$")
+sympat = re.compile(r"^\s+0x([0-9a-f]{8,16})\s+(?:PROVIDE \()?([A-Za-z_]\w*)\s*(?:=.*)?$")
 frags = {}
 cur = None
 for i, l in enumerate(mp):
@@ -21,7 +24,7 @@ for i, l in enumerate(mp):
         frags.setdefault(name, {})["text"] = int(m.group(1), 16)
         # the next object line names the header file
         for j in range(i + 1, i + 4):
-            h = re.search(r"build/asm/us/data/(\S+?)_header\.o", mp[j])
+            h = re.search(r"build/(?:\w+/)?asm/\w+/data/(\S+?)_header\.o", mp[j])
             if h:
                 frags[name]["header"] = h.group(1)
                 break
@@ -38,10 +41,10 @@ rows, missing = [], []
 for name, f in sorted(frags.items(), key=lambda kv: int(kv[0][8:])):
     if "rom" not in f or "text" not in f or "header" not in f:
         missing.append(name); continue
-    hb = dec / f"assets/us/{f['header']}_header.textbin.bin"
+    hb = assets / f"{f['header']}_header.textbin.bin"
     if not hb.exists():
         # header binary name differs (e.g. *_header.textbin.bin under assets/us/<dir>)
-        cand = list((dec / "assets/us").rglob(pathlib.Path(f["header"]).name + "_header.textbin.bin"))
+        cand = list(assets.rglob(pathlib.Path(f["header"]).name + "_header.textbin.bin"))
         if not cand:
             missing.append(name + "(no header bin)"); continue
         hb = cand[0]

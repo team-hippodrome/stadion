@@ -6,7 +6,14 @@
 // with /data as its folder (the desktop build's app folder: config, saves/stadium.flash, logs).
 "use strict";
 
-const ROM_SHA1 = "ed7bef5a306f88c0a6e96b15e71fee2ef32058f3"; // Pokemon Stadium (USA), big-endian (.z64)
+// the accepted Pokemon Stadium dumps, big-endian (.z64): USA 1.0, Rev 1, Rev 2 (src/port/rom_check.h)
+const ROM_SHA1S = [
+  "ed7bef5a306f88c0a6e96b15e71fee2ef32058f3",
+  "488bb6d112427823d77fcecdd9297fd86875263d",
+  "0d3b1d740c6ee6da6923550bf24ad827262fd8c0",
+  "6f26e3c8b35c3232058375e30d19665facb23123", // Europe 1.0
+  "9470f899ad0107677b7dfd24e1dd567723a5f84f", // Europe Rev 1
+];
 const DATA = "/data";
 const ROM_PATH = DATA + "/rom/stadium.z64";
 const SAVE_PATH = DATA + "/saves/stadium.flash";
@@ -123,7 +130,7 @@ async function pickRom() {
   setStatus("Checking the ROM…");
   const rom = toZ64(f.bytes);
   const hash = await sha1Hex(rom);
-  if (hash !== ROM_SHA1) {
+  if (!ROM_SHA1S.includes(hash)) {
     setStatus(`This is not Pokémon Stadium (USA): SHA-1 ${hash}.`, true);
     return;
   }

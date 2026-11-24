@@ -259,6 +259,8 @@ std::vector<uint8_t> ReadFile(const std::string& path, size_t maxBytes = SIZE_MA
 
 // ---- checks and cartridge information --------------------------------------------------------------------------------
 
+static PortRomVersion sCheckedRomVersion = PORT_ROM_VERSION_COUNT; // of the file CheckRom last hashed
+
 // "" when the file is a Pokémon Stadium (USA) ROM in .z64 byte order, else what is wrong with it
 std::string CheckRom(const std::string& path) {
     if (path.empty()) {
@@ -295,9 +297,16 @@ std::string CheckRom(const std::string& path) {
         sPath = path;
         sSize = size;
         sTime = time;
-        sResult = Port::CheckRomDumpFile(path);
+        sResult = Port::CheckRomDumpFile(path, &sCheckedRomVersion);
     }
     return sResult;
+}
+
+// "Pokémon Stadium (USA 1.0)" etc. for a ROM CheckRom accepted
+std::string RomLabel() {
+    return sCheckedRomVersion == PORT_ROM_VERSION_COUNT ? std::string("Pokémon Stadium (USA)")
+                                                        : std::string("Pokémon Stadium (") +
+                                                              Port::RomVersionName(sCheckedRomVersion) + ")";
 }
 
 struct CartInfo {
@@ -2366,7 +2375,7 @@ class LauncherWindow : public Ship::GuiWindow {
         Image("n64", x + 24, y + 20, 124, 80);
 
         std::string romError = CheckRom(s.rom);
-        Text(x + 168, y + 22, romError.empty() ? "Pokémon Stadium (USA)" : (s.rom.empty() ? "No Stadium ROM" : FileName(s.rom)),
+        Text(x + 168, y + 22, romError.empty() ? RomLabel() : (s.rom.empty() ? "No Stadium ROM" : FileName(s.rom)),
              gFonts.game);
         if (romError.empty()) {
             dl->AddCircleFilled(P(x + 406, y + 33), 4 * mScale, Hex(Theme::green));
@@ -2670,7 +2679,7 @@ class LauncherWindow : public Ship::GuiWindow {
         dl->AddRect(P(cx, cy), P(cx + cw, cy + ch), Hex(Theme::cardBorder), 10 * mScale);
         Image("stadion", cx + (cw - 190) / 2, cy + 20, 190, 190);
         std::string romError = CheckRom(s.rom);
-        Text(cx + 24, cy + 228, romError.empty() ? "Pokémon Stadium (USA)" : (s.rom.empty() ? "No Stadium ROM" : FileName(s.rom)),
+        Text(cx + 24, cy + 228, romError.empty() ? RomLabel() : (s.rom.empty() ? "No Stadium ROM" : FileName(s.rom)),
              gFonts.title);
         dl->AddCircleFilled(P(cx + 30, cy + 272), 5 * mScale, Hex(romError.empty() ? Theme::green : Theme::red));
         Text(cx + 42, cy + 263, romError.empty() ? "ROM OK" : romError, gFonts.game, romError.empty() ? Theme::green : Theme::red);

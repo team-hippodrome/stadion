@@ -640,9 +640,11 @@ void Trade_DrawSaveSeqMessageBackdrop(s16 arg0, s16 arg1, s16 arg2, s16 arg3) {
 // which this function needs to match.
 #define U64_NOP(x) ((u32)((u64)(x) | 0ULL))
 
-#if defined(VERSION_US_REV2)
+#if defined(VERSION_US_REV2) && !defined(PORT_STATIC_FRAGMENTS)
 #pragma GLOBAL_ASM("asm/us/nonmatchings/fragments/trade_machine/trade_machine_291D60/func_82F0BEF8.s")
 #else
+// PORT: Rev 2's version is still GLOBAL_ASM in the decomp, so the port uses this 1.0/1.1 version until Rev 2's is
+// decompiled to a match. (Rev 2 centres these messages in the box instead of placing them at fixed x.)
 void func_82F0BEF8(unk_D_82F210E0* arg0) {
     static s16 D_82F13F88 = 0;
 

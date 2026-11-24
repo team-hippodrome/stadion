@@ -28,7 +28,14 @@ enum Defaults {
     static var saves: String { launcherDirectory.path + "/saves" }
     static var stadiumSave: String { saves + "/stadium.flash" }
     static var yellowSave: String { saves + "/yellow.sav" }
-    static let stadiumSha1 = "ed7bef5a306f88c0a6e96b15e71fee2ef32058f3" // Pokémon Stadium (USA) v1.0
+    // the accepted Pokémon Stadium dumps (src/port/rom_check.h): SHA-1 -> version
+    static let stadiumSha1s = [
+        "ed7bef5a306f88c0a6e96b15e71fee2ef32058f3": "USA 1.0",
+        "488bb6d112427823d77fcecdd9297fd86875263d": "USA Rev 1",
+        "0d3b1d740c6ee6da6923550bf24ad827262fd8c0": "USA Rev 2",
+        "6f26e3c8b35c3232058375e30d19665facb23123": "Europe 1.0",
+        "9470f899ad0107677b7dfd24e1dd567723a5f84f": "Europe Rev 1",
+    ]
 }
 
 let launcherDirectory = portableLauncherDirectory(bundle: Bundle.main.bundleURL,
@@ -742,8 +749,8 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
             romStatus.textColor = .systemRed
         } else {
             let sha = fm.contents(atPath: rom).map { Insecure.SHA1.hash(data: $0).map { String(format: "%02x", $0) }.joined() }
-            if sha == Defaults.stadiumSha1 {
-                romTitle.stringValue = "Pokémon Stadium (USA)"
+            if let sha = sha, let version = Defaults.stadiumSha1s[sha] {
+                romTitle.stringValue = "Pokémon Stadium (\(version))"
                 romStatus.stringValue = "✓ Verified"
                 romStatus.textColor = Theme.green
             } else {

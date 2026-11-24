@@ -24,6 +24,9 @@ float __cosf(float x) { return cosf(x); }
 u64 __ull_rem(u64 a, u64 b) { return a % b; }
 float __ull_to_f(u64 a) { return (float)a; }
 
+// rmonPrintf: debugger output, which a retail console does not have (port_compat.h)
+void rmonPrintf(const char* fmt, ...) { (void)fmt; }
+
 // SDK xprintf entry point: formats into a scratch buffer and hands it to the output callback in one chunk.
 typedef char* PrintfOut(char*, const char*, size_t);
 int _Printf(PrintfOut* prout, char* arg, const char* fmt, va_list args) {

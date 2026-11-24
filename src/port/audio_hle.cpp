@@ -11,6 +11,7 @@
 // Command 14 is A_POLEF in the library, but this microcode's jump table sends it into the middle of SETVOL (IMEM
 // 0x12b0: it only replaces the low half of the right-channel ramp rate), so that is what it does here as well.
 #include "Engine.h"
+#include "rom_version.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -78,12 +79,12 @@ void LoadLut() {
     if (gLutLoaded) {
         return;
     }
-    // the resampler's 64 x 4 tap table is part of the microcode data (ROM 0x7F670 + 0xB0)
-    const uint8_t* rom = Port::RomData();
-    size_t off = 0x7F670 + 0xB0;
-    if (rom != nullptr && Port::RomSize() >= off + sizeof gLut) {
+    // the resampler's 64 x 4 tap table is part of the microcode data (aspMainDataStart: Rev 2 ROM 0x7F7A0, + 0xB0;
+    // read from wherever the loaded ROM keeps it, rom_version.cpp)
+    uint8_t raw[64 * 4 * 2];
+    if (Port::RomData() != nullptr && Port_RomRead(0x7F7A0 + 0xB0, raw, sizeof raw) == sizeof raw) {
         for (int i = 0; i < 64 * 4; i++) {
-            gLut[i] = (int16_t)((rom[off + 2 * i] << 8) | rom[off + 2 * i + 1]);
+            gLut[i] = (int16_t)((raw[2 * i] << 8) | raw[2 * i + 1]);
         }
     }
     if (gLut[0] != 0x0c39 || gLut[1] != 0x66ad) {

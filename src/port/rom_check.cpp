@@ -129,28 +129,58 @@ std::string Sha1HexFile(const std::string& path) {
     return ok ? sha.HexDigest() : "";
 }
 
+PortRomVersion RomVersionOfSha1(const std::string& sha1) {
+    for (const KnownRom& rom : kKnownRoms) {
+        if (sha1 == rom.sha1) {
+            return rom.version;
+        }
+    }
+    return PORT_ROM_VERSION_COUNT;
+}
+
+const char* RomVersionName(PortRomVersion version) {
+    for (const KnownRom& rom : kKnownRoms) {
+        if (rom.version == version) {
+            return rom.name;
+        }
+    }
+    return "an unrecognized ROM";
+}
+
+std::string KnownRomList() {
+    std::string out;
+    for (const KnownRom& rom : kKnownRoms) {
+        out += std::string(rom.name) + ": " + rom.sha1 + "\n";
+    }
+    return out;
+}
+
 std::string CheckRomDump(const uint8_t* data, size_t size) {
     if (AnyRomAllowed()) {
         return "";
     }
-    if (size != kRomSize || Sha1Hex(data, size) != kRomSha1) {
+    if (size != kRomSize || RomVersionOfSha1(Sha1Hex(data, size)) == PORT_ROM_VERSION_COUNT) {
         return "Not the original dump";
     }
     return "";
 }
 
-std::string CheckRomDumpFile(const std::string& path) {
-    if (AnyRomAllowed()) {
-        return "";
+std::string CheckRomDumpFile(const std::string& path, PortRomVersion* version) {
+    if (version != nullptr) {
+        *version = PORT_ROM_VERSION_COUNT;
     }
     FILE* f = OpenFileUtf8(path.c_str(), "rb");
     if (f == nullptr) {
-        return "Cannot open the file";
+        return AnyRomAllowed() ? "" : "Cannot open the file";
     }
     fseek(f, 0, SEEK_END);
     const long size = ftell(f);
     fclose(f);
-    if (size != (long)kRomSize || Sha1HexFile(path) != kRomSha1) {
+    const PortRomVersion found = size == (long)kRomSize ? RomVersionOfSha1(Sha1HexFile(path)) : PORT_ROM_VERSION_COUNT;
+    if (version != nullptr) {
+        *version = found;
+    }
+    if (!AnyRomAllowed() && found == PORT_ROM_VERSION_COUNT) {
         return "Not the original dump";
     }
     return "";

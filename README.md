@@ -7,7 +7,7 @@ stadion is a native PC and Android port of an N64 game, built on a fork of [libu
 
 To download the game, please see the [latest release](https://github.com/team-hippodrome/stadion/releases/latest).
 
-> **Note:** You must supply your own US `.z64` ROM (32 MiB) with SHA-1 `ed7bef5a306f88c0a6e96b15e71fee2ef32058f3` to use this port. Transfer Pak and Game Boy Tower features also need your own Game Boy ROMs and saves.
+> **Note:** You must supply your own big-endian `.z64` ROM (32 MiB): USA 1.0, Rev 1 or Rev 2, or English Europe 1.0 or Rev 1. See the [supported ROM checksums](docs/USAGE.md#1-verify-your-rom). Transfer Pak and Game Boy Tower features also need your own Game Boy ROMs and saves.
 
 - [**Join our Discord server**](https://discord.com/invite/8EvuQxbxu8)
 - [**Report an issue**](https://github.com/team-hippodrome/stadion/issues/new/choose)

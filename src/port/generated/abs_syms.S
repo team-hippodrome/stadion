@@ -310,7 +310,7 @@
 .globl SYM(D_1003CF0)
 .set SYM(D_1003CF0), 0x1003CF0
 .globl SYM(D_102BA0_END)
-.set SYM(D_102BA0_END), 0x102BA0
+.set SYM(D_102BA0_END), 0x102D90
 .globl SYM(D_2000000)
 .set SYM(D_2000000), 0x2000000
 .globl SYM(D_2000040)
@@ -1256,9 +1256,9 @@
 .globl SYM(D_4000C00)
 .set SYM(D_4000C00), 0x4000C00
 .globl SYM(D_4000C40)
-.set SYM(D_4000C40), 0x4000C40
+.set SYM(D_4000C40), 0x4000620
 .globl SYM(D_4000DD0)
-.set SYM(D_4000DD0), 0x4000DD0
+.set SYM(D_4000DD0), 0x40007B0
 .globl SYM(D_4001010)
 .set SYM(D_4001010), 0x4001010
 .globl SYM(D_4001018)
@@ -1454,7 +1454,7 @@
 .globl SYM(D_8000000)
 .set SYM(D_8000000), 0x8000000
 .globl SYM(D_800795C0)
-.set SYM(D_800795C0), 0x800795C0
+.set SYM(D_800795C0), 0x80079700
 .globl SYM(D_87000000)
 .set SYM(D_87000000), 0x87000000
 .globl SYM(D_8C000000)
@@ -1470,495 +1470,495 @@
 .globl SYM(D_8D000000)
 .set SYM(D_8D000000), 0x8D000000
 .globl SYM(F3DEX2_data_bin)
-.set SYM(F3DEX2_data_bin), 0x8007E650
+.set SYM(F3DEX2_data_bin), 0x8007E780
 .globl SYM(_5C7A70_ROM_END)
-.set SYM(_5C7A70_ROM_END), 0x5C7AD0
+.set SYM(_5C7A70_ROM_END), 0x5C9210
 .globl SYM(_5C7A70_ROM_START)
-.set SYM(_5C7A70_ROM_START), 0x5C7A70
+.set SYM(_5C7A70_ROM_START), 0x5C91B0
 .globl SYM(_6A9750_ROM_END)
-.set SYM(_6A9750_ROM_END), 0x6AE1D0
+.set SYM(_6A9750_ROM_END), 0x6AF4E0
 .globl SYM(_6A9750_ROM_START)
-.set SYM(_6A9750_ROM_START), 0x6A9750
+.set SYM(_6A9750_ROM_START), 0x6AAA60
 .globl SYM(_6EB340_ROM_END)
-.set SYM(_6EB340_ROM_END), 0x6EC4D0
+.set SYM(_6EB340_ROM_END), 0x6ED7E0
 .globl SYM(_6EB340_ROM_START)
-.set SYM(_6EB340_ROM_START), 0x6EB340
+.set SYM(_6EB340_ROM_START), 0x6EC650
 .globl SYM(_6EC4D0_ROM_END)
-.set SYM(_6EC4D0_ROM_END), 0x6ECE80
+.set SYM(_6EC4D0_ROM_END), 0x6EE190
 .globl SYM(_6EC4D0_ROM_START)
-.set SYM(_6EC4D0_ROM_START), 0x6EC4D0
+.set SYM(_6EC4D0_ROM_START), 0x6ED7E0
 .globl SYM(_70D3A0_ROM_START)
-.set SYM(_70D3A0_ROM_START), 0x70D3A0
+.set SYM(_70D3A0_ROM_START), 0x70E6B0
 .globl SYM(_7820E0_ROM_START)
-.set SYM(_7820E0_ROM_START), 0x7820E0
+.set SYM(_7820E0_ROM_START), 0x7833F0
 .globl SYM(_798CD0_ROM_END)
-.set SYM(_798CD0_ROM_END), 0x7994B0
+.set SYM(_798CD0_ROM_END), 0x79AAF0
 .globl SYM(_798CD0_ROM_START)
-.set SYM(_798CD0_ROM_START), 0x798CD0
+.set SYM(_798CD0_ROM_START), 0x79A310
 .globl SYM(_798CD0_TEXT_START)
 .set SYM(_798CD0_TEXT_START), 0x8C200000
 .globl SYM(album_ui_ROM_END)
-.set SYM(album_ui_ROM_END), 0x6A9750
+.set SYM(album_ui_ROM_END), 0x6AAA60
 .globl SYM(album_ui_ROM_START)
-.set SYM(album_ui_ROM_START), 0x69D090
+.set SYM(album_ui_ROM_START), 0x69E3A0
 .globl SYM(area_select_ui_ROM_END)
-.set SYM(area_select_ui_ROM_END), 0x4EB0C0
+.set SYM(area_select_ui_ROM_END), 0x4EDB30
 .globl SYM(area_select_ui_ROM_START)
-.set SYM(area_select_ui_ROM_START), 0x4D1330
+.set SYM(area_select_ui_ROM_START), 0x4D3DA0
 .globl SYM(backgrounds_ROM_END)
-.set SYM(backgrounds_ROM_END), 0x45B580
+.set SYM(backgrounds_ROM_END), 0x45DFF0
 .globl SYM(backgrounds_ROM_START)
-.set SYM(backgrounds_ROM_START), 0x3CB130
+.set SYM(backgrounds_ROM_START), 0x3CB6D0
 .globl SYM(badge_ui_ROM_END)
-.set SYM(badge_ui_ROM_END), 0x701E50
+.set SYM(badge_ui_ROM_END), 0x703160
 .globl SYM(badge_ui_ROM_START)
-.set SYM(badge_ui_ROM_START), 0x6ECE80
+.set SYM(badge_ui_ROM_START), 0x6EE190
 .globl SYM(battle_headers_ROM_END)
-.set SYM(battle_headers_ROM_END), 0x4A21C0
+.set SYM(battle_headers_ROM_END), 0x4A4C30
 .globl SYM(battle_headers_ROM_START)
-.set SYM(battle_headers_ROM_START), 0x45B580
+.set SYM(battle_headers_ROM_START), 0x45DFF0
 .globl SYM(battle_portraits_ROM_END)
-.set SYM(battle_portraits_ROM_END), 0x56E7D0
+.set SYM(battle_portraits_ROM_END), 0x56FF10
 .globl SYM(battle_portraits_ROM_START)
-.set SYM(battle_portraits_ROM_START), 0x533B20
+.set SYM(battle_portraits_ROM_START), 0x535260
 .globl SYM(battle_ui_ROM_END)
-.set SYM(battle_ui_ROM_END), 0x6E8910
+.set SYM(battle_ui_ROM_END), 0x6E9C20
 .globl SYM(battle_ui_ROM_START)
-.set SYM(battle_ui_ROM_START), 0x6E2FC0
+.set SYM(battle_ui_ROM_START), 0x6E42D0
 .globl SYM(common_menu0_ui_ROM_END)
-.set SYM(common_menu0_ui_ROM_END), 0x4BD6B0
+.set SYM(common_menu0_ui_ROM_END), 0x4C0120
 .globl SYM(common_menu0_ui_ROM_START)
-.set SYM(common_menu0_ui_ROM_START), 0x4A21C0
+.set SYM(common_menu0_ui_ROM_START), 0x4A4C30
 .globl SYM(common_menu1_ui_ROM_END)
-.set SYM(common_menu1_ui_ROM_END), 0x4BE810
+.set SYM(common_menu1_ui_ROM_END), 0x4C1280
 .globl SYM(common_menu1_ui_ROM_START)
-.set SYM(common_menu1_ui_ROM_START), 0x4BD6B0
+.set SYM(common_menu1_ui_ROM_START), 0x4C0120
 .globl SYM(common_menu2_ui_ROM_END)
-.set SYM(common_menu2_ui_ROM_END), 0x4D1330
+.set SYM(common_menu2_ui_ROM_END), 0x4D3DA0
 .globl SYM(common_menu2_ui_ROM_START)
-.set SYM(common_menu2_ui_ROM_START), 0x4BE810
+.set SYM(common_menu2_ui_ROM_START), 0x4C1280
 .globl SYM(copyright_ROM_END)
-.set SYM(copyright_ROM_END), 0x79B8F0
+.set SYM(copyright_ROM_END), 0x79CF30
 .globl SYM(copyright_ROM_START)
-.set SYM(copyright_ROM_START), 0x79AFB0
+.set SYM(copyright_ROM_START), 0x79C5F0
 .globl SYM(cup_ball_select_ui_ROM_END)
-.set SYM(cup_ball_select_ui_ROM_END), 0x613110
+.set SYM(cup_ball_select_ui_ROM_END), 0x614850
 .globl SYM(cup_ball_select_ui_ROM_START)
-.set SYM(cup_ball_select_ui_ROM_START), 0x5FFC30
+.set SYM(cup_ball_select_ui_ROM_START), 0x601370
 .globl SYM(cup_clear_ui_ROM_END)
-.set SYM(cup_clear_ui_ROM_END), 0x6B4F00
+.set SYM(cup_clear_ui_ROM_END), 0x6B6210
 .globl SYM(cup_clear_ui_ROM_START)
-.set SYM(cup_clear_ui_ROM_START), 0x6B0FB0
+.set SYM(cup_clear_ui_ROM_START), 0x6B22C0
 .globl SYM(fonts_ROM_END)
-.set SYM(fonts_ROM_END), 0x3CB130
+.set SYM(fonts_ROM_END), 0x3CB6D0
 .globl SYM(fonts_ROM_START)
-.set SYM(fonts_ROM_START), 0x3BA190
+.set SYM(fonts_ROM_START), 0x3BA730
 .globl SYM(fragment10_ROM_START)
-.set SYM(fragment10_ROM_START), 0x134680
+.set SYM(fragment10_ROM_START), 0x134890
 .globl SYM(fragment10_TEXT_START)
 .set SYM(fragment10_TEXT_START), 0x86400000
 .globl SYM(fragment10_relocs_ROM_END)
-.set SYM(fragment10_relocs_ROM_END), 0x138F20
+.set SYM(fragment10_relocs_ROM_END), 0x139130
 .globl SYM(fragment11_ROM_START)
-.set SYM(fragment11_ROM_START), 0x138F20
+.set SYM(fragment11_ROM_START), 0x139130
 .globl SYM(fragment11_TEXT_START)
 .set SYM(fragment11_TEXT_START), 0x86500000
 .globl SYM(fragment11_relocs_ROM_END)
-.set SYM(fragment11_relocs_ROM_END), 0x142B10
+.set SYM(fragment11_relocs_ROM_END), 0x142D20
 .globl SYM(fragment12_ROM_START)
-.set SYM(fragment12_ROM_START), 0x142B10
+.set SYM(fragment12_ROM_START), 0x142D20
 .globl SYM(fragment12_TEXT_START)
 .set SYM(fragment12_TEXT_START), 0x86600000
 .globl SYM(fragment12_relocs_ROM_END)
-.set SYM(fragment12_relocs_ROM_END), 0x143700
+.set SYM(fragment12_relocs_ROM_END), 0x143910
 .globl SYM(fragment13_ROM_START)
-.set SYM(fragment13_ROM_START), 0x143700
+.set SYM(fragment13_ROM_START), 0x143910
 .globl SYM(fragment13_TEXT_START)
 .set SYM(fragment13_TEXT_START), 0x86700000
 .globl SYM(fragment13_relocs_ROM_END)
-.set SYM(fragment13_relocs_ROM_END), 0x1442E0
+.set SYM(fragment13_relocs_ROM_END), 0x1444F0
 .globl SYM(fragment14_ROM_START)
-.set SYM(fragment14_ROM_START), 0x1442E0
+.set SYM(fragment14_ROM_START), 0x1444F0
 .globl SYM(fragment14_TEXT_START)
 .set SYM(fragment14_TEXT_START), 0x86800000
 .globl SYM(fragment14_relocs_ROM_END)
-.set SYM(fragment14_relocs_ROM_END), 0x14CA50
+.set SYM(fragment14_relocs_ROM_END), 0x14CC40
 .globl SYM(fragment15_ROM_START)
-.set SYM(fragment15_ROM_START), 0x14CA50
+.set SYM(fragment15_ROM_START), 0x14CC40
 .globl SYM(fragment15_TEXT_START)
 .set SYM(fragment15_TEXT_START), 0x86900000
 .globl SYM(fragment15_relocs_ROM_END)
-.set SYM(fragment15_relocs_ROM_END), 0x1589E0
+.set SYM(fragment15_relocs_ROM_END), 0x158BD0
 .globl SYM(fragment16_ROM_START)
-.set SYM(fragment16_ROM_START), 0x1589E0
+.set SYM(fragment16_ROM_START), 0x158BD0
 .globl SYM(fragment16_TEXT_START)
 .set SYM(fragment16_TEXT_START), 0x86A00000
 .globl SYM(fragment16_relocs_ROM_END)
-.set SYM(fragment16_relocs_ROM_END), 0x15F990
+.set SYM(fragment16_relocs_ROM_END), 0x15FB80
 .globl SYM(fragment17_ROM_START)
-.set SYM(fragment17_ROM_START), 0x15F990
+.set SYM(fragment17_ROM_START), 0x15FB80
 .globl SYM(fragment17_TEXT_START)
 .set SYM(fragment17_TEXT_START), 0x86B00000
 .globl SYM(fragment17_relocs_ROM_END)
-.set SYM(fragment17_relocs_ROM_END), 0x1708B0
+.set SYM(fragment17_relocs_ROM_END), 0x170AA0
 .globl SYM(fragment18_ROM_START)
-.set SYM(fragment18_ROM_START), 0x1708B0
+.set SYM(fragment18_ROM_START), 0x170AA0
 .globl SYM(fragment18_TEXT_START)
 .set SYM(fragment18_TEXT_START), 0x86C00000
 .globl SYM(fragment18_relocs_ROM_END)
-.set SYM(fragment18_relocs_ROM_END), 0x17FB40
+.set SYM(fragment18_relocs_ROM_END), 0x17FDA0
 .globl SYM(fragment19_ROM_START)
-.set SYM(fragment19_ROM_START), 0x17FB40
+.set SYM(fragment19_ROM_START), 0x17FDA0
 .globl SYM(fragment19_TEXT_START)
 .set SYM(fragment19_TEXT_START), 0x86D00000
 .globl SYM(fragment19_relocs_ROM_END)
-.set SYM(fragment19_relocs_ROM_END), 0x1802B0
+.set SYM(fragment19_relocs_ROM_END), 0x180510
 .globl SYM(fragment1_ROM_START)
-.set SYM(fragment1_ROM_START), 0x7F980
+.set SYM(fragment1_ROM_START), 0x7FAB0
 .globl SYM(fragment1_TEXT_START)
 .set SYM(fragment1_TEXT_START), 0x81200000
 .globl SYM(fragment1_misc_yay0_ROM_START)
-.set SYM(fragment1_misc_yay0_ROM_START), 0xADC80
+.set SYM(fragment1_misc_yay0_ROM_START), 0xADE70
 .globl SYM(fragment1_relocs_ROM_END)
-.set SYM(fragment1_relocs_ROM_END), 0xADC80
+.set SYM(fragment1_relocs_ROM_END), 0xADE70
 .globl SYM(fragment20_ROM_START)
-.set SYM(fragment20_ROM_START), 0x1802B0
+.set SYM(fragment20_ROM_START), 0x180510
 .globl SYM(fragment20_TEXT_START)
 .set SYM(fragment20_TEXT_START), 0x86E00000
 .globl SYM(fragment20_relocs_ROM_END)
-.set SYM(fragment20_relocs_ROM_END), 0x185A10
+.set SYM(fragment20_relocs_ROM_END), 0x185C70
 .globl SYM(fragment21_ROM_START)
-.set SYM(fragment21_ROM_START), 0x185A10
+.set SYM(fragment21_ROM_START), 0x185C70
 .globl SYM(fragment21_TEXT_START)
 .set SYM(fragment21_TEXT_START), 0x86F00000
 .globl SYM(fragment21_relocs_ROM_END)
-.set SYM(fragment21_relocs_ROM_END), 0x191660
+.set SYM(fragment21_relocs_ROM_END), 0x1918C0
 .globl SYM(fragment22_ROM_START)
-.set SYM(fragment22_ROM_START), 0x191660
+.set SYM(fragment22_ROM_START), 0x1918C0
 .globl SYM(fragment22_TEXT_START)
 .set SYM(fragment22_TEXT_START), 0x88000000
 .globl SYM(fragment22_relocs_ROM_END)
-.set SYM(fragment22_relocs_ROM_END), 0x1A8570
+.set SYM(fragment22_relocs_ROM_END), 0x1A87D0
 .globl SYM(fragment23_ROM_START)
-.set SYM(fragment23_ROM_START), 0x1A8570
+.set SYM(fragment23_ROM_START), 0x1A87D0
 .globl SYM(fragment23_TEXT_START)
 .set SYM(fragment23_TEXT_START), 0x88200000
 .globl SYM(fragment23_relocs_ROM_END)
-.set SYM(fragment23_relocs_ROM_END), 0x1CE9E0
+.set SYM(fragment23_relocs_ROM_END), 0x1CEC40
 .globl SYM(fragment24_ROM_START)
-.set SYM(fragment24_ROM_START), 0x1CE9E0
+.set SYM(fragment24_ROM_START), 0x1CEC40
 .globl SYM(fragment24_TEXT_START)
 .set SYM(fragment24_TEXT_START), 0x88300000
 .globl SYM(fragment24_relocs_ROM_END)
-.set SYM(fragment24_relocs_ROM_END), 0x1EA640
+.set SYM(fragment24_relocs_ROM_END), 0x1EA8A0
 .globl SYM(fragment25_ROM_START)
-.set SYM(fragment25_ROM_START), 0x1EA640
+.set SYM(fragment25_ROM_START), 0x1EA8A0
 .globl SYM(fragment25_TEXT_START)
 .set SYM(fragment25_TEXT_START), 0x88400000
 .globl SYM(fragment25_relocs_ROM_END)
-.set SYM(fragment25_relocs_ROM_END), 0x1EA860
+.set SYM(fragment25_relocs_ROM_END), 0x1EAAC0
 .globl SYM(fragment26_ROM_START)
-.set SYM(fragment26_ROM_START), 0x1EA860
+.set SYM(fragment26_ROM_START), 0x1EAAC0
 .globl SYM(fragment26_TEXT_START)
 .set SYM(fragment26_TEXT_START), 0x88500000
 .globl SYM(fragment26_relocs_ROM_END)
-.set SYM(fragment26_relocs_ROM_END), 0x1F7C90
+.set SYM(fragment26_relocs_ROM_END), 0x1F7EF0
 .globl SYM(fragment27_ROM_START)
-.set SYM(fragment27_ROM_START), 0x1F7C90
+.set SYM(fragment27_ROM_START), 0x1F7EF0
 .globl SYM(fragment27_TEXT_START)
 .set SYM(fragment27_TEXT_START), 0x88600000
 .globl SYM(fragment27_relocs_ROM_END)
-.set SYM(fragment27_relocs_ROM_END), 0x214900
+.set SYM(fragment27_relocs_ROM_END), 0x214B60
 .globl SYM(fragment28_ROM_START)
-.set SYM(fragment28_ROM_START), 0x214900
+.set SYM(fragment28_ROM_START), 0x214B60
 .globl SYM(fragment28_TEXT_START)
 .set SYM(fragment28_TEXT_START), 0x88800000
 .globl SYM(fragment28_relocs_ROM_END)
-.set SYM(fragment28_relocs_ROM_END), 0x23C250
+.set SYM(fragment28_relocs_ROM_END), 0x23C4B0
 .globl SYM(fragment29_ROM_START)
-.set SYM(fragment29_ROM_START), 0x23C250
+.set SYM(fragment29_ROM_START), 0x23C4B0
 .globl SYM(fragment29_TEXT_START)
 .set SYM(fragment29_TEXT_START), 0x88900000
 .globl SYM(fragment29_misc_1_ROM_END)
-.set SYM(fragment29_misc_1_ROM_END), 0x23FB60
+.set SYM(fragment29_misc_1_ROM_END), 0x23FDC0
 .globl SYM(fragment29_misc_1_ROM_START)
-.set SYM(fragment29_misc_1_ROM_START), 0x23D500
+.set SYM(fragment29_misc_1_ROM_START), 0x23D760
 .globl SYM(fragment29_misc_2_ROM_END)
-.set SYM(fragment29_misc_2_ROM_END), 0x24F430
+.set SYM(fragment29_misc_2_ROM_END), 0x24F690
 .globl SYM(fragment29_misc_2_ROM_START)
-.set SYM(fragment29_misc_2_ROM_START), 0x23FB60
+.set SYM(fragment29_misc_2_ROM_START), 0x23FDC0
 .globl SYM(fragment29_misc_3_ROM_END)
-.set SYM(fragment29_misc_3_ROM_END), 0x255230
+.set SYM(fragment29_misc_3_ROM_END), 0x255490
 .globl SYM(fragment29_misc_3_ROM_START)
-.set SYM(fragment29_misc_3_ROM_START), 0x24F430
+.set SYM(fragment29_misc_3_ROM_START), 0x24F690
 .globl SYM(fragment29_relocs_ROM_END)
-.set SYM(fragment29_relocs_ROM_END), 0x23D500
+.set SYM(fragment29_relocs_ROM_END), 0x23D760
 .globl SYM(fragment2_ROM_START)
-.set SYM(fragment2_ROM_START), 0x107FA0
+.set SYM(fragment2_ROM_START), 0x108190
 .globl SYM(fragment2_TEXT_START)
 .set SYM(fragment2_TEXT_START), 0x87800000
 .globl SYM(fragment2_relocs_ROM_END)
-.set SYM(fragment2_relocs_ROM_END), 0x118990
+.set SYM(fragment2_relocs_ROM_END), 0x118B90
 .globl SYM(fragment31_ROM_START)
-.set SYM(fragment31_ROM_START), 0x2552C0
+.set SYM(fragment31_ROM_START), 0x255520
 .globl SYM(fragment31_TEXT_START)
 .set SYM(fragment31_TEXT_START), 0x81000000
 .globl SYM(fragment31_relocs_ROM_END)
-.set SYM(fragment31_relocs_ROM_END), 0x25A740
+.set SYM(fragment31_relocs_ROM_END), 0x25A9C0
 .globl SYM(fragment32_ROM_START)
-.set SYM(fragment32_ROM_START), 0x25A740
+.set SYM(fragment32_ROM_START), 0x25A9C0
 .globl SYM(fragment32_TEXT_START)
 .set SYM(fragment32_TEXT_START), 0x81100000
 .globl SYM(fragment32_relocs_ROM_END)
-.set SYM(fragment32_relocs_ROM_END), 0x25B0D0
+.set SYM(fragment32_relocs_ROM_END), 0x25B350
 .globl SYM(fragment33_ROM_START)
-.set SYM(fragment33_ROM_START), 0x25B0D0
+.set SYM(fragment33_ROM_START), 0x25B350
 .globl SYM(fragment33_TEXT_START)
 .set SYM(fragment33_TEXT_START), 0x81300000
 .globl SYM(fragment33_misc_ROM_END)
-.set SYM(fragment33_misc_ROM_END), 0x261F70
+.set SYM(fragment33_misc_ROM_END), 0x2621F0
 .globl SYM(fragment33_misc_ROM_START)
-.set SYM(fragment33_misc_ROM_START), 0x25F440
+.set SYM(fragment33_misc_ROM_START), 0x25F6C0
 .globl SYM(fragment33_relocs_ROM_END)
-.set SYM(fragment33_relocs_ROM_END), 0x25F440
+.set SYM(fragment33_relocs_ROM_END), 0x25F6C0
 .globl SYM(fragment34_ROM_START)
-.set SYM(fragment34_ROM_START), 0x261F70
+.set SYM(fragment34_ROM_START), 0x2621F0
 .globl SYM(fragment34_TEXT_START)
 .set SYM(fragment34_TEXT_START), 0x81400000
 .globl SYM(fragment34_relocs_ROM_END)
-.set SYM(fragment34_relocs_ROM_END), 0x271260
+.set SYM(fragment34_relocs_ROM_END), 0x2714E0
 .globl SYM(fragment35_ROM_START)
-.set SYM(fragment35_ROM_START), 0x271260
+.set SYM(fragment35_ROM_START), 0x2714E0
 .globl SYM(fragment35_TEXT_START)
 .set SYM(fragment35_TEXT_START), 0x82000000
 .globl SYM(fragment35_relocs_ROM_END)
-.set SYM(fragment35_relocs_ROM_END), 0x2717E0
+.set SYM(fragment35_relocs_ROM_END), 0x271A60
 .globl SYM(fragment36_ROM_START)
-.set SYM(fragment36_ROM_START), 0x2717E0
+.set SYM(fragment36_ROM_START), 0x271A60
 .globl SYM(fragment36_TEXT_START)
 .set SYM(fragment36_TEXT_START), 0x82100000
 .globl SYM(fragment36_relocs_ROM_END)
-.set SYM(fragment36_relocs_ROM_END), 0x272830
+.set SYM(fragment36_relocs_ROM_END), 0x272AB0
 .globl SYM(fragment37_ROM_START)
-.set SYM(fragment37_ROM_START), 0x272830
+.set SYM(fragment37_ROM_START), 0x272AB0
 .globl SYM(fragment37_TEXT_START)
 .set SYM(fragment37_TEXT_START), 0x82200000
 .globl SYM(fragment37_relocs_ROM_END)
-.set SYM(fragment37_relocs_ROM_END), 0x275CE0
+.set SYM(fragment37_relocs_ROM_END), 0x275F60
 .globl SYM(fragment38_ROM_START)
-.set SYM(fragment38_ROM_START), 0x275CE0
+.set SYM(fragment38_ROM_START), 0x275F60
 .globl SYM(fragment38_TEXT_START)
 .set SYM(fragment38_TEXT_START), 0x82300000
 .globl SYM(fragment38_relocs_ROM_END)
-.set SYM(fragment38_relocs_ROM_END), 0x27BCA0
+.set SYM(fragment38_relocs_ROM_END), 0x27BF20
 .globl SYM(fragment39_ROM_START)
-.set SYM(fragment39_ROM_START), 0x27BCA0
+.set SYM(fragment39_ROM_START), 0x27BF20
 .globl SYM(fragment39_TEXT_START)
 .set SYM(fragment39_TEXT_START), 0x82500000
 .globl SYM(fragment39_relocs_ROM_END)
-.set SYM(fragment39_relocs_ROM_END), 0x285DC0
+.set SYM(fragment39_relocs_ROM_END), 0x286040
 .globl SYM(fragment3_ROM_START)
-.set SYM(fragment3_ROM_START), 0x118990
+.set SYM(fragment3_ROM_START), 0x118B90
 .globl SYM(fragment3_TEXT_START)
 .set SYM(fragment3_TEXT_START), 0x87900000
 .globl SYM(fragment3_relocs_ROM_END)
-.set SYM(fragment3_relocs_ROM_END), 0x11F560
+.set SYM(fragment3_relocs_ROM_END), 0x11F770
 .globl SYM(fragment40_ROM_START)
-.set SYM(fragment40_ROM_START), 0x285DC0
+.set SYM(fragment40_ROM_START), 0x286040
 .globl SYM(fragment40_TEXT_START)
 .set SYM(fragment40_TEXT_START), 0x83100000
 .globl SYM(fragment40_relocs_ROM_END)
-.set SYM(fragment40_relocs_ROM_END), 0x287EB0
+.set SYM(fragment40_relocs_ROM_END), 0x288130
 .globl SYM(fragment41_ROM_START)
-.set SYM(fragment41_ROM_START), 0x287EB0
+.set SYM(fragment41_ROM_START), 0x288130
 .globl SYM(fragment41_TEXT_START)
 .set SYM(fragment41_TEXT_START), 0x82F00000
 .globl SYM(fragment41_relocs_ROM_END)
-.set SYM(fragment41_relocs_ROM_END), 0x29DD30
+.set SYM(fragment41_relocs_ROM_END), 0x29E0A0
 .globl SYM(fragment42_ROM_START)
-.set SYM(fragment42_ROM_START), 0x29DD30
+.set SYM(fragment42_ROM_START), 0x29E0A0
 .globl SYM(fragment42_TEXT_START)
 .set SYM(fragment42_TEXT_START), 0x83300000
 .globl SYM(fragment42_relocs_ROM_END)
-.set SYM(fragment42_relocs_ROM_END), 0x2A1B30
+.set SYM(fragment42_relocs_ROM_END), 0x2A1EA0
 .globl SYM(fragment43_ROM_START)
-.set SYM(fragment43_ROM_START), 0x2A1B30
+.set SYM(fragment43_ROM_START), 0x2A1EA0
 .globl SYM(fragment43_TEXT_START)
 .set SYM(fragment43_TEXT_START), 0x83400000
 .globl SYM(fragment43_relocs_ROM_END)
-.set SYM(fragment43_relocs_ROM_END), 0x2A4DF0
+.set SYM(fragment43_relocs_ROM_END), 0x2A5160
 .globl SYM(fragment44_ROM_START)
-.set SYM(fragment44_ROM_START), 0x2A4DF0
+.set SYM(fragment44_ROM_START), 0x2A5160
 .globl SYM(fragment44_TEXT_START)
 .set SYM(fragment44_TEXT_START), 0x83500000
 .globl SYM(fragment44_relocs_ROM_END)
-.set SYM(fragment44_relocs_ROM_END), 0x2A9790
+.set SYM(fragment44_relocs_ROM_END), 0x2A9B00
 .globl SYM(fragment45_ROM_START)
-.set SYM(fragment45_ROM_START), 0x2A9790
+.set SYM(fragment45_ROM_START), 0x2A9B00
 .globl SYM(fragment45_TEXT_START)
 .set SYM(fragment45_TEXT_START), 0x83600000
 .globl SYM(fragment45_relocs_ROM_END)
-.set SYM(fragment45_relocs_ROM_END), 0x2AD270
+.set SYM(fragment45_relocs_ROM_END), 0x2AD5E0
 .globl SYM(fragment46_ROM_START)
-.set SYM(fragment46_ROM_START), 0x2AD270
+.set SYM(fragment46_ROM_START), 0x2AD5E0
 .globl SYM(fragment46_TEXT_START)
 .set SYM(fragment46_TEXT_START), 0x83700000
 .globl SYM(fragment46_relocs_ROM_END)
-.set SYM(fragment46_relocs_ROM_END), 0x2AD8F0
+.set SYM(fragment46_relocs_ROM_END), 0x2ADC60
 .globl SYM(fragment47_ROM_START)
-.set SYM(fragment47_ROM_START), 0x2AD8F0
+.set SYM(fragment47_ROM_START), 0x2ADC60
 .globl SYM(fragment47_TEXT_START)
 .set SYM(fragment47_TEXT_START), 0x83800000
 .globl SYM(fragment47_relocs_ROM_END)
-.set SYM(fragment47_relocs_ROM_END), 0x2B3F70
+.set SYM(fragment47_relocs_ROM_END), 0x2B42E0
 .globl SYM(fragment49_ROM_START)
-.set SYM(fragment49_ROM_START), 0x2B46F0
+.set SYM(fragment49_ROM_START), 0x2B4A60
 .globl SYM(fragment49_TEXT_START)
 .set SYM(fragment49_TEXT_START), 0x83A00000
 .globl SYM(fragment49_relocs_ROM_END)
-.set SYM(fragment49_relocs_ROM_END), 0x2B5350
+.set SYM(fragment49_relocs_ROM_END), 0x2B56C0
 .globl SYM(fragment4_ROM_START)
-.set SYM(fragment4_ROM_START), 0x11F560
+.set SYM(fragment4_ROM_START), 0x11F770
 .globl SYM(fragment4_TEXT_START)
 .set SYM(fragment4_TEXT_START), 0x87A00000
 .globl SYM(fragment4_relocs_ROM_END)
-.set SYM(fragment4_relocs_ROM_END), 0x120920
+.set SYM(fragment4_relocs_ROM_END), 0x120B30
 .globl SYM(fragment50_ROM_START)
-.set SYM(fragment50_ROM_START), 0x2B5350
+.set SYM(fragment50_ROM_START), 0x2B56C0
 .globl SYM(fragment50_TEXT_START)
 .set SYM(fragment50_TEXT_START), 0x82600000
 .globl SYM(fragment50_relocs_ROM_END)
-.set SYM(fragment50_relocs_ROM_END), 0x2BD0A0
+.set SYM(fragment50_relocs_ROM_END), 0x2BD410
 .globl SYM(fragment53_ROM_START)
-.set SYM(fragment53_ROM_START), 0x2BD6E0
+.set SYM(fragment53_ROM_START), 0x2BDA50
 .globl SYM(fragment53_TEXT_START)
 .set SYM(fragment53_TEXT_START), 0x82A00000
 .globl SYM(fragment53_relocs_ROM_END)
-.set SYM(fragment53_relocs_ROM_END), 0x2BDAC0
+.set SYM(fragment53_relocs_ROM_END), 0x2BDE30
 .globl SYM(fragment54_ROM_START)
-.set SYM(fragment54_ROM_START), 0x2BDAC0
+.set SYM(fragment54_ROM_START), 0x2BDE30
 .globl SYM(fragment54_TEXT_START)
 .set SYM(fragment54_TEXT_START), 0x82B00000
 .globl SYM(fragment54_relocs_ROM_END)
-.set SYM(fragment54_relocs_ROM_END), 0x2BED20
+.set SYM(fragment54_relocs_ROM_END), 0x2BF090
 .globl SYM(fragment55_ROM_START)
-.set SYM(fragment55_ROM_START), 0x2BED20
+.set SYM(fragment55_ROM_START), 0x2BF090
 .globl SYM(fragment55_TEXT_START)
 .set SYM(fragment55_TEXT_START), 0x83000000
 .globl SYM(fragment55_relocs_ROM_END)
-.set SYM(fragment55_relocs_ROM_END), 0x2C3220
+.set SYM(fragment55_relocs_ROM_END), 0x2C3590
 .globl SYM(fragment56_ROM_START)
-.set SYM(fragment56_ROM_START), 0x2C3220
+.set SYM(fragment56_ROM_START), 0x2C3590
 .globl SYM(fragment56_TEXT_START)
 .set SYM(fragment56_TEXT_START), 0x82C00000
 .globl SYM(fragment56_relocs_ROM_END)
-.set SYM(fragment56_relocs_ROM_END), 0x2C49D0
+.set SYM(fragment56_relocs_ROM_END), 0x2C4D40
 .globl SYM(fragment57_ROM_START)
-.set SYM(fragment57_ROM_START), 0x2C49D0
+.set SYM(fragment57_ROM_START), 0x2C4D40
 .globl SYM(fragment57_TEXT_START)
 .set SYM(fragment57_TEXT_START), 0x82D00000
 .globl SYM(fragment57_relocs_ROM_END)
-.set SYM(fragment57_relocs_ROM_END), 0x2CF350
+.set SYM(fragment57_relocs_ROM_END), 0x2CF6C0
 .globl SYM(fragment58_ROM_START)
-.set SYM(fragment58_ROM_START), 0x2CF350
+.set SYM(fragment58_ROM_START), 0x2CF6C0
 .globl SYM(fragment58_TEXT_START)
 .set SYM(fragment58_TEXT_START), 0x84000000
 .globl SYM(fragment58_relocs_ROM_END)
-.set SYM(fragment58_relocs_ROM_END), 0x2D24C0
+.set SYM(fragment58_relocs_ROM_END), 0x2D2890
 .globl SYM(fragment59_ROM_START)
-.set SYM(fragment59_ROM_START), 0x2D24C0
+.set SYM(fragment59_ROM_START), 0x2D2890
 .globl SYM(fragment59_TEXT_START)
 .set SYM(fragment59_TEXT_START), 0x84100000
 .globl SYM(fragment59_relocs_ROM_END)
-.set SYM(fragment59_relocs_ROM_END), 0x2D5CB0
+.set SYM(fragment59_relocs_ROM_END), 0x2D6080
 .globl SYM(fragment5_ROM_START)
-.set SYM(fragment5_ROM_START), 0x120920
+.set SYM(fragment5_ROM_START), 0x120B30
 .globl SYM(fragment5_TEXT_START)
 .set SYM(fragment5_TEXT_START), 0x87B00000
 .globl SYM(fragment5_relocs_ROM_END)
-.set SYM(fragment5_relocs_ROM_END), 0x120A10
+.set SYM(fragment5_relocs_ROM_END), 0x120C20
 .globl SYM(fragment60_ROM_START)
-.set SYM(fragment60_ROM_START), 0x2D5CB0
+.set SYM(fragment60_ROM_START), 0x2D6080
 .globl SYM(fragment60_TEXT_START)
 .set SYM(fragment60_TEXT_START), 0x82E00000
 .globl SYM(fragment60_relocs_ROM_END)
-.set SYM(fragment60_relocs_ROM_END), 0x2D7890
+.set SYM(fragment60_relocs_ROM_END), 0x2D7C60
 .globl SYM(fragment61_ROM_START)
-.set SYM(fragment61_ROM_START), 0x2D7890
+.set SYM(fragment61_ROM_START), 0x2D7C60
 .globl SYM(fragment61_TEXT_START)
 .set SYM(fragment61_TEXT_START), 0x84200000
 .globl SYM(fragment61_relocs_ROM_END)
-.set SYM(fragment61_relocs_ROM_END), 0x2EA8C0
+.set SYM(fragment61_relocs_ROM_END), 0x2EACD0
 .globl SYM(fragment62_ROM_START)
-.set SYM(fragment62_ROM_START), 0x2EA8C0
+.set SYM(fragment62_ROM_START), 0x2EACD0
 .globl SYM(fragment62_TEXT_START)
 .set SYM(fragment62_TEXT_START), 0x84300000
 .globl SYM(fragment62_relocs_ROM_END)
-.set SYM(fragment62_relocs_ROM_END), 0x394100
+.set SYM(fragment62_relocs_ROM_END), 0x3945C0
 .globl SYM(fragment63_ROM_START)
-.set SYM(fragment63_ROM_START), 0x394100
+.set SYM(fragment63_ROM_START), 0x3945C0
 .globl SYM(fragment63_TEXT_START)
 .set SYM(fragment63_TEXT_START), 0x84B00000
 .globl SYM(fragment63_relocs_ROM_END)
-.set SYM(fragment63_relocs_ROM_END), 0x3AEE50
+.set SYM(fragment63_relocs_ROM_END), 0x3AF2E0
 .globl SYM(fragment64_ROM_START)
-.set SYM(fragment64_ROM_START), 0x3AEE50
+.set SYM(fragment64_ROM_START), 0x3AF2E0
 .globl SYM(fragment64_TEXT_START)
 .set SYM(fragment64_TEXT_START), 0x84800000
 .globl SYM(fragment64_relocs_ROM_END)
-.set SYM(fragment64_relocs_ROM_END), 0x3B2AE0
+.set SYM(fragment64_relocs_ROM_END), 0x3B2F80
 .globl SYM(fragment65_ROM_START)
-.set SYM(fragment65_ROM_START), 0x3B2AE0
+.set SYM(fragment65_ROM_START), 0x3B2F80
 .globl SYM(fragment65_TEXT_START)
 .set SYM(fragment65_TEXT_START), 0x84A00000
 .globl SYM(fragment65_relocs_ROM_END)
-.set SYM(fragment65_relocs_ROM_END), 0x3B6130
+.set SYM(fragment65_relocs_ROM_END), 0x3B65D0
 .globl SYM(fragment66_ROM_START)
-.set SYM(fragment66_ROM_START), 0x3B6130
+.set SYM(fragment66_ROM_START), 0x3B65D0
 .globl SYM(fragment66_TEXT_START)
 .set SYM(fragment66_TEXT_START), 0x83200000
 .globl SYM(fragment66_relocs_ROM_END)
-.set SYM(fragment66_relocs_ROM_END), 0x3B8530
+.set SYM(fragment66_relocs_ROM_END), 0x3B8AD0
 .globl SYM(fragment67_ROM_START)
-.set SYM(fragment67_ROM_START), 0x3B8530
+.set SYM(fragment67_ROM_START), 0x3B8AD0
 .globl SYM(fragment67_TEXT_START)
 .set SYM(fragment67_TEXT_START), 0x8F000000
 .globl SYM(fragment67_relocs_ROM_END)
-.set SYM(fragment67_relocs_ROM_END), 0x3B8570
+.set SYM(fragment67_relocs_ROM_END), 0x3B8B10
 .globl SYM(fragment6_ROM_START)
-.set SYM(fragment6_ROM_START), 0x120A10
+.set SYM(fragment6_ROM_START), 0x120C20
 .globl SYM(fragment6_TEXT_START)
 .set SYM(fragment6_TEXT_START), 0x86000000
 .globl SYM(fragment6_misc_ROM_START)
-.set SYM(fragment6_misc_ROM_START), 0x124570
+.set SYM(fragment6_misc_ROM_START), 0x124780
 .globl SYM(fragment6_relocs_ROM_END)
-.set SYM(fragment6_relocs_ROM_END), 0x124570
+.set SYM(fragment6_relocs_ROM_END), 0x124780
 .globl SYM(fragment75_ROM_START)
-.set SYM(fragment75_ROM_START), 0x3B8960
+.set SYM(fragment75_ROM_START), 0x3B8F00
 .globl SYM(fragment75_TEXT_START)
 .set SYM(fragment75_TEXT_START), 0x8FA00000
 .globl SYM(fragment75_relocs_ROM_END)
-.set SYM(fragment75_relocs_ROM_END), 0x3B9590
+.set SYM(fragment75_relocs_ROM_END), 0x3B9B30
 .globl SYM(fragment7_ROM_START)
-.set SYM(fragment7_ROM_START), 0x1278D0
+.set SYM(fragment7_ROM_START), 0x127AE0
 .globl SYM(fragment7_TEXT_START)
 .set SYM(fragment7_TEXT_START), 0x86100000
 .globl SYM(fragment7_relocs_ROM_END)
-.set SYM(fragment7_relocs_ROM_END), 0x12DF40
+.set SYM(fragment7_relocs_ROM_END), 0x12E150
 .globl SYM(fragment8_ROM_START)
-.set SYM(fragment8_ROM_START), 0x12DF40
+.set SYM(fragment8_ROM_START), 0x12E150
 .globl SYM(fragment8_TEXT_START)
 .set SYM(fragment8_TEXT_START), 0x86200000
 .globl SYM(fragment8_relocs_ROM_END)
-.set SYM(fragment8_relocs_ROM_END), 0x1329E0
+.set SYM(fragment8_relocs_ROM_END), 0x132BF0
 .globl SYM(fragment9_ROM_START)
-.set SYM(fragment9_ROM_START), 0x1329E0
+.set SYM(fragment9_ROM_START), 0x132BF0
 .globl SYM(fragment9_TEXT_START)
 .set SYM(fragment9_TEXT_START), 0x86300000
 .globl SYM(fragment9_relocs_ROM_END)
-.set SYM(fragment9_relocs_ROM_END), 0x134680
+.set SYM(fragment9_relocs_ROM_END), 0x134890
 .globl SYM(gAudioData)
-.set SYM(gAudioData), 0x15C0000
+.set SYM(gAudioData), 0x15B5000
 .globl SYM(gBattleOrderSideBarFist)
 .set SYM(gBattleOrderSideBarFist), 0x3002E20
 .globl SYM(gBattleOrderSideBarSlot)
@@ -2142,96 +2142,96 @@
 .globl SYM(gVsTop)
 .set SYM(gVsTop), 0x200B3E0
 .globl SYM(gallery_ui_ROM_END)
-.set SYM(gallery_ui_ROM_END), 0x69D090
+.set SYM(gallery_ui_ROM_END), 0x69E3A0
 .globl SYM(gallery_ui_ROM_START)
-.set SYM(gallery_ui_ROM_START), 0x696350
+.set SYM(gallery_ui_ROM_START), 0x697660
 .globl SYM(gb_pak_select_ui_ROM_END)
-.set SYM(gb_pak_select_ui_ROM_END), 0x6C1AB0
+.set SYM(gb_pak_select_ui_ROM_END), 0x6C2DC0
 .globl SYM(gb_pak_select_ui_ROM_START)
-.set SYM(gb_pak_select_ui_ROM_START), 0x6B4F00
+.set SYM(gb_pak_select_ui_ROM_START), 0x6B6210
 .globl SYM(gym_leader_castle_clear_gfx_ROM_END)
-.set SYM(gym_leader_castle_clear_gfx_ROM_END), 0x66F540
+.set SYM(gym_leader_castle_clear_gfx_ROM_END), 0x670C80
 .globl SYM(gym_leader_castle_clear_gfx_ROM_START)
-.set SYM(gym_leader_castle_clear_gfx_ROM_START), 0x66E1D0
+.set SYM(gym_leader_castle_clear_gfx_ROM_START), 0x66F910
 .globl SYM(gym_leader_castle_ui_ROM_END)
-.set SYM(gym_leader_castle_ui_ROM_END), 0x70D3A0
+.set SYM(gym_leader_castle_ui_ROM_END), 0x70E6B0
 .globl SYM(gym_leader_castle_ui_ROM_START)
-.set SYM(gym_leader_castle_ui_ROM_START), 0x701E50
+.set SYM(gym_leader_castle_ui_ROM_START), 0x703160
 .globl SYM(kanto_gb_map_ROM_END)
-.set SYM(kanto_gb_map_ROM_END), 0x6CA730
+.set SYM(kanto_gb_map_ROM_END), 0x6CBA40
 .globl SYM(kanto_gb_map_ROM_START)
-.set SYM(kanto_gb_map_ROM_START), 0x6C4E50
+.set SYM(kanto_gb_map_ROM_START), 0x6C6160
 .globl SYM(kids_club_game_ui_ROM_END)
-.set SYM(kids_club_game_ui_ROM_END), 0x696350
+.set SYM(kids_club_game_ui_ROM_END), 0x697660
 .globl SYM(kids_club_game_ui_ROM_START)
-.set SYM(kids_club_game_ui_ROM_START), 0x675FA0
+.set SYM(kids_club_game_ui_ROM_START), 0x6772B0
 .globl SYM(kids_club_select_ui_ROM_END)
-.set SYM(kids_club_select_ui_ROM_END), 0x66E1D0
+.set SYM(kids_club_select_ui_ROM_END), 0x66F910
 .globl SYM(kids_club_select_ui_ROM_START)
-.set SYM(kids_club_select_ui_ROM_START), 0x6230D0
+.set SYM(kids_club_select_ui_ROM_START), 0x624810
 .globl SYM(menu_select_ui_ROM_END)
-.set SYM(menu_select_ui_ROM_END), 0x5046B0
+.set SYM(menu_select_ui_ROM_END), 0x505DF0
 .globl SYM(menu_select_ui_ROM_START)
-.set SYM(menu_select_ui_ROM_START), 0x4EB0C0
+.set SYM(menu_select_ui_ROM_START), 0x4EDB30
 .globl SYM(n64_logo_texture_ROM_END)
-.set SYM(n64_logo_texture_ROM_END), 0x3BA190
+.set SYM(n64_logo_texture_ROM_END), 0x3BA730
 .globl SYM(n64_logo_texture_ROM_START)
-.set SYM(n64_logo_texture_ROM_START), 0x3B96B0
+.set SYM(n64_logo_texture_ROM_START), 0x3B9C50
 .globl SYM(order_select_ui_ROM_END)
-.set SYM(order_select_ui_ROM_END), 0x5FFC30
+.set SYM(order_select_ui_ROM_END), 0x601370
 .globl SYM(order_select_ui_ROM_START)
-.set SYM(order_select_ui_ROM_START), 0x5F92A0
+.set SYM(order_select_ui_ROM_START), 0x5FA9E0
 .globl SYM(pokedex_area_model_ROM_END)
-.set SYM(pokedex_area_model_ROM_END), 0x5F6790
+.set SYM(pokedex_area_model_ROM_END), 0x5F7ED0
 .globl SYM(pokedex_area_model_ROM_START)
-.set SYM(pokedex_area_model_ROM_START), 0x5C7AD0
+.set SYM(pokedex_area_model_ROM_START), 0x5C9210
 .globl SYM(rental_rules_ui_ROM_END)
-.set SYM(rental_rules_ui_ROM_END), 0x66FD80
+.set SYM(rental_rules_ui_ROM_END), 0x671090
 .globl SYM(rental_rules_ui_ROM_START)
-.set SYM(rental_rules_ui_ROM_START), 0x66F540
+.set SYM(rental_rules_ui_ROM_START), 0x670C80
 .globl SYM(run_rattata_run_flag_gfx_ROM_END)
-.set SYM(run_rattata_run_flag_gfx_ROM_END), 0x6C4E50
+.set SYM(run_rattata_run_flag_gfx_ROM_END), 0x6C6160
 .globl SYM(run_rattata_run_flag_gfx_ROM_START)
-.set SYM(run_rattata_run_flag_gfx_ROM_START), 0x6C4CE0
+.set SYM(run_rattata_run_flag_gfx_ROM_START), 0x6C5FF0
 .globl SYM(sAreaSelectGlowCircleTexture)
 .set SYM(sAreaSelectGlowCircleTexture), 0x3044260
 .globl SYM(snap_mode_ui_ROM_END)
-.set SYM(snap_mode_ui_ROM_END), 0x79AFB0
+.set SYM(snap_mode_ui_ROM_END), 0x79C5F0
 .globl SYM(snap_mode_ui_ROM_START)
-.set SYM(snap_mode_ui_ROM_START), 0x7994B0
+.set SYM(snap_mode_ui_ROM_START), 0x79AAF0
 .globl SYM(snap_select_ui_ROM_END)
-.set SYM(snap_select_ui_ROM_END), 0x6B0FB0
+.set SYM(snap_select_ui_ROM_END), 0x6B22C0
 .globl SYM(snap_select_ui_ROM_START)
-.set SYM(snap_select_ui_ROM_START), 0x6AE1D0
+.set SYM(snap_select_ui_ROM_START), 0x6AF4E0
 .globl SYM(stadium_models_ROM_END)
-.set SYM(stadium_models_ROM_END), 0x5C7A70
+.set SYM(stadium_models_ROM_END), 0x5C91B0
 .globl SYM(stadium_models_ROM_START)
-.set SYM(stadium_models_ROM_START), 0x56E7D0
+.set SYM(stadium_models_ROM_START), 0x56FF10
 .globl SYM(stadium_select_ui_ROM_END)
-.set SYM(stadium_select_ui_ROM_END), 0x52ABA0
+.set SYM(stadium_select_ui_ROM_END), 0x52C2E0
 .globl SYM(stadium_select_ui_ROM_START)
-.set SYM(stadium_select_ui_ROM_START), 0x5046B0
+.set SYM(stadium_select_ui_ROM_START), 0x505DF0
 .globl SYM(sushi_go_round_ROM_START)
-.set SYM(sushi_go_round_ROM_START), 0x5F6790
+.set SYM(sushi_go_round_ROM_START), 0x5F7ED0
 .globl SYM(sushi_go_round_sprites_ROM_END)
-.set SYM(sushi_go_round_sprites_ROM_END), 0x675FA0
+.set SYM(sushi_go_round_sprites_ROM_END), 0x6772B0
 .globl SYM(sushi_go_round_sprites_ROM_START)
-.set SYM(sushi_go_round_sprites_ROM_START), 0x66FD80
+.set SYM(sushi_go_round_sprites_ROM_START), 0x671090
 .globl SYM(textdata_ROM_START)
-.set SYM(textdata_ROM_START), 0x783760
+.set SYM(textdata_ROM_START), 0x784A70
 .globl SYM(title_ui_ROM_END)
-.set SYM(title_ui_ROM_END), 0x52F6D0
+.set SYM(title_ui_ROM_END), 0x530E10
 .globl SYM(title_ui_ROM_START)
-.set SYM(title_ui_ROM_START), 0x52ABA0
+.set SYM(title_ui_ROM_START), 0x52C2E0
 .globl SYM(trade_select_ui_ROM_END)
-.set SYM(trade_select_ui_ROM_END), 0x6230D0
+.set SYM(trade_select_ui_ROM_END), 0x624810
 .globl SYM(trade_select_ui_ROM_START)
-.set SYM(trade_select_ui_ROM_START), 0x613110
+.set SYM(trade_select_ui_ROM_START), 0x614850
 .globl SYM(transfer_pak_error_ui_ROM_END)
-.set SYM(transfer_pak_error_ui_ROM_END), 0x6EB340
+.set SYM(transfer_pak_error_ui_ROM_END), 0x6EC650
 .globl SYM(transfer_pak_error_ui_ROM_START)
-.set SYM(transfer_pak_error_ui_ROM_START), 0x6E8910
+.set SYM(transfer_pak_error_ui_ROM_START), 0x6E9C20
 .globl SYM(victory_palace_plate_text_ROM_END)
-.set SYM(victory_palace_plate_text_ROM_END), 0x6C4CE0
+.set SYM(victory_palace_plate_text_ROM_END), 0x6C5FF0
 .globl SYM(victory_palace_plate_text_ROM_START)
-.set SYM(victory_palace_plate_text_ROM_START), 0x6C1AB0
+.set SYM(victory_palace_plate_text_ROM_START), 0x6C2DC0

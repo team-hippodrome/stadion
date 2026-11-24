@@ -9,6 +9,7 @@
 #include <port_compat.h>
 
 #include "Engine.h"
+#include "rom_version.h"
 #include "file_io.h"
 #include "interp.h"
 #include "pacing.h"
@@ -250,11 +251,8 @@ s32 port_osEPiStartDma(OSPiHandle* h, OSIoMesg* mb, s32 direction) {
             }
         }
     } else if (h->type == DEVICE_TYPE_CART && direction == OS_READ) {
-        size_t off = mb->devAddr & 0x0FFFFFFF;
-        if (off < gRom.size()) {
-            size_t n = std::min<size_t>(mb->size, gRom.size() - off);
-            memcpy(mb->dramAddr, gRom.data() + off, n);
-        }
+        // a Rev 2 ROM offset, read from wherever the loaded ROM keeps it (rom_version.cpp)
+        Port_RomRead((uint32_t)(mb->devAddr & 0x0FFFFFFF), mb->dramAddr, mb->size);
     } else if (h->type == DEVICE_TYPE_SRAM) {
         size_t off = mb->devAddr & 0x7FFF;
         size_t n = std::min<size_t>(mb->size, gSram.size() - off);
@@ -265,12 +263,14 @@ s32 port_osEPiStartDma(OSPiHandle* h, OSIoMesg* mb, s32 direction) {
     return 0;
 }
 
-// Big-endian read of the loaded ROM image (replaces direct loads from cartridge address space).
+// Big-endian read of the loaded ROM image (replaces direct loads from cartridge address space). off is a Rev 2 ROM
+// offset (rom_version.cpp).
 u32 port_rom_read_u32(u32 off) {
-    if ((size_t)off + 4 > gRom.size()) {
+    u8 b[4];
+    if (Port_RomRead(off, b, 4) != 4) {
         return 0;
     }
-    return ((u32)gRom[off] << 24) | ((u32)gRom[off + 1] << 16) | ((u32)gRom[off + 2] << 8) | gRom[off + 3];
+    return ((u32)b[0] << 24) | ((u32)b[1] << 16) | ((u32)b[2] << 8) | b[3];
 }
 
 uintptr_t osVirtualToPhysical(void* p) {
