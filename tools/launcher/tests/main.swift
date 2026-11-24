@@ -60,7 +60,7 @@ require(relocated.string(forKey: "save") == moved.appendingPathComponent("saves/
 
 let broken = root.appendingPathComponent("broken", isDirectory: true)
 try fm.createDirectory(at: broken, withIntermediateDirectories: true)
-let badFile = broken.appendingPathComponent("pokestadium.cfg.json")
+let badFile = broken.appendingPathComponent("stadion.cfg.json")
 let original = Data("invalid JSON".utf8)
 try original.write(to: badFile)
 let invalid = PortableLauncherStore(directory: broken)

@@ -27,14 +27,14 @@ def backend_home(env, directory, backend=None):
     # PORT_TEST_MSAA=<n>: the anti-aliasing setting (Vulkan pipelines are recorded per sample count)
     if env.get("PORT_TEST_MSAA"):
         config["CVars"] = {"gMSAAValue": int(env["PORT_TEST_MSAA"])}
-    with open(os.path.join(directory, "pokestadium.cfg.json"), "w") as f:
+    with open(os.path.join(directory, "stadion.cfg.json"), "w") as f:
         json.dump(config, f)
     env["SHIP_HOME"] = directory
 
 
 def actual_backend(directory):
     try:
-        with open(os.path.join(directory, "pokestadium.cfg.json")) as f:
+        with open(os.path.join(directory, "stadion.cfg.json")) as f:
             return json.load(f)["Window"]["Backend"]["Id"]
     except (OSError, ValueError, KeyError):
         return None

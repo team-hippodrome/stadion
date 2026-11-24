@@ -4,7 +4,7 @@
 # flash4/unlocked.flash, gbv_sl/boxes_full.sav, par_castle_mewtwo/opR.sav (README, castle_mewtwo).
 set -e
 cd "$(dirname "$0")/../../../.."
-O=$1; S=$2; B=build-evidence-all2/pokestadium; D=evidence/whole_game/routes/engine_left; R=evidence/whole_game/routes
+O=$1; S=$2; B=build-evidence-all2/stadion; D=evidence/whole_game/routes/engine_left; R=evidence/whole_game/routes
 G=/Users/michael/Projects/Pokemon/pokestadium-port/gb/yellow_de.gb
 FB=evidence/battle_engine/routes/free_battle_gamepak.rec
 mkdir -p "$O"

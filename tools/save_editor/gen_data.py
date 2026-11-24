@@ -9,7 +9,7 @@ game (src/port/save_editor/), so both editors read the same data.
 
 Extracted:
 - species / move / type / item names: textdata BinArchive at ROM 0x783760 (US), string tables 0x24, 0x25, 0x26, 0x27
-  (layout as described in pokestadium/tools/patch_textdata.py)
+  (layout as described in stadion/tools/patch_textdata.py)
 - per-species data (dex order): D_80070FA0 in src/gb_data.c (base HP/Atk/Def/Spd/Spc, Gen 1 types, catch rate,
   base experience, starting moves, growth rate at +0x0E: 0 medium fast, 3 medium slow, 4 fast, 5 slow (formulas in Pokemon_ExpForLevel))
 - Gen 1 internal species index <-> dex tables: gDexToInternalIndex / gInternalIndexToDex in src/pokemon_stats.c

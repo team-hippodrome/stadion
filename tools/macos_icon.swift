@@ -1,5 +1,5 @@
-// Draws the macOS app icon (tools/macos/AppIcon.png): "Pokémon" in yellow with a blue outline over a red, black-outlined
-// "STADIUM" (both Superclarendon Black), on a blue sky with clouds. Lettering only, no game art.
+// Draws the macOS app icon (tools/macos/AppIcon.png): "stadion" in white with a navy outline (Avenir Next Heavy) over
+// the outline of a stadium bowl, on a night-sky gradient. A neutral placeholder: no game art, logos or trademarks.
 // Usage: swift tools/macos_icon.swift <output .png>
 //        swift tools/macos_icon.swift --android-background|--android-foreground <output .png>
 // The Android modes draw the two layers of the adaptive launcher icon (android/app/src/main/res, see
@@ -37,31 +37,25 @@ if drawSky {
 ctx.saveGState()
 ctx.setShadow(offset: CGSize(width: 0, height: -10), blur: 24, color: rgb(0x000000, 0.35))
 ctx.addPath(shape)
-ctx.setFillColor(rgb(0x3A8EDB))
+ctx.setFillColor(rgb(0x1B2F5E))
 ctx.fillPath()
 ctx.restoreGState()
 ctx.saveGState()
 ctx.addPath(shape)
 ctx.clip()
-let sky = CGGradient(colorsSpace: nil, colors: [rgb(0x1D4FB8), rgb(0x3F86E0), rgb(0x8EC6F4)] as CFArray,
+let sky = CGGradient(colorsSpace: nil, colors: [rgb(0x0E1A3A), rgb(0x1E3A78), rgb(0x2E8C8A)] as CFArray,
                      locations: [0, 0.55, 1])!
 ctx.drawLinearGradient(sky, start: CGPoint(x: 0, y: tile.maxY), end: CGPoint(x: 0, y: tile.minY),
                        options: android ? [.drawsBeforeStartLocation, .drawsAfterEndLocation] : [])
-// clouds: clusters of white puffs (x, y, radius)
-let clouds: [[(CGFloat, CGFloat, CGFloat)]] = [
-    [(170, 850, 45), (230, 870, 60), (295, 850, 45)], [(600, 890, 40), (665, 905, 55), (730, 885, 42)],
-    [(870, 800, 45), (925, 830, 55)], [(140, 200, 55), (215, 175, 70), (290, 195, 55)],
-    [(700, 160, 60), (790, 185, 70), (880, 165, 60)],
-]
-for cluster in clouds {
-    for (x, y, r) in cluster {
-        ctx.addEllipse(in: CGRect(x: x - r, y: y - r * 0.8, width: 2 * r, height: 1.6 * r))
-    }
-    ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: -6), blur: 16, color: rgb(0x2060B0, 0.45))
-    ctx.setFillColor(rgb(0xFFFFFF, 0.95))
-    ctx.fillPath()
-    ctx.restoreGState()
+// stadium bowl: two concentric ellipses (stands and pitch) below the lettering, and four floodlight dots
+ctx.setLineWidth(18)
+ctx.setStrokeColor(rgb(0xFFFFFF, 0.35))
+ctx.strokeEllipse(in: CGRect(x: 230, y: 190, width: 564, height: 230))
+ctx.setStrokeColor(rgb(0xFFFFFF, 0.6))
+ctx.strokeEllipse(in: CGRect(x: 330, y: 240, width: 364, height: 130))
+ctx.setFillColor(rgb(0xFFF4C2, 0.9))
+for x: CGFloat in [250, 400, 624, 774] {
+    ctx.fillEllipse(in: CGRect(x: x - 14, y: 760 - 14, width: 28, height: 28))
 }
 ctx.restoreGState()
 }
@@ -111,10 +105,8 @@ func word(_ text: String, font: String, cx: CGFloat, baseline: CGFloat, maxW: CG
 
 if drawLetters {
 ctx.setShadow(offset: CGSize(width: 0, height: -8), blur: 10, color: rgb(0x0A1A3A, 0.45))
-word("Pokémon", font: "Superclarendon-Black", cx: 512, baseline: 530, maxW: 600, targetH: 175, fill: rgb(0xFFCB05),
-     strokes: [(rgb(0x1B2A55), 44), (rgb(0x2E5EB8), 28)])
-word("STADIUM", font: "Superclarendon-Black", cx: 512, baseline: 340, maxW: 620, targetH: 150, fill: rgb(0xE3350D),
-     strokes: [(rgb(0x0E0E10), 34)])
+word("stadion", font: "AvenirNext-Heavy", cx: 512, baseline: 470, maxW: 640, targetH: 200, fill: rgb(0xFFFFFF),
+     strokes: [(rgb(0x0B1530), 36)])
 }
 
 let rep = NSBitmapImageRep(cgImage: ctx.makeImage()!)

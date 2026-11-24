@@ -77,11 +77,11 @@ jobs:
           curl -sSLf -o "$RUNNER_TEMP/appimagetool" \
             "https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-x86_64.AppImage"
           chmod +x "$RUNNER_TEMP/appimagetool"
-          python3 -I tools/make_appimage.py build dist/pokestadium-linux-x86_64.AppImage "$VERSION" "$RUNNER_TEMP/appimagetool"
+          python3 -I tools/make_appimage.py build dist/stadion-linux-x86_64.AppImage "$VERSION" "$RUNNER_TEMP/appimagetool"
       - uses: actions/upload-artifact@v4
         with:
-          name: pokestadium-linux-x64
-          path: dist/pokestadium-linux-x86_64.AppImage
+          name: stadion-linux-x64
+          path: dist/stadion-linux-x86_64.AppImage
 
   macos:
     runs-on: macos-15
@@ -97,16 +97,16 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DPORT_VERSION="$VERSION"
           cmake --build build
       - name: App bundle
-        # "Pokemon Stadium.app" with the Homebrew libraries inside (tools/make_macos_bundle.py); ditto keeps the bundle's
+        # "stadion.app" with the Homebrew libraries inside (tools/make_macos_bundle.py); ditto keeps the bundle's
         # permissions and signature in the zip
         run: |
           VERSION=${INPUT_VERSION#v}; VERSION=${VERSION:-$(grep -oE 'project\([A-Za-z]+ VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9.]+$')}
-          python3 -I tools/make_macos_bundle.py build "dist/Pokemon Stadium.app" "$VERSION"
-          ditto -c -k --keepParent "dist/Pokemon Stadium.app" dist/pokestadium-macos-arm64.app.zip
+          python3 -I tools/make_macos_bundle.py build "dist/stadion.app" "$VERSION"
+          ditto -c -k --keepParent "dist/stadion.app" dist/stadion-macos-arm64.app.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: pokestadium-macos-arm64
-          path: dist/pokestadium-macos-arm64.app.zip
+          name: stadion-macos-arm64
+          path: dist/stadion-macos-arm64.app.zip
 
   windows:
     # Cross-compiled with llvm-mingw (clang + lld + libc++), the setup the Windows version is tested with
@@ -148,12 +148,12 @@ jobs:
             -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$PWD/cmake/toolchain-mingw-clang.cmake" -DPORT_VERSION="$VERSION"
           cmake --build build
       - name: Audit build paths
-        run: python3 -I tools/check_build_paths.py build/pokestadium.exe
+        run: python3 -I tools/check_build_paths.py build/stadion.exe
       - name: Strip
         # no debug info and no symbol table in the shipped exe (a symbol table after the last section reads as an
         # appended blob, which antivirus heuristics count against the file)
-        run: llvm-strip --strip-all build/pokestadium.exe
+        run: llvm-strip --strip-all build/stadion.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: pokestadium-windows-${{ matrix.arch }}
-          path: build/pokestadium.exe
+          name: stadion-windows-${{ matrix.arch }}
+          path: build/stadion.exe

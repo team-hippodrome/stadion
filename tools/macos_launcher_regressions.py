@@ -31,25 +31,25 @@ def main():
         launcher.mkdir(parents=True, exist_ok=True)
         working = case / 'unrelated cwd'
         working.mkdir(exist_ok=True)
-        decoy = working / 'pokestadium.cfg.json'
+        decoy = working / 'stadion.cfg.json'
         decoy.write_text('{"decoy": true}', encoding='utf-8')
         if bundle:
-            app = launcher / 'Pokemon Stadium.app'
-            executable = app / 'Contents/MacOS/pokestadium'
+            app = launcher / 'stadion.app'
+            executable = app / 'Contents/MacOS/stadion'
             resources = app / 'Contents/Resources'
             resources.mkdir(parents=True)
             (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({
-                'CFBundleExecutable': 'pokestadium', 'CFBundlePackageType': 'APPL',
-                'CFBundleIdentifier': 'tests.pokestadium.' + uuid.uuid4().hex,
+                'CFBundleExecutable': 'stadion', 'CFBundlePackageType': 'APPL',
+                'CFBundleIdentifier': 'tests.stadion.' + uuid.uuid4().hex,
                 'NSHighResolutionCapable': True}))
             (resources / 'project-path.txt').write_text(str(ROOT), encoding='utf-8')
         else:
-            executable = launcher / 'pokestadium'
+            executable = launcher / 'stadion'
         executable.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(args.bin, executable)
         home = case / 'custom data' if override else launcher
         home.mkdir(exist_ok=True)
-        config = home / 'pokestadium.cfg.json'
+        config = home / 'stadion.cfg.json'
         if existing:
             config.write_text(json.dumps({'Window': {'Backend': {'Id': 3}},
                 'CVars': {'gLauncher': {'Rom': '', 'Save': 'saves/existing.flash', 'Debug': 1, 'AutoPlay': 0},
@@ -68,12 +68,12 @@ def main():
         saved = json.loads(config.read_text(encoding='utf-8'))
         assert 'decoy' not in saved and decoy.read_text() == '{"decoy": true}', name + ': cwd config was used'
         if bundle:
-            assert not (executable.parent / 'pokestadium.cfg.json').exists(), name + ': config inside bundle'
+            assert not (executable.parent / 'stadion.cfg.json').exists(), name + ': config inside bundle'
         if existing:
             assert saved['CVars']['gLauncher']['Debug'] == 1 and saved['Window']['Backend']['Id'] == 3
             assert saved['CVars']['gControllers']['Existing'] == 1
         if override:
-            assert not (launcher / 'pokestadium.cfg.json').exists(), name + ': override ignored'
+            assert not (launcher / 'stadion.cfg.json').exists(), name + ': override ignored'
         row = dict(case=name, status='PASS', snapshot=str(case / 'launcher.png'))
         rows.append(row)
         print(row, flush=True)

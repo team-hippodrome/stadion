@@ -1,13 +1,13 @@
 # Pokémon Stadium (N64, US) save format
 
 This describes the cartridge save of *Pokémon Stadium* (US, `NPOE`, ROM MD5 `ed1378bc12115f71209a77844965ba50`).
-Source references are to the decomp at `pokestadium/src` (functions named as in that tree); the same files are in
+Source references are to the decomp at `stadion/src` (functions named as in that tree); the same files are in
 `pokestadium-port/game/src`. The editor in this directory (`stadium_save/`) implements exactly this layout.
 
 Evidence levels used below:
 - **code**: read from the decomp source.
 - **ROM**: decoded from ROM data (text tables, species/move tables).
-- **ares**: observed in the real game running in ares (`verify/`, screenshots in `verify/shots/`).
+- **ares**: observed in the real game running in ares (`verify/`, screenshots written to `verify/shots/` by `verify/run_verify.py`, not committed).
 - **inferred**: a reasoned guess; the operation is named so it can be checked.
 
 ## 1. Hardware

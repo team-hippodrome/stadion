@@ -207,8 +207,10 @@ writes a case file, runs the port hidden and leaves the frames and logs in `out/
 case file directly. Format and details: [Battle boot](PORTING_NOTES.md#battle-boot-straight-into-a-battle-from-a-case-file-toolsbattle_bootpy).
 
 ## Acknowledgments
-
 - The [decompilation contributors](https://github.com/michiiik/pokestadium).
 - The [libultraship contributors](https://github.com/Kenix3/libultraship).
-- [Harbour Masters](https://github.com/HarbourMasters) for the porting framework
-  and tooling used by this project.
+- [Harbour Masters](https://github.com/HarbourMasters) for the porting framework and tooling used by this project.
+
+---
+
+Part of the [R.A.I.D. (Retro AI Development) Community](https://discord.gg/tCpZzcFwv8)

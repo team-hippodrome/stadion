@@ -1,3 +1,4 @@
+#include "pad_assign.h"
 #include "launcher_reliability.h"
 #include "launcher_files.h"
 #include <unordered_set>
@@ -130,7 +131,7 @@ bool gFlashBankWriteDirty = false;
 
 std::string FlashPath() {
     const char* p = getenv("PORT_FLASH_FILE");
-    return p ? p : "pokestadium.flash";
+    return p ? p : "stadion.flash";
 }
 
 void FlashLoad() {
@@ -684,7 +685,9 @@ extern "C" int Port_ControllerBits(void) {
             }
             return b;
         }
-        int b = 1;
+        // the players with a controller (pad_assign.h), and the ones the Controls panel plugged in without one
+        // (the window thread assigns them: the launcher and each frame's controller poll, Engine.cpp)
+        int b = 1 | Port::PadPortBits();
         for (int i = 1; i < 4; i++) {
             std::string key = "gPort.Controller" + std::to_string(i + 1) + ".PluggedIn";
             if (CVarGetInteger(key.c_str(), 0) != 0) b |= 1 << i;

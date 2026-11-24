@@ -14,7 +14,7 @@ for f in os.listdir(d):
         os.remove(os.path.join(d, f))
 PY
 cd build || exit 1
-PORT_SCREENSHOT_DIR=../$OUT ./pokestadium "$ROM" > run.log 2>&1 &
+PORT_SCREENSHOT_DIR=../$OUT ./stadion "$ROM" > run.log 2>&1 &
 P=$!   # pid of the game itself (no wrapper subshell), so the kill below really ends it
 # SECS is only an upper bound: the game exits by itself once the picture has not changed for ~6 s
 for ((i = 0; i < SECS; i++)); do kill -0 $P 2>/dev/null || break; sleep 1; done

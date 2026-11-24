@@ -5,7 +5,7 @@ attract demos) at a glance, without filling the disk.
 Usage: tools/frame_sweep.py <out dir> <last frame> [--every N] [--aspect 4:3|16:9] [--rec recording] [--diff D] [--from F]
        tools/frame_sweep.py <out dir> <last frame> --rec replays/<name>.rec   (a stored recording, with its save)
 
-Runs build/pokestadium hidden at full speed (lockstep) from boot, with no input unless a recording is given, and asks
+Runs build/stadion hidden at full speed (lockstep) from boot, with no input unless a recording is given, and asks
 for a picture every N game frames (default 12: 5 per second), from frame F on (default N). Each picture is shrunk to a 320-pixel-wide thumbnail as
 soon as it is written and the full-size frame is deleted; a thumbnail is kept only when it differs from the last kept
 one by more than D (mean absolute difference per channel, 0-255, default 3), so still scenes leave one picture.
@@ -76,7 +76,7 @@ def main():
                PORT_RECORD=os.path.join(out, "last_sweep.rec"))
     rom = os.environ.get("ROM", "/Users/michael/Downloads/romis/Pokemon Stadium (USA).z64")
     log = open(os.path.join(out, "run.log"), "w")
-    game = subprocess.Popen([os.path.join(ROOT, "build", "pokestadium"), rom], cwd=os.path.join(ROOT, "build"), env=env,
+    game = subprocess.Popen([os.path.join(ROOT, "build", "stadion"), rom], cwd=os.path.join(ROOT, "build"), env=env,
                             stdout=log, stderr=subprocess.STDOUT)
     kept, last_thumb, seen = [], None, 0
 

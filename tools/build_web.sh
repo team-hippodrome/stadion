@@ -35,7 +35,7 @@ cp web/index.html web/port.js web/audio-worklet.js web/serve.py "$SITE/"
 # the game's files under versioned names (name.<hash>.ext): the server lets browsers keep them, and a new build gets new
 # names (web/port.js holds the names); each also as Brotli (.br), which the server sends to browsers that take it
 files=""
-for f in pokestadium.js pokestadium.wasm pokestadium.o2r; do
+for f in stadion.js stadion.wasm stadion.o2r; do
     hash=$(shasum -a 256 "$BUILD/$f" | cut -c1-12)
     name="${f%.*}.$hash.${f##*.}"
     cp "$BUILD/$f" "$SITE/$name"

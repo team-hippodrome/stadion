@@ -110,7 +110,7 @@ def recipes(fixtures, output=None, backend='opengl'):
             options += ['--set', f'State_TitleScreen#1@exit:gCurrentGameState:4={state}']
         options += list(extra)
         cases.append(dict(name=(group or 'whole') + '_' + stem, rec=str(rec), frames=frames or recording_frames(rec),
-                          source='evidence/whole_game/' + ('README.md' if group in ('', 'lab_pc', 'lab_list', 'registration') else 'routes/' + group + '/README.md'),
+                          source='evidence/whole_game/routes/' + (group or ''),
                           extra=options, expect=list(expect), expect_edges=[], min_calls={}))
         if env:
             cases[-1]['env'] = env

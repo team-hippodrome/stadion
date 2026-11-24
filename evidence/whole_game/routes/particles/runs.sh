@@ -2,7 +2,7 @@
 # The runs behind routes/particles/README.md, from the worktree root: OUT=<dir> sh evidence/whole_game/routes/particles/runs.sh
 # (the Game Boy cartridge and the base save are the user's own: GB=<yellow rom>, BASE=<base.sav from gb_save.py>)
 set -e
-B=build-evidence-all2/pokestadium
+B=build-evidence-all2/stadion
 OUT=${OUT:?out dir}
 GB=${GB:-/Users/michael/Projects/Pokemon/pokestadium-port/gb/yellow_de.gb}
 mkdir -p "$OUT"

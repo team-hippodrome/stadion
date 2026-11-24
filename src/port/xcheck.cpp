@@ -469,7 +469,7 @@ int Port_XcheckAnimActive(void) {
 }
 
 // ---- battle boot ----------------------------------------------------------------------------------------------
-// PORT_BATTLE=<case file> (or `pokestadium <rom> --battle <case file>`) starts the battle engine straight away
+// PORT_BATTLE=<case file> (or `stadion <rom> --battle <case file>`) starts the battle engine straight away
 // (State_PortBattle, game/src/game_state.c) with the parties, arena and random seed of the case file, no menus and no
 // replay. The case file is the xcheck case format (above) plus:
 //   arena <id>                  stadium_models file index: 0 Free Battle, 1-3 Cups 97-99, 4 Petit, 5 Pika, 6 Prime,

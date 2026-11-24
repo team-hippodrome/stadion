@@ -12,7 +12,7 @@ if [[ "$1" =~ ^[0-9]+-[0-9]+$ ]]; then RANGE=$1; shift; fi
 rm -rf "$OUT"; mkdir -p "$OUT/shots" "$OUT/home"
 cp "${FLASH:-$ROOT/replays/default.flash}" "$OUT/port.flash"
 case "$BACKEND" in directx) BID=1; BN="DirectX 11";; opengl) BID=2; BN=OpenGL;; metal) BID=3; BN=Metal;; vulkan) BID=4; BN=Vulkan;; *) BID=;; esac
-[ -n "$BID" ] && echo "{\"Window\": {\"Backend\": {\"Id\": $BID, \"Name\": \"$BN\"}}}" > "$OUT/home/pokestadium.cfg.json"
+[ -n "$BID" ] && echo "{\"Window\": {\"Backend\": {\"Id\": $BID, \"Name\": \"$BN\"}}}" > "$OUT/home/stadion.cfg.json"
 IMMV=(); [ "${IMM:-1}" = 1 ] && IMMV=(PORT_INTERP_IMMEDIATE=1)
 env "${IMMV[@]}" PORT_STOP_AT=$STOP PORT_SPEED=${SPEED:-max} PORT_FLASH_FILE="$OUT/port.flash" PORT_HIDDEN_WINDOW=1 \
   PORT_RECORD=/dev/null PORT_INTERPOLATE=$INTERP PORT_RENDER_EVERY=1 PORT_ASPECT=${ASPECT:-16:9} \

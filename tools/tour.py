@@ -113,7 +113,7 @@ def main():
                 env[k] = v
         rom = os.environ.get("ROM", "/Users/michael/Downloads/romis/Pokemon Stadium (USA).z64")
         log = open(os.path.join(out, "port.log"), "w")
-        subprocess.run([os.path.join(ROOT, "build", "pokestadium"), rom], cwd=os.path.join(ROOT, "build"), env=env,
+        subprocess.run([os.path.join(ROOT, "build", "stadion"), rom], cwd=os.path.join(ROOT, "build"), env=env,
                        stdout=log, stderr=subprocess.STDOUT)
         got = sorted(int(f[5:10]) for f in os.listdir(shotdir) if f.startswith("stop_") and f.endswith(".ppm"))
         for f, label in shots:

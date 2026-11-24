@@ -29,13 +29,13 @@ def main():
 
     def run_case(name,backend,arguments,marker=None,tools=False,handheld=False):
         folder=args.out/name; home=folder/'Pokémon 런처'; home.mkdir(parents=True)
-        exe=home/'pokestadium.exe'; shutil.copy2(args.bin,exe)
+        exe=home/'stadion.exe'; shutil.copy2(args.bin,exe)
         cwd=folder/'unrelated'; cwd.mkdir()
         (home/'saves').mkdir(); save=home/'saves/stadium.flash'; save.write_bytes(fixture.read_bytes())
         config={'Window':{'Backend':{'Id':BACKENDS[backend][0],'Name':BACKENDS[backend][1]}},
                 'CVars':{'gLauncher':{'Rom':str(args.rom),'Save':'saves/stadium.flash','AutoPlay':1,
                                       'Renderer':BACKENDS[backend][0]},'gKeepRecovery':'controller-state'}}
-        configfile=home/'pokestadium.cfg.json'; configfile.write_text(json.dumps(config),encoding='utf-8')
+        configfile=home/'stadion.cfg.json'; configfile.write_text(json.dumps(config),encoding='utf-8')
         original=configfile.read_bytes()
         if marker: (home/'launcher-session.txt').write_text(marker+'\n')
         env=base|{'PORT_LAUNCHER_SHOT':str(folder/'launcher.ppm'),'PORT_HIDDEN_WINDOW':'1'}
@@ -65,7 +65,7 @@ def main():
         assert actual_backend(str(home))==BACKENDS[expected][0]
         if safe:
             assert state['CVars']['gLauncher']['AutoPlay']==0
-            copies=list(home.glob('pokestadium.cfg.json.before-recovery-*'))
+            copies=list(home.glob('stadion.cfg.json.before-recovery-*'))
             assert len(copies)==1 and copies[0].read_bytes()==original
         results.append({'case':name,'status':'PASS','active_renderer':expected}); print(results[-1],flush=True)
 
@@ -79,7 +79,7 @@ def main():
     run_case('interrupted-graphics','vulkan',[],marker='graphics')
     run_case('interrupted-game','directx',[],marker='game')
 
-    home=args.out/'headless'; home.mkdir(); exe=home/'pokestadium.exe'; shutil.copy2(args.bin,exe)
+    home=args.out/'headless'; home.mkdir(); exe=home/'stadion.exe'; shutil.copy2(args.bin,exe)
     env=base|{'SHIP_HOME':str(home)}
     def utility(arguments):
         return subprocess.run([str(exe)]+arguments,cwd=home,env=env,capture_output=True,text=True,encoding='utf-8',
@@ -95,7 +95,7 @@ def main():
     assert Path(result.stdout.strip()).read_bytes()==fixture.read_bytes()
     assert save.read_bytes()==fixture.read_bytes()
     (home/'logs').mkdir(exist_ok=True)
-    (home/'logs/pokestadium.log').write_text('Cannot open C:\\Users\\PrivatePerson\\Downloads\\personal.z64\nRenderer startup failed\n')
+    (home/'logs/stadion.log').write_text('Cannot open C:\\Users\\PrivatePerson\\Downloads\\personal.z64\nRenderer startup failed\n')
     result=utility(['--launcher-diagnostics'])
     assert result.returncode==0,result.stderr
     text=Path(result.stdout.strip()).read_text(encoding='utf-8')

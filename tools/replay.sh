@@ -24,7 +24,7 @@ export PORT_EXIT_ON_FREEZE="${PORT_EXIT_ON_FREEZE:-1}" PORT_SPEED="${PORT_SPEED:
 [ "$REC" != "-" ] && export PORT_REPLAY="$REC"
 [ -n "$STOP" ] && export PORT_STOP_AT="$STOP" PORT_SCREENSHOT_DIR=shots
 [ -n "$UNTIL" ] && export PORT_SCREENSHOT_DIR=shots
-./pokestadium "$ROM" > run.log 2>&1 &
+./stadion "$ROM" > run.log 2>&1 &
 P=$!
 if [ -n "$UNTIL" ]; then
     # stop the game as soon as the condition appears in its log

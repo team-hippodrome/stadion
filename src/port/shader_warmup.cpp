@@ -1,9 +1,9 @@
 // Shader warm-up. Fast3D builds a shader program the first time a combiner/state combination is drawn, and that draw
 // waits for it: 1-4 ms with a warm driver cache, 100+ ms on a fresh install or after an update (macOS keeps a Metal
 // cache per binary), a visible hitch the first time each effect appears. The programs are built before the intro.
-// The queue uses the list shipped in pokestadium.o2r
+// The queue uses the list shipped in stadion.o2r
 // (src/port/shader_warmup.txt, the programs the stored recordings draw: tools/shader_list.py) plus the ones this
-// installation drew before (shaders.txt next to pokestadium.cfg.json, extended as new ones are drawn).
+// installation drew before (shaders.txt next to stadion.cfg.json, extended as new ones are drawn).
 // PORT_NO_SHADER_WARMUP=1: no warm-up (still records). PORT_SHADER_LIST=<file>: record into that file instead.
 // PORT_TRACE_SHADERS=1 (or PORT_TRACE_PACING=1): "[shader] <id0>/<id1> built|prebuilt in X ms" per first draw.
 #include "Engine.h"

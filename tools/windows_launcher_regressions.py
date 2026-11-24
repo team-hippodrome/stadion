@@ -36,15 +36,15 @@ def main():
         case.mkdir(parents=True, exist_ok=True)
         app = case / ('런처 Pokémon' if unicode else 'launcher folder')
         app.mkdir(exist_ok=True)
-        shutil.copy2(args.bin, app / 'pokestadium.exe')
+        shutil.copy2(args.bin, app / 'stadion.exe')
         working = case / 'unrelated cwd'
         working.mkdir(exist_ok=True)
-        decoy = working / 'pokestadium.cfg.json'
+        decoy = working / 'stadion.cfg.json'
         decoy.write_text(json.dumps({'Decoy': name}), encoding='utf-8')
         decoy_bytes = decoy.read_bytes()
         home = (working / 'relative home' if home_override == 'relative' else case / 'override home') if home_override else app
         home.mkdir(exist_ok=True)
-        config = home / 'pokestadium.cfg.json'
+        config = home / 'stadion.cfg.json'
         if backend:
             state = dict(Window=dict(Backend=dict(Id=BACKENDS[backend][0], Name=BACKENDS[backend][1])),
                          CVars=dict(gLauncher=dict(Debug=1, AutoPlay=int(relocated), Rom=str(args.rom),
@@ -57,7 +57,7 @@ def main():
             moved = case / 'moved launcher'
             shutil.copytree(app, moved)
             app = home = moved
-            config = home / 'pokestadium.cfg.json'
+            config = home / 'stadion.cfg.json'
         env = {key: value for key, value in os.environ.items()
                if key != 'SHIP_HOME' and not key.startswith(('PORT_', 'XCHECK_', 'ARES_REF_'))}
         env.update(PORT_HIDDEN_WINDOW='1', PORT_SPEED='max')
@@ -69,7 +69,7 @@ def main():
         else:
             env['PORT_LAUNCHER_SHOT'] = str(case / 'launcher.ppm')
         with (case / 'run.log').open('w', encoding='utf-8') as log:
-            result = subprocess.run([str(app / 'pokestadium.exe')], cwd=working, env=env,
+            result = subprocess.run([str(app / 'stadion.exe')], cwd=working, env=env,
                                     stdout=log, stderr=subprocess.STDOUT, timeout=180, **process_options())
         row = dict(case=name, backend=backend, exit_code=result.returncode, status='ERROR')
         try:
@@ -92,7 +92,7 @@ def main():
                 image = Image.open(case / 'launcher.ppm')
                 assert min(image.size) > 0 and max(ImageStat.Stat(image).stddev) > 5, 'launcher capture is blank'
             if home_override:
-                assert not (app / 'pokestadium.cfg.json').exists(), 'explicit data-folder override ignored'
+                assert not (app / 'stadion.cfg.json').exists(), 'explicit data-folder override ignored'
             if unicode:
                 assert {p.name for p in case.iterdir() if p.is_dir()} == {app.name, working.name}, 'garbled data folder created'
             row['status'] = 'PASS'

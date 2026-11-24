@@ -14,8 +14,8 @@
 #                  release with the files (asks first; --yes skips the question)
 #
 # Output: <releases>/v<version>/dist (next to the repository: ../releases unless PORT_RELEASE_ROOT is set), named as on
-# GitHub: pokestadium-macos-arm64-v<version>.zip, pokestadium-windows-{x64,arm64}-v<version>.zip,
-# pokestadium-linux-x86_64-v<version>.AppImage, pokestadium-android-arm64-v<version>-debug.apk, and SHA256SUMS.
+# GitHub: stadion-macos-arm64-v<version>.zip, stadion-windows-{x64,arm64}-v<version>.zip,
+# stadion-linux-x86_64-v<version>.AppImage, stadion-android-arm64-v<version>-debug.apk, and SHA256SUMS.
 # Logs: <releases>/v<version>/logs/<build>.log.
 #
 # Where each build runs:
@@ -107,17 +107,17 @@ build_macos() {
     nice -n 15 cmake -S "$SRC" -B "$B" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DPORT_VERSION="$VERSION" \
         -DPORT_PATH_MAP="$MAP"
     nice -n 15 cmake --build "$B" -j "$JOBS"
-    strip -S "$B/pokestadium" # the debug map lists the object files by local path
+    strip -S "$B/stadion" # the debug map lists the object files by local path
     rm -rf "$B/dist"
-    python3 -I "$SRC/tools/make_macos_bundle.py" "$B" "$B/dist/Pokemon Stadium.app" "$VERSION"
-    ditto -c -k --keepParent "$B/dist/Pokemon Stadium.app" "$DIST/pokestadium-macos-arm64-v$VERSION.zip"
+    python3 -I "$SRC/tools/make_macos_bundle.py" "$B" "$B/dist/stadion.app" "$VERSION"
+    ditto -c -k --keepParent "$B/dist/stadion.app" "$DIST/stadion-macos-arm64-v$VERSION.zip"
 }
 
 build_android() {
     [ -f "$MAIN/android/local.properties" ] || { echo "no android/local.properties in $MAIN (see README)"; return 1; }
     cp "$MAIN/android/local.properties" "$SRC/android/local.properties"
     (cd "$SRC/android" && nice -n 15 ./gradlew --no-daemon -PportVersion="$VERSION" -PportPathMap="$MAP" assembleDebug)
-    cp "$SRC/android/app/build/outputs/apk/debug/app-debug.apk" "$DIST/pokestadium-android-arm64-v$VERSION-debug.apk"
+    cp "$SRC/android/app/build/outputs/apk/debug/app-debug.apk" "$DIST/stadion-android-arm64-v$VERSION-debug.apk"
 }
 
 build_windows() { # $1: x64 or arm64
@@ -139,16 +139,17 @@ build_windows() { # $1: x64 or arm64
         nice -n 15 cmake --build \"\$B\" -j $JOBS
         # shipped exe: no symbol table at all (an unstripped table after the last section reads as an appended blob,
         # which antivirus heuristics count against the file); the symbol table copy stays in the release folder only
-        llvm-strip --strip-debug -o '$REL/symbols/pokestadium-windows-$arch-v$VERSION.exe' \"\$B/pokestadium.exe\"
-        llvm-strip --strip-all -o '$stage/pokestadium.exe' \"\$B/pokestadium.exe\"
-        if [ -f \"\$B/pokestadium.o2r\" ]; then cp \"\$B/pokestadium.o2r\" '$stage/'; fi
+        llvm-strip --strip-debug -o '$REL/symbols/stadion-windows-$arch-v$VERSION.exe' \"\$B/stadion.exe\"
+        llvm-strip --strip-all -o '$stage/stadion.exe' \"\$B/stadion.exe\"
+        if [ -f \"\$B/stadion.o2r\" ]; then cp \"\$B/stadion.o2r\" '$stage/'; fi
         [ $KEEP = 1 ] || rm -rf \"\$B\"
     "
     cp "$SRC/README.md" "$stage/README.md"
     mkdir -p "$stage/docs"
     cp "$SRC/docs/BUILDING.md" "$stage/docs/BUILDING.md"
-    rm -f "$DIST/pokestadium-windows-$arch-v$VERSION.zip"
-    (cd "$stage" && zip -q -r "$DIST/pokestadium-windows-$arch-v$VERSION.zip" .)
+    cp "$SRC/docs/USAGE.md" "$stage/docs/USAGE.md"
+    rm -f "$DIST/stadion-windows-$arch-v$VERSION.zip"
+    (cd "$stage" && zip -q -r "$DIST/stadion-windows-$arch-v$VERSION.zip" .)
     rm -rf "$stage"
 }
 
@@ -162,10 +163,10 @@ build_linux() {
             -DCMAKE_PREFIX_PATH=\$HOME/rel/deps -DCMAKE_EXE_LINKER_FLAGS='-static-libstdc++ -static-libgcc' \
             -DPORT_VERSION=$VERSION -DPORT_PATH_MAP=\"$VM_MAP\"
         nice -n 15 cmake --build \"\$B\" -j $JOBS
-        strip --strip-debug \"\$B/pokestadium\"
-        python3 -I '$ROOT/tools/check_build_paths.py' \"\$B/pokestadium\"
-        python3 -I '$SRC/tools/make_appimage.py' \"\$B\" \"\$B/pokestadium-linux-x86_64.AppImage\" $VERSION \$HOME/rel/appimagetool
-        cp \"\$B/pokestadium-linux-x86_64.AppImage\" '$DIST/pokestadium-linux-x86_64-v$VERSION.AppImage'
+        strip --strip-debug \"\$B/stadion\"
+        python3 -I '$ROOT/tools/check_build_paths.py' \"\$B/stadion\"
+        python3 -I '$SRC/tools/make_appimage.py' \"\$B\" \"\$B/stadion-linux-x86_64.AppImage\" $VERSION \$HOME/rel/appimagetool
+        cp \"\$B/stadion-linux-x86_64.AppImage\" '$DIST/stadion-linux-x86_64-v$VERSION.AppImage'
         [ $KEEP = 1 ] || rm -rf \"\$B\"
     "
 }
@@ -174,11 +175,11 @@ build_linux() {
 # runs, or copies someone unpacked there)
 artifact() {
     case "$1" in
-        macos) echo "pokestadium-macos-arm64-v$VERSION.zip" ;;
-        android) echo "pokestadium-android-arm64-v$VERSION-debug.apk" ;;
-        windows-x64) echo "pokestadium-windows-x64-v$VERSION.zip" ;;
-        windows-arm64) echo "pokestadium-windows-arm64-v$VERSION.zip" ;;
-        linux) echo "pokestadium-linux-x86_64-v$VERSION.AppImage" ;;
+        macos) echo "stadion-macos-arm64-v$VERSION.zip" ;;
+        android) echo "stadion-android-arm64-v$VERSION-debug.apk" ;;
+        windows-x64) echo "stadion-windows-x64-v$VERSION.zip" ;;
+        windows-arm64) echo "stadion-windows-arm64-v$VERSION.zip" ;;
+        linux) echo "stadion-linux-x86_64-v$VERSION.AppImage" ;;
     esac
 }
 FILES=()
@@ -255,12 +256,12 @@ if [ $YES = 0 ]; then
     read -r -p "Type yes to publish: " answer || die "not published"
     [ "$answer" = yes ] || die "not published"
 fi
-git -C "$ROOT" tag -a "$TAG" -m "Pokémon Stadium port $TAG" "$COMMIT"
+git -C "$ROOT" tag -a "$TAG" -m "stadion $TAG" "$COMMIT"
 git -C "$ROOT" push origin "$TAG"
 git -C "$ROOT" tag -f latest "$COMMIT"
 git -C "$ROOT" push -f origin latest
 UPLOAD=()
 for f in "${FILES[@]}" SHA256SUMS; do UPLOAD+=("$DIST/$f"); done
 gh release create "$TAG" "${UPLOAD[@]}" --repo "$REPO" --title "$TAG" --target "$COMMIT" \
-    --notes "Builds for Linux (x86_64 AppImage), macOS (Apple Silicon, Pokemon Stadium.app), Windows (x64 and arm64) and Android (arm64, debug-signed APK). No game data included: you need your own Pokémon Stadium (USA) ROM. See README.md."
+    --notes "Builds for Linux (x86_64 AppImage), macOS (Apple Silicon, stadion.app), Windows (x64 and arm64) and Android (arm64, debug-signed APK). No game data included: you need your own Pokémon Stadium (USA) ROM. See README.md."
 say "published: https://github.com/$REPO/releases/tag/$TAG"

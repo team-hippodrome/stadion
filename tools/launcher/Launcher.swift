@@ -1,7 +1,7 @@
-// Pokémon Stadium launcher (macOS port): pick the Stadium ROM + save and up to four Game Boy cartridges + saves for
-// the players' Transfer Paks, then PLAY starts build/pokestadium. Choices use the shared portable JSON config.
+// stadion launcher (macOS): pick the Stadium ROM + save and up to four Game Boy cartridges + saves for
+// the players' Transfer Paks, then PLAY starts build/stadion. Choices use the shared portable JSON config.
 // Styled after the PokemonStadiumRecomp launcher.
-// Plain AppKit (the command-line tools lack SwiftUI's macro plugins). Built into "Pokemon Stadium.app" by
+// Plain AppKit (the command-line tools lack SwiftUI's macro plugins). Built into "stadion.app" by
 // tools/make_app.sh. Debug option (checkbox, off by default): a "Save editor" button opens tools/save_editor's web UI on
 // the Stadium save. Test hooks: LAUNCHER_SNAPSHOT=<png> (save the window picture and quit), LAUNCHER_AUTOPLAY=1,
 // LAUNCHER_DEBUG=0|1 and LAUNCHER_SAVE=<file> (override without storing), LAUNCHER_OPEN_EDITOR=1 (open the editor at
@@ -631,7 +631,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         content.wantsLayer = true
         content.layer?.backgroundColor = Theme.window.cgColor
 
-        let title = label("Pokémon Stadium", size: 18, weight: .bold)
+        let title = label("stadion", size: 18, weight: .bold)
         title.frame = NSRect(x: 16, y: 10, width: 170, height: 24)
         let sep = label("|", size: 16, color: Theme.cardBorder)
         sep.frame = NSRect(x: 182, y: 11, width: 10, height: 22)
@@ -699,7 +699,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: W, height: H), styleMask: [.titled, .closable, .miniaturizable],
                          backing: .buffered, defer: false)
-        w.title = "Pokémon Stadium — Launcher"
+        w.title = "stadion — Launcher"
         w.appearance = NSAppearance(named: .darkAqua)
         w.backgroundColor = Theme.window
         w.contentView = content
@@ -777,7 +777,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let appItem = NSMenuItem()
         main.addItem(appItem)
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Quit Pokémon Stadium", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit stadion", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         // standard Edit menu: copy/paste/undo in text fields (the save editor's page) need these key equivalents
         let editItem = NSMenuItem()
@@ -816,7 +816,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func runUtility(_ arguments: [String]) throws -> (Int32, String) {
         let p = Process()
-        p.executableURL = URL(fileURLWithPath: projectDir + "/build/pokestadium")
+        p.executableURL = URL(fileURLWithPath: projectDir + "/build/stadion")
         p.arguments = arguments
         var env = ProcessInfo.processInfo.environment
         env["SHIP_HOME"] = launcherDirectory.path
@@ -879,7 +879,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if let p = choosePath(save: false, current: save, types: ["flash", "fla", "sra", "sav", "bin"],
                               message: "Import a raw 128 KiB Stadium cartridge save; the original is kept") {
             do {
-                save = try importStadiumSave(executable: URL(fileURLWithPath: projectDir + "/build/pokestadium"),
+                save = try importStadiumSave(executable: URL(fileURLWithPath: projectDir + "/build/stadion"),
                                             source: URL(fileURLWithPath: p), directory: launcherDirectory)
                 refreshRom()
             } catch { fail(error.localizedDescription) }
@@ -926,7 +926,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func fail(_ text: String) {
         let a = NSAlert()
-        a.messageText = "Pokémon Stadium"
+        a.messageText = "stadion"
         a.informativeText = text
         a.alertStyle = .warning
         a.runModal()
@@ -943,7 +943,7 @@ final class Launcher: NSObject, NSApplicationDelegate, NSWindowDelegate {
             e.close()
         }
         let fm = FileManager.default
-        let exe = projectDir + "/build/pokestadium"
+        let exe = projectDir + "/build/stadion"
         guard fm.isExecutableFile(atPath: exe) else { return fail("The game is not built yet:\n\(exe)") }
         guard fm.fileExists(atPath: rom) else { return fail("Stadium ROM not found:\n\(rom)") }
         do {

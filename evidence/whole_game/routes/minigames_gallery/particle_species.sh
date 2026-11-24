@@ -4,7 +4,7 @@
 # (PP 1 each, the forced-mode pick takes them in turn) whose animations call the species-offset helper (from the
 # batch4 move sweep: which mvN window reached each helper). Saves stay out of the repository.
 cd "$(dirname "$0")/../../../.."
-O=$1; BASE=$2; B=build-evidence-all2/pokestadium
+O=$1; BASE=$2; B=build-evidence-all2/stadion
 CART=/Users/michael/Projects/Pokemon/pokestadium-port/gb/yellow_de.gb
 FB=evidence/battle_engine/routes/free_battle_gamepak.rec
 T="BLASTOISE:70;MEW:100;MAGIKARP:5"
