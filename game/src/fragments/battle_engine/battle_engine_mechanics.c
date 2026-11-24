@@ -1515,11 +1515,11 @@ void ProcessBattleTurn(void) {
         D_843C4DA9 = 0;
         D_843C4DB3 = 0xA;
 
-        // PORT: 0 = the Pokémon does not use its move this turn (asleep, frozen, recharging, flinched, fully
-        // paralysed, hurt itself in confusion...): the summary bars must not reveal the picked move (enhancements)
         port_can_act = Battle_CheckMonCanAct();
-        if (port_can_act == 0) {
-            PortEnh_MoveNotUsed();
+        // PORT: arm the summary bars only for a new move attempt, before hit/failure resolution. Other results
+        // are inability to act or continuations of moves already attempted on a previous turn.
+        if (port_can_act == 2 || port_can_act == 3) {
+            PortEnh_MoveAttempted();
         }
         switch (port_can_act) {
             case 2:

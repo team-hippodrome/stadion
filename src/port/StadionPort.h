@@ -286,16 +286,17 @@ void PortEnh_PlayerCommandBegin(struct ActivePokemon* a, struct ActivePokemon* f
 void PortEnh_PlayerCommandEnd(struct ActivePokemon* a);
 // The side summary bars and speed estimates (battle_enhancements.c): who acts first, once Battle_StartTurn has the
 // order (-1 from BattleScene_InitializeSwitchActions: a side switches, Speed decided nothing); the acting Pokémon
-// cannot act this turn (ProcessBattleTurn: asleep, frozen, flinched, fully paralysed...); a move's presentation
-// starts (BattleScene_ActionSetupCameraStep, as its message box opens), which reveals the move on its card.
+// attempts a move (ProcessBattleTurn, after the inability-to-act checks); the move's presentation starts
+// (BattleScene_ActionSetupCameraStep, as its message box opens), which reveals the attempted move on its card.
 void PortEnh_TurnOrder(int first_side);
-void PortEnh_MoveNotUsed(void);
+void PortEnh_MoveAttempted(void);
 void PortEnh_MoveStart(void);
 // The battle order screen (battle_order_select.c): the summary bars show both parties there too. Each frame it draws
 // (BattleMenu_UpdateOrderSelect, after the screen), and once it has closed (BattleMenu_RunOrderSelectScreen).
+// The frame receives each human side's required pick count and current roster-slot mask; COM sides have count 0.
 // PortEnh_OrderSelectBackdrop: in widescreen its tiled background goes on into the sides of the picture (with the
 // image the screen tiles), so the bars there sit on the screen's own background; nothing at 4:3.
-void PortEnh_OrderSelectFrame(void);
+void PortEnh_OrderSelectFrame(const uint8_t required[2], const uint8_t picked[2]);
 void PortEnh_OrderSelectEnd(void);
 // More room for its display list buffer (Gfx_InitDisplayListBuffers' size) for the bars' card models.
 uint32_t PortEnh_OrderSelectDisplayListRoom(void);

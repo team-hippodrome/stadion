@@ -6,7 +6,7 @@
 // side, kept here from the battle's own state, and published each frame for summary_bars.cpp, which draws the cards
 // in the window's room beside the game's picture. Each card shows its own animated copy of the Pokémon's 3D model
 // (card_models.c). Besides the two hooks above, the battle tells this file who acts
-// first (PortEnh_TurnOrder, Battle_StartTurn), that the acting Pokémon cannot act this turn (PortEnh_MoveNotUsed,
+// first (PortEnh_TurnOrder, Battle_StartTurn), that the acting Pokémon attempts a move (PortEnh_MoveAttempted,
 // ProcessBattleTurn) and that a move's presentation starts (PortEnh_MoveStart, BattleScene_ActionSetupCameraStep).
 // Nothing the game does changes.
 //
@@ -64,8 +64,7 @@ static s32 sMembers[2];
 static s32 sNeedInit;
 static s32 sReady;
 static s32 sViewer = -1;    // the side whose own Pokémon are fully known (1P against the COM), -1 in multiplayer
-static s32 sPendingSlot[2]; // the move slot each side committed this turn, revealed when the move is presented
-static s32 sTransformed[2];
+static s32 sPendingSlot[2]; // the move slot each side attempted this turn, revealed when the move is presented
 static uint32_t sIconKey[2][HU_SIDE_MAX];
 static s32 sHasKey; // the opponent is a trainer of the memory (sKey)
 static hu_tm_key sKey;
@@ -178,9 +177,9 @@ static s32 OpponentStatExp(u16* lo, u16* hi) {
 
 static s32 sOrderSelect; // the cards are the battle order screen's (PortEnh_OrderSelectFrame), not a battle's
 
-// A side's cards from its trainers (`t`; `fallback` its roster without them). On the battle order screen nothing is
-// picked yet: every Pokémon of the party is a card, all of them brought.
-static void InitSideFrom(s32 s, BattleSessionTeams* t, TeamRoster* fallback) {
+// A side's cards from its trainers (`t`; `fallback` its roster without them). Both sides start Unknown on the
+// order screen. The COM's scripted panel does not determine which Pokémon it can bring.
+static void InitSideFrom(s32 s, BattleSessionTeams* t, TeamRoster* fallback, s32 order_required) {
     s32 members = (t != NULL && t->tagTeamSize == 2) ? 2 : 1;
     TeamRoster* r = (t != NULL && t->tagTeamMember[0] != NULL) ? t->tagTeamMember[0] : fallback;
     s32 count, brought, i, j, m;
@@ -197,11 +196,15 @@ static void InitSideFrom(s32 s, BattleSessionTeams* t, TeamRoster* fallback) {
         ExtendedRosterInfo* info = r->rosterInfo;
         BattleMon* party = (info != NULL) ? info->battleMon : r->pokemonPicked;
         u8 used = 0;
-        brought = sOrderSelect ? 6 : r->numberOfPokemonBrought;
+        brought = sOrderSelect ? (order_required > 0 ? order_required : 6) : r->numberOfPokemonBrought;
         count = (info != NULL) ? info->numberOfPokemonCanBePicked : brought;
         if (count <= 0 || count > 6) count = brought;
         if (brought <= 0 || brought > count) brought = count;
-        hu_side_init(&sSides[s], count, brought, s == sViewer ? HU_REVEAL_ALL : HU_REVEAL_AS_USED);
+        if (sOrderSelect) {
+            hu_side_init_order_select(&sSides[s], count, brought, s == sViewer ? HU_REVEAL_ALL : HU_REVEAL_AS_USED);
+        } else {
+            hu_side_init(&sSides[s], count, brought, s == sViewer ? HU_REVEAL_ALL : HU_REVEAL_AS_USED);
+        }
         for (i = 0; i < count; i++) {
             sCardMon[s][i] = &party[i];
         }
@@ -258,16 +261,13 @@ static void InitSideFrom(s32 s, BattleSessionTeams* t, TeamRoster* fallback) {
             }
         }
     }
-    if (sOrderSelect) {
-        picked_mask = (u8)((1 << count) - 1); // (none picked yet: none is held)
-    }
-    if (s == sViewer || members == 2 || sOrderSelect) {
+    if (!sOrderSelect && (s == sViewer || members == 2)) {
         hu_side_set_picked(&sSides[s], picked_mask);
     }
 }
 
 static void InitSide(s32 s) {
-    InitSideFrom(s, sActivePokemon[s]->sessionTeams, sActivePokemon[s]->teamRoster);
+    InitSideFrom(s, sActivePokemon[s]->sessionTeams, sActivePokemon[s]->teamRoster, 0);
 }
 
 // The trainer memory of the opponent's side, and what it already knows (the moves seen, the speed estimates).
@@ -314,7 +314,6 @@ static void Init(void) {
     InitSide(0);
     InitSide(1);
     sPendingSlot[0] = sPendingSlot[1] = -1;
-    sTransformed[0] = sTransformed[1] = 0;
     sSaved = 0;
     InitMemory();
     EnhLog("battle: viewer %d, sides %d/%d (brought %d/%d), mode %d, isHuman %d/%d", (int)sViewer, sSides[0].count,
@@ -367,6 +366,13 @@ static s32 IsSwitch(u8 used_move) {
     return used_move == 0 || (used_move & 0xF0) == 0xF0;
 }
 
+static void RestoreCardModel(s32 s, s32 c) {
+    if (Port_Enh_SummaryBarsEnabled()) {
+        PortEnh_CardModelsRestore(s, c);
+        sIconKey[s][c] = PortEnh_CardModelSpecies(s, c) ? 0 : LoadIcon(sCardMon[s][c]);
+    }
+}
+
 static void Poll(void) {
     s32 s, m, p;
     for (s = 0; s < 2; s++) {
@@ -379,8 +385,15 @@ static void Poll(void) {
         // those of the party entries (pokemonPicked), which the battle updates as the HP bar drains and as the
         // status appears.
         if (shown >= 0 && !(side->cards[shown].flags & HU_CARD_F_ACTIVE)) {
+            s32 c;
+            for (c = 0; c < side->count; c++) {
+                if ((side->cards[c].flags & (HU_CARD_F_ACTIVE | HU_CARD_F_TRANSFORMED)) ==
+                    (HU_CARD_F_ACTIVE | HU_CARD_F_TRANSFORMED)) {
+                    RestoreCardModel(s, c);
+                    break;
+                }
+            }
             hu_side_send_out(side, shown);
-            sTransformed[s] = 0;
             if (sHasKey && s != sViewer) {
                 hu_tm_record_sent_out(Port_Enh_Memory(), sKey, side->cards[shown].species, side->cards[shown].level);
             }
@@ -400,26 +413,27 @@ static void Poll(void) {
             }
         }
         if (active >= 0) {
+            hu_card* c = &side->cards[active];
             s32 transformed = (rt->uniqueStatusFlags & 8) != 0;
+            s32 card_transformed = (c->flags & HU_CARD_F_TRANSFORMED) != 0;
             hu_side_set_substitute(side, active, rt->substituteHp != 0);
-            if (transformed && !sTransformed[s]) {
+            if (transformed && !card_transformed) {
                 // the copied Speed: the viewer knows its own exactly; the opponent's is its estimate
                 s32 o = !s;
                 s32 oc = CardOf(o, 0);
-                hu_speed_range copied = (oc >= 0) ? sSides[o].cards[oc].speed : side->cards[active].speed;
+                hu_speed_range copied = (oc >= 0) ? hu_card_shown_speed(&sSides[o].cards[oc]) : c->speed;
                 hu_side_transform(side, active, (u8)sActivePokemon[s]->state.transformedIntoSpecies, copied);
                 if (oc >= 0 && Port_Enh_SummaryBarsEnabled()) {
                     PortEnh_CardModelsLoadFrom(s, active, o, oc); // the model of the one it copied
                     sIconKey[s][active] = sIconKey[o][oc];
                 }
-            } else if (!transformed && sTransformed[s]) {
-                hu_side_transform(side, active, side->cards[active].species, side->cards[active].speed);
-                if (Port_Enh_SummaryBarsEnabled()) {
-                    PortEnh_CardModelsRestore(s, active);
-                    sIconKey[s][active] = PortEnh_CardModelSpecies(s, active) ? 0 : LoadIcon(sCardMon[s][active]);
-                }
+            } else if (!transformed && card_transformed) {
+                // A reset without a send-out should not clear the card's Active or Substitute state.
+                c->flags &= (u8)~HU_CARD_F_TRANSFORMED;
+                c->model_species = c->species;
+                c->transform_speed = c->speed;
+                RestoreCardModel(s, active);
             }
-            sTransformed[s] = transformed;
         }
         hu_side_tick(side);
     }
@@ -433,18 +447,8 @@ static s32 MovePriority(u8 move) {
 }
 
 void PortEnh_TurnOrder(int first_side) {
-    s32 s;
     if (!sReady) return;
-    for (s = 0; s < 2; s++) {
-        const ActivePokemonState* st = &sActivePokemon[s]->state;
-        s32 slot = st->selectedMoveIndex;
-        sPendingSlot[s] = -1;
-        if (IsSwitch(st->runtime.usedMove)) continue; // this side switches (or sends one out)
-        if (slot >= 0 && slot < 4 && st->runtime.moves[slot] == st->runtime.usedMove &&
-            !(st->runtime.uniqueStatusFlags & 8)) {
-            sPendingSlot[s] = slot;
-        }
-    }
+    sPendingSlot[0] = sPendingSlot[1] = -1;
     EnhLog("turn: side %d first (moves %u / %u, speed %u / %u)", (int)first_side,
            sActivePokemon[0]->state.runtime.usedMove, sActivePokemon[1]->state.runtime.usedMove,
            sActivePokemon[0]->state.runtime.modifiedSpeed, sActivePokemon[1]->state.runtime.modifiedSpeed);
@@ -476,10 +480,19 @@ void PortEnh_TurnOrder(int first_side) {
     }
 }
 
-void PortEnh_MoveNotUsed(void) {
+void PortEnh_MoveAttempted(void) {
+    const ActivePokemonState* st;
+    s32 s, c, slot;
     if (!sReady) return;
-    // the turn's action is resolved before it is shown: the move step that follows must not reveal the move
-    sPendingSlot[sBattleScene.scene->actingSide & 1] = -1;
+    s = sBattleScene.scene->actingSide & 1;
+    c = CardOf(s, 0);
+    st = &sActivePokemon[s]->state;
+    slot = st->selectedMoveIndex;
+    // Reveal only a move in this card's regular moveset, not Struggle, a switch, or a copied move.
+    if (c >= 0 && slot >= 0 && slot < HU_CARD_MOVES && !IsSwitch(st->runtime.usedMove) &&
+        sSides[s].cards[c].moves[slot] == st->runtime.usedMove && !(st->runtime.uniqueStatusFlags & 8)) {
+        sPendingSlot[s] = slot;
+    }
 }
 
 void PortEnh_MoveStart(void) {
@@ -531,7 +544,8 @@ static void Publish(void) {
     v.orderSelect = (u8)sOrderSelect;
     for (s = 0; s < 2; s++) {
         const BattleMonRuntime* rt = sOrderSelect ? NULL : &sActivePokemon[s]->state.runtime;
-        const BattleMon* active_mon = sOrderSelect ? NULL : ActiveMon(s);
+        const s32 active = sOrderSelect ? -1 : CardOf(s, 0);
+        const BattleMon* active_mon = (active >= 0) ? sCardMon[s][active] : NULL;
         v.sides[s] = sSides[s];
         for (i = 0; i < sSides[s].count; i++) {
             const hu_card* c = &sSides[s].cards[i];
@@ -552,10 +566,10 @@ static void Publish(void) {
                 }
             }
             // speed as the turn order compares it now: stage and paralysis applied to the active one
-            if ((c->flags & HU_CARD_F_ACTIVE) && active_mon != NULL) {
-                if (s == sViewer) {
+            if (i == active && (c->flags & HU_CARD_F_ACTIVE) && active_mon != NULL) {
+                if (s == sViewer && !(c->flags & HU_CARD_F_TRANSFORMED) && !(rt->uniqueStatusFlags & 8)) {
                     sr = hu_speed_exact(rt->modifiedSpeed);
-                } else if (!(rt->uniqueStatusFlags & 8)) {
+                } else {
                     sr = hu_speed_shown(sr, &hu_gb_speed_rules, ModsOf(rt, (active_mon->statusCondition & 0x40) != 0));
                 }
             }
@@ -617,7 +631,7 @@ void PortEnh_BattleFrame(void) {
 // opponent's with what the trainer memory knows. A tag battle's sides are two trainers picking from two parties: no
 // cards there (a side has room for six). The battle starts its own cards (PortEnh_BattleBegin).
 
-void PortEnh_OrderSelectFrame(void) {
+void PortEnh_OrderSelectFrame(const uint8_t required[2], const uint8_t picked[2]) {
     BattleSessionTeams* t = gSessionContext.battleSides;
     PortEnhCardBattle none[2];
     BinArchive* archive;
@@ -643,8 +657,8 @@ void PortEnh_OrderSelectFrame(void) {
         archive = BinArchive_Open((u8*)0x920000, NULL, 1, 1);
 #endif
         PortEnh_CardModelsSetArchive(archive);
-        InitSideFrom(0, &t[0], t[0].tagTeamMember[0]);
-        InitSideFrom(1, &t[1], t[1].tagTeamMember[0]);
+        InitSideFrom(0, &t[0], t[0].tagTeamMember[0], required[0]);
+        InitSideFrom(1, &t[1], t[1].tagTeamMember[0], required[1]);
         PortEnh_CardModelsSetArchive(NULL);
         if (archive != NULL) {
             main_pool_try_free(archive);
@@ -653,6 +667,17 @@ void PortEnh_OrderSelectFrame(void) {
         EnhLog("order select: viewer %d, sides %d/%d", (int)sViewer, sSides[0].count, sSides[1].count);
     }
     for (s = 0; s < 2; s++) {
+        if (required[s] > 0) {
+            hu_side* side = &sSides[s];
+            s32 i;
+            // Apply take-backs first; the game clears its picks from several different panel states.
+            for (i = 0; i < side->count; i++) {
+                if (!(picked[s] & (1u << i))) hu_side_unpick(side, i);
+            }
+            for (i = 0; i < side->count; i++) {
+                if (picked[s] & (1u << i)) hu_side_pick(side, i);
+            }
+        }
         none[s].active = -1;
         none[s].obj = NULL;
         none[s].idleAnim = none[s].faintAnim = none[s].sleepAnim = -1;

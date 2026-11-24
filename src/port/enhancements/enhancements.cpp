@@ -176,10 +176,7 @@ extern "C" void Port_Enh_SetStatExpBounds(int group, const hu_se_bounds* bounds)
 extern "C" void Port_Enh_OpponentStatExp(uint16_t* lo, uint16_t* hi) {
     hu_se_bounds b;
     Port_Enh_StatExpBounds(PORT_SE_OPPONENT, &b);
-    *lo = 0;
-    *hi = 65535;
-    hu_se_bound_value(&b.min, HU_SE_OPPONENT, lo);
-    hu_se_bound_value(&b.max, HU_SE_OPPONENT, hi);
+    hu_se_bounds_se_range(&b, HU_SE_OPPONENT, lo, hi);
 }
 
 // ---- Hue choice ----

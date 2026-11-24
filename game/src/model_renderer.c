@@ -16,6 +16,7 @@
 #include "hal_libc.h"
 #include "src/geo_render.h"
 #include "StadionPort.h"
+#include <hippodrome/hue_choice.h>
 
 // Display roots: GeoNode_CreateContainer nodes that DisplayObjects are appended under.
 GraphNode D_800AC840;
@@ -212,7 +213,7 @@ arg1_func_80010CA8* Model_ComputeNicknameColorVariant(arg1_func_80010CA8* arg0, 
             var_a0 += 0; // FAKE: preserves the matching checksum loop.
         }
 
-        sp34.unk_00 = ((((sp30->unk_12 - sp30->unk_10) << 6) * var_a0) / 255) + (sp30->unk_10 << 6);
+        sp34.unk_00 = hu_hue_nickname_shift(var_a0, sp30->unk_10, sp30->unk_12);
     }
     sp34.unk_00 = PortEnh_HueShift(arg1, sp34.unk_00); // PORT: the player's hue choice (an enhancement, on by default)
 
