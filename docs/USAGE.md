@@ -10,15 +10,19 @@ ROMs and saves.
 
 ### 1. Verify your ROM
 
-The supported base ROM is the **US release**, in **big-endian `.z64` format**, with
-the following size and SHA-1:
+The supported base ROMs are the **US and English European releases**, in
+**big-endian `.z64` format**, each 32 MiB (33,554,432 bytes):
 
-| Size | SHA-1 |
+| Release | SHA-1 |
 | --- | --- |
-| 32 MiB (33,554,432 bytes) | `ed7bef5a306f88c0a6e96b15e71fee2ef32058f3` |
+| USA 1.0 | `ed7bef5a306f88c0a6e96b15e71fee2ef32058f3` |
+| USA Rev 1 (1.1) | `488bb6d112427823d77fcecdd9297fd86875263d` |
+| USA Rev 2 (1.2) | `0d3b1d740c6ee6da6923550bf24ad827262fd8c0` |
+| Europe (English) 1.0 | `6f26e3c8b35c3232058375e30d19665facb23123` |
+| Europe (English) Rev 1 | `9470f899ad0107677b7dfd24e1dd567723a5f84f` |
 
-The launcher verifies the dump before starting. Other revisions, regions, patched
-ROMs and byte-swapped `.n64` or `.v64` files are not accepted.
+The launcher verifies the dump before starting. Unlisted revisions and regions,
+patched ROMs, and byte-swapped `.n64` or `.v64` files are not accepted.
 
 ### 2. Download and launch
 
@@ -190,4 +194,3 @@ Use **Files & help → Export diagnostics** when reporting a problem. Review the
 report before attaching it to an
 [issue](https://github.com/team-hippodrome/stadion/issues/new/choose), along with your
 release version, platform, renderer and steps to reproduce.
-

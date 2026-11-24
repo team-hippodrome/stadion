@@ -121,7 +121,7 @@ font has is drawn by it; any other (kana, kanji, Hangul, ...) by hippodrome-util
 
 ## Not done yet
 
-- The port only boots the USA 1.0 ROM, so only `en.csv` is drawn so far.
+- The supported ROMs are all in English, so only `en.csv` is used as a source in-game.
 - `ROM_` rows (the GB Tower's menu, COM trainer names) and `<src>_localized.csv` (COM nicknames) are not drawn yet:
   that text is not read through textdata.
 - Strings outside textdata in the western ROMs (code data, COM trainer tables) are not listed by the tool, except the

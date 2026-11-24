@@ -266,9 +266,11 @@ target_include_directories(stadium_game PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/libultraship/include/libultraship
   ${CMAKE_CURRENT_SOURCE_DIR}/game/lib/ultralib/include
   ${CMAKE_CURRENT_SOURCE_DIR}/game/lib/ultralib)
+# The game and its host-side runtime must agree on the compiled ROM version.
+set(STADION_GAME_VERSION_DEFINITIONS VERSION_US VERSION_US_REV2)
 target_compile_definitions(stadium_game PRIVATE
   LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 NDEBUG _FINALROM N_MICRO NON_MATCHING AVOID_UB
-  BUILD_VERSION=VERSION_I_P VERSION_US VERSION_US_REV2 # US Rev 2 (1.2) code for every ROM (src/port/rom_version.cpp)
+  BUILD_VERSION=VERSION_I_P ${STADION_GAME_VERSION_DEFINITIONS}
   PORT_STATIC_FRAGMENTS)
 target_compile_options(stadium_game PRIVATE
   ${PORT_DEBUG_INFO} ${PORT_NO_BUILTIN} ${PORT_UNSIGNED_CHAR} ${STADION_GAME_WARNINGS}
@@ -325,7 +327,8 @@ if(NOT PORT_SOURCE_REVISION)
 endif()
 string(APPEND PORT_BUILD_DESCRIPTION " revision ${PORT_SOURCE_REVISION}")
 target_compile_definitions(stadion PRIVATE PORT_BUILD_VERSION="${PORT_BUILD_DESCRIPTION}")
-target_compile_definitions(port_os PRIVATE LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 NDEBUG _FINALROM N_MICRO VERSION_US BUILD_VERSION=VERSION_I_P)
+target_compile_definitions(port_os PRIVATE LANGUAGE_C _LANGUAGE_C F3DEX_GBI_2 NDEBUG _FINALROM N_MICRO
+  BUILD_VERSION=VERSION_I_P ${STADION_GAME_VERSION_DEFINITIONS})
 target_compile_options(port_os PRIVATE ${PORT_DEBUG_INFO} ${PORT_FORCE_INCLUDE}${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/port_compat.h
   ${PORT_ALL_WARNINGS} -Wno-error)
 # the GB Tower's sound output uses SDL3 directly (same SDL3 the window uses)
