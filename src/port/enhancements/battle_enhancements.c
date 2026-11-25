@@ -177,6 +177,23 @@ static s32 OpponentStatExp(u16* lo, u16* hi) {
 
 static s32 sOrderSelect; // the cards are the battle order screen's (PortEnh_OrderSelectFrame), not a battle's
 
+static s32 SpeedRangeContains(hu_speed_range range, u16 true_speed) {
+    return true_speed >= range.min && true_speed <= range.max;
+}
+
+static hu_speed_range InitialOpponentSpeed(const BattleMon* mon, const TeamRoster* roster) {
+    hu_speed_range range = hu_speed_initial(BaseSpeed(mon->species.id), mon->level);
+    u16 stat_exp_min, stat_exp_max;
+    if (OpponentStatExp(&stat_exp_min, &stat_exp_max) && IsCom(roster)) {
+        hu_speed_range clamped = hu_speed_intersect(
+            range, hu_speed_initial_se(BaseSpeed(mon->species.id), mon->level, stat_exp_min, stat_exp_max));
+        if (SpeedRangeContains(clamped, mon->speed)) {
+            range = clamped;
+        }
+    }
+    return range;
+}
+
 // A side's cards from its trainers (`t`; `fallback` its roster without them). Both sides start Unknown on the
 // order screen. The COM's scripted panel does not determine which Pokémon it can bring.
 static void InitSideFrom(s32 s, BattleSessionTeams* t, TeamRoster* fallback, s32 order_required) {
@@ -245,13 +262,9 @@ static void InitSideFrom(s32 s, BattleSessionTeams* t, TeamRoster* fallback, s32
                         BaseSpeed(mon->species.id), s == sViewer ? mon->speed : 0);
         if (s != sViewer) {
             // the widest range under the opponents' Stat Exp setting (SPEED_STAT_ESTIMATE)
-            u16 lo, hi;
-            if (OpponentStatExp(&lo, &hi) && IsCom(r)) {
-                hu_card* c = &sSides[s].cards[i];
-                c->speed = hu_speed_intersect(c->speed, hu_speed_initial_se(BaseSpeed(mon->species.id), mon->level,
-                                                                            lo, hi));
-                c->transform_speed = c->speed;
-            }
+            hu_card* c = &sSides[s].cards[i];
+            c->speed = InitialOpponentSpeed(mon, r);
+            c->transform_speed = c->speed;
         }
         sIconKey[s][i] = 0;
         if (Port_Enh_SummaryBarsEnabled()) {
@@ -296,8 +309,14 @@ static void InitMemory(void) {
         hu_speed_range known;
         if (m == NULL) continue;
         if (hu_tm_mon_speed(m, BaseSpeed(c->species), lo, hi, &known)) {
-            c->speed = hu_speed_intersect(c->speed, known);
-            c->transform_speed = c->speed;
+            const BattleMon* mon = sCardMon[hidden][i];
+            if (mon != NULL && !SpeedRangeContains(known, mon->speed)) {
+                EnhLog("speed estimate failsafe: side %d card %d memory %u-%u excludes true speed %u; resetting to %u-%u",
+                       (int)hidden, (int)i, known.min, known.max, mon->speed, c->speed.min, c->speed.max);
+            } else {
+                c->speed = hu_speed_intersect(c->speed, known);
+                c->transform_speed = c->speed;
+            }
         }
         for (k = 0; k < HU_CARD_MOVES; k++) {
             if (hu_tm_move_seen(m, c->moves[k])) c->revealed |= (u8)(1 << k);
@@ -342,11 +361,11 @@ static s32 CardOf(s32 s, s32 shown) {
 // How many times the paralysis cut has been applied to the active Pokémon's speed since it was last recomputed: the
 // difference between its stage-applied raw stat and its live speed. Every cut happens on screen (paralysis, then each
 // stat change of the opponent: Gen 1's quirk), so this is information the player has.
-static hu_speed_mods ModsOf(const BattleMonRuntime* rt, s32 paralysed) {
+static hu_speed_mods ModsOf(const BattleMonRuntime* rt) {
     hu_speed_mods m = hu_speed_mods_none();
     u16 v;
     m.stage = (s8)(rt->statChanges[2] - 7);
-    if (paralysed) {
+    if (rt->pendingStatusCondition & 0x40) {
         v = hu_apply_stage(&hu_gb_speed_rules, rt->unmodifiedSpeed, m.stage);
         while (v > rt->modifiedSpeed && m.paralysis_cuts < 8) {
             v = v >> 2;
@@ -355,11 +374,6 @@ static hu_speed_mods ModsOf(const BattleMonRuntime* rt, s32 paralysed) {
         }
     }
     return m;
-}
-
-static const BattleMon* ActiveMon(s32 s) {
-    s32 c = CardOf(s, 0);
-    return c >= 0 ? sCardMon[s][c] : NULL;
 }
 
 static s32 IsSwitch(u8 used_move) {
@@ -457,14 +471,27 @@ void PortEnh_TurnOrder(int first_side) {
         s32 h = !sViewer;
         const BattleMonRuntime* mine = &sActivePokemon[sViewer]->state.runtime;
         const BattleMonRuntime* theirs = &sActivePokemon[h]->state.runtime;
-        const BattleMon* their_mon = ActiveMon(h);
         s32 c = CardOf(h, 0);
-        if (c >= 0 && their_mon != NULL && !IsSwitch(mine->usedMove) && !IsSwitch(theirs->usedMove) &&
+        if (c >= 0 && !IsSwitch(mine->usedMove) && !IsSwitch(theirs->usedMove) &&
             MovePriority(mine->usedMove) == MovePriority(theirs->usedMove) && !(mine->uniqueStatusFlags & 8) &&
             !(theirs->uniqueStatusFlags & 8)) {
             hu_card* card = &sSides[h].cards[c];
-            if (hu_speed_observe(&card->speed, first_side == h ? HU_MOVED_FIRST : HU_MOVED_SECOND, mine->modifiedSpeed,
-                                 &hu_gb_speed_rules, ModsOf(theirs, (their_mon->statusCondition & 0x40) != 0))) {
+            hu_speed_range next = card->speed;
+            u16 true_speed = theirs->unmodifiedSpeed;
+            bool changed = hu_speed_observe(&next, first_side == h ? HU_MOVED_FIRST : HU_MOVED_SECOND,
+                                            mine->modifiedSpeed, &hu_gb_speed_rules, ModsOf(theirs));
+            if (!SpeedRangeContains(next, true_speed)) {
+                const BattleMon* mon = sCardMon[h][c];
+                const TeamRoster* roster = sRosters[h][MemberOf(h, sActivePokemon[h]->state.teamMemberIndex)];
+                hu_speed_range reset = (mon != NULL)
+                    ? InitialOpponentSpeed(mon, roster)
+                    : hu_speed_initial(card->species ? BaseSpeed(card->species) : 0, card->level);
+                EnhLog("speed estimate failsafe: side %d card %d range %u-%u excludes true speed %u; resetting to %u-%u",
+                       (int)h, (int)c, next.min, next.max, true_speed, reset.min, reset.max);
+                card->speed = reset;
+                card->transform_speed = reset;
+            } else if (changed) {
+                card->speed = next;
                 EnhLog("speed estimate: side %d card %d now %u-%u", (int)h, (int)c, card->speed.min, card->speed.max);
                 if (sHasKey) {
                     u16 lo, hi;
@@ -545,7 +572,6 @@ static void Publish(void) {
     for (s = 0; s < 2; s++) {
         const BattleMonRuntime* rt = sOrderSelect ? NULL : &sActivePokemon[s]->state.runtime;
         const s32 active = sOrderSelect ? -1 : CardOf(s, 0);
-        const BattleMon* active_mon = (active >= 0) ? sCardMon[s][active] : NULL;
         v.sides[s] = sSides[s];
         for (i = 0; i < sSides[s].count; i++) {
             const hu_card* c = &sSides[s].cards[i];
@@ -566,11 +592,11 @@ static void Publish(void) {
                 }
             }
             // speed as the turn order compares it now: stage and paralysis applied to the active one
-            if (i == active && (c->flags & HU_CARD_F_ACTIVE) && active_mon != NULL) {
+            if (i == active && (c->flags & HU_CARD_F_ACTIVE)) {
                 if (s == sViewer && !(c->flags & HU_CARD_F_TRANSFORMED) && !(rt->uniqueStatusFlags & 8)) {
                     sr = hu_speed_exact(rt->modifiedSpeed);
                 } else {
-                    sr = hu_speed_shown(sr, &hu_gb_speed_rules, ModsOf(rt, (active_mon->statusCondition & 0x40) != 0));
+                    sr = hu_speed_shown(sr, &hu_gb_speed_rules, ModsOf(rt));
                 }
             }
             v.speed[s][i] = sr;
