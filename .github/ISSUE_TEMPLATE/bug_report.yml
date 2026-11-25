@@ -78,7 +78,7 @@ body:
         message quotes something private.
       render: text
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: extra
