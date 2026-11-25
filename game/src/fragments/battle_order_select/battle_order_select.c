@@ -1440,6 +1440,8 @@ s32 BattleMenu_RunOrderSelectScreen(s32 arg0, s32 arg1) {
     Text_InitStringTables();
     Font_Init(60, 0);
     PokeIcon_OpenModelArchive();
+    // PORT: load model_callback_library so 0x8100xxxx species callbacks render on the order select summary cards.
+    FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);
     sBackgroundArchive = ASSET_LOAD2(backgrounds, 1, 1);
     sBackgroundImage = BinArchive_GetFile(sBackgroundArchive, 5);
 

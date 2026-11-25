@@ -298,9 +298,34 @@ void PortEnh_MoveStart(void);
 // image the screen tiles), so the bars there sit on the screen's own background; nothing at 4:3.
 void PortEnh_OrderSelectFrame(const uint8_t required[2], const uint8_t picked[2]);
 void PortEnh_OrderSelectEnd(void);
-// More room for its display list buffer (Gfx_InitDisplayListBuffers' size) for the bars' card models.
+// More room for display list buffers (Gfx_InitDisplayListBuffers' size) for the summary bars' card models.
 uint32_t PortEnh_OrderSelectDisplayListRoom(void);
+uint32_t PortEnh_BattleDisplayListRoom(void);
 void PortEnh_OrderSelectBackdrop(const void* image);
+// Per-card effect state active while card_models.c renders a summary-bar card model (NULL during normal rendering).
+// Keeps card models isolated from battle's shared model_callback_library globals and freezes effects when held/fainted.
+typedef struct PortEnhCardParticle {
+    int16_t active;
+    int16_t padding0;
+    float position[3];
+    float velocity[3];
+    float scale[3];
+    int16_t age;
+    int16_t padding1;
+} PortEnhCardParticle;
+typedef struct PortEnhCardEffect {
+    int32_t frame;
+    int16_t scrollOffset;
+    uint8_t shouldStep;
+    uint8_t particlesSeeded;
+    int32_t textureNodeIndex;
+    int32_t particleNodeIndex;
+    int32_t particleDrawCount;
+    uint32_t randomState;
+    PortEnhCardParticle particles[10];
+} PortEnhCardEffect;
+PortEnhCardEffect* PortEnh_ActiveCardEffect(void);
+uint32_t PortEnh_CardEffectRandom(PortEnhCardEffect* effect);
 // Hue choice (hue_picker.c). PortEnh_HueShift: the hue to build `mon`'s model and icon with, `game_shift` being the
 // game's own (Model_ComputeNicknameColorVariant); PortEnh_HueBypass(1) keeps the game's own for the calls until
 // PortEnh_HueBypass(0) (a Hall of Fame record, which has no DVs). The team select screens' Pokémon card

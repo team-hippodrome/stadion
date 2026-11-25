@@ -31,7 +31,7 @@ static unk_arg1_func_81002830* Port_PdlFrameRecord(void* arg) {
         const u8* src;
         u8 raw[4 + 40];
         unk_arg1_func_81002830* out;
-    } sCache[32];
+    } sCache[256];
     static s32 sCount;
     static s32 sNext;
     const u8* p = (const u8*)Util_ConvertAddrToVirtAddr((uintptr_t)arg);
@@ -53,12 +53,12 @@ static unk_arg1_func_81002830* Port_PdlFrameRecord(void* arg) {
         }
     }
     if (slot < 0) {
-        if (sCount < 32) {
+        if (sCount < 256) {
             slot = sCount++;
             sCache[slot].out = calloc(1, sizeof(*out));
         } else {
             slot = sNext;
-            sNext = (sNext + 1) % 32;
+            sNext = (sNext + 1) % 256;
         }
         sCache[slot].src = p;
     }
@@ -77,16 +77,16 @@ void func_81002830(Gfx* gfx, unk_arg1_func_81002830* arg1) {
     s16 temp_v0;
     s32 var_a3;
     unk_arg1_func_81002830* p;
+    PortEnhCardEffect* cardEffect = PortEnh_ActiveCardEffect();
     p = arg1;
     if (D_8006F09C->textureMode == 0) {
         temp_v0 = 0x4000;
         // FAKE
         if ((arg1 && arg1) && arg1) {}
-        var_a3 = D_800AF7AE;
+        var_a3 = (cardEffect != NULL) ? cardEffect->frame : (s32)D_800AF7AE;
         temp_v0 = temp_v0 - (arg1->unk_00 * var_a3);
         // FAKE
         arg1 = NULL;
-        var_a3 = D_800AF7AE;
         gDPLoadTextureBlock(gfx++, p->unk_04[var_a3 & 0x7], G_IM_FMT_RGBA, G_IM_SIZ_16b, 64, 32, 0,
                             G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_CLAMP, 6, 5, G_TX_NOLOD, G_TX_NOLOD);
         gDPSetTileSize(gfx++, 0, temp_v0, 0, ((temp_v0 + 63) << 2), 124);
@@ -134,7 +134,8 @@ void DisplayList_InitSelectedTextureSegment(s32 arg0, TextureState* state) {
                 index = 0;
             }
         } else {
-            index = D_8006F084 & 7;
+            PortEnhCardEffect* cardEffect = PortEnh_ActiveCardEffect();
+            index = (cardEffect != NULL) ? (cardEffect->frame & 7) : (D_8006F084 & 7);
         }
         DisplayList_BuildSelectedTextureSegment(state->gfx, textures, index);
     }

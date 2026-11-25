@@ -1,8 +1,10 @@
+#include <stddef.h>
 #include "particle_data_library.h"
 #include "battle_hud.h"
 #include "geo_render.h"
 #include "gfx_buffer.h"
 #include "src/matrix.h"
+#include "StadionPort.h"
 
 typedef struct unk_D_810047E0 {
     /* 0x00 */ s16 active;
@@ -13,6 +15,21 @@ typedef struct unk_D_810047E0 {
     /* 0x28 */ s16 misc;
     /* 0x2A */ char unk2A[0x2];
 } unk_D_810047E0; // size = 0x2C
+
+_Static_assert(sizeof(PortEnhCardParticle) == sizeof(unk_D_810047E0),
+               "PortEnhCardParticle size must match unk_D_810047E0");
+_Static_assert(offsetof(PortEnhCardParticle, position) == offsetof(unk_D_810047E0, position),
+               "PortEnhCardParticle.position offset mismatch");
+_Static_assert(offsetof(PortEnhCardParticle, velocity) == offsetof(unk_D_810047E0, velocity),
+               "PortEnhCardParticle.velocity offset mismatch");
+_Static_assert(offsetof(PortEnhCardParticle, scale) == offsetof(unk_D_810047E0, scale),
+               "PortEnhCardParticle.scale offset mismatch");
+_Static_assert(offsetof(PortEnhCardParticle, age) == offsetof(unk_D_810047E0, misc),
+               "PortEnhCardParticle.age offset mismatch");
+
+static u32 Particle31_NextRandom(PortEnhCardEffect* cardEffect) {
+    return (cardEffect != NULL) ? PortEnh_CardEffectRandom(cardEffect) : (u32)guRandom();
+}
 
 // PORT: all words are addresses (display lists, textures); host addresses via Port_PdlWords
 typedef struct unk_arg2_func_81001D80 {
@@ -120,6 +137,7 @@ void Particle31_SpawnSpeciesEffect(unk_D_810047E0* arg0) {
     f32 sp58;
     u32 pad[2];
     f32 var_fs0;
+    PortEnhCardEffect* cardEffect = PortEnh_ActiveCardEffect();
 
     var_s1 = 0xA;
     guMtxXFMF(GeoRender_GetRelativeMatrix(-1)->mf, 0, 0, 0, &sp90.x, &sp90.y, &sp90.z);
@@ -140,45 +158,45 @@ void Particle31_SpawnSpeciesEffect(unk_D_810047E0* arg0) {
             sp64.x = 0.1f;
             sp64.y = 0.1f;
             sp64.z = 0.1f;
-            sp84.x += (f32)((guRandom() % 10) - 5) * sp60;
-            sp84.y += (f32)((guRandom() % 10) - 5) * sp5C;
-            sp84.z += (f32)((guRandom() % 10) - 5) * sp58;
+            sp84.x += (f32)((Particle31_NextRandom(cardEffect) % 10) - 5) * sp60;
+            sp84.y += (f32)((Particle31_NextRandom(cardEffect) % 10) - 5) * sp5C;
+            sp84.z += (f32)((Particle31_NextRandom(cardEffect) % 10) - 5) * sp58;
             break;
         case 0x4D:
             var_fs0 = 0.5f;
             sp64.x = 0.002f;
             sp64.y = 0.002f;
             sp64.z = 0.002f;
-            sp84.x += (f32)((guRandom() % 20) - 0xA) * sp60;
-            sp84.y += (f32)((guRandom() % 20) - 0xA) * sp5C;
-            sp84.z += (f32)((guRandom() % 20) - 0xA) * sp58;
+            sp84.x += (f32)((Particle31_NextRandom(cardEffect) % 20) - 0xA) * sp60;
+            sp84.y += (f32)((Particle31_NextRandom(cardEffect) % 20) - 0xA) * sp5C;
+            sp84.z += (f32)((Particle31_NextRandom(cardEffect) % 20) - 0xA) * sp58;
             break;
         case 0x4E:
             var_fs0 = 0.5f;
             sp64.x = 0.002f;
             sp64.y = 0.002f;
             sp64.z = 0.002f;
-            sp84.x += (f32)((guRandom() % 20) - 0xA) * sp60;
-            sp84.y += (f32)((guRandom() % 10) - 5) * sp5C;
-            sp84.z += (f32)((guRandom() % 20) - 0xA) * sp58;
+            sp84.x += (f32)((Particle31_NextRandom(cardEffect) % 20) - 0xA) * sp60;
+            sp84.y += (f32)((Particle31_NextRandom(cardEffect) % 10) - 5) * sp5C;
+            sp84.z += (f32)((Particle31_NextRandom(cardEffect) % 20) - 0xA) * sp58;
             break;
         case 0x90:
             var_fs0 = 0.0f;
             sp64.x = D_810040DC[0];
             sp64.y = D_810040DC[0];
             sp64.z = D_810040DC[0];
-            sp84.x += (f32)((guRandom() % 20) - 0xA) * sp60;
-            sp84.y += (f32)((guRandom() % 20) - 0xA) * sp5C;
-            sp84.z += (f32)((guRandom() % 20) - 0xA) * sp58;
+            sp84.x += (f32)((Particle31_NextRandom(cardEffect) % 20) - 0xA) * sp60;
+            sp84.y += (f32)((Particle31_NextRandom(cardEffect) % 20) - 0xA) * sp5C;
+            sp84.z += (f32)((Particle31_NextRandom(cardEffect) % 20) - 0xA) * sp58;
             break;
         case 0x86:
             var_fs0 = 0.0f;
             sp64.x = D_810040DC[0];
             sp64.y = D_810040DC[0];
             sp64.z = D_810040DC[0];
-            sp84.x += (f32)((guRandom() % 60) - 0x1E) * sp60;
-            sp84.y += (f32)((guRandom() % 40) - 0xA) * sp5C;
-            sp84.z += (f32)((guRandom() % 60) - 0x1E) * sp58;
+            sp84.x += (f32)((Particle31_NextRandom(cardEffect) % 60) - 0x1E) * sp60;
+            sp84.y += (f32)((Particle31_NextRandom(cardEffect) % 40) - 0xA) * sp5C;
+            sp84.z += (f32)((Particle31_NextRandom(cardEffect) % 60) - 0x1E) * sp58;
             break;
         case 0x5C:
             var_fs0 = 0.0f;
@@ -225,13 +243,15 @@ void Particle31_UpdateSpeciesEffectTrigger(unk_D_810047E0* arg0) {
     s16 temp_a0;
     s32 var_v0;
     s16* var_v1;
+    PortEnhCardEffect* cardEffect = PortEnh_ActiveCardEffect();
+    s32 nodeIndex = (cardEffect != NULL) ? cardEffect->particleNodeIndex : D_81004B54;
 
     var_a1 = D_8006F09C->transformAnim.frameFixed >> 0x10;
     switch (D_8006F09C->objectType) {
         case 0x6D:
         case 0x6E:
             temp_v1 = D_8006F09C->transformAnim.animationId;
-            temp_a0 = D_810040B8[D_81004B54 % 18];
+            temp_a0 = D_810040B8[nodeIndex % 18];
             switch (temp_v1) {
                 case 4:
                     if (var_a1 == D_81003FE0[temp_a0].unk_02) {
@@ -266,19 +286,19 @@ void Particle31_UpdateSpeciesEffectTrigger(unk_D_810047E0* arg0) {
             }
             break;
         case 0x92:
-            if ((guRandom() % 60) == 0) {
+            if ((Particle31_NextRandom(cardEffect) % 60) == 0) {
                 Particle31_SpawnSpeciesEffect(arg0);
                 return;
             }
             break;
         case 0x90:
-            if ((guRandom() % 30) == 0) {
+            if ((Particle31_NextRandom(cardEffect) % 30) == 0) {
                 Particle31_SpawnSpeciesEffect(arg0);
                 return;
             }
             break;
         case 0x86:
-            if ((guRandom() % 7) == 0) {
+            if ((Particle31_NextRandom(cardEffect) % 7) == 0) {
                 Particle31_SpawnSpeciesEffect(arg0);
                 return;
             }
@@ -288,7 +308,7 @@ void Particle31_UpdateSpeciesEffectTrigger(unk_D_810047E0* arg0) {
             return;
         case 0x4D:
         case 0x4E:
-            if ((guRandom() % 7) == 0) {
+            if ((Particle31_NextRandom(cardEffect) % 7) == 0) {
                 Particle31_SpawnSpeciesEffect(arg0);
             }
             break;
@@ -309,6 +329,7 @@ Gfx* func_810010BC(Gfx* gfx, unk_D_810047E0* arg1, unk_arg2_func_81001D80* arg2,
     f32 sp100;
     f32 spFC;
     DisplayObject* ptr;
+    PortEnhCardEffect* cardEffect = PortEnh_ActiveCardEffect();
 
     sp294 = Gfx_AllocDisplayList(0x40);
     MtxF_ExtractScale(&sp14C, &D_8006F088->view.floatMatrix);
@@ -320,7 +341,7 @@ Gfx* func_810010BC(Gfx* gfx, unk_D_810047E0* arg1, unk_arg2_func_81001D80* arg2,
         guScale(&sp250, D_8006F09C->scale.x * arg1->scale.x * 0.1f, D_8006F09C->scale.y * arg1->scale.y * 0.1f,
                 D_8006F09C->scale.z * arg1->scale.z * 0.1f);
     }
-    if (D_8006F09C->effectSlot == 0xFF) {
+    if ((cardEffect == NULL) && (D_8006F09C->effectSlot == 0xFF)) {
         if ((D_8006F09C->objectType == 0x5C) || (D_8006F09C->objectType == 0x6D) || (D_8006F09C->objectType == 0x6E)) {
             MtxF_Copy(&sp10C, GeoRender_GetRelativeMatrix(0));
             guMtxXFMF(sp10C.mf, 0, 0, 0, &spFC, &sp100, &sp104);
@@ -389,12 +410,12 @@ Gfx* func_810010BC(Gfx* gfx, unk_D_810047E0* arg1, unk_arg2_func_81001D80* arg2,
     }
     gSPDisplayList(gfx++, arg2->unk_04);
     gSPPopMatrix(gfx++, G_MTX_MODELVIEW);
-    if (ModelPhase_IsIdle() == 0) {
+    if ((cardEffect != NULL) ? (cardEffect->shouldStep != 0) : (ModelPhase_IsIdle() == 0)) {
         ptr = D_8006F09C;
         switch (ptr->objectType) {
             case 0x6D:
             case 0x6E:
-                if (ptr->effectSlot != 0xFF) {
+                if ((cardEffect != NULL) || (ptr->effectSlot != 0xFF)) {
                     arg1->position.y += 0.5f * ptr->scale.y;
                     arg1->misc++;
                     arg1->scale.x += 0.1f;
@@ -406,7 +427,7 @@ Gfx* func_810010BC(Gfx* gfx, unk_D_810047E0* arg1, unk_arg2_func_81001D80* arg2,
                 }
                 break;
             case 0x5C:
-                if (ptr->effectSlot == 0xFF) {
+                if ((cardEffect == NULL) && (ptr->effectSlot == 0xFF)) {
                     arg1->misc += 2;
                 } else {
                     arg1->misc++;
@@ -482,7 +503,11 @@ Gfx* func_810010BC(Gfx* gfx, unk_D_810047E0* arg1, unk_arg2_func_81001D80* arg2,
         arg1->velocity.y *= 0.9f;
         arg1->velocity.z *= 0.9f;
     }
-    D_81004B50 += 1;
+    if (cardEffect != NULL) {
+        cardEffect->particleDrawCount += 1;
+    } else {
+        D_81004B50 += 1;
+    }
     return gfx;
 }
 
@@ -516,6 +541,35 @@ void func_81001E24(s32 arg0, DisplayListState* state) {
     s32 pad2[1];
 
     sp5C = (intptr_t)Port_PdlWords(state->addresses);
+    {
+        PortEnhCardEffect* cardEffect = PortEnh_ActiveCardEffect();
+        if (cardEffect != NULL) {
+            if (arg0 == 2) {
+                if (cardEffect->particleNodeIndex == 0) {
+                    state->gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0x500));
+                } else {
+                    state->gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0x80));
+                }
+                gfx = state->gfx;
+                if ((cardEffect->particleDrawCount >= 0) && (cardEffect->particleDrawCount < 0xB)) {
+                    unk_D_810047E0* cardParticles = (unk_D_810047E0*)cardEffect->particles;
+                    if (cardEffect->shouldStep != 0) {
+                        Particle31_UpdateSpeciesEffectTrigger(cardParticles);
+                        cardEffect->particlesSeeded = 1;
+                    } else if ((D_8006F09C->objectType == 0x5C) && !cardEffect->particlesSeeded) {
+                        Particle31_SpawnSpeciesEffect(cardParticles);
+                        cardEffect->particlesSeeded = 1;
+                    }
+                    if (cardEffect->particleNodeIndex == 0) {
+                        gfx = Particle31_BuildDisplayList(gfx, cardParticles, (unk_arg2_func_81001D80*)sp5C, 0);
+                    }
+                }
+                gSPEndDisplayList(gfx);
+            }
+            cardEffect->particleNodeIndex += 1;
+            return;
+        }
+    }
     if (arg0 == 2) {
         if (D_81004B54 == 0) {
             state->gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0x500));

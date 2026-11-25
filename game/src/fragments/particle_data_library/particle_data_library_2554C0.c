@@ -24,7 +24,7 @@ uintptr_t* Port_PdlWords(void* arg) {
         const u8* src;
         u8 raw[40];
         uintptr_t* out;
-    } sCache[128];
+    } sCache[512];
     static s32 sCount;
     static s32 sNext;
     const u8* p = (const u8*)Util_ConvertAddrToVirtAddr((uintptr_t)arg);
@@ -45,12 +45,12 @@ uintptr_t* Port_PdlWords(void* arg) {
         }
     }
     if (slot < 0) {
-        if (sCount < 128) {
+        if (sCount < 512) {
             slot = sCount++;
             sCache[slot].out = calloc(10, sizeof(uintptr_t));
         } else {
             slot = sNext;
-            sNext = (sNext + 1) % 128;
+            sNext = (sNext + 1) % 512;
         }
         sCache[slot].src = p;
     }
@@ -107,10 +107,12 @@ void DisplayList_InitIndexedTextureSegment(s32 arg0, DisplayListState* state) {
     DisplayListAddresses* addresses;
 
     if (arg0 == 2) {
+        PortEnhCardEffect* cardEffect = PortEnh_ActiveCardEffect();
+        s32 frameIndex = (cardEffect != NULL) ? (cardEffect->frame & 7) : (D_8006F084 & 7);
         addresses = (DisplayListAddresses*)Port_PdlWords(state->addresses);
         gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0x50));
         state->gfx = gfx;
-        DisplayList_BuildIndexedTextureSegment(gfx, addresses, D_8006F084 & 7);
+        DisplayList_BuildIndexedTextureSegment(gfx, addresses, frameIndex);
     }
 }
 
@@ -135,10 +137,17 @@ void DisplayList_InitAnimatedModelTexture(s32 arg0, DisplayListState* state) {
 
     temp_v1 = ModelRenderer_GetActiveMode(); //! bug: Installation can read a NULL D_8006F09C before the event check.
     if (arg0 == 2) {
+        PortEnhCardEffect* cardEffect = PortEnh_ActiveCardEffect();
         addresses = (DisplayListAddresses*)Port_PdlWords(state->addresses);
         gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0x140));
         state->gfx = gfx;
-        DisplayList_BuildAnimatedModelTexture(gfx, addresses, ((D_800AF7B0[temp_v1 & 1] * 3) + D_81003FD0) % 8);
-        D_81003FD0 += 1;
+        if (cardEffect != NULL) {
+            s32 frameIndex = ((cardEffect->textureNodeIndex * 3) + cardEffect->frame) & 7;
+            cardEffect->textureNodeIndex += 1;
+            DisplayList_BuildAnimatedModelTexture(gfx, addresses, frameIndex);
+        } else {
+            DisplayList_BuildAnimatedModelTexture(gfx, addresses, ((D_800AF7B0[temp_v1 & 1] * 3) + D_81003FD0) % 8);
+            D_81003FD0 += 1;
+        }
     }
 }

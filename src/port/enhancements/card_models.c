@@ -8,9 +8,10 @@
 // battle's HUD, they are drawn into one off-screen picture per side (a libultraship framebuffer that summary_bars.cpp
 // creates and shows: G_SETFB), one cell per card.
 //
-// The copies are not one of the battle's two effect slots: they are initialised with no object type (so
-// Model_InitDisplayObject does not restart slot 0 or 1's effects, Charizard's flame and the like) and drawn with
-// effectSlot 0xFF (which the slot callbacks skip).
+// The copies are not one of the battle's two effect slots: Model_InitDisplayObject is called with objectType 0 (so it
+// does not restart slot 0 or 1's effects), then objectType is set to the real species with effectSlot 0xFF and a
+// per-card PortEnhCardEffect context active during Geo_RenderRootNode so model_callback_library effects render cleanly
+// per card, freeze when the card's speed is zero, and never touch battle globals.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,6 +28,7 @@
 #include "src/memory.h"
 #include "src/model_animation.h"
 #include "src/model_renderer.h"
+#include "StadionPort.h"
 
 #include "enhancements.h"
 #include "card_models.h"
@@ -35,7 +37,7 @@ void Port_VFree(void* host); // memmap.c: forgets a data blob's pseudo addresses
 
 #define CARD_MODEL_POOL (1536 * 1024)
 #define CARD_MODEL_SCRATCH 0x28000 // the compressed file (PokeIcon_OpenModelArchives' buffer size)
-#define CARD_MODEL_DL_ROOM 0x6000 // display list bytes kept free for one model (see PortEnh_CardModelsDraw)
+#define CARD_MODEL_DL_ROOM 0x8000  // display list bytes kept free for one model (including species callbacks)
 #define IDLE_ANIM 1                // the model previews' idle (PokeIcon_SetPreviewMon)
 
 typedef struct CardModel {
@@ -55,11 +57,28 @@ typedef struct CardModel {
     s32 sleepAnim;  // its sleeping idle (the species with one of their own), -1 none: it idles
     u8 faintStarted;
     u8 faintHeld;
+    u32 effectFrameFixed;
+    PortEnhCardEffect effect;
 } CardModel;
 
 static CardModel sCards[2][HU_SIDE_MAX];
 static u8* sScratch;
 static DisplayObject* sCaptured;
+static PortEnhCardEffect* sActiveCardEffect;
+
+PortEnhCardEffect* PortEnh_ActiveCardEffect(void) {
+    return sActiveCardEffect;
+}
+
+uint32_t PortEnh_CardEffectRandom(PortEnhCardEffect* effect) {
+    uint32_t state = effect->randomState;
+    if (state == 0) {
+        state = 0x13579BDFu;
+    }
+    state = state * 1664525u + 1013904223u;
+    effect->randomState = state;
+    return state >> 16;
+}
 
 static intptr_t CaptureModelNode(s32 event, GraphNode* node) {
     if (event == 0) {
@@ -174,8 +193,12 @@ static s32 LoadCard(CardModel* c, BattleMon* mon) {
     c->obj->position.z = (s16)(info->unk_14 << 6) >> 6;
     c->obj->rotation = D_8006F05C;
     ModelRenderer_ClearDisplayObject(c->obj);
-    Model_InitDisplayObject(c->obj, 0, 0, model->nodes[0]); // (no object type: see the top of this file)
+    Model_InitDisplayObject(c->obj, 0, 0, model->nodes[0]);
+    c->obj->objectType = (s16)species;
     c->obj->effectSlot = 0xFF;
+    c->effectFrameFixed = 0;
+    memset(&c->effect, 0, sizeof(c->effect));
+    c->effect.randomState = (u32)(species * 2654435761u) ^ (u32)((c - &sCards[0][0] + 1) * 0x9E3779B9u);
     scale = info->unk_02 / 100.0f;
     Vec3f_SetComponentsDuplicate(&c->obj->scale, scale, scale, scale);
     c->obj->node.renderFlags &= ~0x40;
@@ -334,29 +357,48 @@ void PortEnh_CardModelsDraw(const hu_side sides[2], const PortEnhCardBattle batt
             any |= sCards[s][i].loaded;
         }
         if (!any) continue;
-        // the side's off-screen picture: one cell per card, cleared to the colour of the card's model square
+        // the side's off-screen picture: one cell per card, cleared per cell right before drawing so any skipped card
+        // preserves its previous picture instead of blinking blank blue.
         SetFramebuffer(fb);
-        gDPSetCycleType(gDisplayListHead++, G_CYC_FILL);
-        gDPSetRenderMode(gDisplayListHead++, G_RM_NOOP, G_RM_NOOP2);
-        gDPSetScissor(gDisplayListHead++, G_SC_NON_INTERLACE, 0, 0, PORT_ENH_CARD_ATLAS_W, PORT_ENH_CARD_CELL);
-        gDPSetFillColor(gDisplayListHead++,
-                        (GPACK_RGBA5551(0x30, 0x3C, 0x60, 1) << 16) | GPACK_RGBA5551(0x30, 0x3C, 0x60, 1));
-        gDPFillRectangle(gDisplayListHead++, 0, 0, PORT_ENH_CARD_ATLAS_W - 1, PORT_ENH_CARD_CELL - 1);
-        gDPPipeSync(gDisplayListHead++);
-        gDPSetCycleType(gDisplayListHead++, G_CYC_1CYCLE);
         for (i = 0; i < sides[s].count && i < HU_SIDE_MAX; i++) {
             CardModel* c = &sCards[s][i];
+            s32 cellLeft;
+            u32 previousFrame;
             if (!c->loaded) continue;
             SetLook(c, &sides[s].cards[i], (i == battle[s].active) ? &battle[s] : NULL);
-            GeoCamera_SetViewport((CameraNode*)c->root->children, i * PORT_ENH_CARD_CELL, 0, PORT_ENH_CARD_CELL,
-                                  PORT_ENH_CARD_CELL);
+            cellLeft = i * PORT_ENH_CARD_CELL;
+            GeoCamera_SetViewport((CameraNode*)c->root->children, cellLeft, 0, PORT_ENH_CARD_CELL, PORT_ENH_CARD_CELL);
             GeoCamera_SetPerspective((CameraNode*)c->root->children, 30.0f, 100.0f, 12800.0f);
-            // a model takes 6-12 KB of the frame's display list buffer (its commands and matrices): with less room
+            // a model takes ~6-25 KB of the frame's display list buffer (including species callbacks): with less room
             // left it is not drawn this frame (its cell keeps the last picture), rather than the matrices running out
             if (Gfx_GetDisplayListRemaining() < CARD_MODEL_DL_ROOM) {
                 continue;
             }
+            gDPPipeSync(gDisplayListHead++);
+            gDPSetCycleType(gDisplayListHead++, G_CYC_FILL);
+            gDPSetRenderMode(gDisplayListHead++, G_RM_NOOP, G_RM_NOOP2);
+            gDPSetScissor(gDisplayListHead++, G_SC_NON_INTERLACE, cellLeft, 0, cellLeft + PORT_ENH_CARD_CELL,
+                          PORT_ENH_CARD_CELL);
+            gDPSetFillColor(gDisplayListHead++,
+                            (GPACK_RGBA5551(0x30, 0x3C, 0x60, 1) << 16) | GPACK_RGBA5551(0x30, 0x3C, 0x60, 1));
+            gDPFillRectangle(gDisplayListHead++, cellLeft, 0, cellLeft + PORT_ENH_CARD_CELL - 1,
+                             PORT_ENH_CARD_CELL - 1);
+            gDPPipeSync(gDisplayListHead++);
+            gDPSetCycleType(gDisplayListHead++, G_CYC_1CYCLE);
+
+            previousFrame = c->effectFrameFixed >> 16;
+            if (c->speed > 0) {
+                c->effectFrameFixed += (u32)c->speed;
+            }
+            c->effect.frame = (int32_t)(c->effectFrameFixed >> 16);
+            c->effect.shouldStep = (c->speed > 0 && (c->effectFrameFixed >> 16) != previousFrame) ? 1 : 0;
+            c->effect.textureNodeIndex = 0;
+            c->effect.particleNodeIndex = 0;
+            c->effect.particleDrawCount = 0;
+
+            sActiveCardEffect = &c->effect;
             Geo_RenderRootNode(c->root);
+            sActiveCardEffect = NULL;
         }
         SetFramebuffer(0);
     }

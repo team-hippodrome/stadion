@@ -871,7 +871,8 @@ s32 Battle_Main(s32 arg0, SessionContext* arg1) {
 
     main_pool_push_state('BATL');
 
-    Gfx_InitDisplayListBuffers(0x20000, 0);
+    // PORT: + room for the summary bars' card models (including model_callback_library effects)
+    Gfx_InitDisplayListBuffers(0x20000 + PortEnh_BattleDisplayListRoom(), 0);
     stage_context = StageContext_Allocate(0, 1, 3, 1, 2, 1);
     BattleScene_Init(stage_context);
     StageContext_Activate(stage_context);

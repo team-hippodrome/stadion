@@ -686,10 +686,15 @@ void PortEnh_OrderSelectFrame(const uint8_t required[2], const uint8_t picked[2]
     Publish();
 }
 
-// The screen's display list buffer is sized for the screen alone; the twelve card models take about 110 KB of it a
-// frame (6-12 KB each), so it gets that much more while the bars are on.
+// The screen's display list buffer is sized for the screen alone; twelve card models with active model_callback_library
+// effects (flames, smoke, scrolling textures) can take ~200-300 KB of host display list bytes per frame, so both order
+// select and battle get extra room while the bars are on.
 u32 PortEnh_OrderSelectDisplayListRoom(void) {
-    return Port_Enh_SummaryBarsEnabled() ? 0x10000 : 0; // (Gfx_InitDisplayListBuffers' size: the buffers are twice it)
+    return Port_Enh_SummaryBarsEnabled() ? 0x30000 : 0; // (Gfx_InitDisplayListBuffers' size: the buffers are twice it)
+}
+
+u32 PortEnh_BattleDisplayListRoom(void) {
+    return Port_Enh_SummaryBarsEnabled() ? 0x30000 : 0;
 }
 
 void PortEnh_OrderSelectEnd(void) {
