@@ -278,6 +278,7 @@ void Intro_LoadPokemonTextures(void) {
 
     Dma_WriteChunks(D_86B0FA80, temp_a1, temp_a1 + 0xBC0, 0);
     Dma_WriteChunks(&D_86B10660, sp1C, sp1C + sizeof(unk_70D3A0), 0);
+    Port_SwapWords(&D_86B10660, 4);
     Dma_WriteChunks(&D_86B10670, sp24, sp24 + sizeof(unk_D_70B10), 0);
 }
 
