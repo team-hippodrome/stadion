@@ -13,6 +13,7 @@
 #include "src/matrix.h"
 #include "src/dp_intro.h"
 #include "src/hal_libc.h"
+#include "StadionPort.h"
 
 typedef struct unk_D_842115F0 {
     /* 0x00 */ Color_RGB8 unk_00[4];
@@ -379,12 +380,25 @@ void TeamSelection_Preview_DrawPokemonDetails(unk_D_8423D3A8* arg0, s32 arg1) {
 
             gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 
+            // PORT: the hue choice enhancement's bar over the model picture (nothing while it is off)
+            PortEnh_HuePickerDraw(temp_s4 + 4, temp_s5 + 0x20, 0x64, 0x54, temp_s6);
+
             arg0->unk_20 = 0;
         }
     }
 }
 
 void func_8420C360(unk_D_8423D3A8* arg0) {
+}
+
+// PORT: the hue choice enhancement changed the card's Pokémon's colour: its model and its icon in the list again.
+static void TeamSelection_Preview_PortHueChanged(unk_D_8423D3A8* arg0) {
+    Vec3s rotation = arg0->unk_28->unk_24->rotation;
+
+    while (Display_IsFrameReady() == 0) {}
+    PokeIcon_SetPreviewMon(arg0->unk_28, &arg0->unk_2C->unk_004, 0x108D);
+    arg0->unk_28->unk_24->rotation = rotation; // it keeps turning from where it was
+    PokeIcon_LoadModelTextureForMon(arg0->unk_2C->unk_058, 0, &arg0->unk_2C->unk_004);
 }
 
 void TeamSelection_Preview_HandleInput(unk_D_8423D3A8* arg0) {
@@ -408,6 +422,8 @@ void TeamSelection_Preview_HandleInput(unk_D_8423D3A8* arg0) {
     } else if (BTN_IS_PRESSED(cont, BTN_DUP | BTN_DDOWN) && (arg0->unk_01 != 0)) {
         Audio_PlaySoundEffectById(SFX_MENU_SCROLL);
         arg0->unk_02 ^= 1;
+    } else if (PortEnh_HuePickerInput(&arg0->unk_2C->unk_004, cont->buttonPressed, cont->stickX)) {
+        TeamSelection_Preview_PortHueChanged(arg0); // PORT: L / R / Z and the stick pick its hue (an enhancement)
     }
 
     arg0->unk_06 = arg0->unk_0E.left;

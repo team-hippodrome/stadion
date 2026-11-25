@@ -57,8 +57,25 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # fmt 10.1 (distro spdlog) + clang 20: FMT_STRING's consteval check fails to compile; plain constexpr is enough
   add_compile_definitions(FMT_CONSTEVAL=)
 endif()
+# git checkout / pull never move the submodules: a checkout whose submodules are behind the commits this tree records
+# fails later on missing headers, so say so now, with the command that fixes it
+find_package(Git QUIET)
+if(GIT_FOUND AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/.git)
+  foreach(sub libultraship hippodrome-utils)
+    execute_process(COMMAND ${GIT_EXECUTABLE} ls-tree HEAD ${sub} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                    OUTPUT_VARIABLE sub_tree OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse HEAD WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${sub}
+                    OUTPUT_VARIABLE sub_head OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    string(REGEX MATCH "[0-9a-f]+\t" sub_want "${sub_tree}")
+    string(STRIP "${sub_want}" sub_want)
+    if(sub_want AND sub_head AND NOT sub_want STREQUAL sub_head)
+      message(WARNING "The ${sub} submodule is at ${sub_head}, but this checkout expects ${sub_want}. "
+                      "Run `git submodule update --init --recursive` (the build will likely fail otherwise).")
+    endif()
+  endforeach()
+endif()
 add_subdirectory(libultraship ${CMAKE_BINARY_DIR}/libultraship)
-# text_font (translated text's glyphs, src/port/text_lookup.cpp)
+# text_font (translated text's glyphs, src/port/text_lookup.cpp) and the enhancements (src/port/enhancements)
 add_subdirectory(hippodrome-utils ${CMAKE_BINARY_DIR}/hippodrome-utils)
 
 set(PORT_MAIN_SOURCES
@@ -73,6 +90,9 @@ set(PORT_MAIN_SOURCES
   src/port/launcher_reliability.cpp
   src/port/language_prompt.cpp
   src/port/text_lookup.cpp
+  src/port/enhancements/enhancements.cpp
+  src/port/enhancements/summary_bars.cpp
+  src/port/enhancements/memory_screen.cpp
   src/port/rom_check.cpp
   src/port/shader_warmup.cpp
   src/port/touch_controls.cpp
@@ -141,6 +161,10 @@ list(APPEND STADIUM_GAME_SOURCES ${PORT_ULTRALIB_SOURCES})
 # with the game code but kept in the port, so game/ holds only decomp code
 list(APPEND STADIUM_GAME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_func_table.c
      ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_fragment_entries.c)
+# the game-side parts of the hippodrome-utils enhancements: they read the game's structs, so they are compiled with the
+# game code, but kept in the port (src/port/enhancements/enhancements.h)
+file(GLOB PORT_ENHANCEMENT_GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/port/enhancements/*.c)
+list(APPEND STADIUM_GAME_SOURCES ${PORT_ENHANCEMENT_GAME_SOURCES})
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ultralib_sources.txt)
 # C arrays of 16/32-bit words in the game sources (textures among them need N64 byte order): their files are compiled
 # through generated wrappers that register the arrays with the renderer (see tools/gen_word_arrays.py)
@@ -252,8 +276,10 @@ target_sources(stadion PRIVATE ${CMAKE_BINARY_DIR}/generated/frag_sections.c)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tools/gen_frag_sections.py
              ${CMAKE_CURRENT_SOURCE_DIR}/src/port/generated/port_fragment_entries.c)
 set_target_properties(stadium_game PROPERTIES C_STANDARD 11 C_EXTENSIONS ON)
+target_link_libraries(stadium_game PRIVATE hippodrome::utils) # the enhancements' game-side parts
 target_include_directories(stadium_game PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/port # StadionPort.h: the game/port boundary
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/port/enhancements
   ${CMAKE_CURRENT_SOURCE_DIR}/game
   ${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk
   ${CMAKE_CURRENT_SOURCE_DIR}/src/port/sdk/PR

@@ -1507,6 +1507,7 @@ s32 Battle_CheckMonCanAct(void) {
 /* Resolve the current action through move selection, hit/damage checks and effect dispatch. */
 void ProcessBattleTurn(void) {
     s8 sp2C[12];
+    s32 port_can_act;
 
     if (sBattleUser->usedMove != 0xFF) {
         sBattleMoveFailed = 0;
@@ -1514,7 +1515,13 @@ void ProcessBattleTurn(void) {
         D_843C4DA9 = 0;
         D_843C4DB3 = 0xA;
 
-        switch (Battle_CheckMonCanAct()) {
+        port_can_act = Battle_CheckMonCanAct();
+        // PORT: arm the summary bars only for a new move attempt, before hit/failure resolution. Other results
+        // are inability to act or continuations of moves already attempted on a previous turn.
+        if (port_can_act == 2 || port_can_act == 3) {
+            PortEnh_MoveAttempted();
+        }
+        switch (port_can_act) {
             case 2:
                 Battle_LoadMoveCache();
                 if (sBattleUser->immobilizedReason & 0x10) {

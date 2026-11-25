@@ -919,8 +919,7 @@ s32 BattleMenu_PicksExceedLevelCap(BattleOrderInputState* input_state) {
     return 0;
 }
 
-/* Tests whether the panel has picked its required number of Pokemon. */
-s32 BattleMenu_IsOrderSelectionComplete(BattleOrderInputState* input_state) {
+static s8 BattleMenu_GetOrderPickLimit(const BattleOrderInputState* input_state) {
     s8 number_of_picks_allowed;
 
     if ((sSessionContext->ruleCategory != RULE_CATEGORY_ANYTHING_GOES) &&
@@ -935,7 +934,12 @@ s32 BattleMenu_IsOrderSelectionComplete(BattleOrderInputState* input_state) {
         }
     }
 
-    return input_state->numberOfPokemonPicked >= number_of_picks_allowed;
+    return number_of_picks_allowed;
+}
+
+/* Tests whether the panel has picked its required number of Pokemon. */
+s32 BattleMenu_IsOrderSelectionComplete(BattleOrderInputState* input_state) {
+    return input_state->numberOfPokemonPicked >= BattleMenu_GetOrderPickLimit(input_state);
 }
 
 /* Opens a slot's details or adds it to the picked order and checks the result. */
@@ -1216,6 +1220,8 @@ s32 BattleMenu_UpdateOrderSelect(s32 fade_mode) {
     s32 i;
     s32 ready_panel_count;
     s32 all_ready;
+    u8 required[2] = { 0, 0 };
+    u8 picked[2] = { 0, 0 };
 
     ready_panel_count = 0;
     all_ready = 0;
@@ -1232,13 +1238,30 @@ s32 BattleMenu_UpdateOrderSelect(s32 fade_mode) {
     }
 
     for (i = 0; i < sOrderSelectPanelCount; i++) {
-        ready_panel_count += BattleMenu_UpdateOrderSelectPanel(fade_mode, &sBattleOrderInputStates[i]);
-        BattleMenu_DrawOrderSelectPanel(&sBattleOrderInputStates[i]);
+        BattleOrderInputState* panel = &sBattleOrderInputStates[i];
+        ready_panel_count += BattleMenu_UpdateOrderSelectPanel(fade_mode, panel);
+        BattleMenu_DrawOrderSelectPanel(panel);
+
+        // The order summary cards cover solo rosters. The COM's scripted panel does not select its actual roster.
+        if (panel->partnerPanelIndex == -1 && !(panel->roster->isHuman & 2)) {
+            s32 j;
+            required[panel->sideIndex] = BattleMenu_GetOrderPickLimit(panel);
+            for (j = 0; j < panel->numberOfPokemonPicked; j++) {
+                s8 slot = panel->pickedSlots[j];
+                if (slot >= 0 && slot < 6 && slot < panel->rosterSize) {
+                    picked[panel->sideIndex] |= 1u << slot;
+                }
+            }
+        }
     }
 
     BattleMenu_DrawTeamOrderSidebarTeam0();
     BattleMenu_DrawTeamOrderSidebarTeam1();
     BattleMenu_DrawScrollingHelpText();
+    // PORT: widescreen: the background on into the picture's sides (every frame: the sides are cleared each frame);
+    // the summary bars (enhancements, on by default) show both parties
+    PortEnh_OrderSelectBackdrop(sBackgroundImage);
+    PortEnh_OrderSelectFrame(required, picked);
 
     if (fade_mode == 0) {
         if (ready_panel_count == sOrderSelectPanelCount) {
@@ -1407,10 +1430,11 @@ s32 BattleMenu_RunOrderSelectScreen(s32 arg0, s32 arg1) {
 
     main_pool_push_state('MSEL');
 
+    // PORT: + room for the summary bars' card models (an enhancement, on by default)
 #if defined(VERSION_US_REV2)
-    Gfx_InitDisplayListBuffers(0x18000, 0);
+    Gfx_InitDisplayListBuffers(0x18000 + PortEnh_OrderSelectDisplayListRoom(), 0);
 #else
-    Gfx_InitDisplayListBuffers(0x10000, 0);
+    Gfx_InitDisplayListBuffers(0x10000 + PortEnh_OrderSelectDisplayListRoom(), 0);
 #endif
     stage_context = StageContext_Allocate(1, 1, 2, 0, 2, 1);
     Text_InitStringTables();
@@ -1434,6 +1458,7 @@ s32 BattleMenu_RunOrderSelectScreen(s32 arg0, s32 arg1) {
     BgStage_WaitForCondition(BattleMenu_UpdateOrderSelect, 8, 8);
     StageContext_Deactivate();
     BattleMenu_CommitOrderSelection();
+    PortEnh_OrderSelectEnd(); // PORT: the summary bars' order screen cards (the battle starts its own)
     Font_Free();
     Gfx_FreeDisplayListBuffers();
 

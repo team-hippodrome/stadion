@@ -208,6 +208,20 @@ void Battle_DrawGradientRectWrapper(s32 x, s32 y, s32 width, s32 height, Color_R
 
 void func_84310360(void) {
 }
+
+// PORT: a controller port's menu gradient (the name tags' and menus' colours), for the enhancements' windows
+// (StadionPort.h "Enhancements")
+void BattleHud_PortMenuColors(int port, uint8_t start[3], uint8_t end[3]) {
+    if (port < 0 || port > 3) {
+        port = 0;
+    }
+    start[0] = sPlayerNameTagStartColor[port].r;
+    start[1] = sPlayerNameTagStartColor[port].g;
+    start[2] = sPlayerNameTagStartColor[port].b;
+    end[0] = sPlayerNameTagEndColor[port].r;
+    end[1] = sPlayerNameTagEndColor[port].g;
+    end[2] = sPlayerNameTagEndColor[port].b;
+}
 /*
     Draws the HP Bar and changes it color accordingly
     Of note, tiers are the same for deciding the winner

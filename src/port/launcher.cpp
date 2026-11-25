@@ -24,6 +24,7 @@
 #include "rom_check.h"
 #include "save_editor/save_editor_ui.h"
 #include "pad_assign.h"
+#include "enhancements/enhancements.h"
 
 #include <chrono>
 #include <libultraship/libultraship.h>
@@ -758,8 +759,25 @@ void LoadFonts(const State& s) {
         font->Scale = 1.0f / rasterScale;
         return font;
     };
+    // the game size also draws the summary bars' cards (Port::CardFont): Pokémon names may hold ♀ / ♂
+    static const ImWchar kGenderSigns[] = { 0x2640, 0x2640, 0x2642, 0x2642, 0 };
+    if (gUnifont.data.empty()) {
+        LoadExtraFont(gUnifont, "fonts/unifont_subset.otf");
+    }
+    auto addGame = [&](float rasterScale) {
+        ImFont* font = add(16, rasterScale);
+        if (!gUnifont.data.empty()) {
+            ImFontConfig cfg;
+            cfg.MergeMode = true;
+            cfg.FontDataOwnedByAtlas = false;
+            cfg.PixelSnapH = true;
+            io.Fonts->AddFontFromMemoryTTF(gUnifont.data.data(), (int)gUnifont.data.size(), 16 * rasterScale, &cfg,
+                                           kGenderSigns);
+        }
+        return font;
+    };
     for (float scale : {0.625f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f}) {
-        gFontSets.push_back({scale, {add(13, scale, true), add(11, scale), add(16, scale),
+        gFontSets.push_back({scale, {add(13, scale, true), add(11, scale), addGame(scale),
                                     add(20, scale), add(32, scale)}});
     }
 }
@@ -1117,6 +1135,12 @@ class LauncherWindow : public Ship::GuiWindow {
         if (getenv("PORT_LAUNCHER_OPEN_GRAPHICS") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
             mGraphicsTestOpened = mGraphics = true;
         }
+        if (getenv("PORT_LAUNCHER_OPEN_ENHANCEMENTS") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
+            mGraphicsTestOpened = mGraphics = mEnhancements = true;
+        }
+        if (getenv("PORT_LAUNCHER_OPEN_STATEXP") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
+            mGraphicsTestOpened = mGraphics = mEnhancements = mStatDifficulty = true;
+        }
         if (getenv("PORT_LAUNCHER_OPEN_SOUND") != nullptr && !mSoundTestOpened) { // test hook (as OPEN_TOOLS)
             mSoundTestOpened = mSound = true;
         }
@@ -1132,6 +1156,10 @@ class LauncherWindow : public Ship::GuiWindow {
             ToolsPanel(16, 58, kW - 32, 366);
         } else if (mControls) {
             ControlsPanel(16, 58, kW - 32, 366);
+        } else if (mGraphics && mEnhancements && mStatDifficulty) {
+            StatDifficultyPanel(16, 58, kW - 32, 366);
+        } else if (mGraphics && mEnhancements) {
+            EnhancementsPanel(16, 58, kW - 32, 366);
         } else if (mGraphics) {
             GraphicsPanel(16, 58, kW - 32, 366);
         } else if (mSound) {
@@ -2113,6 +2141,15 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button("Done", x + w - 108, y + 9, 94, 26)) {
             mGraphics = false;
         }
+        // The handheld Graphics page does not navigate the desktop enhancement panels.
+        if (!Handheld()) {
+            if (Button("Enhancements", x + w - 248, y + 9, 130, 26)) {
+                mEnhancements = true;
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Optional additions to the game from hippodrome-utils (on by default; each can be turned off)");
+            }
+        }
         dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
 
         const float lx = x + 14, cx = x + 190, tx = x + 560, pitch = 37;
@@ -2256,6 +2293,192 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(x + w - 160, by + 7, std::string("Current: ") + (recommended ? "Recommended" : lowPower ? "Low-power" : "Custom"),
              gFonts.small, Theme::dim);
         CVarSave();
+    }
+
+    // launcher > Graphics > Enhancements: the hippodrome-utils options (enhancements/enhancements.h), all off (or
+    // Vanilla) by default so the game plays and looks as on the N64
+    void EnhancementsPanel(float x, float y, float w, float h) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "ENHANCEMENTS", gFonts.body, Theme::text);
+        Text(x + 140, y + 15, "Additions to the original game. On by default; turn off any you do not want.", gFonts.small, Theme::dim);
+        if (Button("Back", x + w - 108, y + 9, 94, 26)) {
+            mEnhancements = mStatDifficulty = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+        const float lx = x + 14, cx = x + 190, tx = x + 370;
+        float ry = y + 60;
+        auto row = [&](const char* name, const char* id, const char* hint, bool on) {
+            Text(lx, ry + 5, name, gFonts.body);
+            Text(tx, ry + 1, hint, gFonts.small, Theme::dim);
+            const int c = Choice(id, { "On", "Off" }, on ? 0 : 1, cx, ry);
+            ry += 46;
+            return c;
+        };
+        int c = row("Move descriptions", "movedesc",
+                    "In battle, hold a Control Pad direction in the move menu to read the move on the\n"
+                    "C button of that direction: type, power, accuracy and what it does.",
+                    Port_Enh_MoveDescriptionsEnabled() != 0);
+        if (c >= 0) {
+            Port_Enh_SetMoveDescriptionsEnabled(c == 0);
+        }
+        c = row("Order queueing", "queue",
+                "Against the COM, press Z while the turn plays out to pick your next order (A / B, then its\n"
+                "button). It is entered as soon as your menu comes up; Z takes it back, L goes back a step.",
+                Port_Enh_OrderQueueEnabled() != 0);
+        if (c >= 0) {
+            Port_Enh_SetOrderQueueEnabled(c == 0);
+        }
+        c = row("Summary bars", "bars",
+                "During a battle, a card for each Pokémon of both sides beside the picture (in the room a\n"
+                "wider window leaves): HP, status, the moves seen so far and the opponent's Speed estimate.",
+                Port_Enh_SummaryBarsEnabled() != 0);
+        if (c >= 0) {
+            Port_Enh_SetSummaryBarsEnabled(c == 0);
+        }
+        c = row("Trainer memory", "memory",
+                "Before you pick your Pokémon for a cup or the castle, press a C button to see what you have\n"
+                "learned about its trainers: their teams, the moves seen and Speed estimates. Kept beside the save.",
+                Port_Enh_TrainerMemoryEnabled() != 0);
+        if (c >= 0) {
+            Port_Enh_SetTrainerMemoryEnabled(c == 0);
+        }
+        {
+            // three wider choices: the hint goes under them
+            static const int kModes[3] = { PORT_HUE_RESTRICTED, PORT_HUE_UNRESTRICTED, PORT_HUE_OFF };
+            const int mode = Port_Enh_HueChoiceMode();
+            int chosen = 2;
+            for (int i = 0; i < 3; i++) {
+                if (kModes[i] == mode) chosen = i;
+            }
+            Text(lx, ry + 5, "Hue choice", gFonts.body);
+            c = Choice("hue", { "Restricted", "Unrestricted", "Off" }, chosen, cx, ry, 96);
+            Text(lx, ry + 33,
+                 "Pick each Pokémon's colour on its card in the team select screens: L / R (15° steps) or the stick (smooth),\n"
+                 "Z for the game's own. Restricted: only the hues a nickname can give that species. Kept in a file beside the save.",
+                 gFonts.small, Theme::dim);
+            ry += 70;
+            if (c >= 0) Port_Enh_SetHueChoiceMode(kModes[c]);
+        }
+        {
+            hu_se_bounds r[2];
+            Port_Enh_StatExpBounds(PORT_SE_RENTAL, &r[0]);
+            Port_Enh_StatExpBounds(PORT_SE_OPPONENT, &r[1]);
+            const bool vanilla = !hu_se_bounds_active(&r[0]) && !hu_se_bounds_active(&r[1]);
+            Text(lx, ry + 5, "Stat Exp difficulty", gFonts.body);
+            if (ColorButton(vanilla ? "Vanilla" : "Changed", cx, ry, 132, 26, vanilla ? Theme::button : 0x23406B,
+                            vanilla ? Theme::buttonHover : 0x23406B)) {
+                mStatDifficulty = true;
+            }
+            auto name = [](const hu_se_bounds& b) {
+                return b.min.mode == b.max.mode ? std::string(hu_se_mode_name(b.min.mode))
+                                                : std::string(hu_se_mode_name(b.min.mode)) + " to " + hu_se_mode_name(b.max.mode);
+            };
+            Text(tx, ry + 1,
+                 std::string("The lowest and highest Stat Exp of the rental Pokémon and of the opponents, each a\n"
+                             "preset (Casual to Kaizo) or your own value. Now: rentals ") +
+                     name(r[0]) + ", opponents " + name(r[1]) + ".",
+                 gFonts.small, Theme::dim);
+            ry += 60;
+        }
+    }
+
+    // launcher > Graphics > Enhancements > Stat Exp (STATEXP_DIFFICULTY): a column per group with Vanilla, the five
+    // presets and Custom; the range in use, and once custom its two sliders and any error (a range with its maximum
+    // below its minimum stays vanilla until it is fixed).
+    void StatDifficultyPanel(float x, float y, float w, float h) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "STAT EXP DIFFICULTY", gFonts.body, Theme::text);
+        Text(x + 190, y + 15, "Vanilla keeps the game's own values. Harder: more Stat Exp for opponents, less for rentals.",
+             gFonts.small, Theme::dim);
+        if (Button("Back", x + w - 108, y + 9, 94, 26)) {
+            mStatDifficulty = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+        static const char* const kNames[2] = { "Rental Pokémon", "Opponent Pokémon" };
+        static const char* const kHints[2] = {
+            "The rentals on the Pokémon select screen and Battle Now's teams,\nas their cards show them. Not in Free Battle.",
+            "The cup, Gym Leader Castle and Mewtwo trainers and Battle Now's\nCOM. Not in Free Battle." };
+        const float colW = (w - 42) / 2;
+        for (int g = 0; g < 2; g++) {
+            const float cx = x + 14 + g * (colW + 14);
+            const hu_se_side side = g == PORT_SE_RENTAL ? HU_SE_RENTAL : HU_SE_OPPONENT;
+            float ry = y + 58;
+            hu_se_bounds r;
+            Port_Enh_StatExpBounds(g, &r);
+            Text(cx, ry + 5, kNames[g], gFonts.body);
+            Text(cx, ry + 26, kHints[g], gFonts.small, Theme::dim);
+            ry += 62;
+            ImGui::PushID(g);
+            bool changed = false;
+            // a bound: its seven modes in two rows (Vanilla Casual Easy Medium / Hard Kaizo Custom), the value of a
+            // preset beside them, and a slider once it is Custom; a Minimum above the Maximum moves the other one
+            auto bound = [&](const char* label, const char* id, hu_se_bound& b, bool is_min) {
+                const float bx = cx + 84;
+                Text(cx, ry + 5, label, gFonts.body);
+                ImGui::PushID(id);
+                const int c1 = Choice("m1", { "Vanilla", "Casual", "Easy", "Medium" },
+                                      b.mode <= HU_SE_MEDIUM ? b.mode : -1, bx, ry, 70);
+                const int c2 = Choice("m2", { "Hard", "Kaizo", "Custom" },
+                                      b.mode >= HU_SE_HARD ? b.mode - HU_SE_HARD : -1, bx, ry + 30, 70);
+                bool bound_changed = false;
+                if (c1 >= 0 || c2 >= 0) {
+                    const uint8_t mode = (uint8_t)(c1 >= 0 ? c1 : HU_SE_HARD + c2);
+                    if (mode == HU_SE_CUSTOM && b.mode != HU_SE_CUSTOM) {
+                        uint16_t v; // Custom starts from the value the bound had
+                        b.custom = hu_se_bound_value(&b, side, &v) ? v : (is_min ? 0 : 65535);
+                    }
+                    b.mode = mode;
+                    bound_changed = true;
+                }
+                uint16_t v;
+                if (b.mode != HU_SE_CUSTOM && hu_se_bound_value(&b, side, &v)) {
+                    Text(bx + 4 * 74 + 6, ry + 5, std::to_string(v), gFonts.body, Theme::dim);
+                }
+                ry += 62;
+                if (b.mode == HU_SE_CUSTOM) {
+                    ImGui::SetCursorScreenPos(P(bx, ry));
+                    ImGui::SetNextItemWidth((colW - 84) * mScale);
+                    ImGui::PushStyleColor(ImGuiCol_SliderGrab, HexV(0x4C7BD9));
+                    ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, HexV(0x6E95E6));
+                    int value = b.custom;
+                    if (ImGui::SliderInt("##value", &value, 0, 65535, "%d", ImGuiSliderFlags_AlwaysClamp)) {
+                        b.custom = (uint16_t)value;
+                        bound_changed = true;
+                    }
+                    ImGui::PopStyleColor(2);
+                    ry += 34;
+                }
+                ImGui::PopID();
+                if (bound_changed) {
+                    hu_se_bounds_fix(&r, side, is_min);
+                    changed = true;
+                }
+            };
+            bound("Minimum", "min", r.min, true);
+            bound("Maximum", "max", r.max, false);
+            uint16_t lo, hi;
+            const bool has_lo = hu_se_bound_value(&r.min, side, &lo), has_hi = hu_se_bound_value(&r.max, side, &hi);
+            std::string summary = "The game's own Stat Exp.";
+            if (has_lo && has_hi) {
+                summary = "Stat Exp from " + std::to_string(lo) + " to " + std::to_string(hi) + " (out of 65535).";
+            } else if (has_lo) {
+                summary = "Stat Exp at least " + std::to_string(lo) + " (out of 65535).";
+            } else if (has_hi) {
+                summary = "Stat Exp at most " + std::to_string(hi) + " (out of 65535).";
+            }
+            if (has_lo || has_hi) {
+                summary += "\nThe stats are worked out again; DVs are not changed.";
+            }
+            Text(cx, ry + 2, summary, gFonts.small, Theme::dim);
+            ImGui::PopID();
+            if (changed) {
+                Port_Enh_SetStatExpBounds(g, &r);
+            }
+        }
     }
 
     // launcher > Sound: CVars gSound.*, handed to the audio paths at once (Port::ApplySoundSettings, sound_settings.h)
@@ -2417,6 +2640,7 @@ class LauncherWindow : public Ship::GuiWindow {
         }
         if (Button(mGraphics ? "Players" : "Graphics", x + 340, y + 86, 100, 26)) {
             mGraphics = !mGraphics;
+            mEnhancements = mStatDifficulty = false;
             mControls = mTools = mSound = false;
         }
         if (ImGui::IsItemHovered()) {
@@ -2770,6 +2994,8 @@ class LauncherWindow : public Ship::GuiWindow {
     Port::GpuFacts mGpu;     // the graphics chip (Recommended)
     bool mGpuKnown = false;
     Port::GraphicsPick mPick;
+    bool mEnhancements = false;   // in the graphics panel: the enhancements page
+    bool mStatDifficulty = false; // in the enhancements page: the Stat Exp difficulty page
     bool mSound = false;    // the sound panel instead of the player cards
     bool mSoundTestOpened = false;
     bool mGraphicsTestOpened = false;
@@ -2864,6 +3090,17 @@ bool RunScriptStep(const ScriptStep& st) {
 } // namespace
 
 namespace Port {
+
+// The launcher's game-size font (16 px, ♀ / ♂ included) in the raster closest to `pixels`, for the port's own windows
+// during play (the summary bars: summary_bars.cpp). nullptr before the launcher has built its fonts.
+ImFont* CardFont(float pixels) {
+    if (gFontSets.empty()) return nullptr;
+    const float target = std::max(0.01f, pixels / 16.0f);
+    const auto nearest = std::min_element(gFontSets.begin(), gFontSets.end(), [target](const FontSet& a, const FontSet& b) {
+        return std::abs(std::log(a.rasterScale / target)) < std::abs(std::log(b.rasterScale / target));
+    });
+    return nearest->fonts.game;
+}
 
 std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool& restart) {
     State state = Load();

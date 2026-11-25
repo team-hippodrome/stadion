@@ -1,3 +1,4 @@
+#include "StadionPort.h"
 #include "fragments/rental_team_selection/rental_team_selection.h"
 #include "src/display_object_textures.h"
 #include "src/poke_icon.h"
@@ -538,6 +539,8 @@ s16 TeamSelection_RunModal(s16 arg0, s16 arg1, s16 arg2, s32 arg3) {
 
     while (temp_s1 == -1) {
         Controller_PollInputs();
+        // PORT: trainer memory (an enhancement, on by default): a C button opens the memory screen over this one
+        PortEnh_MemoryScreenFrame();
         TeamSelection_TrainerSlots_Update();
         TeamSelection_RulePrompt_Update();
         temp_s1 = TeamSelection_TrainerSlots_GetSelection();
@@ -546,6 +549,7 @@ s16 TeamSelection_RunModal(s16 arg0, s16 arg1, s16 arg2, s32 arg3) {
     }
 
     TeamSelection_RenderFrame(-1, arg1, arg2);
+    PortEnh_MemoryScreenEnd(); // PORT: trainer memory
     return temp_s1;
 }
 
@@ -1089,6 +1093,8 @@ void Rental_LoadRosterForMode(void) {
                 BattleMon tmp = D_84211B38->unk_04[k];
                 Port_BattleMonFromBE(&D_84211B38->unk_04[k], &tmp);
             }
+            // PORT: Stat Exp difficulty (an enhancement, Vanilla by default), once per loaded roster
+            PortEnh_StatExpRentals(D_84211B38->unk_04, n);
         }
     }
 }

@@ -419,6 +419,7 @@ void Battle_StartTurn(void) {
     if ((runtime->usedMove & 0xF0) == 0xF0) {
         sBattleScene.scene->actingSide = !sBattleScene.scene->actingSide;
     }
+    PortEnh_TurnOrder(sBattleScene.scene->actingSide); // PORT: speed estimate from the turn order (enhancements)
 
     if (sActivePokemon[0]->teamRoster->isHuman & 2) {
         if (sBattleScene.scene->actingSide == 0) {
@@ -453,6 +454,7 @@ void BattleScene_InitializeSwitchActions(void) {
     BattleScene_SetCameraSubstate(1, 1);
 
     side = sBattleScene.scene->actingSide;
+    PortEnh_TurnOrder(-1); // PORT: a switch turn: the other side's move, no speed estimate (enhancements)
 
     if ((state1->replacementState == REPLACEMENT_VOLUNTARY_SWITCH) ||
         (state1->replacementState == REPLACEMENT_INVOLUNTARY_SWITCH)) {
@@ -1499,6 +1501,7 @@ void BattleScene_ActionSetupCameraStep(CameraNode* camera) {
             // take game frames longer (DMA); PORT_XCHECK_LOAD_WAIT makes the port wait as long
             if ((BattleAnim_TryRegisterAssetTables(sActingPokemon) != 0) && !Port_XcheckLoadWait()) {
                 sMultihitEffectCountdown = sMultihitCountdown = sMultihitCount;
+                PortEnh_MoveStart(); // PORT: the move is shown: reveal it on the summary bars (enhancements)
                 BattleBox_Open(0);
                 BattleScene_ResetCameraFrameCounter();
                 sBattleScene.scene->phaseSubstep += 1;

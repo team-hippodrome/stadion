@@ -1,4 +1,5 @@
 #include "session.h"
+#include "StadionPort.h"
 #include "src/gb_data.h"
 #include "src/pokemon_stats.h"
 #include "src/save_data.h"
@@ -520,6 +521,7 @@ void Team_LoadOpponentPreset(void) {
     }
 
     main_pool_pop_state('RIVL');
+    PortEnh_TmTrainerLoaded(); // PORT: trainer memory (an enhancement, on by default) keeps its name and team
 }
 
 void Team_BuildQuickBattleTeams(s16 arg0) {
@@ -545,6 +547,15 @@ void Team_BuildQuickBattleTeams(s16 arg0) {
     }
 
     D_80075684 ^= 1;
+
+    // PORT: Stat Exp difficulty (an enhancement, Vanilla by default): Battle Now's preset teams of the human sides are
+    // rentals
+    if (gSessionContext.battleSides[0].tagTeamMember[0]->isHuman == 1) {
+        PortEnh_StatExpRoster(gSessionContext.battleSides[0].tagTeamMember[0], 0);
+    }
+    if (gSessionContext.battleSides[1].tagTeamMember[0]->isHuman == 1) {
+        PortEnh_StatExpRoster(gSessionContext.battleSides[1].tagTeamMember[0], 0);
+    }
 
     main_pool_pop_state('RIVL');
 }

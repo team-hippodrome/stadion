@@ -252,6 +252,72 @@ int Port_TextLanguageCount(void);
 const char* Port_TextLanguageName(int choice);
 int Port_TextLanguageChoice(void);
 void Port_TextLanguageSet(int choice);
+// The port's own string `id` (translation/port.csv) in the chosen text language, or the ROM's language when none is
+// chosen, in the game's encoding (as Port_TextLookup's); English when that cell is empty, `id` when there is none.
+const char* Port_TextPortString(const char* id);
+// `text` (the game's encoding) as UTF-8 into out (size bytes, always terminated): for the port's own windows (ImGui).
+// Returns the bytes written.
+int Port_TextToUtf8(const char* text, char* out, int size);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Enhancements (src/port/enhancements/; hippodrome-utils docs/specs). Each hook does nothing while its option is off.
+// ---------------------------------------------------------------------------------------------------------------------
+
+struct BattleMon;
+struct TeamRoster;
+// Stat Exp difficulty (statexp_difficulty.c): the rental setting on the Pokémon select screen's rental roster as it
+// is loaded (fragment61 Rental_LoadRosterForMode); a setting (0 rental, 1 opponent) on a roster's Pokémon (Battle
+// Now's preset teams, Team_BuildQuickBattleTeams); the opponent setting on every COM roster as a battle starts
+// (BattleScene_Init, before Battle_SelectComRoster).
+void PortEnh_StatExpRentals(struct BattleMon* mons, int count);
+void PortEnh_StatExpRoster(struct TeamRoster* roster, int group);
+void PortEnh_StatExpBattleTeams(void);
+
+struct ActivePokemon;
+// A battle starts (BattleScene_Init, once its participants are set up) and, every frame the battle draws its HUD, after
+// it (battle_engine_messages.c Battle_RenderHud). battle_enhancements.c.
+void PortEnh_BattleBegin(void);
+void PortEnh_BattleFrame(void);
+// The battle's command menus (battle_menus.c): mid-battle move descriptions and order queueing.
+// BattleScene_HandlePlayerMoveSelection, before its C buttons; BattleScene_CollectPlayerAction, first (with the
+// command phase's frame count, sElapsedOrderSelectionTime) and last.
+void PortEnh_MoveMenuInput(struct ActivePokemon* a);
+void PortEnh_PlayerCommandBegin(struct ActivePokemon* a, struct ActivePokemon* foe, float elapsed_frames);
+void PortEnh_PlayerCommandEnd(struct ActivePokemon* a);
+// The side summary bars and speed estimates (battle_enhancements.c): who acts first, once Battle_StartTurn has the
+// order (-1 from BattleScene_InitializeSwitchActions: a side switches, Speed decided nothing); the acting Pokémon
+// attempts a move (ProcessBattleTurn, after the inability-to-act checks); the move's presentation starts
+// (BattleScene_ActionSetupCameraStep, as its message box opens), which reveals the attempted move on its card.
+void PortEnh_TurnOrder(int first_side);
+void PortEnh_MoveAttempted(void);
+void PortEnh_MoveStart(void);
+// The battle order screen (battle_order_select.c): the summary bars show both parties there too. Each frame it draws
+// (BattleMenu_UpdateOrderSelect, after the screen), and once it has closed (BattleMenu_RunOrderSelectScreen).
+// The frame receives each human side's required pick count and current roster-slot mask; COM sides have count 0.
+// PortEnh_OrderSelectBackdrop: in widescreen its tiled background goes on into the sides of the picture (with the
+// image the screen tiles), so the bars there sit on the screen's own background; nothing at 4:3.
+void PortEnh_OrderSelectFrame(const uint8_t required[2], const uint8_t picked[2]);
+void PortEnh_OrderSelectEnd(void);
+// More room for its display list buffer (Gfx_InitDisplayListBuffers' size) for the bars' card models.
+uint32_t PortEnh_OrderSelectDisplayListRoom(void);
+void PortEnh_OrderSelectBackdrop(const void* image);
+// Hue choice (hue_picker.c). PortEnh_HueShift: the hue to build `mon`'s model and icon with, `game_shift` being the
+// game's own (Model_ComputeNicknameColorVariant); PortEnh_HueBypass(1) keeps the game's own for the calls until
+// PortEnh_HueBypass(0) (a Hall of Fame record, which has no DVs). The team select screens' Pokémon card
+// (TeamSelection_Preview): PortEnh_HuePickerInput takes its L / R / Z and stick, 1 when the hue changed (the card then
+// rebuilds the model and the icon); PortEnh_HuePickerDraw draws the hue bar over the card's model picture.
+int16_t PortEnh_HueShift(struct BattleMon* mon, int16_t game_shift);
+void PortEnh_HueBypass(int on);
+int PortEnh_HuePickerInput(struct BattleMon* mon, uint16_t pressed, float stick_x);
+void PortEnh_HuePickerDraw(int x, int y, int w, int h, struct BattleMon* mon);
+// Trainer memory (stadion_trainer_memory.c, memory_screen.c). Team_LoadOpponentPreset has loaded the COM trainer (its
+// name and team go into the memory). The screen right before the player picks their Game Boy or rental Pokémon
+// (TeamSelection_RunModal, each frame after Controller_PollInputs): the choosing player's C button opens the memory
+// screen; while it is open it takes the buttons (it clears them, so the screen under it sees none).
+// PortEnh_MemoryScreenEnd: that screen has closed.
+void PortEnh_TmTrainerLoaded(void);
+void PortEnh_MemoryScreenFrame(void);
+void PortEnh_MemoryScreenEnd(void);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Hooks the game implements for the port
@@ -274,6 +340,8 @@ uintptr_t Port_DlBufferBase(void);
 // The ROM font's glyph for a byte, 0 for none (game/src/graphics_textures.c): text_lookup.cpp keeps a character as
 // one byte only where the font draws it.
 uint8_t Font_MapGlyphCode(uint16_t index);
+// A controller port's menu gradient, top and bottom colours as RGB (battle_engine_hud.c), for the enhancements' windows.
+void BattleHud_PortMenuColors(int port, uint8_t start[3], uint8_t end[3]);
 // Field offsets of the Game Boy Tower's emulator context, used by src/port/gb_core.c
 // (game/src/fragments/gb_tower_emulator/gb_tower_emulator_7F9A0.c).
 extern const size_t Port_GbEmuOffsets[9];
