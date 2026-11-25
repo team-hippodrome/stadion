@@ -2141,11 +2141,14 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button("Done", x + w - 108, y + 9, 94, 26)) {
             mGraphics = false;
         }
-        if (Button("Enhancements", x + w - 248, y + 9, 130, 26)) {
-            mEnhancements = true;
-        }
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Optional additions to the game from hippodrome-utils (on by default; each can be turned off)");
+        // The handheld Graphics page does not navigate the desktop enhancement panels.
+        if (!Handheld()) {
+            if (Button("Enhancements", x + w - 248, y + 9, 130, 26)) {
+                mEnhancements = true;
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Optional additions to the game from hippodrome-utils (on by default; each can be turned off)");
+            }
         }
         dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
 
