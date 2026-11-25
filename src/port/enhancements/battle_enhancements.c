@@ -595,7 +595,6 @@ static void DrawModels(void) {
         for (k = 0; k < 8; k++) alt |= (sPokemonWithAlternateSleepIdle[k] == type);
         battle[s].active = CardOf(s, 1);
         battle[s].obj = &a->displayObject;
-        battle[s].idleAnim = (cues != NULL) ? cues->idleCues.id : -1;
         battle[s].faintAnim = (cues != NULL) ? cues->faintCue.id : -1;
         battle[s].sleepAnim = (cues != NULL && alt) ? cues->sleepIdleCue.id : -1;
     }
@@ -680,7 +679,7 @@ void PortEnh_OrderSelectFrame(const uint8_t required[2], const uint8_t picked[2]
         }
         none[s].active = -1;
         none[s].obj = NULL;
-        none[s].idleAnim = none[s].faintAnim = none[s].sleepAnim = -1;
+        none[s].faintAnim = none[s].sleepAnim = -1;
     }
     PortEnh_CardModelsDraw(sSides, none); // (in the room PortEnh_OrderSelectDisplayListRoom adds; it checks per model)
     Publish();

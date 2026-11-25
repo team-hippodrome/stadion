@@ -52,7 +52,6 @@ typedef struct CardModel {
     DisplayObject* obj;
     s32 anim;  // the animation playing (-1 none)
     s32 speed; // 16.16 step
-    s32 idleAnim;   // its idle (its battle cue once it has been in battle)
     s32 faintAnim;  // its fainting animation (from its battle cues while it is in battle), -1 unknown
     s32 sleepAnim;  // its sleeping idle (the species with one of their own), -1 none: it idles
     u8 faintStarted;
@@ -108,7 +107,6 @@ static void FreeCard(CardModel* c) {
     memset(c, 0, sizeof(*c));
     c->own = own;
     c->anim = -1;
-    c->idleAnim = IDLE_ANIM;
     c->faintAnim = -1;
     c->sleepAnim = -1;
 }
@@ -286,8 +284,9 @@ static void SetLook(CardModel* c, const hu_card* card, const PortEnhCardBattle* 
     u8 amount;
 
     if (in_battle) {
-        // what the species' battle cues say (only loaded for the Pokémon in battle)
-        if (battle->idleAnim >= 0) c->idleAnim = battle->idleAnim;
+        // what the species' battle cues say (only loaded for the Pokémon in battle); keep IDLE_ANIM for idle because
+        // LoadCard frames models with D_8006FF00, which is tuned for preview idle 1 rather than battle idle 0 (where
+        // flying species like Pidgeot and Pidgeotto hover above the card camera)
         if (battle->faintAnim >= 0) c->faintAnim = battle->faintAnim;
         c->sleepAnim = battle->sleepAnim;
     }
@@ -315,19 +314,19 @@ static void SetLook(CardModel* c, const hu_card* card, const PortEnhCardBattle* 
                 // directly it is byte-swapped and the frame was far past the end, which shows the model's rest pose)
                 c->obj->transformAnim.frameFixed &= ~0xFFFF;
             } else if (!c->faintStarted) {
-                Play(c, c->idleAnim, 0x10000); // idling until the battle model faints
+                Play(c, IDLE_ANIM, 0x10000); // idling until the battle model faints
             }
             break;
         case HU_ANIM_SLEEP:
-            Play(c, (c->sleepAnim >= 0) ? c->sleepAnim : c->idleAnim, 0x10000);
+            Play(c, (c->sleepAnim >= 0) ? c->sleepAnim : IDLE_ANIM, 0x10000);
             break;
         case HU_ANIM_FROZEN:
         case HU_ANIM_HOLD:
-            if (c->anim < 0) Play(c, c->idleAnim, 0);
+            if (c->anim < 0) Play(c, IDLE_ANIM, 0);
             SetSpeed(c, 0); // the pose it has, held
             break;
         default:
-            Play(c, c->idleAnim, speed);
+            Play(c, IDLE_ANIM, speed);
             break;
     }
     if (look.anim == HU_ANIM_FAINT) {
