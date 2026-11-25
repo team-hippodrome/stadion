@@ -8,6 +8,8 @@
 namespace Port {
 struct LauncherSlot { bool enabled = false; std::string rom, save; };
 struct LauncherCheck { std::vector<std::string> errors, warnings; };
+// Why the US Stadium will not use the cartridge whose ROM header (0x150 bytes or more) this is; empty when it will.
+std::string GameBoyCartridgeNotice(const uint8_t* rom);
 LauncherCheck CheckLauncherFiles(const std::filesystem::path& directory, const std::string& save,
                                  const std::array<LauncherSlot, 4>& slots);
 // Preserve the previous on-disk save once per process/session, then replace atomically.

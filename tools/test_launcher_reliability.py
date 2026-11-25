@@ -57,12 +57,38 @@ int main(int argc, char** argv) {
         return subprocess.run(args, input=str(path)+'\n'+str(home)+'\n'+extra,
                               text=True, encoding='utf-8', capture_output=True, timeout=30)
 
-    def gb_rom(self, path):
-        data = bytearray(0x100000)
-        data[0x134:0x13f] = b'POKEMON RED'
-        data[0x147:0x14a] = bytes([0x13, 5, 3])
+    def gb_rom(self, path, title=b'POKEMON RED', mbc=0x13, rom_code=5, destination=1):
+        data = bytearray(0x8000 << rom_code)
+        data[0x134:0x134+len(title)] = title
+        data[0x144:0x147] = b'01\x03'  # licensee "01", Super Game Boy flag
+        data[0x147:0x14b] = bytes([mbc, rom_code, 3, destination])
+        data[0x14b] = 0x33
         data[0x14d] = (-sum(data[0x134:0x14d])-25) & 255
         path.write_bytes(data)
+
+    def cartridge_warnings(self, home, rom):
+        save = home/'stadium.flash'; save.write_bytes(self.fixture)
+        result = self.invoke('check', save, home, f'{rom}\n\n')
+        return [line for line in result.stdout.splitlines() if line.startswith('WARNING Player 1') and 'battery save' not in line]
+
+    def test_cartridge_notice_follows_what_the_us_stadium_accepts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp); rom = home/'cart.gb'
+            self.gb_rom(rom)
+            self.assertEqual(self.cartridge_warnings(home, rom), [])
+            # English-engine Green (the US game lists POKEMON GREEN): a fan translation such as Pokemon Verde, MBC5
+            self.gb_rom(rom, b'POKEMON GREEN', mbc=0x1b)
+            self.assertEqual(self.cartridge_warnings(home, rom), [])
+            # Japanese Green: 512 KB, Japanese destination code
+            self.gb_rom(rom, b'POKEMON GREEN', rom_code=4, destination=0)
+            warnings = self.cartridge_warnings(home, rom)
+            self.assertEqual(len(warnings), 1); self.assertIn('Japanese cartridge (POKEMON GREEN)', warnings[0])
+            self.gb_rom(rom, b'POKEMON BLUE', rom_code=4)
+            warnings = self.cartridge_warnings(home, rom)
+            self.assertEqual(len(warnings), 1); self.assertIn('ROM size (1 MB expected)', warnings[0])
+            self.gb_rom(rom, b'POKEMON_GLDAAUE', mbc=0x10, rom_code=6)
+            warnings = self.cartridge_warnings(home, rom)
+            self.assertEqual(len(warnings), 1); self.assertIn('"POKEMON_GLDAAUE" is not', warnings[0])
 
     def test_preflight_missing_save_is_new_and_does_not_create_it(self):
         with tempfile.TemporaryDirectory() as tmp:
