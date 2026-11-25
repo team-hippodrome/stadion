@@ -177,19 +177,13 @@ static s32 OpponentStatExp(u16* lo, u16* hi) {
 
 static s32 sOrderSelect; // the cards are the battle order screen's (PortEnh_OrderSelectFrame), not a battle's
 
-static s32 SpeedRangeContains(hu_speed_range range, u16 true_speed) {
-    return true_speed >= range.min && true_speed <= range.max;
-}
-
 static hu_speed_range InitialOpponentSpeed(const BattleMon* mon, const TeamRoster* roster) {
     hu_speed_range range = hu_speed_initial(BaseSpeed(mon->species.id), mon->level);
     u16 stat_exp_min, stat_exp_max;
     if (OpponentStatExp(&stat_exp_min, &stat_exp_max) && IsCom(roster)) {
         hu_speed_range clamped = hu_speed_intersect(
             range, hu_speed_initial_se(BaseSpeed(mon->species.id), mon->level, stat_exp_min, stat_exp_max));
-        if (SpeedRangeContains(clamped, mon->speed)) {
-            range = clamped;
-        }
+        range = hu_speed_validate(clamped, mon->speed, range, NULL);
     }
     return range;
 }
@@ -310,13 +304,19 @@ static void InitMemory(void) {
         if (m == NULL) continue;
         if (hu_tm_mon_speed(m, BaseSpeed(c->species), lo, hi, &known)) {
             const BattleMon* mon = sCardMon[hidden][i];
-            if (mon != NULL && !SpeedRangeContains(known, mon->speed)) {
-                EnhLog("speed estimate failsafe: side %d card %d memory %u-%u excludes true speed %u; resetting to %u-%u",
-                       (int)hidden, (int)i, known.min, known.max, mon->speed, c->speed.min, c->speed.max);
+            hu_speed_range merged = hu_speed_intersect(c->speed, known);
+            if (mon != NULL) {
+                bool was_reset = false;
+                c->speed = hu_speed_validate(merged, mon->speed, c->speed, &was_reset);
+                if (was_reset) {
+                    EnhLog("speed estimate failsafe: side %d card %d memory %u-%u excludes true speed %u; resetting to %u-%u",
+                           (int)hidden, (int)i, known.min, known.max, mon->speed, c->speed.min, c->speed.max);
+                    hu_tm_clear_speed(Port_Enh_Memory(), sKey, c->species);
+                }
             } else {
-                c->speed = hu_speed_intersect(c->speed, known);
-                c->transform_speed = c->speed;
+                c->speed = merged;
             }
+            c->transform_speed = c->speed;
         }
         for (k = 0; k < HU_CARD_MOVES; k++) {
             if (hu_tm_move_seen(m, c->moves[k])) c->revealed |= (u8)(1 << k);
@@ -476,28 +476,28 @@ void PortEnh_TurnOrder(int first_side) {
             MovePriority(mine->usedMove) == MovePriority(theirs->usedMove) && !(mine->uniqueStatusFlags & 8) &&
             !(theirs->uniqueStatusFlags & 8)) {
             hu_card* card = &sSides[h].cards[c];
-            hu_speed_range next = card->speed;
-            u16 true_speed = theirs->unmodifiedSpeed;
-            bool changed = hu_speed_observe(&next, first_side == h ? HU_MOVED_FIRST : HU_MOVED_SECOND,
-                                            mine->modifiedSpeed, &hu_gb_speed_rules, ModsOf(theirs));
-            if (!SpeedRangeContains(next, true_speed)) {
-                const BattleMon* mon = sCardMon[h][c];
-                const TeamRoster* roster = sRosters[h][MemberOf(h, sActivePokemon[h]->state.teamMemberIndex)];
-                hu_speed_range reset = (mon != NULL)
-                    ? InitialOpponentSpeed(mon, roster)
-                    : hu_speed_initial(card->species ? BaseSpeed(card->species) : 0, card->level);
-                EnhLog("speed estimate failsafe: side %d card %d range %u-%u excludes true speed %u; resetting to %u-%u",
-                       (int)h, (int)c, next.min, next.max, true_speed, reset.min, reset.max);
-                card->speed = reset;
-                card->transform_speed = reset;
-            } else if (changed) {
-                card->speed = next;
+            const BattleMon* mon = sCardMon[h][c];
+            const TeamRoster* roster = sRosters[h][MemberOf(h, sActivePokemon[h]->state.teamMemberIndex)];
+            hu_speed_range fallback = (mon != NULL)
+                ? InitialOpponentSpeed(mon, roster)
+                : hu_speed_initial(card->species ? BaseSpeed(card->species) : 0, card->level);
+            bool was_reset = false;
+            if (hu_speed_observe_checked(&card->speed, first_side == h ? HU_MOVED_FIRST : HU_MOVED_SECOND,
+                                         mine->modifiedSpeed, &hu_gb_speed_rules, ModsOf(theirs),
+                                         theirs->unmodifiedSpeed, fallback, &was_reset)) {
                 EnhLog("speed estimate: side %d card %d now %u-%u", (int)h, (int)c, card->speed.min, card->speed.max);
                 if (sHasKey) {
                     u16 lo, hi;
                     OpponentStatExp(&lo, &hi);
                     hu_tm_record_speed_se(Port_Enh_Memory(), sKey, card->species, BaseSpeed(card->species),
                                           card->speed, lo, hi);
+                }
+            } else if (was_reset) {
+                EnhLog("speed estimate failsafe: side %d card %d reset to %u-%u (true speed %u)", (int)h, (int)c,
+                       card->speed.min, card->speed.max, theirs->unmodifiedSpeed);
+                card->transform_speed = card->speed;
+                if (sHasKey) {
+                    hu_tm_clear_speed(Port_Enh_Memory(), sKey, card->species);
                 }
             }
         }
