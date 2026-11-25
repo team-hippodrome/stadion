@@ -21,7 +21,6 @@ s32 PortEnh_CardModelSpecies(s32 side, s32 card);
 typedef struct PortEnhCardBattle {
     s32 active;               // its card (-1 none)
     const DisplayObject* obj; // its battle model
-    s32 idleAnim;             // its idle (its battle cues), -1 unknown
     s32 faintAnim;            // its fainting animation, -1 unknown
     s32 sleepAnim;            // its sleeping idle, -1 none
 } PortEnhCardBattle;

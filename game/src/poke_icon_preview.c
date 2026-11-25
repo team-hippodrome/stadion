@@ -68,6 +68,9 @@ unk_func_8001B1FC* PokeIcon_CreateModelPreview(ModelLoadContext* arg0, s16 arg1,
     return temp_v0;
 }
 
+// Frames the preview model using D_8006FF00[species - 1] (packed x/y/z in unk_14, scale% in unk_02) and always binds
+// animation 1 (preview idle), which those per-species offsets are tuned for (unlike battle idle animation 0, where
+// flying species such as Pidgeot and Pidgeotto hover above the preview camera).
 void PokeIcon_SetPreviewMon(unk_func_8001B1FC* arg0, BattleMon* arg1, u16 arg2) {
     arg1_func_80010CA8 sp2C;
     s16 tmp1 = (s16)(D_8006FF00[arg1->species.id - 1].unk_14 >> 0x10) >> 6;

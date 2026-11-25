@@ -5,6 +5,7 @@
 #include "src/33FE0.h"
 #include "src/gfx_buffer.h"
 #include "src/matrix.h"
+#include "StadionPort.h"
 
 typedef struct StadiumModelSlot {
     /* 0x000 */ StadiumModel model;
@@ -123,11 +124,14 @@ Gfx* ModelRenderer_SetupSlotColors(Gfx* gfx) {
             gDPSetPrimColor(gfx++, 0, temp_v0, 255, 255, 5, 255);
             gDPSetEnvColor(gfx++, 255, 32, 0, 0);
             break;
-        default:
+        default: {
+            PortEnhCardEffect* cardEffect = PortEnh_ActiveCardEffect();
+            u32 flickerFrame = (cardEffect != NULL) ? (u32)cardEffect->frame : (u32)D_8006F084;
             gSPDisplayList(gfx++, D_800762C8);
             gDPSetPrimColor(gfx++, 0, temp_v0, 255, 255, 255, 255);
-            gDPSetEnvColor(gfx++, 180 - (D_8006F084 % 8) * 10, 32, 0, 0);
+            gDPSetEnvColor(gfx++, 180 - (flickerFrame % 8) * 10, 32, 0, 0);
             break;
+        }
     }
 
     return gfx;

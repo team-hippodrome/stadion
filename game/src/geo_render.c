@@ -872,7 +872,7 @@ void Geo_NodeModelPart(GraphNode* arg0) {
 
             GeoRender_SetMaterialParams(arg->fogColor, arg->lodFraction, arg->textureMode);
 
-            if ((D_8006F08C->unk_18 < 0) && (arg->objectType > 0)) {
+            if ((D_8006F08C->unk_18 < 0) && (arg->objectType > 0) && (PortEnh_ActiveCardEffect() == NULL)) {
                 ModelAnim_UpdateDisplayObjectAnimation(arg->effectSlot, arg->objectType);
                 Geo_ProcessNodeChildren(arg0);
                 ModelAnim_FinalizeDisplayObjectAnimation(arg->effectSlot, arg->objectType);

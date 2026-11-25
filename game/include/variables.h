@@ -904,7 +904,7 @@ extern GraphNode D_800AC858;
 typedef struct unk_D_8006FF00 {
     /* 0x00 */ u8 unk_00;
     /* 0x01 */ u8 unk_01;
-    /* 0x02 */ s16 unk_02;
+    /* 0x02 */ s16 unk_02; // Preview model scale percentage (divided by 100.0f); PokeIcon_SetPreviewMon.
     /* 0x04 */ char* name;
     /* 0x08 */ intptr_t unk_08; // PORT64: holds the name pointer
     /* 0x0C */ u8 cupEligibilityFlags;
@@ -912,7 +912,7 @@ typedef struct unk_D_8006FF00 {
     /* 0x0E */ s16 unk_0E;
     /* 0x10 */ s16 unk_10; // Nickname color variant minimum; Model_ComputeNicknameColorVariant.
     /* 0x12 */ s16 unk_12; // Nickname color variant maximum.
-    /* 0x14 */ u32 unk_14;
+    /* 0x14 */ u32 unk_14; // Packed signed preview model position offsets tuned for preview idle anim 1: x=[31:22] (10-bit), y=[21:10] (12-bit), z=[9:0] (10-bit).
     /* 0x18 */ uintptr_t unk_18; // PORT64: holds the name pointer
 } unk_D_8006FF00;                // size = 0x1C
 extern unk_D_8006FF00 D_8006FF00[152];

@@ -2,6 +2,7 @@
 #include "battle_hud.h"
 #include "geo_render.h"
 #include "gfx_buffer.h"
+#include "StadionPort.h"
 
 // .data
 static Gfx D_81004170[] = {
@@ -20,12 +21,14 @@ void func_81002530(Gfx* gfx, DisplayListAddresses* addresses) {
     s16 temp_t4;
     s16 temp_t2;
     u8 temp_v0;
+    PortEnhCardEffect* cardEffect = PortEnh_ActiveCardEffect();
+    s16 scrollOffset = (cardEffect != NULL) ? cardEffect->scrollOffset : D_81004B60;
 
     temp_v0 = ModelRenderer_GetActiveMode();
     if (D_8006F09C->textureMode == 0) {
-        temp_t2 = (D_81004B60 >> 4);
-        temp_t3 = 0x4000 - (D_81004B60 >> 4);
-        temp_t4 = 0x4000 - ((D_81004B60 >> 3) & 0xFFFF);
+        temp_t2 = (scrollOffset >> 4);
+        temp_t3 = 0x4000 - (scrollOffset >> 4);
+        temp_t4 = 0x4000 - ((scrollOffset >> 3) & 0xFFFF);
 
         gSPDisplayList(gfx++, D_81004170);
 
@@ -37,7 +40,11 @@ void func_81002530(Gfx* gfx, DisplayListAddresses* addresses) {
                          G_TX_WRAP, G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
         gDPSetTileSize(gfx++, 1, temp_t3, temp_t4, temp_t3, temp_t4 + 0x1F);
 
-        if (D_800AF7B0[temp_v0 & 1] == 0) {
+        if (cardEffect != NULL) {
+            if (cardEffect->shouldStep != 0) {
+                cardEffect->scrollOffset--;
+            }
+        } else if (D_800AF7B0[temp_v0 & 1] == 0) {
             if (ModelPhase_IsIdle() == 0) {
                 D_81004B60--;
             }
