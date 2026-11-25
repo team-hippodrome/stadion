@@ -1,7 +1,7 @@
 #!/bin/bash
 # Builds a release on this Mac, the way .github/workflows/release.yml does on GitHub, plus the Android APK.
-# The "Release (Mac mini)" workflow (.github/workflows/release-macmini.yml) runs this on the self-hosted Mac mini;
-# tools/release_host_setup.sh sets a Mac up for it (Homebrew packages, Android SDK, the two OrbStack machines).
+# Runs on any Apple Silicon Mac that tools/release_host_setup.sh has set up (Homebrew packages, Android SDK, the two
+# OrbStack machines).
 #
 # Usage: tools/release.sh <version> [--ref REF] [--only LIST] [--serial] [--jobs N] [--keep] [--publish [--yes]]
 #   <version>      e.g. 0.0.11 (a leading "v" is dropped); goes into the builds (Info.plist, .exe file version, APK)

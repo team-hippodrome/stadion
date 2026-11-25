@@ -1,6 +1,5 @@
 #!/bin/bash
-# Sets up a Mac (Apple Silicon, Homebrew, OrbStack installed) to build releases with tools/release.sh, as the
-# "Release (Mac mini)" workflow does on the self-hosted runner:
+# Sets up a Mac (Apple Silicon, Homebrew, OrbStack installed) to build releases with tools/release.sh:
 #   - Homebrew packages for the macOS build (the libraries the app bundles) plus gh and a JDK for Gradle
 #   - the Android SDK (platform, build tools, NDK) in ~/Library/Android/sdk
 #   - OrbStack machine stadium-linux (arm64): llvm-mingw + vcpkg with the x64/arm64-mingw-static libraries (Windows)
