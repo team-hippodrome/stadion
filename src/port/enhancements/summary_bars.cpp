@@ -170,6 +170,55 @@ using PortOverlay::Text;
 // a 16:9 window leaves 0.22, a 16:9 picture in a 21:9 window 0.29, a 4:3 picture in a 16:10 window only 0.13 (no bars)
 constexpr float kMinSide = 0.18f;
 
+void DrawMoveName(ImDrawList* dl, ImFont* font, float x, float y, float row, float width, const char* name,
+                  ImU32 color) {
+    if (name == nullptr || *name == '\0' || width <= 0) return;
+    const float size = row * 0.86f;
+    const float textWidth = font->CalcTextSizeA(size, FLT_MAX, 0, name).x;
+    const float overflow = textWidth - width;
+    float offset = 0;
+    float drawSize = size;
+    float spaceTrim = 0;
+
+    if (overflow > width * 0.10f) {
+        // Pause at each end so both the start and the end of the name can be read.
+        const double hold = 0.75;
+        const double travel = overflow / (size * 2.0);
+        const double leg = hold + travel;
+        const double phase = std::fmod(ImGui::GetTime(), 2 * leg);
+        const double progress = std::clamp((std::fmod(phase, leg) - hold) / travel, 0.0, 1.0);
+        offset = overflow * (float)(phase < leg ? progress : 1.0 - progress);
+    } else if (overflow > 0) {
+        const auto spaces = std::count(name, name + std::char_traits<char>::length(name), ' ');
+        const float spaceWidth = font->CalcTextSizeA(size, FLT_MAX, 0, " ").x;
+        // Prefer slightly tighter word spacing to changing the text size. Unspaced names
+        // can still fit small overflows with a size adjustment of less than ten percent.
+        if (spaces > 0 && overflow <= spaces * spaceWidth * 0.5f) {
+            spaceTrim = overflow / spaces;
+        } else {
+            drawSize *= width / textWidth;
+        }
+    }
+
+    const float textY = y + (row - drawSize) / 2;
+    dl->PushClipRect(ImVec2(x, y), ImVec2(x + width, y + row), true);
+    if (spaceTrim > 0) {
+        float wordX = x;
+        const float advance = font->CalcTextSizeA(size, FLT_MAX, 0, " ").x - spaceTrim;
+        for (const char* word = name; *word;) {
+            const char* end = word;
+            while (*end && *end != ' ') ++end; // ASCII space never splits a UTF-8 codepoint.
+            dl->AddText(font, size, ImVec2(wordX, textY), color, word, end);
+            wordX += font->CalcTextSizeA(size, FLT_MAX, 0, word, end).x;
+            word = *end ? end + 1 : end;
+            if (*end) wordX += advance;
+        }
+    } else {
+        dl->AddText(font, drawSize, ImVec2(x - offset, textY), color, name);
+    }
+    dl->PopClipRect();
+}
+
 void DrawCard(ImDrawList* dl, ImFont* f, const PortEnhBattleView& v, int s, int i, ImVec2 p0, ImVec2 p1) {
     const hu_card& c = v.sides[s].cards[i];
     const hu_card_state state = hu_card_get_state(&c);
@@ -224,9 +273,9 @@ void DrawCard(ImDrawList* dl, ImFont* f, const PortEnhBattleView& v, int s, int 
         dl->AddRect(m0, m1, Rgba(0xFF, 0xFF, 0xFF, 0xC0), m * 0.18f, 0, std::max(1.0f, m * 0.05f));
     }
 
-    // the text column: name, HP, the moves two by two under it, speed under them
+    // The text column: name, HP, one move per row, then Speed.
     const float x = right ? p0.x + pad : m1.x + pad, tw = (right ? m0.x : p1.x) - pad - x;
-    const float row = (h - 2 * pad) / 5.0f, ts = row * 0.86f;
+    const float row = (h - 2 * pad) / (HU_CARD_MOVES + 3), ts = row * 0.86f;
     float y = p0.y + pad;
     const ImU32 white = Rgba(0xFF, 0xFF, 0xFF, alpha);
     {
@@ -264,16 +313,16 @@ void DrawCard(ImDrawList* dl, ImFont* f, const PortEnhBattleView& v, int s, int 
     }
     y += row;
     for (int k = 0; k < HU_CARD_MOVES; k++) {
-        const float kx = x + (k & 1) * (tw / 2), ky = y + (k >> 1) * row;
+        const float moveY = y + k * row;
         if (hu_card_move_visible(&c, k)) {
             if (c.moves[k] == 0) continue; // an empty slot
             const hu_rgb tc = hu_type_text_color((hu_type)v.moveTypes[s][i][k]);
-            Text(dl, f, kx, ky, ts * 0.9f, tw / 2 - pad, v.moves[s][i][k], Rgba(tc.r, tc.g, tc.b, alpha));
+            DrawMoveName(dl, f, x, moveY, row, tw, v.moves[s][i][k], Rgba(tc.r, tc.g, tc.b, alpha));
         } else if (c.moves[k] != 0 || !own) {
-            Text(dl, f, kx, ky, ts * 0.9f, tw / 2 - pad, "-", Rgba(0xFF, 0xFF, 0xFF, 0x70));
+            DrawMoveName(dl, f, x, moveY, row, tw, "-", Rgba(0xFF, 0xFF, 0xFF, 0x70));
         }
     }
-    y += 2 * row;
+    y += HU_CARD_MOVES * row;
     {
         const hu_speed_range r = v.speed[s][i];
         char sp[64];
@@ -332,7 +381,7 @@ class SummaryBarsWindow : public Ship::GuiWindow {
         const float margin = H * 0.012f, gap = H * 0.008f;
         const float cw = std::min(side - 2 * margin, H * 0.34f);
         const float ch = (H - 2 * margin - (HU_SIDE_MAX - 1) * gap) / HU_SIDE_MAX;
-        ImFont* f = Port::CardFont(ch / 5.0f);
+        ImFont* f = Port::CardFont(ch / (HU_CARD_MOVES + 3));
         if (f == nullptr) f = ImGui::GetFont();
         for (int s = 0; s < 2; s++) {
             const hu_side& sd = v.sides[s];
