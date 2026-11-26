@@ -19,6 +19,7 @@ extern "C" {
 #endif
 
 #define PORT_ENH_TEXT 32 // the overlays' strings (UTF-8)
+#define PORT_ENH_BIG_MOVES 12 // Harder vs Mewtwo: the most moves a card or a memory entry lists
 #define PORT_ENH_ICON 40 // the game's own menu icon of a Pokémon (40 x 40): the memory screen's pictures
 
 // The On / Off enhancements (port CVars gEnhancements.<Name>, 1 by default). PORT_MOVE_DESCRIPTIONS=0/1 and
@@ -71,6 +72,11 @@ void Port_Enh_SetTrainerMemoryEnabled(int on);
 hu_tm* Port_Enh_Memory(void);
 void Port_Enh_SaveMemory(void);
 const char* Port_Enh_MemoryPath(void);
+// Harder vs Mewtwo's moves seen, in the order they were revealed, per trainer key: a side file of their own
+// (<N64 save>.mewtwo, text), since the trainer memory holds four moves a Pokémon and only Mewtwo knows more.
+// Record adds the moves not yet listed (written right away when the list grew); Moves returns how many it lists.
+void Port_Enh_MewtwoMemoryRecord(const hu_tm_key* key, const uint16_t* moves, int count);
+int Port_Enh_MewtwoMemoryMoves(const hu_tm_key* key, uint16_t* out, int max);
 
 // What the trainer memory screen shows, published by the team select screen each frame (memory_screen.c, game
 // thread) and drawn by memory_screen.cpp over the game's picture (render thread). Strings are UTF-8.
@@ -81,8 +87,9 @@ typedef struct PortEnhMemoryMon {
     uint8_t hasSpeed;
     uint32_t iconKey;   // the card icons' key (Port_Enh_CardIcon), 0 for none
     hu_speed_range speed;
-    char moves[HU_TM_MOVES][PORT_ENH_TEXT]; // "" for an empty slot; "-" for one not seen yet
-    uint8_t moveTypes[HU_TM_MOVES];         // hu_type
+    char moves[PORT_ENH_BIG_MOVES][PORT_ENH_TEXT]; // "" for an empty slot; "-" for one not seen yet
+    uint8_t moveTypes[PORT_ENH_BIG_MOVES];         // hu_type
+    uint8_t moveCount; // the slots listed: HU_TM_MOVES, more for Mewtwo under Harder vs Mewtwo
 } PortEnhMemoryMon;
 typedef struct PortEnhMemoryView {
     int32_t open;       // 0: only the hint shows
@@ -100,7 +107,6 @@ int Port_Enh_LatestMemory(PortEnhMemoryView* out); // 0 when the screen is not s
 
 // What the summary bars show, published by the battle each frame it draws its HUD (battle_enhancements.c, game thread)
 // and drawn by summary_bars.cpp beside the game's picture (render thread). Strings are UTF-8.
-#define PORT_ENH_BIG_MOVES 12
 typedef struct PortEnhBattleView {
     hu_side sides[2]; // 0 = the left trainer (1P), 1 = the right one
     char names[2][HU_SIDE_MAX][PORT_ENH_TEXT];

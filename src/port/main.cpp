@@ -523,6 +523,7 @@ static int RunGame(int argc, char** argv) {
             return 1;
         }
     }
+    Port::EnsureGameFonts(); // (the launcher loads them when it shows)
 #if defined(__EMSCRIPTEN__)
     Port::BeginShaderWarmup();
     emscripten_set_main_loop(WebLoopPass, 0, true); // does not return

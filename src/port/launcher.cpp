@@ -759,21 +759,39 @@ void LoadFonts(const State& s) {
         font->Scale = 1.0f / rasterScale;
         return font;
     };
-    // the game size also draws the summary bars' cards (Port::CardFont): Pokémon names may hold ♀ / ♂
-    static const ImWchar kGenderSigns[] = { 0x2640, 0x2640, 0x2642, 0x2642, 0 };
-    if (gUnifont.data.empty()) {
-        LoadExtraFont(gUnifont, "fonts/unifont_subset.otf");
+    // The game size also draws the summary bars' cards and the trainer memory screen (Port::CardFont). The built-in
+    // font draws Latin-1 except '-', which its 16 px raster leaves blank (a one-pixel stroke lost when rasterized:
+    // the cards' unknown moves and Speed ranges lost their dashes). The game text's own font, Unifont or Pop
+    // (gPort.TextFont 1, as text_lookup.cpp), draws '-' and every other character the built-in one lacks: ♀ / ♂ and
+    // the port.csv text of the system's and the ROM's languages.
+    static const ImWchar kGameLatin[] = { 0x0020, 0x002C, 0x002E, 0x00FF, 0 };
+    ExtraFont& gameFallback = (CVarGetInteger("gPort.TextFont", 0) == 1) ? gPopFont : gUnifont;
+    if (gameFallback.data.empty()) {
+        LoadExtraFont(gameFallback, &gameFallback == &gPopFont ? "fonts/pop_subset.ttf" : "fonts/unifont_subset.otf");
+    }
+    static ImVector<ImWchar> gameRanges;
+    if (gameRanges.empty()) {
+        ImFontGlyphRangesBuilder builder;
+        builder.AddChar(0x2D);
+        builder.AddChar(0x2640);
+        builder.AddChar(0x2642);
+        builder.AddText(Port::PortTextCharacters({ Port::SystemLanguage(), Port::RomLanguage(s.rom) }).c_str());
+        builder.BuildRanges(&gameRanges);
     }
     auto addGame = [&](float rasterScale) {
-        ImFont* font = add(16, rasterScale);
-        if (!gUnifont.data.empty()) {
-            ImFontConfig cfg;
-            cfg.MergeMode = true;
-            cfg.FontDataOwnedByAtlas = false;
-            cfg.PixelSnapH = true;
-            io.Fonts->AddFontFromMemoryTTF(gUnifont.data.data(), (int)gUnifont.data.size(), 16 * rasterScale, &cfg,
-                                           kGenderSigns);
+        ImFontConfig cfg;
+        cfg.SizePixels = 16 * rasterScale;
+        cfg.GlyphRanges = kGameLatin;
+        ImFont* font = io.Fonts->AddFontDefault(&cfg);
+        if (!gameFallback.data.empty()) {
+            ImFontConfig merge;
+            merge.MergeMode = true;
+            merge.FontDataOwnedByAtlas = false;
+            merge.PixelSnapH = true;
+            io.Fonts->AddFontFromMemoryTTF(gameFallback.data.data(), (int)gameFallback.data.size(), 16 * rasterScale,
+                                           &merge, gameRanges.Data);
         }
+        font->Scale = 1.0f / rasterScale;
         return font;
     };
     for (float scale : {0.625f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f}) {
@@ -3141,15 +3159,23 @@ bool RunScriptStep(const ScriptStep& st) {
 
 namespace Port {
 
-// The launcher's game-size font (16 px, ♀ / ♂ included) in the raster closest to `pixels`, for the port's own windows
-// during play (the summary bars: summary_bars.cpp). nullptr before the launcher has built its fonts.
+// The launcher's game-size font (16 px, ♀ / ♂ included) for the port's own windows during play (the summary bars,
+// the trainer memory screen), in the largest raster not bigger than `pixels`, the smallest size the caller draws: text
+// drawn smaller than its raster loses one-pixel strokes (a '-' vanished), drawn larger it only softens. nullptr
+// before the launcher (or EnsureGameFonts) has built its fonts.
 ImFont* CardFont(float pixels) {
     if (gFontSets.empty()) return nullptr;
-    const float target = std::max(0.01f, pixels / 16.0f);
-    const auto nearest = std::min_element(gFontSets.begin(), gFontSets.end(), [target](const FontSet& a, const FontSet& b) {
-        return std::abs(std::log(a.rasterScale / target)) < std::abs(std::log(b.rasterScale / target));
-    });
-    return nearest->fonts.game;
+    const FontSet* best = &gFontSets.front(); // (the smallest: the sets are in increasing order)
+    for (const FontSet& set : gFontSets) {
+        if (16.0f * set.rasterScale <= pixels * 1.05f && set.rasterScale > best->rasterScale) best = &set;
+    }
+    return best->fonts.game;
+}
+
+void EnsureGameFonts() {
+    if (gFontSets.empty()) {
+        LoadFonts(Load());
+    }
 }
 
 std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool& restart) {

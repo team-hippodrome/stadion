@@ -375,6 +375,88 @@ extern "C" hu_tm* Port_Enh_Memory(void) {
     return gMemory;
 }
 
+// ---- Harder vs Mewtwo's moves seen (a side file of its own; see enhancements.h) ----
+
+namespace {
+struct MewtwoSeen {
+    bool loaded = false;
+    std::map<uint64_t, std::vector<uint16_t>> moves; // by trainer key
+    std::string path;
+} gMewtwoSeen;
+
+uint64_t MewtwoKey(const hu_tm_key* k) {
+    return ((uint64_t)k->game << 32) | ((uint64_t)k->cup << 24) | ((uint64_t)k->division << 16) |
+           ((uint64_t)k->round << 8) | k->trainer;
+}
+
+// one line per trainer: "game cup division round trainer: move move ..." (move ids, in the order revealed)
+void MewtwoSeenLoad() {
+    if (gMewtwoSeen.loaded) return;
+    gMewtwoSeen.loaded = true;
+    gMewtwoSeen.path = std::string(Port_FlashFilePath()) + ".mewtwo";
+    FILE* f = fopen(gMewtwoSeen.path.c_str(), "r");
+    if (f == nullptr) return;
+    char line[512];
+    while (fgets(line, sizeof line, f) != nullptr) {
+        unsigned g, c, d, r, t;
+        int used = 0;
+        if (line[0] == '#' || sscanf(line, "%u %u %u %u %u:%n", &g, &c, &d, &r, &t, &used) != 5 || used == 0) continue;
+        const hu_tm_key key = { (uint8_t)g, (uint8_t)c, (uint8_t)d, (uint8_t)r, (uint8_t)t };
+        std::vector<uint16_t>& list = gMewtwoSeen.moves[MewtwoKey(&key)];
+        const char* p = line + used;
+        char* end = nullptr;
+        for (unsigned long m = strtoul(p, &end, 10); end != p && list.size() < PORT_ENH_BIG_MOVES;
+             p = end, m = strtoul(p, &end, 10)) {
+            if (m >= 1 && m <= 0xFFFF && std::find(list.begin(), list.end(), (uint16_t)m) == list.end()) {
+                list.push_back((uint16_t)m);
+            }
+        }
+    }
+    fclose(f);
+}
+
+void MewtwoSeenSave() {
+    FILE* f = fopen(gMewtwoSeen.path.c_str(), "w");
+    if (f == nullptr) {
+        fprintf(stderr, "[enhancements] could not write %s\n", gMewtwoSeen.path.c_str());
+        return;
+    }
+    fprintf(f, "# Harder vs Mewtwo: the moves seen per trainer (game cup division round trainer: move ids)\n");
+    for (const auto& [key, list] : gMewtwoSeen.moves) {
+        fprintf(f, "%u %u %u %u %u:", (unsigned)(key >> 32) & 0xFF, (unsigned)(key >> 24) & 0xFF,
+                (unsigned)(key >> 16) & 0xFF, (unsigned)(key >> 8) & 0xFF, (unsigned)key & 0xFF);
+        for (uint16_t m : list) fprintf(f, " %u", m);
+        fprintf(f, "\n");
+    }
+    fclose(f);
+}
+} // namespace
+
+extern "C" void Port_Enh_MewtwoMemoryRecord(const hu_tm_key* key, const uint16_t* moves, int count) {
+    MewtwoSeenLoad();
+    std::vector<uint16_t>& list = gMewtwoSeen.moves[MewtwoKey(key)];
+    bool grew = false;
+    for (int i = 0; i < count && list.size() < PORT_ENH_BIG_MOVES; i++) {
+        if (moves[i] != 0 && std::find(list.begin(), list.end(), moves[i]) == list.end()) {
+            list.push_back(moves[i]);
+            grew = true;
+        }
+    }
+    if (grew) MewtwoSeenSave();
+}
+
+extern "C" int Port_Enh_MewtwoMemoryMoves(const hu_tm_key* key, uint16_t* out, int max) {
+    MewtwoSeenLoad();
+    const auto it = gMewtwoSeen.moves.find(MewtwoKey(key));
+    if (it == gMewtwoSeen.moves.end()) return 0;
+    int n = 0;
+    for (uint16_t m : it->second) {
+        if (n >= max) break;
+        out[n++] = m;
+    }
+    return n;
+}
+
 extern "C" void Port_Enh_SaveMemory(void) {
     if (gMemory == nullptr || !hu_tm_dirty(gMemory)) {
         return;

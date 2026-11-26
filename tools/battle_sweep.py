@@ -88,11 +88,13 @@ TARGET_POOL = [113, 143, 80, 76, 112, 131, 91, 130, 149, 94, 59, 103, 45, 34, 26
 # ---- decomp tables ----
 def decomp_tables():
     src = Path(ROOT, "game", "src", "gb_data.c").read_text(encoding="utf-8")
-    body = src[src.index("gMoveDataWithZeroth[166] = {"):]
+    body = src[src.index("= {", src.index("gMoveDataWithZeroth[")):]
     body = body[:body.index("};")]
     moves = {}
     for m in re.finditer(r"\{\s*(\d+),\s*(\w+),\s*(\w+),\s*(\w+),\s*(\w+),\s*(\w+)\s*\}", body):
         i, eff, pw, ty, acc, pp = (int(x, 0) for x in m.groups())
+        if i > 165:
+            continue  # the port's own moves past Gen 1's (Heal Bell, Harder vs Mewtwo only)
         moves[i] = {"id": i, "effect": eff, "power": pw, "type": ty, "acc": acc, "pp": pp}
     body = src[src.index("SpeciesData gSpeciesData[152] = {"):]
     body = body[:body.index("};")]

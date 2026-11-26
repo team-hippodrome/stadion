@@ -400,7 +400,8 @@ class SummaryBarsWindow : public Ship::GuiWindow {
         const float margin = H * 0.012f, gap = H * 0.008f;
         const float cw = std::min(side - 2 * margin, H * 0.34f);
         const float ch = (H - 2 * margin - (HU_SIDE_MAX - 1) * gap) / HU_SIDE_MAX;
-        ImFont* f = Port::CardFont(ch / (HU_CARD_MOVES + 3));
+        // (the smallest text with a '-' in it: the Speed line, DrawCard's ts * 0.85)
+        ImFont* f = Port::CardFont(ch / (HU_CARD_MOVES + 3) * 0.86f * 0.85f);
         if (f == nullptr) f = ImGui::GetFont();
         for (int s = 0; s < 2; s++) {
             const hu_side& sd = v.sides[s];

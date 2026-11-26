@@ -529,6 +529,16 @@ void PortEnh_MoveStart(void) {
     PortEnh_MewtwoRevealPending(); // Harder vs Mewtwo: its card lists the moves as they are revealed
     if (!sReady) return;
     s = sBattleScene.scene->actingSide & 1;
+    if (PortEnh_MewtwoIsCard(s)) {
+        // Harder vs Mewtwo: its moves seen go to a side file of their own (its four slots are a window onto
+        // twelve moves, so the regular memory's slots would not hold them)
+        if (sHasKey && s != sViewer) {
+            u16 seen[PORT_ENH_BIG_MOVES];
+            Port_Enh_MewtwoMemoryRecord(&sKey, seen, PortEnh_MewtwoCardMoves(seen, PORT_ENH_BIG_MOVES));
+        }
+        sPendingSlot[s] = -1;
+        return;
+    }
     slot = sPendingSlot[s];
     c = CardOf(s, 0);
     if (slot < 0 || c < 0) return;
