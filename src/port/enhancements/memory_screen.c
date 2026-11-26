@@ -192,7 +192,8 @@ static void Publish(void) {
         out->iconKey = PortEnh_SpeciesIcon(m->species);
         out->hasSpeed = hu_tm_mon_speed(m, base, se_lo, se_hi, &out->speed) ? 1 : 0;
         out->moveCount = HU_TM_MOVES;
-        if (Port_Enh_HarderMewtwo() != 0 && t->team_count == 1 && m->species == MEWTWO) {
+        if (Port_Enh_HarderMewtwo() != 0 && gSessionContext.mode == SESSION_MODE_VS_MEWTWO && t->team_count == 1 &&
+            m->species == MEWTWO) {
             // Harder vs Mewtwo: the moves seen, from its side file; four rows at first, one more per move past them
             u16 seen[PORT_ENH_BIG_MOVES];
             const s32 n = Port_Enh_MewtwoMemoryMoves(&sKeys[sCursor], seen, PORT_ENH_BIG_MOVES);
