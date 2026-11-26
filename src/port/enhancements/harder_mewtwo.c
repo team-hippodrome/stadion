@@ -250,6 +250,24 @@ int PortEnh_MewtwoFreezeImmune(void* target) {
     return IsMewtwo((ActivePokemon*)target);
 }
 
+// Transform on this battle's Mewtwo (BattleEffect_Transform, after it copied the target's four slots): the user gets
+// Mewtwo's vanilla moveset for the round instead of whatever four of the twelve the window holds (Heal Bell among
+// them, which nothing but Mewtwo's own presentation handles). Round 1: Psychic, Rest, Thunderbolt, Blizzard; Round 2:
+// Amnesia for Blizzard. Transform's 5 PP each.
+void PortEnh_MewtwoTransformed(void* user_runtime, void* target_active) {
+    static const u8 kVanilla[2][4] = { { PSYCHIC_M, REST, THUNDERBOLT, BLIZZARD },
+                                       { PSYCHIC_M, REST, THUNDERBOLT, AMNESIA } };
+    BattleMonRuntime* user = (BattleMonRuntime*)user_runtime;
+    s32 k;
+    SetUp();
+    if (!IsMewtwo((ActivePokemon*)target_active) || user == &Mewtwo()->state.runtime) return;
+    for (k = 0; k < 4; k++) {
+        user->moves[k] = kVanilla[sM.round2 ? 1 : 0][k];
+        user->pp[k] = 5;
+    }
+    if (Log()) fprintf(stderr, "[mewtwo] transformed into: vanilla round %d moveset\n", sM.round2 ? 2 : 1);
+}
+
 void PortEnh_MewtwoLegality(void* active) {
     ActivePokemon* a = (ActivePokemon*)active;
     s32 k;

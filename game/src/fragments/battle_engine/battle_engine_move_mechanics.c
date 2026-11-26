@@ -1256,6 +1256,8 @@ void BattleEffect_Transform(void) {
         for (i = 0; i < 8; i++) {
             sBattleUser->statChanges[i] = sBattleTarget->statChanges[i];
         }
+        // PORT: Harder vs Mewtwo: transformed into its Mewtwo, the user gets its vanilla moveset (enhancements)
+        PortEnh_MewtwoTransformed(sBattleUser, sActivePokemon[!sBattleScene.scene->actingSide]);
         return;
     }
 

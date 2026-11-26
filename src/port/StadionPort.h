@@ -361,6 +361,7 @@ void PortEnh_RivalTeamPicked(void* team);
 void PortEnh_MewtwoBattleBegin(void);
 int PortEnh_MewtwoActive(void);
 int PortEnh_MewtwoFreezeImmune(void* target);       // BattleEffect_SecondaryStatusChance: Mewtwo can't be frozen
+void PortEnh_MewtwoTransformed(void* user_runtime, void* target_active); // Transform on it: the vanilla moveset
 void PortEnh_MewtwoLegality(void* active);          // after the illegality mask: Earthquake and Heal Bell are legal
 int PortEnh_MewtwoChooseAction(void* cpu, int game_choice); // BattleScene_TriggerCpuChoice: the rule tables' slot
 int PortEnh_MewtwoSkipResidual(void);               // Battle_ResolveMonAction: 1 to hold residual damage
