@@ -100,6 +100,7 @@ int Port_Enh_LatestMemory(PortEnhMemoryView* out); // 0 when the screen is not s
 
 // What the summary bars show, published by the battle each frame it draws its HUD (battle_enhancements.c, game thread)
 // and drawn by summary_bars.cpp beside the game's picture (render thread). Strings are UTF-8.
+#define PORT_ENH_BIG_MOVES 12
 typedef struct PortEnhBattleView {
     hu_side sides[2]; // 0 = the left trainer (1P), 1 = the right one
     char names[2][HU_SIDE_MAX][PORT_ENH_TEXT];
@@ -111,6 +112,12 @@ typedef struct PortEnhBattleView {
     uint8_t modelReady[2][HU_SIDE_MAX];   // the card's 3D model is drawn into its cell of the side's picture
     uint8_t modelSpecies[2][HU_SIDE_MAX]; // whose model it is
     uint8_t orderSelect; // the battle order screen's (a 2D screen: the bars go beside its 4:3 frame, PortEnh_OrderSelectFrame)
+    // Harder vs Mewtwo: Mewtwo's card lists the moves in the order they were revealed, four rows at first and one
+    // more for each move revealed past the fourth (the card grows). bigRows 0: no such card.
+    int8_t bigSide, bigCard;
+    uint8_t bigRows, bigShown;
+    char bigMoves[PORT_ENH_BIG_MOVES][PORT_ENH_TEXT];
+    uint8_t bigTypes[PORT_ENH_BIG_MOVES];
 } PortEnhBattleView;
 // The cards' 3D models (card_models.c) are drawn into one off-screen picture per side, a row of
 // PORT_ENH_CARD_CELL x PORT_ENH_CARD_CELL cells, one per card; summary_bars.cpp creates it on the render thread and
@@ -135,6 +142,28 @@ const uint8_t* Port_Enh_CardIcon(uint32_t key);
 int Port_Enh_HasPortrait(uint32_t index);
 void Port_Enh_SetPortrait(uint32_t index, const uint8_t* rgba);
 const uint8_t* Port_Enh_Portrait(uint32_t index); // (render thread)
+
+// Rival bug fix (game_specific/1/RIVAL_BUG_FIX.md): gEnhancements.RivalFix (PORT_RIVAL_FIX=0/1 overrides it). The Game
+// Boy starter choice (the byte GbSave_GetStarterChoice reads: the rival's starter in Red / Blue / Green, the record of
+// the early rival battles in Yellow) of each registered team made from a Game Boy, kept in <N64 save>.rival beside
+// the save under a key made from the team's Pokémon (rival_fix.c). Recorded even while the setting is off.
+int Port_Enh_RivalFixEnabled(void);
+void Port_Enh_SetRivalFixEnabled(int on);
+void Port_Enh_RivalRecord(uint64_t key, int starter);
+int Port_Enh_RivalLookup(uint64_t key); // -1: not known
+
+// Harder vs Mewtwo (game_specific/1/HARDER_VS_MEWTWO.md, MEWTWO_AI_RULES.md): gEnhancements.HarderMewtwo, one of
+// PORT_MEWTWO_* (PORT_HARDER_MEWTWO=off / easy / medium / hard / lunatic / kaizo or the number overrides it). On by
+// default at Easy (the 10% tier, the spec's requested target).
+#define PORT_MEWTWO_OFF 0
+#define PORT_MEWTWO_EASY 1    // 10%
+#define PORT_MEWTWO_MEDIUM 2  // 30%
+#define PORT_MEWTWO_HARD 3    // 50%
+#define PORT_MEWTWO_LUNATIC 4 // 80%
+#define PORT_MEWTWO_KAIZO 5   // no blunders and no move skips
+#define PORT_MEWTWO_TIERS 6
+int Port_Enh_HarderMewtwo(void);
+void Port_Enh_SetHarderMewtwo(int tier);
 
 // PORT_ENH_LOG=1: what the enhancements do, on stderr (tests).
 int Port_Enh_Log(void);

@@ -929,7 +929,9 @@ unk_D_80072338 gMoveDisplayInfo[166] = {
 
 // PORT: element -1 kept. Code indexes gMoveData[move - 1] for empty move slots (move 0); on the N64 those bytes are the
 // tail of the last (empty) gMoveDisplayInfo entry, all zero.
-MoveData gMoveDataWithZeroth[166] = {
+// PORT: and an entry after Struggle's for Heal Bell (move 166), the move harder Vs. Mewtwo adds
+// (src/port/enhancements/heal_bell.c): Normal, effect 0x57 (PORT_EFFECT_HEAL_BELL), no accuracy check, 5 PP.
+MoveData gMoveDataWithZeroth[167] = {
     { 0 },
     { 1, 0, 40, 0, 0xFF, 35 },
     { 2, 0, 50, 0, 0xFF, 25 },
@@ -1096,6 +1098,7 @@ MoveData gMoveDataWithZeroth[166] = {
     { 163, 0, 70, 0, 0xFF, 20 },
     { 164, 79, 0, 0, 0xFF, 10 },
     { 165, 48, 50, 0, 0xFF, 10 },
+    { 166, 0x57, 0, 0, 0xFF, 5 },
 };
 
 char* D_80072EE0[84] = {

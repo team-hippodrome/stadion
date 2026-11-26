@@ -144,6 +144,9 @@ void BattleAnim_PlayMoveEffectScript(ActivePokemon* user, s32 move_id) {
     s16 camera_shot;
     s32 target_side_index;
 
+    if (PortEnh_HealBellPresenting(user)) {
+        return; // PORT: Heal Bell draws its own bell instead of the stand-in move's effect (heal_bell.c)
+    }
     target_side_index = BattleScene_GetParticipantSideIndex(user) == 0;
     camera_shot = BattleScene_GetMoveCueDefaultAnchor(user);
     BattleAnim_QueueMoveEffectScript(move_id, user, sActivePokemon[target_side_index], camera_shot,
@@ -473,6 +476,7 @@ void Battle_InitializeMoveIllegalityMask(ActivePokemon* active_pokemon) {
                                 sPlayerTagTeam[BattleScene_GetParticipantSideIndex(active_pokemon)]->secondPartner - 1,
                                 &active_pokemon->redBlueLearnsets[2], &active_pokemon->yellowLearnsets[2]);
     }
+    PortEnh_MewtwoLegality(active_pokemon); // PORT: harder Vs. Mewtwo's Earthquake and Heal Bell are legal
 }
 
 /**
@@ -657,7 +661,10 @@ void BattleScene_EnterRow3StartMoveAnim(ActivePokemon* active_pokemon) {
     if (!(pokemon_state->flags & ACTIVE_FREEZE)) {
         active_pokemon->animationTimer = 0;
 
-        if (BattleScene_IsPartnerPikachu(active_pokemon) != 0) {
+        PortEnh_HealBellStart(active_pokemon); // PORT: Heal Bell's bell and melody (src/port/enhancements/heal_bell.c)
+        if (PortEnh_HealBellPresenting(active_pokemon)) {
+            // PORT: (the stand-in move's own sound is not played)
+        } else if (BattleScene_IsPartnerPikachu(active_pokemon) != 0) {
             side_byte = BattleScene_GetParticipantSideIndex(active_pokemon);
             PlayMoveSoundEffect(side_byte, runtime->usedMove, PARTNER_PIKACHU, 0);
         } else {
@@ -675,7 +682,9 @@ void BattleScene_EnterRow3StartMoveAnim(ActivePokemon* active_pokemon) {
 
         BattleAnim_SetFlagForRockThrowingMoves(active_pokemon);
         ModelAnim_SetAnimation(&active_pokemon->displayObject, sCurrentAnimation->id);
-        BattleAnim_SetModelEventTrackFromRow(active_pokemon, runtime->usedMove - 1);
+        if (!PortEnh_HealBellPresenting(active_pokemon)) { // PORT: (nor its effects: heal_bell.c)
+            BattleAnim_SetModelEventTrackFromRow(active_pokemon, runtime->usedMove - 1);
+        }
 
         if (sCurrentAnimation->animationTimer != 0) {
             ModelAnim_SetFrame(&active_pokemon->displayObject, sCurrentAnimation->animationTimer);

@@ -72,6 +72,8 @@ static s32 sSaved;
 
 void PortEnh_BattleBegin(void) {
     PortEnh_BattleMenusBegin();
+    PortEnh_HealBellReset();
+    PortEnh_MewtwoBattleBegin();
     sNeedInit = 1;
     sReady = 0;
 }
@@ -524,6 +526,7 @@ void PortEnh_MoveAttempted(void) {
 
 void PortEnh_MoveStart(void) {
     s32 s, c, slot;
+    PortEnh_MewtwoRevealPending(); // Harder vs Mewtwo: its card lists the moves as they are revealed
     if (!sReady) return;
     s = sBattleScene.scene->actingSide & 1;
     slot = sPendingSlot[s];
@@ -603,6 +606,24 @@ static void Publish(void) {
             v.iconKey[s][i] = sIconKey[s][i];
             v.modelReady[s][i] = (u8)PortEnh_CardModelReady(s, i);
             v.modelSpecies[s][i] = (u8)PortEnh_CardModelSpecies(s, i);
+        }
+        // Harder vs Mewtwo: its card lists its revealed moves (it knows more than four)
+        if (PortEnh_MewtwoIsCard(s) && sSides[s].count > 0) {
+            u16 big[PORT_ENH_BIG_MOVES];
+            const s32 n = PortEnh_MewtwoCardMoves(big, PORT_ENH_BIG_MOVES);
+            v.bigSide = (s8)s;
+            v.bigCard = 0;
+            v.bigShown = (u8)n;
+            v.bigRows = (u8)(n > HU_CARD_MOVES ? n : HU_CARD_MOVES);
+            for (k = 0; k < n; k++) {
+                const u16 move = big[k];
+                if (move >= 1 && move <= PORT_MOVE_HEAL_BELL && move_names != NULL) {
+                    Port_TextToUtf8(Text_GetString(NULL, 0, move_names, move - 1), v.bigMoves[k], PORT_ENH_TEXT);
+                    v.bigTypes[k] = HuType(gMoveData[move - 1].type);
+                } else {
+                    v.bigTypes[k] = HU_TYPE_UNKNOWN;
+                }
+            }
         }
     }
     Port_Enh_PublishBattle(&v);

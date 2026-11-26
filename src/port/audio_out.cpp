@@ -312,6 +312,7 @@ int32_t port_osAiSetNextBuffer(void* buf, uint32_t size) {
     } else {
         gNext = size;
     }
+    PortEnh_HealBellMix(static_cast<int16_t*>(buf), (int)(size / 4), gFreq); // Heal Bell's melody (heal_bell.c)
     Dump(buf, size);
     Output(buf, size);
     return 0;

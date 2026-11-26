@@ -1138,6 +1138,10 @@ class LauncherWindow : public Ship::GuiWindow {
         if (getenv("PORT_LAUNCHER_OPEN_ENHANCEMENTS") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
             mGraphicsTestOpened = mGraphics = mEnhancements = true;
         }
+        if (getenv("PORT_LAUNCHER_OPEN_ENHANCEMENTS2") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
+            mGraphicsTestOpened = mGraphics = mEnhancements = true;
+            mEnhancementsPage = 1;
+        }
         if (getenv("PORT_LAUNCHER_OPEN_STATEXP") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
             mGraphicsTestOpened = mGraphics = mEnhancements = mStatDifficulty = true;
         }
@@ -2306,9 +2310,17 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button("Back", x + w - 108, y + 9, 94, 26)) {
             mEnhancements = mStatDifficulty = false;
         }
+        // two pages: the general enhancements, then the ones for this game's own battles
+        if (Button(mEnhancementsPage == 0 ? "Next page" : "Previous page", x + w - 238, y + 9, 122, 26)) {
+            mEnhancementsPage = !mEnhancementsPage;
+        }
         dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
         const float lx = x + 14, cx = x + 190, tx = x + 370;
         float ry = y + 60;
+        if (mEnhancementsPage == 1) {
+            GameEnhancementsPage(lx, cx, tx, ry);
+            return;
+        }
         auto row = [&](const char* name, const char* id, const char* hint, bool on) {
             Text(lx, ry + 5, name, gFonts.body);
             Text(tx, ry + 1, hint, gFonts.small, Theme::dim);
@@ -2381,6 +2393,43 @@ class LauncherWindow : public Ship::GuiWindow {
                      name(r[0]) + ", opponents " + name(r[1]) + ".",
                  gFonts.small, Theme::dim);
             ry += 60;
+        }
+    }
+
+    // launcher > Graphics > Enhancements, second page: the enhancements of this game's own battles (hippodrome-utils
+    // docs/specs/game_specific/1): Harder vs Mewtwo (HARDER_VS_MEWTWO.md; its labels are the spec's) and the rival fix
+    // (RIVAL_BUG_FIX.md).
+    void GameEnhancementsPage(float lx, float cx, float tx, float ry) {
+        {
+            static const char* kHints[PORT_MEWTWO_TIERS] = {
+                "Off: the original battle.",
+                "Easy: 10%",
+                "Medium: 30%",
+                "Hard: 50%",
+                "Lunatic: 80%",
+                "Kaizo: No blunders and no move skips.",
+            };
+            const int tier = Port_Enh_HarderMewtwo();
+            Text(lx, ry + 5, "Harder vs Mewtwo", gFonts.body);
+            const int c = Choice("mewtwo", { "Off", "Easy", "Medium", "Hard", "Lunatic", "Kaizo" }, tier, cx, ry, 80);
+            if (c >= 0) Port_Enh_SetHarderMewtwo(c);
+            Text(lx, ry + 33,
+                 std::string("Mewtwo knows twelve moves (Heal Bell and Earthquake among them), cannot be frozen and, in Round 2, "
+                             "acts twice a turn.\nIts play gets sharper with each setting. Now: ") +
+                     kHints[tier >= 0 && tier < PORT_MEWTWO_TIERS ? tier : 0],
+                 gFonts.small, Theme::dim);
+            ry += 70;
+        }
+        {
+            Text(lx, ry + 5, "Rival fix", gFonts.body);
+            Text(tx, ry + 1,
+                 "In the Gym Leader Castle, the rival's team follows your Game Boy\n"
+                 "game's starter even with a registered team (the game took those as\n"
+                 "rentals). The starter is noted when a team is registered.",
+                 gFonts.small, Theme::dim);
+            const int c = Choice("rival", { "On", "Off" }, Port_Enh_RivalFixEnabled() != 0 ? 0 : 1, cx, ry);
+            if (c >= 0) Port_Enh_SetRivalFixEnabled(c == 0);
+            ry += 58;
         }
     }
 
@@ -2996,6 +3045,7 @@ class LauncherWindow : public Ship::GuiWindow {
     Port::GraphicsPick mPick;
     bool mEnhancements = false;   // in the graphics panel: the enhancements page
     bool mStatDifficulty = false; // in the enhancements page: the Stat Exp difficulty page
+    int mEnhancementsPage = 0;    // the enhancements page shown: 0 the general ones, 1 the game's own (Mewtwo, rival)
     bool mSound = false;    // the sound panel instead of the player cards
     bool mSoundTestOpened = false;
     bool mGraphicsTestOpened = false;

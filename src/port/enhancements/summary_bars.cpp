@@ -219,11 +219,16 @@ void DrawMoveName(ImDrawList* dl, ImFont* font, float x, float y, float row, flo
     dl->PopClipRect();
 }
 
-void DrawCard(ImDrawList* dl, ImFont* f, const PortEnhBattleView& v, int s, int i, ImVec2 p0, ImVec2 p1) {
+// moveRows: the rows the moves take, HU_CARD_MOVES but for Mewtwo's card under Harder vs Mewtwo, which grows (the
+// card's height p1.y - p0.y includes them; fractional while it grows)
+void DrawCard(ImDrawList* dl, ImFont* f, const PortEnhBattleView& v, int s, int i, ImVec2 p0, ImVec2 p1,
+              float moveRows = HU_CARD_MOVES) {
     const hu_card& c = v.sides[s].cards[i];
     const hu_card_state state = hu_card_get_state(&c);
     const bool own = (s == v.viewer);
-    const float w = p1.x - p0.x, h = p1.y - p0.y;
+    const bool big = v.bigRows > 0 && s == v.bigSide && i == v.bigCard;
+    const float w = p1.x - p0.x, fullH = p1.y - p0.y;
+    const float h = fullH * (HU_CARD_MOVES + 3) / (moveRows + 3); // a regular card's height
     const float pad = std::max(2.0f, h * 0.06f);
     const bool active = (c.flags & HU_CARD_F_ACTIVE) != 0;
     const int alpha = (state == HU_CARD_NOT_PICKED || state == HU_CARD_FAINTED) ? 150 : 255;
@@ -235,7 +240,7 @@ void DrawCard(ImDrawList* dl, ImFont* f, const PortEnhBattleView& v, int s, int 
     // text column beside it
     const bool right = (s == 1);
     const float m = std::min(h - 2 * pad, w * 0.34f);
-    const ImVec2 m0(right ? p1.x - pad - m : p0.x + pad, p0.y + (h - m) / 2), m1(m0.x + m, m0.y + m);
+    const ImVec2 m0(right ? p1.x - pad - m : p0.x + pad, p0.y + (fullH - m) / 2), m1(m0.x + m, m0.y + m);
     dl->AddRectFilled(m0, m1, Rgba(0x30, 0x3C, 0x60, 0xFF), m * 0.18f);
     if (v.modelReady[s][i] && gCardTexture[s]) {
         float zoom = 1.0f, cx = 0.5f, cy = 0.5f;
@@ -312,7 +317,21 @@ void DrawCard(ImDrawList* dl, ImFont* f, const PortEnhBattleView& v, int s, int 
         }
     }
     y += row;
-    for (int k = 0; k < HU_CARD_MOVES; k++) {
+    if (big) {
+        // in the order they were revealed; the row being added fades in as the card grows
+        dl->PushClipRect(ImVec2(p0.x, y), ImVec2(p1.x, y + moveRows * row), true);
+        for (int k = 0; k < (int)std::ceil(moveRows) && k < PORT_ENH_BIG_MOVES; k++) {
+            const float moveY = y + k * row;
+            if (k < v.bigShown) {
+                const hu_rgb tc = hu_type_text_color((hu_type)v.bigTypes[k]);
+                DrawMoveName(dl, f, x, moveY, row, tw, v.bigMoves[k], Rgba(tc.r, tc.g, tc.b, alpha));
+            } else {
+                DrawMoveName(dl, f, x, moveY, row, tw, "-", Rgba(0xFF, 0xFF, 0xFF, 0x70));
+            }
+        }
+        dl->PopClipRect();
+    }
+    for (int k = 0; k < HU_CARD_MOVES && !big; k++) {
         const float moveY = y + k * row;
         if (hu_card_move_visible(&c, k)) {
             if (c.moves[k] == 0) continue; // an empty slot
@@ -322,7 +341,7 @@ void DrawCard(ImDrawList* dl, ImFont* f, const PortEnhBattleView& v, int s, int 
             DrawMoveName(dl, f, x, moveY, row, tw, "-", Rgba(0xFF, 0xFF, 0xFF, 0x70));
         }
     }
-    y += HU_CARD_MOVES * row;
+    y += moveRows * row;
     {
         const hu_speed_range r = v.speed[s][i];
         char sp[64];
@@ -389,12 +408,25 @@ class SummaryBarsWindow : public Ship::GuiWindow {
             const float x0 = vp->Pos.x + (s == 0 ? (side - cw) / 2 : W - side + (side - cw) / 2);
             for (int i = 0; i < sd.count && i < HU_SIDE_MAX; i++) {
                 const float y0 = vp->Pos.y + margin + i * (ch + gap);
+                if (v.bigRows > 0 && s == v.bigSide && i == v.bigCard) {
+                    // Mewtwo's card (Harder vs Mewtwo) grows a row for each move revealed past the fourth; its side
+                    // has one card, so it grows into the room below
+                    const float target = v.bigRows;
+                    if (mBigRows < HU_CARD_MOVES || mBigRows > target) mBigRows = std::min<float>(target, std::max<float>(mBigRows, HU_CARD_MOVES));
+                    mBigRows = std::min(target, mBigRows + ImGui::GetIO().DeltaTime * 2.5f);
+                    const float bh = ch * (mBigRows + 3) / (HU_CARD_MOVES + 3);
+                    DrawCard(dl, f, v, s, i, ImVec2(x0, y0), ImVec2(x0 + cw, y0 + bh), mBigRows);
+                    continue;
+                }
                 DrawCard(dl, f, v, s, i, ImVec2(x0, y0), ImVec2(x0 + cw, y0 + ch));
             }
         }
         dl->PopClipRect();
         ImGui::End();
     }
+
+  private:
+    float mBigRows = HU_CARD_MOVES; // Mewtwo's card's move rows as drawn (it grows toward v.bigRows)
 
   protected:
     void DrawElement() override {

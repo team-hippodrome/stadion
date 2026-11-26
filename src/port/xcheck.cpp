@@ -105,6 +105,7 @@ struct State {
     // ---- battle boot (PORT_BATTLE=<case file> / --battle): see the section at the end of this file ----
     bool boot = false;
     int bootArena = -1, bootMode = 9, bootRule = 6, bootThink = 20, bootAi = 0;
+    bool bootRound2 = false;
     bool bootIntro = true;
     BootSide bootSides[2];
     std::string dumpDir, dumpRes;
@@ -155,6 +156,10 @@ void ReadCase(const char* path) {
             if (r.fn >= 0 && !r.values.empty()) g.rules.push_back(r);
         } else if (cmd == "arena") {
             ss >> g.bootArena;
+        } else if (cmd == "round2") {
+            int v = 1;
+            ss >> v;
+            g.bootRound2 = v != 0;
         } else if (cmd == "seed") {
             uint32_t v = 0;
             ss >> v;
@@ -474,6 +479,7 @@ int Port_XcheckAnimActive(void) {
 // replay. The case file is the xcheck case format (above) plus:
 //   arena <id>                  stadium_models file index: 0 Free Battle, 1-3 Cups 97-99, 4 Petit, 5 Pika, 6 Prime,
 //                               7-16 Gym Leader Castle, 17 Vs. Mewtwo (default: the mode's arena)
+//   round2 <0|1>                the battle is Round 2's (harder Vs. Mewtwo: Mewtwo acts twice a turn; default 0)
 //   seed <n>                    the random seed (same as PORT_XCHECK_RNG; default 1)
 //   intro <0|1>                 0: the send-out intro ("Go! PIKACHU!", about 330 game frames) runs without frames being
 //                               dumped; frame 0 is the first frame after it (default 1)
@@ -539,6 +545,7 @@ const char* Port_BattleBootTrainer(int side) {
 
 int Port_BattleBootScripted(int side) { return g.bootSides[side & 1].scripted; }
 int Port_BattleBootArena(void) { return g.boot ? g.bootArena : -1; }
+int Port_BattleBootRound2(void) { return g.boot && g.bootRound2; }
 int Port_BattleBootMode(int* rule, int* ai) {
     *rule = g.bootRule;
     *ai = g.bootAi;

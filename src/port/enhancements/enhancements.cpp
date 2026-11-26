@@ -47,6 +47,15 @@ void SetSetting(const char* cvar, int on) {
     CVarSave();
 }
 
+bool SameAsciiFull(const char* a, const char* b) { // a is b, ignoring case
+    for (; *a != '\0' && *b != '\0'; a++, b++) {
+        if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) {
+            return false;
+        }
+    }
+    return *a == *b;
+}
+
 } // namespace
 
 extern "C" int Port_Enh_MoveDescriptionsEnabled(void) {
@@ -79,6 +88,102 @@ extern "C" int Port_Enh_TrainerMemoryEnabled(void) {
 
 extern "C" void Port_Enh_SetTrainerMemoryEnabled(int on) {
     SetSetting("gEnhancements.TrainerMemory", on);
+}
+
+// ---- the rival bug fix ----
+
+extern "C" int Port_Enh_RivalFixEnabled(void) {
+    return Setting("PORT_RIVAL_FIX", "gEnhancements.RivalFix");
+}
+
+extern "C" void Port_Enh_SetRivalFixEnabled(int on) {
+    SetSetting("gEnhancements.RivalFix", on);
+}
+
+namespace {
+
+// <N64 save>.rival: one line per registered team, "<key, 16 hex digits> <starter choice, 0-255>"
+std::map<uint64_t, int> gRival;
+bool gRivalRead = false;
+
+std::string RivalPath() {
+    return std::string(Port_FlashFilePath()) + ".rival";
+}
+
+void RivalRead() {
+    if (gRivalRead) {
+        return;
+    }
+    gRivalRead = true;
+    FILE* f = fopen(RivalPath().c_str(), "r");
+    if (f == nullptr) {
+        return;
+    }
+    unsigned long long key;
+    int starter;
+    while (fscanf(f, "%llx %d", &key, &starter) == 2) {
+        if (starter >= 0 && starter <= 255) {
+            gRival[(uint64_t)key] = starter;
+        }
+    }
+    fclose(f);
+}
+
+} // namespace
+
+extern "C" void Port_Enh_RivalRecord(uint64_t key, int starter) {
+    RivalRead();
+    if (starter < 0 || starter > 255) {
+        return;
+    }
+    auto it = gRival.find(key);
+    if (it != gRival.end() && it->second == starter) {
+        return;
+    }
+    gRival[key] = starter;
+    const std::string path = RivalPath();
+    FILE* f = fopen(path.c_str(), "w");
+    if (f == nullptr) {
+        fprintf(stderr, "[enhancements] could not write %s\n", path.c_str());
+        return;
+    }
+    for (const auto& [k, v] : gRival) {
+        fprintf(f, "%016llx %d\n", (unsigned long long)k, v);
+    }
+    fclose(f);
+}
+
+extern "C" int Port_Enh_RivalLookup(uint64_t key) {
+    RivalRead();
+    auto it = gRival.find(key);
+    return it == gRival.end() ? -1 : it->second;
+}
+
+// ---- Harder vs Mewtwo ----
+
+namespace {
+const char* const kMewtwoTierNames[PORT_MEWTWO_TIERS] = { "off", "easy", "medium", "hard", "lunatic", "kaizo" };
+} // namespace
+
+extern "C" int Port_Enh_HarderMewtwo(void) {
+    const char* v = getenv("PORT_HARDER_MEWTWO");
+    int tier;
+    if (v != nullptr && *v != '\0') {
+        for (int i = 0; i < PORT_MEWTWO_TIERS; i++) {
+            if (SameAsciiFull(v, kMewtwoTierNames[i])) {
+                return i;
+            }
+        }
+        tier = atoi(v);
+    } else {
+        tier = CVarGetInteger("gEnhancements.HarderMewtwo", PORT_MEWTWO_EASY);
+    }
+    return (tier >= 0 && tier < PORT_MEWTWO_TIERS) ? tier : PORT_MEWTWO_OFF;
+}
+
+extern "C" void Port_Enh_SetHarderMewtwo(int tier) {
+    CVarSetInteger("gEnhancements.HarderMewtwo", tier);
+    CVarSave();
 }
 
 // ---- Stat Exp difficulty ----

@@ -23,6 +23,7 @@ The case file (DIR/case.txt) is written from:
   --think N                          game frames a scripted side's menu is shown before its choice (default 20)
   --turns N                          stop after N turns (default: when the battle ends)
   --nomusic                          no battle music / announcer
+  --round2                           the battle is Round 2's (harder Vs. Mewtwo: Mewtwo acts twice a turn)
 Outputs (all into DIR):
   --frames-every N                   every N-th battle game frame as frames/f_<n>.ppm (n: frame since the start; 0: none, default 0)
   --res WxH                          size of those frames (default 640x480)
@@ -45,7 +46,7 @@ ROM = os.environ.get("ROM", "/Users/michael/Downloads/romis/Pokemon Stadium (USA
 VALUE_OPTIONS = {"--out", "--case", "--p1", "--p2", "--level", "--moves", "--moves2", "--act1", "--act2", "--hp1", "--hp2",
                  "--status1", "--status2", "--arena", "--seed", "--intro", "--think", "--turns", "--frames-every", "--res",
                  "--max-frames", "--anim-frames", "--bin", "--rom", "--name1", "--name2", "--mode", "--known1", "--known2", "--level1", "--level2"}
-FLAGS = {"--nomusic", "--trace", "--camlog", "--partlog", "--anim", "--twice", "--help"}
+FLAGS = {"--nomusic", "--round2", "--trace", "--camlog", "--partlog", "--anim", "--twice", "--help"}
 
 
 def ints(text):
@@ -56,6 +57,8 @@ def case_text(a):
     lines = ["# written by tools/battle_boot.py"]
     if "--arena" in a:
         lines.append("arena %d" % int(a["--arena"]))
+    if "--round2" in a:
+        lines.append("round2 1")
     lines.append("seed %d" % int(a.get("--seed", 1)))
     lines.append("intro %d" % int(a.get("--intro", 1)))
     if "--think" in a:

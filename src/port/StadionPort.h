@@ -217,6 +217,7 @@ int Port_BattleBootScripted(int side);
 int Port_BattleBootMode(int* rule, int* ai);
 int Port_BattleBootThink(void);
 int Port_BattleBootArena(void); // the case's arena, or -1
+int Port_BattleBootRound2(void); // the case says the battle is Round 2's (Vs. Mewtwo: harder_mewtwo.c)
 int Port_BattleBootNextAction(int side, int consume, int* arg);
 void Port_BattleBootPhase(int phase);
 void Port_BattleBootFinished(void);
@@ -343,6 +344,43 @@ void PortEnh_HuePickerDraw(int x, int y, int w, int h, struct BattleMon* mon);
 void PortEnh_TmTrainerLoaded(void);
 void PortEnh_MemoryScreenFrame(void);
 void PortEnh_MemoryScreenEnd(void);
+// Rival bug fix (rival_fix.c). RegisteredTeam_Register: the source the player picked for the new registered team (0-3
+// a Game Boy, 4 the rentals); func_8420DBA0: that team (an unk_D_84229EB0_00024) has been written to the save;
+// Team_CommitSelectionToTrainer: a registered team was picked (its gbStarterChoice comes from the side file).
+void PortEnh_RivalRegisterSource(int source);
+void PortEnh_RivalTeamSaved(void* team);
+void PortEnh_RivalTeamPicked(void* team);
+// Harder vs Mewtwo (src/port/enhancements/harder_mewtwo.c, heal_bell.c; hippodrome-utils
+// docs/specs/game_specific/1/HARDER_VS_MEWTWO.md). The ActivePokemon arguments are void* here so the port's C++ can
+// include this header; each hook does nothing outside the harder Vs. Mewtwo battle.
+// the moves Mewtwo knows in the harder battle; Heal Bell, the move gMoveData gains after Struggle (165), and its effect
+// (the free slot after Disable's 0x56)
+#define MEWTWO_MOVES 12
+#define PORT_MOVE_HEAL_BELL 166
+#define PORT_EFFECT_HEAL_BELL 0x57
+void PortEnh_MewtwoBattleBegin(void);
+int PortEnh_MewtwoActive(void);
+int PortEnh_MewtwoFreezeImmune(void* target);       // BattleEffect_SecondaryStatusChance: Mewtwo can't be frozen
+void PortEnh_MewtwoLegality(void* active);          // after the illegality mask: Earthquake and Heal Bell are legal
+int PortEnh_MewtwoChooseAction(void* cpu, int game_choice); // BattleScene_TriggerCpuChoice: the rule tables' slot
+int PortEnh_MewtwoSkipResidual(void);               // Battle_ResolveMonAction: 1 to hold residual damage
+void PortEnh_MewtwoActionResolved(void);            // after it
+int PortEnh_MewtwoActAgainPending(void);            // where Mewtwo's action ends: its second action is due
+int PortEnh_MewtwoActAgain(void);                   // 1 when it resolved the second action (the phase is set)
+int PortEnh_MewtwoPassAction(void);                 // ProcessBattleTurn: 1 for the skipped action's caption
+void PortEnh_MewtwoRevealPending(void);             // the action's presentation starts
+int PortEnh_MewtwoIsCard(int side);
+int PortEnh_MewtwoCardMoves(uint16_t* moves, int max);
+// Heal Bell (src/port/enhancements/heal_bell.c): its effect (sMoveEffectHandlers' 0x57), the presentation stand-in
+// once the move has resolved, the bell (drawn with the battle's effects) and its melody (mixed into the game's sound)
+void PortEnh_HealBellEffect(void);
+void PortEnh_HealBellResolved(void);
+int PortEnh_HealBellPresenting(void* active);
+void PortEnh_HealBellStart(void* active);
+int PortEnh_HealBellBusy(void);
+void PortEnh_HealBellReset(void);
+void PortEnh_HealBellDraw(void);
+void PortEnh_HealBellMix(int16_t* samples, int frames, int rate);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Hooks the game implements for the port
