@@ -77,8 +77,8 @@ void GbTower_Start(GbTowerSessionParams* params) {
     gGbTowerEmuThread->font2 = BinArchive_GetFile(font_archive, 1);
     gGbTowerEmuThread->session = *params;
     osCreateMesgQueue(&gGbTowerEmuThread->queue2, &gGbTowerEmuThread->mesg, 1);
-    osCreateThread(&gGbTowerAudioThread->client.thread, 10, GbTower_AudioThread, NULL, (uintptr_t)gGbTowerAudioThread + 0x21E0,
-                   0x11);
+    osCreateThread(&gGbTowerAudioThread->client.thread, 10, GbTower_AudioThread, NULL,
+                   (uintptr_t)gGbTowerAudioThread + 0x21E0, 0x11);
     osCreateThread(&gGbTowerEmuThread->client.thread, 8, GbTower_EmuThread, NULL, (uintptr_t)gGbTowerEmuThread + 0x21E0, 0xF);
     sSavedPollMask = GbTower_SetPollMask(0);
     osStartThread(&gGbTowerEmuThread->client.thread);

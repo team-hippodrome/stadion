@@ -2122,7 +2122,7 @@ s32 LabPC_RunConfirmSaveFlow(unk_func_8820BE14_02C* arg0, Controller* arg1) {
 }
 
 s32 LabPC_SwapControllerInput(unk_func_8820B12C* arg0, Controller* arg1) {
-#if defined(VERSION_US_REV2)
+#if defined(VERSION_US_REV2) || defined(VERSION_PAL_LATE)
     static u8 D_88217FBC[] = { 0x18, 0x42, 0x43 };
 #else
     static u8 D_88217FBC[] = { 0x18, 0x19, 0x1A };
@@ -2553,7 +2553,9 @@ void LabPC_ShowPokemon(FontContext* arg0, s32 arg1) {
     u8* sp54;
     func_88002628_sp38* sp50;
     char** sp4C;
+#if !(defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT))
     char** sp48;
+#endif
     char** sp44;
     char** sp40;
     char** sp3C;
@@ -2579,15 +2581,23 @@ void LabPC_ShowPokemon(FontContext* arg0, s32 arg1) {
     sMoveNameTable = Text_GetStringTable(0x25);
 
     sp4C = Text_GetStringTable(7);
+#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
+    sLevelLabelText = Text_GetStringTable(6);
+#else
     sp48 = Text_GetStringTable(6);
-    sLevelLabelText = sp48; // PORT
+    sLevelLabelText = sp48; // PORT: the translated releases' level label, read at runtime
+#endif
     sp44 = Text_GetStringTable(0x26);
     sp40 = Text_GetStringTable(0x28);
     sp3C = Text_GetStringTable(0x29);
     sp38 = Text_GetStringTable(0xB);
 
     sp58 = mem_pool_alloc(sp5C, sizeof(unk_func_8820BE14));
+#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
+    func_8820BE14(sp58, 0, 0, arg1, sp5C, arg0, sp4C, sLevelLabelText, sp44, sp40, sp3C, sp38);
+#else
     func_8820BE14(sp58, 0, 0, arg1, sp5C, arg0, sp4C, sp48, sp44, sp40, sp3C, sp38);
+#endif
 
     sp50 = ALIGN16((uintptr_t)mem_pool_alloc(sp5C, sizeof(func_88002628_sp38)));
 

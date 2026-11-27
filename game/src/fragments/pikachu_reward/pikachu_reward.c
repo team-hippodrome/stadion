@@ -611,7 +611,7 @@ s32 PikachuReward_ResolveMoveSlot(void) {
 }
 
 void PikachuReward_ShowSaveStatusScreen(s32 arg0) {
-#if defined(VERSION_US_REV2)
+#if defined(VERSION_US_REV2) || defined(VERSION_PAL_LATE)
     s32 x;
 
 #endif
@@ -632,7 +632,7 @@ void PikachuReward_ShowSaveStatusScreen(s32 arg0) {
     if (arg0 == 0) {
         Font_BeginTranslucentTextRendering();
         Font_SetActive(4, 0);
-#if defined(VERSION_US_REV2)
+#if defined(VERSION_US_REV2) || defined(VERSION_PAL_LATE)
         x = (0xA8 - Font_MeasureTextExtent(0, 0, Text_GetString(NULL, 0, sPikachuSurfText, 0x12))) / 2;
         Font_Printf(x + 0x4C, 0x70, Text_GetString(NULL, 0, sPikachuSurfText, 0x12));
 #else
@@ -641,7 +641,7 @@ void PikachuReward_ShowSaveStatusScreen(s32 arg0) {
         Font_EndTexturedTextRendering();
     } else {
         Font_SetLineHeight(0x10);
-#if defined(VERSION_US_REV2)
+#if defined(VERSION_US_REV2) || defined(VERSION_PAL_LATE)
         Font_Printf(0x40, 0x8C, Text_GetString(NULL, 0, sPikachuSurfText, 0x13));
 #else
         Font_Printf(0x40, 0x84, Text_GetString(NULL, 0, sPikachuSurfText, 0x13));
@@ -650,7 +650,7 @@ void PikachuReward_ShowSaveStatusScreen(s32 arg0) {
 
         if (arg0 == 2) {
             Font_SetActive(4, 0);
-#if defined(VERSION_US_REV2)
+#if defined(VERSION_US_REV2) || defined(VERSION_PAL_LATE)
             x = (0xE0 - Font_MeasureTextExtent(0, 0, Text_GetString(NULL, 0, sPikachuSurfText, 0x14))) / 2;
             Font_Printf(x + 0x30, 0x64, Text_GetString(NULL, 0, sPikachuSurfText, 0x14));
 #else
@@ -658,7 +658,7 @@ void PikachuReward_ShowSaveStatusScreen(s32 arg0) {
 #endif
         } else if (arg0 == 3) {
             Font_SetLineHeight(0x10);
-#if defined(VERSION_US_REV2)
+#if defined(VERSION_US_REV2) || defined(VERSION_PAL_LATE)
             x = (0xE0 - Font_MeasureTextExtent(0, 0, Text_GetString(NULL, 0, sPikachuSurfText, 0x15))) / 2;
             Font_Printf(x + 0x30, 0x5C, Text_GetString(NULL, 0, sPikachuSurfText, 0x15));
 #else
@@ -792,7 +792,7 @@ s32 Stadium_BonusPikachuReward(UNUSED s32 arg0, UNUSED s32 arg1) {
         sp20 = StageContext_Allocate(0, 1, 3, 1, 2, 1);
         Font_Init(6, 0);
 
-        FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);
+        FRAGMENT_LOAD(FRAGMENT_MODEL_CALLBACK_LIBRARY);
         Fragment_Load(FRAGMENT_ID(_798CD0), _798CD0_ROM_START, _798CD0_ROM_END);
         ASSET_LOAD(D_1000000, common_menu1_ui, 0);
 

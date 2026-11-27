@@ -273,9 +273,19 @@ void TeamSelection_DrawRegistrationHeaderBackdrop(s16 arg0, s16 arg1) {
 }
 
 void TeamSelection_DrawCategoryBanner(s16 arg0, s16 arg1, s16 arg2) {
+#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_IT)
+    // The French, German and Italian banner textures sit further into segment 2.
+    extern u8 D_200E9C0[];
+    extern u8 D_200FE00[];
+    extern u8 D_2011240[];
+    extern u8 D_2012680[];
+    extern u8 D_2013AC0[];
+    static u8* D_84210D5C[] = { D_200E9C0, D_200FE00, D_2011240, D_2012680, D_2013AC0 };
+#else
     static u8* D_84210D5C[] = { D_200DFA0, D_200F3E0, D_2010820, D_2011C60, D_20130A0 };
+#endif
     // PORT: the French, German and Italian banner textures sit further into segment 2 (the decomp's VERSION_FR,
-    // VERSION_DE and VERSION_IT table: D_200E9C0, D_200FE00, D_2011240, D_2012680, D_2013AC0)
+    // VERSION_DE and VERSION_IT table above: D_200E9C0, D_200FE00, D_2011240, D_2012680, D_2013AC0)
     static u8* sTranslatedBanners[] = { (u8*)0x200E9C0, (u8*)0x200FE00, (u8*)0x2011240, (u8*)0x2012680,
                                         (u8*)0x2013AC0 };
     u8** banners = (PORT_VERSION_FR || PORT_VERSION_DE || PORT_VERSION_IT) ? sTranslatedBanners : D_84210D5C;
@@ -1135,7 +1145,7 @@ s32 Rental_Main(s32 arg0, UNUSED s32 arg1) {
     Font_Init(0x1C, 0);
     ASSET_LOAD(D_1000000, common_menu1_ui, 0);
     ASSET_LOAD(D_2000000, common_menu2_ui, 0);
-    FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);
+    FRAGMENT_LOAD(FRAGMENT_MODEL_CALLBACK_LIBRARY);
     PokeIcon_OpenModelArchives();
     Text_InitStringTables();
 

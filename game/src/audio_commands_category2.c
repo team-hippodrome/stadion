@@ -765,8 +765,13 @@ s32 Audio_PlayCategory9SoundCommand(s32 arg0, UNUSED s32 arg1, UNUSED s32 arg2) 
                 D_80078ED4 = 0;
                 D_80078ED8 = 0;
                 D_80078EDC = 0;
+#if defined(VERSION_FR) || defined(VERSION_IT)
+                D_80078FAC++;
+                sp38 = 2;
+#else
                 sp38 = 2;
                 D_80078FAC++;
+#endif
                 Audio_UpdateSpecialSequence(0x1E, 0);
             } else if (D_80078FAC == 1) {
                 D_80078FAC++;
@@ -872,12 +877,22 @@ s32 Audio_PlayCategoryASoundCommand(s32 arg0, s32 arg1, s32 arg2) {
         2.0f,
         2.0f,
     };
+#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
+    // The translated releases pitch all four variants the same.
+    static f32 D_80078FF8[4] = {
+        15.0f,
+        15.0f,
+        15.0f,
+        15.0f,
+    };
+#else
     static f32 D_80078FF8[4] = {
         0.0f,
         4.0f,
         8.0f,
         12.0f,
     };
+#endif
 
     s32 sp34;
     s32 sp30;
@@ -1303,6 +1318,9 @@ s32 Audio_PlayCategory11SoundCommand(s32 arg0, s32 arg1, s32 arg2) {
     s32 temp_v0_2;
     u32 sp38;
     s32 sp34;
+#if defined(VERSION_PAL)
+    s32 voice_volume;
+#endif
     UNUSED s32 pad2;
     uintptr_t sp2C; // PORT: was u32
     u32 sp20;
@@ -1334,6 +1352,17 @@ s32 Audio_PlayCategory11SoundCommand(s32 arg0, s32 arg1, s32 arg2) {
         case 0x1100007:
             return 0;
 
+#if defined(VERSION_PAL)
+        case 0x1100015:
+        case 0x1100017:
+            sp40--;
+            break;
+
+        case 0x1100016:
+            voice_volume = 0x6A;
+            sp40--;
+            break;
+#else
         case 0x1100015:
         case 0x1100016:
         case 0x1100017:
@@ -1342,6 +1371,7 @@ s32 Audio_PlayCategory11SoundCommand(s32 arg0, s32 arg1, s32 arg2) {
             }
             sp40--;
             break;
+#endif
 
         case 0x1100001:
         case 0x1100002:

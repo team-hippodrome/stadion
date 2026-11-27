@@ -44,8 +44,8 @@ class WholeGameCatalogTests(unittest.TestCase):
         cases = catalog.recipes(Path('fixtures').resolve())
         case = next(c for c in cases if c['name'] == 'champion_banner_probe_round')
         self.assertEqual(case['frames'], 9000)
-        self.assertIn('BattlePrep_LoadBannerAssets:gSessionContext+0x2:1=9', case['extra'][case['extra'].index('--set') + 1])
-        self.assertIn('BattlePrep_BindCarouselSegment1', case['expect'])
+        self.assertIn('BattlePrepBanner_LoadTextures:gSessionContext+0x2:1=9', case['extra'][case['extra'].index('--set') + 1])
+        self.assertIn('BattlePrepBanner_DrawTitle', case['expect'])
 
     def test_album_dependencies_precede_readers(self):
         cases = catalog.ordered(catalog.recipes(Path('fixtures').resolve()))

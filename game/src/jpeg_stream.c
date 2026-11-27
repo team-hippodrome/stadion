@@ -941,7 +941,7 @@ void* Port_ResolveCode(uintptr_t addr) {
             }
         }
     }
-    // Fragment 31 (particle_data_library) starts with a table of trampolines ("j target; nop") that ROM data uses as
+    // Fragment 31 (model_callback_library) starts with a table of trampolines ("j target; nop") that ROM data uses as
     // stable entry points into other fragments (e.g. 0x810001D0 -> ParticleGfx_GraphNodeBuildDescriptorMaterialList,
     // the arena floor's material callback). Follow a jump at the address to its target.
     if (addr >= 0x81000000 && addr < 0x90000000 && depth < 4) {

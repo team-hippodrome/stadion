@@ -16,8 +16,8 @@
 
 typedef struct unk_D_800A8480 {
     /* 0x0000 */ SchedClient client;
-    /* 0x01E0 */ char stack[0x2000];
-} unk_D_800A8480; // size = 0x21E0
+    /* 0x01E0 */ char stack[0x2000]; // Audio_StartThread passes the next address, &gGbTowerEmuThread, as stack top.
+} unk_D_800A8480;                    // size = 0x21E0
 
 static s32 D_800A83A0;
 static UnkStruct80001380 D_800A83A8[2];

@@ -524,11 +524,11 @@ s32 BattleScene_UpdateFrame(s32 fade_mode) {
     Battle_UpdateFaintBatches();
 
     if (battle_result == 1) {
-        sBattleSides[0].unk_1C = 1;
+        sBattleSides[0].wonBattle = 1;
     }
 
     if (battle_result == 2) {
-        sBattleSides[1].unk_1C = 1;
+        sBattleSides[1].wonBattle = 1;
     }
 
     return battle_result;
@@ -704,7 +704,7 @@ void BattleScene_InitializeParticipantPresentation(BattleSessionTeams* side, unk
 
     side->unk_18 = model->nodes[0];
     side->uniqueStatusFlags |= 0xA0;
-    side->unk_1C = 0;
+    side->wonBattle = 0;
     side->displayModel = first_trainer->pokemonPicked[0].species.id;
     side->unk_04 = first_trainer->pokemonPicked;
     Trainer_RequestPokeIcon(side);
@@ -727,8 +727,10 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
 
     if (gSessionContext.mode == 0x11) {
         Font_Init(4, 0);
+#if !defined(VERSION_JP)
     } else if (gSessionContext.mode == SESSION_MODE_ATTRACT_DEMO_BATTLE) {
         Font_Init(7, 0);
+#endif
     } else {
         Font_Init(3, 0);
     }
@@ -748,7 +750,7 @@ void BattleScene_Init(unk_func_80007444* stage_context) {
     sSide1PokemonThumbnailImage = sSide1PokemonThumbnail->img_p;
     sSide2PokemonThumbnailImage = sSide2PokemonThumbnail->img_p;
 
-    FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);
+    FRAGMENT_LOAD(FRAGMENT_MODEL_CALLBACK_LIBRARY);
     ASSET_LOAD(D_1000000, common_menu1_ui, 0);
     ASSET_LOAD(D_3000000, battle_ui, 0);
 

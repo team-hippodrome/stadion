@@ -1673,7 +1673,9 @@ void LabPC_ShowBoxes(FontContext* arg0) {
     u8* sp64;
     func_88002628_sp38* sp60;
     char** sp5C;
+#if !(defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT))
     char** sp58;
+#endif
     char** sp54;
     char** sp50;
     char** sp4C;
@@ -1692,8 +1694,12 @@ void LabPC_ShowBoxes(FontContext* arg0) {
     sIdLabelText = Text_GetStringTable(0x2A);
     sPcBoxText = Text_GetStringTable(4);
     sp5C = Text_GetStringTable(7);
+#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
+    sLevelLabelText = Text_GetStringTable(6);
+#else
     sp58 = Text_GetStringTable(6);
-    sLevelLabelText = sp58; // PORT
+    sLevelLabelText = sp58; // PORT: the translated releases' level label, read at runtime
+#endif
     sp54 = Text_GetStringTable(0x24);
     sp50 = Text_GetStringTable(0x25);
     sp4C = Text_GetStringTable(0x26);
@@ -1702,7 +1708,11 @@ void LabPC_ShowBoxes(FontContext* arg0) {
     sp40 = Text_GetStringTable(0xB);
 
     sp68 = mem_pool_alloc(sp6C, sizeof(unk_func_88205880));
+#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
+    LabPC_BuildBoxScreenWidget(sp68, 0, 0, arg0, sp6C, sp5C, sLevelLabelText, sp54, sp50, sp4C, sp48, sp44, sp40);
+#else
     LabPC_BuildBoxScreenWidget(sp68, 0, 0, arg0, sp6C, sp5C, sp58, sp54, sp50, sp4C, sp48, sp44, sp40);
+#endif
 
     sp60 = ALIGN16((uintptr_t)mem_pool_alloc(sp6C, sizeof(func_88002628_sp38)));
 

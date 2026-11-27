@@ -28,6 +28,7 @@
 #include "src/hal_libc.h"
 #include "src/rsp.h"
 #include "src/stage_loader.h"
+#include "src/graphics_textures.h"
 #include <PR/os_internal_reg.h>
 #include "StadionPort.h"
 
@@ -502,6 +503,9 @@ void State_TitleScreen(void) {
     gCurrentGameState = FRAGMENT_LOAD_AND_CALL(FRAGMENT_TITLE_SCREEN, 0, &D_8007567C);
 
     if (gCurrentGameState == STATE_TITLE_SCREEN) {
+#if defined(VERSION_JP)
+        Storage_StartDiskReadyPolling();
+#endif
         main_pool_push_state('DEMO');
 
         if (gSessionContext.mode == 0x10) {
@@ -531,6 +535,9 @@ void State_TitleScreen(void) {
         }
 
         main_pool_pop_state('DEMO');
+#if defined(VERSION_JP)
+        Storage_StopDiskReadyPolling();
+#endif
         return;
     }
 
@@ -678,9 +685,11 @@ void State_StadiumMenu(void) {
                 Stage_RunDemoScene(0x11);
             }
 
+#if !defined(VERSION_JP)
             if (gSessionContext.transitionFlags & 0x1000) {
                 FRAGMENT_LOAD_AND_CALL(FRAGMENT_PIKACHU_REWARD, 0, 0);
             }
+#endif
 
             if (gSessionContext.transitionFlags & 8) {
                 Stage_RunDemoScene(0x16);
@@ -816,8 +825,13 @@ void State_VsMewtwo(void) {
 
     Stage_RunDemoScene(0x18);
     Session_SetMode(8, 8, 0);
+#if defined(VERSION_JP)
+    Team_AddTrainer(0, Trainer_Create(0, 0, "1P", "トレーナー"));     // "Trainer"
+    Team_AddTrainer(1, Trainer_Create(-1, 0, "COM", "コンピュータ")); // "Computer"
+#else
     Team_AddTrainer(0, Trainer_Create(0, 0, "1P", Text_GetPlayerLabel(1)));
     Team_AddTrainer(1, Trainer_Create(-1, 0, "COM", Text_GetPlayerLabel(3)));
+#endif
 
     while ((sp4E > 0) && (sp4E < 3)) {
         sp4E = RuleWizard_VsMewtwo(sp4E);
@@ -861,10 +875,13 @@ void State_KidsClub(void) {
     gCurrentGameState = STATE_AREA_SELECT;
 }
 
+// JP has no Gallery or Snap Station support.
+#if !defined(VERSION_JP)
 void State_Gallery(void) {
     Gallery_Dispatch();
     gCurrentGameState = STATE_MENU_SELECT;
 }
+#endif
 
 void State_VictoryPalace(void) {
     if (FRAGMENT_LOAD_AND_CALL(FRAGMENT_HALL_OF_FAME, 0, 0) == 1) {
@@ -967,8 +984,13 @@ void State_GymLeaderCastle(void) {
 
     if (!(gSessionContext.sessionFlags & 1)) {
         Session_SetMode(7, 7, 0);
+#if defined(VERSION_JP)
+        Team_AddTrainer(0, Trainer_Create(0, 0, "1P", "トレーナー"));     // "Trainer"
+        Team_AddTrainer(1, Trainer_Create(-1, 0, "COM", "コンピュータ")); // "Computer"
+#else
         Team_AddTrainer(0, Trainer_Create(0, 0, "1P", Text_GetPlayerLabel(1)));
         Team_AddTrainer(1, Trainer_Create(-1, 0, "COM", Text_GetPlayerLabel(3)));
+#endif
     }
 
     while ((sp4E > 0) && (sp4E < 4)) {
@@ -1150,6 +1172,7 @@ void State_PortBattle(void) {
     gCurrentGameState = STATE_TITLE_SCREEN;
 }
 
+#if !defined(VERSION_JP)
 void State_FastN64Logo(void) {
     void (*frag_43_entry)(void);
 
@@ -1167,6 +1190,7 @@ void State_FastN64Logo(void) {
 
     main_pool_pop_state('DOSE');
 }
+#endif
 
 void State_FastBattle(void) {
     main_pool_push_state('STAD');
@@ -1214,16 +1238,21 @@ void Game_Thread(UNUSED LEODiskID* arg) {
     __osSetFpcCsr(0x01000C01U);
 
     Cont_SetupControllers();
+#if defined(VERSION_JP)
+    Leo_InitializeBootState();
+#endif
     PokeIcon_StartThread();
 
     main_pool_push_state('GAME');
 
     gSessionContext.inRound2 = 0;
 
+#if !defined(VERSION_JP)
     // is this game connected to a Sticker Station?
     if (Controller_CheckAccessoryEeprom() != 0) {
         gCurrentGameState = STATE_FAST_N64_LOGO;
     }
+#endif
 
     // PORT battle boot (PORT_BATTLE=<case file>): the same initialisation as PORT_BOOT below, then State_PortBattle
     if (Port_BattleBootActive()) {
@@ -1297,9 +1326,11 @@ void Game_Thread(UNUSED LEODiskID* arg) {
             case STATE_AREA_SELECT:
                 State_AreaSelect();
                 break;
+#if !defined(VERSION_JP)
             case STATE_GALLERY:
                 State_Gallery();
                 break;
+#endif
             case STATE_EVENT_BATTLE:
                 State_EventBattle();
                 break;
@@ -1354,9 +1385,11 @@ void Game_Thread(UNUSED LEODiskID* arg) {
             case STATE_KIDS_CLUB_TITLE:
                 State_KidsClubTitle();
                 break;
+#if !defined(VERSION_JP)
             case STATE_FAST_N64_LOGO:
                 State_FastN64Logo();
                 break;
+#endif
             // same as state 1: N64 Logo + Intro.
             default:
                 State_N64LogoIntro();

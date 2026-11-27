@@ -478,17 +478,17 @@ typedef struct GbTowerSessionParams {
     /* 0x04 */ u16 (*partyIcons)[6][0x640];
 } GbTowerSessionParams; // size = 0x8
 
-// Header shared by every thread registered with the scheduler (Sched_AddClient). The scheduler keeps the
-// clients in a singly linked list and posts retrace/reset messages to each client's queue.
-// PORT: the decomp spelled this header out separately in each owner struct (and some owners left it as padding);
-// it is now one struct embedded as the first member, so the scheduler API is typed.
+// Header of every thread registered with the scheduler. Sched_AddClient and Sched_RemoveClient keep the clients
+// in a singly linked list through `next`; Sched_NotifyClients posts each retrace message to `queue`, and
+// Sched_HandlePreNMI stops the threads of type-0 clients.
+//@src/scheduler.c
 typedef struct SchedClient {
     /* 0x000 */ OSThread thread;
-    /* 0x1B0 */ OSMesg msgs[4]; // PORT: room for 4 host-sized messages (was 0x10 bytes)
+    /* 0x1B0 */ OSMesg msgs[4]; // Sched_InitClientQueue backs `queue` with this; dp_intro asks for 4 messages.
     /* 0x1C0 */ OSMesgQueue queue;
     /* 0x1D8 */ struct SchedClient* next;
     /* 0x1DC */ s32 type; // 0: stopped on pre-NMI; 2: not notified until a reset is pending
-} SchedClient;           // size = 0x1E0
+} SchedClient;            // size = 0x1E0
 
 typedef struct unk_D_800AA660 {
     /* 0x0000 */ SchedClient client;

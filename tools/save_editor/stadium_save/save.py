@@ -98,7 +98,7 @@ CONTINUE_DATA = Struct(0x20, [  # SessionContinueData (Session_SaveContinueData,
     (0x10, "player_name", Text(16, "gb")),
 ])
 
-MODE_PROGRESS = Struct(8, [  # ModeSettings (BattlePrep_MarkCupCleared / BattlePrep_MarkNewRoundRecord)
+MODE_PROGRESS = Struct(8, [  # ModeSettings (BattlePrep_MarkModeCleared / BattlePrep_UpdateClearProgress)
     (0x00, "cleared_modes", U16),  # bit (1 << mode) per cleared mode; 0xF8 = all cups + Castle
     (0x04, "gym_leader_castle", U8),  # Castle stages cleared (0..8)
     (0x05, "poke_cup", U8),        # Poké Cup divisions cleared (0..4)
@@ -109,7 +109,7 @@ MODE_PROGRESS = Struct(8, [  # ModeSettings (BattlePrep_MarkCupCleared / BattleP
 OPTIONS = Struct(0x22, [  # SaveOptionsRecord
     (0x00, "flags", U8),
     (0x02, "sound", U16),            # bit0 mono, bit1 voice off (Options_ApplySoundSettings)
-    (0x04, "gb_tower_speed", S16),   # 0 normal, 1 Doduo, 2 Dodrio (BattlePrep_MarkFirstClearBonus)
+    (0x04, "gb_tower_speed", S16),   # 0 normal, 1 Doduo, 2 Dodrio (BattlePrep_AdvanceGbTowerUnlock)
     (0x08, "gb_tower_word", U32),    # value carried into/out of GB Tower (State_GbTower); role unknown
     (0x0C, "progress", Array(MODE_PROGRESS, 2)),  # [Round 1, Round 2]
     (0x1C, "bonus_pokemon", U16),    # dex | 0x100 (Round 2); collected at the Lab PC, then cleared

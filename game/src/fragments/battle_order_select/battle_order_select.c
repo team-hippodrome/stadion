@@ -1431,7 +1431,7 @@ s32 BattleMenu_RunOrderSelectScreen(s32 arg0, s32 arg1) {
     main_pool_push_state('MSEL');
 
     // PORT: + room for the summary bars' card models (an enhancement, on by default)
-#if defined(VERSION_US_REV2)
+#if defined(VERSION_US_REV2) || defined(VERSION_PAL_LATE)
     Gfx_InitDisplayListBuffers(0x18000 + PortEnh_OrderSelectDisplayListRoom(), 0);
 #else
     Gfx_InitDisplayListBuffers(0x10000 + PortEnh_OrderSelectDisplayListRoom(), 0);
@@ -1441,7 +1441,7 @@ s32 BattleMenu_RunOrderSelectScreen(s32 arg0, s32 arg1) {
     Font_Init(60, 0);
     PokeIcon_OpenModelArchive();
     // PORT: load model_callback_library so 0x8100xxxx species callbacks render on the order select summary cards.
-    FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);
+    FRAGMENT_LOAD(FRAGMENT_MODEL_CALLBACK_LIBRARY);
     sBackgroundArchive = ASSET_LOAD2(backgrounds, 1, 1);
     sBackgroundImage = BinArchive_GetFile(sBackgroundArchive, 5);
 

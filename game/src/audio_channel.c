@@ -4,9 +4,16 @@
 #include "src/3D140.h"
 #include "StadionPort.h"
 
+// JP still defines these in gb_audio_render.
+#if !defined(VERSION_JP)
+s32 D_80078E60 = 0;
+s32 D_80078E64 = 0;
+s32 D_80078E68 = 0;
+s32 D_80078E6C = 0; // unreferenced
+#endif
+
 // The translated releases play every volume step 0x1000 quieter.
 #define VOLUME_STEP_DROP (PORT_VERSION_TRANSLATED ? 0x1000 : 0)
-
 void Audio_SetChannelVolume(s32 arg0, u32 arg1) {
     if (PORT_AUDIO_OFF()) {
         return;

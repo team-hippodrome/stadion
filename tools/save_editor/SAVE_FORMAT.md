@@ -231,7 +231,7 @@ Session (`Session_SaveContinueData`, `src/session.c`):
 | 0x0E | u16 | trainer ID |
 | 0x10 | gb[16] | player name |
 
-Cleared (reset) when the resumed battle starts (`BattlePrep_ShowSingleBattleIntro` / `BattlePrep_ShowRoundIntro`). (ares: an editor-written run
+Cleared (reset) when the resumed battle starts (`BattlePrep_ShowVersusIntro` / `BattlePrep_ShowRoundIntro`). (ares: an editor-written run
 resumes at battle 3 of the Poké Cup with the saved team — `verify/shots/continue_*.png`.)
 
 ### 6.4 Options and progress (type 0x14, 0x28 bytes)
@@ -241,7 +241,7 @@ resumes at battle 3 of the Poké Cup with the saved team — `verify/shots/conti
 | 0x00 | u8 | flags (1 after reset) | |
 | 0x01 | u8 | unused | |
 | 0x02 | u16 | sound: bit0 mono, bit1 voice off | `Options_ApplySoundSettings` (ares: Options shows MONO/OFF) |
-| 0x04 | s16 | GB Tower speed: 0 normal, 1 Doduo, 2 Dodrio; incremented (max 2) by the first Master Ball win in the Poké Cup or Prime Cup | `BattlePrep_MarkFirstClearBonus`; 2 also switches the area-select background to night (`AreaSelect_LoadBackgroundArt`, ares) |
+| 0x04 | s16 | GB Tower speed: 0 normal, 1 Doduo, 2 Dodrio; incremented (max 2) by the first Master Ball win in the Poké Cup or Prime Cup | `BattlePrep_AdvanceGbTowerUnlock`; 2 also switches the area-select background to night (`AreaSelect_LoadBackgroundArt`, ares) |
 | 0x06 | 2 | unused | |
 | 0x08 | u32 | word handed to GB Tower (`UnkInputStruct8000D738.unk_00`) and stored back after GB Tower exits | `State_GbTower`, `GbTower_BuildPartyResult`; role unknown |
 | 0x0C | progress[2] | Round 1, Round 2 (8 bytes each, below) | `Save_Get/SetModeSettings(…, unk_11F2)` |
@@ -251,7 +251,7 @@ resumes at battle 3 of the Poké Cup with the saved team — `verify/shots/conti
 | 0x20 | 2 | unused | |
 | 0x22 | footer | | |
 
-Progress (`ModeSettings`, written by `BattlePrep_MarkCupCleared` / `BattlePrep_MarkNewRoundRecord`):
+Progress (`ModeSettings`, written by `BattlePrep_MarkModeCleared` / `BattlePrep_UpdateClearProgress`):
 
 | off | type | field |
 |---|---|---|

@@ -561,7 +561,8 @@ void BattleHud_DrawParticipantTimer(s16 x, s16 y) {
     s32 color_index;
     s32 timer_string;
 
-    timer_string = ((s32)((sOrderTimer / 30.0f) / 60.0f) * 0x3C) + ((s32)(sOrderTimer / 30.0f) % 60);
+    timer_string = ((s32)((sOrderTimer / NTSC_PAL(30.0f, 25.0f)) / 60.0f) * 0x3C) +
+                   ((s32)(sOrderTimer / NTSC_PAL(30.0f, 25.0f)) % 60);
     if (timer_string >= 11) {
         color_index = 2;
     } else if (timer_string >= 4) {
@@ -586,7 +587,7 @@ void BattleHud_DrawParticipantTimer(s16 x, s16 y) {
 
 void BattleHud_DrawBattleTimer(s16 x, s16 y) {
     char string_buffer[16];
-    f32 time_left = sBattleTimer / 30.0f;
+    f32 time_left = sBattleTimer / NTSC_PAL(30.0f, 25.0f);
     UNUSED s32 pad[2];
 
     Gfx_FillRectWithDisplayState(x, y, 39, 12, 0, 0, 0, 0x5A);
