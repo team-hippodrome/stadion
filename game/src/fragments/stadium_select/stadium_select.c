@@ -74,17 +74,18 @@ typedef struct NcCupSlot {
     s8 is99;        // mode 3 as Nintendo Cup '99
     u8 background;  // backgrounds archive file
     u8 big;         // a four-division icon (152x114) rather than a one-cup icon (128x96)
+    u8 corner;      // a corner cup: drawn at the four-division icon's size
     s16 x, y;       // the icon's centre on the 640x480 screen
     s8 up, down, left, right;
 } NcCupSlot;
 static NcCupSlot sNcCupSlots[NC_CUP_COUNT] = {
-    { 3, 0, 9, 1, 255, 96, -1, 2, -1, 1 },  // Poké Cup
-    { 1, 0, 9, 0, 385, 96, -1, 4, 0, -1 },  // Nintendo Cup '97 (backgrounds file 9: the Japanese '97 picture)
-    { 4, 0, 10, 0, 160, 191, 0, 5, -1, 3 }, // Petit Cup
-    { 6, 0, 12, 1, 320, 191, 0, 6, 2, 4 },  // Prime Cup
-    { 5, 0, 11, 0, 480, 191, 1, 6, 3, -1 }, // Pika Cup
-    { 2, 0, 8, 0, 255, 286, 2, -1, -1, 6 }, // Nintendo Cup '98
-    { 3, 1, 7, 1, 385, 286, 4, -1, 5, -1 }, // Nintendo Cup '99 (file 7: the Japanese '99 picture)
+    { 3, 0, 9, 1, 1, 255, 96, -1, 2, -1, 1 },  // Poké Cup
+    { 1, 0, 9, 0, 1, 385, 96, -1, 4, 0, -1 },  // Nintendo Cup '97 (backgrounds file 9: the Japanese '97 picture)
+    { 4, 0, 10, 0, 0, 160, 191, 0, 5, -1, 3 }, // Petit Cup
+    { 6, 0, 12, 1, 0, 320, 191, 0, 6, 2, 4 },  // Prime Cup
+    { 5, 0, 11, 0, 0, 480, 191, 1, 6, 3, -1 }, // Pika Cup
+    { 2, 0, 8, 0, 1, 255, 286, 2, -1, -1, 6 }, // Nintendo Cup '98
+    { 3, 1, 7, 1, 1, 385, 286, 4, -1, 5, -1 }, // Nintendo Cup '99 (file 7: the Japanese '99 picture)
 };
 static s32 sNcLayout;     // the seven-cup layout is on
 static s16 sCupCount = 6; // cups on the screen (B returns this)
@@ -1114,8 +1115,11 @@ static void StadiumSelect_BuildNcCupIconGrid(void) {
     for (i = 0; i < NC_CUP_COUNT; i++) {
         NcCupSlot* slot = &sNcCupSlots[i];
         MenuItemInfo* info = &sNcItemInfo[i];
-        f32 width = (slot->big ? 152.0f : 128.0f) * NC_ICON_SCALE;
-        f32 height = (slot->big ? 114.0f : 96.0f) * NC_ICON_SCALE;
+        // the four corner cups (Poké, '97, '98, '99) all have the four-division icon's size: the one-cup icons of
+        // '97 and '98 are drawn larger to match
+        f32 scale = (!slot->big && slot->corner) ? NC_ICON_SCALE * 152.0f / 128.0f : NC_ICON_SCALE;
+        f32 width = (slot->big ? 152.0f : 128.0f) * scale;
+        f32 height = (slot->big ? 114.0f : 96.0f) * scale;
         s32 medals;
         s32 count;
 
@@ -1131,9 +1135,9 @@ static void StadiumSelect_BuildNcCupIconGrid(void) {
         Model_InitDisplayObject(&D_84103458[i], 0, 0, slot->big ? D_84103CE8 : D_84103CEC);
         // the models' left edge is at x, their middle at y: 1 unit is a pixel at this depth
         Vec3f_SetComponentsDuplicate(&D_84103458[i].position,
-                                     slot->x - 320.0f - (slot->big ? 82.0f : 70.0f) * NC_ICON_SCALE, 240.0f - slot->y,
+                                     slot->x - 320.0f - (slot->big ? 82.0f : 70.0f) * scale, 240.0f - slot->y,
                                      -579.0f);
-        D_84103458[i].scale.x = D_84103458[i].scale.y = D_84103458[i].scale.z = NC_ICON_SCALE;
+        D_84103458[i].scale.x = D_84103458[i].scale.y = D_84103458[i].scale.z = scale;
 
         // the medals' sparkles, at the western layout's places on the icon
         if (slot->big) {
@@ -1152,8 +1156,8 @@ static void StadiumSelect_BuildNcCupIconGrid(void) {
             MenuRectAnim* sparkle = &sNcSparkles[sNcSparkleCount++];
 
             sparkle->unk_00 = (k < count) ? 1 : 0;
-            sparkle->unk_02 = info->unk_00 + (s16)((slot->big ? 16 + k * 38 : 100) * NC_ICON_SCALE);
-            sparkle->unk_04 = info->unk_02 + (s16)((slot->big ? 70 : 60) * NC_ICON_SCALE);
+            sparkle->unk_02 = info->unk_00 + (s16)((slot->big ? 16 + k * 38 : 100) * scale);
+            sparkle->unk_04 = info->unk_02 + (s16)((slot->big ? 70 : 60) * scale);
             sparkle->unk_06 = 0x20;
             sparkle->unk_08 = (s16)(k * 0x2000);
             sparkle->unk_0A = 0;
