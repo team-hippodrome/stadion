@@ -1263,6 +1263,20 @@ static unk_D_86A02750 D_86A02750[] = {
         1,
         { &D_86A06130, &D_86A06134 },
     },
+    // PORT: the Spanish staff roll ends with one more line (the others stop at Credits_GetRoleLineCount)
+    {
+        1,
+        { &D_86A06138, &D_86A0613C },
+    },
+};
+
+// PORT: the translated releases set some staff roll lines as headings instead of names and the other way round, and
+// the Spanish roll has one more line and the Italian one one fewer (the decomp's ROLE_STYLE and ROLE_STYLE_ES_IT, and
+// the line counts of page 24). Each row: line, then its style in English, French and German, Spanish, Italian.
+static const s16 sPortRoleStyles[][5] = {
+    { 166, 1, 0, 0, 0 }, { 168, 0, 1, 1, 1 }, { 169, 1, 0, 0, 0 }, { 173, 0, 1, 1, 1 }, { 176, 1, 1, 1, 0 },
+    { 177, 0, 0, 1, 1 }, { 178, 1, 1, 0, 1 }, { 179, 1, 1, 1, 0 }, { 180, 0, 0, 1, 1 }, { 181, 1, 1, 0, 1 },
+    { 184, 1, 1, 1, 0 }, { 185, 0, 0, 1, 1 }, { 186, 1, 1, 0, 1 }, { 187, 1, 1, 1, 1 },
 };
 
 unk_D_86A03014 D_86A03014[29] = {
@@ -1626,6 +1640,17 @@ void func_86A013C8(u8 arg0, u8 arg1, unk_D_86A03014* arg2) {
     sp2C = Credits_GetRoleCount();
     Text_InitStringTables();
     sCreditsText = Text_GetStringTable(0x2D);
+
+    // PORT: the loaded release's staff roll styles and page 24's line count (sPortRoleStyles)
+    {
+        const s32 column = PORT_VERSION_ES ? 3 : PORT_VERSION_IT ? 4 : PORT_VERSION_TRANSLATED ? 2 : 1;
+        u32 k;
+
+        for (k = 0; k < ARRAY_COUNT(sPortRoleStyles); k++) {
+            D_86A02750[sPortRoleStyles[k][0]].unk_00 = sPortRoleStyles[k][column];
+        }
+        D_86A03014[24].unk_05 = PORT_VERSION_ES ? 10 : PORT_VERSION_IT ? 8 : 9;
+    }
 
     for (i = 0, ptr = D_86A02750; i < sp2C; i++, ptr++) {
         ptr->unk_04[0] = Text_GetString(NULL, 0, sCreditsText, i);

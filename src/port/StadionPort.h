@@ -21,6 +21,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "rom_layouts.h" // PortRomVersion (plain C, <stdint.h> only)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -76,6 +78,39 @@ uint32_t Port_GbAudioQueuedBytes(void);
 uint32_t Port_RomCodeAddrToGame(uint32_t fragmentRom, uint32_t addr);
 uint32_t Port_RomToRaw(uint32_t gameOffset);              // src/port/rom_version.h
 uint32_t Port_RomRangeEndToRaw(uint32_t gameStart, uint32_t gameEnd);
+// The loaded ROM's release, a PortRomVersion (src/port/rom_layouts.h). The game is Rev 2 code for every ROM, except
+// where a European release changed the code itself (wider windows for longer words, other credits, quieter sound
+// while the battle music plays): there it takes that release's path, chosen with these at run time where the decomp
+// chooses with VERSION_FR and the like when it builds.
+int Port_RomVersion(void);
+#define PORT_VERSION_IS(v) (Port_RomVersion() == (v))
+#define PORT_VERSION_EU PORT_VERSION_IS(PORT_ROM_EU)
+#define PORT_VERSION_EU_REV1 PORT_VERSION_IS(PORT_ROM_EU_REV1)
+#define PORT_VERSION_FR PORT_VERSION_IS(PORT_ROM_FR)
+#define PORT_VERSION_DE PORT_VERSION_IS(PORT_ROM_DE)
+#define PORT_VERSION_ES PORT_VERSION_IS(PORT_ROM_ES)
+#define PORT_VERSION_IT PORT_VERSION_IS(PORT_ROM_IT)
+// the French, German, Spanish and Italian releases (the decomp's VERSION_FR || VERSION_DE || ...)
+#define PORT_VERSION_TRANSLATED (PORT_VERSION_FR || PORT_VERSION_DE || PORT_VERSION_ES || PORT_VERSION_IT)
+// every European release (VERSION_PAL)
+#define PORT_VERSION_PAL (PORT_VERSION_EU || PORT_VERSION_EU_REV1 || PORT_VERSION_TRANSLATED)
+// A segment address the code names (an image inside a UI archive, such as D_2001A20) as the loaded ROM keeps it: the
+// translated releases rearranged some archives (tools/gen_seg_syms.py).
+uintptr_t Port_SegSym(uintptr_t rev2);
+#define PORT_SEGSYM(addr) ((__typeof__(&*(addr)))Port_SegSym((uintptr_t)(addr)))
+// 0 when the Gallery cannot be entered: the French, German, Spanish and Italian cartridges have no Gallery graphics,
+// unless an English ROM was also provided (restored content, src/port/restored_content.cpp)
+int Port_GalleryAvailable(void);
+// Data the translated releases keep in their own copy of a fragment (images that carry text, which the port does not
+// keep): size bytes at link address vram, read once out of the loaded ROM's image of the fragment that Rev 2 keeps at
+// ROM offset fragmentRom and links at fragmentVram. NULL when the ROM is too short. Port_FragmentRomWords reads count
+// big-endian words as host u32s (the way the port's u32 arrays hold them); Port_FragmentRomWord reads one (0 if none).
+const void* Port_FragmentRomData(uintptr_t fragmentRom, uint32_t fragmentVram, uint32_t vram, uint32_t size);
+const uint32_t* Port_FragmentRomWords(uintptr_t fragmentRom, uint32_t fragmentVram, uint32_t vram, uint32_t count);
+uint32_t Port_FragmentRomWord(uintptr_t fragmentRom, uint32_t fragmentVram, uint32_t vram);
+// A file of a ROM archive that restored content takes from another release (src/port/restored_content.h): archiveRaw
+// is the archive's start as Port_RomToRaw marks it; sets *start (marked) and *size and returns 1, else 0.
+int Port_RestoredArchiveFile(uint32_t archiveRaw, int index, uint32_t* start, uint32_t* size);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Input and saves (src/port/os_devices.cpp)

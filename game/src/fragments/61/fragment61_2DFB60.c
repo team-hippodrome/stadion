@@ -6,6 +6,7 @@
 #include "src/text_system.h"
 #include "src/audio_sfx.h"
 #include "src/gfx_rect.h"
+#include "StadionPort.h" // PORT_SEGSYM: images the translated releases keep elsewhere
 
 void Rental_DrawBoxTabFrame(s16 arg0, s16 arg1, s16 arg2) {
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
@@ -35,7 +36,7 @@ void Rental_DrawBoxTabs(RentalCarouselState* arg0) {
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-    Rental_DrawBoxTab(temp_s0 + 8, sp3C + 4, D_2001A20, arg0->unk_0001C[0].unk_00);
+    Rental_DrawBoxTab(temp_s0 + 8, sp3C + 4, PORT_SEGSYM(D_2001A20), arg0->unk_0001C[0].unk_00);
     Rental_DrawBoxTab(temp_s0 + 0x2C, sp3C + 4, D_2002560, arg0->unk_0001C[1].unk_00);
     Rental_DrawBoxTab(temp_s0 + 0x50, sp3C + 4, D_2002B00, arg0->unk_0001C[2].unk_00);
     Rental_DrawBoxTab(temp_s0 + 0x74, sp3C + 4, D_20030A0, arg0->unk_0001C[3].unk_00);
@@ -48,7 +49,7 @@ void Rental_DrawBoxTabs(RentalCarouselState* arg0) {
     Rental_DrawBoxTab(temp_s0 + 0x170, sp3C + 4, D_2005800, arg0->unk_0001C[10].unk_00);
     Rental_DrawBoxTab(temp_s0 + 0x194, sp3C + 4, D_2005DA0, arg0->unk_0001C[11].unk_00);
     Rental_DrawBoxTab(temp_s0 + 0x1B8, sp3C + 4, D_2006340, arg0->unk_0001C[12].unk_00);
-    Rental_DrawBoxTab(temp_s0 + 0x1DC, sp3C + 4, D_2001FC0, 0x97);
+    Rental_DrawBoxTab(temp_s0 + 0x1DC, sp3C + 4, PORT_SEGSYM(D_2001FC0), 0x97);
 
     if (arg0->unk_00001 != 7) {
         Gfx_DrawTextureRgba16(temp_s0 + (arg0->unk_00005 * 0x24) + 4, sp3C, 0x2C, 0xE, D_2001080, 0x2C, 0);
@@ -180,16 +181,16 @@ void Rental_DrawCarouselScrollbar(s16 arg0, s16 arg1, RentalCarouselState* arg2)
     gDPSetEnvColor(gDisplayListHead++, 130, 130, 220, 255);
     gDPSetPrimColor(gDisplayListHead++, 0, 0, 60, 60, 150, 255);
 
-    Gfx_DrawTextureIa8(arg0 + 4, arg1 + 0x20, 0x10, 8, D_200A200, 0x10, 0);
-    Gfx_DrawTextureIa8(arg0 + 4, arg1 + 0xC0, 0x10, 8, D_200A280, 0x10, 0);
+    Gfx_DrawTextureIa8(arg0 + 4, arg1 + 0x20, 0x10, 8, PORT_SEGSYM(D_200A200), 0x10, 0);
+    Gfx_DrawTextureIa8(arg0 + 4, arg1 + 0xC0, 0x10, 8, PORT_SEGSYM(D_200A280), 0x10, 0);
     Gfx_DrawTexturedRectClipped(arg0 + 4, arg1 + 0x28, 0x10, 0x98, 0, 0, 0x400, 0, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
     if (D_842115E8 < 4) {
-        Gfx_DrawTextureRgba16(arg0, arg1 + sp5E + 0x1C, 0x18, 0x18, D_200A300, 0x18, 0);
+        Gfx_DrawTextureRgba16(arg0, arg1 + sp5E + 0x1C, 0x18, 0x18, PORT_SEGSYM(D_200A300), 0x18, 0);
     } else {
-        Gfx_DrawTextureRgba16(arg0, arg1 + sp5E + 0x1C, 0x18, 0x18, D_200A780, 0x18, 0);
+        Gfx_DrawTextureRgba16(arg0, arg1 + sp5E + 0x1C, 0x18, 0x18, PORT_SEGSYM(D_200A780), 0x18, 0);
     }
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
@@ -226,7 +227,7 @@ void Rental_DrawBoxMonRow(RentalCarouselState* arg0, s16 arg1, s16 arg2, unk_D_8
 
     for (i = 0; i < 3; i++) {
         if (Rental_TeamContainsMon(arg0->unk_13608, &arg3->unk_0000[i & 0xFFFFFFFF]) != 0) {
-            Gfx_DrawTextureIa8(arg1 + (i * 0x84) + 0x2E, arg2 + 0xB, 0x48, 0x1C, D_200AC00, 0x48, 0);
+            Gfx_DrawTextureIa8(arg1 + (i * 0x84) + 0x2E, arg2 + 0xB, 0x48, 0x1C, PORT_SEGSYM(D_200AC00), 0x48, 0);
         }
     }
 
@@ -272,10 +273,10 @@ void Rental_CarouselDraw(RentalCarouselState* arg0, s32 arg1) {
         gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
         if (Rental_CountAvailableBoxes(arg0) >= 2) {
-            Gfx_DrawTextureRgba16(spB0 - 0x32, temp_s7 + 0x52, 0x30, 0x18, D_2007E00, 0x30, 0);
-            Gfx_DrawTextureRgba16(spB0 - 0x32, temp_s7 + 0x6A, 0x30, 0x18, D_2008700, 0x30, 0);
-            Gfx_DrawTextureRgba16(spB0 + 0x1BA, temp_s7 + 0x52, 0x30, 0x18, D_2009000, 0x30, 0);
-            Gfx_DrawTextureRgba16(spB0 + 0x1BA, temp_s7 + 0x6A, 0x30, 0x18, D_2009900, 0x30, 0);
+            Gfx_DrawTextureRgba16(spB0 - 0x32, temp_s7 + 0x52, 0x30, 0x18, PORT_SEGSYM(D_2007E00), 0x30, 0);
+            Gfx_DrawTextureRgba16(spB0 - 0x32, temp_s7 + 0x6A, 0x30, 0x18, PORT_SEGSYM(D_2008700), 0x30, 0);
+            Gfx_DrawTextureRgba16(spB0 + 0x1BA, temp_s7 + 0x52, 0x30, 0x18, PORT_SEGSYM(D_2009000), 0x30, 0);
+            Gfx_DrawTextureRgba16(spB0 + 0x1BA, temp_s7 + 0x6A, 0x30, 0x18, PORT_SEGSYM(D_2009900), 0x30, 0);
         }
 
         gSPDisplayList(gDisplayListHead++, D_8006F470);

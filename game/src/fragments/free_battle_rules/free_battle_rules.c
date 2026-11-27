@@ -13,6 +13,7 @@
 #include "src/controller.h"
 #include "src/memory.h"
 #include "src/stage_loader.h"
+#include "StadionPort.h"
 
 typedef struct TagTeamSelection {
     /* 0x00 */ s16 leftSideTeam;
@@ -621,12 +622,14 @@ void FreeBattle_DrawComDifficultyWindow(void) {
                              opening_progress, 0x2121); // #212100
         if (sComDifficultyWindow.openTicks == 8) {
 #if defined(VERSION_US_REV2)
-            Font_MeasureTextExtent(0x10, 0, Text_GetString(NULL, 0, sRuleSelectText, 10));
+            s32 width = Font_MeasureTextExtent(0x10, 0, Text_GetString(NULL, 0, sRuleSelectText, 10));
 #endif
+            // PORT: Spanish and Italian print the title first and put the COM icon after it (VERSION_ES, VERSION_IT)
+            const s32 titleFirst = PORT_VERSION_ES || PORT_VERSION_IT;
             gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-            Gfx_DrawTextureRgba16(sComDifficultyWindow.x + 12, sComDifficultyWindow.y + 10, 36, 26, gComPlayerLabelIcon,
-                                  36, 0);
+            Gfx_DrawTextureRgba16(sComDifficultyWindow.x + (titleFirst ? width + 12 : 12), sComDifficultyWindow.y + 10,
+                                  36, 26, gComPlayerLabelIcon, 36, 0);
 
             gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 
@@ -634,7 +637,7 @@ void FreeBattle_DrawComDifficultyWindow(void) {
                                          sComDifficultyWindow.y + (sComDifficultyWindow.hoveredDifficulty * 28) + 43);
             Font_BeginTranslucentTextRendering();
             Font_SetActive(0x10, 0);
-            Font_Printf(sComDifficultyWindow.x + 48, sComDifficultyWindow.y + 11,
+            Font_Printf(sComDifficultyWindow.x + (titleFirst ? 12 : 48), sComDifficultyWindow.y + 11,
                         Text_GetString(NULL, 0, sRuleSelectText, 10));
             FreeBattle_DrawComDifficultyText(0, Text_GetString(NULL, 0, sRuleSelectText, 11));
             FreeBattle_DrawComDifficultyText(1, Text_GetString(NULL, 0, sRuleSelectText, 12));

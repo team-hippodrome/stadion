@@ -665,6 +665,277 @@ u8 sPakChangedText[0xF8] = {
     0x20, 0x25, 0x78, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
+// PORT: the European releases run this US Rev 2 code too. Their GB Tower differs in screen layout (the PAL screen moves
+// the status bar and the pause menu; the translated texts are longer), in the Game Boy cartridges it recognises for
+// the fast boot (the French, German, Spanish and Italian Red, Blue and Yellow), and in its texts, bank lists and glyph
+// tables. The layout values are per release here (decomp: the VERSION_* branches of these macros); the data is read out
+// of the loaded ROM's own copy of this fragment (the port keeps only the US data), at the link addresses below.
+typedef struct GbEmuLayout {
+    s16 statusBarOrigin;
+    s16 pauseMenuTextOrigin;
+    u16 pauseMenuOrigin;
+    u16 pauseMenuHelpCursorPos;
+    s16 loadingTextEnd;
+    s16 accessOverlayPos;
+    s16 accessTextPos;
+    s16 accessIconPos;
+    s16 pauseMenuSpeedIconPos;
+    s16 pauseMenuConfigIconPos;
+    s16 statusBarIconShift;
+    s16 statusBarTier0Width;
+    s16 statusTextBack;
+    s16 statusTextIndex;
+    s16 statusTextEnd;
+    s16 loadingScreenTextPos;
+    s16 statusBarNarrowing;
+    s16 configTitleGapEnd;
+    s16 redPakFastBootMode;
+    u16 redGlobalChecksum;
+    u16 blueGlobalChecksum;
+    u16 yellowGlobalChecksum;
+    u8 redBlueSignature[4];
+    u8 yellowSignature[3]; // bytes 2 to 4
+    u16 yellowStoredBankAddress;
+    // the loading screen: the version colour bar (offset, width) and the "Loading"/"Saving" lengths and offset
+    s16 versionBarOffset;
+    s16 versionBarWidth;
+    s8 loadingCount;
+    s8 loadingTextOffset;
+    s8 savingCount;
+} GbEmuLayout;
+
+#define GB_US_CHECKSUMS 0x91E6, 0x9D0A, 0x047C, { 0x80, 0x7F, 0xAB, 0xA8 }, { 0x91, 0x84, 0x92 }, 0xD938
+static const GbEmuLayout sGbEmuLayoutUs = {
+    0x14, 14, 0x3C3E, 0xDC48, 0xE7, 0xAA, 0x788, 0x9C, 0x784, 0x3C1C, 0, 0x60, 0x266, 0x116, 0x42, 0x280, 0, 0x43, 1,
+    GB_US_CHECKSUMS, 0, 0x70, 8, 0xA, 9,
+};
+static const GbEmuLayout sGbEmuLayoutEu = {
+    0x30, 28, 0x3730, 0xD73A, 0xE7, 0x8E, 0x788, 0x80, 0x784, 0x3C1C, 0, 0x60, 0x266, 0x116, 0x42, 0x280, 0, 0x43, 1,
+    GB_US_CHECKSUMS, 0, 0x70, 8, 0xA, 9,
+};
+static const GbEmuLayout sGbEmuLayoutFr = {
+    0x30, 28, 0x3730, 0xD73A, 0xEB, 0xA6, 0x75C, 0x98, 0x7B2, 0x3C4A, 0x58, 0x60, 0x2DC, 0x11A, 0x46, 0x280, 0, 0x43, 1,
+    0x7AFC, 0x56A4, 0xB7C1, { 0x94, 0xAD, 0x7F, 0xDA }, { 0x83, 0x86, 0x9C }, 0xE63C,
+    // "Chargement" and "Sauvegarde" are padded to the same length.
+    -0x2C, 0x86, 0xC, 0xD, 0xC,
+};
+static const GbEmuLayout sGbEmuLayoutDe = {
+    0x30, 28, 0x3730, 0xD73A, 0xE8, 0x9E, 0x770, 0x90, 0x784, 0x3C1C, 0, 0x60, 0x266, 0x117, 0x42, 0x280, 0, 0x43, 1,
+    0x5CDC, 0x2EBC, 0x66FB, { 0x88, 0xA2, 0xA7, 0x7F }, { 0x91, 0xC0, 0x92 }, 0xF618,
+    -0x18, 0x7C, 0xB, 0xA, 9,
+};
+static const GbEmuLayout sGbEmuLayoutEs = {
+    0x30, 28, 0x3730, 0xD73A, 0xEE, 0x9E, 0x768, 0x90, 0x7AB, 0x3C43, 0x4A, 0x5E, 0x2CA, 0x11D, 0x46, 0x260, 0, 0x43, 1,
+    0x384A, 0x14D7, 0x5637, { 0xE5, 0x93, 0xA4, 0x7F }, { 0x91, 0x84, 0x92 }, 0xE274,
+    -0x20, 0x80, 0xB, 0xB, 0xA,
+};
+static const GbEmuLayout sGbEmuLayoutIt = {
+    0x8, 28, 0x3730, 0xD73A, 0xDE, 0xA6, 0x75C, 0x98, 0x784, 0x3C1C, 0, 0x3A, 0x266, 0x10D, 0x3D, 0x280, 0x28, 0x5B, 3,
+    0x89D2, 0x5E9C, 0x4E8F, { 0x95, 0xAE, 0xA6, 0xAB }, { 0x91, 0x84, 0x92 }, 0xDD28,
+    -0x2C, 0x86, 0xD, 9, 8,
+};
+
+static const GbEmuLayout* GbEmu_Layout(void) {
+    switch (Port_RomVersion()) {
+        case PORT_ROM_EU:
+        case PORT_ROM_EU_REV1:
+            return &sGbEmuLayoutEu;
+        case PORT_ROM_FR:
+            return &sGbEmuLayoutFr;
+        case PORT_ROM_DE:
+            return &sGbEmuLayoutDe;
+        case PORT_ROM_ES:
+            return &sGbEmuLayoutEs;
+        case PORT_ROM_IT:
+            return &sGbEmuLayoutIt;
+        default:
+            return &sGbEmuLayoutUs;
+    }
+}
+
+#define STATUS_BAR_ORIGIN (GbEmu_Layout()->statusBarOrigin)
+// The speed lamps keep their place on screen when the status bar origin moves.
+#define SPEED_LAMP_POS(pos) ((pos) + 0x14 - STATUS_BAR_ORIGIN)
+#define PAUSE_MENU_TEXT_ORIGIN (GbEmu_Layout()->pauseMenuTextOrigin)
+#define PAUSE_MENU_ORIGIN (GbEmu_Layout()->pauseMenuOrigin)
+#define PAUSE_MENU_HELP_CURSOR_POS (GbEmu_Layout()->pauseMenuHelpCursorPos)
+#define LOADING_TEXT_END (GbEmu_Layout()->loadingTextEnd)
+#define ACCESS_OVERLAY_POS (GbEmu_Layout()->accessOverlayPos)
+#define ACCESS_TEXT_POS (GbEmu_Layout()->accessTextPos)
+#define ACCESS_ICON_POS (GbEmu_Layout()->accessIconPos)
+#define PAUSE_MENU_SPEED_ICON_POS (GbEmu_Layout()->pauseMenuSpeedIconPos)
+#define PAUSE_MENU_CONFIG_ICON_POS (GbEmu_Layout()->pauseMenuConfigIconPos)
+#define STATUS_BAR_ICON_SHIFT (GbEmu_Layout()->statusBarIconShift)
+#define STATUS_BAR_TIER0_WIDTH (GbEmu_Layout()->statusBarTier0Width)
+#define STATUS_TEXT_BACK (GbEmu_Layout()->statusTextBack)
+#define STATUS_TEXT_INDEX (GbEmu_Layout()->statusTextIndex)
+#define STATUS_TEXT_END (GbEmu_Layout()->statusTextEnd)
+#define LOADING_SCREEN_TEXT_POS (GbEmu_Layout()->loadingScreenTextPos)
+#define STATUS_BAR_NARROWING (GbEmu_Layout()->statusBarNarrowing)
+#define CONFIG_TITLE_GAP_END (GbEmu_Layout()->configTitleGapEnd)
+#define RED_PAK_FAST_BOOT_MODE (GbEmu_Layout()->redPakFastBootMode)
+#define RED_GLOBAL_CHECKSUM (GbEmu_Layout()->redGlobalChecksum)
+#define BLUE_GLOBAL_CHECKSUM (GbEmu_Layout()->blueGlobalChecksum)
+#define YELLOW_GLOBAL_CHECKSUM (GbEmu_Layout()->yellowGlobalChecksum)
+#define RED_BLUE_SIGNATURE_1 (GbEmu_Layout()->redBlueSignature[0])
+#define RED_BLUE_SIGNATURE_2 (GbEmu_Layout()->redBlueSignature[1])
+#define RED_BLUE_SIGNATURE_3 (GbEmu_Layout()->redBlueSignature[2])
+#define RED_BLUE_SIGNATURE_4 (GbEmu_Layout()->redBlueSignature[3])
+#define YELLOW_SIGNATURE_2 (GbEmu_Layout()->yellowSignature[0])
+#define YELLOW_SIGNATURE_3 (GbEmu_Layout()->yellowSignature[1])
+#define YELLOW_SIGNATURE_4 (GbEmu_Layout()->yellowSignature[2])
+#define YELLOW_STORED_BANK_ADDRESS (GbEmu_Layout()->yellowStoredBankAddress)
+
+typedef struct GbEmuReleaseData {
+    u32 vram;
+    u32 size;
+} GbEmuReleaseData;
+
+enum {
+    GB_DATA_LoadingSavingText,
+    GB_DATA_BootLogoTiles,
+    GB_DATA_RedPakBankList,
+    GB_DATA_BluePakBankList,
+    GB_DATA_YellowPakBankList,
+    GB_DATA_RedBlueStoredBankList,
+    GB_DATA_YellowStoredBankList,
+    GB_DATA_Font1GlyphTable,
+    GB_DATA_Font2GlyphTable,
+    GB_DATA_MenuTitleText,
+    GB_DATA_MenuContinueText,
+    GB_DATA_MenuQuitText,
+    GB_DATA_MenuHelpConfigText,
+    GB_DATA_MenuContinueHelpText,
+    GB_DATA_MenuQuitHelpText,
+    GB_DATA_MenuConfigHelpText,
+    GB_DATA_QuitConfirmText,
+    GB_DATA_QuitConfirmYesText,
+    GB_DATA_QuitConfirmNoText,
+    GB_DATA_QuitConfirmNoTextBody,
+    GB_DATA_DoubleSpeedHelpText,
+    GB_DATA_SpeedCycleHelpText,
+    GB_DATA_ConfigTitleText,
+    GB_DATA_ConfigCancelText,
+    GB_DATA_UnableToSaveText,
+    GB_DATA_CleanConnectorText,
+    GB_DATA_PakChangedText,
+    GB_DATA_COUNT
+};
+static const GbEmuReleaseData sGbEmuDataEu[GB_DATA_COUNT] = {
+    { 0x8122AD30, 0x14 }, { 0x8120D800, 0xEC }, { 0x8120DD60, 0x18C }, { 0x8120DEEC, 0x18C },
+    { 0x8120E078, 0x18C }, { 0x8120E204, 0x2C }, { 0x8120E230, 0xB0 }, { 0x8120E460, 0x100 },
+    { 0x8120E560, 0x100 }, { 0x8120E668, 0xC }, { 0x8120E674, 0x14 }, { 0x8120E688, 0x10 },
+    { 0x8120E698, 0x18 }, { 0x8120E6B0, 0x48 }, { 0x8120E6F8, 0x48 }, { 0x8120E740, 0x40 },
+    { 0x8120E780, 0x2C }, { 0x8120E7AC, 0xC }, { 0x8120E7B8, 0x4 }, { 0x8120E7BC, 0x8 },
+    { 0x8120E7C4, 0x50 }, { 0x8120E814, 0x64 }, { 0x8120E878, 0x10 }, { 0x8120E888, 0x18 },
+    { 0x8120E8A0, 0x18 }, { 0x8120E8B8, 0x80 }, { 0x8120E938, 0xF8 },
+};
+static const GbEmuReleaseData sGbEmuDataEuRev1[GB_DATA_COUNT] = {
+    { 0x8122ADA0, 0x14 }, { 0x8120D870, 0xEC }, { 0x8120DDD0, 0x18C }, { 0x8120DF5C, 0x18C },
+    { 0x8120E0E8, 0x18C }, { 0x8120E274, 0x2C }, { 0x8120E2A0, 0xB0 }, { 0x8120E4D0, 0x100 },
+    { 0x8120E5D0, 0x100 }, { 0x8120E6D8, 0xC }, { 0x8120E6E4, 0x14 }, { 0x8120E6F8, 0x10 },
+    { 0x8120E708, 0x18 }, { 0x8120E720, 0x48 }, { 0x8120E768, 0x48 }, { 0x8120E7B0, 0x40 },
+    { 0x8120E7F0, 0x2C }, { 0x8120E81C, 0xC }, { 0x8120E828, 0x4 }, { 0x8120E82C, 0x8 },
+    { 0x8120E834, 0x50 }, { 0x8120E884, 0x64 }, { 0x8120E8E8, 0x10 }, { 0x8120E8F8, 0x18 },
+    { 0x8120E910, 0x18 }, { 0x8120E928, 0x80 }, { 0x8120E9A8, 0xF8 },
+};
+static const GbEmuReleaseData sGbEmuDataFr[GB_DATA_COUNT] = {
+    { 0x8122AD70, 0x1C }, { 0x8120D840, 0xF4 }, { 0x8120DDA8, 0x18C }, { 0x8120DF34, 0x18C },
+    { 0x8120E0C0, 0x18C }, { 0x8120E24C, 0x2C }, { 0x8120E278, 0xB4 }, { 0x8120E4AC, 0x100 },
+    { 0x8120E5AC, 0x100 }, { 0x8120E6B4, 0xC }, { 0x8120E6C0, 0x14 }, { 0x8120E6D4, 0x14 },
+    { 0x8120E6E8, 0x18 }, { 0x8120E700, 0x40 }, { 0x8120E740, 0x48 }, { 0x8120E788, 0x2C },
+    { 0x8120E7B4, 0x24 }, { 0x8120E7D8, 0xC }, { 0x8120E7E4, 0x4 }, { 0x8120E7E8, 0x8 },
+    { 0x8120E7F0, 0x6C }, { 0x8120E85C, 0x68 }, { 0x8120E8C4, 0x10 }, { 0x8120E8D4, 0x1C },
+    { 0x8120E8F0, 0x20 }, { 0x8120E910, 0x70 }, { 0x8120E980, 0xF0 },
+};
+static const GbEmuReleaseData sGbEmuDataDe[GB_DATA_COUNT] = {
+    { 0x8122ADD0, 0x18 }, { 0x8120D850, 0xEC }, { 0x8120DDB0, 0x18C }, { 0x8120DF3C, 0x18C },
+    { 0x8120E0C8, 0x18C }, { 0x8120E254, 0x2C }, { 0x8120E280, 0xAC }, { 0x8120E4AC, 0x100 },
+    { 0x8120E5AC, 0x100 }, { 0x8120E6B4, 0xC }, { 0x8120E6C0, 0x18 }, { 0x8120E6D8, 0x18 },
+    { 0x8120E6F0, 0x18 }, { 0x8120E708, 0x54 }, { 0x8120E75C, 0x58 }, { 0x8120E7B4, 0x40 },
+    { 0x8120E7F4, 0x2C }, { 0x8120E820, 0xC }, { 0x8120E82C, 0x4 }, { 0x8120E830, 0x8 },
+    { 0x8120E838, 0x68 }, { 0x8120E8A0, 0x6C }, { 0x8120E90C, 0x10 }, { 0x8120E91C, 0x18 },
+    { 0x8120E934, 0x20 }, { 0x8120E954, 0x84 }, { 0x8120E9D8, 0xF8 },
+};
+static const GbEmuReleaseData sGbEmuDataEs[GB_DATA_COUNT] = {
+    { 0x8122ADE0, 0x18 }, { 0x8120D850, 0xF8 }, { 0x8120DDBC, 0x18C }, { 0x8120DF48, 0x18C },
+    { 0x8120E0D4, 0x18C }, { 0x8120E260, 0x2C }, { 0x8120E28C, 0xB4 }, { 0x8120E4C0, 0x100 },
+    { 0x8120E5C0, 0x100 }, { 0x8120E6C8, 0xC }, { 0x8120E6D4, 0x18 }, { 0x8120E6EC, 0x18 },
+    { 0x8120E704, 0x14 }, { 0x8120E718, 0x48 }, { 0x8120E760, 0x4C }, { 0x8120E7AC, 0x44 },
+    { 0x8120E7F0, 0x34 }, { 0x8120E824, 0xC }, { 0x8120E830, 0x4 }, { 0x8120E834, 0x8 },
+    { 0x8120E83C, 0x6C }, { 0x8120E8A8, 0x70 }, { 0x8120E918, 0xC }, { 0x8120E924, 0x1C },
+    { 0x8120E940, 0x1C }, { 0x8120E95C, 0x88 }, { 0x8120E9E4, 0xFC },
+};
+static const GbEmuReleaseData sGbEmuDataIt[GB_DATA_COUNT] = {
+    { 0x8122AD60, 0x18 }, { 0x8120D870, 0xDC }, { 0x8120DDC0, 0x18C }, { 0x8120DF4C, 0x18C },
+    { 0x8120E0D8, 0x18C }, { 0x8120E264, 0x2C }, { 0x8120E290, 0xB4 }, { 0x8120E4C4, 0x100 },
+    { 0x8120E5C4, 0x100 }, { 0x8120E6CC, 0xC }, { 0x8120E6D8, 0x10 }, { 0x8120E6E8, 0xC },
+    { 0x8120E6F4, 0x1C }, { 0x8120E710, 0x40 }, { 0x8120E750, 0x44 }, { 0x8120E794, 0x3C },
+    { 0x8120E7D0, 0x3C }, { 0x8120E80C, 0xC }, { 0x8120E818, 0x4 }, { 0x8120E81C, 0x8 },
+    { 0x8120E824, 0x4C }, { 0x8120E870, 0x4C }, { 0x8120E8BC, 0x14 }, { 0x8120E8D0, 0x10 },
+    { 0x8120E8E0, 0x1C }, { 0x8120E8FC, 0x80 }, { 0x8120E97C, 0xE4 },
+};
+
+// This release's copy of a data array (NULL for US: the arrays above).
+static const void* GbEmu_ReleaseData(s32 id, const void* local) {
+    const GbEmuReleaseData* table;
+    const void* data;
+
+    switch (Port_RomVersion()) {
+        case PORT_ROM_EU:
+            table = sGbEmuDataEu;
+            break;
+        case PORT_ROM_EU_REV1:
+            table = sGbEmuDataEuRev1;
+            break;
+        case PORT_ROM_FR:
+            table = sGbEmuDataFr;
+            break;
+        case PORT_ROM_DE:
+            table = sGbEmuDataDe;
+            break;
+        case PORT_ROM_ES:
+            table = sGbEmuDataEs;
+            break;
+        case PORT_ROM_IT:
+            table = sGbEmuDataIt;
+            break;
+        default:
+            return local;
+    }
+    data = Port_FragmentRomData((uintptr_t)fragment1_ROM_START, 0x81200000, table[id].vram, table[id].size);
+    return (data != NULL) ? data : local;
+}
+
+#define GB_RELEASE_DATA(id, local) ((u8*)GbEmu_ReleaseData(GB_DATA_##id, (local)))
+#define sLoadingSavingText GB_RELEASE_DATA(LoadingSavingText, sLoadingSavingText)
+#define sBootLogoTiles GB_RELEASE_DATA(BootLogoTiles, sBootLogoTiles)
+#define sRedPakBankList GB_RELEASE_DATA(RedPakBankList, sRedPakBankList)
+#define sBluePakBankList GB_RELEASE_DATA(BluePakBankList, sBluePakBankList)
+#define sYellowPakBankList GB_RELEASE_DATA(YellowPakBankList, sYellowPakBankList)
+#define sRedBlueStoredBankList GB_RELEASE_DATA(RedBlueStoredBankList, sRedBlueStoredBankList)
+#define sYellowStoredBankList GB_RELEASE_DATA(YellowStoredBankList, sYellowStoredBankList)
+#define sFont1GlyphTable GB_RELEASE_DATA(Font1GlyphTable, sFont1GlyphTable)
+#define sFont2GlyphTable GB_RELEASE_DATA(Font2GlyphTable, sFont2GlyphTable)
+#define sMenuTitleText GB_RELEASE_DATA(MenuTitleText, sMenuTitleText)
+#define sMenuContinueText GB_RELEASE_DATA(MenuContinueText, sMenuContinueText)
+#define sMenuQuitText GB_RELEASE_DATA(MenuQuitText, sMenuQuitText)
+#define sMenuHelpConfigText GB_RELEASE_DATA(MenuHelpConfigText, sMenuHelpConfigText)
+#define sMenuContinueHelpText GB_RELEASE_DATA(MenuContinueHelpText, sMenuContinueHelpText)
+#define sMenuQuitHelpText GB_RELEASE_DATA(MenuQuitHelpText, sMenuQuitHelpText)
+#define sMenuConfigHelpText GB_RELEASE_DATA(MenuConfigHelpText, sMenuConfigHelpText)
+#define sQuitConfirmText GB_RELEASE_DATA(QuitConfirmText, sQuitConfirmText)
+#define sQuitConfirmYesText GB_RELEASE_DATA(QuitConfirmYesText, sQuitConfirmYesText)
+#define sQuitConfirmNoText GB_RELEASE_DATA(QuitConfirmNoText, sQuitConfirmNoText)
+#define sQuitConfirmNoTextBody GB_RELEASE_DATA(QuitConfirmNoTextBody, sQuitConfirmNoTextBody)
+#define sDoubleSpeedHelpText GB_RELEASE_DATA(DoubleSpeedHelpText, sDoubleSpeedHelpText)
+#define sSpeedCycleHelpText GB_RELEASE_DATA(SpeedCycleHelpText, sSpeedCycleHelpText)
+#define sConfigTitleText GB_RELEASE_DATA(ConfigTitleText, sConfigTitleText)
+#define sConfigCancelText GB_RELEASE_DATA(ConfigCancelText, sConfigCancelText)
+#define sUnableToSaveText GB_RELEASE_DATA(UnableToSaveText, sUnableToSaveText)
+#define sCleanConnectorText GB_RELEASE_DATA(CleanConnectorText, sCleanConnectorText)
+#define sPakChangedText GB_RELEASE_DATA(PakChangedText, sPakChangedText)
+
 // .bss
 // PORT: the two frame buffers as one array: the code indexes (&sFramebuffer0)[i], which needs sFramebuffer1 right after
 // sFramebuffer0 (true on the N64, not guaranteed for separate host globals)
@@ -947,6 +1218,10 @@ s32 GbPak_ProbeCartridge(unk_D_8122B2C0* emu) {
     s32 ret;
 
     ret = 0;
+    if (PORT_VERSION_IT) {
+        // Italian clears the ID buffer before every probe.
+        bzero(&emu->gbpakId, sizeof(emu->gbpakId));
+    }
     if (!(emu->status & 1)) {
         ret = GbPak_CheckConnectorReady(emu);
         if (ret == 0) {
@@ -1703,25 +1978,26 @@ void GbEmu_DrawAccessOverlay(s32 overlay_index, s32 text_offset) {
 
     fb = (u8*)sOverlayImages[overlay_index];
     bzero(sOverlayImages[overlay_index], 0x2800);
-    fb += 0xAA;
+    fb += ACCESS_OVERLAY_POS;
 
     i = sGbEmu->cartridgeVersion;
     if (i != 0) {
         i--;
     }
-    GbEmu_DrawStretchedBorderRow(fb, sVersionColors[i], 0x70);
+    GbEmu_DrawStretchedBorderRow(fb + GbEmu_Layout()->versionBarOffset, sVersionColors[i],
+                                 GbEmu_Layout()->versionBarWidth);
 
     if (text_offset != 0) {
-        count = 8;
-        text_offset = 0xA;
+        count = GbEmu_Layout()->loadingCount;
+        text_offset = GbEmu_Layout()->loadingTextOffset;
     } else {
-        count = 9;
+        count = GbEmu_Layout()->savingCount;
     }
     x = 0;
 
     for (i = 0; i <= count; i++) {
         GbEmu_BlendColorWithAlphaMap(
-            (u16*)((x * 2) + fb + 0x788),
+            (u16*)((x * 2) + fb + ACCESS_TEXT_POS),
             &gGbEmuFont1Data[sFont1GlyphTable[sLoadingSavingText[text_offset + count - i] - i + 0x43] * 0xA0], 0xFFFE,
             0xC, 0xA, 0x10);
         x += sFont1GlyphTable[sFont1GlyphTable[sLoadingSavingText[text_offset + count - i] - i + 0x43]];
@@ -1753,43 +2029,43 @@ void GbEmu_DrawStatusBar(void) {
     u16 color;
 
     color = sGbEmu->cartridgeVersion;
-    image = sStatusBarImage - 0x14;
+    image = sStatusBarImage - STATUS_BAR_ORIGIN;
     color = sVersionColors[(color != 0) ? (color - 1) : 0];
     switch (sGbTowerUnlockTier) {
         case 1:
-            GbEmu_DrawStretchedBorderRow(image + 0xA4, color, 0x8C);
+            GbEmu_DrawStretchedBorderRow(image + 0xA4, color, 0x8C - STATUS_BAR_NARROWING);
             GbEmu_BlitWithPixelOp((u16*)(image + 0x5AA), (u16*)(sUiGraphics + 0xA778), 0, 0x18, 0xD);
             GbEmu_BlitWithPixelOp((u16*)(image + 0x1762), (u16*)(sUiGraphics + 0xA6D8), 0, 0x10, 5);
             GbEmu_BlitWithPixelOp((u16*)(image + 0x5DE), (u16*)(sUiGraphics + 0xAC58), 0, 8, 6);
             GbEmu_BlitWithPixelOp((u16*)(image + 0x5EE), (u16*)(sUiGraphics + 0xACB8), 0, 8, 6);
-            pos = image + 0x600;
+            pos = image + 0x600 + STATUS_BAR_ICON_SHIFT;
             break;
         case 2:
-            GbEmu_DrawStretchedBorderRow(image + 0x9C, color, 0x94);
+            GbEmu_DrawStretchedBorderRow(image + 0x9C, color, 0x94 - STATUS_BAR_NARROWING);
             GbEmu_BlitWithPixelOp((u16*)(image + 0x5A4), (u16*)(sUiGraphics + 0xA9E8), 0, 0x18, 0xD);
             GbEmu_BlitWithPixelOp((u16*)(image + 0x175C), (u16*)(sUiGraphics + 0xA5E8), 0, 0x18, 5);
             GbEmu_BlitWithPixelOp((u16*)(image + 0x5D8), (u16*)(sUiGraphics + 0xAC58), 0, 8, 6);
             GbEmu_BlitWithPixelOp((u16*)(image + 0x5E8), (u16*)(sUiGraphics + 0xACB8), 0, 8, 6);
             GbEmu_BlitWithPixelOp((u16*)(image + 0x5F8), (u16*)(sUiGraphics + 0xACB8), 0, 8, 6);
-            pos = image + 0x608;
+            pos = image + 0x608 + STATUS_BAR_ICON_SHIFT;
             break;
         default:
         case 0:
-            GbEmu_DrawStretchedBorderRow(image + 0xCE, color, 0x60);
-            pos = image + 0x5D6;
+            GbEmu_DrawStretchedBorderRow(image + 0xCE, color, STATUS_BAR_TIER0_WIDTH);
+            pos = image + 0x5D6 + STATUS_BAR_ICON_SHIFT;
             break;
     }
     GbEmu_BlitWithPixelOp((u16*)(pos), (u16*)(sUiGraphics + 0xC1D8), 0, 0xC, 0xC);
 
     text_x = 0;
-    pos -= 0x266;
-    // PORT: D_8120D7F3 was an absolute N64 address 0x2D bytes before sBootLogoTiles; only var_s2[0x116] is read (inside
+    pos -= STATUS_TEXT_BACK;
+    // PORT: D_8120D7F3 was an absolute N64 address 0x2D bytes before sBootLogoTiles; only var_s2[STATUS_TEXT_INDEX] is read (inside
     // it)
-    for (var_s2 = sBootLogoTiles - 0x2D, var_s1 = 0x37; var_s1 < 0x42; var_s1++, var_s2--) {
+    for (var_s2 = sBootLogoTiles - 0x2D, var_s1 = 0x37; var_s1 < STATUS_TEXT_END; var_s1++, var_s2--) {
         GbEmu_BlendColorWithAlphaMap((text_x * 2) + pos,
-                                     (sFont2GlyphTable[var_s2[0x116] - var_s1 + 0x80] * 0xC0) + gGbEmuFont2Data, 0xFFFE,
+                                     (sFont2GlyphTable[var_s2[STATUS_TEXT_INDEX] - var_s1 + 0x80] * 0xC0) + gGbEmuFont2Data, 0xFFFE,
                                      0xC, 0xC, 0x10);
-        text_x += sFont2GlyphTable[sFont2GlyphTable[var_s2[0x116] - var_s1 + 0x80]];
+        text_x += sFont2GlyphTable[sFont2GlyphTable[var_s2[STATUS_TEXT_INDEX] - var_s1 + 0x80]];
         if (var_s1 == 0x3C) {
             text_x -= 1;
         }
@@ -1889,12 +2165,12 @@ void GbEmu_DrawLoadingScreen(u16* dst, u16 (*party_icons)[6][0x640], s32 port, s
 
         if (x != 0) {
             for (i = j; i != 0; i++) {
-                GbEmu_BlendColorWithAlphaMap((u16*)((xpos * 2) + D_8122C750 + 0x280),
-                                             (sFont2GlyphTable[sBootLogoTiles[0xE7 - i] - i * 2 + 0x5B] * 0xC0) +
+                GbEmu_BlendColorWithAlphaMap((u16*)((xpos * 2) + D_8122C750 + LOADING_SCREEN_TEXT_POS),
+                                             (sFont2GlyphTable[sBootLogoTiles[LOADING_TEXT_END - i] - i * 2 + 0x5B] * 0xC0) +
                                                  gGbEmuFont2Data,
                                              0xFFFE, 0xC, 0xC, 0x10);
-                xpos += sFont2GlyphTable[sFont2GlyphTable[sBootLogoTiles[0xE7 - i] - i * 2 + 0x5B]];
-                if (sBootLogoTiles[0xE6 - i] < 0x40) {
+                xpos += sFont2GlyphTable[sFont2GlyphTable[sBootLogoTiles[LOADING_TEXT_END - i] - i * 2 + 0x5B]];
+                if (sBootLogoTiles[LOADING_TEXT_END - 1 - i] < 0x40) {
                     break;
                 }
             }
@@ -2811,7 +3087,7 @@ void GbEmu_DrawPauseMenu(intptr_t framebuffer) { // PORT64: framebuffer address 
     }
 
     fb = (u16*)framebuffer;
-    base = (u16*)framebuffer - 14;
+    base = (u16*)framebuffer - PAUSE_MENU_TEXT_ORIGIN;
 
     switch (sPauseMenuState) {
         case 0x12:
@@ -2828,7 +3104,7 @@ void GbEmu_DrawPauseMenu(intptr_t framebuffer) { // PORT64: framebuffer address 
         case 0x15:
             GbEmu_DrawTextCommands(base, sPakChangedText);
         transition:
-            GbEmu_DrawAccessIcon((u16*)(sOverlayImages[sOverlayIndex] + 0x9C), 1, sAccessIconFrame);
+            GbEmu_DrawAccessIcon((u16*)(sOverlayImages[sOverlayIndex] + ACCESS_ICON_POS), 1, sAccessIconFrame);
             sRenderTasks[sFramebufferIndex].task.t.ucode_data_size = 0x1010;
             sRenderTasks[sFramebufferIndex].task.t.ucode_data = (u64*)sOverlayImages[sOverlayIndex];
             sRenderTasks[sFramebufferIndex].task.t.yield_data_size &= 0xFFFF;
@@ -2839,7 +3115,7 @@ void GbEmu_DrawPauseMenu(intptr_t framebuffer) { // PORT64: framebuffer address 
             switch (sPauseMenuState) {
                 case 1:
                 case 17:
-                    base = fb + 0x3C3E;
+                    base = fb + PAUSE_MENU_ORIGIN;
                     GbEmu_BlitWithPixelOp(base + 0x1B8A, (u16*)(sUiGraphics + 0xC2F8), 0, 16, 10);
                     c1 = 0xB;
                     c2 = 8;
@@ -2850,17 +3126,17 @@ void GbEmu_DrawPauseMenu(intptr_t framebuffer) { // PORT64: framebuffer address 
                     c1 = 8;
                     c2 = 0xB;
                     c3 = 8;
-                    base = fb + 0x3C3E;
+                    base = fb + PAUSE_MENU_ORIGIN;
                     goto draw_items;
                 case 2:
-                    base = fb + 0x3C3E;
+                    base = fb + PAUSE_MENU_ORIGIN;
                     GbEmu_BlitWithPixelOp(base + 0x348A, (u16*)(sUiGraphics + 0xC2F8), 0, 16, 10);
                     c1 = 8;
                     c2 = 0xB;
                     c3 = 8;
                     goto draw_items;
                 case 3:
-                    base = fb + 0x3C3E;
+                    base = fb + PAUSE_MENU_ORIGIN;
                     GbEmu_BlitWithPixelOp(base + 0x4D8A, (u16*)(sUiGraphics + 0xC2F8), 0, 16, 10);
                     c1 = 8;
                     c2 = 8;
@@ -2884,24 +3160,24 @@ void GbEmu_DrawPauseMenu(intptr_t framebuffer) { // PORT64: framebuffer address 
     switch (sPauseMenuState) {
         case 1:
         case 17:
-            GbEmu_DrawTextCommands(fb + 0x3C3E, sMenuContinueHelpText);
+            GbEmu_DrawTextCommands(fb + PAUSE_MENU_ORIGIN, sMenuContinueHelpText);
             break;
         case 2:
-            GbEmu_DrawTextCommands(fb + 0x3C3E, sMenuQuitHelpText);
+            GbEmu_DrawTextCommands(fb + PAUSE_MENU_ORIGIN, sMenuQuitHelpText);
             break;
         case 3:
-            GbEmu_DrawTextCommands(fb + 0x3C3E, sMenuConfigHelpText);
+            GbEmu_DrawTextCommands(fb + PAUSE_MENU_ORIGIN, sMenuConfigHelpText);
             break;
         case 4:
-            GbEmu_BlitWithPixelOp(fb + 0xDC48, (u16*)(sUiGraphics + 0xC2F8), 0, 16, 10);
+            GbEmu_BlitWithPixelOp(fb + PAUSE_MENU_HELP_CURSOR_POS, (u16*)(sUiGraphics + 0xC2F8), 0, 16, 10);
             /* fallthrough */
         case 14:
             c1 = 0xB;
             c2 = 8;
-            base = fb + 0x3C3E;
+            base = fb + PAUSE_MENU_ORIGIN;
             goto draw_submenu;
         case 5:
-            base = fb + 0x3C3E;
+            base = fb + PAUSE_MENU_ORIGIN;
             GbEmu_BlitWithPixelOp(base + 0xA050, (u16*)(sUiGraphics + 0xC2F8), 0, 16, 10);
             c1 = 8;
             c2 = 0xB;
@@ -2923,11 +3199,11 @@ void GbEmu_DrawPauseMenu(intptr_t framebuffer) { // PORT64: framebuffer address 
         case 11:
         case 12:
         case 13:
-            base = fb + 0x3C3E;
+            base = fb + PAUSE_MENU_ORIGIN;
             y = 0x4A;
 #if defined(VERSION_US_REV2)
             if ((sGbTowerUnlockTier == 1) || (sGbTowerUnlockTier == 2)) {
-                GbEmu_BlitWithPixelOp(base + 0x784, (u16*)(sUiGraphics + 0xB758), 0, 16, 12);
+                GbEmu_BlitWithPixelOp(base + PAUSE_MENU_SPEED_ICON_POS, (u16*)(sUiGraphics + 0xB758), 0, 16, 12);
             }
             if (sGbTowerUnlockTier == 1) {
                 GbEmu_DrawTextCommands(base, sDoubleSpeedHelpText);
@@ -2938,10 +3214,10 @@ void GbEmu_DrawPauseMenu(intptr_t framebuffer) { // PORT64: framebuffer address 
             }
 #else
             if (sGbTowerUnlockTier == 1) {
-                GbEmu_BlitWithPixelOp(base + 0x784, (u16*)(sUiGraphics + 0xB758), 0, 16, 12);
+                GbEmu_BlitWithPixelOp(base + PAUSE_MENU_SPEED_ICON_POS, (u16*)(sUiGraphics + 0xB758), 0, 16, 12);
                 GbEmu_DrawTextCommands(base, sDoubleSpeedHelpText);
             } else if (sGbTowerUnlockTier == 2) {
-                GbEmu_BlitWithPixelOp(base + 0x784, (u16*)(sUiGraphics + 0xB758), 0, 16, 12);
+                GbEmu_BlitWithPixelOp(base + PAUSE_MENU_SPEED_ICON_POS, (u16*)(sUiGraphics + 0xB758), 0, 16, 12);
                 GbEmu_DrawTextCommands(base, sSpeedCycleHelpText);
             } else {
                 y = 0x32;
@@ -2952,14 +3228,14 @@ void GbEmu_DrawPauseMenu(intptr_t framebuffer) { // PORT64: framebuffer address 
                     base[(y + j) * 320 + 0x9E] = 0xFFFF;
             }
             for (i = 2; i < 0x9E; i++) {
-                if ((i < 0x10) || (i >= 0x43)) {
+                if ((i < 0x10) || (i >= CONFIG_TITLE_GAP_END)) {
                     base[y * 320 + i] = base[(y + 1) * 320 + i] = 0xFFFF;
                 }
                 base[(y + 62) * 320 + i] = base[(y + 63) * 320 + i] = 0xFFFF;
             }
             sConfigTitleText[2] = y - 5;
             GbEmu_DrawTextCommands(base, sConfigTitleText);
-            GbEmu_BlitWithPixelOp(y * 320 + base + 0x3C1C, (u16*)(sUiGraphics + 0xB2D8), 0, 16, 12);
+            GbEmu_BlitWithPixelOp(y * 320 + base + PAUSE_MENU_CONFIG_ICON_POS, (u16*)(sUiGraphics + 0xB2D8), 0, 16, 12);
             sConfigCancelText[2] = y + 0x30;
             GbEmu_DrawTextCommands(base, sConfigCancelText);
             break;
@@ -2972,24 +3248,24 @@ void GbEmu_DrawPauseMenu(intptr_t framebuffer) { // PORT64: framebuffer address 
         case 9:
             i = 0;
             row = y * 320;
-            base = fb + 0x3C3E;
+            base = fb + PAUSE_MENU_ORIGIN;
             goto draw_second;
         case 11:
         case 12:
         case 13:
             i = 0;
             row = y * 320;
-            base = fb + 0x3C3E;
+            base = fb + PAUSE_MENU_ORIGIN;
             goto draw_first;
         case 6:
             i = 0;
             row = y * 320;
-            base = fb + 0x3C3E;
+            base = fb + PAUSE_MENU_ORIGIN;
             goto draw_cursor;
         case 10:
             i = 0x14;
             row = y * 320;
-            base = fb + 0x3C3E;
+            base = fb + PAUSE_MENU_ORIGIN;
         draw_cursor:
             GbEmu_BlitWithPixelOp((y + i) * 320 + base + 0xF14, (u16*)(sUiGraphics + 0xC2F8), 0, 16, 10);
             x = 0x28;
@@ -3050,7 +3326,7 @@ void GbEmu_DrawPauseMenu(intptr_t framebuffer) { // PORT64: framebuffer address 
             if (1) {
                 j = 0x30;
             }
-            base = fb + 0x3C3E;
+            base = fb + PAUSE_MENU_ORIGIN;
             goto draw_arrows;
         case 10:
         case 11:
@@ -3061,7 +3337,7 @@ void GbEmu_DrawPauseMenu(intptr_t framebuffer) { // PORT64: framebuffer address 
             if (1) {
                 j = x + 8;
             }
-            base = fb + 0x3C3E;
+            base = fb + PAUSE_MENU_ORIGIN;
         draw_arrows:
             p = (row + i) + base;
             GbEmu_BlitWithPixelOp(p + 0xC80, (u16*)(sUiGraphics + 0xBF98), 0, 24, 12);
@@ -3076,12 +3352,12 @@ void GbEmu_DrawPauseMenu(intptr_t framebuffer) { // PORT64: framebuffer address 
         case 8:
             j = sButtonBindings.startBinding;
             i = 0;
-            base = fb + 0x3C3E;
+            base = fb + PAUSE_MENU_ORIGIN;
             break;
         case 12:
             i = 0x14;
             j = sButtonBindings.selectBinding;
-            base = fb + 0x3C3E;
+            base = fb + PAUSE_MENU_ORIGIN;
             break;
         default:
             return;
@@ -3191,7 +3467,7 @@ s32 GbEmu_UpdateFrame(s32 emu_index) {
                     if (sAccessIconFrame >= 11) {
                         sAccessIconFrame = 0;
                     }
-                    GbEmu_DrawAccessIcon((u16*)(sOverlayImages[sOverlayIndex] + 0x9C), emu->pakIdleCountdown,
+                    GbEmu_DrawAccessIcon((u16*)(sOverlayImages[sOverlayIndex] + ACCESS_ICON_POS), emu->pakIdleCountdown,
                                          sAccessIconFrame);
                     sRenderTasks[sFramebufferIndex].task.t.ucode_data_size = 0x1010;
                     sRenderTasks[sFramebufferIndex].task.t.ucode_data = (u64*)sOverlayImages[sOverlayIndex];
@@ -3337,24 +3613,24 @@ s32 GbEmu_UpdateFrame(s32 emu_index) {
             emu->unk_5D70[2] = 0;
             switch (emu->cartridgeVersion) {
                 case 1:
-                    if ((emu->cartridgeId.version != 0) || (emu->cartridgeId.sum != 0x91E6) ||
-                        (emu->romSignature[1] != 0x80) || (emu->romSignature[2] != 0x7F) ||
-                        (emu->romSignature[3] != 0xAB) || (emu->romSignature[4] != 0xA8)) {
+                    if ((emu->cartridgeId.version != 0) || (emu->cartridgeId.sum != RED_GLOBAL_CHECKSUM) ||
+                        (emu->romSignature[1] != RED_BLUE_SIGNATURE_1) || (emu->romSignature[2] != RED_BLUE_SIGNATURE_2) ||
+                        (emu->romSignature[3] != RED_BLUE_SIGNATURE_3) || (emu->romSignature[4] != RED_BLUE_SIGNATURE_4)) {
                         goto start_transfer;
                     }
                     emu->unk_5D70[1] = (uintptr_t)sRedPakBankList;
                     emu->unk_5D70[3] = 0;
                     emu->unk_5D70[2] = (uintptr_t)sRedBlueStoredBankList;
-                    emu->unk_5DC6 = 1;
+                    emu->unk_5DC6 = RED_PAK_FAST_BOOT_MODE;
                     bzero((u8*)emu->romImage + 0xB4000, 0x4C000);
                     for (i = 0x2D; i < 0x40; i++) {
                         emu->romBankStatus[i] = 0xFF;
                     }
                     break;
                 case 3:
-                    if ((emu->cartridgeId.version != 0) || (emu->cartridgeId.sum != 0x9D0A) ||
-                        (emu->romSignature[1] != 0x80) || (emu->romSignature[2] != 0x7F) ||
-                        (emu->romSignature[3] != 0xAB) || (emu->romSignature[4] != 0xA8)) {
+                    if ((emu->cartridgeId.version != 0) || (emu->cartridgeId.sum != BLUE_GLOBAL_CHECKSUM) ||
+                        (emu->romSignature[1] != RED_BLUE_SIGNATURE_1) || (emu->romSignature[2] != RED_BLUE_SIGNATURE_2) ||
+                        (emu->romSignature[3] != RED_BLUE_SIGNATURE_3) || (emu->romSignature[4] != RED_BLUE_SIGNATURE_4)) {
                         goto start_transfer;
                     }
                     emu->unk_5D70[1] = (uintptr_t)sBluePakBankList;
@@ -3367,17 +3643,19 @@ s32 GbEmu_UpdateFrame(s32 emu_index) {
                     }
                     break;
                 case 4:
-                    if ((emu->cartridgeId.version != 0) || (emu->cartridgeId.sum != 0x47C) ||
-                        (emu->romSignature[1] != 0x8F) || (emu->romSignature[2] != 0x91) ||
-                        (emu->romSignature[3] != 0x84) || (emu->romSignature[4] != 0x92)) {
+                    if ((emu->cartridgeId.version != 0) || (emu->cartridgeId.sum != YELLOW_GLOBAL_CHECKSUM) ||
+                        (emu->romSignature[1] != 0x8F) || (emu->romSignature[2] != YELLOW_SIGNATURE_2) ||
+                        (emu->romSignature[3] != YELLOW_SIGNATURE_3) || (emu->romSignature[4] != YELLOW_SIGNATURE_4)) {
                         goto start_transfer;
                     }
                     emu->unk_5D70[1] = (uintptr_t)sYellowPakBankList;
-                    emu->unk_5D70[3] = 0xD938;
+                    emu->unk_5D70[3] = YELLOW_STORED_BANK_ADDRESS;
                     emu->unk_5D70[2] = (uintptr_t)sYellowStoredBankList;
                     emu->unk_5DC6 = 0;
-                    bzero((u8*)emu->romImage + 0xEC000, 0x4000);
-                    emu->romBankStatus[0x3B] = 0xFF;
+                    if (!PORT_VERSION_TRANSLATED) {
+                        bzero((u8*)emu->romImage + 0xEC000, 0x4000);
+                        emu->romBankStatus[0x3B] = 0xFF;
+                    }
                     break;
                 default:
                     goto start_transfer;
@@ -3409,7 +3687,7 @@ s32 GbEmu_UpdateFrame(s32 emu_index) {
                 if (sAccessIconFrame >= 11) {
                     sAccessIconFrame = 0;
                 }
-                GbEmu_DrawAccessIcon((u16*)(sOverlayImages[sOverlayIndex] + 0x9C), 0, sAccessIconFrame);
+                GbEmu_DrawAccessIcon((u16*)(sOverlayImages[sOverlayIndex] + ACCESS_ICON_POS), 0, sAccessIconFrame);
                 if ((D_8122C4F9 >= 3) && (D_8122C4F9 < 0x20)) {
                     D_8122C4F9++;
                 }
@@ -3538,13 +3816,13 @@ s32 GbEmu_UpdateFrame(s32 emu_index) {
                 emu->speedMultiplier = i;
                 switch (sGbTowerUnlockTier) {
                     case 2:
-                        GbEmu_BlitWithPixelOp((u16*)(sStatusBarImage + 0x5D4),
+                        GbEmu_BlitWithPixelOp((u16*)(sStatusBarImage + SPEED_LAMP_POS(0x5D4)),
                                               (u16*)(((i >= 2) ? 0xAC58 : 0xACB8) + sUiGraphics), 0, 8, 6);
-                        GbEmu_BlitWithPixelOp((u16*)(sStatusBarImage + 0x5E4),
+                        GbEmu_BlitWithPixelOp((u16*)(sStatusBarImage + SPEED_LAMP_POS(0x5E4)),
                                               (u16*)(((i == 4) ? 0xAC58 : 0xACB8) + sUiGraphics), 0, 8, 6);
                         break;
                     case 1:
-                        GbEmu_BlitWithPixelOp((u16*)(sStatusBarImage + 0x5DA),
+                        GbEmu_BlitWithPixelOp((u16*)(sStatusBarImage + SPEED_LAMP_POS(0x5DA)),
                                               (u16*)(((i >= 2) ? 0xAC58 : 0xACB8) + sUiGraphics), 0, 8, 6);
                         break;
                 }

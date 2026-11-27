@@ -4,6 +4,9 @@
 #include "src/3D140.h"
 #include "StadionPort.h"
 
+// The translated releases play every volume step 0x1000 quieter.
+#define VOLUME_STEP_DROP (PORT_VERSION_TRANSLATED ? 0x1000 : 0)
+
 void Audio_SetChannelVolume(s32 arg0, u32 arg1) {
     if (PORT_AUDIO_OFF()) {
         return;
@@ -16,27 +19,27 @@ void Audio_SetChannelVolume(s32 arg0, u32 arg1) {
             break;
 
         case 1:
-            var_a1 = 0x3FFF;
+            var_a1 = 0x3FFF - VOLUME_STEP_DROP;
             break;
 
         case 2:
-            var_a1 = 0x4FFF;
+            var_a1 = 0x4FFF - VOLUME_STEP_DROP;
             break;
 
         case 3:
-            var_a1 = 0x5FFF;
+            var_a1 = 0x5FFF - VOLUME_STEP_DROP;
             break;
 
         case 4:
-            var_a1 = 0x6FFF;
+            var_a1 = 0x6FFF - VOLUME_STEP_DROP;
             break;
 
         case 5:
-            var_a1 = 0x7FFF;
+            var_a1 = 0x7FFF - VOLUME_STEP_DROP;
             break;
 
         default:
-            var_a1 = 0x6FFF;
+            var_a1 = 0x6FFF - VOLUME_STEP_DROP;
             break;
     }
 

@@ -424,6 +424,8 @@ extern char D_86A06128;
 extern char D_86A0612C;
 extern char D_86A06130;
 extern char D_86A06134;
+extern char D_86A06138; // PORT: the Spanish staff roll's extra line
+extern char D_86A0613C;
 
 extern u8 D_86A06210;
 extern u8 D_86A06211;

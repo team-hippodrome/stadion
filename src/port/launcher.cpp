@@ -25,6 +25,7 @@
 #include "save_editor/save_editor_ui.h"
 #include "pad_assign.h"
 #include "enhancements/enhancements.h"
+#include "restored_content.h"
 
 #include <chrono>
 #include <libultraship/libultraship.h>
@@ -51,6 +52,7 @@
 
 #include <algorithm>
 #include <array>
+#include <map>
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
@@ -79,6 +81,7 @@ struct GbSlot {
 struct State {
     std::string rom, save;
     std::array<GbSlot, 4> gb;
+    std::array<std::string, 3> extraRoms; // other Stadium releases beside the ROM (restored content)
     bool autoPlay = false, debug = false;
     bool smooth = false; // frame interpolation (interp.cpp)
     int aspect = 0;      // the game picture: 0 = 4:3, 1 = 16:9 (Engine.cpp, AspectSetting)
@@ -199,6 +202,10 @@ State Load() {
         s.gb[i].rom = Port::ResolveLauncherPath(CVarGetString(GbKey(i, "Rom").c_str(), ""), directory);
         s.gb[i].save = Port::ResolveLauncherPath(CVarGetString(GbKey(i, "Save").c_str(), ""), directory);
     }
+    for (int i = 0; i < 3; i++) {
+        const std::string key = "ExtraRom" + std::to_string(i + 1);
+        s.extraRoms[i] = Port::ResolveLauncherPath(CVarGetString(Key(key.c_str()).c_str(), ""), directory);
+    }
     s.autoPlay = CVarGetInteger(Key("AutoPlay").c_str(), 0) != 0;
     s.debug = CVarGetInteger(Key("Debug").c_str(), 0) != 0;
     s.smooth = CVarGetInteger("gPort.Interpolate", 0) != 0;
@@ -219,6 +226,10 @@ void Store(const State& s) {
         CVarSetInteger(GbKey(i, "Enabled").c_str(), s.gb[i].enabled ? 1 : 0);
         CVarSetString(GbKey(i, "Rom").c_str(), Port::StoreLauncherPath(s.gb[i].rom, directory).c_str());
         CVarSetString(GbKey(i, "Save").c_str(), Port::StoreLauncherPath(s.gb[i].save, directory).c_str());
+    }
+    for (int i = 0; i < 3; i++) {
+        const std::string key = "ExtraRom" + std::to_string(i + 1);
+        CVarSetString(Key(key.c_str()).c_str(), Port::StoreLauncherPath(s.extraRoms[i], directory).c_str());
     }
     CVarSetInteger(Key("AutoPlay").c_str(), s.autoPlay ? 1 : 0);
     CVarSetInteger(Key("Debug").c_str(), s.debug ? 1 : 0);
@@ -262,7 +273,8 @@ std::vector<uint8_t> ReadFile(const std::string& path, size_t maxBytes = SIZE_MA
 
 static PortRomVersion sCheckedRomVersion = PORT_ROM_VERSION_COUNT; // of the file CheckRom last hashed
 
-// "" when the file is a Pokémon Stadium (USA) ROM in .z64 byte order, else what is wrong with it
+// "" when the file is an accepted Pokémon Stadium ROM (rom_check.h: USA or Europe) in .z64 byte order, else what is
+// wrong with it
 std::string CheckRom(const std::string& path) {
     if (path.empty()) {
         return "No ROM loaded";
@@ -283,8 +295,8 @@ std::string CheckRom(const std::string& path) {
     if (h[0] != 0x80 || h[1] != 0x37) {
         return "Not an N64 ROM";
     }
-    if (memcmp(h.data() + 0x20, "POKEMON STADIUM", 15) != 0 || h[0x3E] != 'E') {
-        return "Not Pokémon Stadium (USA)";
+    if (memcmp(h.data() + 0x20, "POKEMON STADIUM", 15) != 0) {
+        return "Not Pokémon Stadium";
     }
     // the whole file: the original dump's SHA-1 (rom_check.h). Hashed once per file version (this runs every frame).
     static std::string sPath, sResult;
@@ -301,6 +313,29 @@ std::string CheckRom(const std::string& path) {
         sResult = Port::CheckRomDumpFile(path, &sCheckedRomVersion);
     }
     return sResult;
+}
+
+// the release of an extra ROM file (restored content), or PORT_ROM_VERSION_COUNT; hashed once per file version
+PortRomVersion ExtraRomVersionOf(const std::string& path) {
+    struct Entry {
+        uintmax_t size = 0;
+        fs::file_time_type time;
+        PortRomVersion version = PORT_ROM_VERSION_COUNT;
+    };
+    static std::map<std::string, Entry> sCache;
+    std::error_code ec;
+    const fs::path p = fs::u8path(path);
+    const uintmax_t size = fs::file_size(p, ec);
+    const fs::file_time_type time = ec ? fs::file_time_type() : fs::last_write_time(p, ec);
+    auto it = sCache.find(path);
+    if (it == sCache.end() || it->second.size != size || it->second.time != time) {
+        Entry e;
+        e.size = size;
+        e.time = time;
+        e.version = size == Port::kRomSize ? Port::ExtraRomVersionOfSha1(Port::Sha1HexFile(path)) : PORT_ROM_VERSION_COUNT;
+        it = sCache.insert_or_assign(path, e).first;
+    }
+    return it->second.version;
 }
 
 // "Pokémon Stadium (USA 1.0)" etc. for a ROM CheckRom accepted
@@ -1141,6 +1176,9 @@ class LauncherWindow : public Ship::GuiWindow {
         if (getenv("PORT_LAUNCHER_OPEN_STATEXP") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
             mGraphicsTestOpened = mGraphics = mEnhancements = mStatDifficulty = true;
         }
+        if (getenv("PORT_LAUNCHER_OPEN_RESTORED") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
+            mGraphicsTestOpened = mGraphics = mEnhancements = mRestored = true;
+        }
         if (getenv("PORT_LAUNCHER_OPEN_SOUND") != nullptr && !mSoundTestOpened) { // test hook (as OPEN_TOOLS)
             mSoundTestOpened = mSound = true;
         }
@@ -1158,6 +1196,8 @@ class LauncherWindow : public Ship::GuiWindow {
             ControlsPanel(16, 58, kW - 32, 366);
         } else if (mGraphics && mEnhancements && mStatDifficulty) {
             StatDifficultyPanel(16, 58, kW - 32, 366);
+        } else if (mGraphics && mEnhancements && mRestored) {
+            RestoredPanel(16, 58, kW - 32, 366);
         } else if (mGraphics && mEnhancements) {
             EnhancementsPanel(16, 58, kW - 32, 366);
         } else if (mGraphics) {
@@ -1351,7 +1391,7 @@ class LauncherWindow : public Ship::GuiWindow {
         float ly = y + 56;
         Section(lx, ly, colW, "SETUP");
         ly += 26;
-        if (mCheckRom.empty()) ly += StatusLine(lx, ly, colW, Theme::green, "Stadium ROM: Pokémon Stadium (USA), the expected dump.");
+        if (mCheckRom.empty()) ly += StatusLine(lx, ly, colW, Theme::green, "Stadium ROM: " + RomLabel() + ", the expected dump.");
         else ly += StatusLine(lx, ly, colW, Theme::red, "Stadium ROM: " + (s.rom.empty() ? std::string("none chosen yet.") : mCheckRom));
         int shown = 0;
         for (const auto& e : mCheck.errors) if (shown++ < 3) ly += StatusLine(lx, ly, colW, Theme::red, e);
@@ -2304,7 +2344,13 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(x + 14, y + 14, "ENHANCEMENTS", gFonts.body, Theme::text);
         Text(x + 140, y + 15, "Additions to the original game. On by default; turn off any you do not want.", gFonts.small, Theme::dim);
         if (Button("Back", x + w - 108, y + 9, 94, 26)) {
-            mEnhancements = mStatDifficulty = false;
+            mEnhancements = mStatDifficulty = mRestored = false;
+        }
+        if (Button("Restored content", x + w - 262, y + 9, 146, 26)) {
+            mRestored = true;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Gallery, Nidoqueen's animation and Jynx's colour from other Stadium releases you provide");
         }
         dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
         const float lx = x + 14, cx = x + 190, tx = x + 370;
@@ -2381,6 +2427,88 @@ class LauncherWindow : public Ship::GuiWindow {
                      name(r[0]) + ", opponents " + name(r[1]) + ".",
                  gFonts.small, Theme::dim);
             ry += 60;
+        }
+    }
+
+    // launcher > Graphics > Enhancements > Restored content (RESTORED_CONTENT.md, restored_content.cpp): up to three
+    // other Stadium releases beside the ROM, and the choices they make possible (each shown only when both versions
+    // of it are there)
+    void RestoredPanel(float x, float y, float w, float h) {
+        State& s = *mState;
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "RESTORED CONTENT", gFonts.body, Theme::text);
+        Text(x + 180, y + 15, "Content another Stadium release has: provide that ROM beside yours.", gFonts.small,
+             Theme::dim);
+        if (Button("Back", x + w - 108, y + 9, 94, 26)) {
+            mRestored = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+        const float lx = x + 14, cx = x + 190, tx = x + 420;
+        float ry = y + 58;
+        CheckRom(s.rom);
+        const PortRomVersion loaded = sCheckedRomVersion;
+        std::vector<PortRomVersion> extras;
+        for (int i = 0; i < 3; i++) {
+            std::string& path = s.extraRoms[i];
+            PortRomVersion v = PORT_ROM_VERSION_COUNT;
+            std::string status;
+            if (!path.empty()) {
+                v = ExtraRomVersionOf(path);
+                status = v == PORT_ROM_VERSION_COUNT ? "not an accepted Stadium dump"
+                                                     : std::string("Pokémon Stadium (") + Port::RomVersionName(v) + ")";
+            }
+            extras.push_back(v);
+            ImGui::PushID(i);
+            Text(lx, ry + 5, i == 0 ? "Other releases" : "", gFonts.body);
+            Text(cx, ry + 5, path.empty() ? std::string("none") : FileName(path), gFonts.body,
+                 path.empty() ? Theme::dim : Theme::text);
+            if (!status.empty()) {
+                Text(tx, ry + 6, status, gFonts.small, v == PORT_ROM_VERSION_COUNT ? Theme::red : Theme::green);
+            }
+            if (Button(path.empty() ? "Add" : "Change", x + w - 190, ry, 84, 26)) {
+                Pick(&path, false, kRomFilter, 2, s.rom);
+            }
+            if (!path.empty() && Button("Remove", x + w - 100, ry, 84, 26)) {
+                path.clear();
+                mChanged = true;
+            }
+            ImGui::PopID();
+            ry += 34;
+        }
+        Text(lx, ry + 2,
+             "Gallery: needs an English ROM (USA or Europe) beside a French, German, Spanish or Italian one. "
+             "Nidoqueen: the Japanese ROM.\nJynx: USA 1.0 or the Japanese ROM for the Original colour, any later "
+             "release for Purple. The choices below appear once both versions are there.",
+             gFonts.small, Theme::dim);
+        ry += 44;
+        dl->AddRectFilled(P(x, ry), P(x + w, ry + 1), Hex(Theme::cardBorder));
+        ry += 12;
+        const Port::RestoredContentChoices c = Port::RestoredChoicesFor(loaded, extras);
+        Text(lx, ry + 5, "Gallery", gFonts.body);
+        Text(cx, ry + 5, c.gallery ? "available" : "needs an English ROM", gFonts.body,
+             c.gallery ? Theme::green : Theme::dim);
+        ry += 40;
+        if (c.jynx) {
+            const int color = Port_Enh_JynxColor();
+            const bool original = color == PORT_JYNX_ROM ? c.jynxOriginalDefault : color == PORT_JYNX_ORIGINAL;
+            Text(lx, ry + 5, "Jynx's colour", gFonts.body);
+            const int ch = Choice("jynx", { "Original", "Purple" }, original ? 0 : 1, cx, ry, 84);
+            Text(tx, ry + 1, "Original: as in USA 1.0 and Japan. Purple: as in the later releases.", gFonts.small,
+                 Theme::dim);
+            if (ch >= 0) Port_Enh_SetJynxColor(ch == 0 ? PORT_JYNX_ORIGINAL : PORT_JYNX_PURPLE);
+            ry += 46;
+        }
+        if (c.nidoqueen) {
+            const int anim = Port_Enh_NidoqueenAnimation();
+            Text(lx, ry + 5, "Nidoqueen", gFonts.body);
+            const int ch = Choice("nidoqueen", { "International", "Japanese" },
+                                  anim == PORT_NIDOQUEEN_JAPANESE ? 1 : 0, cx, ry, 110);
+            Text(tx, ry + 1, "Nidoqueen's animation: the one of the western releases, or the Japanese one.",
+                 gFonts.small, Theme::dim);
+            if (ch >= 0) Port_Enh_SetNidoqueenAnimation(ch == 0 ? PORT_NIDOQUEEN_INTERNATIONAL : PORT_NIDOQUEEN_JAPANESE);
+            ry += 46;
         }
     }
 
@@ -2996,6 +3124,7 @@ class LauncherWindow : public Ship::GuiWindow {
     Port::GraphicsPick mPick;
     bool mEnhancements = false;   // in the graphics panel: the enhancements page
     bool mStatDifficulty = false; // in the enhancements page: the Stat Exp difficulty page
+    bool mRestored = false;       // in the enhancements page: the restored content page
     bool mSound = false;    // the sound panel instead of the player cards
     bool mSoundTestOpened = false;
     bool mGraphicsTestOpened = false;

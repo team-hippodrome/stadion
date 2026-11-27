@@ -274,11 +274,16 @@ void TeamSelection_DrawRegistrationHeaderBackdrop(s16 arg0, s16 arg1) {
 
 void TeamSelection_DrawCategoryBanner(s16 arg0, s16 arg1, s16 arg2) {
     static u8* D_84210D5C[] = { D_200DFA0, D_200F3E0, D_2010820, D_2011C60, D_20130A0 };
+    // PORT: the French, German and Italian banner textures sit further into segment 2 (the decomp's VERSION_FR,
+    // VERSION_DE and VERSION_IT table: D_200E9C0, D_200FE00, D_2011240, D_2012680, D_2013AC0)
+    static u8* sTranslatedBanners[] = { (u8*)0x200E9C0, (u8*)0x200FE00, (u8*)0x2011240, (u8*)0x2012680,
+                                        (u8*)0x2013AC0 };
+    u8** banners = (PORT_VERSION_FR || PORT_VERSION_DE || PORT_VERSION_IT) ? sTranslatedBanners : D_84210D5C;
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-    Gfx_DrawTextureRgba16(arg0, arg1, 0x48, 0x12, D_84210D5C[arg2], 0x48, 0);
-    Gfx_DrawTextureRgba16(arg0, arg1 + 0x12, 0x48, 0x12, D_84210D5C[arg2] + 0xA20, 0x48, 0);
+    Gfx_DrawTextureRgba16(arg0, arg1, 0x48, 0x12, banners[arg2], 0x48, 0);
+    Gfx_DrawTextureRgba16(arg0, arg1 + 0x12, 0x48, 0x12, banners[arg2] + 0xA20, 0x48, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 }
@@ -452,17 +457,19 @@ void TeamSelection_DrawFrame(s16 arg0, s16 arg1) {
         }
     }
 
+    // PORT: the Spanish and Italian banners are drawn after the measured category text (VERSION_ES, VERSION_IT)
+    const s32 textFirst = PORT_VERSION_ES || PORT_VERSION_IT;
     if (arg0 == 0) {
 #if defined(VERSION_US_REV2)
-        // Measures the category banner string; the width is never used.
-        UNUSED s32 width = Font_MeasureTextExtent(4, 0, Text_GetString(NULL, 0, sTeamEntryText, 0x4E));
+        // Measures the category banner string; the width is never used (but in Spanish and Italian).
+        s32 width = Font_MeasureTextExtent(4, 0, Text_GetString(NULL, 0, sTeamEntryText, 0x4E));
 #endif
         Color_SetRGB(&sp34, 0x64, 0x64, 0xC8);
         Color_SetRGB(&sp30, 0x28, 0x28, 0x8C);
         TeamSelection_DrawGradientPanel(0x48, 0x28, 0x208, &sp34, &sp30);
         TeamSelection_DrawHeaderBackdrop(0x30, 0x20);
         if (var_t0 != 0) {
-            TeamSelection_DrawCategoryBanner(0x1AE, 0x26, arg1);
+            TeamSelection_DrawCategoryBanner(textFirst ? width + 0x1AE : 0x1AE, 0x26, arg1);
         }
     } else {
         Color_SetRGB(&sp34, 0xB4, 0x5A, 0xA0);
@@ -481,7 +488,7 @@ void TeamSelection_DrawFrame(s16 arg0, s16 arg1) {
 
     if ((arg0 == 0) && (var_t0 != 0)) {
         Font_SetActive(4, 0);
-        Font_Printf(0x1F9, 0x2F, Text_GetString(NULL, 0, sTeamEntryText, 0x4E));
+        Font_Printf(textFirst ? 0x1AE : 0x1F9, 0x2F, Text_GetString(NULL, 0, sTeamEntryText, 0x4E));
     }
     Font_EndTexturedTextRendering();
 }

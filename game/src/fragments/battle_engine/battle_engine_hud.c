@@ -19,6 +19,10 @@
 #include "src/memory.h"
 #include "StadionPort.h"
 
+// X offset of the trainer names in the roster panels. PORT: the Spanish, Italian and European Rev 1 releases move
+// them right (the decomp's VERSION_ES, VERSION_IT and VERSION_EU_REV1).
+#define TRAINER_NAME_X_OFFSET ((PORT_VERSION_ES || PORT_VERSION_IT || PORT_VERSION_EU_REV1) ? 60 : 50)
+
 Vec3f sEndBattleBannerPos;
 
 static StatusConditionLabel sStatusLabelConfigs[] = {
@@ -1415,7 +1419,7 @@ void BattleHud_DrawTeamStatusList(ActivePokemon* pokemon, TeamRoster* team_roste
     Battle_DrawGradientRectWrapper(x + 1, y + 45, 99, 29, &dark_colors[port][2], &light_colors[port][2]);
     Battle_DrawGradientRectWrapper(x + 1, y + 74, 99, 29, &dark_colors[port][3], &light_colors[port][3]);
 
-    BattleHud_DrawPlainText((x - (Font_MeasureTextExtent(1, 0, team_roster->trainerName) / 2)) + 50, y + 3,
+    BattleHud_DrawPlainText((x - (Font_MeasureTextExtent(1, 0, team_roster->trainerName) / 2)) + TRAINER_NAME_X_OFFSET, y + 3,
                             team_roster->trainerName);
 
     if (team_roster->numberOfPokemonBrought > 0) {
@@ -1476,7 +1480,7 @@ void BattleHud_DrawDoublesTeamStatusList(ActivePokemon* pokemon, s16 x, s16 y, s
     Battle_DrawGradientRectWrapper(x + 1, y + 45, 200, 29, &dark_colors[port][2], &light_colors[port][2]);
     Battle_DrawGradientRectWrapper(x + 1, y + 74, 200, 29, &dark_colors[port][3], &light_colors[port][3]);
     trainer_name_text_width = Font_MeasureTextExtent(1, 0, teammate_roster->trainerName) / 2;
-    BattleHud_DrawPlainText((x - trainer_name_text_width) + 50, y + 3, teammate_roster->trainerName);
+    BattleHud_DrawPlainText((x - trainer_name_text_width) + TRAINER_NAME_X_OFFSET, y + 3, teammate_roster->trainerName);
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 

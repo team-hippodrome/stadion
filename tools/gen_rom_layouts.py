@@ -27,6 +27,10 @@ VERSIONS = {
     "us_rev2": "PORT_ROM_US_REV2",
     "eu": "PORT_ROM_EU",
     "eu_rev1": "PORT_ROM_EU_REV1",
+    "fr": "PORT_ROM_FR",
+    "de": "PORT_ROM_DE",
+    "es": "PORT_ROM_ES",
+    "it": "PORT_ROM_IT",
 }
 SYM = re.compile(r"^\s+0x([0-9a-f]{8,16})\s+(?:PROVIDE \()?([A-Za-z_]\w*)\s*(?:=.*)?$")
 

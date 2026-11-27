@@ -406,3 +406,5 @@ char D_86A06128 = '\x00';
 char D_86A0612C = '\x00';
 char D_86A06130 = '\x00';
 char D_86A06134 = '\x00';
+char D_86A06138 = '\x00'; // PORT: the Spanish staff roll's extra line
+char D_86A0613C = '\x00';
