@@ -101,10 +101,25 @@ void BattlePrep_AdvanceGbTowerUnlock(void) {
 
     Save_GetOptions(&options);
 
-    if (Port_NcIs99()) {
-        // PORT: Nintendo Cup '99 (restored content) keeps its own clear
-        if ((gSessionContext.mode == 3) && (gSessionContext.modeSelection == 3) &&
-            !(MODE_SETTINGS_NC_CLEARED(&sModeSettings) & (1 << RULE_CATEGORY_NINTENDO_CUP_99))) {
+    if (Port_NcAvailable()) {
+        // PORT: with the Nintendo Cups (restored content), winning all three of them counts as the Poké Cup's Master
+        // Ball clear, as for Mewtwo: a Game Boy for the first of the two "sides" (Poké Cup or the three Nintendo
+        // Cups, and the Prime Cup) cleared, another for the second
+        u8 nc_before = MODE_SETTINGS_NC_CLEARED(&sModeSettings);
+        u8 nc_after = nc_before;
+        s32 poke_before = (sModeSettings.clearedModes & 8) ||
+                          ((nc_before & MODE_SETTINGS_NC_ALL_CLEARED) == MODE_SETTINGS_NC_ALL_CLEARED);
+        s32 poke_after;
+
+        if ((gSessionContext.mode == 1) || (gSessionContext.mode == 2)) {
+            nc_after |= 1 << gSessionContext.mode;
+        } else if ((gSessionContext.mode == 3) && Port_NcIs99() && (gSessionContext.modeSelection == 3)) {
+            nc_after |= 1 << RULE_CATEGORY_NINTENDO_CUP_99;
+        }
+        poke_after = ((sModeSettings.clearedModes & 8) ||
+                      ((nc_after & MODE_SETTINGS_NC_ALL_CLEARED) == MODE_SETTINGS_NC_ALL_CLEARED) ||
+                      ((gSessionContext.mode == 3) && !Port_NcIs99() && (gSessionContext.modeSelection == 3)));
+        if (poke_after && !poke_before) {
             is_first_clear = 1;
         }
     } else if ((gSessionContext.mode == 3) && (gSessionContext.modeSelection == 3) &&
