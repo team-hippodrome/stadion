@@ -2484,7 +2484,7 @@ void PakUi_DrawHeaderProgressBar(s32 arg0) {
         PakUi_DrawThickBoxBorder(0x38, (s16)((0x3C - tmp) / 2) + 0x24, 0x210, tmp, 0x1E, 0x1E, 0x82, 0x96);
         if (progress == 600) {
             sp3A = PakUi_ComputeBlinkAlpha();
-            if (D_82D0AB90.clearedModes == PAKUI_ALL_MODES_CLEARED) {
+            if (MODE_SETTINGS_CLEARED_MODES(&D_82D0AB90) == PAKUI_ALL_MODES_CLEARED) {
                 gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
                 gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, sp3A);
 
@@ -2497,7 +2497,7 @@ void PakUi_DrawHeaderProgressBar(s32 arg0) {
             Font_SetActive(0x10, -1);
             Font_Printf(0xE0, 0x36, "えらんでください");
 
-            if (D_82D0AB90.clearedModes == PAKUI_ALL_MODES_CLEARED) {
+            if (MODE_SETTINGS_CLEARED_MODES(&D_82D0AB90) == PAKUI_ALL_MODES_CLEARED) {
                 Font_SetActive(8, -2);
                 Gfx_SetEnvColor(0xFF, 0xFF, 0xFF, sp3A);
                 Font_Printf(0x1D6, 0x2D, "スタジアム");
@@ -2562,7 +2562,7 @@ void PakUi_DrawHeaderProgressBar(s32 arg0, s32 arg1) {
         PakUi_DrawThickBoxBorder(0x38, (s16)((0x3C - tmp) / 2) + 0x24, 0x210, tmp, 0x1E, 0x1E, 0x82, 0x96);
         if (arg0 == 10) {
             sp48 = PakUi_ComputeBlinkAlpha();
-            if (D_82D0AB90.clearedModes == PAKUI_ALL_MODES_CLEARED) {
+            if (MODE_SETTINGS_CLEARED_MODES(&D_82D0AB90) == PAKUI_ALL_MODES_CLEARED) {
                 gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
                 gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, sp48);
 
@@ -2576,7 +2576,7 @@ void PakUi_DrawHeaderProgressBar(s32 arg0, s32 arg1) {
             tmp = (Font_MeasureTextExtent(0x10, 0, Text_GetString(NULL, 0, sGameFunctionalityText, 0x3B)));
             Font_Printf(0x140 - tmp / 2, 0x36, Text_GetString(NULL, 0, sGameFunctionalityText, 0x3B));
 
-            if (D_82D0AB90.clearedModes == PAKUI_ALL_MODES_CLEARED) {
+            if (MODE_SETTINGS_CLEARED_MODES(&D_82D0AB90) == PAKUI_ALL_MODES_CLEARED) {
                 Font_SetActive(8, 0);
                 Gfx_SetEnvColor(0xFF, 0xFF, 0xFF, sp48);
                 Font_Printf(0x1D6, 0x2D, Text_GetString(NULL, 0, sGameFunctionalityText, 0x3C));
@@ -3044,7 +3044,7 @@ s32 TransferPak_MenuHandleInput(void) {
         sp24 = D_82D09F1C[D_82D06FA0].unk_0A;
     } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_DRIGHT)) {
         sp24 = D_82D09F1C[D_82D06FA0].unk_0B;
-    } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_CRIGHT) && (D_82D0AB90.clearedModes == PAKUI_ALL_MODES_CLEARED)) {
+    } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_CRIGHT) && (MODE_SETTINGS_CLEARED_MODES(&D_82D0AB90) == PAKUI_ALL_MODES_CLEARED)) {
         Audio_PlaySoundEffectById(SFX_MENU_CONFIRM);
         var_a3 = -1;
         gSessionContext.inRound2 ^= 1;

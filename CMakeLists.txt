@@ -95,6 +95,7 @@ set(PORT_MAIN_SOURCES
   src/port/enhancements/memory_screen.cpp
   src/port/rom_check.cpp
   src/port/restored_content.cpp # reads CVars, so it needs libultraship's include paths (nlohmann/json)
+  src/port/nintendo_cup.cpp
   src/port/shader_warmup.cpp
   src/port/touch_controls.cpp
   src/port/pad_assign.cpp

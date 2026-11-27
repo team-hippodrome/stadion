@@ -42,6 +42,11 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
     for src in ("en", "es", "fr", "de", "it", "jp"):
         if (root / f"translation/{src}.csv").exists():
             z.write(root / f"translation/{src}.csv", f"translation/{src}.csv")
+    # the Japanese ROM's COM nicknames and its text in kanji, for the Nintendo Cups taken from a Japanese ROM beside a
+    # western one (src/port/nintendo_cup.cpp)
+    for name in ("jp_localized", "kanji"):
+        if (root / f"translation/{name}.csv").exists():
+            z.write(root / f"translation/{name}.csv", f"translation/{name}.csv")
     fonts = root / "hippodrome-utils/assets/font"
     for name in ("pop_subset.ttf", "unifont_subset.otf", "unifont_subset.hex", "LICENSE-pop.txt",
                  "LICENSE-unifont.txt"):

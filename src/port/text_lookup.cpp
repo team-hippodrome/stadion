@@ -257,6 +257,26 @@ void BuildLabels() {
 
 } // namespace
 
+namespace Port {
+
+std::string TextTargetLanguage() {
+    std::string lang = Chosen();
+    if (lang.empty()) {
+        lang = gState.source.empty() ? "en" : gState.source;
+    }
+    return lang;
+}
+
+std::string TextEncode(const std::string& utf8) {
+    return Encode(utf8);
+}
+
+std::string TextUpper(const std::string& utf8) {
+    return Upper(utf8);
+}
+
+} // namespace Port
+
 extern "C" {
 
 const char* Port_TextLookup(uint32_t table, uint32_t index) {

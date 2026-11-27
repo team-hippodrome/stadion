@@ -2564,7 +2564,7 @@ class LauncherWindow : public Ship::GuiWindow {
         }
         Text(lx, ry + 2,
              "Gallery: needs an English ROM (USA or Europe) beside a French, German, Spanish or Italian one. "
-             "Nidoqueen: the Japanese ROM.\nJynx: USA 1.0 or the Japanese ROM for the Original colour, any later "
+             "Nidoqueen and the Nintendo Cups: the Japanese ROM.\nJynx: USA 1.0 or the Japanese ROM for the Original colour, any later "
              "release for Purple. The choices below appear once both versions are there.",
              gFonts.small, Theme::dim);
         ry += 44;
@@ -2574,7 +2574,13 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(lx, ry + 5, "Gallery", gFonts.body);
         Text(cx, ry + 5, c.gallery ? "available" : "needs an English ROM", gFonts.body,
              c.gallery ? Theme::green : Theme::dim);
-        ry += 40;
+        ry += 34;
+        Text(lx, ry + 5, "Nintendo Cups", gFonts.body);
+        Text(cx, ry + 5, c.nintendoCup ? "available" : "needs the Japanese ROM", gFonts.body,
+             c.nintendoCup ? Theme::green : Theme::dim);
+        Text(tx, ry + 6, "Cups '97, '98 and '99 on the stadium select screen, beside the Poké Cup.", gFonts.small,
+             Theme::dim);
+        ry += 34;
         if (c.jynx) {
             const int color = Port_Enh_JynxColor();
             const bool original = color == PORT_JYNX_ROM ? c.jynxOriginalDefault : color == PORT_JYNX_ORIGINAL;

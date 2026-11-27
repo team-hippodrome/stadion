@@ -35,6 +35,13 @@ std::string PortText(const char* id, const std::string& lang, const std::string&
 // Every character port.csv's cells in `langs` hold, as UTF-8 (the launcher adds their glyphs to its fonts).
 std::string PortTextCharacters(const std::vector<std::string>& langs);
 
+// The language in-game text is drawn in: the chosen text language (gPort.TextLanguage), else the loaded ROM's own
+// (src/port/text_lookup.cpp). A UTF-8 string in the game's encoding (wide codes for characters the ROM font lacks),
+// and a UTF-8 string with its ASCII and Latin-1 letters in capitals.
+std::string TextTargetLanguage();
+std::string TextEncode(const std::string& utf8);
+std::string TextUpper(const std::string& utf8);
+
 struct LanguagePrompt {
     std::string rom;    // the ROM's language
     std::string locale; // the system's

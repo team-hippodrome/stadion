@@ -817,12 +817,15 @@ s32 Rental_BuildBoxFilterIndex(RentalCarouselState* arg0, s16 arg1, s16 arg2) {
                         var_s0 = Rental_MonMeetsCategoryFilter(&sp50, 0x32, 0x37, 1);
                         break;
 
+                    // PORT: the Nintendo Cups '98 and '99 (restored content) use the Japanese release's limits
                     case 2:
-                        var_s0 = Rental_MonMeetsCategoryFilter(&sp50, 0x32, 0x37, 1);
+                        var_s0 = Port_NcAvailable() ? Rental_MonMeetsCategoryFilter(&sp50, 1, 0x1E, 2)
+                                                    : Rental_MonMeetsCategoryFilter(&sp50, 0x32, 0x37, 1);
                         break;
 
                     case 3:
-                        var_s0 = Rental_MonMeetsCategoryFilter(&sp50, 0x32, 0x37, 1);
+                        var_s0 = Port_NcIs99() ? Rental_MonMeetsCategoryFilter(&sp50, 1, 0x32, 4)
+                                               : Rental_MonMeetsCategoryFilter(&sp50, 0x32, 0x37, 1);
                         break;
                     case 4:
                         var_s0 = Rental_MonMeetsCategoryFilter(&sp50, 0x19, 0x1E, 8);

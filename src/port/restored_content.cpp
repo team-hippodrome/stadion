@@ -7,6 +7,8 @@
 //   translated). Without one the Gallery cannot be entered, as on those cartridges.
 // - Nidoqueen's animation: the Japanese release has its own (Pokémon model archive file 30). With a Japanese ROM
 //   provided, either one can be chosen; otherwise the loaded ROM's own is used.
+// - The Nintendo Cups: with a Japanese ROM provided, Nintendo Cup '97, '98 and '99 beside the Poké Cup
+//   (nintendo_cup.cpp).
 // - Jynx's colour: Original (USA 1.0 and the Japanese release) or Purple (every later release): model archive file
 //   123 and menu icon archive file 123. With a ROM of the other kind provided, either one can be chosen.
 //
@@ -149,6 +151,7 @@ namespace Port {
 
 void LoadRestoredContent() {
     ClearExtraRoms();
+    ResetNintendoCup();
     gEnglishSlot = gJapanSlot = 0;
     for (const std::string& path : ExtraRomPaths()) {
         std::vector<uint8_t> data = ReadRomFile(path);
@@ -198,6 +201,10 @@ void LoadRestoredContent() {
     }
 }
 
+int JapanRomSlot() {
+    return gJapanSlot;
+}
+
 PortRomVersion ExtraRomVersion(int slot) {
     for (int v = 0; v < PORT_ROM_VERSION_COUNT; v++) {
         if (ExtraRomSlot((PortRomVersion)v) == slot && slot != 0) {
@@ -216,6 +223,7 @@ RestoredContentChoices RestoredChoicesFor(PortRomVersion loaded, const std::vect
         purple |= !HasOriginalJynx(v);
         english |= IsEnglish(v);
         c.nidoqueen |= v == PORT_ROM_JP;
+        c.nintendoCup |= v == PORT_ROM_JP && loaded != PORT_ROM_JP;
     }
     c.jynx = original && purple;
     c.jynxOriginalDefault = HasOriginalJynx(loaded);

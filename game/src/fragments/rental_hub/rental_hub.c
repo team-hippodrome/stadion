@@ -279,7 +279,7 @@ void RentalHub_LoadBackgroundImage(ModeSettings* arg0) {
             D_82B01148 = BinArchive_GetFile(sBackgroundArchive, 0x10);
         }
     } else {
-        D_82B01148 = BinArchive_GetFile(sBackgroundArchive, D_82B01120[gSessionContext.mode]);
+        D_82B01148 = BinArchive_GetFile(sBackgroundArchive, Port_NcBackgroundFile(gSessionContext.mode, D_82B01120[gSessionContext.mode]));
     }
 }
 

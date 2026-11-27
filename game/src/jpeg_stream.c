@@ -1173,6 +1173,20 @@ void* BinArchive_GetFile(BinArchive* archive, s32 file_number) {
                 (void*)archive, file_number, archive->unk_00, archive->unk_02, archive->num_files, archive->unk_04,
                 sp18->offset, sp18->size, sp18->unk_08);
     if (file_number < archive->num_files) {
+        // PORT: the Nintendo Cups (restored content) take some trainer archive files from a Japanese ROM: a fresh
+        // copy each time, in the western layout (src/port/nintendo_cup.cpp). Only ROM-addressed archives (0x80 = by LBA)
+        if (!(archive->unk_00 & (0x80 | 1))) {
+            u32 nc_size;
+            const void* nc = Port_NcTrainerFile((u32)(uintptr_t)archive->unk_04, file_number, &nc_size);
+
+            if (nc != NULL) {
+                var_a2 = main_pool_alloc(nc_size, 0);
+                if (var_a2 != NULL) {
+                    memcpy(var_a2, nc, nc_size);
+                }
+                return var_a2;
+            }
+        }
         if (archive->unk_00 & 1) {
             var_a2 = (u8*)archive + sp18->offset;
             if (PORT_GETENV_ONCE("PORT_DUMP_FRAGS")) {

@@ -6,6 +6,7 @@
 #include "src/pokemon_stats.h"
 #include "src/save_data.h"
 #include "src/game_state.h"
+#include "StadionPort.h" // PORT: the Nintendo Cups (restored content)
 #include "src/session.h"
 #include "src/text_system.h"
 #include "src/audio_sfx.h"
@@ -100,7 +101,14 @@ void BattlePrep_AdvanceGbTowerUnlock(void) {
 
     Save_GetOptions(&options);
 
-    if ((gSessionContext.mode == 3) && (gSessionContext.modeSelection == 3) && !(sModeSettings.clearedModes & 8)) {
+    if (Port_NcIs99()) {
+        // PORT: Nintendo Cup '99 (restored content) keeps its own clear
+        if ((gSessionContext.mode == 3) && (gSessionContext.modeSelection == 3) &&
+            !(MODE_SETTINGS_NC_CLEARED(&sModeSettings) & (1 << RULE_CATEGORY_NINTENDO_CUP_99))) {
+            is_first_clear = 1;
+        }
+    } else if ((gSessionContext.mode == 3) && (gSessionContext.modeSelection == 3) &&
+               !(sModeSettings.clearedModes & 8)) {
         is_first_clear = 1;
     }
 
@@ -128,8 +136,15 @@ void BattlePrep_MarkModeCleared(void) {
     if (((gSessionContext.mode != 3) || (gSessionContext.modeSelection >= 3)) &&
         ((gSessionContext.mode != 6) || (gSessionContext.modeSelection >= 3)) &&
         ((gSessionContext.mode != 7) || (gSessionContext.modeSelection >= 9))) {
-        sModeSettings.clearedModes |= (1 << gSessionContext.mode);
-        if (sModeSettings.clearedModes == 0xF8) {
+        // PORT: the Nintendo Cups (restored content) keep their clears apart, so clearedModes keeps the values the
+        // game compares it with; all three of them count as the Poké Cup's clear toward Mewtwo
+        if ((gSessionContext.mode == 1) || (gSessionContext.mode == 2) ||
+            ((gSessionContext.mode == 3) && Port_NcIs99())) {
+            MODE_SETTINGS_NC_CLEARED(&sModeSettings) |= (1 << gSessionContext.mode);
+        } else {
+            sModeSettings.clearedModes |= (1 << gSessionContext.mode);
+        }
+        if (MODE_SETTINGS_CLEARED_MODES(&sModeSettings) == 0xF8) {
             sModeSettings.mewtwoUnlocked = 1;
             gSessionContext.sessionFlags |= SESSION_FLAG_REVEAL_MEWTWO;
         }
@@ -146,6 +161,13 @@ void BattlePrep_UpdateClearProgress(void) {
     if (gSessionContext.mode == 7) {
         if ((gSessionContext.modeSelection >= sModeSettings.castleClears) && (gSessionContext.modeSelection < 8)) {
             sModeSettings.castleClears = gSessionContext.modeSelection + 1;
+            gSessionContext.transitionFlags |= 0x400;
+        }
+    } else if ((gSessionContext.mode == 3) && Port_NcIs99()) {
+        // PORT: Nintendo Cup '99's divisions (restored content)
+        if ((gSessionContext.modeSelection >= MODE_SETTINGS_NC99_CLEARS(&sModeSettings)) &&
+            (gSessionContext.modeSelection < 4)) {
+            MODE_SETTINGS_NC99_CLEARS(&sModeSettings) = gSessionContext.modeSelection + 1;
             gSessionContext.transitionFlags |= 0x400;
         }
     } else if (gSessionContext.mode == 3) {

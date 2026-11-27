@@ -166,7 +166,11 @@ char* Text_GetString(char* text, s32 text_length, char** string_array, u32 file_
         s32 t;
         for (t = 0; t < TEXT_MAX_FILES; t++) {
             if (sTextTables[t] == string_array) {
-                const char* translated = Port_TextLookup((u32)t, file_number);
+                const char* translated = Port_NcTableText((u32)t, file_number);
+
+                if (translated == NULL) {
+                    translated = Port_TextLookup((u32)t, file_number);
+                }
                 if (translated != NULL) {
                     string_array_lookup = (char*)translated;
                 }

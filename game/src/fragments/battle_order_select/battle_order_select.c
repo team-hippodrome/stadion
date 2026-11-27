@@ -556,6 +556,7 @@ void BattleMenu_DrawOrderSelectPanel_LevelCapNotice(BattleOrderInputState* input
     s32 level_cap;
 
     switch (sSessionContext->ruleCategory) {
+        case 1: // PORT: Nintendo Cup '97 (restored content)
         case 3:
             level_cap = 155;
             break;
@@ -889,7 +890,10 @@ s32 BattleMenu_PicksExceedLevelCap(BattleOrderInputState* input_state) {
                 fprintf(stderr, " %d(sp %d)", input_state->pokemon[i].level, input_state->pokemon[i].species.id);
             fputc('\n', stderr);
         }
-        if (sSessionContext->ruleCategory == RULE_CATEGORY_NINTENDO_CUP_99) {
+        // PORT: Nintendo Cup '97 (restored content) has the 155 total its rules list; the Japanese release checks it
+        // only for rule category 3, which is the Poké Cup's in the western releases (and '99, Lv 50 at most, there)
+        if ((sSessionContext->ruleCategory == RULE_CATEGORY_NINTENDO_CUP_99) ||
+            (sSessionContext->ruleCategory == RULE_CATEGORY_NINTENDO_CUP_97)) {
             if ((input_state->numberOfPokemonPicked == 2) && (level_sum >= 106)) {
                 return 1;
             }
