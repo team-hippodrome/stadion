@@ -29,7 +29,18 @@ typedef int32_t s32;
 // Field offsets, provided by the game side (gb_tower_emulator_7F9A0.c) where the struct type is known
 // (Port_GbEmuOffsets, StadionPort.h).
 
-enum { OFF_ROM, OFF_SRAM, OFF_SRAM_SIZE, OFF_PAD, OFF_DIRTY, OFF_DELAY, OFF_VARIANT, OFF_STADIUM_DATA, OFF_BORDER_SHOWN };
+enum {
+    OFF_ROM,
+    OFF_SRAM,
+    OFF_SRAM_SIZE,
+    OFF_PAD,
+    OFF_DIRTY,
+    OFF_DELAY,
+    OFF_VARIANT,
+    OFF_STADIUM_DATA,
+    OFF_BORDER_SHOWN,
+    OFF_REG_PC,
+};
 #define EMU_FIELD(emu, k) ((u8*)(emu) + Port_GbEmuOffsets[k])
 
 // ---- machine state ----
@@ -1238,6 +1249,7 @@ static void Reset(void* emu) {
     }
     G.sp = 0xFFFE;
     G.pc = 0x0100;
+    *(u16*)EMU_FIELD(emu, OFF_REG_PC) = G.pc;
     G.io[0x00] = 0x30;
     G.io[0x05] = 0; G.io[0x06] = 0; G.io[0x07] = 0;
     G.io[0x10] = 0x80; G.io[0x11] = 0xBF; G.io[0x12] = 0xF3; G.io[0x14] = 0xBF; G.io[0x16] = 0x3F;

@@ -1742,12 +1742,16 @@ void GbPak_ServiceThread(s32 arg0) {
                         retries = 0x3C;
                         emu->pakState = 8;
                         goto retry;
+// PORT: fast-boot bank lists are byte arrays holding big-endian u16 values (both the compiled-in US tables and the
+// European ones read from the loaded ROM via GB_RELEASE_DATA).
+#define GB_BE16_AT(ptr, i) ((u16)((((const u8*)(ptr))[(i)*2] << 8) | ((const u8*)(ptr))[(i)*2 + 1]))
+
                     case 6:
                         emu->pakRetryBudget -= 2;
                         entry = (u16*)emu->unk_5D70[1];
                         do {
-                            value = *entry;
-                            if (*entry & 0x8000) {
+                            value = GB_BE16_AT(entry, 0);
+                            if (value & 0x8000) {
                                 if (emu->ramBankStatus[value & 0xF] == 0) {
                                     emu->gbAddress = (value & 0xF) << 13;
                                     emu->transferBuffer = (u8*)emu + emu->gbAddress + 0x12DF0;
@@ -1755,11 +1759,11 @@ void GbPak_ServiceThread(s32 arg0) {
                                     if (GbPak_TransferBankedRam(emu, 0) != 0) {
                                         goto disconnect;
                                     }
-                                    emu->ramBankStatus[entry[0] & 0xF] = 0xFF;
+                                    emu->ramBankStatus[value & 0xF] = 0xFF;
                                 }
                                 entry += 1;
                             } else {
-                                if (emu->romBankStatus[*entry] == 0) {
+                                if (emu->romBankStatus[value] == 0) {
                                     emu->gbAddress = value << 14;
                                     emu->transferBuffer = (u8*)emu->romImage + emu->gbAddress;
                                     emu->transferSize = 0x4000;
@@ -1772,7 +1776,7 @@ void GbPak_ServiceThread(s32 arg0) {
                                         sum += *ptr;
                                         ptr++;
                                     }
-                                    if (sum != entry[1]) {
+                                    if (sum != GB_BE16_AT(entry, 1)) {
                                         goto retry;
                                     }
                                     sum = 0;
@@ -1780,14 +1784,14 @@ void GbPak_ServiceThread(s32 arg0) {
                                         sum += *ptr;
                                         ptr++;
                                     }
-                                    if (sum != entry[2]) {
+                                    if (sum != GB_BE16_AT(entry, 2)) {
                                         goto retry;
                                     }
-                                    emu->romBankStatus[entry[0]] = 0xFF;
+                                    emu->romBankStatus[value] = 0xFF;
                                 }
                                 entry += 3;
                             }
-                        } while (*entry);
+                        } while (GB_BE16_AT(entry, 0));
 #if defined(VERSION_US_REV2) || defined(VERSION_PAL_LATE)
                         // Powers the cartridge off once the fast-boot banks are read.
                         emu->status &= ~1;
@@ -2891,20 +2895,23 @@ void GbEmu_LoadStoredRomBanks(unk_D_8122B2C0* emu) {
         entry = (u16*)emu->unk_5D70[2];
         rom_offset = emu->unk_5D70[3] + GB_EMU_STORED_BANKS_ROM;
         do {
-            bank_index = *entry & 0xFF;
-            delta_count = *entry / 0x100;
+            u16 header = GB_BE16_AT(entry, 0);
+            u16 compressed_size = GB_BE16_AT(entry, 1);
+            bank_index = header & 0xFF;
+            delta_count = header / 0x100;
 #if defined(VERSION_US_REV2) || defined(VERSION_PAL_LATE)
             *(u32*)((u8*)emu->romImage + GB_EMU_INFLATE_OFFSET) = 0x12345678;
 #endif
-            Dma_WriteChunks((uintptr_t)((u8*)emu->romImage + GB_EMU_INFLATE_OFFSET), rom_offset, entry[1] + rom_offset,
-                            0);
-            rom_offset += entry[1];
+            Dma_WriteChunks((uintptr_t)((u8*)emu->romImage + GB_EMU_INFLATE_OFFSET), rom_offset,
+                            compressed_size + rom_offset, 0);
+            rom_offset += compressed_size;
             entry += 2;
             Yay0_Decompress((u8*)emu->romImage + GB_EMU_INFLATE_OFFSET, (u8*)emu->romImage + (bank_index << 14));
             for (delta_index = 0; delta_index < delta_count; delta_index++) {
+                u16 delta_size = GB_BE16_AT(entry, 0);
                 if ((delta_index + 1) >= emu->unk_5DC6) {
                     Dma_WriteChunks((uintptr_t)((u8*)emu->romImage + GB_EMU_DELTA_OFFSET), rom_offset,
-                                    entry[0] + rom_offset, 0);
+                                    delta_size + rom_offset, 0);
                     Yay0_Decompress((u8*)emu->romImage + GB_EMU_DELTA_OFFSET,
                                     (u8*)emu->romImage + GB_EMU_INFLATE_OFFSET);
                     delta = (u8*)emu->romImage + GB_EMU_INFLATE_OFFSET;
@@ -2913,11 +2920,11 @@ void GbEmu_LoadStoredRomBanks(unk_D_8122B2C0* emu) {
                         bank[i] = delta[i] ^ bank[i];
                     }
                 }
-                rom_offset += entry[0];
+                rom_offset += delta_size;
                 entry += 1;
             }
             emu->romBankStatus[bank_index] = 0xFF;
-        } while (*entry);
+        } while (GB_BE16_AT(entry, 0));
     }
 }
 
@@ -4177,12 +4184,12 @@ s32 GbEmu_UpdateFrame(s32 emu_index) {
 // page state and write-back delay tables, the cartridge variant (GbPak_DetectSupportedCartridgeVariant) and the UI
 // asset that starts with Pokémon Yellow's border.
 #include <stddef.h>
-const size_t Port_GbEmuOffsets[9] = {
+const size_t Port_GbEmuOffsets[10] = {
     offsetof(unk_D_8122B2C0, romImage),          0x12DF0,
     offsetof(unk_D_8122B2C0, ramSize),           offsetof(unk_D_8122B2C0, buttonsHeld),
     offsetof(unk_D_8122B2C0, sramPageSyncState), offsetof(unk_D_8122B2C0, sramPageSkipSync),
     offsetof(unk_D_8122B2C0, cartridgeVersion),  offsetof(unk_D_8122B2C0, unk_5C58),
-    offsetof(unk_D_8122B2C0, unk_5404),
+    offsetof(unk_D_8122B2C0, unk_5404),          offsetof(unk_D_8122B2C0, regPC),
 };
 
 /**

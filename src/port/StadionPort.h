@@ -444,7 +444,7 @@ uint8_t Font_MapGlyphCode(uint16_t index);
 void BattleHud_PortMenuColors(int port, uint8_t start[3], uint8_t end[3]);
 // Field offsets of the Game Boy Tower's emulator context, used by src/port/gb_core.c
 // (game/src/fragments/gb_tower_emulator/gb_tower_emulator_7F9A0.c).
-extern const size_t Port_GbEmuOffsets[9];
+extern const size_t Port_GbEmuOffsets[10];
 
 #ifdef __cplusplus
 }
