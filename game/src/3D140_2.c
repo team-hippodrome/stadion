@@ -92,8 +92,17 @@ extern u8 D_800780B4[204 + 96 + 196];
 #define PORT_D_800780B3(i) ((i) == 0 ? (u8)(D_800780A8[5] & 0xFF) : D_800780B4[(i)-1])
 // PORT: u16 [][9] tables at interior addresses of sMusicSeqTables (0x80078410), kept as big-endian bytes
 extern u8 sMusicSeqTables[0x134];
+// The Italian release numbers three of the sequences these tables name differently (0x4A/0x4D/0x4F are 0x4B/0x4C/0x4E
+// there, in the four rows that end at byte 0x11E).
+static inline u8 Port_MusicSeqByte(s32 i) {
+    const u8 b = sMusicSeqTables[i];
+    if (PORT_VERSION_IT && i >= 0xE3 && i <= 0x11D && (b == 0x4A || b == 0x4D || b == 0x4F)) {
+        return b == 0x4A ? 0x4B : b == 0x4D ? 0x4C : 0x4E;
+    }
+    return b;
+}
 #define PORT_SEQ_TABLE(off, row, col) \
-    ((u16)((sMusicSeqTables[(off) + 2 * ((row)*9 + (col))] << 8) | sMusicSeqTables[(off) + 2 * ((row)*9 + (col)) + 1]))
+    ((u16)((Port_MusicSeqByte((off) + 2 * ((row)*9 + (col))) << 8) | Port_MusicSeqByte((off) + 2 * ((row)*9 + (col)) + 1)))
 #define PORT_D_80078410(r, c) PORT_SEQ_TABLE(0x00, r, c)
 #define PORT_D_80078446(r, c) PORT_SEQ_TABLE(0x36, r, c)
 #define PORT_D_800784EA(r, c) PORT_SEQ_TABLE(0xDA, r, c)
@@ -283,6 +292,17 @@ u16 D_80077E90[4] = {
 u16 D_80077E98[6] = {
     0x0005, 0x0062, 0x0067, 0x006E, 0x008D, 0x008E,
 };
+// PORT: the Italian release drops one announcer clip from some of these lists (its voice bank lacks them)
+static u16 D_80077DF0It[8] = { 0x0006, 0x024F, 0x0250, 0x0255, 0x0271, 0x0289, 0x028F, 0x0000 };
+static u16 D_80077E18It[4] = { 0x0002, 0x027E, 0x027F, 0x0000 };
+static u16 D_80077E60It[4] = { 0x0002, 0x028A, 0x028C, 0x0000 };
+static u16 D_80077E68It[4] = { 0x0002, 0x0258, 0x028E, 0x0000 };
+static u16 D_80077E88It[4] = { 0x0002, 0x0253, 0x026F, 0x0000 };
+#define D_80077DF0 (PORT_VERSION_IT ? D_80077DF0It : D_80077DF0)
+#define D_80077E18 (PORT_VERSION_IT ? D_80077E18It : D_80077E18)
+#define D_80077E60 (PORT_VERSION_IT ? D_80077E60It : D_80077E60)
+#define D_80077E68 (PORT_VERSION_IT ? D_80077E68It : D_80077E68)
+#define D_80077E88 (PORT_VERSION_IT ? D_80077E88It : D_80077E88)
 u16 D_80077EA4[8] = {
     0x0006, 0x006D, 0x0072, 0x0089, 0x008A, 0x008B, 0x008C, 0x0000,
 };
@@ -1865,6 +1885,10 @@ void ProcessAudioInfo(s32 arg0, BattleMonRuntime* arg1) {
 
     D_800FCB30[side] = 0;
     if (D_800783CC != 0) {
+        if (PORT_VERSION_IT) {
+            // Italian queues the announcer's lead-in clip before the Pokemon's name.
+            Audio_QueueSequenceId(0x292);
+        }
         Audio_QueueSequenceId(value + 0xCB);
         if (changed) {
             Audio_QueueSoundAvoidingRecent(D_80077FEC);
