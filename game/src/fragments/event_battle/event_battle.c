@@ -17,6 +17,7 @@
 #include "src/stage_loader.h"
 #include "src/pokemon_stats.h"
 #include "pokemon.h"
+#include "StadionPort.h" // PORT: PORT_SEGSYM (textures the European releases moved)
 
 static char** sEventBattleText;
 static char** sPokemonDetailText;
@@ -323,8 +324,8 @@ void EventBattle_DrawFilledPanel(s16 x, s16 y, s16 width, s16 height, u8 r, u8 g
 void EventBattle_DrawTitlePokeBall(s16 x, s16 y) {
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-    Gfx_DrawTextureRgba16(x, y, 48, 24, gPokeBallIconTop, 48, 0);
-    Gfx_DrawTextureRgba16(x, y + 24, 48, 24, gPokeBallIconBottom, 48, 0);
+    Gfx_DrawTextureRgba16(x, y, 48, 24, PORT_SEGSYM(gPokeBallIconTop), 48, 0);
+    Gfx_DrawTextureRgba16(x, y + 24, 48, 24, PORT_SEGSYM(gPokeBallIconBottom), 48, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 }

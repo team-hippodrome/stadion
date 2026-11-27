@@ -5,6 +5,8 @@
 static const PortSegSym sSegSyms_fr[] = {
     { 0x2001A20, 0x2001FC0 }, // D_2001A20
     { 0x2001FC0, 0x2001A20 }, // D_2001FC0
+    { 0x2006C00, 0x2007620 }, // gPokeBallIconTop
+    { 0x2007500, 0x2007F20 }, // gPokeBallIconBottom
     { 0x2007E00, 0x2008820 }, // D_2007E00
     { 0x2008700, 0x2009120 }, // D_2008700
     { 0x2009000, 0x2009A20 }, // D_2009000
@@ -14,6 +16,10 @@ static const PortSegSym sSegSyms_fr[] = {
     { 0x200A300, 0x200AD20 }, // D_200A300
     { 0x200A780, 0x200B1A0 }, // D_200A780
     { 0x200AC00, 0x200B620 }, // D_200AC00
+    { 0x200B3E0, 0x200BE00 }, // gVsTop
+    { 0x200C380, 0x200CDA0 }, // gVsMiddle
+    { 0x200D320, 0x200DD40 }, // gVsBottom
+    { 0x20144E0, 0x2006C00 }, // gRound2BadgeTexture
     { 0x300F240, 0x3015E40 }, // D_300F240
     { 0x300F280, 0x3015E80 }, // D_300F280
     { 0x300F2C0, 0x3015EC0 }, // D_300F2C0
@@ -31,6 +37,8 @@ static const PortSegSym sSegSyms_fr[] = {
 static const PortSegSym sSegSyms_de[] = {
     { 0x2001A20, 0x2001FC0 }, // D_2001A20
     { 0x2001FC0, 0x2001A20 }, // D_2001FC0
+    { 0x2006C00, 0x2007620 }, // gPokeBallIconTop
+    { 0x2007500, 0x2007F20 }, // gPokeBallIconBottom
     { 0x2007E00, 0x2008820 }, // D_2007E00
     { 0x2008700, 0x2009120 }, // D_2008700
     { 0x2009000, 0x2009A20 }, // D_2009000
@@ -40,6 +48,10 @@ static const PortSegSym sSegSyms_de[] = {
     { 0x200A300, 0x200AD20 }, // D_200A300
     { 0x200A780, 0x200B1A0 }, // D_200A780
     { 0x200AC00, 0x200B620 }, // D_200AC00
+    { 0x200B3E0, 0x200BE00 }, // gVsTop
+    { 0x200C380, 0x200CDA0 }, // gVsMiddle
+    { 0x200D320, 0x200DD40 }, // gVsBottom
+    { 0x20144E0, 0x2006C00 }, // gRound2BadgeTexture
     { 0x3000FA0, 0x3008BE0 }, // D_3000FA0
     { 0x3001F40, 0x3009B80 }, // D_3001F40
     { 0x3002EE0, 0x300AB20 }, // D_3002EE0
@@ -94,6 +106,8 @@ static const PortSegSym sSegSyms_es[] = {
 static const PortSegSym sSegSyms_it[] = {
     { 0x2001A20, 0x2001FC0 }, // D_2001A20
     { 0x2001FC0, 0x2001A20 }, // D_2001FC0
+    { 0x2006C00, 0x2007620 }, // gPokeBallIconTop
+    { 0x2007500, 0x2007F20 }, // gPokeBallIconBottom
     { 0x2007E00, 0x2008820 }, // D_2007E00
     { 0x2008700, 0x2009120 }, // D_2008700
     { 0x2009000, 0x2009A20 }, // D_2009000
@@ -103,6 +117,10 @@ static const PortSegSym sSegSyms_it[] = {
     { 0x200A300, 0x200AD20 }, // D_200A300
     { 0x200A780, 0x200B1A0 }, // D_200A780
     { 0x200AC00, 0x200B620 }, // D_200AC00
+    { 0x200B3E0, 0x200BE00 }, // gVsTop
+    { 0x200C380, 0x200CDA0 }, // gVsMiddle
+    { 0x200D320, 0x200DD40 }, // gVsBottom
+    { 0x20144E0, 0x2006C00 }, // gRound2BadgeTexture
     { 0x3000FA0, 0x3008BE0 }, // D_3000FA0
     { 0x3001F40, 0x3009B80 }, // D_3001F40
     { 0x3002EE0, 0x300AB20 }, // D_3002EE0
@@ -142,9 +160,9 @@ static const PortSegSym sSegSyms_it[] = {
 };
 
 const PortSegSymTable gPortSegSymTables[] = {
-    { PORT_ROM_FR, sSegSyms_fr, 24 },
-    { PORT_ROM_DE, sSegSyms_de, 47 },
+    { PORT_ROM_FR, sSegSyms_fr, 30 },
+    { PORT_ROM_DE, sSegSyms_de, 53 },
     { PORT_ROM_ES, sSegSyms_es, 12 },
-    { PORT_ROM_IT, sSegSyms_it, 47 },
+    { PORT_ROM_IT, sSegSyms_it, 53 },
 };
 const unsigned gPortSegSymTableCount = 4;

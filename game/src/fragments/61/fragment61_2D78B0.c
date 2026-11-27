@@ -257,8 +257,8 @@ void TeamSelection_DrawTexturedPanel(s16 arg0, s16 arg1, s16 arg2, s16 arg3, u8 
 void TeamSelection_DrawHeaderBackdrop(s16 arg0, s16 arg1) {
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-    Gfx_DrawTextureRgba16(arg0, arg1, 0x30, 0x18, gPokeBallIconTop, 0x30, 0);
-    Gfx_DrawTextureRgba16(arg0, arg1 + 0x18, 0x30, 0x18, gPokeBallIconBottom, 0x30, 0);
+    Gfx_DrawTextureRgba16(arg0, arg1, 0x30, 0x18, PORT_SEGSYM(gPokeBallIconTop), 0x30, 0);
+    Gfx_DrawTextureRgba16(arg0, arg1 + 0x18, 0x30, 0x18, PORT_SEGSYM(gPokeBallIconBottom), 0x30, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 }

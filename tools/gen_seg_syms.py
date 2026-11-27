@@ -26,16 +26,18 @@ VERSIONS = {
     "es": "PORT_ROM_ES",
     "it": "PORT_ROM_IT",
 }
-PROVIDE = re.compile(r"PROVIDE\((D_0?[0-9A-F]{7})\s*=\s*0x([0-9A-Fa-f]+)\)")
+# `PROVIDE(name = 0x...)` and `name = 0x...;`, for D_ names and named ones (gPokeBallIconTop) alike
+SYMBOL = re.compile(r"^\s*(?:PROVIDE\(\s*)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*0x([0-9A-Fa-f]+)\s*\)?\s*;?\s*$", re.M)
 
 
 def provides(version):
     path = decomp_paths.DECOMP / "linker_scripts" / version / "undefined_syms.ld"
     out = {}
-    for m in PROVIDE.finditer(path.read_text()):
+    for m in SYMBOL.finditer(path.read_text()):
         value = int(m.group(2), 16)
-        if 0x01000000 <= value < 0x10000000:  # segment addresses only
-            out[m.group(1)] = value
+        # segment addresses only: segments 2 and up (gAudioData's 0x01xxxxxx is a ROM address, which the layouts handle)
+        if 0x02000000 <= value < 0x10000000:
+            out.setdefault(m.group(1), value)
     return out
 
 

@@ -10,6 +10,7 @@
 #include "src/controller.h"
 #include "src/memory.h"
 #include "src/stage_loader.h"
+#include "StadionPort.h" // PORT: PORT_SEGSYM (textures the European releases moved)
 
 static s16 D_83003C80;
 static s16 D_83003C82;
@@ -491,8 +492,8 @@ void RentalRules_DrawHeaderBanner(void) {
     } else {
         gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-        Gfx_DrawTextureRgba16(48, var_s1 - 8, 48, 24, gPokeBallIconTop, 48, 0);
-        Gfx_DrawTextureRgba16(48, var_s1 + 0x10, 48, 24, gPokeBallIconBottom, 48, 0);
+        Gfx_DrawTextureRgba16(48, var_s1 - 8, 48, 24, PORT_SEGSYM(gPokeBallIconTop), 48, 0);
+        Gfx_DrawTextureRgba16(48, var_s1 + 0x10, 48, 24, PORT_SEGSYM(gPokeBallIconBottom), 48, 0);
 
         gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 

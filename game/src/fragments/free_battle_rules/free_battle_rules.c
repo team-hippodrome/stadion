@@ -161,8 +161,8 @@ static s16 sRulesetCategories[] = { 0, 3, 4, 5, 6, 0 };
 void FreeBattle_DrawPokeBallIcon(s16 x, s16 y) {
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-    Gfx_DrawTextureRgba16(x, y, 48, 24, gPokeBallIconTop, 48, 0);
-    Gfx_DrawTextureRgba16(x, y + 24, 48, 24, gPokeBallIconBottom, 48, 0);
+    Gfx_DrawTextureRgba16(x, y, 48, 24, PORT_SEGSYM(gPokeBallIconTop), 48, 0);
+    Gfx_DrawTextureRgba16(x, y + 24, 48, 24, PORT_SEGSYM(gPokeBallIconBottom), 48, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 }
@@ -170,9 +170,9 @@ void FreeBattle_DrawPokeBallIcon(s16 x, s16 y) {
 void FreeBattle_DrawVsIcon(s16 x, s16 y) {
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-    Gfx_DrawTextureRgba16(x, y, 100, 20, gVsTop, 100, 0);
-    Gfx_DrawTextureRgba16(x, y + 20, 100, 20, gVsMiddle, 100, 0);
-    Gfx_DrawTextureRgba16(x, y + 40, 100, 16, gVsBottom, 100, 0);
+    Gfx_DrawTextureRgba16(x, y, 100, 20, PORT_SEGSYM(gVsTop), 100, 0);
+    Gfx_DrawTextureRgba16(x, y + 20, 100, 20, PORT_SEGSYM(gVsMiddle), 100, 0);
+    Gfx_DrawTextureRgba16(x, y + 40, 100, 16, PORT_SEGSYM(gVsBottom), 100, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 }
