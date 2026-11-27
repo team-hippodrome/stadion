@@ -324,6 +324,14 @@ void Gallery_Dispatch(void) {
     var_s2 = 0;
     var_s5 = 0;
 
+    // PORT: the French, German, Spanish and Italian cartridges have no Gallery graphics, and their Gallery_Dispatch is
+    // only this push and pop. With an English ROM also provided, the port reads the graphics from it (restored
+    // content, src/port/restored_content.cpp).
+    if (!Port_GalleryAvailable()) {
+        main_pool_push_state('SNPM');
+        main_pool_pop_state('SNPM');
+        return;
+    }
     main_pool_push_state('SNPM');
     Audio_StartMusicTrack(0x4B);
 

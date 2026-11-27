@@ -461,8 +461,7 @@ char D_86A0612C = '\x00';
 char D_86A06130 = '\x00';
 char D_86A06134 = '\x00';
 #endif
-#if defined(VERSION_ES)
+// PORT: the Spanish staff roll's extra line, defined for every version (decomp: VERSION_ES only)
 char D_86A06138 = '\x00';
 char D_86A0613C = '\x00';
-#endif
 #endif

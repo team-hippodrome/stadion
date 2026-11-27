@@ -1,4 +1,5 @@
 #include "lab_pc_icons.h"
+#include "StadionPort.h"
 #include "src/display_object_textures.h"
 #include "src/poke_icon.h"
 #include "src/graphics_textures.h"
@@ -34,6 +35,21 @@ extern u8 D_88605B98[];
 extern u8 D_886067E8[];
 extern u8 D_886061C0[];
 extern u8* D_8860A688[];
+
+// The type name icons carry the type names, so the translated releases have their own. The port keeps only the
+// English ones; for a translated ROM it takes that ROM's icons out of its own copy of this fragment, where
+// D_8860A688 (at the same link address in every release) points at them.
+static u8* LabPC_GetTypeNameIcon(s32 type) {
+    if (PORT_VERSION_TRANSLATED) {
+        u32 icon = Port_FragmentRomWord((uintptr_t)fragment27_ROM_START, 0x88600000, 0x8860A688 + type * 4);
+        u8* image = (u8*)Port_FragmentRomData((uintptr_t)fragment27_ROM_START, 0x88600000, icon, 20 * 20 * 2);
+
+        if (image != NULL) {
+            return image;
+        }
+    }
+    return D_8860A688[type];
+}
 
 typedef struct unk_D_88605B00 {
     /* 0x00 */ s16 unk_00;
@@ -289,7 +305,7 @@ s32 LabPC_DrawMoveNameWidget(unk_func_88205880_0098_008_040_03C* arg0, s32 arg1,
         gDPSetAlphaCompare(gDisplayListHead++, G_AC_THRESHOLD);
         gDPSetTexturePersp(gDisplayListHead++, G_TP_NONE);
 
-        gDPLoadTextureBlock(gDisplayListHead++, D_8860A688[temp_v0_2], G_IM_FMT_RGBA, G_IM_SIZ_16b, 20, 20, 0,
+        gDPLoadTextureBlock(gDisplayListHead++, LabPC_GetTypeNameIcon(temp_v0_2), G_IM_FMT_RGBA, G_IM_SIZ_16b, 20, 20, 0,
                             G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
                             G_TX_NOLOD);
         gSPTextureRectangle(gDisplayListHead++, arg1 << 2, arg2 << 2, (arg1 + 0x13) << 2, (arg2 + 0x13) << 2,

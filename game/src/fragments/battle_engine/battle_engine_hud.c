@@ -19,12 +19,9 @@
 #include "src/memory.h"
 #include "StadionPort.h"
 
-// X offset of the trainer names in the roster panels.
-#if defined(VERSION_ES) || defined(VERSION_IT) || defined(VERSION_EU_REV1)
-#define TRAINER_NAME_X_OFFSET 60
-#else
-#define TRAINER_NAME_X_OFFSET 50
-#endif
+// X offset of the trainer names in the roster panels. PORT: the Spanish, Italian and European Rev 1 releases move
+// them right (the decomp's VERSION_ES, VERSION_IT and VERSION_EU_REV1).
+#define TRAINER_NAME_X_OFFSET ((PORT_VERSION_ES || PORT_VERSION_IT || PORT_VERSION_EU_REV1) ? 60 : 50)
 
 Vec3f sEndBattleBannerPos;
 
@@ -1423,8 +1420,8 @@ void BattleHud_DrawTeamStatusList(ActivePokemon* pokemon, TeamRoster* team_roste
     Battle_DrawGradientRectWrapper(x + 1, y + 45, 99, 29, &dark_colors[port][2], &light_colors[port][2]);
     Battle_DrawGradientRectWrapper(x + 1, y + 74, 99, 29, &dark_colors[port][3], &light_colors[port][3]);
 
-    BattleHud_DrawPlainText((x - (Font_MeasureTextExtent(1, 0, team_roster->trainerName) / 2)) + TRAINER_NAME_X_OFFSET,
-                            y + 3, team_roster->trainerName);
+    BattleHud_DrawPlainText((x - (Font_MeasureTextExtent(1, 0, team_roster->trainerName) / 2)) + TRAINER_NAME_X_OFFSET, y + 3,
+                            team_roster->trainerName);
 
     if (team_roster->numberOfPokemonBrought > 0) {
         BattleHud_DrawPartyRosterRow(pokemon, team_roster, &team_roster->pokemonPicked[0], x + 1, y + 16, 0);

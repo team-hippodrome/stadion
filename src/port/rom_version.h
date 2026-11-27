@@ -8,11 +8,24 @@
 #include <stdint.h>
 
 #ifdef __cplusplus
+#include <vector>
+#endif
+
+#ifdef __cplusplus
 namespace Port {
 
 // Sets the layout used to read the loaded ROM. Any version not listed (PORT_ANY_ROM) is read as a Rev 2 layout.
 void SelectRomVersion(PortRomVersion version);
 PortRomVersion LoadedRomVersion();
+
+// Extra ROMs: other Stadium releases the player also provides, from which restored content takes pieces
+// (src/port/restored_content.cpp). AddExtraRom keeps one of each release and returns its slot (1 to
+// PORT_ROM_EXTRA_SLOTS), or 0 when there is no free slot; ExtraRomSlot is 0 when that release was not provided.
+int AddExtraRom(std::vector<uint8_t> data, PortRomVersion version);
+void ClearExtraRoms();
+int ExtraRomSlot(PortRomVersion version);
+// From now on, the Rev 2 ROM range [gameStart, gameEnd) is read from the extra ROM in slot (where that ROM keeps it)
+void RedirectRomPiece(uint32_t gameStart, uint32_t gameEnd, int slot);
 
 } // namespace Port
 
@@ -24,8 +37,13 @@ uint32_t Port_RomOffset(uint32_t gameOffset);
 // Copies size bytes of the Rev 2 ROM range starting at gameOffset out of the loaded ROM (piece by piece where the
 // range crosses pieces that moved by different amounts). Returns the bytes copied.
 size_t Port_RomRead(uint32_t gameOffset, void* dst, size_t size);
-// An offset with this bit set is already an offset in the loaded ROM (Port_RomToRaw), read as it is.
+// An offset with this bit set is already an offset in the loaded ROM (Port_RomToRaw), read as it is. The two bits of
+// PORT_ROM_SLOT_MASK then name the ROM: 0 the loaded one, else an extra ROM's slot. (Cartridge DMA keeps only the low
+// 28 bits of an address, and the ROMs are 32 MiB, so the marks sit between the two.)
 #define PORT_ROM_RAW 0x08000000u
+#define PORT_ROM_SLOT_SHIFT 25
+#define PORT_ROM_SLOT_MASK 0x06000000u
+#define PORT_ROM_EXTRA_SLOTS 3
 // Whole assets and archives are read in the loaded ROM's own offsets: a piece that is bigger in this ROM than in
 // Rev 2 (a translated archive) runs past the Rev 2 piece's end, where Rev 2 offsets would map into the next piece.
 // Port_RomToRaw: the loaded ROM's offset of a Rev 2 offset, marked PORT_ROM_RAW (a marked offset is returned as is).
@@ -33,6 +51,10 @@ uint32_t Port_RomToRaw(uint32_t gameOffset);
 // The end, in the loaded ROM and marked, of the Rev 2 range [gameStart, gameEnd): an end that is a piece's end (or
 // the next piece's start) is that piece's end (or start) in the loaded ROM, so the range covers the whole piece.
 uint32_t Port_RomRangeEndToRaw(uint32_t gameStart, uint32_t gameEnd);
+// The marked offset in the extra ROM in slot of a Rev 2 offset (0 when the slot is empty), and the marked offset of
+// romOffset in that ROM's own layout (for a release with no layout table, such as the Japanese one).
+uint32_t Port_ExtraRomRaw(int slot, uint32_t gameOffset);
+uint32_t Port_RomRawIn(int slot, uint32_t romOffset);
 // A link address read from the loaded ROM's code (a fragment image: jump targets) as the Rev 2 link address the
 // port's tables use. fragmentRom is the Rev 2 ROM offset of the fragment the address is in (0: main segment).
 uint32_t Port_RomCodeAddrToGame(uint32_t fragmentRom, uint32_t addr);

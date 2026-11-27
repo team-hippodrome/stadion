@@ -8,6 +8,11 @@
 #include "src/3D140.h"
 #include "src/audio_commands.h"
 #include "StadionPort.h"
+#include "StadionPort.h"
+
+// The translated releases play these music tracks 8 steps quieter, and the European releases mix the voices of a few
+// tracks differently (decomp: VERSION_PAL and VERSION_FR/DE/ES/IT branches).
+#define TRACK_VOLUME(volume) (PORT_VERSION_TRANSLATED ? (volume) - 8 : (volume))
 
 s32 D_800FF9B0;
 s32 D_800FF9B4; // music track id last started by Audio_StartMusicTrack
@@ -278,9 +283,9 @@ s32 Audio_StartMusicTrack(s32 track_id) {
             D_80078E78 = 0;
             D_80078E7C = 0;
             volume_scale = 0x78;
-#if !defined(VERSION_PAL)
-            voice_volume = 0x87;
-#endif
+            if (!PORT_VERSION_PAL) {
+                voice_volume = 0x87;
+            }
             break;
 
         case 0x31:
@@ -297,16 +302,16 @@ s32 Audio_StartMusicTrack(s32 track_id) {
 
         case 0x32:
             volume_scale = 0x60;
-#if defined(VERSION_PAL)
-            voice_volume = 0x7C;
-#endif
+            if (PORT_VERSION_PAL) {
+                voice_volume = 0x7C;
+            }
             break;
 
         case 0x3C:
             volume_scale = 0x60;
-#if defined(VERSION_PAL)
-            voice_volume = 0x75;
-#endif
+            if (PORT_VERSION_PAL) {
+                voice_volume = 0x75;
+            }
             break;
 
         case 0x3D:
@@ -315,9 +320,9 @@ s32 Audio_StartMusicTrack(s32 track_id) {
 
         case 0x3E:
             volume_scale = 0x60;
-#if defined(VERSION_PAL)
-            voice_volume = 0x75;
-#endif
+            if (PORT_VERSION_PAL) {
+                voice_volume = 0x75;
+            }
             break;
 
         case 0x3F:
@@ -326,9 +331,9 @@ s32 Audio_StartMusicTrack(s32 track_id) {
 
         case 0x40:
             volume_scale = 0x50;
-#if defined(VERSION_PAL)
-            voice_volume = 0x78;
-#endif
+            if (PORT_VERSION_PAL) {
+                voice_volume = 0x78;
+            }
             break;
 
         case 0x41:
@@ -337,9 +342,9 @@ s32 Audio_StartMusicTrack(s32 track_id) {
 
         case 0x45:
             volume_scale = 0x60;
-#if defined(VERSION_PAL)
-            voice_volume = 0x7C;
-#endif
+            if (PORT_VERSION_PAL) {
+                voice_volume = 0x7C;
+            }
             break;
 
         case 0x44:

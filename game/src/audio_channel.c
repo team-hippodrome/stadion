@@ -13,12 +13,7 @@ s32 D_80078E6C = 0; // unreferenced
 #endif
 
 // The translated releases play every volume step 0x1000 quieter.
-#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
-#define VOLUME_STEP_DROP 0x1000
-#else
-#define VOLUME_STEP_DROP 0
-#endif
-
+#define VOLUME_STEP_DROP (PORT_VERSION_TRANSLATED ? 0x1000 : 0)
 void Audio_SetChannelVolume(s32 arg0, u32 arg1) {
     if (PORT_AUDIO_OFF()) {
         return;

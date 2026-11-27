@@ -13,6 +13,7 @@
 #include "src/controller.h"
 #include "src/memory.h"
 #include "src/stage_loader.h"
+#include "StadionPort.h"
 
 typedef struct TagTeamSelection {
     /* 0x00 */ s16 leftSideTeam;
@@ -181,8 +182,8 @@ static s16 sRulesetCategories[] = { 0, 3, 4, 5, 6, 0 };
 void FreeBattle_DrawPokeBallIcon(s16 x, s16 y) {
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-    Gfx_DrawTextureRgba16(x, y, 48, 24, gPokeBallIconTop, 48, 0);
-    Gfx_DrawTextureRgba16(x, y + 24, 48, 24, gPokeBallIconBottom, 48, 0);
+    Gfx_DrawTextureRgba16(x, y, 48, 24, PORT_SEGSYM(gPokeBallIconTop), 48, 0);
+    Gfx_DrawTextureRgba16(x, y + 24, 48, 24, PORT_SEGSYM(gPokeBallIconBottom), 48, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 }
@@ -190,9 +191,9 @@ void FreeBattle_DrawPokeBallIcon(s16 x, s16 y) {
 void FreeBattle_DrawVsIcon(s16 x, s16 y) {
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-    Gfx_DrawTextureRgba16(x, y, 100, 20, gVsTop, 100, 0);
-    Gfx_DrawTextureRgba16(x, y + 20, 100, 20, gVsMiddle, 100, 0);
-    Gfx_DrawTextureRgba16(x, y + 40, 100, 16, gVsBottom, 100, 0);
+    Gfx_DrawTextureRgba16(x, y, 100, 20, PORT_SEGSYM(gVsTop), 100, 0);
+    Gfx_DrawTextureRgba16(x, y + 20, 100, 20, PORT_SEGSYM(gVsMiddle), 100, 0);
+    Gfx_DrawTextureRgba16(x, y + 40, 100, 16, PORT_SEGSYM(gVsBottom), 100, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 }
@@ -705,13 +706,6 @@ void FreeBattle_DrawComDifficultyText(s16 position, char* text) {
 }
 
 // Popup shown when the right-side option is COM
-#if defined(VERSION_ES) || defined(VERSION_IT)
-#define COM_ICON_X (sComDifficultyWindow.x + width + 12)
-#define COM_TITLE_X (sComDifficultyWindow.x + 12)
-#else
-#define COM_ICON_X (sComDifficultyWindow.x + 12)
-#define COM_TITLE_X (sComDifficultyWindow.x + 48)
-#endif
 
 void FreeBattle_DrawComDifficultyWindow(void) {
     if (sComDifficultyWindow.openTicks > 0) {
@@ -720,15 +714,15 @@ void FreeBattle_DrawComDifficultyWindow(void) {
         Ui_DrawBorderedPanel(sComDifficultyWindow.x, sComDifficultyWindow.y + (s16)((136 - opening_progress) / 2), 152,
                              opening_progress, 0x2121); // #212100
         if (sComDifficultyWindow.openTicks == 8) {
-#if defined(VERSION_ES) || defined(VERSION_IT)
-            // Spanish and Italian print the title first and puts the COM icon after it.
+#if defined(VERSION_US_REV2)
             s32 width = Font_MeasureTextExtent(0x10, 0, Text_GetString(NULL, 0, sRuleSelectText, 10));
-#elif defined(VERSION_US_REV2) || defined(VERSION_PAL_LATE)
-            Font_MeasureTextExtent(0x10, 0, Text_GetString(NULL, 0, sRuleSelectText, 10));
 #endif
+            // PORT: Spanish and Italian print the title first and put the COM icon after it (VERSION_ES, VERSION_IT)
+            const s32 titleFirst = PORT_VERSION_ES || PORT_VERSION_IT;
             gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-            Gfx_DrawTextureRgba16(COM_ICON_X, sComDifficultyWindow.y + 10, 36, 26, gComPlayerLabelIcon, 36, 0);
+            Gfx_DrawTextureRgba16(sComDifficultyWindow.x + (titleFirst ? width + 12 : 12), sComDifficultyWindow.y + 10,
+                                  36, 26, gComPlayerLabelIcon, 36, 0);
 
             gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 
@@ -747,7 +741,8 @@ void FreeBattle_DrawComDifficultyWindow(void) {
             FreeBattle_DrawComDifficultyText(2, "よわい");
 #else
             Font_SetActive(0x10, 0);
-            Font_Printf(COM_TITLE_X, sComDifficultyWindow.y + 11, Text_GetString(NULL, 0, sRuleSelectText, 10));
+            Font_Printf(sComDifficultyWindow.x + (titleFirst ? 12 : 48), sComDifficultyWindow.y + 11,
+                        Text_GetString(NULL, 0, sRuleSelectText, 10));
             FreeBattle_DrawComDifficultyText(0, Text_GetString(NULL, 0, sRuleSelectText, 11));
             FreeBattle_DrawComDifficultyText(1, Text_GetString(NULL, 0, sRuleSelectText, 12));
             FreeBattle_DrawComDifficultyText(2, Text_GetString(NULL, 0, sRuleSelectText, 13));

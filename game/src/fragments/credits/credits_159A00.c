@@ -4,6 +4,7 @@
 #include "src/stage_loader.h"
 #include "src/scheduler.h"
 #include "src/matrix.h" // PORT: Color_SetRGBA (IDO called it undeclared)
+#include "StadionPort.h" // PORT: PORT_VERSION_*
 
 /**
  * Staff-roll color keyframe read by Credits_InterpolateRoleColor. colors[0]/[1] are the
@@ -952,12 +953,21 @@ static CreditsRoleLine sRoleLines[] = {
         { &D_86A06130, &D_86A06134 },
     },
 #endif
-#if defined(VERSION_ES)
+    // PORT: the Spanish staff roll's extra line, in every version (decomp: VERSION_ES only); the others stop at
+    // Credits_GetRoleLineCount
     {
         1,
         { &D_86A06138, &D_86A0613C },
     },
-#endif
+};
+
+// PORT: ROLE_STYLE and ROLE_STYLE_ES_IT at runtime. The translated releases set some staff roll lines as headings
+// instead of names and the other way round, and the Spanish and Italian rolls set a few of the last lines differently.
+// Each row: line, then its style in English, French and German, Spanish, Italian. Applied by Credits_InitRoleList.
+static const s16 sPortRoleStyles[][5] = {
+    { 166, 1, 0, 0, 0 }, { 168, 0, 1, 1, 1 }, { 169, 1, 0, 0, 0 }, { 173, 0, 1, 1, 1 }, { 176, 1, 1, 1, 0 },
+    { 177, 0, 0, 1, 1 }, { 178, 1, 1, 0, 1 }, { 179, 1, 1, 1, 0 }, { 180, 0, 0, 1, 1 }, { 181, 1, 1, 0, 1 },
+    { 184, 1, 1, 1, 0 }, { 185, 0, 0, 1, 1 }, { 186, 1, 1, 0, 1 }, { 187, 1, 1, 1, 1 },
 };
 
 // The staff roll in 27 pages followed by two terminators (duration 0). Page 0 points at
@@ -1265,6 +1275,18 @@ void Credits_InitRoleList(u8 initial_frame_delta, u8 is_round_1, CreditsRolePage
     line_count = Credits_GetRoleLineCount();
     Text_InitStringTables();
     sCreditsText = Text_GetStringTable(0x2D);
+
+    // PORT: the loaded release's staff roll styles (sPortRoleStyles) and page 24's line count (the decomp's 10 in
+    // Spanish, 8 in Italian, 9 otherwise)
+    {
+        const s32 column = PORT_VERSION_ES ? 3 : PORT_VERSION_IT ? 4 : PORT_VERSION_TRANSLATED ? 2 : 1;
+        u32 k;
+
+        for (k = 0; k < ARRAY_COUNT(sPortRoleStyles); k++) {
+            sRoleLines[sPortRoleStyles[k][0]].style = sPortRoleStyles[k][column];
+        }
+        sRolePages[24].lineCount = PORT_VERSION_ES ? 10 : PORT_VERSION_IT ? 8 : 9;
+    }
 
     for (i = 0, line = sRoleLines; i < line_count; i++, line++) {
         line->text[0] = Text_GetString(NULL, 0, sCreditsText, i);

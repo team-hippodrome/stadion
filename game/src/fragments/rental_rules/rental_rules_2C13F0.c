@@ -8,6 +8,7 @@
 #include "src/audio_sfx.h"
 #include "src/gfx_rect.h"
 #include "variables.h"
+#include "StadionPort.h" // PORT_SEGSYM: images the translated releases keep elsewhere
 
 #define INACTIVE 0
 #define OPENING 1
@@ -226,8 +227,8 @@ void RentalRules_DrawScrollbar(s16 x, s16 y, QualifyingPokemonDisplay* display) 
     gDPSetEnvColor(gDisplayListHead++, 130, 130, 220, 255);
     gDPSetPrimColor(gDisplayListHead++, 0, 0, 60, 60, 150, 255);
 
-    Gfx_DrawTextureIa8(x, y, 16, 8, D_200A200, 0x10, 0);
-    Gfx_DrawTextureIa8(x, y + 276, 0x10, 8, D_200A280, 0x10, 0);
+    Gfx_DrawTextureIa8(x, y, 16, 8, PORT_SEGSYM(D_200A200), 0x10, 0);
+    Gfx_DrawTextureIa8(x, y + 276, 0x10, 8, PORT_SEGSYM(D_200A280), 0x10, 0);
     Gfx_DrawTexturedRectClipped(x, y + 8, 0x10, 268, 0, 0, 0x400, 0, 0);
 
     if (display->qualifyingListState != SCROLLING) {
@@ -241,9 +242,9 @@ void RentalRules_DrawScrollbar(s16 x, s16 y, QualifyingPokemonDisplay* display) 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
     if (D_83003B70 < 4) {
-        Gfx_DrawTextureRgba16(x - 4, (y + y_offset) - 4, 24, 24, D_200A300, 24, 0);
+        Gfx_DrawTextureRgba16(x - 4, (y + y_offset) - 4, 24, 24, PORT_SEGSYM(D_200A300), 24, 0);
     } else {
-        Gfx_DrawTextureRgba16(x - 4, (y + y_offset) - 4, 24, 24, D_200A780, 24, 0);
+        Gfx_DrawTextureRgba16(x - 4, (y + y_offset) - 4, 24, 24, PORT_SEGSYM(D_200A780), 24, 0);
     }
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);

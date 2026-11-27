@@ -16,6 +16,7 @@
 #include "src/math_util.h"
 #include "src/memory.h"
 #include "src/stage_loader.h"
+#include "StadionPort.h" // PORT_SEGSYM: images the translated releases keep elsewhere
 
 typedef struct MenuItemInfo {
     /* 0x00 */ s16 unk_00;
@@ -288,6 +289,11 @@ static u8* sMenuOptionTexturePointers[] = { D_030294E0, D_0302A260, D_0302AFE0, 
 #else
 static u8* sMenuOptionTexturePointers[] = { D_03028EC0, D_03029C40, D_0302A9C0, D_0302B740, D_0302C4C0, D_0302D480 };
 #endif
+// PORT: the German and Italian menu textures before these are larger, so these sit later in segment 3 (the decomp's
+// VERSION_DE and VERSION_IT table above: D_030294E0, D_0302A260, D_0302AFE0, D_0302BD60, D_0302CAE0, D_0302DAA0)
+static u8* sMenuOptionTexturePointersDeIt[] = { (u8*)0x30294E0, (u8*)0x302A260, (u8*)0x302AFE0,
+                                                (u8*)0x302BD60, (u8*)0x302CAE0, (u8*)0x302DAA0 };
+#define MENU_OPTION_TEXTURES ((PORT_VERSION_DE || PORT_VERSION_IT) ? sMenuOptionTexturePointersDeIt : sMenuOptionTexturePointers)
 static uintptr_t sMenuGeoLayoutRoot[] = {
     // PORT64: holds addresses
     0x0C000000,  0x05000000, 0x0B00002D, 0x00000000, 0x028001E0, 0x00000000, 0xFDBD0000, 0x00000243, 0x05000000,
@@ -535,7 +541,7 @@ void StadiumSelect_AnimateRectangle(s16 arg0, s16 arg1, s16 arg2) {
 
     gSPDisplayList(gDisplayListHead++, D_8006F558);
     gDPSetPrimColor(gDisplayListHead++, 0, 0, 255, 255, 0, 255);
-    gDPLoadTextureBlock(gDisplayListHead++, D_302E440, G_IM_FMT_IA, G_IM_SIZ_8b, 32, 32, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+    gDPLoadTextureBlock(gDisplayListHead++, PORT_SEGSYM(D_302E440), G_IM_FMT_IA, G_IM_SIZ_8b, 32, 32, 0, G_TX_NOMIRROR | G_TX_CLAMP,
                         G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
     gSPTextureRectangle(gDisplayListHead++, sp8, spC, sp10, sp14, G_TX_RENDERTILE, 0, 0, sp4, sp4);
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
@@ -792,7 +798,7 @@ void StadiumSelect_DrawCupInfoPanel(s16 arg0) {
 
             gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-            Gfx_DrawTextureRgba16(temp_v0 + 0x4C, 0x160, 0x1C, 0x1C, &D_302E840, 0x1C, 0);
+            Gfx_DrawTextureRgba16(temp_v0 + 0x4C, 0x160, 0x1C, 0x1C, PORT_SEGSYM(&D_302E840), 0x1C, 0);
 
             gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
         }
@@ -877,7 +883,7 @@ DepthBuffer* StadiumSelect_BuildDivisionCupIcon(u8* arg0, s16 arg1) {
     Gfx_DrawTextureRgba16(4, (i * 0xC) + 4, 0x98, 6, (i * 0xE40) + arg0, 0x98, 0);
 
     for (i = 0; i < var_s3; i++) {
-        Gfx_DrawTextureRgba16((i * 0x26) + 5, 0x46, 0x24, 0x30, sMenuOptionTexturePointers[i], 0x24, 0);
+        Gfx_DrawTextureRgba16((i * 0x26) + 5, 0x46, 0x24, 0x30, MENU_OPTION_TEXTURES[i], 0x24, 0);
     }
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
@@ -912,7 +918,7 @@ DepthBuffer* StadiumSelect_BuildSimpleCupIcon(u8* arg0, s16 arg1) {
             var_v0 = 4;
         }
 #endif
-        Gfx_DrawTextureRgba16(0x54, 0x3A, 0x30, 0x2A, sMenuOptionTexturePointers[var_v0], 0x30, 0);
+        Gfx_DrawTextureRgba16(0x54, 0x3A, 0x30, 0x2A, MENU_OPTION_TEXTURES[var_v0], 0x30, 0);
     }
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);

@@ -10,7 +10,7 @@ ROMs and saves.
 
 ### 1. Verify your ROM
 
-The supported base ROMs are the **US and English European releases**, in
+The supported base ROMs are the **US and European releases** (English, French, German, Spanish and Italian), in
 **big-endian `.z64` format**, each 32 MiB (33,554,432 bytes):
 
 | Release | SHA-1 |
@@ -20,9 +20,23 @@ The supported base ROMs are the **US and English European releases**, in
 | USA Rev 2 (1.2) | `0d3b1d740c6ee6da6923550bf24ad827262fd8c0` |
 | Europe (English) 1.0 | `6f26e3c8b35c3232058375e30d19665facb23123` |
 | Europe (English) Rev 1 | `9470f899ad0107677b7dfd24e1dd567723a5f84f` |
+| France | `4f7267ccaba4a8a9b0ae2cb89e191bc69b153ddc` |
+| Germany | `6a25903e733f071e7d6ea54529b7fd60b760cda3` |
+| Spain | `f39911ad0bedccc3e44d4338507c73bfa97856bf` |
+| Italy | `db5f2797c377fa8957b97465fc5738d6999ff240` |
 
 The launcher verifies the dump before starting. Unlisted revisions and regions,
 patched ROMs, and byte-swapped `.n64` or `.v64` files are not accepted.
+
+#### Restored content (optional extra ROMs)
+
+Under **Enhancements → Restored content** the launcher accepts up to three more ROMs of other Stadium releases you
+own. They are only read for content the loaded ROM lacks:
+
+- **Gallery**: the French, German, Spanish and Italian releases have no Gallery. With an English (US or European) ROM
+  beside them, the Gallery opens with that ROM's graphics and your release's text.
+- **Jynx's colour**: *Original* (USA 1.0, Japan) or *Purple* (later releases), when ROMs with both are present.
+- **Nidoqueen's animation**: *International* or *Japanese*, when a Japanese ROM is present.
 
 ### 2. Download and launch
 

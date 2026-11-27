@@ -16,6 +16,7 @@
 #include "src/memory.h"
 #include "src/stage_loader.h"
 #include "src/pokemon_stats.h"
+#include "StadionPort.h"
 
 typedef void (*ThreadEntries)(unk_func_8820BE14*);
 
@@ -85,9 +86,7 @@ static char** sIdLabelText;
 static char** sPcPokemonText;
 static char** sPokemonNameTable;
 static char** sMoveNameTable;
-#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
-static char** sLevelLabelText;
-#endif
+static char** sLevelLabelText; // PORT: the translated releases' level label
 
 void func_88206110(BattleMon* arg0) {
     static unk_D_88217D10 D_88217D10[2][9] = {
@@ -548,10 +547,9 @@ void LabPC_DrawMonNameLevel(unk_func_88205880_00D0* arg0, s32 arg1, s32 arg2, s3
     static Color_RGBA8 D_88217E14 = { 0x5A, 0x5A, 0xA6, 0xFF };
 
     s32 temp_v1;
-#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
-    // The translated releases take the level label from the text table.
-    char* label = Text_GetString(NULL, 0, sLevelLabelText, 0x15);
-#endif
+    // PORT: the translated releases take the level label from the text table (VERSION_FR, VERSION_DE, VERSION_ES,
+    // VERSION_IT)
+    const char* label = PORT_VERSION_TRANSLATED ? Text_GetString(NULL, 0, sLevelLabelText, 0x15) : "L";
 
     Font_BeginTranslucentTextRendering();
     Gfx_SetEnvColor(D_88217E10.r, D_88217E10.g, D_88217E10.b, D_88217E10.a);
@@ -559,7 +557,6 @@ void LabPC_DrawMonNameLevel(unk_func_88205880_00D0* arg0, s32 arg1, s32 arg2, s3
     Font_Printf(arg1 + 0x14, arg2 + 4, arg0->unk_000[0].nickname);
     Font_SetActive(4, 0);
 
-#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
     temp_v1 = Font_MeasureTextExtent(0, 0, "%s100", label);
 
     if ((arg0->unk_000[0].species.id <= 0) || (arg0->unk_000[0].species.id >= 0x98)) {
@@ -567,15 +564,6 @@ void LabPC_DrawMonNameLevel(unk_func_88205880_00D0* arg0, s32 arg1, s32 arg2, s3
     } else {
         Font_Printf(((arg1 + arg3) - temp_v1) - 0x14, arg2 + 8, "%s%d", label, arg0->unk_000[0].level);
     }
-#else
-    temp_v1 = Font_MeasureTextExtent(0, 0, "L100");
-
-    if ((arg0->unk_000[0].species.id <= 0) || (arg0->unk_000[0].species.id >= 0x98)) {
-        Font_Printf(((arg1 + arg3) - temp_v1) - 0x14, arg2 + 8, "L?");
-    } else {
-        Font_Printf(((arg1 + arg3) - temp_v1) - 0x14, arg2 + 8, "L%d", arg0->unk_000[0].level);
-    }
-#endif
     Font_EndTexturedTextRendering();
 }
 
@@ -2597,6 +2585,7 @@ void LabPC_ShowPokemon(FontContext* arg0, s32 arg1) {
     sLevelLabelText = Text_GetStringTable(6);
 #else
     sp48 = Text_GetStringTable(6);
+    sLevelLabelText = sp48; // PORT: the translated releases' level label, read at runtime
 #endif
     sp44 = Text_GetStringTable(0x26);
     sp40 = Text_GetStringTable(0x28);

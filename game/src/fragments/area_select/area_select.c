@@ -15,6 +15,7 @@
 #include "src/stage_loader.h"
 #include "src/math_util.h"
 #include "variables.h"
+#include "StadionPort.h" // PORT: PORT_SEGSYM (textures the European releases moved)
 
 typedef struct AreaSelectEntryConfig {
     /* 0x00 */ s16 x;
@@ -464,7 +465,7 @@ void AreaSelect_DrawNameBanner(s16 x, s16 y, s16 alpha, s16 area) {
 
         if ((gSessionContext.inRound2 != 0) &&
             ((area == AREA_STADIUM) || (area == AREA_GYM_LEADER_CASTLE) || (area == AREA_VS_MEWTWO))) {
-            Gfx_DrawTextureRgba16(x - 32, y + 13, 36, 36, gRound2BadgeTexture, 36, 0);
+            Gfx_DrawTextureRgba16(x - 32, y + 13, 36, 36, PORT_SEGSYM(gRound2BadgeTexture), 36, 0);
         }
 
         gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);

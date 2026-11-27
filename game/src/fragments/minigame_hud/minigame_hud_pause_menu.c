@@ -1,5 +1,6 @@
 #include "global.h"
 #include "minigame_hud.h"
+#include "StadionPort.h"
 #include "src/audio_sfx.h"
 #include "src/audio_commands_category2.h"
 #include "src/audio_loop_point.h"
@@ -1199,6 +1200,22 @@ static u32* D_8780F910[2][4] = {
     { D_8780B110, D_8780BFB0, D_8780CE50, D_8780DCF0 },
 };
 
+// The player icons carry text, so the French, Spanish and Italian releases have their own (German keeps the English
+// ones). The port keeps only the English ones; for those ROMs it takes the ROM's own icons out of its copy of this
+// fragment, where they sit in the same order at 0x87806800, 0xEA0 bytes (36x26 RGBA32) apart.
+static u32* PauseMenu_GetPlayerIcon(s32 set, s32 player) {
+    if (PORT_VERSION_FR || PORT_VERSION_ES || PORT_VERSION_IT) {
+        u32 index = set * 5 + player; // the fifth image of the first set is not a player icon
+        u32* image = (u32*)Port_FragmentRomWords((uintptr_t)fragment2_ROM_START, 0x87800000, 0x87806800 + index * 0xEA0,
+                                                 0xEA0 / 4);
+
+        if (image != NULL) {
+            return image;
+        }
+    }
+    return D_8780F910[set][player];
+}
+
 static f32 D_8780F930[] = {
     0.9f,
     1.0f,
@@ -1657,16 +1674,10 @@ void func_87803EAC(u32* arg0, u16 arg1, UNUSED u16 arg2, u16 arg3, u16 arg4, u8 
     }
 }
 
-// The Spanish pause menu places its player icon strip differently.
-#if defined(VERSION_ES)
-#define PAUSE_ICON_ARG 0x68
-#define PAUSE_ICON_X0 0x20
-#define PAUSE_ICON_X1 0x68
-#else
-#define PAUSE_ICON_ARG 0x23
-#define PAUSE_ICON_X0 -0x63
-#define PAUSE_ICON_X1 -0x1B
-#endif
+// The Spanish pause menu places its player icon strip differently. PORT: chosen at runtime (decomp: VERSION_ES).
+#define PAUSE_ICON_ARG (PORT_VERSION_ES ? 0x68 : 0x23)
+#define PAUSE_ICON_X0 (PORT_VERSION_ES ? 0x20 : -0x63)
+#define PAUSE_ICON_X1 (PORT_VERSION_ES ? 0x68 : -0x1B)
 
 typedef struct Vtx4 {
     /* 0x00 */ Vtx vtx1;
@@ -1804,7 +1815,7 @@ void func_87804320(u8 arg0, s8 arg1, s8 arg2, s8 arg3, s8 arg4) {
                                         0xFF, 0xFF, 0xFF);
 
                 gSPVertex(gDisplayListHead++, &spAC[var_s4].vtx1, 4, 0);
-                gDPLoadTextureBlock(gDisplayListHead++, D_8780F910[D_8780FA30[i]][i], G_IM_FMT_RGBA, G_IM_SIZ_32b, 36,
+                gDPLoadTextureBlock(gDisplayListHead++, PauseMenu_GetPlayerIcon(D_8780FA30[i], i), G_IM_FMT_RGBA, G_IM_SIZ_32b, 36,
                                     26, 0, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK,
                                     G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
                 gSP2Triangles(gDisplayListHead++, 0, 2, 3, 0, 0, 3, 1, 0);
@@ -1857,7 +1868,7 @@ void Widget_PauseMenuDrawPlayerIcons(s16 arg0) {
                 }
             }
         }
-        Widget_PauseMenuDrawIconQuad(var_a0, D_8780F910[D_8780FA30[i]][i], 0x24, 0x1A, ((i * 0x36) + arg0) + 0x3E, 0xBF,
+        Widget_PauseMenuDrawIconQuad(var_a0, PauseMenu_GetPlayerIcon(D_8780FA30[i], i), 0x24, 0x1A, ((i * 0x36) + arg0) + 0x3E, 0xBF,
                                      ((i * 0x36) + arg0) + 0x62, 0xD9, D_8780F930[D_8780FCAC[i]],
                                      D_8780F930[D_8780FCAC[i]], D_8780F930[D_8780FCAC[i]], D_8780F940[D_8780FCB0[i]],
                                      0.0f, 0.0f, 1.0f);

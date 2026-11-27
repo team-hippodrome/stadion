@@ -1,4 +1,5 @@
 #include "credits.h"
+#include "StadionPort.h"
 
 #ifdef VERSION_JP
 // JP staff-roll strings for sRoleLines: gCreditsLineNNNEn is the English credit and
@@ -360,12 +361,7 @@ const char gCreditsLine174Jp[] = "やまうち　ひろし";
  * of strings Credits_InitRoleList reads from textdata table 45.
  */
 u16 Credits_GetRoleLineCount(void) {
-#if defined(VERSION_ES)
-    return 188;
-#elif defined(VERSION_IT)
-    return 186;
-#else
-    return 0xBB;
-#endif
+    // PORT: chosen at runtime (decomp: VERSION_ES, VERSION_IT)
+    return PORT_VERSION_ES ? 188 : PORT_VERSION_IT ? 186 : 0xBB;
 }
 #endif

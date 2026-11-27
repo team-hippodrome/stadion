@@ -5,6 +5,8 @@
 #include "src/3D140.h"
 #include "StadionPort.h"
 
+extern s32 D_80078388;
+
 extern u8 D_80078400;
 
 typedef struct unk_D_80079070 {
@@ -1323,18 +1325,11 @@ void Cry_Play(u32 species, u32 cry_mode) {
             break;
     }
 
-#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
     // The translated releases play cries at 3/4 volume while the battle music stream plays.
-    seq_offset = D_800FC708->seqArray[species - 1].offset;
-    if ((D_80078388 != 0) && (D_80078E78 == 0) && (sLoopPointTable[0] == 0)) {
+    if (PORT_VERSION_TRANSLATED && (D_80078388 != 0) && (D_80078E78 == 0) && (sLoopPointTable[0] == 0)) {
         sp24 = (sp24 * 3) / 4;
-        AudioStream_Start(0, (u32)(uintptr_t)seq_offset, sp24, var_a3);
-    } else {
-        AudioStream_Start(0, (u32)(uintptr_t)seq_offset, sp24, var_a3);
     }
-#else
     AudioStream_Start(0, (u32)(uintptr_t)D_800FC708->seqArray[species - 1].offset, sp24, var_a3); // ROM offset
-#endif
 }
 
 void Cry_PlayVariant4(u32 arg0) {

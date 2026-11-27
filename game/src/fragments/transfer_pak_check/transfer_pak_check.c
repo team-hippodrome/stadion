@@ -19,6 +19,7 @@
 #include "src/memory.h"
 #include "src/stage_loader.h"
 #include "PR/rcp.h"
+#include "StadionPort.h" // PORT_SEGSYM: images the translated releases keep elsewhere
 
 #if defined(VERSION_JP)
 extern u8 D_03004E20_jp[];
@@ -858,7 +859,7 @@ void PakUi_DrawMenuBackdrop(void) {
     gDPSetPrimColor(gDisplayListHead++, 0, 0, 120, 100, 40, 255);
     gSPClearGeometryMode(gDisplayListHead++, G_ZBUFFER | G_LIGHTING);
 
-    gDPLoadTextureBlock_4b(gDisplayListHead++, D_300F780, G_IM_FMT_I, 128, 64, 0, G_TX_NOMIRROR | G_TX_WRAP,
+    gDPLoadTextureBlock_4b(gDisplayListHead++, PORT_SEGSYM(D_300F780), G_IM_FMT_I, 128, 64, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 7, 6, G_TX_NOLOD, G_TX_NOLOD);
 
     Gfx_DrawTexturedRectClipped(0, 0, 0x280, 0x1E0, 0, 0, 0x400, 0x400, 0);
@@ -909,24 +910,24 @@ void PakUi_DrawThickBoxBorder(s16 arg0, s16 arg1, s16 arg2, s16 arg3, u8 arg4, u
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
     gDPSetEnvColor(gDisplayListHead++, arg4, arg5, arg6, arg7);
 
-    gDPLoadTextureBlock_4b(gDisplayListHead++, D_300F480, G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
+    gDPLoadTextureBlock_4b(gDisplayListHead++, PORT_SEGSYM(D_300F480), G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
     Gfx_DrawTexturedRectClipped(arg0, arg1, var_s3, var_s2, 0, 0, 0x4000 / var_s3, 0x4000 / var_s2, 0);
 
-    gDPLoadTextureBlock_4b(gDisplayListHead++, D_300F500, G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
+    gDPLoadTextureBlock_4b(gDisplayListHead++, PORT_SEGSYM(D_300F500), G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
     Gfx_DrawTexturedRectClipped((arg0 + arg2) - var_s3, arg1, var_s3, var_s2, 0, 0, 0x4000 / var_s3, 0x4000 / var_s2,
                                 0);
 
-    gDPLoadTextureBlock_4b(gDisplayListHead++, D_300F380, G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
+    gDPLoadTextureBlock_4b(gDisplayListHead++, PORT_SEGSYM(D_300F380), G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
     Gfx_DrawTexturedRectClipped(arg0, (arg1 + arg3) - var_s2, var_s3, var_s2, 0, 0, 0x4000 / var_s3, 0x4000 / var_s2,
                                 0);
 
-    gDPLoadTextureBlock_4b(gDisplayListHead++, D_300F400, G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
+    gDPLoadTextureBlock_4b(gDisplayListHead++, PORT_SEGSYM(D_300F400), G_IM_FMT_I, 16, 16, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
     Gfx_DrawTexturedRectClipped((arg0 + arg2) - var_s3, (arg1 + arg3) - var_s2, var_s3, var_s2, 0, 0, 0x4000 / var_s3,
@@ -969,24 +970,24 @@ void PakUi_DrawThinBoxBorder(s16 arg0, s16 arg1, s16 arg2, s16 arg3, u8 arg4, u8
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
     gDPSetEnvColor(gDisplayListHead++, arg4, arg5, arg6, arg7);
 
-    gDPLoadTextureBlock_4b(gDisplayListHead++, D_3022A20, G_IM_FMT_I, 16, 8, 0, G_TX_NOMIRROR | G_TX_WRAP,
+    gDPLoadTextureBlock_4b(gDisplayListHead++, PORT_SEGSYM(D_3022A20), G_IM_FMT_I, 16, 8, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
     Gfx_DrawTexturedRectClipped(arg0, arg1, var_s3, var_s2, 0, 0, 0x2000 / var_s3, 0x2000 / var_s2, 0);
 
-    gDPLoadTextureBlock_4b(gDisplayListHead++, D_3022A60, G_IM_FMT_I, 16, 8, 0, G_TX_NOMIRROR | G_TX_WRAP,
+    gDPLoadTextureBlock_4b(gDisplayListHead++, PORT_SEGSYM(D_3022A60), G_IM_FMT_I, 16, 8, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
     Gfx_DrawTexturedRectClipped((arg0 + arg2) - var_s3, arg1, var_s3, var_s2, 0, 0, 0x2000 / var_s3, 0x2000 / var_s2,
                                 0);
 
-    gDPLoadTextureBlock_4b(gDisplayListHead++, D_30229A0, G_IM_FMT_I, 16, 8, 0, G_TX_NOMIRROR | G_TX_WRAP,
+    gDPLoadTextureBlock_4b(gDisplayListHead++, PORT_SEGSYM(D_30229A0), G_IM_FMT_I, 16, 8, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
     Gfx_DrawTexturedRectClipped(arg0, (arg1 + arg3) - var_s2, var_s3, var_s2, 0, 0, 0x2000 / var_s3, 0x2000 / var_s2,
                                 0);
 
-    gDPLoadTextureBlock_4b(gDisplayListHead++, D_30229E0, G_IM_FMT_I, 16, 8, 0, G_TX_NOMIRROR | G_TX_WRAP,
+    gDPLoadTextureBlock_4b(gDisplayListHead++, PORT_SEGSYM(D_30229E0), G_IM_FMT_I, 16, 8, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
     Gfx_DrawTexturedRectClipped((arg0 + arg2) - var_s3, (arg1 + arg3) - var_s2, var_s3, var_s2, 0, 0, 0x2000 / var_s3,
@@ -1106,17 +1107,17 @@ void PakUi_DrawTitleHeader(s16 arg0) {
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, arg0);
 
-    Gfx_DrawTextureRgba16(0x100, 0x20, 0x80, 0x10, D_300A820, 0x80, 0);
-    Gfx_DrawTextureRgba16(0x100, 0x30, 0x80, 0x10, D_300B820, 0x80, 0);
-    Gfx_DrawTextureRgba16(0x100, 0x40, 0x80, 0x10, D_300C820, 0x80, 0);
-    Gfx_DrawTextureRgba16(0x100, 0x50, 0x80, 0x10, D_300D820, 0x80, 0);
+    Gfx_DrawTextureRgba16(0x100, 0x20, 0x80, 0x10, PORT_SEGSYM(D_300A820), 0x80, 0);
+    Gfx_DrawTextureRgba16(0x100, 0x30, 0x80, 0x10, PORT_SEGSYM(D_300B820), 0x80, 0);
+    Gfx_DrawTextureRgba16(0x100, 0x40, 0x80, 0x10, PORT_SEGSYM(D_300C820), 0x80, 0);
+    Gfx_DrawTextureRgba16(0x100, 0x50, 0x80, 0x10, PORT_SEGSYM(D_300D820), 0x80, 0);
 
     ptr = &D_82D09EF0[D_82D0AB38[0].unk_04];
     gDPSetEnvColor(gDisplayListHead++, ptr->r, ptr->g, ptr->b, arg0);
 
-    Gfx_DrawTextureI4(0x120, 0x60, 8, 8, D_300F240, 0x10, 0);
-    Gfx_DrawTextureI4(0x120, 0x6C, 8, 8, D_300F280, 0x10, 0);
-    Gfx_DrawTextureI4(0x70, 0x6C, 8, 8, D_300F2C0, 0x10, 0);
+    Gfx_DrawTextureI4(0x120, 0x60, 8, 8, PORT_SEGSYM(D_300F240), 0x10, 0);
+    Gfx_DrawTextureI4(0x120, 0x6C, 8, 8, PORT_SEGSYM(D_300F280), 0x10, 0);
+    Gfx_DrawTextureI4(0x70, 0x6C, 8, 8, PORT_SEGSYM(D_300F2C0), 0x10, 0);
     Gfx_DrawTexturedRectClipped(0x120, 0x68, 8, 4, 0, 0xE0, 0x400, 0, 0);
     Gfx_DrawTexturedRectClipped(0x70, 0x74, 8, 0x14, 0, 0xE0, 0x400, 0, 0);
     Gfx_DrawTexturedRectClipped(0x78, 0x6C, 0xA8, 8, 0xE0, 0, 0, 0x400, 0);
@@ -1124,9 +1125,9 @@ void PakUi_DrawTitleHeader(s16 arg0) {
     ptr = &D_82D09EF0[D_82D0AB38[1].unk_04];
     gDPSetEnvColor(gDisplayListHead++, ptr->r, ptr->g, ptr->b, arg0);
 
-    Gfx_DrawTextureI4(0x12C, 0x60, 8, 8, D_300F240, 0x10, 0);
-    Gfx_DrawTextureI4(0x12C, 0x78, 8, 8, D_300F280, 0x10, 0);
-    Gfx_DrawTextureI4(0xF8, 0x78, 8, 8, D_300F2C0, 0x10, 0);
+    Gfx_DrawTextureI4(0x12C, 0x60, 8, 8, PORT_SEGSYM(D_300F240), 0x10, 0);
+    Gfx_DrawTextureI4(0x12C, 0x78, 8, 8, PORT_SEGSYM(D_300F280), 0x10, 0);
+    Gfx_DrawTextureI4(0xF8, 0x78, 8, 8, PORT_SEGSYM(D_300F2C0), 0x10, 0);
     Gfx_DrawTexturedRectClipped(0x12C, 0x68, 8, 0x10, 0, 0xE0, 0x400, 0, 0);
     Gfx_DrawTexturedRectClipped(0xF8, 0x80, 8, 8, 0, 0xE0, 0x400, 0, 0);
     Gfx_DrawTexturedRectClipped(0x100, 0x78, 0x2C, 8, 0xE0, 0, 0, 0x400, 0);
@@ -1134,9 +1135,9 @@ void PakUi_DrawTitleHeader(s16 arg0) {
     ptr = &D_82D09EF0[D_82D0AB38[2].unk_04];
     gDPSetEnvColor(gDisplayListHead++, ptr->r, ptr->g, ptr->b, arg0);
 
-    Gfx_DrawTextureI4(0x14C, 0x60, 8, 8, D_300F240, 0x10, 0);
-    Gfx_DrawTextureI4(0x14C, 0x78, 8, 8, D_300F300, 0x10, 0);
-    Gfx_DrawTextureI4(0x180, 0x78, 8, 8, D_300F340, 0x10, 0);
+    Gfx_DrawTextureI4(0x14C, 0x60, 8, 8, PORT_SEGSYM(D_300F240), 0x10, 0);
+    Gfx_DrawTextureI4(0x14C, 0x78, 8, 8, PORT_SEGSYM(D_300F300), 0x10, 0);
+    Gfx_DrawTextureI4(0x180, 0x78, 8, 8, PORT_SEGSYM(D_300F340), 0x10, 0);
     Gfx_DrawTexturedRectClipped(0x14C, 0x68, 8, 0x10, 0, 0xE0, 0x400, 0, 0);
     Gfx_DrawTexturedRectClipped(0x180, 0x80, 8, 8, 0, 0xE0, 0x400, 0, 0);
     Gfx_DrawTexturedRectClipped(0x154, 0x78, 0x2C, 8, 0, 0, 0, 0x400, 0);
@@ -1144,14 +1145,29 @@ void PakUi_DrawTitleHeader(s16 arg0) {
     ptr = &D_82D09EF0[D_82D0AB38[3].unk_04];
     gDPSetEnvColor(gDisplayListHead++, ptr->r, ptr->g, ptr->b, arg0);
 
-    Gfx_DrawTextureI4(0x158, 0x60, 8, 8, D_300F240, 0x10, 0);
-    Gfx_DrawTextureI4(0x158, 0x6C, 8, 8, D_300F300, 0x10, 0);
-    Gfx_DrawTextureI4(0x208, 0x6C, 8, 8, D_300F340, 0x10, 0);
+    Gfx_DrawTextureI4(0x158, 0x60, 8, 8, PORT_SEGSYM(D_300F240), 0x10, 0);
+    Gfx_DrawTextureI4(0x158, 0x6C, 8, 8, PORT_SEGSYM(D_300F300), 0x10, 0);
+    Gfx_DrawTextureI4(0x208, 0x6C, 8, 8, PORT_SEGSYM(D_300F340), 0x10, 0);
     Gfx_DrawTexturedRectClipped(0x158, 0x68, 8, 4, 0, 0xE0, 0x400, 0, 0);
     Gfx_DrawTexturedRectClipped(0x208, 0x74, 8, 0x14, 0, 0xE0, 0x400, 0, 0);
     Gfx_DrawTexturedRectClipped(0x160, 0x6C, 0xA8, 8, 0, 0, 0, 0x400, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
+}
+
+// The German, Italian and Spanish releases keep the party card badges and header at other segment 3 offsets
+// (badges 0, 1, 2, 3 and 7, then the header).
+static const uintptr_t sPartyCardImagesDeIt[] = { 0x3010060, 0x300EE60, 0x300DC60, 0x300CA60, 0x3011260, 0x3007C40 };
+static const uintptr_t sPartyCardImagesEs[] = { 0x3008E40, 0x3007C40, 0x3006A40, 0x3005840, 0x300A040, 0x3000A20 };
+
+static const uintptr_t* PakUi_GetTranslatedPartyCardImages(void) {
+    if (PORT_VERSION_DE || PORT_VERSION_IT) {
+        return sPartyCardImagesDeIt;
+    }
+    if (PORT_VERSION_ES) {
+        return sPartyCardImagesEs;
+    }
+    return NULL;
 }
 
 // The German, Italian and Spanish releases keep the party card badges and header at other
@@ -1200,6 +1216,8 @@ extern u8 D_3000A20[];
 #endif
 
 void PakUi_DrawPartyCardBadge(s32 arg0) {
+    static const u8 sImageIndex[8] = { 0, 1, 2, 3, 0, 0, 0, 4 };
+    const uintptr_t* translated = PakUi_GetTranslatedPartyCardImages();
     u8* var_t0;
 
     switch (D_82D0AB38[arg0].unk_01) {
@@ -1223,6 +1241,11 @@ void PakUi_DrawPartyCardBadge(s32 arg0) {
             var_t0 = PARTY_BADGE_7;
             break;
     }
+    if (translated != NULL) {
+        u8 kind = D_82D0AB38[arg0].unk_01;
+
+        var_t0 = (u8*)translated[(kind < 8) ? sImageIndex[kind] : 0];
+    }
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
@@ -1236,11 +1259,14 @@ void PakUi_DrawPartyCardList(u8 arg0) {
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, arg0);
 
-    Gfx_DrawTextureRgba16(0xC, 0x60, 0x64, 0x14, PARTY_CARD_HEADER, 0x64, 0);
-    Gfx_DrawTextureRgba16(0xC, 0x74, 0x64, 0x14, D_3000FA0, 0x64, 0);
-    Gfx_DrawTextureRgba16(0xC, 0x88, 0x64, 0x14, D_3001F40, 0x64, 0);
-    Gfx_DrawTextureRgba16(0xC, 0x9C, 0x64, 0x14, D_3002EE0, 0x64, 0);
-    Gfx_DrawTextureRgba16(0xC, 0xB0, 0x64, 0x14, D_3003E80, 0x64, 0);
+    Gfx_DrawTextureRgba16(0xC, 0x60, 0x64, 0x14,
+                          (PakUi_GetTranslatedPartyCardImages() != NULL) ? (u8*)PakUi_GetTranslatedPartyCardImages()[5]
+                                                                          : D_3000000,
+                          0x64, 0);
+    Gfx_DrawTextureRgba16(0xC, 0x74, 0x64, 0x14, PORT_SEGSYM(D_3000FA0), 0x64, 0);
+    Gfx_DrawTextureRgba16(0xC, 0x88, 0x64, 0x14, PORT_SEGSYM(D_3001F40), 0x64, 0);
+    Gfx_DrawTextureRgba16(0xC, 0x9C, 0x64, 0x14, PORT_SEGSYM(D_3002EE0), 0x64, 0);
+    Gfx_DrawTextureRgba16(0xC, 0xB0, 0x64, 0x14, PORT_SEGSYM(D_3003E80), 0x64, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 }
@@ -1417,15 +1443,15 @@ void PakUi_BuildIconPanel(void) {
 
     gDPSetAlphaCompare(gDisplayListHead++, G_AC_NONE);
     gDPSetEnvColor(gDisplayListHead++, 160, 120, 30, 255);
-    gDPLoadTextureBlock_4b(gDisplayListHead++, D_300F580, G_IM_FMT_I, 32, 32, 0, G_TX_NOMIRROR | G_TX_WRAP,
+    gDPLoadTextureBlock_4b(gDisplayListHead++, PORT_SEGSYM(D_300F580), G_IM_FMT_I, 32, 32, 0, G_TX_NOMIRROR | G_TX_WRAP,
                            G_TX_NOMIRROR | G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
 
     Gfx_DrawTexturedRectClipped(4, 4, 0x58, 0x58, 0, 0, 0x400, 0x400, 0);
 
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
 
-    Gfx_DrawTextureIa8(0xC, 0x1E, 0x48, 0x12, D_300E820, 0x48, 0);
-    Gfx_DrawTextureIa8(0xC, 0x30, 0x48, 0x12, D_300ED30, 0x48, 0);
+    Gfx_DrawTextureIa8(0xC, 0x1E, 0x48, 0x12, PORT_SEGSYM(D_300E820), 0x48, 0);
+    Gfx_DrawTextureIa8(0xC, 0x30, 0x48, 0x12, PORT_SEGSYM(D_300ED30), 0x48, 0);
 
     gSPDisplayList(gDisplayListHead++, D_8006F470);
 
@@ -1776,7 +1802,7 @@ void PakUi_DrawDataSummaryPanel(s16 arg0, s16 arg1, SessionContinueData* arg2, s
 
                 gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-                Gfx_DrawTextureRgba16(temp_v0_3 + 0xAB, temp_s0 + 0x2B, 0x1C, 0x1C, &D_3022AA0, 0x1C, 0);
+                Gfx_DrawTextureRgba16(temp_v0_3 + 0xAB, temp_s0 + 0x2B, 0x1C, 0x1C, PORT_SEGSYM(&D_3022AA0), 0x1C, 0);
 
                 gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
             }
@@ -1862,7 +1888,7 @@ void PakUi_DrawDataSummaryPanel(s16 arg0, s16 arg1, SessionContinueData* arg2, s
 
                 gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-                Gfx_DrawTextureRgba16(temp_v0_3 + 0xAB, temp_s0 + 0x2B, 0x1C, 0x1C, &D_3022AA0, 0x1C, 0);
+                Gfx_DrawTextureRgba16(temp_v0_3 + 0xAB, temp_s0 + 0x2B, 0x1C, 0x1C, PORT_SEGSYM(&D_3022AA0), 0x1C, 0);
 
                 gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
             }
@@ -2402,6 +2428,17 @@ static unk_D_82D09F1C D_82D09F1C[] = {
 };
 #endif
 
+#if !defined(VERSION_JP)
+// The European releases take the first three entries from JP (menu icon 2 sits below icon 0) and entry 3 from US.
+static unk_D_82D09F1C D_82D09F1C_pal[] = {
+    { 240, 120, 160, 140, 0xFF, 0x02, 0x04, 0x01 }, { 424, 180, 160, 80, 0xFF, 0xFF, 0x00, 0xFF },
+    { 240, 284, 160, 36, 0x00, 0xFF, 0xFF, 0xFF },  { 240, 276, 160, 52, 0x00, 0xFF, 0xFF, 0x02 },
+    { 56, 180, 160, 80, 0xFF, 0xFF, 0xFF, 0x00 },   { 56, 224, 160, 36, 0xFF, 0x06, 0xFF, 0xFF },
+    { 56, 276, 160, 36, 0x05, 0xFF, 0xFF, 0xFF },
+};
+#define D_82D09F1C (PORT_VERSION_PAL ? D_82D09F1C_pal : D_82D09F1C)
+#endif
+
 #if defined(VERSION_JP)
 // Description printed under the highlighted menu entry; PakUi_DrawBodyProgressBar maps
 // cursor positions 4-6 to entry 4. The other versions print message IDs from D_82D09F14.
@@ -2686,9 +2723,9 @@ DepthBuffer* PakUi_BuildGameIconBuffer(s32 arg0) {
     s16 temp_s0;
 
     if (arg0 == 0) {
-        var_s3 = D_30111A0;
+        var_s3 = PORT_SEGSYM(D_30111A0);
     } else {
-        var_s3 = D_3017DA0;
+        var_s3 = PORT_SEGSYM(D_3017DA0);
     }
 
     sp3C = GfxImage_Allocate(0, 2, 0xAC, 0x98, 1);
@@ -2738,8 +2775,8 @@ DepthBuffer* PakUi_BuildControllerIconBuffer(void) {
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-    Gfx_DrawTextureRgba16(0xC, 0xC, 0x40, 0x20, &D_301E9A0, 0x40, 0);
-    Gfx_DrawTextureRgba16(0xC, 0x2C, 0x40, 0x20, &D_301F9A0, 0x40, 0);
+    Gfx_DrawTextureRgba16(0xC, 0xC, 0x40, 0x20, PORT_SEGSYM(&D_301E9A0), 0x40, 0);
+    Gfx_DrawTextureRgba16(0xC, 0x2C, 0x40, 0x20, PORT_SEGSYM(&D_301F9A0), 0x40, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 
@@ -2770,8 +2807,8 @@ DepthBuffer* PakUi_BuildControllerIconBufferAlt(void) {
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-    Gfx_DrawTextureRgba16(0xC, 0xC, 0x40, 0x20, &D_30209A0, 0x40, 0);
-    Gfx_DrawTextureRgba16(0xC, 0x2C, 0x40, 0x20, &D_30219A0, 0x40, 0);
+    Gfx_DrawTextureRgba16(0xC, 0xC, 0x40, 0x20, PORT_SEGSYM(&D_30209A0), 0x40, 0);
+    Gfx_DrawTextureRgba16(0xC, 0x2C, 0x40, 0x20, PORT_SEGSYM(&D_30219A0), 0x40, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 
@@ -2912,14 +2949,14 @@ void TransferPak_MenuIconsInit(void) {
     Vec3f_SetComponentsDuplicate(&D_82D09FF8[0].position, -84.0f, 48.0f, -579.0f);
     Vec3f_SetComponentsDuplicate(&D_82D09FF8[1].position, 100.0f, 18.0f, -579.0f);
     Vec3f_SetComponentsDuplicate(&D_82D09FF8[3].position, -84.0f, -64.0f, -579.0f);
-#if defined(VERSION_PAL)
-    // PAL draws slot 2 (string 0x41) at slot 3's position and clears bit 0 of slot 3's node flags,
-    // as ModelRenderer_AttachDisplayObject does. //@src/model_renderer.c
-    Vec3f_SetComponentsDuplicate(&D_82D09FF8[2].position, -84.0f, -64.0f, -579.0f);
-    D_82D09FF8[3].node.flags &= ~1;
-#else
-    Vec3f_SetComponentsDuplicate(&D_82D09FF8[2].position, 100.0f, -64.0f, -579.0f);
-#endif
+    if (PORT_VERSION_PAL) {
+        // The European releases draw slot 2 (string 0x41) at slot 3's position and clear bit 0 of slot 3's node
+        // flags, as ModelRenderer_AttachDisplayObject does.
+        Vec3f_SetComponentsDuplicate(&D_82D09FF8[2].position, -84.0f, -64.0f, -579.0f);
+        D_82D09FF8[3].node.flags &= ~1;
+    } else {
+        Vec3f_SetComponentsDuplicate(&D_82D09FF8[2].position, 100.0f, -64.0f, -579.0f);
+    }
     Vec3f_SetComponentsDuplicate(&D_82D09FF8[4].position, -268.0f, 18.0f, -579.0f);
     Vec3f_SetComponentsDuplicate(&D_82D09FF8[5].position, -268.0f, -4.0f, -579.0f);
     Vec3f_SetComponentsDuplicate(&D_82D09FF8[6].position, -268.0f, -56.0f, -579.0f);

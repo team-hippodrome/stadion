@@ -67,19 +67,10 @@ static s32 D_80077C70 = 0;
 static s32 D_80077C74 = 0;
 static s32 D_80077C78 = 0;
 
-#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
 extern s32 D_80078388;
 // The translated releases play these sounds 0x10 quieter while the battle music stream plays.
 #define SFX_STREAM_PLAYING() ((D_80078388 != 0) && (D_80078E78 == 0) && (sLoopPointTable[0] == 0))
-#define SFX_SET_VOLUME(volume)           \
-    if (SFX_STREAM_PLAYING()) {          \
-        effect_priority = (volume)-0x10; \
-    }
-#define SFX_VOLUME(volume) effect_priority
-#else
-#define SFX_SET_VOLUME(volume)
-#define SFX_VOLUME(volume) (volume)
-#endif
+#define SFX_VOLUME(volume) ((PORT_VERSION_TRANSLATED && SFX_STREAM_PLAYING()) ? (volume) - 0x10 : (volume))
 
 s32 Audio_PlayCommand(u32 command, s32 parameter, UNUSED s32 unused) {
     Port_XcheckSfx(0, command, parameter, unused); // PORT: battle cross-check sound trace (src/port/xcheck.cpp)
@@ -139,13 +130,6 @@ s32 Audio_PlayCommand(u32 command, s32 parameter, UNUSED s32 unused) {
                     return 0;
             }
 
-#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
-            if (SFX_STREAM_PLAYING()) {
-                effect_priority = 0x60;
-            } else {
-                effect_priority = 0x70;
-            }
-#endif
             D_80077C64 = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, effect_id, SFX_VOLUME(0x70), 0x80, -1);
             sound_handle = D_80077C64;
             break;
@@ -164,7 +148,6 @@ s32 Audio_PlayCommand(u32 command, s32 parameter, UNUSED s32 unused) {
             if (sweep_amount > 0xFE) {
                 sweep_amount = 0xFE;
             }
-            SFX_SET_VOLUME(0x80);
             sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 3, SFX_VOLUME(0x80), sweep_amount, -1);
             break;
 
@@ -173,12 +156,10 @@ s32 Audio_PlayCommand(u32 command, s32 parameter, UNUSED s32 unused) {
                 Audio_QueueFadeSoundCommand(D_80077C6C, 0x14);
                 D_80077C6C = 0;
             }
-            SFX_SET_VOLUME(0x80);
             sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 4, SFX_VOLUME(0x80), 0x80, -1);
             break;
 
         case 0x3:
-            SFX_SET_VOLUME(0x80);
             D_80077C6C = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 5, SFX_VOLUME(0x80), 0x80, -1);
             sound_handle = D_80077C6C;
             break;
@@ -195,18 +176,15 @@ s32 Audio_PlayCommand(u32 command, s32 parameter, UNUSED s32 unused) {
                 default:
                     return 0;
             }
-            SFX_SET_VOLUME(0x80);
             D_80077C68 = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, effect_id, SFX_VOLUME(0x80), 0x80, -1);
             sound_handle = D_80077C68;
             break;
 
         case 0x6:
-            SFX_SET_VOLUME(0x80);
             sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 6, SFX_VOLUME(0x80), 0x80, -1);
             break;
 
         case 0x7:
-            SFX_SET_VOLUME(0x80);
             sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 7, SFX_VOLUME(0x80), 0x80, -1);
             break;
 
@@ -229,12 +207,10 @@ s32 Audio_PlayCommand(u32 command, s32 parameter, UNUSED s32 unused) {
                     return 0;
 
                 case 1:
-                    SFX_SET_VOLUME(0x80);
                     sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 7, SFX_VOLUME(0x80), 0x80, -1);
                     break;
 
                 case 2:
-                    SFX_SET_VOLUME(0x80);
                     sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 6, SFX_VOLUME(0x80), 0x80, -1);
                     break;
 
@@ -245,7 +221,6 @@ s32 Audio_PlayCommand(u32 command, s32 parameter, UNUSED s32 unused) {
 
         case 0x32:
             if (parameter == 0xC8) {
-                SFX_SET_VOLUME(0x80);
                 return Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 0x20, SFX_VOLUME(0x80), 0x80, -1);
             }
 
@@ -261,46 +236,37 @@ s32 Audio_PlayCommand(u32 command, s32 parameter, UNUSED s32 unused) {
 
             switch (D_80077970[parameter].unk_01) {
                 case 0:
-                    SFX_SET_VOLUME(0x80);
                     sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 0xB, SFX_VOLUME(0x80), 0x80, -1);
                     break;
 
                 case 1:
-                    SFX_SET_VOLUME(0x80);
                     sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 0xA, SFX_VOLUME(0x80), 0x80, -1);
                     break;
 
                 case 2:
-                    SFX_SET_VOLUME(0x80);
                     sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 9, SFX_VOLUME(0x80), 0x80, -1);
                     break;
             }
             break;
 
         case 0x12:
-            SFX_SET_VOLUME(0x80);
             sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 0xC, SFX_VOLUME(0x80), 0x80, -1);
             break;
 
         case 0x13:
-            SFX_SET_VOLUME(0x80);
             sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 0xD, SFX_VOLUME(0x80), 0x80, -1);
             break;
 
         case 0x14:
-            SFX_SET_VOLUME(0x80);
             sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 0xE, SFX_VOLUME(0x80), 0x80, -1);
             break;
 
         case 0x28:
-#if defined(VERSION_PAL)
-            SFX_SET_VOLUME(0x80);
-            Audio_QueueVoiceVolume(
-                sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 0xF, SFX_VOLUME(0x80), 0x80, -1), 0x6A);
-#else
-            SFX_SET_VOLUME(0x80);
             sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 0xF, SFX_VOLUME(0x80), 0x80, -1);
-#endif
+            if (PORT_VERSION_PAL) {
+                // The European releases play this sound quieter.
+                Audio_QueueVoiceVolume(sound_handle, 0x6A);
+            }
             break;
 
         case 0x5A:
@@ -317,7 +283,6 @@ s32 Audio_PlayCommand(u32 command, s32 parameter, UNUSED s32 unused) {
                     return 0;
             }
 
-            SFX_SET_VOLUME(0x80);
             D_80077C74 = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, effect_id, SFX_VOLUME(0x80), 0x80, -1);
             break;
 
@@ -332,7 +297,6 @@ s32 Audio_PlayCommand(u32 command, s32 parameter, UNUSED s32 unused) {
                 default:
                     return 0;
             }
-            SFX_SET_VOLUME(0x80);
             D_80077C78 = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, 0x14, SFX_VOLUME(0x80), 0x80, -1);
             break;
 
@@ -349,7 +313,6 @@ s32 Audio_PlayCommand(u32 command, s32 parameter, UNUSED s32 unused) {
                 default:
                     return 0;
             }
-            SFX_SET_VOLUME(0x80);
             sound_handle = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, effect_id, SFX_VOLUME(0x80), 0x80, 0x80);
             break;
 
@@ -371,7 +334,6 @@ s32 Audio_PlayCommand(u32 command, s32 parameter, UNUSED s32 unused) {
                 D_80077C7C = 0;
                 sound_handle = D_80077C7C;
             } else {
-                SFX_SET_VOLUME(0x80);
                 D_80077C7C = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, effect_id, SFX_VOLUME(0x80), 0x80, 0x80);
                 sound_handle = D_80077C7C;
             }

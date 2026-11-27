@@ -138,8 +138,22 @@ PortRomVersion RomVersionOfSha1(const std::string& sha1) {
     return PORT_ROM_VERSION_COUNT;
 }
 
+PortRomVersion ExtraRomVersionOfSha1(const std::string& sha1) {
+    for (const KnownRom& rom : kExtraOnlyRoms) {
+        if (sha1 == rom.sha1) {
+            return rom.version;
+        }
+    }
+    return RomVersionOfSha1(sha1);
+}
+
 const char* RomVersionName(PortRomVersion version) {
     for (const KnownRom& rom : kKnownRoms) {
+        if (rom.version == version) {
+            return rom.name;
+        }
+    }
+    for (const KnownRom& rom : kExtraOnlyRoms) {
         if (rom.version == version) {
             return rom.name;
         }

@@ -810,10 +810,10 @@ extern char D_86A0612C;
 extern char D_86A06130;
 extern char D_86A06134;
 #endif
-#if defined(VERSION_ES)
+// PORT: the Spanish staff roll's extra line, defined for every version (decomp: VERSION_ES only); see
+// sPortRoleStyles in credits_159A00.c
 extern char D_86A06138;
 extern char D_86A0613C;
-#endif
 #endif
 
 // Retrace (video frame) count since the previous Credits_UpdateFrameDelta; every timer steps by it.
