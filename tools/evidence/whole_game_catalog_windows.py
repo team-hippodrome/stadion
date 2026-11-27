@@ -162,14 +162,14 @@ def recipes(fixtures, output=None, backend='opengl'):
             'castle_gym_clear': ('BattlePrep_ShowCastleClearOutro',),
             'castle_e4_rival_clear': ('GymLeaderCastleClear_InitState',),
             'mewtwo_win': ('State_RunCredits', 'Credits_OutroLoop'),
-            'mewtwo_loss_battle_again': ('BattlePrep_DrawQuitPrompt',),
-            'mewtwo_loss_quit': ('BattlePrep_DrawQuitPrompt',),
-            'battle_now': ('BattlePrep_ConfirmSimpleRules',),
+            'mewtwo_loss_battle_again': ('BattlePrep_DrawMewtwoLossMenu',),
+            'mewtwo_loss_quit': ('BattlePrep_DrawMewtwoLossMenu',),
+            'battle_now': ('BattlePrep_ShowSimpleResult',),
         }.get(stem, ()))
     # Exercise the Champion's banner before the long Elite Four/rival route reaches it.
     add('castle_mewtwo', 'castle_round_save_quit', frames=9000, save='op6', flash='teams',
-        expect=('BattlePrep_LoadBannerAssets', 'BattlePrep_BindCarouselSegment1'),
-        extra=('--set', 'State_TitleScreen#1@exit:gCurrentGameState:4=39;BattlePrep_LoadBannerAssets:gSessionContext+0x2:1=9'))
+        expect=('BattlePrepBanner_LoadTextures', 'BattlePrepBanner_DrawTitle'),
+        extra=('--set', 'State_TitleScreen#1@exit:gCurrentGameState:4=39;BattlePrepBanner_LoadTextures:gSessionContext+0x2:1=9'))
     cases[-1]['name'] = 'champion_banner_probe_round'
     for stem, frames, flash, save, state, expect in [
         ('cup_level_cap', 7600, None, 'L55', None, ('Rental_HandleLevelCapWarning',)),
@@ -199,7 +199,7 @@ def recipes(fixtures, output=None, backend='opengl'):
             extra=('--gb2', str(fixtures / 'yellow_de.gb') + '|' + str(fixtures / save)))
     for count in (3, 4):
         add('', f'pikachu_reward_{count}moves', save='pika' + str(count), natural=False,
-            extra=('--call', 'BattlePrep_RunRulesScreen#2@exit:Fragment_LoadAndCall:i:i34,i3891504,i3900720,i0,i0'))
+            extra=('--call', 'BattlePrep_Main#2@exit:Fragment_LoadAndCall:i:i34,i3891504,i3900720,i0,i0'))
     for stem in ['cup_loss_from_start', 'cup_win_tail']:
         add('', stem, extra=('--flash', str(ROOT / 'replays/cup_win_badge.flash')))
     add('', 'mash')

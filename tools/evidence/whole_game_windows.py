@@ -32,8 +32,8 @@ def recipes(fixtures):
     flash = str(ROOT / 'replays/cup_win_badge.flash')
     for name, win0, win1 in [('cup_loss_opt0', 0, 1), ('cup_draw0', 0, 0), ('cup_draw1', 1, 1)]:
         add('engine_' + name, 'engine_left/cup_loss_opt0.rec', 26000, 'engine_left/runs.sh', '--natural',
-            '--flash', flash, '--set', f'BattlePrep_RunRulesScreen#2:gSessionContext+0x1220:1={win0};'
-            f'BattlePrep_RunRulesScreen#2:gSessionContext+0x1270:1={win1};BattlePrep_RunRulesScreen#2:gSessionContext+0x1297:1=3')
+            '--flash', flash, '--set', f'BattlePrep_Main#2:gSessionContext+0x1220:1={win0};'
+            f'BattlePrep_Main#2:gSessionContext+0x1270:1={win1};BattlePrep_Main#2:gSessionContext+0x1297:1=3')
     add('rules_species_scroll', 'engine_left/rules_species_scroll.rec', 5600, 'engine_left/runs.sh', '--natural',
         expect=('RentalRules_ScrollPageDown', 'RentalRules_ScrollPageUp'))
     add('prenmi', 'engine_left/title_a.rec', 3000, 'engine_left/runs.sh', '--natural', '--call',

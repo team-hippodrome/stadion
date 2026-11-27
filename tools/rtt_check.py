@@ -30,7 +30,7 @@ def main():
                '--bin', str(args.bin.resolve()), '--natural', '--frames', '9600',
                '--rec', str(ROOT / 'evidence/whole_game/routes/registration/castle_rental_entry.rec'),
                '--set', 'State_TitleScreen#1@exit:gCurrentGameState:4=39;'
-                        'BattlePrep_LoadBadgeTextures:gSessionContext+3:1=2',
+                        'OpponentLadder_LoadPortraits:gSessionContext+3:1=2',
                '--shots', '9000,9100,9200,9300,9400']
     completed = subprocess.run(command, env=env, check=False)
     if completed.returncode:
