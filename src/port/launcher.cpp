@@ -794,21 +794,39 @@ void LoadFonts(const State& s) {
         font->Scale = 1.0f / rasterScale;
         return font;
     };
-    // the game size also draws the summary bars' cards (Port::CardFont): Pokémon names may hold ♀ / ♂
-    static const ImWchar kGenderSigns[] = { 0x2640, 0x2640, 0x2642, 0x2642, 0 };
-    if (gUnifont.data.empty()) {
-        LoadExtraFont(gUnifont, "fonts/unifont_subset.otf");
+    // The game size also draws the summary bars' cards and the trainer memory screen (Port::CardFont). The built-in
+    // font draws Latin-1 except '-', which its 16 px raster leaves blank (a one-pixel stroke lost when rasterized:
+    // the cards' unknown moves and Speed ranges lost their dashes). The game text's own font, Unifont or Pop
+    // (gPort.TextFont 1, as text_lookup.cpp), draws '-' and every other character the built-in one lacks: ♀ / ♂ and
+    // the port.csv text of the system's and the ROM's languages.
+    static const ImWchar kGameLatin[] = { 0x0020, 0x002C, 0x002E, 0x00FF, 0 };
+    ExtraFont& gameFallback = (CVarGetInteger("gPort.TextFont", 0) == 1) ? gPopFont : gUnifont;
+    if (gameFallback.data.empty()) {
+        LoadExtraFont(gameFallback, &gameFallback == &gPopFont ? "fonts/pop_subset.ttf" : "fonts/unifont_subset.otf");
+    }
+    static ImVector<ImWchar> gameRanges;
+    if (gameRanges.empty()) {
+        ImFontGlyphRangesBuilder builder;
+        builder.AddChar(0x2D);
+        builder.AddChar(0x2640);
+        builder.AddChar(0x2642);
+        builder.AddText(Port::PortTextCharacters({ Port::SystemLanguage(), Port::RomLanguage(s.rom) }).c_str());
+        builder.BuildRanges(&gameRanges);
     }
     auto addGame = [&](float rasterScale) {
-        ImFont* font = add(16, rasterScale);
-        if (!gUnifont.data.empty()) {
-            ImFontConfig cfg;
-            cfg.MergeMode = true;
-            cfg.FontDataOwnedByAtlas = false;
-            cfg.PixelSnapH = true;
-            io.Fonts->AddFontFromMemoryTTF(gUnifont.data.data(), (int)gUnifont.data.size(), 16 * rasterScale, &cfg,
-                                           kGenderSigns);
+        ImFontConfig cfg;
+        cfg.SizePixels = 16 * rasterScale;
+        cfg.GlyphRanges = kGameLatin;
+        ImFont* font = io.Fonts->AddFontDefault(&cfg);
+        if (!gameFallback.data.empty()) {
+            ImFontConfig merge;
+            merge.MergeMode = true;
+            merge.FontDataOwnedByAtlas = false;
+            merge.PixelSnapH = true;
+            io.Fonts->AddFontFromMemoryTTF(gameFallback.data.data(), (int)gameFallback.data.size(), 16 * rasterScale,
+                                           &merge, gameRanges.Data);
         }
+        font->Scale = 1.0f / rasterScale;
         return font;
     };
     for (float scale : {0.625f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f}) {
@@ -1178,6 +1196,9 @@ class LauncherWindow : public Ship::GuiWindow {
         if (getenv("PORT_LAUNCHER_OPEN_ENHANCEMENTS") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
             mGraphicsTestOpened = mEnhancements = true;
         }
+        if (getenv("PORT_LAUNCHER_OPEN_ENHANCEMENTS2") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
+            mGraphicsTestOpened = mEnhancements = mMewtwoRival = true;
+        }
         if (getenv("PORT_LAUNCHER_OPEN_STATEXP") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
             mGraphicsTestOpened = mEnhancements = mStatDifficulty = true;
         }
@@ -1209,6 +1230,8 @@ class LauncherWindow : public Ship::GuiWindow {
             StatDifficultyPanel(16, 58, DesignW() - 32, 366);
         } else if (mEnhancements && mRestored) {
             RestoredPanel(16, 58, DesignW() - 32, 366);
+        } else if (mEnhancements && mMewtwoRival) {
+            MewtwoRivalPanel(16, 58, DesignW() - 32, 366);
         } else if (mEnhancements) {
             EnhancementsPanel(16, 58, DesignW() - 32, 366);
         } else if (mGraphics) {
@@ -2351,13 +2374,19 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(x + 14, y + 14, "ENHANCEMENTS", gFonts.body, Theme::text);
         Text(x + 140, y + 15, "Additions to the original game. On by default; turn off any you do not want.", gFonts.small, Theme::dim);
         if (Button("Done", x + w - 108, y + 9, 94, 26)) {
-            mEnhancements = mStatDifficulty = mRestored = false;
+            mEnhancements = mStatDifficulty = mRestored = mMewtwoRival = false;
         }
         if (Button("Restored content", x + w - 262, y + 9, 146, 26)) {
             mRestored = true;
         }
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Gallery, Nidoqueen's animation and Jynx's colour from other Stadium releases you provide");
+        }
+        if (Button("Mewtwo and rival", x + w - 416, y + 9, 146, 26)) {
+            mMewtwoRival = true;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Harder vs Mewtwo and the Gym Leader Castle rival fix");
         }
         dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
         const float lx = x + 14, cx = x + 190, tx = x + 370;
@@ -2434,6 +2463,55 @@ class LauncherWindow : public Ship::GuiWindow {
                      name(r[0]) + ", opponents " + name(r[1]) + ".",
                  gFonts.small, Theme::dim);
             ry += 60;
+        }
+    }
+
+    // launcher > Graphics > Enhancements > Mewtwo and rival: the enhancements of this game's own battles
+    // (hippodrome-utils docs/specs/game_specific/1): Harder vs Mewtwo (HARDER_VS_MEWTWO.md; its labels are the spec's)
+    // and the rival fix (RIVAL_BUG_FIX.md)
+    void MewtwoRivalPanel(float x, float y, float w, float h) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "MEWTWO AND RIVAL", gFonts.body, Theme::text);
+        Text(x + 180, y + 15, "Enhancements of the Vs. Mewtwo battle and the Gym Leader Castle's rival.", gFonts.small,
+             Theme::dim);
+        if (Button("Back", x + w - 108, y + 9, 94, 26)) {
+            mMewtwoRival = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+        const float lx = x + 14, cx = x + 190, tx = x + 370;
+        float ry = y + 60;
+        {
+            static const char* kHints[PORT_MEWTWO_TIERS] = {
+                "Off: the original battle.",
+                "Easy: 10%",
+                "Medium: 30%",
+                "Hard: 50%",
+                "Lunatic: 80%",
+                "Kaizo: No blunders and no move skips.",
+            };
+            const int tier = Port_Enh_HarderMewtwo();
+            Text(lx, ry + 5, "Harder vs Mewtwo", gFonts.body);
+            const int c = Choice("mewtwo", { "Off", "Easy", "Medium", "Hard", "Lunatic", "Kaizo" }, tier, cx, ry, 80);
+            if (c >= 0) Port_Enh_SetHarderMewtwo(c);
+            Text(lx, ry + 33,
+                 std::string("Mewtwo knows twelve moves (Heal Bell and Earthquake among them), cannot be frozen and, in Round 2, "
+                             "acts twice a turn.\nIts play gets sharper with each setting. Now: ") +
+                     kHints[tier >= 0 && tier < PORT_MEWTWO_TIERS ? tier : 0],
+                 gFonts.small, Theme::dim);
+            ry += 70;
+        }
+        {
+            Text(lx, ry + 5, "Rival fix", gFonts.body);
+            Text(tx, ry + 1,
+                 "In the Gym Leader Castle, the rival's team follows your Game Boy\n"
+                 "game's starter even with a registered team (the game took those as\n"
+                 "rentals). The starter is noted when a team is registered.",
+                 gFonts.small, Theme::dim);
+            const int c = Choice("rival", { "On", "Off" }, Port_Enh_RivalFixEnabled() != 0 ? 0 : 1, cx, ry);
+            if (c >= 0) Port_Enh_SetRivalFixEnabled(c == 0);
+            ry += 58;
         }
     }
 
@@ -2769,14 +2847,14 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button(mSound ? "Players" : "Sound", x + 234, y + 86, 96, 26)) {
             mSound = !mSound;
             mGraphics = mControls = mTools = false;
-            mEnhancements = mStatDifficulty = mRestored = false;
+            mEnhancements = mStatDifficulty = mRestored = mMewtwoRival = false;
         }
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Volume of music, sound effects, voices and the Game Boy; mute in the background");
         }
         if (Button(mGraphics ? "Players" : "Graphics", x + 340, y + 86, 100, 26)) {
             mGraphics = !mGraphics;
-            mEnhancements = mStatDifficulty = mRestored = false;
+            mEnhancements = mStatDifficulty = mRestored = mMewtwoRival = false;
             mControls = mTools = mSound = false;
         }
         if (ImGui::IsItemHovered()) {
@@ -2785,12 +2863,12 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button(mControls ? "Players" : "Controls", x + 450, y + 86, 100, 26)) {
             mControls = !mControls;
             mGraphics = mTools = mSound = false;
-            mEnhancements = mStatDifficulty = mRestored = false;
+            mEnhancements = mStatDifficulty = mRestored = mMewtwoRival = false;
         }
         if (Button(mEnhancements ? "Players" : "Enhancements", x + 560, y + 86, 124, 26)) {
             const bool open = !mEnhancements;
             mEnhancements = open;
-            mStatDifficulty = mRestored = false;
+            mStatDifficulty = mRestored = mMewtwoRival = false;
             mGraphics = mControls = mTools = mSound = false;
         }
         if (ImGui::IsItemHovered()) {
@@ -3144,6 +3222,7 @@ class LauncherWindow : public Ship::GuiWindow {
     bool mEnhancements = false;   // in the graphics panel: the enhancements page
     bool mStatDifficulty = false; // in the enhancements page: the Stat Exp difficulty page
     bool mRestored = false;       // in the enhancements page: the restored content page
+    bool mMewtwoRival = false;    // in the enhancements page: Harder vs Mewtwo and the rival fix
     bool mSound = false;    // the sound panel instead of the player cards
     bool mSoundTestOpened = false;
     bool mGraphicsTestOpened = false;
@@ -3239,15 +3318,23 @@ bool RunScriptStep(const ScriptStep& st) {
 
 namespace Port {
 
-// The launcher's game-size font (16 px, ♀ / ♂ included) in the raster closest to `pixels`, for the port's own windows
-// during play (the summary bars: summary_bars.cpp). nullptr before the launcher has built its fonts.
+// The launcher's game-size font (16 px, ♀ / ♂ included) for the port's own windows during play (the summary bars,
+// the trainer memory screen), in the largest raster not bigger than `pixels`, the smallest size the caller draws: text
+// drawn smaller than its raster loses one-pixel strokes (a '-' vanished), drawn larger it only softens. nullptr
+// before the launcher (or EnsureGameFonts) has built its fonts.
 ImFont* CardFont(float pixels) {
     if (gFontSets.empty()) return nullptr;
-    const float target = std::max(0.01f, pixels / 16.0f);
-    const auto nearest = std::min_element(gFontSets.begin(), gFontSets.end(), [target](const FontSet& a, const FontSet& b) {
-        return std::abs(std::log(a.rasterScale / target)) < std::abs(std::log(b.rasterScale / target));
-    });
-    return nearest->fonts.game;
+    const FontSet* best = &gFontSets.front(); // (the smallest: the sets are in increasing order)
+    for (const FontSet& set : gFontSets) {
+        if (16.0f * set.rasterScale <= pixels * 1.05f && set.rasterScale > best->rasterScale) best = &set;
+    }
+    return best->fonts.game;
+}
+
+void EnsureGameFonts() {
+    if (gFontSets.empty()) {
+        LoadFonts(Load());
+    }
 }
 
 std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool& restart) {

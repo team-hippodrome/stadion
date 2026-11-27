@@ -33,7 +33,7 @@ def tables():
         moves = [int(x, 0) for x in m.group(11).split(",")]
         species[g[0]] = {"hp": g[1], "atk": g[2], "def": g[3], "spd": g[4], "spc": g[5], "t1": g[6], "t2": g[7],
                          "cr": g[8], "moves": moves, "growth": int(m.group(12))}
-    body = src[src.index("MoveData gMoveDataWithZeroth[166] = {"):]
+    body = src[src.index("= {", src.index("MoveData gMoveDataWithZeroth[")):]
     body = body[:body.index("};")]
     pp = {int(m.group(1)): int(m.group(2)) for m in
           re.finditer(r"\{(\d+),\s*\d+,\s*\d+,\s*\d+,\s*(?:0x[0-9A-Fa-f]+|\d+),\s*(\d+)\}", body)}

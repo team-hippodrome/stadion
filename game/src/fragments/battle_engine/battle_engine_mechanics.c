@@ -1515,6 +1515,10 @@ void ProcessBattleTurn(void) {
     s8 sp2C[12];
     s32 port_can_act;
 
+    // PORT: harder Vs. Mewtwo's skipped second action ("MEWTWO is watching ... carefully!")
+    if (PortEnh_MewtwoPassAction()) {
+        return;
+    }
     if (sBattleUser->usedMove != 0xFF) {
         sBattleMoveFailed = 0;
         D_843C4DB5 = 0;
@@ -1555,6 +1559,11 @@ void ProcessBattleTurn(void) {
                         sBattleDamage = 0;
                     }
 
+                    BattleEffect_ExecuteMoveEffect();
+                    return;
+                }
+                // PORT: Heal Bell (harder Vs. Mewtwo) is a status move too (src/port/enhancements/heal_bell.c)
+                if (sBattleUser->moveCache.effect == PORT_EFFECT_HEAL_BELL) {
                     BattleEffect_ExecuteMoveEffect();
                     return;
                 }
@@ -1946,11 +1955,16 @@ void Battle_ResolveMonAction(void) {
     sBattleUser = sp1C;
     sBattleTarget = sp18;
     ProcessBattleTurn();
-    Battle_ApplyResidualEffects();
+    // PORT: in harder Vs. Mewtwo's Round 2, Mewtwo takes residual damage after its second action, not its first
+    if (!PortEnh_MewtwoSkipResidual()) {
+        Battle_ApplyResidualEffects();
+    }
+    PortEnh_MewtwoActionResolved();
 
     if (D_84390288 == 0) {
         Battle_CheckFaintAfterMove();
     }
+    PortEnh_HealBellResolved(); // PORT: Heal Bell's presentation stand-in (src/port/enhancements/heal_bell.c)
     Port_XcheckBattleEvent("resolved");
 }
 

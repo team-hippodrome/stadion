@@ -656,6 +656,8 @@ void BattleScene_TriggerCpuChoice(UNUSED BattleMonRuntime* arg0, UNUSED BattleMo
     if ((sElapsedOrderSelectionTime == 1.0f) && (sFallbackToAiChoice == 0)) {
         sFallbackToAiChoice = 1;
         sActionChosen = BattleAI_ChooseAction(0);
+        // PORT: harder Vs. Mewtwo picks the slot with its own rules (src/port/enhancements/harder_mewtwo.c)
+        sActionChosen = PortEnh_MewtwoChooseAction(NULL, sActionChosen);
     }
 }
 

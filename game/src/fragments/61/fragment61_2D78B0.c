@@ -692,6 +692,7 @@ s32 Team_CommitSelectionToTrainer(unk_D_8423D3D8* arg0, s16 arg1) {
     if (arg1 == 4) {
         temp_s3 = RegisteredTeam_LoadSelected(&D_84229EB0, &sp34);
         if (sp34 != NULL) {
+            PortEnh_RivalTeamPicked(sp34); // PORT: rival bug fix (an enhancement): the team's Game Boy starter
             arg0->unk_04->unk_018 = sp34->unk_4D10;
             if (gSessionContext.mode != 0) {
                 HAL_Strcpy(arg0->unk_04->trainerName, sp34->unk_4D12);
@@ -965,6 +966,7 @@ void RegisteredTeam_Register(void) {
             HAL_Strcpy(sp74, Text_GetPlayerLabel(1));
             var_s1 = 0;
         }
+        PortEnh_RivalRegisterSource(temp_v0); // PORT: rival bug fix (an enhancement): the team's Game Boy starter
 
         ptr = &D_84229EB0;
         D_84210D44 |=

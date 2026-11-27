@@ -1,3 +1,4 @@
+#include "StadionPort.h"
 #include "rental_team_selection.h"
 #include "src/ui_graphics.h"
 #include "src/gb_data.h"
@@ -37,6 +38,7 @@ s32 func_8420DBA0(unk_D_84229EB0_00024* arg0) {
 
         Deck_CloseAndFlush(temp_s3);
         Save_FlushDirtyBanks();
+        PortEnh_RivalTeamSaved(arg0); // PORT: rival bug fix (an enhancement): its Game Boy starter into the side file
         ret = 1;
     }
     return ret;

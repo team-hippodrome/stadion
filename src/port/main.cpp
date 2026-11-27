@@ -524,6 +524,7 @@ static int RunGame(int argc, char** argv) {
             return 1;
         }
     }
+    Port::EnsureGameFonts(); // (the launcher loads them when it shows)
     // the other releases the player provided beside it (restored content: Gallery, Nidoqueen, Jynx)
     Port::LoadRestoredContent();
 #if defined(__EMSCRIPTEN__)

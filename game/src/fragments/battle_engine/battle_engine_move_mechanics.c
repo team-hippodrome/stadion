@@ -4,6 +4,7 @@
 #include "src/text_system.h"
 #include "status.h"
 #include "types.h"
+#include "StadionPort.h"
 
 /*
  * Move-effect dispatch and runtime mutations. Effect IDs come from gMoveData;
@@ -127,7 +128,7 @@ static MoveEffectCallback sMoveEffectHandlers[] = {
     BattleEffect_LeechSeed,
     BattleEffect_Splash,
     BattleEffect_Disable,
-    NULL,
+    PortEnh_HealBellEffect, // PORT: was NULL; effect 0x57, Heal Bell (src/port/enhancements/heal_bell.c)
 };
 
 /* Rebuild one modified stat from its base value and 1-based stage, clamped to 1-999. */
@@ -344,7 +345,9 @@ void BattleEffect_SecondaryStatusChance(void) {
 
             case EFFECT_FREEZE_10_PERCENT:
             case EFFECT_FREEZE_30_PERCENT:
-                if (Battle_FreezeClauseInEffect(sActivePokemon[!sBattleScene.scene->actingSide]) == 0) {
+                // PORT: harder Vs. Mewtwo's Mewtwo cannot be frozen (src/port/enhancements/harder_mewtwo.c)
+                if (Battle_FreezeClauseInEffect(sActivePokemon[!sBattleScene.scene->actingSide]) == 0 &&
+                    !PortEnh_MewtwoFreezeImmune(sActivePokemon[!sBattleScene.scene->actingSide])) {
                     sBattleTarget->volatileStatusFlags &= ~VOLATILE_STATUS_RECHARGE;
                     sBattleTarget->pendingStatusCondition = STATUS_FREEZE;
                     Text_SetStringToken(0x19,
@@ -1253,6 +1256,8 @@ void BattleEffect_Transform(void) {
         for (i = 0; i < 8; i++) {
             sBattleUser->statChanges[i] = sBattleTarget->statChanges[i];
         }
+        // PORT: Harder vs Mewtwo: transformed into its Mewtwo, the user gets its vanilla moveset (enhancements)
+        PortEnh_MewtwoTransformed(sBattleUser, sActivePokemon[!sBattleScene.scene->actingSide]);
         return;
     }
 

@@ -44,7 +44,7 @@ class MemoryScreenWindow : public Ship::GuiWindow {
         mX0 = vp->Pos.x + (W - picH * 4.0f / 3.0f) / 2;
         mY0 = vp->Pos.y + (H - picH) / 2;
         mDl = ImGui::GetForegroundDrawList(); // over the game's picture
-        mFont = Port::CardFont(14.0f * mScale);
+        mFont = Port::CardFont(12.0f * mScale); // (its smallest text: the Speed line)
         if (mFont == nullptr) mFont = ImGui::GetFont();
 
         if (!v.open) {
@@ -139,7 +139,10 @@ class MemoryScreenWindow : public Ship::GuiWindow {
             Txt(x, y, 14.0f, w, Str("PORT_MEMORY_TEAM_UNKNOWN"), Col(0xA0, 0xA0, 0xA0, 0xFF));
             return;
         }
-        const float monH = std::min(48.0f, (kWinY + kWinH - 8.0f - y) / v.teamCount);
+        // a Pokémon listing more than four moves (Mewtwo under Harder vs Mewtwo) takes a taller row
+        int pairs = (HU_TM_MOVES + 1) / 2;
+        for (int i = 0; i < v.teamCount && i < HU_TM_TEAM_MAX; i++) pairs = std::max(pairs, (v.team[i].moveCount + 1) / 2);
+        const float monH = std::min(std::max(48.0f, pairs * 19.0f + 10.0f), (kWinY + kWinH - 8.0f - y) / v.teamCount);
         const float icon = std::min(40.0f, monH - 6.0f);
         const float textX = x + icon + 8.0f, movesX = x + 170.0f, mw = (x + w - movesX) / 2;
         for (int i = 0; i < v.teamCount && i < HU_TM_TEAM_MAX; i++) {
@@ -164,7 +167,7 @@ class MemoryScreenWindow : public Ship::GuiWindow {
                 Txt(textX, ry + 28.0f, 12.0f, movesX - textX - 6.0f, buf, Col(0x90, 0xD8, 0xFF, 0xFF));
             }
             // the moves seen, two by two; the others as dashes
-            for (int k = 0; k < HU_TM_MOVES; k++) {
+            for (int k = 0; k < m.moveCount && k < PORT_ENH_BIG_MOVES; k++) {
                 if (m.moves[k][0] == '\0') continue; // an empty slot
                 const float kx = movesX + (k & 1) * mw, ky = ry + (k >> 1) * 19.0f + 3.0f;
                 const bool seen = !(m.moves[k][0] == '-' && m.moves[k][1] == '\0');

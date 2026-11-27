@@ -142,6 +142,15 @@ char* Text_GetString(char* text, s32 text_length, char** string_array, u32 file_
     if (string_array == NULL) {
         return ""; // PORT: text archive not available yet (its tables are big-endian 32-bit offsets)
     }
+    if (string_array == sTextTables[0x25] && file_number == PORT_MOVE_HEAL_BELL - 1) {
+        // PORT: Heal Bell, the move harder Vs. Mewtwo adds after the ROM's 165 (src/port/enhancements/heal_bell.c)
+        const char* name = Port_TextPortString("PORT_MOVE_HEAL_BELL");
+        if (text == NULL) {
+            return (char*)name;
+        }
+        Text_SubstituteTokens(text, text_length, (s8*)name);
+        return text;
+    }
     if (file_number >= ((u32*)string_array)[0]) {
         // PORT: out of range (e.g. Oak's gift Pokémon with an unset id 0xFFFF): the N64 read junk memory here and
         // printed garbage; on the host that is a wild pointer

@@ -601,6 +601,15 @@ void BattleScene_CleanupActionAndAdvance(void) {
     BattleMonRuntime* other_pokemon_state;
     ActivePokemonState* acting_pokemon_runtime;
 
+    // PORT: harder Vs. Mewtwo's second action in Round 2, before the turn moves on (harder_mewtwo.c)
+    if (PortEnh_MewtwoActAgainPending()) {
+        BattleAnim_ClearRockThrowingMoveFlag(sActivePokemon[sBattleScene.scene->actingSide]);
+        Audio_FadeAndClearStoredSounds();
+        BattleScene_ResetModelReloadStep();
+        if (PortEnh_MewtwoActAgain()) {
+            return;
+        }
+    }
     if (sBattleScene.scene->actionPass == BATTLE_ACTION_FIRST) {
         BattleAnim_ClearRockThrowingMoveFlag(sActivePokemon[sBattleScene.scene->actingSide]);
         Audio_FadeAndClearStoredSounds();
@@ -670,6 +679,15 @@ s32 BattleScene_HandleFaintStatusCompletion(void) {
 }
 
 void BattleScene_CompleteActionPhase(void) {
+    // PORT: harder Vs. Mewtwo's second action in Round 2, before the turn moves on (harder_mewtwo.c)
+    if (PortEnh_MewtwoActAgainPending()) {
+        BattleAnim_ClearRockThrowingMoveFlag(sActivePokemon[sBattleScene.scene->actingSide]);
+        Audio_FadeAndClearStoredSounds();
+        BattleScene_ResetModelReloadStep();
+        if (PortEnh_MewtwoActAgain()) {
+            return;
+        }
+    }
     if ((sBattleScene.scene->actionPass == BATTLE_ACTION_FIRST) &&
         ((sNonActingPokemon->state.runtime.usedMove & 0xF0) != 0xF0)) {
         BattleAnim_ClearRockThrowingMoveFlag(sActivePokemon[sBattleScene.scene->actingSide]);
@@ -2396,7 +2414,10 @@ void BattleScene_PhaseSelfTargetMove(CameraNode* camera) {
                 BattleBox_Open(15);
             }
 
-            if (Battle_IsRowAnimationSettled(sActingPokemon, 60) != 0) {
+            // PORT: and Heal Bell's bell has rung out (src/port/enhancements/heal_bell.c; it keeps the settle, which
+            // is a single frame of the row's animation, until then)
+            if (PortEnh_HealBellSettled(Battle_IsRowAnimationSettled(sActingPokemon, 60))) {
+                PortEnh_HealBellReset();
                 BattleScene_ResetCameraFrameCounter();
                 sBattleScene.scene->phaseStep++;
             }

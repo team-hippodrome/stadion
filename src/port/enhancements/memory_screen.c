@@ -20,6 +20,7 @@
 #include "src/audio_sfx.h"
 #include "src/gb_data.h"
 #include "src/text_system.h"
+#include "pokemon.h"
 
 #include "StadionPort.h"
 #include "enhancements.h"
@@ -190,6 +191,26 @@ static void Publish(void) {
         out->level = m->level;
         out->iconKey = PortEnh_SpeciesIcon(m->species);
         out->hasSpeed = hu_tm_mon_speed(m, base, se_lo, se_hi, &out->speed) ? 1 : 0;
+        out->moveCount = HU_TM_MOVES;
+        if (Port_Enh_HarderMewtwo() != 0 && gSessionContext.mode == SESSION_MODE_VS_MEWTWO && t->team_count == 1 &&
+            m->species == MEWTWO) {
+            // Harder vs Mewtwo: the moves seen, from its side file; four rows at first, one more per move past them
+            u16 seen[PORT_ENH_BIG_MOVES];
+            const s32 n = Port_Enh_MewtwoMemoryMoves(&sKeys[sCursor], seen, PORT_ENH_BIG_MOVES);
+            out->moveCount = (u8)(n > HU_TM_MOVES ? n : HU_TM_MOVES);
+            for (k = 0; k < out->moveCount; k++) {
+                out->moveTypes[k] = HU_TYPE_UNKNOWN;
+                if (k < n && seen[k] >= 1 && seen[k] <= PORT_MOVE_HEAL_BELL) {
+                    if (move_names != NULL) {
+                        Utf8(Text_GetString(NULL, 0, move_names, seen[k] - 1), out->moves[k], PORT_ENH_TEXT);
+                    }
+                    out->moveTypes[k] = HuType(gMoveData[seen[k] - 1].type);
+                } else {
+                    strcpy(out->moves[k], "-");
+                }
+            }
+            continue;
+        }
         for (k = 0; k < HU_TM_MOVES; k++) {
             u16 move = m->moves[k];
             out->moveTypes[k] = HU_TYPE_UNKNOWN;

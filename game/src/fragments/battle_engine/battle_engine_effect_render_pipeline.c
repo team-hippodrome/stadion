@@ -1,5 +1,6 @@
 #include "battle_engine.h"
 #include "src/gfx_buffer.h"
+#include "StadionPort.h"
 
 void BattleAnim_RenderNop1(void) {
 }
@@ -18,6 +19,7 @@ void BattleAnim_DrawFullScreenColorOverlay(u8 arg0, u8 arg1, u8 arg2, u8 arg3) {
 
 void BattleAnim_RenderEffectsFrame(CameraNode* camera) {
     BattleAnim_DrawEffectCallbacks(camera);
+    PortEnh_HealBellDraw(); // PORT: Heal Bell's bell (src/port/enhancements/heal_bell.c)
     sParticleMatrixPool = Gfx_AllocDisplayList(sizeof(ParticleMatrixPool));
     sParticleMatrixPoolIndex = 0;
     gBattleAnimFrameCounter += 1;
