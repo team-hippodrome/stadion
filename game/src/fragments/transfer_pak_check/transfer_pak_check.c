@@ -1154,33 +1154,73 @@ void PakUi_DrawTitleHeader(s16 arg0) {
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 }
 
+// The German, Italian and Spanish releases keep the party card badges and header at other
+// segment 3 offsets.
+#if defined(VERSION_DE) || defined(VERSION_IT)
+extern u8 D_300CA60[];
+extern u8 D_300DC60[];
+extern u8 D_300EE60[];
+extern u8 D_3010060[];
+extern u8 D_3011260[];
+extern u8 D_3007C40[];
+#define PARTY_BADGE_0 D_3010060
+#define PARTY_BADGE_1 D_300EE60
+#define PARTY_BADGE_2 D_300DC60
+#define PARTY_BADGE_3 D_300CA60
+#define PARTY_BADGE_7 D_3011260
+#define PARTY_CARD_HEADER D_3007C40
+#elif defined(VERSION_ES)
+extern u8 D_3005840[];
+extern u8 D_3006A40[];
+extern u8 D_3007C40[];
+extern u8 D_3008E40[];
+extern u8 D_300A040[];
+extern u8 D_3000A20[];
+#define PARTY_BADGE_0 D_3008E40
+#define PARTY_BADGE_1 D_3007C40
+#define PARTY_BADGE_2 D_3006A40
+#define PARTY_BADGE_3 D_3005840
+#define PARTY_BADGE_7 D_300A040
+#define PARTY_CARD_HEADER D_3000A20
+#elif defined(VERSION_JP)
+// Segment 3 holds a different asset at 0x3004E20 than the one fragment17 names D_3004E20.
+#define PARTY_BADGE_0 D_3008420
+#define PARTY_BADGE_1 D_3007220
+#define PARTY_BADGE_2 D_3006020
+#define PARTY_BADGE_3 D_03004E20_jp
+#define PARTY_BADGE_7 D_3009620
+#define PARTY_CARD_HEADER D_3000000
+#else
+#define PARTY_BADGE_0 D_3008420
+#define PARTY_BADGE_1 D_3007220
+#define PARTY_BADGE_2 D_3006020
+#define PARTY_BADGE_3 D_3004E20
+#define PARTY_BADGE_7 D_3009620
+#define PARTY_CARD_HEADER D_3000000
+#endif
+
 void PakUi_DrawPartyCardBadge(s32 arg0) {
     u8* var_t0;
 
     switch (D_82D0AB38[arg0].unk_01) {
         default:
-            var_t0 = D_3008420;
+            var_t0 = PARTY_BADGE_0;
             break;
 
         case 1:
-            var_t0 = D_3007220;
+            var_t0 = PARTY_BADGE_1;
             break;
 
         case 2:
-            var_t0 = D_3006020;
+            var_t0 = PARTY_BADGE_2;
             break;
 
         case 3:
-#if defined(VERSION_JP)
-            // Segment 3 holds a different asset at 0x3004E20 than the one fragment17 names D_3004E20.
-            var_t0 = D_03004E20_jp;
-#else
-            var_t0 = D_3004E20;
-#endif
+            var_t0 = PARTY_BADGE_3;
             break;
 
         case 7:
-            var_t0 = D_3009620;
+            var_t0 = PARTY_BADGE_7;
             break;
     }
 
@@ -1196,7 +1236,7 @@ void PakUi_DrawPartyCardList(u8 arg0) {
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, arg0);
 
-    Gfx_DrawTextureRgba16(0xC, 0x60, 0x64, 0x14, D_3000000, 0x64, 0);
+    Gfx_DrawTextureRgba16(0xC, 0x60, 0x64, 0x14, PARTY_CARD_HEADER, 0x64, 0);
     Gfx_DrawTextureRgba16(0xC, 0x74, 0x64, 0x14, D_3000FA0, 0x64, 0);
     Gfx_DrawTextureRgba16(0xC, 0x88, 0x64, 0x14, D_3001F40, 0x64, 0);
     Gfx_DrawTextureRgba16(0xC, 0x9C, 0x64, 0x14, D_3002EE0, 0x64, 0);
@@ -1696,32 +1736,32 @@ void PakUi_DrawDataSummaryPanel(s16 arg0, s16 arg1, SessionContinueData* arg2, s
             PakUi_DrawMenuOptionText(0xC5, temp_s0 + 0xC7, 2, arg1, "ちゅうだんデータをけす");
             Gfx_SetEnvColor(0xFF, 0x64, 0x64, 0xFF);
 
-            if (arg2->unk_00 == 7) {
-                Font_Printf(0xA9, temp_s0 + 0x2D, D_82D065D4_jp[arg2->unk_00 - 1]);
-                Font_Printf(0xA9, temp_s0 + 0x4B, D_82D065D4_jp[arg2->unk_01 + 0x13]);
+            if (arg2->sessionMode == 7) {
+                Font_Printf(0xA9, temp_s0 + 0x2D, D_82D065D4_jp[arg2->sessionMode - 1]);
+                Font_Printf(0xA9, temp_s0 + 0x4B, D_82D065D4_jp[arg2->cupOrGymIndex + 0x13]);
 
-                if (arg2->unk_01 < 8) {
-                    if (arg2->unk_02 < 4) {
-                        Font_Printf(0xA9, temp_s0 + 0x69, "トレーナー%d", arg2->unk_02);
+                if (arg2->cupOrGymIndex < 8) {
+                    if (arg2->trainerIndex < 4) {
+                        Font_Printf(0xA9, temp_s0 + 0x69, "トレーナー%d", arg2->trainerIndex);
                     } else {
                         Font_Printf(0xA9, temp_s0 + 0x69, "ジムリーダー");
                     }
                 } else {
-                    Font_Printf(0xA9, temp_s0 + 0x69, "してんのう%d", arg2->unk_02);
+                    Font_Printf(0xA9, temp_s0 + 0x69, "してんのう%d", arg2->trainerIndex);
                 }
-            } else if ((arg2->unk_00 == 3) || (arg2->unk_00 == 6)) {
-                Font_Printf(0xA9, temp_s0 + 0x2D, D_82D065D4_jp[arg2->unk_00 - 1]);
-                Font_Printf(0xA9, temp_s0 + 0x4B, D_82D065D4_jp[arg2->unk_01 + 7]);
-                Font_Printf(0xA9, temp_s0 + 0x69, D_82D065D4_jp[arg2->unk_02 + 0xA]);
+            } else if ((arg2->sessionMode == 3) || (arg2->sessionMode == 6)) {
+                Font_Printf(0xA9, temp_s0 + 0x2D, D_82D065D4_jp[arg2->sessionMode - 1]);
+                Font_Printf(0xA9, temp_s0 + 0x4B, D_82D065D4_jp[arg2->cupOrGymIndex + 7]);
+                Font_Printf(0xA9, temp_s0 + 0x69, D_82D065D4_jp[arg2->trainerIndex + 0xA]);
             } else {
-                Font_Printf(0xA9, temp_s0 + 0x2D, D_82D065D4_jp[arg2->unk_00 - 1]);
-                Font_Printf(0xA9, temp_s0 + 0x4B, D_82D065D4_jp[arg2->unk_02 + 0xA]);
+                Font_Printf(0xA9, temp_s0 + 0x2D, D_82D065D4_jp[arg2->sessionMode - 1]);
+                Font_Printf(0xA9, temp_s0 + 0x4B, D_82D065D4_jp[arg2->trainerIndex + 0xA]);
             }
 
-            if (arg2->unk_00 != 7) {
+            if (arg2->sessionMode != 7) {
                 Font_SetActive(8, -2);
                 Gfx_SetEnvColor(0xFF, 0xFF, 0xFF, 0xFF);
-                Font_Printf(0x12D, temp_s0 + 0x85, "コンティニュー＝%d", arg2->unk_04);
+                Font_Printf(0x12D, temp_s0 + 0x85, "コンティニュー＝%d", arg2->continueCount);
             }
 
             Font_SetActive(8, -3);
@@ -1730,9 +1770,9 @@ void PakUi_DrawDataSummaryPanel(s16 arg0, s16 arg1, SessionContinueData* arg2, s
             Font_Printf(0xA1, temp_s0 + 0x13E, "えらぶと　なくなります。");
             Font_EndTexturedTextRendering();
 
-            if (arg2->unk_03 == 1) {
+            if (arg2->inRound2 == 1) {
                 // Two bytes per EUC-JP glyph, 22 pixels per glyph.
-                s32 temp_v0_3 = (strlen(D_82D065D4_jp[arg2->unk_00 - 1]) / 2) * 0x16;
+                s32 temp_v0_3 = (strlen(D_82D065D4_jp[arg2->sessionMode - 1]) / 2) * 0x16;
 
                 gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
@@ -1771,35 +1811,42 @@ void PakUi_DrawDataSummaryPanel(s16 arg0, s16 arg1, SessionContinueData* arg2, s
                                      Text_GetString(NULL, 0, sGameFunctionalityText, 0x2D));
             Gfx_SetEnvColor(0xFF, 0x64, 0x64, 0xFF);
 
-            if (arg2->unk_00 == 7) {
-                Font_Printf(0xA9, temp_s0 + 0x2D, Text_GetString(NULL, 0, sGameFunctionalityText, arg2->unk_00 - 1));
-                Font_Printf(0xA9, temp_s0 + 0x4B, Text_GetString(NULL, 0, sGameFunctionalityText, arg2->unk_01 + 0x13));
+            if (arg2->sessionMode == 7) {
+                Font_Printf(0xA9, temp_s0 + 0x2D,
+                            Text_GetString(NULL, 0, sGameFunctionalityText, arg2->sessionMode - 1));
+                Font_Printf(0xA9, temp_s0 + 0x4B,
+                            Text_GetString(NULL, 0, sGameFunctionalityText, arg2->cupOrGymIndex + 0x13));
 
-                if (arg2->unk_01 < 8) {
-                    if (arg2->unk_02 < 4) {
-                        Text_SetNumberToken(1, arg2->unk_02);
+                if (arg2->cupOrGymIndex < 8) {
+                    if (arg2->trainerIndex < 4) {
+                        Text_SetNumberToken(1, arg2->trainerIndex);
                         Font_Printf(0xA9, temp_s0 + 0x69,
                                     Text_GetString(sp50, sizeof(sp50), sGameFunctionalityText, 0x2E));
                     } else {
                         Font_Printf(0xA9, temp_s0 + 0x69, Text_GetString(NULL, 0, sGameFunctionalityText, 0x2F));
                     }
                 } else {
-                    Text_SetNumberToken(1, arg2->unk_02);
+                    Text_SetNumberToken(1, arg2->trainerIndex);
                     Font_Printf(0xA9, temp_s0 + 0x69, Text_GetString(sp50, sizeof(sp50), sGameFunctionalityText, 0x30));
                 }
-            } else if ((arg2->unk_00 == 3) || (arg2->unk_00 == 6)) {
-                Font_Printf(0xA9, temp_s0 + 0x2D, Text_GetString(NULL, 0, sGameFunctionalityText, arg2->unk_00 - 1));
-                Font_Printf(0xA9, temp_s0 + 0x4B, Text_GetString(NULL, 0, sGameFunctionalityText, arg2->unk_01 + 7));
-                Font_Printf(0xA9, temp_s0 + 0x69, Text_GetString(NULL, 0, sGameFunctionalityText, arg2->unk_02 + 0xA));
+            } else if ((arg2->sessionMode == 3) || (arg2->sessionMode == 6)) {
+                Font_Printf(0xA9, temp_s0 + 0x2D,
+                            Text_GetString(NULL, 0, sGameFunctionalityText, arg2->sessionMode - 1));
+                Font_Printf(0xA9, temp_s0 + 0x4B,
+                            Text_GetString(NULL, 0, sGameFunctionalityText, arg2->cupOrGymIndex + 7));
+                Font_Printf(0xA9, temp_s0 + 0x69,
+                            Text_GetString(NULL, 0, sGameFunctionalityText, arg2->trainerIndex + 0xA));
             } else {
-                Font_Printf(0xA9, temp_s0 + 0x2D, Text_GetString(NULL, 0, sGameFunctionalityText, arg2->unk_00 - 1));
-                Font_Printf(0xA9, temp_s0 + 0x4B, Text_GetString(NULL, 0, sGameFunctionalityText, arg2->unk_02 + 0xA));
+                Font_Printf(0xA9, temp_s0 + 0x2D,
+                            Text_GetString(NULL, 0, sGameFunctionalityText, arg2->sessionMode - 1));
+                Font_Printf(0xA9, temp_s0 + 0x4B,
+                            Text_GetString(NULL, 0, sGameFunctionalityText, arg2->trainerIndex + 0xA));
             }
 
-            if (arg2->unk_00 != 7) {
+            if (arg2->sessionMode != 7) {
                 Font_SetActive(8, 0);
                 Gfx_SetEnvColor(0xFF, 0xFF, 0xFF, 0xFF);
-                Text_SetNumberToken(1, arg2->unk_04);
+                Text_SetNumberToken(1, arg2->continueCount);
                 Font_Printf(0x12D, temp_s0 + 0x85, Text_GetString(&sp50, 0x100, sGameFunctionalityText, 0x31));
             }
 
@@ -1809,9 +1856,9 @@ void PakUi_DrawDataSummaryPanel(s16 arg0, s16 arg1, SessionContinueData* arg2, s
             Font_Printf(0xA1, temp_s0 + 0x124, Text_GetString(NULL, 0, sGameFunctionalityText, 0x32));
             Font_EndTexturedTextRendering();
 
-            if (arg2->unk_03 == 1) {
-                s32 temp_v0_3 =
-                    Font_MeasureTextExtent(0x10, 0, Text_GetString(NULL, 0, sGameFunctionalityText, arg2->unk_00 - 1));
+            if (arg2->inRound2 == 1) {
+                s32 temp_v0_3 = Font_MeasureTextExtent(
+                    0x10, 0, Text_GetString(NULL, 0, sGameFunctionalityText, arg2->sessionMode - 1));
 
                 gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
@@ -2269,6 +2316,14 @@ static u8 D_82D09F14[] = {
 static unk_D_82D09F1C D_82D09F1C[] = {
     { 240, 120, 160, 140, 0xFF, 0x02, 0x04, 0x01 }, { 424, 180, 160, 80, 0xFF, 0xFF, 0x00, 0xFF },
     { 240, 284, 160, 36, 0x00, 0xFF, 0xFF, 0xFF },  { 424, 284, 160, 36, 0xFF, 0xFF, 0xFF, 0xFF },
+    { 56, 180, 160, 80, 0xFF, 0xFF, 0xFF, 0x00 },   { 56, 224, 160, 36, 0xFF, 0x06, 0xFF, 0xFF },
+    { 56, 276, 160, 36, 0x05, 0xFF, 0xFF, 0xFF },
+};
+#elif defined(VERSION_PAL)
+// PAL takes the first three entries from JP (menu icon 2 sits below icon 0) and entry 3 from US.
+static unk_D_82D09F1C D_82D09F1C[] = {
+    { 240, 120, 160, 140, 0xFF, 0x02, 0x04, 0x01 }, { 424, 180, 160, 80, 0xFF, 0xFF, 0x00, 0xFF },
+    { 240, 284, 160, 36, 0x00, 0xFF, 0xFF, 0xFF },  { 240, 276, 160, 52, 0x00, 0xFF, 0xFF, 0x02 },
     { 56, 180, 160, 80, 0xFF, 0xFF, 0xFF, 0x00 },   { 56, 224, 160, 36, 0xFF, 0x06, 0xFF, 0xFF },
     { 56, 276, 160, 36, 0x05, 0xFF, 0xFF, 0xFF },
 };
@@ -2857,7 +2912,14 @@ void TransferPak_MenuIconsInit(void) {
     Vec3f_SetComponentsDuplicate(&D_82D09FF8[0].position, -84.0f, 48.0f, -579.0f);
     Vec3f_SetComponentsDuplicate(&D_82D09FF8[1].position, 100.0f, 18.0f, -579.0f);
     Vec3f_SetComponentsDuplicate(&D_82D09FF8[3].position, -84.0f, -64.0f, -579.0f);
+#if defined(VERSION_PAL)
+    // PAL draws slot 2 (string 0x41) at slot 3's position and clears bit 0 of slot 3's node flags,
+    // as ModelRenderer_AttachDisplayObject does. //@src/model_renderer.c
+    Vec3f_SetComponentsDuplicate(&D_82D09FF8[2].position, -84.0f, -64.0f, -579.0f);
+    D_82D09FF8[3].node.flags &= ~1;
+#else
     Vec3f_SetComponentsDuplicate(&D_82D09FF8[2].position, 100.0f, -64.0f, -579.0f);
+#endif
     Vec3f_SetComponentsDuplicate(&D_82D09FF8[4].position, -268.0f, 18.0f, -579.0f);
     Vec3f_SetComponentsDuplicate(&D_82D09FF8[5].position, -268.0f, -4.0f, -579.0f);
     Vec3f_SetComponentsDuplicate(&D_82D09FF8[6].position, -268.0f, -56.0f, -579.0f);

@@ -1494,7 +1494,7 @@ unk_func_88205880_0098_008* LabPC_CreateMonDetailPanel(unk_func_88205880_0098* a
     ASSET_LOAD(D_1000000, common_menu1_ui, 0);
     sp38 = PokeIcon_CreateModelPreview(PokeIcon_AllocFramebuffers(1), 228, 160, 0, 0, 0xE0, 0xA0, D_8860A6D0);
     PokeIcon_OpenModelArchives();
-    FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);
+    FRAGMENT_LOAD(FRAGMENT_MODEL_CALLBACK_LIBRARY);
 
     D_8861C510 = arg0->unk_1C;
     D_8861C514 = arg0->unk_20;
@@ -1954,6 +1954,17 @@ u8 D_88606F30[] = {
 static Gfx D_88607730[] = {
     gsSPEndDisplayList(),
 };
+// Type name icons, which carry the type names in each language.
+#if defined(VERSION_ES)
+#include "lab_pc_icons_type_icons_es.inc.c"
+#elif defined(VERSION_DE)
+#include "lab_pc_icons_type_icons_de.inc.c"
+#else
+#if defined(VERSION_IT)
+#include "lab_pc_icons_type_icons_it.inc.c"
+#elif defined(VERSION_FR)
+#include "lab_pc_icons_type_icons_fr.inc.c"
+#else
 static u8 D_88607738[] = {
     0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52,
     0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95,
@@ -2671,6 +2682,8 @@ static u8 D_8860A368[] = {
     0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15,
     0x13, 0x15
 };
+#endif
+#endif
 u8* D_8860A688[] = {
     D_88607738, D_88607A60, D_88607D88, D_886080B0, D_886083D8, D_88608700, D_88608A28, D_88608D50,
     D_88609078, D_886093A0, D_886096C8, D_886099F0, D_88609D18, D_8860A040, D_8860A368,
