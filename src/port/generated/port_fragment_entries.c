@@ -60,7 +60,7 @@ extern void StadiumSelect_Main();
 extern void CupSelect_Main();
 extern void Rental_Main();
 extern void Battle_Main();
-extern void BattlePrep_RunRulesScreen();
+extern void BattlePrep_Main();
 extern void BattleMenu_RunOrderSelectScreen();
 extern void GymLeaderCastle_Main();
 extern void Stadium_BonusPikachuReward();
@@ -135,7 +135,7 @@ const struct PortFragmentEntry gPortFragmentEntries[] = {
     { 0x2D6080, 0x82E00000, (void*)CupSelect_Main, "fragment60" },
     { 0x2D7C60, 0x84200000, (void*)Rental_Main, "fragment61" },
     { 0x2EACD0, 0x84300000, (void*)Battle_Main, "fragment62" },
-    { 0x3945C0, 0x84B00000, (void*)BattlePrep_RunRulesScreen, "fragment63" },
+    { 0x3945C0, 0x84B00000, (void*)BattlePrep_Main, "fragment63" },
     { 0x3AF2E0, 0x84800000, (void*)BattleMenu_RunOrderSelectScreen, "fragment64" },
     { 0x3B2F80, 0x84A00000, (void*)GymLeaderCastle_Main, "fragment65" },
     { 0x3B65D0, 0x83200000, (void*)Stadium_BonusPikachuReward, "fragment66" },

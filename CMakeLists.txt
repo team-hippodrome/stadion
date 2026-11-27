@@ -153,6 +153,8 @@ endif()
 # Flags mirror tools/compile_flags.txt (used by tools/syntax_check.sh).
 # ---------------------------------------------------------------------------------------------
 file(GLOB_RECURSE STADIUM_GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/game/src/*.c)
+# *.inc.c files are #included by other game sources (as in the decomp), not compiled on their own
+list(FILTER STADIUM_GAME_SOURCES EXCLUDE REGEX "\\.inc\\.c$")
 # game/ is the vendored decomp (src, include, lib/ultralib): of its libultra sources, only the ones listed are compiled
 file(STRINGS cmake/ultralib_sources.txt PORT_ULTRALIB_SOURCES REGEX "^[^#]")
 list(TRANSFORM PORT_ULTRALIB_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/game/lib/ultralib/src/)

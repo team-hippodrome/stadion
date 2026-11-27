@@ -291,8 +291,6 @@
 .set SYM(D_10030D0), 0x10030D0
 .globl SYM(D_1003150)
 .set SYM(D_1003150), 0x1003150
-.globl SYM(D_10031D0)
-.set SYM(D_10031D0), 0x10031D0
 .globl SYM(D_1003750)
 .set SYM(D_1003750), 0x1003750
 .globl SYM(D_1003890)
@@ -941,8 +939,6 @@
 .set SYM(D_3024800), 0x3024800
 .globl SYM(D_3024A00)
 .set SYM(D_3024A00), 0x3024A00
-.globl SYM(D_3025200)
-.set SYM(D_3025200), 0x3025200
 .globl SYM(D_30256A0)
 .set SYM(D_30256A0), 0x30256A0
 .globl SYM(D_3025950)
@@ -973,8 +969,6 @@
 .set SYM(D_3026F68), 0x3026F68
 .globl SYM(D_3027168)
 .set SYM(D_3027168), 0x3027168
-.globl SYM(D_3027690)
-.set SYM(D_3027690), 0x3027690
 .globl SYM(D_3027890)
 .set SYM(D_3027890), 0x3027890
 .globl SYM(D_3027EB0)
@@ -2023,6 +2017,8 @@
 .set SYM(gButtonStart), 0x3009080
 .globl SYM(gButtonStartMask)
 .set SYM(gButtonStartMask), 0x3009200
+.globl SYM(gComIconSmall)
+.set SYM(gComIconSmall), 0x3025200
 .globl SYM(gComPlayerLabelIcon)
 .set SYM(gComPlayerLabelIcon), 0x3008880
 .globl SYM(gEndBattleBanner)
@@ -2049,6 +2045,8 @@
 .set SYM(gHudGlyphTable), 0x300B870
 .globl SYM(gLButtonOrderSelect)
 .set SYM(gLButtonOrderSelect), 0x3002220
+.globl SYM(gMenuCursor)
+.set SYM(gMenuCursor), 0x10031D0
 .globl SYM(gPlayer1LabelIcon)
 .set SYM(gPlayer1LabelIcon), 0x3008FD0
 .globl SYM(gPlayer1LabelLarge)
@@ -2079,6 +2077,8 @@
 .set SYM(gRButtonOrderSelect), 0x3002820
 .globl SYM(gRound2BadgeTexture)
 .set SYM(gRound2BadgeTexture), 0x20144E0
+.globl SYM(gSmallRound2Icon)
+.set SYM(gSmallRound2Icon), 0x3027690
 .globl SYM(gStadiumLogo)
 .set SYM(gStadiumLogo), 0x3001F70
 .globl SYM(gStatusIconBurn)

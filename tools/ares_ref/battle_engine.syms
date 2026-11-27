@@ -1,5 +1,5 @@
 # battle engine (fragment 51) symbols at their link addresses, from the decomp's build/pokestadium-us.map
-# (346716ac); the ares driver names the caller of each forced random call with them (ARES_REF_XCHECK_SYMS)
+# (d67b0bcb); the ares driver names the caller of each forced random call with them (ARES_REF_XCHECK_SYMS)
 84300020 Battle_StageGeoDispatchCallback
 84300058 Battle_StageLightAngleCallbackA
 843000c0 Battle_StageLightAngleCallbackB

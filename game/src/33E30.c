@@ -45,7 +45,7 @@ const char D_8007C5A8[0x4] = "";
 const char D_8007C5AC[0x4] = "";
 
 // PORT: Rev 2 prints through the debugger (rmonPrintf), which the port does not have; it keeps the 1.0 versions
-#if defined(VERSION_US_REV2) && !defined(PORT_STATIC_FRAGMENTS)
+#if (defined(VERSION_US_REV2) && !defined(PORT_STATIC_FRAGMENTS)) || (defined(VERSION_PAL_LATE) && !defined(VERSION_DE))
 // Prints an Mtx as 8 rows of 2 hex words via rmonPrintf.
 void Debug_PrintMtx(s32 arg0) {
     s32 i;
