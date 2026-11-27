@@ -1179,6 +1179,12 @@ class LauncherWindow : public Ship::GuiWindow {
         if (getenv("PORT_LAUNCHER_OPEN_RESTORED") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
             mGraphicsTestOpened = mGraphics = mEnhancements = mRestored = true;
         }
+        if (getenv("PORT_LAUNCHER_OPEN_PROMPT") != nullptr && !mPromptTestOpened) { // test hook: the language prompt
+            mPromptTestOpened = true;
+            if (Port::LanguagePromptDue(s.rom, &mPrompt)) {
+                mPromptStep = kPromptAsk;
+            }
+        }
         if (getenv("PORT_LAUNCHER_OPEN_SOUND") != nullptr && !mSoundTestOpened) { // test hook (as OPEN_TOOLS)
             mSoundTestOpened = mSound = true;
         }
@@ -1221,6 +1227,7 @@ class LauncherWindow : public Ship::GuiWindow {
     // ---- the first-boot language prompt (language_prompt.h) ----
     static constexpr int kPromptNone = 0, kPromptAsk = 1, kPromptAfter = 2;
     int mPromptStep = kPromptNone;
+    bool mPromptTestOpened = false;
     Port::LanguagePrompt mPrompt;
     std::string mPromptChoice;
 
@@ -1256,7 +1263,10 @@ class LauncherWindow : public Ship::GuiWindow {
         const std::string langs[2] = { mPrompt.locale, mPrompt.rom };
         float y = top + 20;
         if (mPromptStep == kPromptAsk) {
-            const char* body = mPrompt.official ? "LANGUAGE_PROMPT_OFFICIAL" : "LANGUAGE_PROMPT_UNOFFICIAL";
+            // (Japanese ROMs can't be loaded yet, so a Japanese system isn't told to dump one)
+            const char* body = !mPrompt.official       ? "LANGUAGE_PROMPT_UNOFFICIAL"
+                               : mPrompt.locale == "jp" ? "LANGUAGE_PROMPT_OFFICIAL_UNSUPPORTED"
+                                                        : "LANGUAGE_PROMPT_OFFICIAL";
             for (int i = 0; i < 2; i++) {
                 const std::string& lang = langs[i];
                 y += Paragraph(x, y, w, Port::PortText(body, lang, mPrompt.rom, mPrompt.locale), gFonts.body) + 8;
