@@ -80,6 +80,7 @@ static struct {
     s32 started;
     s32 frame;
     s32 lastFrameCounter;
+    s32 rowSettled; // the row's animation has settled (PortEnh_HealBellSettled)
 } sBell;
 
 // Battle_ResolveMonAction, after each action: Heal Bell's stand-in for the presentation (whose tables end at Struggle),
@@ -118,9 +119,23 @@ void PortEnh_HealBellStart(void* active) {
     sBell.lastFrameCounter = -1;
 }
 
-// BattleScene_PhaseSelfTargetMove: the presentation waits for the bell.
+static void Step(void);
+
+// BattleScene_PhaseSelfTargetMove: the presentation waits for the bell. The bell keeps time here too, in the game's
+// logic, so the wait ends even when frames are not drawn (Draw steps it as well; a game frame counts once).
 int PortEnh_HealBellBusy(void) {
+    Step();
     return sBell.presenting && (!sBell.started || sBell.frame < BELL_END);
+}
+
+// BattleScene_PhaseSelfTargetMove's settle: the row's animation settles on one exact frame (its cue's frame counter),
+// which can pass while the bell still rings; it is kept until the bell has rung out.
+int PortEnh_HealBellSettled(int row_settled) {
+    if (!sBell.presenting) {
+        return row_settled;
+    }
+    sBell.rowSettled |= (row_settled != 0);
+    return sBell.rowSettled && !PortEnh_HealBellBusy();
 }
 
 // the phase is over (or the battle): the bell is gone
@@ -324,6 +339,23 @@ static f32 SwingAt(s32 frame) {
     return amp * sinf(6.2831853f * (frame - (kNoteFrame[0] - SWING_PERIOD / 4)) / SWING_PERIOD);
 }
 
+// one step per game frame (gBattleAnimFrameCounter counts them), however often the bell is drawn
+static void Step(void) {
+    s32 n;
+    if (!sBell.presenting || !sBell.started || gBattleAnimFrameCounter == sBell.lastFrameCounter) {
+        return;
+    }
+    if (sBell.lastFrameCounter >= 0) {
+        sBell.frame++;
+        for (n = 0; n < BELL_NOTES; n++) {
+            if (sBell.frame == kNoteFrame[n]) {
+                Strike(n);
+            }
+        }
+    }
+    sBell.lastFrameCounter = gBattleAnimFrameCounter;
+}
+
 // BattleAnim_RenderEffectsFrame: the bell, in world space.
 void PortEnh_HealBellDraw(void) {
     Gfx* gfx;
@@ -336,18 +368,7 @@ void PortEnh_HealBellDraw(void) {
     if (!sBell.presenting || !sBell.started || sBell.user == NULL) {
         return;
     }
-    // one step per game frame (gBattleAnimFrameCounter counts them), however often this is drawn
-    if (gBattleAnimFrameCounter != sBell.lastFrameCounter) {
-        if (sBell.lastFrameCounter >= 0) {
-            sBell.frame++;
-            for (n = 0; n < BELL_NOTES; n++) {
-                if (sBell.frame == kNoteFrame[n]) {
-                    Strike(n);
-                }
-            }
-        }
-        sBell.lastFrameCounter = gBattleAnimFrameCounter;
-    }
+    Step();
     f = sBell.frame;
     if (f >= BELL_END) {
         return;

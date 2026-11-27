@@ -414,6 +414,7 @@ void PortEnh_HealBellResolved(void);
 int PortEnh_HealBellPresenting(void* active);
 void PortEnh_HealBellStart(void* active);
 int PortEnh_HealBellBusy(void);
+int PortEnh_HealBellSettled(int row_settled);
 void PortEnh_HealBellReset(void);
 void PortEnh_HealBellDraw(void);
 void PortEnh_HealBellMix(int16_t* samples, int frames, int rate);

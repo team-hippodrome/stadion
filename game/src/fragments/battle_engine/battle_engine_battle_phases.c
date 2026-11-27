@@ -2414,8 +2414,9 @@ void BattleScene_PhaseSelfTargetMove(CameraNode* camera) {
                 BattleBox_Open(15);
             }
 
-            // PORT: and Heal Bell's bell has rung out (src/port/enhancements/heal_bell.c)
-            if (Battle_IsRowAnimationSettled(sActingPokemon, 60) != 0 && !PortEnh_HealBellBusy()) {
+            // PORT: and Heal Bell's bell has rung out (src/port/enhancements/heal_bell.c; it keeps the settle, which
+            // is a single frame of the row's animation, until then)
+            if (PortEnh_HealBellSettled(Battle_IsRowAnimationSettled(sActingPokemon, 60))) {
                 PortEnh_HealBellReset();
                 BattleScene_ResetCameraFrameCounter();
                 sBattleScene.scene->phaseStep++;
