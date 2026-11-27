@@ -25,6 +25,7 @@
 #include "save_editor/save_editor_ui.h"
 #include "pad_assign.h"
 #include "enhancements/enhancements.h"
+#include "restored_content.h"
 
 #include <chrono>
 #include <libultraship/libultraship.h>
@@ -51,6 +52,7 @@
 
 #include <algorithm>
 #include <array>
+#include <map>
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
@@ -79,6 +81,7 @@ struct GbSlot {
 struct State {
     std::string rom, save;
     std::array<GbSlot, 4> gb;
+    std::array<std::string, 3> extraRoms; // other Stadium releases beside the ROM (restored content)
     bool autoPlay = false, debug = false;
     bool smooth = false; // frame interpolation (interp.cpp)
     int aspect = 0;      // the game picture: 0 = 4:3, 1 = 16:9 (Engine.cpp, AspectSetting)
@@ -199,6 +202,10 @@ State Load() {
         s.gb[i].rom = Port::ResolveLauncherPath(CVarGetString(GbKey(i, "Rom").c_str(), ""), directory);
         s.gb[i].save = Port::ResolveLauncherPath(CVarGetString(GbKey(i, "Save").c_str(), ""), directory);
     }
+    for (int i = 0; i < 3; i++) {
+        const std::string key = "ExtraRom" + std::to_string(i + 1);
+        s.extraRoms[i] = Port::ResolveLauncherPath(CVarGetString(Key(key.c_str()).c_str(), ""), directory);
+    }
     s.autoPlay = CVarGetInteger(Key("AutoPlay").c_str(), 0) != 0;
     s.debug = CVarGetInteger(Key("Debug").c_str(), 0) != 0;
     s.smooth = CVarGetInteger("gPort.Interpolate", 0) != 0;
@@ -219,6 +226,10 @@ void Store(const State& s) {
         CVarSetInteger(GbKey(i, "Enabled").c_str(), s.gb[i].enabled ? 1 : 0);
         CVarSetString(GbKey(i, "Rom").c_str(), Port::StoreLauncherPath(s.gb[i].rom, directory).c_str());
         CVarSetString(GbKey(i, "Save").c_str(), Port::StoreLauncherPath(s.gb[i].save, directory).c_str());
+    }
+    for (int i = 0; i < 3; i++) {
+        const std::string key = "ExtraRom" + std::to_string(i + 1);
+        CVarSetString(Key(key.c_str()).c_str(), Port::StoreLauncherPath(s.extraRoms[i], directory).c_str());
     }
     CVarSetInteger(Key("AutoPlay").c_str(), s.autoPlay ? 1 : 0);
     CVarSetInteger(Key("Debug").c_str(), s.debug ? 1 : 0);
@@ -262,7 +273,8 @@ std::vector<uint8_t> ReadFile(const std::string& path, size_t maxBytes = SIZE_MA
 
 static PortRomVersion sCheckedRomVersion = PORT_ROM_VERSION_COUNT; // of the file CheckRom last hashed
 
-// "" when the file is a Pokémon Stadium (USA) ROM in .z64 byte order, else what is wrong with it
+// "" when the file is an accepted Pokémon Stadium ROM (rom_check.h: USA or Europe) in .z64 byte order, else what is
+// wrong with it
 std::string CheckRom(const std::string& path) {
     if (path.empty()) {
         return "No ROM loaded";
@@ -283,8 +295,8 @@ std::string CheckRom(const std::string& path) {
     if (h[0] != 0x80 || h[1] != 0x37) {
         return "Not an N64 ROM";
     }
-    if (memcmp(h.data() + 0x20, "POKEMON STADIUM", 15) != 0 || h[0x3E] != 'E') {
-        return "Not Pokémon Stadium (USA)";
+    if (memcmp(h.data() + 0x20, "POKEMON STADIUM", 15) != 0) {
+        return "Not Pokémon Stadium";
     }
     // the whole file: the original dump's SHA-1 (rom_check.h). Hashed once per file version (this runs every frame).
     static std::string sPath, sResult;
@@ -301,6 +313,29 @@ std::string CheckRom(const std::string& path) {
         sResult = Port::CheckRomDumpFile(path, &sCheckedRomVersion);
     }
     return sResult;
+}
+
+// the release of an extra ROM file (restored content), or PORT_ROM_VERSION_COUNT; hashed once per file version
+PortRomVersion ExtraRomVersionOf(const std::string& path) {
+    struct Entry {
+        uintmax_t size = 0;
+        fs::file_time_type time;
+        PortRomVersion version = PORT_ROM_VERSION_COUNT;
+    };
+    static std::map<std::string, Entry> sCache;
+    std::error_code ec;
+    const fs::path p = fs::u8path(path);
+    const uintmax_t size = fs::file_size(p, ec);
+    const fs::file_time_type time = ec ? fs::file_time_type() : fs::last_write_time(p, ec);
+    auto it = sCache.find(path);
+    if (it == sCache.end() || it->second.size != size || it->second.time != time) {
+        Entry e;
+        e.size = size;
+        e.time = time;
+        e.version = size == Port::kRomSize ? Port::ExtraRomVersionOfSha1(Port::Sha1HexFile(path)) : PORT_ROM_VERSION_COUNT;
+        it = sCache.insert_or_assign(path, e).first;
+    }
+    return it->second.version;
 }
 
 // "Pokémon Stadium (USA 1.0)" etc. for a ROM CheckRom accepted
@@ -975,7 +1010,8 @@ void ResetBindings(int port) {
 
 // ---- the launcher window ---------------------------------------------------------------------------------------------
 
-constexpr float kW = 960, kH = 556; // the design size (Launcher.swift)
+constexpr float kDesktopW = 1060, kH = 556; // the design size (the simpler macOS Launcher.swift stays 960 wide)
+constexpr float kHandheldW = 960;           // the handheld layout's design width
 constexpr float kHandheldH = 540;   // the handheld layout's design height (16:9, the Thor's and most phones' shape)
 
 bool Handheld() {
@@ -985,6 +1021,10 @@ bool Handheld() {
     static const bool on = getenv("PORT_LAUNCHER_HANDHELD") != nullptr;
     return on;
 #endif
+}
+
+float DesignW() {
+    return Handheld() ? kHandheldW : kDesktopW;
 }
 
 // The gamepads' navigation inputs (all connected pads; the left stick counts as the D-pad), plus the keyboard's.
@@ -1026,7 +1066,7 @@ NavInput ReadNavInput() {
 class LauncherWindow : public Ship::GuiWindow {
   public:
     LauncherWindow(State* state, bool* play, bool* quit, bool* restart, Fast::Fast3dGui* gui, std::shared_ptr<Ship::Window> window)
-        : GuiWindow("gLauncherWindowOpen", "stadion Launcher", ImVec2(kW, kH)), mState(state), mPlay(play),
+        : GuiWindow("gLauncherWindowOpen", "stadion Launcher", ImVec2(DesignW(), kH)), mState(state), mPlay(play),
           mQuit(quit), mRestart(restart), mGui(gui), mWindow(std::move(window)) {
         // requested before, but the game started with another one: that renderer could not start here
         mRendererFailed = state->renderer != ActiveRenderer() ? state->renderer : 0;
@@ -1064,10 +1104,10 @@ class LauncherWindow : public Ship::GuiWindow {
                          ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoScrollWithMouse);
         // above libultraship's game view window ("Main Game"), which would otherwise cover it (and take the mouse)
         ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
-        // the 960x556 design, scaled to the window and centred
+        // the 1060x556 design (960x540 handheld), scaled to the window and centred
         const float designH = Handheld() ? kHandheldH : kH;
-        mScale = std::min(vp->Size.x / kW, vp->Size.y / designH);
-        mOrigin = ImVec2(vp->Pos.x + (vp->Size.x - kW * mScale) / 2, vp->Pos.y + (vp->Size.y - designH * mScale) / 2);
+        mScale = std::min(vp->Size.x / DesignW(), vp->Size.y / designH);
+        mOrigin = ImVec2(vp->Pos.x + (vp->Size.x - DesignW() * mScale) / 2, vp->Pos.y + (vp->Size.y - designH * mScale) / 2);
         mPixelDensity = 1.0f;
         if (SDL_Window* sdl = MainWindow()) {
             mPixelDensity = std::max(1.0f, SDL_GetWindowPixelDensity(sdl));
@@ -1148,51 +1188,64 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(16, 10, "stadion", gFonts.title);
         Text(190, 11, "|", gFonts.title, Theme::cardBorder);
         Text(206, 14, "PC port · Transfer Pak", gFonts.body, Theme::dim);
-        dl->AddRectFilled(P(0, 44), P(kW, 45), Hex(Theme::cardBorder));
+        dl->AddRectFilled(P(0, 44), P(DesignW(), 45), Hex(Theme::cardBorder));
         Tools();
         if (getenv("PORT_LAUNCHER_OPEN_GRAPHICS") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
             mGraphicsTestOpened = mGraphics = true;
         }
         if (getenv("PORT_LAUNCHER_OPEN_ENHANCEMENTS") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
-            mGraphicsTestOpened = mGraphics = mEnhancements = true;
+            mGraphicsTestOpened = mEnhancements = true;
         }
         if (getenv("PORT_LAUNCHER_OPEN_ENHANCEMENTS2") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
-            mGraphicsTestOpened = mGraphics = mEnhancements = true;
-            mEnhancementsPage = 1;
+            mGraphicsTestOpened = mEnhancements = mMewtwoRival = true;
         }
         if (getenv("PORT_LAUNCHER_OPEN_STATEXP") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
-            mGraphicsTestOpened = mGraphics = mEnhancements = mStatDifficulty = true;
+            mGraphicsTestOpened = mEnhancements = mStatDifficulty = true;
+        }
+        if (getenv("PORT_LAUNCHER_OPEN_RESTORED") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
+            mGraphicsTestOpened = mEnhancements = mRestored = true;
+        }
+        if (getenv("PORT_LAUNCHER_OPEN_PROMPT") != nullptr && !mPromptTestOpened) { // test hook: the language prompt
+            mPromptTestOpened = true;
+            if (Port::LanguagePromptDue(s.rom, &mPrompt)) {
+                mPromptStep = kPromptAsk;
+            }
         }
         if (getenv("PORT_LAUNCHER_OPEN_SOUND") != nullptr && !mSoundTestOpened) { // test hook (as OPEN_TOOLS)
             mSoundTestOpened = mSound = true;
         }
 
         if (gSaveEditor.IsOpen()) {
-            EditorPanel(16, 58, kW - 32, kH - 58 - 16);
+            EditorPanel(16, 58, DesignW() - 32, kH - 58 - 16);
             if (mChanged) {
                 Store(s);
             }
             return;
         }
         if (mTools) {
-            ToolsPanel(16, 58, kW - 32, 366);
+            ToolsPanel(16, 58, DesignW() - 32, 366);
         } else if (mControls) {
-            ControlsPanel(16, 58, kW - 32, 366);
-        } else if (mGraphics && mEnhancements && mStatDifficulty) {
-            StatDifficultyPanel(16, 58, kW - 32, 366);
-        } else if (mGraphics && mEnhancements) {
-            EnhancementsPanel(16, 58, kW - 32, 366);
+            ControlsPanel(16, 58, DesignW() - 32, 366);
+        } else if (mEnhancements && mStatDifficulty) {
+            StatDifficultyPanel(16, 58, DesignW() - 32, 366);
+        } else if (mEnhancements && mRestored) {
+            RestoredPanel(16, 58, DesignW() - 32, 366);
+        } else if (mEnhancements && mMewtwoRival) {
+            MewtwoRivalPanel(16, 58, DesignW() - 32, 366);
+        } else if (mEnhancements) {
+            EnhancementsPanel(16, 58, DesignW() - 32, 366);
         } else if (mGraphics) {
-            GraphicsPanel(16, 58, kW - 32, 366);
+            GraphicsPanel(16, 58, DesignW() - 32, 366);
         } else if (mSound) {
-            SoundPanel(16, 58, kW - 32, 366);
+            SoundPanel(16, 58, DesignW() - 32, 366);
         } else {
             for (int i = 0; i < 4; i++) {
-                PlayerCard(i, 16 + i * (222 + 14), 58, 222, 366);
+                const float cardW = (DesignW() - 32 - 3 * 14) / 4;
+                PlayerCard(i, 16 + i * (cardW + 14), 58, cardW, 366);
             }
         }
         ImGui::BeginDisabled(mCapture >= 0);
-        BottomBar(0, 440, kW, 116);
+        BottomBar(0, 440, DesignW(), 116);
         ImGui::EndDisabled();
         if (mChanged) {
             Store(s);
@@ -1203,6 +1256,7 @@ class LauncherWindow : public Ship::GuiWindow {
     // ---- the first-boot language prompt (language_prompt.h) ----
     static constexpr int kPromptNone = 0, kPromptAsk = 1, kPromptAfter = 2;
     int mPromptStep = kPromptNone;
+    bool mPromptTestOpened = false;
     Port::LanguagePrompt mPrompt;
     std::string mPromptChoice;
 
@@ -1232,13 +1286,16 @@ class LauncherWindow : public Ship::GuiWindow {
     void LanguagePromptPanel() {
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const float designH = Handheld() ? kHandheldH : kH;
-        const float x = 40, w = kW - 80, top = 24;
+        const float x = 40, w = DesignW() - 80, top = 24;
         dl->AddRectFilled(P(x - 16, top), P(x + w + 16, designH - 24), Hex(Theme::card), 10 * mScale);
         dl->AddRect(P(x - 16, top), P(x + w + 16, designH - 24), Hex(Theme::cardBorder), 10 * mScale);
         const std::string langs[2] = { mPrompt.locale, mPrompt.rom };
         float y = top + 20;
         if (mPromptStep == kPromptAsk) {
-            const char* body = mPrompt.official ? "LANGUAGE_PROMPT_OFFICIAL" : "LANGUAGE_PROMPT_UNOFFICIAL";
+            // (Japanese ROMs can't be loaded yet, so a Japanese system isn't told to dump one)
+            const char* body = !mPrompt.official       ? "LANGUAGE_PROMPT_UNOFFICIAL"
+                               : mPrompt.locale == "jp" ? "LANGUAGE_PROMPT_OFFICIAL_UNSUPPORTED"
+                                                        : "LANGUAGE_PROMPT_OFFICIAL";
             for (int i = 0; i < 2; i++) {
                 const std::string& lang = langs[i];
                 y += Paragraph(x, y, w, Port::PortText(body, lang, mPrompt.rom, mPrompt.locale), gFonts.body) + 8;
@@ -1292,7 +1349,7 @@ class LauncherWindow : public Ship::GuiWindow {
     void Tools() {
         const bool testOpen = getenv("PORT_LAUNCHER_OPEN_TOOLS") != nullptr && !mToolsTestOpened;
         ImGui::BeginDisabled(mCapture >= 0 || (gSaveEditor.IsOpen() && !Handheld()));
-        const bool opened = Button("Files & help", 800, 8, 144, 30);
+        const bool opened = Button("Files & help", DesignW() - 160, 8, 144, 30);
         ImGui::EndDisabled();
         if ((opened && mCapture < 0) || testOpen) {
             mToolsTestOpened = true;
@@ -1373,7 +1430,7 @@ class LauncherWindow : public Ship::GuiWindow {
         float ly = y + 56;
         Section(lx, ly, colW, "SETUP");
         ly += 26;
-        if (mCheckRom.empty()) ly += StatusLine(lx, ly, colW, Theme::green, "Stadium ROM: Pokémon Stadium (USA), the expected dump.");
+        if (mCheckRom.empty()) ly += StatusLine(lx, ly, colW, Theme::green, "Stadium ROM: " + RomLabel() + ", the expected dump.");
         else ly += StatusLine(lx, ly, colW, Theme::red, "Stadium ROM: " + (s.rom.empty() ? std::string("none chosen yet.") : mCheckRom));
         int shown = 0;
         for (const auto& e : mCheck.errors) if (shown++ < 3) ly += StatusLine(lx, ly, colW, Theme::red, e);
@@ -2163,15 +2220,6 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button("Done", x + w - 108, y + 9, 94, 26)) {
             mGraphics = false;
         }
-        // The handheld Graphics page does not navigate the desktop enhancement panels.
-        if (!Handheld()) {
-            if (Button("Enhancements", x + w - 248, y + 9, 130, 26)) {
-                mEnhancements = true;
-            }
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Optional additions to the game from hippodrome-utils (on by default; each can be turned off)");
-            }
-        }
         dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
 
         const float lx = x + 14, cx = x + 190, tx = x + 560, pitch = 37;
@@ -2325,20 +2373,24 @@ class LauncherWindow : public Ship::GuiWindow {
         dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
         Text(x + 14, y + 14, "ENHANCEMENTS", gFonts.body, Theme::text);
         Text(x + 140, y + 15, "Additions to the original game. On by default; turn off any you do not want.", gFonts.small, Theme::dim);
-        if (Button("Back", x + w - 108, y + 9, 94, 26)) {
-            mEnhancements = mStatDifficulty = false;
+        if (Button("Done", x + w - 108, y + 9, 94, 26)) {
+            mEnhancements = mStatDifficulty = mRestored = mMewtwoRival = false;
         }
-        // two pages: the general enhancements, then the ones for this game's own battles
-        if (Button(mEnhancementsPage == 0 ? "Next page" : "Previous page", x + w - 238, y + 9, 122, 26)) {
-            mEnhancementsPage = !mEnhancementsPage;
+        if (Button("Restored content", x + w - 262, y + 9, 146, 26)) {
+            mRestored = true;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Gallery, Nidoqueen's animation and Jynx's colour from other Stadium releases you provide");
+        }
+        if (Button("Mewtwo and rival", x + w - 416, y + 9, 146, 26)) {
+            mMewtwoRival = true;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Harder vs Mewtwo and the Gym Leader Castle rival fix");
         }
         dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
         const float lx = x + 14, cx = x + 190, tx = x + 370;
         float ry = y + 60;
-        if (mEnhancementsPage == 1) {
-            GameEnhancementsPage(lx, cx, tx, ry);
-            return;
-        }
         auto row = [&](const char* name, const char* id, const char* hint, bool on) {
             Text(lx, ry + 5, name, gFonts.body);
             Text(tx, ry + 1, hint, gFonts.small, Theme::dim);
@@ -2414,10 +2466,22 @@ class LauncherWindow : public Ship::GuiWindow {
         }
     }
 
-    // launcher > Graphics > Enhancements, second page: the enhancements of this game's own battles (hippodrome-utils
-    // docs/specs/game_specific/1): Harder vs Mewtwo (HARDER_VS_MEWTWO.md; its labels are the spec's) and the rival fix
-    // (RIVAL_BUG_FIX.md).
-    void GameEnhancementsPage(float lx, float cx, float tx, float ry) {
+    // launcher > Graphics > Enhancements > Mewtwo and rival: the enhancements of this game's own battles
+    // (hippodrome-utils docs/specs/game_specific/1): Harder vs Mewtwo (HARDER_VS_MEWTWO.md; its labels are the spec's)
+    // and the rival fix (RIVAL_BUG_FIX.md)
+    void MewtwoRivalPanel(float x, float y, float w, float h) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "MEWTWO AND RIVAL", gFonts.body, Theme::text);
+        Text(x + 180, y + 15, "Enhancements of the Vs. Mewtwo battle and the Gym Leader Castle's rival.", gFonts.small,
+             Theme::dim);
+        if (Button("Back", x + w - 108, y + 9, 94, 26)) {
+            mMewtwoRival = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+        const float lx = x + 14, cx = x + 190, tx = x + 370;
+        float ry = y + 60;
         {
             static const char* kHints[PORT_MEWTWO_TIERS] = {
                 "Off: the original battle.",
@@ -2448,6 +2512,88 @@ class LauncherWindow : public Ship::GuiWindow {
             const int c = Choice("rival", { "On", "Off" }, Port_Enh_RivalFixEnabled() != 0 ? 0 : 1, cx, ry);
             if (c >= 0) Port_Enh_SetRivalFixEnabled(c == 0);
             ry += 58;
+        }
+    }
+
+    // launcher > Graphics > Enhancements > Restored content (RESTORED_CONTENT.md, restored_content.cpp): up to three
+    // other Stadium releases beside the ROM, and the choices they make possible (each shown only when both versions
+    // of it are there)
+    void RestoredPanel(float x, float y, float w, float h) {
+        State& s = *mState;
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(P(x, y), P(x + w, y + h), Hex(Theme::card), 8 * mScale);
+        dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
+        Text(x + 14, y + 14, "RESTORED CONTENT", gFonts.body, Theme::text);
+        Text(x + 180, y + 15, "Content another Stadium release has: provide that ROM beside yours.", gFonts.small,
+             Theme::dim);
+        if (Button("Back", x + w - 108, y + 9, 94, 26)) {
+            mRestored = false;
+        }
+        dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
+        const float lx = x + 14, cx = x + 190, tx = x + 420;
+        float ry = y + 58;
+        CheckRom(s.rom);
+        const PortRomVersion loaded = sCheckedRomVersion;
+        std::vector<PortRomVersion> extras;
+        for (int i = 0; i < 3; i++) {
+            std::string& path = s.extraRoms[i];
+            PortRomVersion v = PORT_ROM_VERSION_COUNT;
+            std::string status;
+            if (!path.empty()) {
+                v = ExtraRomVersionOf(path);
+                status = v == PORT_ROM_VERSION_COUNT ? "not an accepted Stadium dump"
+                                                     : std::string("Pokémon Stadium (") + Port::RomVersionName(v) + ")";
+            }
+            extras.push_back(v);
+            ImGui::PushID(i);
+            Text(lx, ry + 5, i == 0 ? "Other releases" : "", gFonts.body);
+            Text(cx, ry + 5, path.empty() ? std::string("none") : FileName(path), gFonts.body,
+                 path.empty() ? Theme::dim : Theme::text);
+            if (!status.empty()) {
+                Text(tx, ry + 6, status, gFonts.small, v == PORT_ROM_VERSION_COUNT ? Theme::red : Theme::green);
+            }
+            if (Button(path.empty() ? "Add" : "Change", x + w - 190, ry, 84, 26)) {
+                Pick(&path, false, kRomFilter, 2, s.rom);
+            }
+            if (!path.empty() && Button("Remove", x + w - 100, ry, 84, 26)) {
+                path.clear();
+                mChanged = true;
+            }
+            ImGui::PopID();
+            ry += 34;
+        }
+        Text(lx, ry + 2,
+             "Gallery: needs an English ROM (USA or Europe) beside a French, German, Spanish or Italian one. "
+             "Nidoqueen: the Japanese ROM.\nJynx: USA 1.0 or the Japanese ROM for the Original colour, any later "
+             "release for Purple. The choices below appear once both versions are there.",
+             gFonts.small, Theme::dim);
+        ry += 44;
+        dl->AddRectFilled(P(x, ry), P(x + w, ry + 1), Hex(Theme::cardBorder));
+        ry += 12;
+        const Port::RestoredContentChoices c = Port::RestoredChoicesFor(loaded, extras);
+        Text(lx, ry + 5, "Gallery", gFonts.body);
+        Text(cx, ry + 5, c.gallery ? "available" : "needs an English ROM", gFonts.body,
+             c.gallery ? Theme::green : Theme::dim);
+        ry += 40;
+        if (c.jynx) {
+            const int color = Port_Enh_JynxColor();
+            const bool original = color == PORT_JYNX_ROM ? c.jynxOriginalDefault : color == PORT_JYNX_ORIGINAL;
+            Text(lx, ry + 5, "Jynx's colour", gFonts.body);
+            const int ch = Choice("jynx", { "Original", "Purple" }, original ? 0 : 1, cx, ry, 84);
+            Text(tx, ry + 1, "Original: as in USA 1.0 and Japan. Purple: as in the later releases.", gFonts.small,
+                 Theme::dim);
+            if (ch >= 0) Port_Enh_SetJynxColor(ch == 0 ? PORT_JYNX_ORIGINAL : PORT_JYNX_PURPLE);
+            ry += 46;
+        }
+        if (c.nidoqueen) {
+            const int anim = Port_Enh_NidoqueenAnimation();
+            Text(lx, ry + 5, "Nidoqueen", gFonts.body);
+            const int ch = Choice("nidoqueen", { "International", "Japanese" },
+                                  anim == PORT_NIDOQUEEN_JAPANESE ? 1 : 0, cx, ry, 110);
+            Text(tx, ry + 1, "Nidoqueen's animation: the one of the western releases, or the Japanese one.",
+                 gFonts.small, Theme::dim);
+            if (ch >= 0) Port_Enh_SetNidoqueenAnimation(ch == 0 ? PORT_NIDOQUEEN_INTERNATIONAL : PORT_NIDOQUEEN_JAPANESE);
+            ry += 46;
         }
     }
 
@@ -2701,13 +2847,14 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button(mSound ? "Players" : "Sound", x + 234, y + 86, 96, 26)) {
             mSound = !mSound;
             mGraphics = mControls = mTools = false;
+            mEnhancements = mStatDifficulty = mRestored = mMewtwoRival = false;
         }
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Volume of music, sound effects, voices and the Game Boy; mute in the background");
         }
         if (Button(mGraphics ? "Players" : "Graphics", x + 340, y + 86, 100, 26)) {
             mGraphics = !mGraphics;
-            mEnhancements = mStatDifficulty = false;
+            mEnhancements = mStatDifficulty = mRestored = mMewtwoRival = false;
             mControls = mTools = mSound = false;
         }
         if (ImGui::IsItemHovered()) {
@@ -2716,12 +2863,23 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button(mControls ? "Players" : "Controls", x + 450, y + 86, 100, 26)) {
             mControls = !mControls;
             mGraphics = mTools = mSound = false;
+            mEnhancements = mStatDifficulty = mRestored = mMewtwoRival = false;
+        }
+        if (Button(mEnhancements ? "Players" : "Enhancements", x + 560, y + 86, 124, 26)) {
+            const bool open = !mEnhancements;
+            mEnhancements = open;
+            mStatDifficulty = mRestored = mMewtwoRival = false;
+            mGraphics = mControls = mTools = mSound = false;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Optional additions to the game from hippodrome-utils (on by default; each can be turned off),\n"
+                              "and content restored from other Stadium releases");
         }
         // the game picture's shape (the rest of the window gets black bars)
-        Text(x + 566, y + 91, "Screen", gFonts.small, Theme::dim);
+        Text(x + 700, y + 91, "Screen", gFonts.small, Theme::dim);
         for (int a = 0; a < 2; a++) {
             const bool on = s.aspect == a;
-            if (ColorButton(a == 0 ? "4:3" : "16:9", x + 616 + a * 56, y + 86, 52, 26, on ? 0x23406B : Theme::button,
+            if (ColorButton(a == 0 ? "4:3" : "16:9", x + 744 + a * 56, y + 86, 52, 26, on ? 0x23406B : Theme::button,
                             on ? 0x23406B : Theme::buttonHover)) {
                 s.aspect = a;
                 mChanged = true;
@@ -2736,7 +2894,7 @@ class LauncherWindow : public Ship::GuiWindow {
             const int active = ActiveRenderer();
             const bool pending = s.renderer != active;
             const std::string label = std::string("Renderer: ") + RendererName(s.renderer);
-            if (ColorButton(label.c_str(), x + 616, y + 16, 128, 24, pending ? 0x23406B : Theme::button,
+            if (ColorButton(label.c_str(), x + 716, y + 16, 128, 24, pending ? 0x23406B : Theme::button,
                             pending ? 0x23406B : Theme::buttonHover)) {
                 const std::vector<int> ids = Renderers();
                 auto it = std::find(ids.begin(), ids.end(), s.renderer);
@@ -2755,13 +2913,13 @@ class LauncherWindow : public Ship::GuiWindow {
             }
             if (pending) {
                 const std::string status = std::string("Active: ") + RendererName(active);
-                Text(x + 616, y + 43, status.c_str(), gFonts.small, Theme::dim);
+                Text(x + 716, y + 43, status.c_str(), gFonts.small, Theme::dim);
                 if (mRendererFailed == s.renderer) {
-                    Text(x + 616, y + 63, "Selected unavailable", gFonts.small, Theme::dim);
+                    Text(x + 716, y + 63, "Selected unavailable", gFonts.small, Theme::dim);
                 }
 #ifdef _WIN32
                 if (mRendererFailed != s.renderer &&
-                    Button("Restart and apply", x + 616, y + 60, 128, 22, gFonts.small)) {
+                    Button("Restart and apply", x + 716, y + 60, 128, 22, gFonts.small)) {
                     *mRestart = true;
                 }
 #endif
@@ -2787,7 +2945,7 @@ class LauncherWindow : public Ship::GuiWindow {
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Start the game directly next time (hold Shift while starting to see this launcher)");
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mTools && !mGraphics && !mSound) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mTools && !mGraphics && !mSound && !mEnhancements) {
             RequestPlay(s);
         }
         (void)mQuit;
@@ -2921,13 +3079,13 @@ class LauncherWindow : public Ship::GuiWindow {
                                : mPage == kPageGraphics ? "Graphics" : mPage == kPageSound ? "Sound"
                                : mPage == kPageTools ? "Files & help" : mPage == kPageSaveEditor ? "Save editor" : "";
         Text(220, 17, pageName, gFonts.body, Theme::dim);
-        dl->AddRectFilled(P(0, 50), P(kW, 51), Hex(Theme::cardBorder));
+        dl->AddRectFilled(P(0, 50), P(DesignW(), 51), Hex(Theme::cardBorder));
 
         if (mPage == kPageSaveEditor) {
             mDefaultFocus = 0; // (the editor names its own: the current section)
-            EditorPanel(16, 62, kW - 32, 438);
+            EditorPanel(16, 62, DesignW() - 32, 438);
         } else if (mPage == kPageTools) {
-            ToolsPanel(16, 62, kW - 32, 430);
+            ToolsPanel(16, 62, DesignW() - 32, 430);
             mDefaultFocus = 2; // Check again (0: the header's Files & help, 1: Done)
         } else if (mPage == kPageTransferPak) {
             for (int i = 0; i < 4; i++) {
@@ -2938,14 +3096,14 @@ class LauncherWindow : public Ship::GuiWindow {
                 GoToPage(kPageHome);
             }
         } else if (mPage == kPageGraphics || mPage == kPageSound) {
-            if (mPage == kPageGraphics) GraphicsPanel(16, 62, kW - 32, 366);
-            else SoundPanel(16, 62, kW - 32, 366);
+            if (mPage == kPageGraphics) GraphicsPanel(16, 62, DesignW() - 32, 366);
+            else SoundPanel(16, 62, DesignW() - 32, 366);
             mDefaultFocus = 2; // the first setting (0: the header's Files & help, 1: Done)
             if (Button("Back", 16, 444, 160, 48, gFonts.game)) {
                 GoToPage(kPageHome);
             }
         } else if (mPage == kPageControls) {
-            ControlsPanel(16, 62, kW - 32, 366);
+            ControlsPanel(16, 62, DesignW() - 32, 366);
             mDefaultFocus = 0;
             ImGui::BeginDisabled(mCapture >= 0);
             if (Button("Back", 16, 444, 160, 48, gFonts.game)) {
@@ -2985,7 +3143,7 @@ class LauncherWindow : public Ship::GuiWindow {
         }
 
         // PLAY (the default focus: A starts the game right away)
-        const float rx = 488, rw = kW - 24 - rx;
+        const float rx = 488, rw = DesignW() - 24 - rx;
         ImGui::BeginDisabled(!romError.empty());
         ImGui::PushStyleColor(ImGuiCol_Button, HexV(Theme::green));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(Hex(0x37B24D)));
@@ -3063,7 +3221,8 @@ class LauncherWindow : public Ship::GuiWindow {
     Port::GraphicsPick mPick;
     bool mEnhancements = false;   // in the graphics panel: the enhancements page
     bool mStatDifficulty = false; // in the enhancements page: the Stat Exp difficulty page
-    int mEnhancementsPage = 0;    // the enhancements page shown: 0 the general ones, 1 the game's own (Mewtwo, rival)
+    bool mRestored = false;       // in the enhancements page: the restored content page
+    bool mMewtwoRival = false;    // in the enhancements page: Harder vs Mewtwo and the rival fix
     bool mSound = false;    // the sound panel instead of the player cards
     bool mSoundTestOpened = false;
     bool mGraphicsTestOpened = false;
@@ -3077,7 +3236,7 @@ class LauncherWindow : public Ship::GuiWindow {
 };
 
 // Test hook: PORT_LAUNCHER_SCRIPT=<file> drives the launcher with ImGui input, one command per line:
-//   <frame> click <x> <y>   left click at design coordinates (the 960x556 layout; 960x540 handheld)
+//   <frame> click <x> <y>   left click at design coordinates (the 1060x556 layout; 960x540 handheld)
 //   <frame> move <x> <y>    <frame> wheel <dy>
 //   <frame> text <string>   typed characters      <frame> key <name>   Enter, Escape, Tab, Backspace, Up, Down,
 //                                                                       Left, Right, Ctrl+S, Ctrl+A
@@ -3113,11 +3272,11 @@ bool RunScriptStep(const ScriptStep& st) {
     ImGuiIO& io = ImGui::GetIO();
     ImGuiViewport* vp = ImGui::GetMainViewport();
     const float designH = Handheld() ? kHandheldH : kH;
-    const float scale = std::min(vp->Size.x / kW, vp->Size.y / designH);
+    const float scale = std::min(vp->Size.x / DesignW(), vp->Size.y / designH);
     auto pos = [&](const std::string& arg) {
         float x = 0, y = 0;
         sscanf(arg.c_str(), "%f %f", &x, &y);
-        return ImVec2(vp->Pos.x + (vp->Size.x - kW * scale) / 2 + x * scale, vp->Pos.y + (vp->Size.y - designH * scale) / 2 + y * scale);
+        return ImVec2(vp->Pos.x + (vp->Size.x - DesignW() * scale) / 2 + x * scale, vp->Pos.y + (vp->Size.y - designH * scale) / 2 + y * scale);
     };
     if (st.cmd == "click" || st.cmd == "move") {
         ImVec2 p = pos(st.arg);
@@ -3202,10 +3361,10 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
             float scale = SDL_GetWindowDisplayScale(sdl) / std::max(1.0f, SDL_GetWindowPixelDensity(sdl));
             SDL_Rect usable{};
             if (SDL_GetDisplayUsableBounds(SDL_GetDisplayForWindow(sdl), &usable)) {
-                scale = std::min({scale, (usable.w - 32) / kW, (usable.h - 80) / launcherHeight});
+                scale = std::min({scale, (usable.w - 32) / DesignW(), (usable.h - 80) / launcherHeight});
             }
             if (scale > 0) {
-                SDL_SetWindowSize(sdl, int(std::round(kW * scale)), int(std::round(launcherHeight * scale)));
+                SDL_SetWindowSize(sdl, int(std::round(DesignW() * scale)), int(std::round(launcherHeight * scale)));
                 SDL_SetWindowPosition(sdl, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
             }
             SDL_SetWindowTitle(sdl, "stadion — Launcher");
@@ -3228,10 +3387,10 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
                 const int frameHeight = (gameRect.bottom - gameRect.top) - client.bottom;
                 const RECT& work = monitor.rcWork;
                 const float scale = std::min({dpi / 96.0f,
-                    (work.right - work.left - frameWidth) / kW,
+                    (work.right - work.left - frameWidth) / DesignW(),
                     (work.bottom - work.top - frameHeight) / launcherHeight});
                 if (scale > 0) {
-                    const int width = int(std::round(kW * scale)) + frameWidth;
+                    const int width = int(std::round(DesignW() * scale)) + frameWidth;
                     const int height = int(std::round(launcherHeight * scale)) + frameHeight;
                     SetWindowPos(nativeWindow, nullptr, work.left + (work.right - work.left - width) / 2,
                                  work.top + (work.bottom - work.top - height) / 2, width, height,

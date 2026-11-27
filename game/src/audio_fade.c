@@ -8,6 +8,8 @@
 #include "libnumus/player.h"
 #include "StadionPort.h"
 
+extern s32 D_80078388;
+
 // D_800FC6F0 with its trailing per-file offset array.
 typedef struct unk_D_800FC6F0 {
     /* 0x00 */ u32 num_files;
@@ -18,6 +20,12 @@ typedef struct unk_D_800FC6F0 {
 
 extern u8 D_800786FD[];
 extern u8 D_80078A20[16];
+#if defined(VERSION_PAL)
+extern u8 sMoveSoundBankStale;
+#endif
+#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
+extern s32 D_80078388;
+#endif
 
 // .data
 typedef struct {
@@ -462,8 +470,18 @@ s32 Effect_TriggerMoveVisual(u32 move_id, u32 species, u32 sound_kind) {
     D_800789FC[0]++;
     D_800789FC[0] %= 3;
 
-    sp = (unk_D_800FC6F0*)D_800FC6F0;
     move_id--;
+#if defined(VERSION_PAL)
+    // PAL reloads the move sound bank first when it was replaced since the last move.
+    if (sMoveSoundBankStale != 0) {
+        sp = (unk_D_800FC6F0*)D_800FC6F0;
+        Rom_DmaRead(sp->offset1, D_800FC6DC, sp->wave_tables_offset - sp->offset1);
+        Audio_CopyDataWithCacheSync(D_800FC6DC, D_800FC690, 0x2EE0);
+        Audio_RelocateSoundBankWrapper(D_800FC690, ((unk_D_800FC6F0*)D_800FC6F0)->wave_tables_offset);
+        sMoveSoundBankStale = 0;
+    }
+#endif
+    sp = (unk_D_800FC6F0*)D_800FC6F0;
     if (move_id < sp->num_files - 1) {
         size = sp->files[move_id + 1] - sp->files[move_id];
     } else {
@@ -473,7 +491,17 @@ s32 Effect_TriggerMoveVisual(u32 move_id, u32 species, u32 sound_kind) {
     Rom_DmaRead(sp->files[move_id], D_800FC6DC, size);
     Audio_CopyDataWithCacheSync(D_800FC6DC, D_800FC698[D_800789FC[0]], 0x258);
     Audio_RelocateSoundBankTable(D_800FC698[D_800789FC[0]]);
-    ret = Audio_PlaySoundEffect(D_800FC690, D_800FC698[D_800789FC[0]], var + 1, 0x70, 0x80, -1);
+    // The translated releases play move sounds quieter while the battle music stream plays, and the European
+    // releases play them quieter overall.
+    ret = Audio_PlaySoundEffect(D_800FC690, D_800FC698[D_800789FC[0]], var + 1,
+                                (PORT_VERSION_TRANSLATED && (D_80078388 != 0) && (D_80078E78 == 0) &&
+                                 (sLoopPointTable[0] == 0))
+                                    ? 0x60
+                                    : 0x70,
+                                0x80, -1);
+    if (PORT_VERSION_PAL) {
+        Audio_QueueVoiceVolume(ret, 0x6A);
+    }
 
     if (sound_kind != 0xFF) {
         D_800789F8 = ret;

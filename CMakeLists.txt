@@ -94,6 +94,7 @@ set(PORT_MAIN_SOURCES
   src/port/enhancements/summary_bars.cpp
   src/port/enhancements/memory_screen.cpp
   src/port/rom_check.cpp
+  src/port/restored_content.cpp # reads CVars, so it needs libultraship's include paths (nlohmann/json)
   src/port/shader_warmup.cpp
   src/port/touch_controls.cpp
   src/port/pad_assign.cpp
@@ -153,6 +154,8 @@ endif()
 # Flags mirror tools/compile_flags.txt (used by tools/syntax_check.sh).
 # ---------------------------------------------------------------------------------------------
 file(GLOB_RECURSE STADIUM_GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/game/src/*.c)
+# *.inc.c files are #included by other game sources (as in the decomp), not compiled on their own
+list(FILTER STADIUM_GAME_SOURCES EXCLUDE REGEX "\\.inc\\.c$")
 # game/ is the vendored decomp (src, include, lib/ultralib): of its libultra sources, only the ones listed are compiled
 file(STRINGS cmake/ultralib_sources.txt PORT_ULTRALIB_SOURCES REGEX "^[^#]")
 list(TRANSFORM PORT_ULTRALIB_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/game/lib/ultralib/src/)
@@ -309,7 +312,7 @@ target_compile_options(stadium_game PRIVATE
 # libultra runtime for the game (threads, message queues, devices). This target sees the game's SDK shim
 # headers (src/port/sdk/ultra64.h etc.); the LUS-facing code in the executable must not, because libultraship
 # headers include <ultra64.h> themselves.
-add_library(port_os STATIC src/port/rom_version.cpp src/port/generated/rom_layouts.c src/port/os_thread.cpp src/port/fiber.cpp src/port/os_devices.cpp src/port/transfer_pak.cpp src/port/gb_audio_out.cpp src/port/audio_out.cpp src/port/sound_settings.cpp src/port/audio_hle.cpp src/port/gb_core.c
+add_library(port_os STATIC src/port/rom_version.cpp src/port/generated/rom_layouts.c src/port/generated/seg_syms.c src/port/os_thread.cpp src/port/fiber.cpp src/port/os_devices.cpp src/port/transfer_pak.cpp src/port/gb_audio_out.cpp src/port/audio_out.cpp src/port/sound_settings.cpp src/port/audio_hle.cpp src/port/gb_core.c
   src/port/jpeg_task.cpp src/port/gfx_translate.cpp)
 if(EMSCRIPTEN)
   target_sources(port_os PRIVATE src/port/web_audio.cpp) # sound output through an AudioWorklet (web_audio.h)

@@ -4,7 +4,7 @@
 #include "src/memmap.h"
 #include "gallery.h"
 #include "src/fragments/gallery_camera/gallery_camera.h"
-#include "src/fragments/particle_data_library/particle_data_library.h"
+#include "src/fragments/model_callback_library/model_callback_library.h"
 #include "src/fragments/particle_math/particle_math.h"
 #include "src/geo_node.h"
 #include "src/geo_render.h"
@@ -324,6 +324,14 @@ void Gallery_Dispatch(void) {
     var_s2 = 0;
     var_s5 = 0;
 
+    // PORT: the French, German, Spanish and Italian cartridges have no Gallery graphics, and their Gallery_Dispatch is
+    // only this push and pop. With an English ROM also provided, the port reads the graphics from it (restored
+    // content, src/port/restored_content.cpp).
+    if (!Port_GalleryAvailable()) {
+        main_pool_push_state('SNPM');
+        main_pool_pop_state('SNPM');
+        return;
+    }
     main_pool_push_state('SNPM');
     Audio_StartMusicTrack(0x4B);
 
@@ -366,7 +374,7 @@ void Gallery_Dispatch(void) {
                 // button GFX for How to Snap, but it doesnt use them.
                 ASSET_LOAD(D_3000000, kids_club_game_ui, 0);
                 FRAGMENT_LOAD(FRAGMENT_MINIGAME_ACTOR_FRAMEWORK);
-                FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);
+                FRAGMENT_LOAD(FRAGMENT_MODEL_CALLBACK_LIBRARY);
 
                 // determine if this is "How to Snap" or regular Snap Mode.
                 if (var_s5 == 1) {

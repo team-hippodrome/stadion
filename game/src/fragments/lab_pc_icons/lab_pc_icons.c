@@ -1,4 +1,5 @@
 #include "lab_pc_icons.h"
+#include "StadionPort.h"
 #include "src/display_object_textures.h"
 #include "src/poke_icon.h"
 #include "src/graphics_textures.h"
@@ -34,6 +35,21 @@ extern u8 D_88605B98[];
 extern u8 D_886067E8[];
 extern u8 D_886061C0[];
 extern u8* D_8860A688[];
+
+// The type name icons carry the type names, so the translated releases have their own. The port keeps only the
+// English ones; for a translated ROM it takes that ROM's icons out of its own copy of this fragment, where
+// D_8860A688 (at the same link address in every release) points at them.
+static u8* LabPC_GetTypeNameIcon(s32 type) {
+    if (PORT_VERSION_TRANSLATED) {
+        u32 icon = Port_FragmentRomWord((uintptr_t)fragment27_ROM_START, 0x88600000, 0x8860A688 + type * 4);
+        u8* image = (u8*)Port_FragmentRomData((uintptr_t)fragment27_ROM_START, 0x88600000, icon, 20 * 20 * 2);
+
+        if (image != NULL) {
+            return image;
+        }
+    }
+    return D_8860A688[type];
+}
 
 typedef struct unk_D_88605B00 {
     /* 0x00 */ s16 unk_00;
@@ -289,7 +305,7 @@ s32 LabPC_DrawMoveNameWidget(unk_func_88205880_0098_008_040_03C* arg0, s32 arg1,
         gDPSetAlphaCompare(gDisplayListHead++, G_AC_THRESHOLD);
         gDPSetTexturePersp(gDisplayListHead++, G_TP_NONE);
 
-        gDPLoadTextureBlock(gDisplayListHead++, D_8860A688[temp_v0_2], G_IM_FMT_RGBA, G_IM_SIZ_16b, 20, 20, 0,
+        gDPLoadTextureBlock(gDisplayListHead++, LabPC_GetTypeNameIcon(temp_v0_2), G_IM_FMT_RGBA, G_IM_SIZ_16b, 20, 20, 0,
                             G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
                             G_TX_NOLOD);
         gSPTextureRectangle(gDisplayListHead++, arg1 << 2, arg2 << 2, (arg1 + 0x13) << 2, (arg2 + 0x13) << 2,
@@ -1494,7 +1510,7 @@ unk_func_88205880_0098_008* LabPC_CreateMonDetailPanel(unk_func_88205880_0098* a
     ASSET_LOAD(D_1000000, common_menu1_ui, 0);
     sp38 = PokeIcon_CreateModelPreview(PokeIcon_AllocFramebuffers(1), 228, 160, 0, 0, 0xE0, 0xA0, D_8860A6D0);
     PokeIcon_OpenModelArchives();
-    FRAGMENT_LOAD(FRAGMENT_PARTICLE_DATA_LIBRARY);
+    FRAGMENT_LOAD(FRAGMENT_MODEL_CALLBACK_LIBRARY);
 
     D_8861C510 = arg0->unk_1C;
     D_8861C514 = arg0->unk_20;
@@ -1954,6 +1970,17 @@ u8 D_88606F30[] = {
 static Gfx D_88607730[] = {
     gsSPEndDisplayList(),
 };
+// Type name icons, which carry the type names in each language.
+#if defined(VERSION_ES)
+#include "lab_pc_icons_type_icons_es.inc.c"
+#elif defined(VERSION_DE)
+#include "lab_pc_icons_type_icons_de.inc.c"
+#else
+#if defined(VERSION_IT)
+#include "lab_pc_icons_type_icons_it.inc.c"
+#elif defined(VERSION_FR)
+#include "lab_pc_icons_type_icons_fr.inc.c"
+#else
 static u8 D_88607738[] = {
     0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52,
     0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95, 0x52, 0x95,
@@ -2671,6 +2698,8 @@ static u8 D_8860A368[] = {
     0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15, 0x13, 0x15,
     0x13, 0x15
 };
+#endif
+#endif
 u8* D_8860A688[] = {
     D_88607738, D_88607A60, D_88607D88, D_886080B0, D_886083D8, D_88608700, D_88608A28, D_88608D50,
     D_88609078, D_886093A0, D_886096C8, D_886099F0, D_88609D18, D_8860A040, D_8860A368,

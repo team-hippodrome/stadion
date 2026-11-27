@@ -279,6 +279,8 @@ extern u8 D_20003C0[];
 extern u8 D_20005C0[];
 extern u8 D_20002C0[];
 extern u8 D_2000300[];
+extern u8 D_2000580[];
+extern u8 D_2000840[];
 extern u8 D_2000340[];
 extern u8 D_2000380[];
 extern u8 gPlayer1LabelLarge[];
@@ -333,6 +335,9 @@ extern u8 D_20069A0[];
 extern u8 D_2002000[];
 extern u8 D_30C1290[];
 extern u8 D_0302EE00[];
+#if defined(VERSION_JP)
+extern u8 D_030C1290[];
+#endif
 extern u8 D_03034580[];
 extern u8 D_03039D00[];
 extern u8 D_0303F480[];
@@ -557,6 +562,7 @@ extern u8 D_200A780[];
 extern u8 D_2000980[];
 extern u8 D_2000A60[];
 extern u8 D_3008200[];
+extern u8 D_3010210[];
 extern u8 D_4000C40[];
 extern u8 D_4000DD0[];
 #define ELIGIBILITY_PANEL_LEGEND D_4000DD0
@@ -723,9 +729,9 @@ extern u8 D_2021620[];
 extern u8 D_2023240[];
 extern u8 D_2022E40[];
 extern u8 D_3016F00[];
-extern u8 D_3027690[];
-extern u8 D_10031D0[];
-extern u8 D_3025200[];
+extern u8 gSmallRound2Icon[];
+extern u8 gMenuCursor[];
+extern u8 gComIconSmall[];
 extern u8 D_3025950[];
 extern u8 D_30260A0[];
 extern u8 D_30267F0[];
@@ -917,6 +923,25 @@ typedef struct unk_D_8006FF00 {
 } unk_D_8006FF00;                // size = 0x1C
 extern unk_D_8006FF00 D_8006FF00[152];
 
+#ifdef VERSION_JP
+// JP fonts are fixed-width: every glyph of a set is drawn cellWidth pixels wide.
+typedef struct FontSet {
+    /* 0x00 */ u8 cellWidth;
+    /* 0x01 */ u8 height;
+    /* 0x02 */ u8 width; // Texture row width of one glyph.
+    /* 0x04 */ u8* texture;
+} FontSet; // size = 0x8
+
+typedef struct FontContext {
+    /* 0x00 */ FontSet unk_00[6];
+    /* 0x30 */ void* unk_48;
+    /* 0x34 */ u8* unk_4C; // Cached glyph source address.
+    /* 0x38 */ u8 setIndex;
+    /* 0x39 */ s8 letterSpacing; // Added to the glyph advance.
+    /* 0x3A */ u8 lineHeight;
+    /* 0x3B */ u8 flags; // 0x1 two-cycle texturing, 0x2 auxiliary texture loaded, 0x4 suppress newline handling.
+} FontContext;           // size = 0x3C
+#else
 typedef struct FontSet {
     /* 0x00 */ s16 width;
     /* 0x02 */ s16 height;
@@ -933,6 +958,7 @@ typedef struct FontContext {
     /* 0x52 */ u8 lineHeight;
     /* 0x53 */ u8 flags; // 0x1 two-cycle texturing, 0x2 auxiliary texture loaded, 0x4 suppress newline handling.
 } FontContext;           // size = 0x54
+#endif
 
 extern Gfx gUiTranslucentFillDL[];
 
@@ -949,8 +975,7 @@ extern s32 D_80078408;
 extern s32 D_80078E74;
 extern u8 D_80078E78;
 extern u8 D_80078E7C;
-extern u8 sLoopPointTable[0x3C]; // PORT: D_80078E80 is its first byte
-#define D_80078E80 (sLoopPointTable[0])
+extern u8 sLoopPointTable[0x3C];
 extern s32 D_80078EC8;
 extern s32 D_80078ED4;
 extern s32 D_80078ED8;

@@ -1,37 +1,90 @@
 #include "credits.h"
 #include "src/fragments/minigame_hud/minigame_hud.h"
 
-u16 D_86A05B50 = 0;
+// Frames the end logo has been fully opaque (see Credits_MainLoop).
+u16 sLogoHoldTimer = 0;
 
-s32 Credits_RandomRange(s32 arg0) {
-    if (arg0 == 0) {
+/**
+ * Returns a pseudo-random value in [0, range) from guRandom and the CPU count register;
+ * returns 0 for an empty range.
+ */
+s32 Credits_RandomRange(s32 range) {
+    if (range == 0) {
         return 0;
     }
-    return ((guRandom() + osGetCount()) / 10) % arg0;
+    return ((guRandom() + osGetCount()) / 10) % range;
 }
 
-void Credits_DrawContinuePrompt(u8 arg0) {
-    static u8 D_86A05B54 = 0;
+/**
+ * Draws the 100x56 RGBA32 Pokemon Stadium logo (segment 3 texture D_304F120 from
+ * kids_club_game_ui, drawn by Widget_DrawStripedBar) at (110, 92). With `fade_in` 0 it is
+ * drawn opaque (intro); otherwise it fades in over 30 calls and then counts sLogoHoldTimer,
+ * which Credits_MainLoop uses to end the credits. JP draws a 132x28 logo from the same texture.
+ */
+void Credits_DrawStadiumLogo(u8 fade_in) {
+    static u8 sLogoFadeFrame = 0; // 0-30 (0-25 in PAL) fade-in progress of the end logo
+#ifdef VERSION_JP
+    u8* strip = (u8*)D_304F120;
+    u8 i;
+#endif
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-    if (!arg0) {
+    if (!fade_in) {
         gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
-    } else if (D_86A05B54 < 0x1E) {
-        gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, (s32)ROUND_MAX((D_86A05B54 * 255.0f) / 30.0f));
-        D_86A05B54++;
+    } else if (sLogoFadeFrame < NTSC_PAL(30, 25)) {
+        gDPSetEnvColor(gDisplayListHead++, 255, 255, 255,
+                       (s32)ROUND_MAX((sLogoFadeFrame * 255.0f) / NTSC_PAL(30.0f, 25.0f)));
+        sLogoFadeFrame++;
     } else {
         gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
-        D_86A05B50++;
+        sLogoHoldTimer++;
     }
 
+#ifdef VERSION_JP
+    // The JP logo is 132x28, loaded and drawn in four 7-row strips.
+    for (i = 0; i < 4; i++) {
+        gDPLoadTextureTile(gDisplayListHead++, strip, G_IM_FMT_RGBA, G_IM_SIZ_32b, 132, 7, 0, 0, 131, 6, 0,
+                           G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
+                           G_TX_NOLOD);
+        Gfx_DrawTexturedRectClipped(0x5E, (s16)(0x6A + i * 7), 132, 7, 0, 0, 0x400, 0x400, 0);
+        strip += 132 * 7 * 4;
+    }
+#else
     Widget_DrawStripedBar(0x6E, 0x5C);
+#endif
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 }
 
 s32 pad_D_86A05B58[2] = { 0, 0 };
 
+#ifdef VERSION_JP
+// Projection for the first round's staff roll, which Credits_DrawGlyphQuad draws as quads
+// in quarter pixels around the screen center.
+Mtx sRoleTextProjection = { {
+    { 0x00000000, 0x00000000, 0x0000FFFF, 0x00000000 },
+    { 0x00000000, 0xFFFF0000, 0x00000000, 0x00000001 },
+    { 0x00510000, 0x00000000, 0x0000FF78, 0x00000000 },
+    { 0x00000000, 0x80000000, 0x00000000, 0x00000000 },
+} };
+
+Vp sRoleTextViewport = { {
+    { 0x0280, 0x01E0, 0x01FF, 0x0000 },
+    { 0x0280, 0x01E0, 0x01FF, 0x0000 },
+} };
+
+Gfx sRoleTextSetupDL[] = {
+    gsDPPipeSync(),
+    gsSPClearGeometryMode(G_LIGHTING),
+    gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),
+    gsDPSetTexturePersp(G_TP_PERSP),
+    gsSPPerspNormalize(0xFFFF),
+    gsSPViewport(&sRoleTextViewport),
+    gsSPEndDisplayList(),
+};
+#else
+// Initial text pointers for sRoleLines, two per line (see credits.h). All empty in US.
 char D_86A05B60 = '\x00';
 char D_86A05B64 = '\x00';
 char D_86A05B68 = '\x00';
@@ -404,5 +457,11 @@ char D_86A06120 = '\x00';
 char D_86A06124 = '\x00';
 char D_86A06128 = '\x00';
 char D_86A0612C = '\x00';
+#if !defined(VERSION_IT)
 char D_86A06130 = '\x00';
 char D_86A06134 = '\x00';
+#endif
+// PORT: the Spanish staff roll's extra line, defined for every version (decomp: VERSION_ES only)
+char D_86A06138 = '\x00';
+char D_86A0613C = '\x00';
+#endif

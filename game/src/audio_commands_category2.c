@@ -765,8 +765,13 @@ s32 Audio_PlayCategory9SoundCommand(s32 arg0, UNUSED s32 arg1, UNUSED s32 arg2) 
                 D_80078ED4 = 0;
                 D_80078ED8 = 0;
                 D_80078EDC = 0;
+#if defined(VERSION_FR) || defined(VERSION_IT)
+                D_80078FAC++;
+                sp38 = 2;
+#else
                 sp38 = 2;
                 D_80078FAC++;
+#endif
                 Audio_UpdateSpecialSequence(0x1E, 0);
             } else if (D_80078FAC == 1) {
                 D_80078FAC++;
@@ -796,6 +801,10 @@ s32 Audio_PlayCategory9SoundCommand(s32 arg0, UNUSED s32 arg1, UNUSED s32 arg2) 
 
         case 0x9000B:
             Audio_StartMusicTrack(0x1B);
+            if (PORT_VERSION_FR || PORT_VERSION_IT) {
+                // French and Italian only start the music here, without the sound effect.
+                return 0;
+            }
             break;
 
         case 0x9000C:
@@ -807,7 +816,7 @@ s32 Audio_PlayCategory9SoundCommand(s32 arg0, UNUSED s32 arg1, UNUSED s32 arg2) 
         case 0x90010:
         case 0x90011:
             sp38 = sp38 - 1;
-            sp30 = 0x60;
+            sp30 = (PORT_VERSION_FR || PORT_VERSION_IT) ? 0x70 : 0x60;
             break;
 
         default:
@@ -868,12 +877,22 @@ s32 Audio_PlayCategoryASoundCommand(s32 arg0, s32 arg1, s32 arg2) {
         2.0f,
         2.0f,
     };
+#if defined(VERSION_FR) || defined(VERSION_DE) || defined(VERSION_ES) || defined(VERSION_IT)
+    // The translated releases pitch all four variants the same.
+    static f32 D_80078FF8[4] = {
+        15.0f,
+        15.0f,
+        15.0f,
+        15.0f,
+    };
+#else
     static f32 D_80078FF8[4] = {
         0.0f,
         4.0f,
         8.0f,
         12.0f,
     };
+#endif
 
     s32 sp34;
     s32 sp30;
@@ -918,7 +937,8 @@ s32 Audio_PlayCategoryASoundCommand(s32 arg0, s32 arg1, s32 arg2) {
             var_fv0 += D_80078FE8[arg2];
             var_t0 = D_80078FB0[arg1] + 0x7F;
             var_a3 = 240.0f;
-            var_a3 += D_80078FF8[arg2];
+            // The translated releases pitch all four variants the same.
+            var_a3 += PORT_VERSION_TRANSLATED ? 15.0f : D_80078FF8[arg2];
 
             if (var_t0 >= 0x100) {
                 var_t0 = 0xFF;
@@ -1272,6 +1292,8 @@ s32 Audio_PlayDirectSoundCommand(s32 arg0, UNUSED s32 arg1, UNUSED s32 arg2) {
     return var_v0; // PORT: missing in the decomp (the MIPS code leaves it in v0)
 }
 
+extern s32 D_800FF9B4;
+
 s32 Audio_PlayCategory11SoundCommand(s32 arg0, s32 arg1, s32 arg2) {
     if (PORT_AUDIO_OFF()) {
         return 0;
@@ -1292,9 +1314,13 @@ s32 Audio_PlayCategory11SoundCommand(s32 arg0, s32 arg1, s32 arg2) {
 
     UNUSED s32 pad;
     s32 sp40;
+    s32 voice_volume;
     s32 temp_v0_2;
     u32 sp38;
     s32 sp34;
+#if defined(VERSION_PAL)
+    s32 voice_volume;
+#endif
     UNUSED s32 pad2;
     uintptr_t sp2C; // PORT: was u32
     u32 sp20;
@@ -1302,6 +1328,7 @@ s32 Audio_PlayCategory11SoundCommand(s32 arg0, s32 arg1, s32 arg2) {
     sp20 = arg0 & 0xFFFF0000;
     sp38 = 0x80;
     sp34 = 0x80;
+    voice_volume = 0x80;
 
     if (sp20 != D_80079014) {
         sp2C = (uintptr_t)D_800FC6F4->seqArray[3].offset;
@@ -1325,11 +1352,26 @@ s32 Audio_PlayCategory11SoundCommand(s32 arg0, s32 arg1, s32 arg2) {
         case 0x1100007:
             return 0;
 
+#if defined(VERSION_PAL)
         case 0x1100015:
-        case 0x1100016:
         case 0x1100017:
             sp40--;
             break;
+
+        case 0x1100016:
+            voice_volume = 0x6A;
+            sp40--;
+            break;
+#else
+        case 0x1100015:
+        case 0x1100016:
+        case 0x1100017:
+            if (PORT_VERSION_PAL && (arg0 == 0x1100016)) {
+                voice_volume = 0x6A;
+            }
+            sp40--;
+            break;
+#endif
 
         case 0x1100001:
         case 0x1100002:
@@ -1384,6 +1426,10 @@ s32 Audio_PlayCategory11SoundCommand(s32 arg0, s32 arg1, s32 arg2) {
             } else {
                 sp38 = D_80079040[(arg1 - 1) % 4];
             }
+            // PAL turns the music down while this plays over track 0x3E.
+            if (PORT_VERSION_PAL && (D_800FF9B4 == 0x3E)) {
+                Audio_QueueVoiceVolume(D_80078E70, 0x6C);
+            }
             break;
 
         case 0x110000E:
@@ -1398,6 +1444,9 @@ s32 Audio_PlayCategory11SoundCommand(s32 arg0, s32 arg1, s32 arg2) {
     }
 
     temp_v0_2 = Audio_PlaySoundEffect(D_800FC6A4, D_800FC6A8, sp40, sp34, sp38, -1);
+    if (voice_volume != 0x80) {
+        Audio_QueueVoiceVolume(temp_v0_2, voice_volume);
+    }
     switch (arg0) {
         case 0x1100003:
             D_8007901C = temp_v0_2;

@@ -8,6 +8,7 @@
 #include "src/audio_sfx.h"
 #include "src/gfx_rect.h"
 #include "src/fragments/rental_team_selection/rental_team_selection.h"
+#include "StadionPort.h" // PORT_SEGSYM: images the translated releases keep elsewhere
 
 static unk_D_838067F0 D_838067F0;
 
@@ -509,7 +510,7 @@ void Gallery_RentalViewerDrawBoxTabBar(unk_D_838067F0* arg0) {
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
-    Gallery_RentalViewerDrawBoxTabIcon(temp_s0 + 8, sp40 + 4, D_2001A20, arg0->unk_003C[0].unk_00);
+    Gallery_RentalViewerDrawBoxTabIcon(temp_s0 + 8, sp40 + 4, PORT_SEGSYM(D_2001A20), arg0->unk_003C[0].unk_00);
     Gallery_RentalViewerDrawBoxTabIcon(temp_s0 + 0x2C, sp40 + 4, D_2002560, arg0->unk_003C[1].unk_00);
     Gallery_RentalViewerDrawBoxTabIcon(temp_s0 + 0x50, sp40 + 4, D_2002B00, arg0->unk_003C[2].unk_00);
     Gallery_RentalViewerDrawBoxTabIcon(temp_s0 + 0x74, sp40 + 4, D_20030A0, arg0->unk_003C[3].unk_00);
@@ -522,7 +523,7 @@ void Gallery_RentalViewerDrawBoxTabBar(unk_D_838067F0* arg0) {
     Gallery_RentalViewerDrawBoxTabIcon(temp_s0 + 0x170, sp40 + 4, D_2005800, arg0->unk_003C[10].unk_00);
     Gallery_RentalViewerDrawBoxTabIcon(temp_s0 + 0x194, sp40 + 4, D_2005DA0, arg0->unk_003C[11].unk_00);
     Gallery_RentalViewerDrawBoxTabIcon(temp_s0 + 0x1B8, sp40 + 4, D_2006340, arg0->unk_003C[12].unk_00);
-    Gallery_RentalViewerDrawBoxTabIcon(temp_s0 + 0x1DC, sp40 + 4, D_2001FC0, 0x97);
+    Gallery_RentalViewerDrawBoxTabIcon(temp_s0 + 0x1DC, sp40 + 4, PORT_SEGSYM(D_2001FC0), 0x97);
 
     if (arg0->unk_0000 != 3) {
         Gfx_DrawTextureRgba16(temp_s0 + 4 + (arg0->unk_001C * 0x24), sp40, 0x2C, 0xE, D_2001080, 0x2C, 0);
@@ -566,16 +567,16 @@ void Gallery_RentalViewerDrawScrollbar(s32 arg0, s32 arg1, unk_D_838067F0* arg2)
     gDPSetEnvColor(gDisplayListHead++, 130, 130, 220, 255);
     gDPSetPrimColor(gDisplayListHead++, 0, 0, 60, 60, 150, 255);
 
-    Gfx_DrawTextureIa8(arg0 + 4, arg1 + 0x20, 0x10, 8, D_200A200, 0x10, 0);
-    Gfx_DrawTextureIa8(arg0 + 4, arg1 + 0x118, 0x10, 8, D_200A280, 0x10, 0);
+    Gfx_DrawTextureIa8(arg0 + 4, arg1 + 0x20, 0x10, 8, PORT_SEGSYM(D_200A200), 0x10, 0);
+    Gfx_DrawTextureIa8(arg0 + 4, arg1 + 0x118, 0x10, 8, PORT_SEGSYM(D_200A280), 0x10, 0);
     Gfx_DrawTexturedRectClipped(arg0 + 4, arg1 + 0x28, 0x10, 0xF0, 0, 0, 0x400, 0, 0);
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
     if (D_83805540 < 4) {
-        Gfx_DrawTextureRgba16(arg0, arg1 + sp5C + 0x1C, 0x18, 0x18, D_200A300, 0x18, 0);
+        Gfx_DrawTextureRgba16(arg0, arg1 + sp5C + 0x1C, 0x18, 0x18, PORT_SEGSYM(D_200A300), 0x18, 0);
     } else {
-        Gfx_DrawTextureRgba16(arg0, arg1 + sp5C + 0x1C, 0x18, 0x18, D_200A780, 0x18, 0);
+        Gfx_DrawTextureRgba16(arg0, arg1 + sp5C + 0x1C, 0x18, 0x18, PORT_SEGSYM(D_200A780), 0x18, 0);
     }
 
     if (arg2->unk_0000 == 2) {
@@ -717,10 +718,10 @@ void func_838043F8(s32 arg0) {
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
     if (Gallery_RentalViewerCountBoxes(&D_838067F0) >= 2) {
-        Gfx_DrawTextureRgba16(spC4 - 0x32, spC0 + 8, 0x30, 0x18, D_2007E00, 0x30, 0);
-        Gfx_DrawTextureRgba16(spC4 - 0x32, spC0 + 0x20, 0x30, 0x18, D_2008700, 0x30, 0);
-        Gfx_DrawTextureRgba16(spC4 + 0x1BA, spC0 + 8, 0x30, 0x18, D_2009000, 0x30, 0);
-        Gfx_DrawTextureRgba16(spC4 + 0x1BA, spC0 + 0x20, 0x30, 0x18, D_2009900, 0x30, 0);
+        Gfx_DrawTextureRgba16(spC4 - 0x32, spC0 + 8, 0x30, 0x18, PORT_SEGSYM(D_2007E00), 0x30, 0);
+        Gfx_DrawTextureRgba16(spC4 - 0x32, spC0 + 0x20, 0x30, 0x18, PORT_SEGSYM(D_2008700), 0x30, 0);
+        Gfx_DrawTextureRgba16(spC4 + 0x1BA, spC0 + 8, 0x30, 0x18, PORT_SEGSYM(D_2009000), 0x30, 0);
+        Gfx_DrawTextureRgba16(spC4 + 0x1BA, spC0 + 0x20, 0x30, 0x18, PORT_SEGSYM(D_2009900), 0x30, 0);
     }
 
     gSPDisplayList(gDisplayListHead++, D_8006F470);

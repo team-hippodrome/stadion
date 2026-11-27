@@ -69,7 +69,7 @@ typedef struct MoveSoundTable {
     MoveSoundEntry entries[1];
 } MoveSoundTable;
 
-extern u8 D_800B32A0[0x493E0 * 2]; // PORT: doubled (audio_commands.c)
+extern u8 D_800B32A0[0x493E0 * 2]; // PORT: doubled (audio_bank_init.c)
 extern song_t* D_800FC680;
 extern SoundBank* D_800FC684;
 extern fx_t* D_800FC688;

@@ -135,6 +135,13 @@ static uint32_t LoadIconVariant(u8 species, arg1_func_80010CA8 variant) {
     }
     offset = ReadBE32(entry);
     size = ReadBE32(entry + 4);
+    {
+        // restored content (Jynx's colour) may take the icon from another release's ROM
+        u32 start;
+        if (Port_RestoredArchiveFile(base, species - 1, &start, &size)) {
+            offset = start - base;
+        }
+    }
     if (size != ICON_BYTES || Port_RomRead(base + offset, raw, sizeof raw) != sizeof raw) {
         EnhLog("card icon: species %d not readable (size 0x%x)", species, (unsigned)size);
         return 0;

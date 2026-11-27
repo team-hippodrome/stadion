@@ -28,6 +28,7 @@
 #include <thread>
 #include <csignal>
 #include "StadionPort.h"
+#include "restored_content.h"
 #include <spdlog/spdlog.h>
 #if defined(_WIN32)
 #include <exception>
@@ -252,7 +253,7 @@ static void LoadEnvFile() {
 }
 #endif
 
-// The loaded ROM must be one of the original USA dumps (rom_check.h): any other starts and then crashes in the middle of
+// The loaded ROM must be one of the original USA or European dumps (rom_check.h): any other starts and then crashes in the middle of
 // the game. The message goes to stderr and, as there is no console on Windows or in the macOS app, to a message box.
 // For an accepted ROM, selects how its data is read (rom_version.cpp).
 static bool RomIsOriginal(const std::string& path) {
@@ -266,8 +267,8 @@ static bool RomIsOriginal(const std::string& path) {
     }
     char message[1024];
     snprintf(message, sizeof message,
-             "%s is not an original Pokemon Stadium (USA) ROM.\n\nSHA-1 %s (%zu bytes)\nexpected one of (%zu bytes, .z64):\n%s\n"
-             "Other regions, a patched or translated ROM or a damaged dump do not work with the port yet.",
+             "%s is not an original Pokemon Stadium ROM.\n\nSHA-1 %s (%zu bytes)\nexpected one of (%zu bytes, .z64):\n%s\n"
+             "The Japanese release, a patched or translated ROM or a damaged dump do not work with the port yet.",
              path.c_str(), sha1.c_str(), Port::RomSize(), Port::kRomSize, Port::KnownRomList().c_str());
     fprintf(stderr, "%s\n", message);
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "stadion: wrong ROM", message, nullptr);
@@ -524,6 +525,8 @@ static int RunGame(int argc, char** argv) {
         }
     }
     Port::EnsureGameFonts(); // (the launcher loads them when it shows)
+    // the other releases the player provided beside it (restored content: Gallery, Nidoqueen, Jynx)
+    Port::LoadRestoredContent();
 #if defined(__EMSCRIPTEN__)
     Port::BeginShaderWarmup();
     emscripten_set_main_loop(WebLoopPass, 0, true); // does not return

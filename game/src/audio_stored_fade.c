@@ -6,6 +6,8 @@
 #include "libnumus/player.h"
 #include "StadionPort.h"
 
+extern s32 D_80078388;
+
 // .data
 u8 D_80078A10[3] = { 0xFF, 0xFF, 0xFF };
 u32 D_80078A14 = 0;
@@ -127,7 +129,17 @@ block_38:
         }
         return 0;
     }
-    temp_v0 = Audio_PlaySoundEffect(D_800FC6AC, seq, species, 0x80, 0x80, -1);
+    // The translated releases play cries quieter while the battle music stream plays, and the European releases play
+    // them quieter overall.
+    temp_v0 = Audio_PlaySoundEffect(D_800FC6AC, seq, species,
+                                    (PORT_VERSION_TRANSLATED && (D_80078388 != 0) && (D_80078E78 == 0) &&
+                                     (sLoopPointTable[0] == 0))
+                                        ? 0x70
+                                        : 0x80,
+                                    0x80, -1);
+    if (PORT_VERSION_PAL) {
+        Audio_QueueVoiceVolume(temp_v0, 0x6A);
+    }
     D_80078A18 = temp_v0;
     return temp_v0;
 }

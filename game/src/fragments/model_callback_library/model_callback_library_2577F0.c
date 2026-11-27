@@ -1,11 +1,11 @@
-#include "particle_data_library.h"
+#include "model_callback_library.h"
 #include "battle_hud.h"
 #include "geo_render.h"
 #include "gfx_buffer.h"
 #include "StadionPort.h"
 
 // .data
-static Gfx D_81004170[] = {
+static Gfx sScrollingPanelCombineDl[] = {
     gsDPPipeSync(),
     gsDPSetCombineLERP(TEXEL1, TEXEL0, ENV_ALPHA, TEXEL0, TEXEL1, TEXEL0, ENVIRONMENT, TEXEL0, COMBINED, 0, SHADE, 0,
                        COMBINED, 0, PRIM_LOD_FRAC, 0),
@@ -14,15 +14,21 @@ static Gfx D_81004170[] = {
 };
 
 // .bss
-static s16 D_81004B60;
+static s16 sScrollingPanelOffset;
 
-void func_81002530(Gfx* gfx, DisplayListAddresses* addresses) {
+/**
+ * Draws two 32x32 RGBA16 textures (segments[0], segments[1]) blended by sScrollingPanelCombineDl,
+ * with their tile offsets scrolled by sScrollingPanelOffset in different directions so the surface
+ * seems to flow. Skipped while textureMode != 0. The offset only moves when D_800AF7B0 for the
+ * active renderer mode is 0 and ModelPhase_IsIdle returns 0.
+ */
+void DisplayList_BuildScrollingDualPanel(Gfx* gfx, DisplayListAddresses* addresses) {
     s16 temp_t3;
     s16 temp_t4;
     s16 temp_t2;
     u8 temp_v0;
     PortEnhCardEffect* cardEffect = PortEnh_ActiveCardEffect();
-    s16 scrollOffset = (cardEffect != NULL) ? cardEffect->scrollOffset : D_81004B60;
+    s16 scrollOffset = (cardEffect != NULL) ? cardEffect->scrollOffset : sScrollingPanelOffset;
 
     temp_v0 = ModelRenderer_GetActiveMode();
     if (D_8006F09C->textureMode == 0) {
@@ -30,7 +36,7 @@ void func_81002530(Gfx* gfx, DisplayListAddresses* addresses) {
         temp_t3 = 0x4000 - (scrollOffset >> 4);
         temp_t4 = 0x4000 - ((scrollOffset >> 3) & 0xFFFF);
 
-        gSPDisplayList(gfx++, D_81004170);
+        gSPDisplayList(gfx++, sScrollingPanelCombineDl);
 
         gDPLoadTextureTile(gfx++, addresses->segments[0], G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 32, 0, 0, 31, 31, 0,
                            G_TX_WRAP, G_TX_WRAP, 5, 5, G_TX_NOLOD, G_TX_NOLOD);
@@ -46,13 +52,17 @@ void func_81002530(Gfx* gfx, DisplayListAddresses* addresses) {
             }
         } else if (D_800AF7B0[temp_v0 & 1] == 0) {
             if (ModelPhase_IsIdle() == 0) {
-                D_81004B60--;
+                sScrollingPanelOffset--;
             }
         }
     }
     gSPEndDisplayList(gfx++);
 }
 
+/**
+ * Geo callback (jump-table slot 0x100). Builds DisplayList_BuildScrollingDualPanel on the build
+ * pass. Referenced by the Grimer and Muk models; the debugger hit it for both in battle (sludge surface).
+ */
 void DisplayList_InitScrollingDualPanel(s32 arg0, DisplayListState* state) {
     Gfx* gfx;
     DisplayListAddresses* addresses;
@@ -61,6 +71,6 @@ void DisplayList_InitScrollingDualPanel(s32 arg0, DisplayListState* state) {
         addresses = (DisplayListAddresses*)Port_PdlWords(state->addresses);
         gfx = Gfx_AllocDisplayList(GFX_N64_BYTES(0xF0));
         state->gfx = gfx;
-        func_81002530(gfx, addresses);
+        DisplayList_BuildScrollingDualPanel(gfx, addresses);
     }
 }

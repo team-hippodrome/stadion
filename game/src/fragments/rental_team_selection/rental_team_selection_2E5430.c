@@ -14,6 +14,7 @@
 #include "src/matrix.h"
 #include "src/dp_intro.h"
 #include "src/hal_libc.h"
+#include "StadionPort.h" // PORT_SEGSYM: images the translated releases keep elsewhere
 
 u8* D_84211850[] = {
     D_202C080, D_202C500, D_202C980, D_202CE00, D_202D280, D_202D700, D_202DB80, D_202E000,
@@ -231,16 +232,16 @@ void TeamSelection_RegisteredTeam_DrawScrollbar(unk_D_84229EB0* arg0) {
         gDPSetEnvColor(gDisplayListHead++, 130, 130, 220, 255);
         gDPSetPrimColor(gDisplayListHead++, 0, 0, 60, 60, 150, 255);
 
-        Gfx_DrawTextureIa8(sp62 + 4, temp_s2 + 4, 0x10, 8, D_200A200, 0x10, 0);
-        Gfx_DrawTextureIa8(sp62 + 4, temp_s2 + 0x104, 0x10, 8, D_200A280, 0x10, 0);
+        Gfx_DrawTextureIa8(sp62 + 4, temp_s2 + 4, 0x10, 8, PORT_SEGSYM(D_200A200), 0x10, 0);
+        Gfx_DrawTextureIa8(sp62 + 4, temp_s2 + 0x104, 0x10, 8, PORT_SEGSYM(D_200A280), 0x10, 0);
         Gfx_DrawTexturedRectClipped(sp62 + 4, temp_s2 + 0xC, 0x10, 0xF8, 0, 0, 0x400, 0, 0);
 
         gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
 
         if (D_84211888 < 4) {
-            Gfx_DrawTextureRgba16(sp62, temp_s2 + sp66, 0x18, 0x18, D_200A300, 0x18, 0);
+            Gfx_DrawTextureRgba16(sp62, temp_s2 + sp66, 0x18, 0x18, PORT_SEGSYM(D_200A300), 0x18, 0);
         } else {
-            Gfx_DrawTextureRgba16(sp62, temp_s2 + sp66, 0x18, 0x18, D_200A780, 0x18, 0);
+            Gfx_DrawTextureRgba16(sp62, temp_s2 + sp66, 0x18, 0x18, PORT_SEGSYM(D_200A780), 0x18, 0);
         }
     }
 

@@ -183,8 +183,12 @@ void Fragment_RelocateAndCommit(MainPoolState* arg0, u32 arg1, Fragment* arg2) {
 Fragment* BinArchive_LoadFileFromRomRange(MainPoolState* arg0, BinArchive* arg1, BinArchiveFile* arg2, uintptr_t arg3,
                                           s32 arg4) {
     s32 temp_a1 = arg1->unk_04 + arg2->offset;
+    u32 size = arg2->size;
 
-    return Fragment_LoadFromRomRange(arg0, temp_a1, arg2->size + temp_a1, arg3, arg4);
+    // PORT: restored content (Nidoqueen's animation, Jynx's colour) may take this file from another release's ROM
+    Port_RestoredArchiveFile((u32)(uintptr_t)arg1->unk_04,
+                             (s32)(arg2 - (BinArchiveFile*)((u8*)arg1 + sizeof(BinArchive))), (u32*)&temp_a1, &size);
+    return Fragment_LoadFromRomRange(arg0, temp_a1, size + temp_a1, arg3, arg4);
 }
 
 Fragment* BinArchive_LoadFileFromLbaRange(MainPoolState* arg0, BinArchive* arg1, BinArchiveFile* arg2, uintptr_t arg3,
@@ -466,7 +470,10 @@ ModelLoadContext* PokeIcon_AllocFramebuffers(u32 flags) {
 }
 
 void PokeIcon_OpenModelArchives(void) {
-#if defined(VERSION_US_REV2)
+#if defined(VERSION_PAL_LATE)
+    D_800ABE10.unk_A04.unk_00 = BinArchive_Open(0x8FA000, NULL, 1, 1);
+    D_800ABE10.unk_A04.unk_04 = BinArchive_Open(0x8A8000, NULL, 1, 1);
+#elif defined(VERSION_US_REV2)
     D_800ABE10.unk_A04.unk_00 = BinArchive_Open(0x919000, 0, 1, 1);
     D_800ABE10.unk_A04.unk_04 = BinArchive_Open(0x8C7000, 0, 1, 1);
 #elif defined(VERSION_JP)

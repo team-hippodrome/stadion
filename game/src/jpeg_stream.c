@@ -941,7 +941,7 @@ void* Port_ResolveCode(uintptr_t addr) {
             }
         }
     }
-    // Fragment 31 (particle_data_library) starts with a table of trampolines ("j target; nop") that ROM data uses as
+    // Fragment 31 (model_callback_library) starts with a table of trampolines ("j target; nop") that ROM data uses as
     // stable entry points into other fragments (e.g. 0x810001D0 -> ParticleGfx_GraphNodeBuildDescriptorMaterialList,
     // the arena floor's material callback). Follow a jump at the address to its target.
     if (addr >= 0x81000000 && addr < 0x90000000 && depth < 4) {
@@ -1142,8 +1142,14 @@ void BinArchive_Free(void* arg0) {
 
 Fragment* BinArchive_LoadFileFromRom(BinArchive* arg0, BinArchiveFile* arg1) {
     u8* temp_a0 = arg0->unk_04 + arg1->offset;
+    u32 start, size = arg1->size;
 
-    return Asset_LoadCompressed(temp_a0, arg1->size + temp_a0, 0, 0);
+    // PORT: restored content (Jynx's colour) may take this file from another release's ROM
+    if (Port_RestoredArchiveFile((u32)(uintptr_t)arg0->unk_04,
+                                 (s32)(arg1 - (BinArchiveFile*)((u8*)arg0 + sizeof(BinArchive))), &start, &size)) {
+        temp_a0 = (u8*)(uintptr_t)start;
+    }
+    return Asset_LoadCompressed(temp_a0, size + temp_a0, 0, 0);
 }
 
 void* BinArchive_LoadFileBuffered(BinArchive* arg0, BinArchiveFile* arg1) {

@@ -1,5 +1,6 @@
 #include "global.h"
 #include "minigame_hud.h"
+#include "StadionPort.h"
 #include "src/audio_sfx.h"
 #include "src/audio_commands_category2.h"
 #include "src/audio_loop_point.h"
@@ -49,6 +50,14 @@ u32 D_87806730[] = {
     0xFFFEFFFE, 0xFFFEFFFE, 0xFFFEFFFE, 0xFFFEFFFE, 0xFFFEFFFE, 0xFFFEFFFE, 0xFFFEFFFE, 0xFFFEFFFE,
 };
 
+#if defined(VERSION_FR)
+#include "minigame_hud_pause_menu_player_icons_fr.inc.c"
+#else
+#if defined(VERSION_ES)
+#include "minigame_hud_pause_menu_player_icons_es.inc.c"
+#elif defined(VERSION_IT)
+#include "minigame_hud_pause_menu_player_icons_it.inc.c"
+#else
 u32 D_878067F0[] = {
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
@@ -476,6 +485,7 @@ u32 D_878093D0[] = {
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 };
+#endif
 
 u32 D_8780A270[] = {
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
@@ -1011,6 +1021,7 @@ u32 D_8780DCF0[] = {
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 };
+#endif
 
 static Vp D_8780EB90 = {
     {
@@ -1189,6 +1200,22 @@ static u32* D_8780F910[2][4] = {
     { D_8780B110, D_8780BFB0, D_8780CE50, D_8780DCF0 },
 };
 
+// The player icons carry text, so the French, Spanish and Italian releases have their own (German keeps the English
+// ones). The port keeps only the English ones; for those ROMs it takes the ROM's own icons out of its copy of this
+// fragment, where they sit in the same order at 0x87806800, 0xEA0 bytes (36x26 RGBA32) apart.
+static u32* PauseMenu_GetPlayerIcon(s32 set, s32 player) {
+    if (PORT_VERSION_FR || PORT_VERSION_ES || PORT_VERSION_IT) {
+        u32 index = set * 5 + player; // the fifth image of the first set is not a player icon
+        u32* image = (u32*)Port_FragmentRomWords((uintptr_t)fragment2_ROM_START, 0x87800000, 0x87806800 + index * 0xEA0,
+                                                 0xEA0 / 4);
+
+        if (image != NULL) {
+            return image;
+        }
+    }
+    return D_8780F910[set][player];
+}
+
 static f32 D_8780F930[] = {
     0.9f,
     1.0f,
@@ -1312,7 +1339,7 @@ void Widget_PauseMenuInit(void) {
     D_8780FCA7 = 0;
     D_8780FDF8 = 0;
     D_8780FE01 = 0;
-    D_8780FE00 = 0xC;
+    D_8780FE00 = NTSC_PAL(12, 10);
 
     D_8780FE08[0] = D_8780FE28[0] = Text_GetString(NULL, 0, gMinigameText, 0x51);
 
@@ -1346,7 +1373,7 @@ void Widget_PauseMenuResetWinStreak(void) {
 }
 
 /**
- * Same shape as func_86A01490 in credits_158A00.c: the wrap-around arm widens the counter to
+ * Same shape as Credits_UpdateFrameDelta in credits_158A00.c: the wrap-around arm widens the counter to
  * 64 bits before subtracting, which makes IDO stage the value through the low half of a
  * register pair (addiu t5, v0, 0) before the 32-bit subtract (subu t9, t5, v1).
  */
@@ -1647,6 +1674,11 @@ void func_87803EAC(u32* arg0, u16 arg1, UNUSED u16 arg2, u16 arg3, u16 arg4, u8 
     }
 }
 
+// The Spanish pause menu places its player icon strip differently. PORT: chosen at runtime (decomp: VERSION_ES).
+#define PAUSE_ICON_ARG (PORT_VERSION_ES ? 0x68 : 0x23)
+#define PAUSE_ICON_X0 (PORT_VERSION_ES ? 0x20 : -0x63)
+#define PAUSE_ICON_X1 (PORT_VERSION_ES ? 0x68 : -0x1B)
+
 typedef struct Vtx4 {
     /* 0x00 */ Vtx vtx1;
     /* 0x10 */ Vtx vtx2;
@@ -1745,7 +1777,7 @@ void func_87804320(u8 arg0, s8 arg1, s8 arg2, s8 arg3, s8 arg4) {
         D_8780FCCC[1] = 0x1A;
         D_8780FCCC[2] = 0x34;
 
-        func_87803EAC(&D_3010000, 0x88, 0x34, 0x23, 0x1A, 5, 3);
+        func_87803EAC(&D_3010000, 0x88, 0x34, PAUSE_ICON_ARG, 0x1A, 5, 3);
 
         spAC = Gfx_AllocDisplayList(sizeof(Vtx) * 4 * temp_s2);
 
@@ -1773,15 +1805,17 @@ void func_87804320(u8 arg0, s8 arg1, s8 arg2, s8 arg3, s8 arg4) {
             s32 k = var_s4;
 
             if (spA0[i] == 1) {
-                Gfx_SetVertexAttributes(&spAC[var_s4].vtx1, -0x63, spA4[var_s4], 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF);
-                Gfx_SetVertexAttributes(&spAC[var_s4].vtx2, -0x1B, spA4[var_s4], 0, 0x480, 0, 0xFF, 0xFF, 0xFF, 0xFF);
-                Gfx_SetVertexAttributes(&spAC[var_s4].vtx3, -0x63, spA4[var_s4] + 0x34, 0, 0, 0x340, 0xFF, 0xFF, 0xFF,
+                Gfx_SetVertexAttributes(&spAC[var_s4].vtx1, PAUSE_ICON_X0, spA4[var_s4], 0, 0, 0, 0xFF, 0xFF, 0xFF,
                                         0xFF);
-                Gfx_SetVertexAttributes(&spAC[var_s4].vtx4, -0x1B, spA4[var_s4] + 0x34, 0, 0x480, 0x340, 0xFF, 0xFF,
+                Gfx_SetVertexAttributes(&spAC[var_s4].vtx2, PAUSE_ICON_X1, spA4[var_s4], 0, 0x480, 0, 0xFF, 0xFF, 0xFF,
+                                        0xFF);
+                Gfx_SetVertexAttributes(&spAC[var_s4].vtx3, PAUSE_ICON_X0, spA4[var_s4] + 0x34, 0, 0, 0x340, 0xFF, 0xFF,
                                         0xFF, 0xFF);
+                Gfx_SetVertexAttributes(&spAC[var_s4].vtx4, PAUSE_ICON_X1, spA4[var_s4] + 0x34, 0, 0x480, 0x340, 0xFF,
+                                        0xFF, 0xFF, 0xFF);
 
                 gSPVertex(gDisplayListHead++, &spAC[var_s4].vtx1, 4, 0);
-                gDPLoadTextureBlock(gDisplayListHead++, D_8780F910[D_8780FA30[i]][i], G_IM_FMT_RGBA, G_IM_SIZ_32b, 36,
+                gDPLoadTextureBlock(gDisplayListHead++, PauseMenu_GetPlayerIcon(D_8780FA30[i], i), G_IM_FMT_RGBA, G_IM_SIZ_32b, 36,
                                     26, 0, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK,
                                     G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
                 gSP2Triangles(gDisplayListHead++, 0, 2, 3, 0, 0, 3, 1, 0);
@@ -1811,7 +1845,8 @@ void Widget_PauseMenuDrawPlayerIcons(s16 arg0) {
                 gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
 
                 if ((D_8780FA48 == i) && ((D_8780FC40 == 4) || (((D_8780FC40 == 5) || (D_8780FC40 == 6)) &&
-                                                                ((D_8780FCA8 >= 0x28) || ((D_8780FCA8 % 10) < 5))))) {
+                                                                ((D_8780FCA8 >= NTSC_PAL(40, 32)) ||
+                                                                 ((D_8780FCA8 % NTSC_PAL(10, 8)) < NTSC_PAL(5, 4)))))) {
                     var_a0 = 1;
                 }
             }
@@ -1833,7 +1868,7 @@ void Widget_PauseMenuDrawPlayerIcons(s16 arg0) {
                 }
             }
         }
-        Widget_PauseMenuDrawIconQuad(var_a0, D_8780F910[D_8780FA30[i]][i], 0x24, 0x1A, ((i * 0x36) + arg0) + 0x3E, 0xBF,
+        Widget_PauseMenuDrawIconQuad(var_a0, PauseMenu_GetPlayerIcon(D_8780FA30[i], i), 0x24, 0x1A, ((i * 0x36) + arg0) + 0x3E, 0xBF,
                                      ((i * 0x36) + arg0) + 0x62, 0xD9, D_8780F930[D_8780FCAC[i]],
                                      D_8780F930[D_8780FCAC[i]], D_8780F930[D_8780FCAC[i]], D_8780F940[D_8780FCB0[i]],
                                      0.0f, 0.0f, 1.0f);
@@ -1923,7 +1958,7 @@ s32 Widget_PauseMenuUpdate(void) {
                 D_8780FC60 = 1;
                 D_8780FC40 = 1;
                 D_8780FC94 = 0;
-                D_8780FE44 = 0xB4;
+                D_8780FE44 = NTSC_PAL(180, 150);
                 if (D_8780FA2A != 0) {
                     if ((D_8780FC50[0] + D_8780FC50[1] + D_8780FC50[2] + D_8780FC50[3]) != 0) {
                         for (i = 0; i < 4; i++) {
@@ -1990,7 +2025,7 @@ s32 Widget_PauseMenuUpdate(void) {
                     Audio_PlayPersistentSoundCommand(0x12, 0);
                     D_8780FC40 = 2;
                     D_8780FC64 = 1;
-                    D_8780FCAA = 0x190;
+                    D_8780FCAA = NTSC_PAL(400, 408);
                     Widget_PauseMenuCheckTournamentEnd();
                     if (D_8780FC4C != 0) {
                         D_8780FC5D = 2;
@@ -2014,7 +2049,7 @@ s32 Widget_PauseMenuUpdate(void) {
 
                         if (i == 4) {
                             D_8780FC68 = 1;
-                            D_8780FCA4 = 0xF0;
+                            D_8780FCA4 = NTSC_PAL(240, 200);
                             D_8780FCA6 = 0xA;
                         }
                     }
@@ -2035,7 +2070,7 @@ s32 Widget_PauseMenuUpdate(void) {
                                 if (Widget_PauseMenuCheckHyperUnlock() != 0) {
                                     Audio_StartMusicTrack(0x13);
                                     D_8780FC6C = 1;
-                                    D_8780FE44 = 0xB4;
+                                    D_8780FE44 = NTSC_PAL(180, 150);
                                 } else {
                                     D_8780FC40 = 3;
                                     D_8780FC70 = 1;
@@ -2050,7 +2085,7 @@ s32 Widget_PauseMenuUpdate(void) {
                                     D_8780FC70 = 1;
                                     D_8780FC6C = 0;
                                 }
-                            } else if ((D_8780FE44 < 0xAB) && (D_8780FCA7 == 0)) {
+                            } else if ((D_8780FE44 < NTSC_PAL(171, 141)) && (D_8780FCA7 == 0)) {
                                 D_8780FA28 |= 1;
                                 Save_SetOptionsField1E(D_8780FA28 & 0xFF);
                                 Save_CommitTypedRecord(0x14, 0);
@@ -2087,10 +2122,10 @@ s32 Widget_PauseMenuUpdate(void) {
                     D_8780FC74 = 1;
                     if (D_8780FC78 == 1) {
                         D_8780FC40 = 5;
-                        D_8780FCA8 = 0x2F;
+                        D_8780FCA8 = NTSC_PAL(47, 38);
                     } else {
                         D_8780FC40 = 4;
-                        D_8780FE3C = 0x60 - Rand_Range(0x20);
+                        D_8780FE3C = NTSC_PAL(96, 80) - Rand_Range(0x20);
                         D_8780FC90 = 0;
                     }
                 } else {
@@ -2118,13 +2153,13 @@ s32 Widget_PauseMenuUpdate(void) {
 
             if (D_8780FE3C <= 0) {
                 D_8780FC40 = 5;
-                D_8780FCA8 = 0x2A;
+                D_8780FCA8 = NTSC_PAL(42, 34);
             }
             break;
 
         case 5:
             D_8780FCA8--;
-            if (D_8780FCA8 == 0x29) {
+            if (D_8780FCA8 == NTSC_PAL(41, 33)) {
                 Audio_PlaySoundEffectById(0x11);
             } else if (D_8780FCA8 <= 0) {
                 D_8780FC40 = 6;
@@ -2171,7 +2206,7 @@ s32 Widget_PauseMenuUpdate(void) {
         }
 
         if (D_8780FC64 != 0) {
-            D_8780FCAA -= 0x14;
+            D_8780FCAA -= NTSC_PAL(20, 24);
             if (D_8780FCAA <= 0) {
                 D_8780FCAA = 0;
                 if (D_8780FDF8 == 0) {
@@ -2209,7 +2244,7 @@ s32 Widget_PauseMenuUpdate(void) {
             switch (D_8780FCA3) {
                 case 0:
                     D_8780FCA4 -= D_8780FCA0;
-                    if (D_8780FCA4 < 0xB4) {
+                    if (D_8780FCA4 < NTSC_PAL(180, 150)) {
                         Audio_StartMusicTrack(0x2C);
                         D_8780FCA3 = 1;
                     }

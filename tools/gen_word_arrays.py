@@ -19,6 +19,61 @@ import os, re, sys
 PAT = re.compile(r"^(?:static\s+)?(?:const\s+)?(u16|s16|u32|s32)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\[[^\]]*\]\s*=\s*\{", re.M)
 
 
+# The game is compiled as US Rev 2 (CMakeLists.txt STADION_GAME_VERSION_DEFINITIONS); arrays that only other versions
+# compile (#if defined(VERSION_JP) ...) are skipped. Conditions on anything but VERSION_* count as true.
+DEFINED_VERSIONS = {"VERSION_US", "VERSION_US_REV2"}
+DIRECTIVE = re.compile(r"^\s*#\s*(if|ifdef|ifndef|elif|else|endif)\b(.*)$")
+
+
+def eval_condition(expr):
+    expr = expr.split("//")[0].split("/*")[0].strip()
+    names = re.findall(r"defined\s*\(?\s*(\w+)\s*\)?", expr)
+    rest = re.sub(r"defined\s*\(?\s*\w+\s*\)?", "", expr)
+    if not names or any(not n.startswith("VERSION_") for n in names) or re.search(r"[A-Za-z_0-9]", rest):
+        return None
+    py = re.sub(r"defined\s*\(?\s*(\w+)\s*\)?", lambda m: str(m.group(1) in DEFINED_VERSIONS), expr)
+    py = py.replace("&&", " and ").replace("||", " or ").replace("!", " not ")
+    try:
+        return bool(eval(py, {"__builtins__": {}}))
+    except Exception:
+        return None
+
+
+def active_text(text):
+    """text with the lines of inactive #if branches blanked (line count kept)."""
+    stack = []  # [state (True/False/None), a branch was taken]
+    out = []
+    for line in text.split("\n"):
+        m = DIRECTIVE.match(line)
+        if m:
+            kind, rest = m.group(1), m.group(2).strip()
+            if kind == "if":
+                v = eval_condition(rest)
+                stack.append([v, v is True])
+            elif kind in ("ifdef", "ifndef"):
+                name = rest.split()[0] if rest else ""
+                v = ((name in DEFINED_VERSIONS) == (kind == "ifdef")) if name.startswith("VERSION_") else None
+                stack.append([v, v is True])
+            elif kind == "elif" and stack:
+                top = stack[-1]
+                if top[1]:
+                    top[0] = False
+                else:
+                    v = eval_condition(rest)
+                    top[0] = v if top[0] is not None else (None if v is not False else False)
+                    top[1] = top[1] or v is True
+            elif kind == "else" and stack:
+                top = stack[-1]
+                top[0] = False if top[1] else (None if top[0] is None else True)
+                top[1] = True
+            elif kind == "endif" and stack:
+                stack.pop()
+            out.append("")
+            continue
+        out.append(line if all(s[0] is not False for s in stack) else "")
+    return "\n".join(out)
+
+
 def write_if_changed(path, text):
     if not os.path.exists(path) or open(path).read() != text:
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -31,12 +86,12 @@ def main():
     count = 0
     for root, _, files in sorted(os.walk(src)):
         for f in sorted(files):
-            if not f.endswith(".c"):
+            if not f.endswith(".c") or f.endswith(".inc.c"):
                 continue
             path = os.path.join(root, f)
             text = open(path, errors="replace").read()
             arrays = []
-            for m in PAT.finditer(text):
+            for m in PAT.finditer(active_text(text)):
                 arrays.append((m.group(2), 2 if m.group(1) in ("u16", "s16") else 4))
             if not arrays:
                 continue

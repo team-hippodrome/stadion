@@ -14,8 +14,8 @@ MAPS = {
     "us_rev1": DECOMP / "build/us_rev1/pokestadium-us_rev1.map",
     "us_rev2": DECOMP / "build/us_rev2/pokestadium-us_rev2.map",
 }
-# the English European releases (built from assembly where they differ from US; see the decomp's Makefile)
-for _v in ("eu", "eu_rev1"):
+# the European releases (each a matching build of its own C; see the decomp's Makefile)
+for _v in ("eu", "eu_rev1", "fr", "de", "es", "it"):
     MAPS[_v] = DECOMP / f"build/{_v}/pokestadium-{_v}.map"
 # the version the port's game code is compiled as (VERSION_US_REV2 in CMakeLists.txt)
 CODE_VERSION = "us_rev2"

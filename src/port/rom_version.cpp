@@ -10,11 +10,16 @@
 // behaviour (Rev 2's fixes, such as nicknames with spaces), is Rev 2's whatever the ROM.
 #include "rom_version.h"
 #include "rom_check.h"
+#include "seg_syms.h"
+#include "StadionPort.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <map>
 #include <string>
+#include <tuple>
+#include <vector>
 
 namespace Port {
 const uint8_t* RomData();
@@ -26,14 +31,38 @@ namespace {
 const PortRomLayout* gLayout = nullptr; // nullptr: read the ROM as laid out like Rev 2
 PortRomVersion gVersion = PORT_ROM_US_REV2;
 
-// the segment of the current layout that holds gameOffset, else the last one before it (its delta carries on
-// through a gap), else nullptr
-const PortRomSegment* FindSegment(uint32_t gameOffset) {
-    if (gLayout == nullptr || gLayout->segments == nullptr || gLayout->segmentCount == 0) {
+// Extra ROMs (rom_version.h): slot 1 to PORT_ROM_EXTRA_SLOTS; slot 0 is the loaded ROM (Port::RomData)
+struct ExtraRom {
+    std::vector<uint8_t> data;
+    PortRomVersion version = PORT_ROM_VERSION_COUNT;
+    const PortRomLayout* layout = nullptr;
+};
+ExtraRom gExtra[PORT_ROM_EXTRA_SLOTS + 1];
+
+// Rev 2 ROM pieces read from an extra ROM instead of the loaded one (restored content)
+struct Redirect {
+    uint32_t gameStart, gameEnd;
+    int slot;
+};
+std::vector<Redirect> gRedirects;
+
+const PortRomLayout* LayoutOf(PortRomVersion version) {
+    for (unsigned i = 0; i < gPortRomLayoutCount; i++) {
+        if (gPortRomLayouts[i].version == version) {
+            return &gPortRomLayouts[i];
+        }
+    }
+    return nullptr;
+}
+
+// the segment of layout that holds gameOffset, else the last one before it (its delta carries on through a gap),
+// else nullptr
+const PortRomSegment* FindSegmentIn(const PortRomLayout* layout, uint32_t gameOffset) {
+    if (layout == nullptr || layout->segments == nullptr || layout->segmentCount == 0) {
         return nullptr;
     }
-    const PortRomSegment* begin = gLayout->segments;
-    const PortRomSegment* end = begin + gLayout->segmentCount;
+    const PortRomSegment* begin = layout->segments;
+    const PortRomSegment* end = begin + layout->segmentCount;
     // the last segment that starts at or before gameOffset; nested pieces (a fragment's sub-archives) start later
     // than their container, so walking back finds the innermost one that holds the offset
     const PortRomSegment* it =
@@ -53,18 +82,43 @@ const PortRomSegment* FindSegment(uint32_t gameOffset) {
     return before;
 }
 
+const PortRomSegment* FindSegment(uint32_t gameOffset) {
+    return FindSegmentIn(gLayout, gameOffset);
+}
+
+uint32_t OffsetIn(const PortRomLayout* layout, uint32_t gameOffset) {
+    const PortRomSegment* s = FindSegmentIn(layout, gameOffset);
+    if (s == nullptr) {
+        return gameOffset;
+    }
+    return gameOffset - s->gameStart + s->romStart;
+}
+
+// the extra ROM that keeps the Rev 2 offset, or 0 for the loaded ROM
+int SlotOf(uint32_t gameOffset) {
+    for (const Redirect& r : gRedirects) {
+        if (r.gameStart <= gameOffset && gameOffset < r.gameEnd) {
+            return r.slot;
+        }
+    }
+    return 0;
+}
+
+const PortRomLayout* LayoutOfSlot(int slot) {
+    return slot == 0 ? gLayout : gExtra[slot].layout;
+}
+
+uint32_t Mark(int slot, uint32_t romOffset) {
+    return romOffset | PORT_ROM_RAW | ((uint32_t)slot << PORT_ROM_SLOT_SHIFT);
+}
+
 } // namespace
 
 namespace Port {
 
 void SelectRomVersion(PortRomVersion version) {
     gVersion = version;
-    gLayout = nullptr;
-    for (unsigned i = 0; i < gPortRomLayoutCount; i++) {
-        if (gPortRomLayouts[i].version == version) {
-            gLayout = &gPortRomLayouts[i];
-        }
-    }
+    gLayout = LayoutOf(version);
     fprintf(stderr, "[rom] %s\n", RomVersionName(version)); // (rom_check.cpp)
 }
 
@@ -72,23 +126,71 @@ PortRomVersion LoadedRomVersion() {
     return gVersion;
 }
 
+int AddExtraRom(std::vector<uint8_t> data, PortRomVersion version) {
+    for (int slot = 1; slot <= PORT_ROM_EXTRA_SLOTS; slot++) {
+        if (gExtra[slot].version == version) {
+            return slot; // one of each release is enough
+        }
+    }
+    for (int slot = 1; slot <= PORT_ROM_EXTRA_SLOTS; slot++) {
+        if (gExtra[slot].data.empty()) {
+            gExtra[slot].data = std::move(data);
+            gExtra[slot].version = version;
+            gExtra[slot].layout = LayoutOf(version);
+            fprintf(stderr, "[rom] extra ROM %d: %s\n", slot, RomVersionName(version));
+            return slot;
+        }
+    }
+    return 0;
+}
+
+void ClearExtraRoms() {
+    for (ExtraRom& rom : gExtra) {
+        rom = ExtraRom();
+    }
+    gRedirects.clear();
+}
+
+int ExtraRomSlot(PortRomVersion version) {
+    for (int slot = 1; slot <= PORT_ROM_EXTRA_SLOTS; slot++) {
+        if (!gExtra[slot].data.empty() && gExtra[slot].version == version) {
+            return slot;
+        }
+    }
+    return 0;
+}
+
+void RedirectRomPiece(uint32_t gameStart, uint32_t gameEnd, int slot) {
+    if (slot > 0 && slot <= PORT_ROM_EXTRA_SLOTS && !gExtra[slot].data.empty()) {
+        gRedirects.push_back({ gameStart, gameEnd, slot });
+    }
+}
+
 } // namespace Port
 
 extern "C" {
 
 uint32_t Port_RomOffset(uint32_t gameOffset) {
-    const PortRomSegment* s = FindSegment(gameOffset);
-    if (s == nullptr) {
-        return gameOffset;
-    }
-    return gameOffset - s->gameStart + s->romStart;
+    return OffsetIn(gLayout, gameOffset);
 }
 
 uint32_t Port_RomToRaw(uint32_t gameOffset) {
     if (gameOffset & PORT_ROM_RAW) {
         return gameOffset;
     }
-    return Port_RomOffset(gameOffset) | PORT_ROM_RAW;
+    const int slot = SlotOf(gameOffset);
+    return Mark(slot, OffsetIn(LayoutOfSlot(slot), gameOffset));
+}
+
+uint32_t Port_ExtraRomRaw(int slot, uint32_t gameOffset) {
+    if (slot <= 0 || slot > PORT_ROM_EXTRA_SLOTS || gExtra[slot].data.empty()) {
+        return 0;
+    }
+    return Mark(slot, OffsetIn(gExtra[slot].layout, gameOffset));
+}
+
+uint32_t Port_RomRawIn(int slot, uint32_t romOffset) {
+    return Mark(slot, romOffset);
 }
 
 uint32_t Port_RomRangeEndToRaw(uint32_t gameStart, uint32_t gameEnd) {
@@ -98,31 +200,41 @@ uint32_t Port_RomRangeEndToRaw(uint32_t gameStart, uint32_t gameEnd) {
     if (gameEnd <= gameStart) {
         return Port_RomToRaw(gameStart) + (gameEnd - gameStart);
     }
-    if (gLayout != nullptr && gLayout->segments != nullptr) {
-        const PortRomSegment* begin = gLayout->segments;
-        const PortRomSegment* end = begin + gLayout->segmentCount;
+    const int slot = SlotOf(gameStart);
+    const PortRomLayout* layout = LayoutOfSlot(slot);
+    if (layout != nullptr && layout->segments != nullptr) {
+        const PortRomSegment* begin = layout->segments;
+        const PortRomSegment* end = begin + layout->segmentCount;
         // the innermost piece holding the start that ends exactly at gameEnd
         for (const PortRomSegment* s = begin; s < end && s->gameStart <= gameStart; s++) {
             if (gameStart < s->gameEnd && s->gameEnd == gameEnd) {
-                return s->romEnd | PORT_ROM_RAW;
+                return Mark(slot, s->romEnd);
             }
         }
         // a piece that starts at gameEnd (ranges such as "this fragment up to the next asset")
         for (const PortRomSegment* s = begin; s < end && s->gameStart <= gameEnd; s++) {
             if (s->gameStart == gameEnd) {
-                return s->romStart | PORT_ROM_RAW;
+                return Mark(slot, s->romStart);
             }
         }
     }
-    return (Port_RomOffset(gameEnd - 1) + 1) | PORT_ROM_RAW;
+    return Mark(slot, OffsetIn(layout, gameEnd - 1) + 1);
 }
 
 size_t Port_RomRead(uint32_t gameOffset, void* dst, size_t size) {
     const uint8_t* rom = Port::RomData();
-    const size_t romSize = Port::RomSize();
+    size_t romSize = Port::RomSize();
     uint8_t* out = static_cast<uint8_t*>(dst);
+    if (!(gameOffset & PORT_ROM_RAW) && SlotOf(gameOffset) != 0) {
+        gameOffset = Port_RomToRaw(gameOffset); // a piece read from an extra ROM (whole: pieces are not split)
+    }
     if (gameOffset & PORT_ROM_RAW) {
-        const uint32_t src = gameOffset & ~PORT_ROM_RAW;
+        const int slot = (int)((gameOffset & PORT_ROM_SLOT_MASK) >> PORT_ROM_SLOT_SHIFT);
+        const uint32_t src = gameOffset & ~(PORT_ROM_RAW | PORT_ROM_SLOT_MASK);
+        if (slot != 0) {
+            rom = gExtra[slot].data.data();
+            romSize = gExtra[slot].data.size();
+        }
         if (src >= romSize) {
             return 0;
         }
@@ -176,6 +288,70 @@ uint32_t Port_RomCodeAddrToGame(uint32_t fragmentRom, uint32_t addr) {
         return it->gameAddr;
     }
     return addr;
+}
+
+int Port_RomVersion(void) {
+    return (int)gVersion;
+}
+
+uintptr_t Port_SegSym(uintptr_t rev2) {
+    for (unsigned t = 0; t < gPortSegSymTableCount; t++) {
+        const PortSegSymTable& table = gPortSegSymTables[t];
+        if (table.version != gVersion) {
+            continue;
+        }
+        const PortSegSym* begin = table.syms;
+        const PortSegSym* end = begin + table.count;
+        const PortSegSym* it = std::lower_bound(begin, end, (uint32_t)rev2,
+                                                [](const PortSegSym& s, uint32_t v) { return s.rev2 < v; });
+        if (it != end && it->rev2 == (uint32_t)rev2) {
+            return it->value;
+        }
+    }
+    return rev2;
+}
+
+// Data the translated releases keep in their own fragment images (StadionPort.h). Fragments are stored uncompressed and
+// link at the same address in every release, so the loaded ROM's copy of a fragment starts where its layout puts the
+// Rev 2 fragment's start, and an address in it is that start plus its distance from the link address.
+static std::map<std::tuple<uint32_t, uint32_t, bool>, std::vector<uint8_t>> sFragmentData;
+
+static const uint8_t* FragmentRomBytes(uintptr_t fragmentRom, uint32_t fragmentVram, uint32_t vram, uint32_t size,
+                                       bool words) {
+    if (vram < fragmentVram || size == 0) {
+        return nullptr;
+    }
+    const auto key = std::make_tuple(vram, size, words);
+    auto it = sFragmentData.find(key);
+    if (it == sFragmentData.end()) {
+        std::vector<uint8_t> data(size);
+        const uint32_t raw = Port_RomToRaw((uint32_t)fragmentRom) + (vram - fragmentVram);
+        if (Port_RomRead(raw, data.data(), size) != size) {
+            return nullptr;
+        }
+        if (words) {
+            for (uint32_t i = 0; i + 4 <= size; i += 4) {
+                const uint32_t w = ((uint32_t)data[i] << 24) | ((uint32_t)data[i + 1] << 16) |
+                                   ((uint32_t)data[i + 2] << 8) | data[i + 3];
+                memcpy(&data[i], &w, 4);
+            }
+        }
+        it = sFragmentData.emplace(key, std::move(data)).first;
+    }
+    return it->second.data();
+}
+
+const void* Port_FragmentRomData(uintptr_t fragmentRom, uint32_t fragmentVram, uint32_t vram, uint32_t size) {
+    return FragmentRomBytes(fragmentRom, fragmentVram, vram, size, false);
+}
+
+const uint32_t* Port_FragmentRomWords(uintptr_t fragmentRom, uint32_t fragmentVram, uint32_t vram, uint32_t count) {
+    return reinterpret_cast<const uint32_t*>(FragmentRomBytes(fragmentRom, fragmentVram, vram, count * 4, true));
+}
+
+uint32_t Port_FragmentRomWord(uintptr_t fragmentRom, uint32_t fragmentVram, uint32_t vram) {
+    const uint32_t* w = Port_FragmentRomWords(fragmentRom, fragmentVram, vram, 1);
+    return w != nullptr ? *w : 0;
 }
 
 } // extern "C"
