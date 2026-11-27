@@ -992,7 +992,8 @@ void ResetBindings(int port) {
 
 // ---- the launcher window ---------------------------------------------------------------------------------------------
 
-constexpr float kW = 960, kH = 556; // the design size (Launcher.swift)
+constexpr float kDesktopW = 1060, kH = 556; // the design size (the simpler macOS Launcher.swift stays 960 wide)
+constexpr float kHandheldW = 960;           // the handheld layout's design width
 constexpr float kHandheldH = 540;   // the handheld layout's design height (16:9, the Thor's and most phones' shape)
 
 bool Handheld() {
@@ -1002,6 +1003,10 @@ bool Handheld() {
     static const bool on = getenv("PORT_LAUNCHER_HANDHELD") != nullptr;
     return on;
 #endif
+}
+
+float DesignW() {
+    return Handheld() ? kHandheldW : kDesktopW;
 }
 
 // The gamepads' navigation inputs (all connected pads; the left stick counts as the D-pad), plus the keyboard's.
@@ -1043,7 +1048,7 @@ NavInput ReadNavInput() {
 class LauncherWindow : public Ship::GuiWindow {
   public:
     LauncherWindow(State* state, bool* play, bool* quit, bool* restart, Fast::Fast3dGui* gui, std::shared_ptr<Ship::Window> window)
-        : GuiWindow("gLauncherWindowOpen", "stadion Launcher", ImVec2(kW, kH)), mState(state), mPlay(play),
+        : GuiWindow("gLauncherWindowOpen", "stadion Launcher", ImVec2(DesignW(), kH)), mState(state), mPlay(play),
           mQuit(quit), mRestart(restart), mGui(gui), mWindow(std::move(window)) {
         // requested before, but the game started with another one: that renderer could not start here
         mRendererFailed = state->renderer != ActiveRenderer() ? state->renderer : 0;
@@ -1081,10 +1086,10 @@ class LauncherWindow : public Ship::GuiWindow {
                          ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoScrollWithMouse);
         // above libultraship's game view window ("Main Game"), which would otherwise cover it (and take the mouse)
         ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
-        // the 960x556 design, scaled to the window and centred
+        // the 1060x556 design (960x540 handheld), scaled to the window and centred
         const float designH = Handheld() ? kHandheldH : kH;
-        mScale = std::min(vp->Size.x / kW, vp->Size.y / designH);
-        mOrigin = ImVec2(vp->Pos.x + (vp->Size.x - kW * mScale) / 2, vp->Pos.y + (vp->Size.y - designH * mScale) / 2);
+        mScale = std::min(vp->Size.x / DesignW(), vp->Size.y / designH);
+        mOrigin = ImVec2(vp->Pos.x + (vp->Size.x - DesignW() * mScale) / 2, vp->Pos.y + (vp->Size.y - designH * mScale) / 2);
         mPixelDensity = 1.0f;
         if (SDL_Window* sdl = MainWindow()) {
             mPixelDensity = std::max(1.0f, SDL_GetWindowPixelDensity(sdl));
@@ -1165,19 +1170,19 @@ class LauncherWindow : public Ship::GuiWindow {
         Text(16, 10, "stadion", gFonts.title);
         Text(190, 11, "|", gFonts.title, Theme::cardBorder);
         Text(206, 14, "PC port · Transfer Pak", gFonts.body, Theme::dim);
-        dl->AddRectFilled(P(0, 44), P(kW, 45), Hex(Theme::cardBorder));
+        dl->AddRectFilled(P(0, 44), P(DesignW(), 45), Hex(Theme::cardBorder));
         Tools();
         if (getenv("PORT_LAUNCHER_OPEN_GRAPHICS") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
             mGraphicsTestOpened = mGraphics = true;
         }
         if (getenv("PORT_LAUNCHER_OPEN_ENHANCEMENTS") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
-            mGraphicsTestOpened = mGraphics = mEnhancements = true;
+            mGraphicsTestOpened = mEnhancements = true;
         }
         if (getenv("PORT_LAUNCHER_OPEN_STATEXP") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
-            mGraphicsTestOpened = mGraphics = mEnhancements = mStatDifficulty = true;
+            mGraphicsTestOpened = mEnhancements = mStatDifficulty = true;
         }
         if (getenv("PORT_LAUNCHER_OPEN_RESTORED") != nullptr && !mGraphicsTestOpened) { // test hook (as OPEN_TOOLS)
-            mGraphicsTestOpened = mGraphics = mEnhancements = mRestored = true;
+            mGraphicsTestOpened = mEnhancements = mRestored = true;
         }
         if (getenv("PORT_LAUNCHER_OPEN_PROMPT") != nullptr && !mPromptTestOpened) { // test hook: the language prompt
             mPromptTestOpened = true;
@@ -1190,33 +1195,34 @@ class LauncherWindow : public Ship::GuiWindow {
         }
 
         if (gSaveEditor.IsOpen()) {
-            EditorPanel(16, 58, kW - 32, kH - 58 - 16);
+            EditorPanel(16, 58, DesignW() - 32, kH - 58 - 16);
             if (mChanged) {
                 Store(s);
             }
             return;
         }
         if (mTools) {
-            ToolsPanel(16, 58, kW - 32, 366);
+            ToolsPanel(16, 58, DesignW() - 32, 366);
         } else if (mControls) {
-            ControlsPanel(16, 58, kW - 32, 366);
-        } else if (mGraphics && mEnhancements && mStatDifficulty) {
-            StatDifficultyPanel(16, 58, kW - 32, 366);
-        } else if (mGraphics && mEnhancements && mRestored) {
-            RestoredPanel(16, 58, kW - 32, 366);
-        } else if (mGraphics && mEnhancements) {
-            EnhancementsPanel(16, 58, kW - 32, 366);
+            ControlsPanel(16, 58, DesignW() - 32, 366);
+        } else if (mEnhancements && mStatDifficulty) {
+            StatDifficultyPanel(16, 58, DesignW() - 32, 366);
+        } else if (mEnhancements && mRestored) {
+            RestoredPanel(16, 58, DesignW() - 32, 366);
+        } else if (mEnhancements) {
+            EnhancementsPanel(16, 58, DesignW() - 32, 366);
         } else if (mGraphics) {
-            GraphicsPanel(16, 58, kW - 32, 366);
+            GraphicsPanel(16, 58, DesignW() - 32, 366);
         } else if (mSound) {
-            SoundPanel(16, 58, kW - 32, 366);
+            SoundPanel(16, 58, DesignW() - 32, 366);
         } else {
             for (int i = 0; i < 4; i++) {
-                PlayerCard(i, 16 + i * (222 + 14), 58, 222, 366);
+                const float cardW = (DesignW() - 32 - 3 * 14) / 4;
+                PlayerCard(i, 16 + i * (cardW + 14), 58, cardW, 366);
             }
         }
         ImGui::BeginDisabled(mCapture >= 0);
-        BottomBar(0, 440, kW, 116);
+        BottomBar(0, 440, DesignW(), 116);
         ImGui::EndDisabled();
         if (mChanged) {
             Store(s);
@@ -1257,7 +1263,7 @@ class LauncherWindow : public Ship::GuiWindow {
     void LanguagePromptPanel() {
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const float designH = Handheld() ? kHandheldH : kH;
-        const float x = 40, w = kW - 80, top = 24;
+        const float x = 40, w = DesignW() - 80, top = 24;
         dl->AddRectFilled(P(x - 16, top), P(x + w + 16, designH - 24), Hex(Theme::card), 10 * mScale);
         dl->AddRect(P(x - 16, top), P(x + w + 16, designH - 24), Hex(Theme::cardBorder), 10 * mScale);
         const std::string langs[2] = { mPrompt.locale, mPrompt.rom };
@@ -1320,7 +1326,7 @@ class LauncherWindow : public Ship::GuiWindow {
     void Tools() {
         const bool testOpen = getenv("PORT_LAUNCHER_OPEN_TOOLS") != nullptr && !mToolsTestOpened;
         ImGui::BeginDisabled(mCapture >= 0 || (gSaveEditor.IsOpen() && !Handheld()));
-        const bool opened = Button("Files & help", 800, 8, 144, 30);
+        const bool opened = Button("Files & help", DesignW() - 160, 8, 144, 30);
         ImGui::EndDisabled();
         if ((opened && mCapture < 0) || testOpen) {
             mToolsTestOpened = true;
@@ -2191,15 +2197,6 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button("Done", x + w - 108, y + 9, 94, 26)) {
             mGraphics = false;
         }
-        // The handheld Graphics page does not navigate the desktop enhancement panels.
-        if (!Handheld()) {
-            if (Button("Enhancements", x + w - 248, y + 9, 130, 26)) {
-                mEnhancements = true;
-            }
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Optional additions to the game from hippodrome-utils (on by default; each can be turned off)");
-            }
-        }
         dl->AddRectFilled(P(x, y + 44), P(x + w, y + 45), Hex(Theme::cardBorder));
 
         const float lx = x + 14, cx = x + 190, tx = x + 560, pitch = 37;
@@ -2353,7 +2350,7 @@ class LauncherWindow : public Ship::GuiWindow {
         dl->AddRect(P(x, y), P(x + w, y + h), Hex(Theme::cardBorder), 8 * mScale);
         Text(x + 14, y + 14, "ENHANCEMENTS", gFonts.body, Theme::text);
         Text(x + 140, y + 15, "Additions to the original game. On by default; turn off any you do not want.", gFonts.small, Theme::dim);
-        if (Button("Back", x + w - 108, y + 9, 94, 26)) {
+        if (Button("Done", x + w - 108, y + 9, 94, 26)) {
             mEnhancements = mStatDifficulty = mRestored = false;
         }
         if (Button("Restored content", x + w - 262, y + 9, 146, 26)) {
@@ -2772,13 +2769,14 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button(mSound ? "Players" : "Sound", x + 234, y + 86, 96, 26)) {
             mSound = !mSound;
             mGraphics = mControls = mTools = false;
+            mEnhancements = mStatDifficulty = mRestored = false;
         }
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Volume of music, sound effects, voices and the Game Boy; mute in the background");
         }
         if (Button(mGraphics ? "Players" : "Graphics", x + 340, y + 86, 100, 26)) {
             mGraphics = !mGraphics;
-            mEnhancements = mStatDifficulty = false;
+            mEnhancements = mStatDifficulty = mRestored = false;
             mControls = mTools = mSound = false;
         }
         if (ImGui::IsItemHovered()) {
@@ -2787,12 +2785,23 @@ class LauncherWindow : public Ship::GuiWindow {
         if (Button(mControls ? "Players" : "Controls", x + 450, y + 86, 100, 26)) {
             mControls = !mControls;
             mGraphics = mTools = mSound = false;
+            mEnhancements = mStatDifficulty = mRestored = false;
+        }
+        if (Button(mEnhancements ? "Players" : "Enhancements", x + 560, y + 86, 124, 26)) {
+            const bool open = !mEnhancements;
+            mEnhancements = open;
+            mStatDifficulty = mRestored = false;
+            mGraphics = mControls = mTools = mSound = false;
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Optional additions to the game from hippodrome-utils (on by default; each can be turned off),\n"
+                              "and content restored from other Stadium releases");
         }
         // the game picture's shape (the rest of the window gets black bars)
-        Text(x + 566, y + 91, "Screen", gFonts.small, Theme::dim);
+        Text(x + 700, y + 91, "Screen", gFonts.small, Theme::dim);
         for (int a = 0; a < 2; a++) {
             const bool on = s.aspect == a;
-            if (ColorButton(a == 0 ? "4:3" : "16:9", x + 616 + a * 56, y + 86, 52, 26, on ? 0x23406B : Theme::button,
+            if (ColorButton(a == 0 ? "4:3" : "16:9", x + 744 + a * 56, y + 86, 52, 26, on ? 0x23406B : Theme::button,
                             on ? 0x23406B : Theme::buttonHover)) {
                 s.aspect = a;
                 mChanged = true;
@@ -2807,7 +2816,7 @@ class LauncherWindow : public Ship::GuiWindow {
             const int active = ActiveRenderer();
             const bool pending = s.renderer != active;
             const std::string label = std::string("Renderer: ") + RendererName(s.renderer);
-            if (ColorButton(label.c_str(), x + 616, y + 16, 128, 24, pending ? 0x23406B : Theme::button,
+            if (ColorButton(label.c_str(), x + 716, y + 16, 128, 24, pending ? 0x23406B : Theme::button,
                             pending ? 0x23406B : Theme::buttonHover)) {
                 const std::vector<int> ids = Renderers();
                 auto it = std::find(ids.begin(), ids.end(), s.renderer);
@@ -2826,13 +2835,13 @@ class LauncherWindow : public Ship::GuiWindow {
             }
             if (pending) {
                 const std::string status = std::string("Active: ") + RendererName(active);
-                Text(x + 616, y + 43, status.c_str(), gFonts.small, Theme::dim);
+                Text(x + 716, y + 43, status.c_str(), gFonts.small, Theme::dim);
                 if (mRendererFailed == s.renderer) {
-                    Text(x + 616, y + 63, "Selected unavailable", gFonts.small, Theme::dim);
+                    Text(x + 716, y + 63, "Selected unavailable", gFonts.small, Theme::dim);
                 }
 #ifdef _WIN32
                 if (mRendererFailed != s.renderer &&
-                    Button("Restart and apply", x + 616, y + 60, 128, 22, gFonts.small)) {
+                    Button("Restart and apply", x + 716, y + 60, 128, 22, gFonts.small)) {
                     *mRestart = true;
                 }
 #endif
@@ -2858,7 +2867,7 @@ class LauncherWindow : public Ship::GuiWindow {
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Start the game directly next time (hold Shift while starting to see this launcher)");
         }
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mTools && !mGraphics && !mSound) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Enter) && romError.empty() && !mControls && !mTools && !mGraphics && !mSound && !mEnhancements) {
             RequestPlay(s);
         }
         (void)mQuit;
@@ -2992,13 +3001,13 @@ class LauncherWindow : public Ship::GuiWindow {
                                : mPage == kPageGraphics ? "Graphics" : mPage == kPageSound ? "Sound"
                                : mPage == kPageTools ? "Files & help" : mPage == kPageSaveEditor ? "Save editor" : "";
         Text(220, 17, pageName, gFonts.body, Theme::dim);
-        dl->AddRectFilled(P(0, 50), P(kW, 51), Hex(Theme::cardBorder));
+        dl->AddRectFilled(P(0, 50), P(DesignW(), 51), Hex(Theme::cardBorder));
 
         if (mPage == kPageSaveEditor) {
             mDefaultFocus = 0; // (the editor names its own: the current section)
-            EditorPanel(16, 62, kW - 32, 438);
+            EditorPanel(16, 62, DesignW() - 32, 438);
         } else if (mPage == kPageTools) {
-            ToolsPanel(16, 62, kW - 32, 430);
+            ToolsPanel(16, 62, DesignW() - 32, 430);
             mDefaultFocus = 2; // Check again (0: the header's Files & help, 1: Done)
         } else if (mPage == kPageTransferPak) {
             for (int i = 0; i < 4; i++) {
@@ -3009,14 +3018,14 @@ class LauncherWindow : public Ship::GuiWindow {
                 GoToPage(kPageHome);
             }
         } else if (mPage == kPageGraphics || mPage == kPageSound) {
-            if (mPage == kPageGraphics) GraphicsPanel(16, 62, kW - 32, 366);
-            else SoundPanel(16, 62, kW - 32, 366);
+            if (mPage == kPageGraphics) GraphicsPanel(16, 62, DesignW() - 32, 366);
+            else SoundPanel(16, 62, DesignW() - 32, 366);
             mDefaultFocus = 2; // the first setting (0: the header's Files & help, 1: Done)
             if (Button("Back", 16, 444, 160, 48, gFonts.game)) {
                 GoToPage(kPageHome);
             }
         } else if (mPage == kPageControls) {
-            ControlsPanel(16, 62, kW - 32, 366);
+            ControlsPanel(16, 62, DesignW() - 32, 366);
             mDefaultFocus = 0;
             ImGui::BeginDisabled(mCapture >= 0);
             if (Button("Back", 16, 444, 160, 48, gFonts.game)) {
@@ -3056,7 +3065,7 @@ class LauncherWindow : public Ship::GuiWindow {
         }
 
         // PLAY (the default focus: A starts the game right away)
-        const float rx = 488, rw = kW - 24 - rx;
+        const float rx = 488, rw = DesignW() - 24 - rx;
         ImGui::BeginDisabled(!romError.empty());
         ImGui::PushStyleColor(ImGuiCol_Button, HexV(Theme::green));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::ColorConvertU32ToFloat4(Hex(0x37B24D)));
@@ -3148,7 +3157,7 @@ class LauncherWindow : public Ship::GuiWindow {
 };
 
 // Test hook: PORT_LAUNCHER_SCRIPT=<file> drives the launcher with ImGui input, one command per line:
-//   <frame> click <x> <y>   left click at design coordinates (the 960x556 layout; 960x540 handheld)
+//   <frame> click <x> <y>   left click at design coordinates (the 1060x556 layout; 960x540 handheld)
 //   <frame> move <x> <y>    <frame> wheel <dy>
 //   <frame> text <string>   typed characters      <frame> key <name>   Enter, Escape, Tab, Backspace, Up, Down,
 //                                                                       Left, Right, Ctrl+S, Ctrl+A
@@ -3184,11 +3193,11 @@ bool RunScriptStep(const ScriptStep& st) {
     ImGuiIO& io = ImGui::GetIO();
     ImGuiViewport* vp = ImGui::GetMainViewport();
     const float designH = Handheld() ? kHandheldH : kH;
-    const float scale = std::min(vp->Size.x / kW, vp->Size.y / designH);
+    const float scale = std::min(vp->Size.x / DesignW(), vp->Size.y / designH);
     auto pos = [&](const std::string& arg) {
         float x = 0, y = 0;
         sscanf(arg.c_str(), "%f %f", &x, &y);
-        return ImVec2(vp->Pos.x + (vp->Size.x - kW * scale) / 2 + x * scale, vp->Pos.y + (vp->Size.y - designH * scale) / 2 + y * scale);
+        return ImVec2(vp->Pos.x + (vp->Size.x - DesignW() * scale) / 2 + x * scale, vp->Pos.y + (vp->Size.y - designH * scale) / 2 + y * scale);
     };
     if (st.cmd == "click" || st.cmd == "move") {
         ImVec2 p = pos(st.arg);
@@ -3265,10 +3274,10 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
             float scale = SDL_GetWindowDisplayScale(sdl) / std::max(1.0f, SDL_GetWindowPixelDensity(sdl));
             SDL_Rect usable{};
             if (SDL_GetDisplayUsableBounds(SDL_GetDisplayForWindow(sdl), &usable)) {
-                scale = std::min({scale, (usable.w - 32) / kW, (usable.h - 80) / launcherHeight});
+                scale = std::min({scale, (usable.w - 32) / DesignW(), (usable.h - 80) / launcherHeight});
             }
             if (scale > 0) {
-                SDL_SetWindowSize(sdl, int(std::round(kW * scale)), int(std::round(launcherHeight * scale)));
+                SDL_SetWindowSize(sdl, int(std::round(DesignW() * scale)), int(std::round(launcherHeight * scale)));
                 SDL_SetWindowPosition(sdl, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
             }
             SDL_SetWindowTitle(sdl, "stadion — Launcher");
@@ -3291,10 +3300,10 @@ std::string RunLauncher(const std::shared_ptr<Fast::Fast3dWindow>& window, bool&
                 const int frameHeight = (gameRect.bottom - gameRect.top) - client.bottom;
                 const RECT& work = monitor.rcWork;
                 const float scale = std::min({dpi / 96.0f,
-                    (work.right - work.left - frameWidth) / kW,
+                    (work.right - work.left - frameWidth) / DesignW(),
                     (work.bottom - work.top - frameHeight) / launcherHeight});
                 if (scale > 0) {
-                    const int width = int(std::round(kW * scale)) + frameWidth;
+                    const int width = int(std::round(DesignW() * scale)) + frameWidth;
                     const int height = int(std::round(launcherHeight * scale)) + frameHeight;
                     SetWindowPos(nativeWindow, nullptr, work.left + (work.right - work.left - width) / 2,
                                  work.top + (work.bottom - work.top - height) / 2, width, height,
