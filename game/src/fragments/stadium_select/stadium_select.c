@@ -17,7 +17,7 @@
 #include "src/memory.h"
 #include "src/stage_loader.h"
 #include "StadionPort.h" // PORT_SEGSYM: images the translated releases keep elsewhere
-#include <math.h>        // PORT: sqrtf (the Nintendo Cup '97 icon's flag)
+#include <math.h>        // PORT: sqrtf, sinf, cosf (the flags on the Nintendo Cup '97 and Poké Cup icons)
 
 typedef struct MenuItemInfo {
     /* 0x00 */ s16 unk_00;
@@ -988,14 +988,94 @@ void StadiumSelect_RenderFrame(s32 arg0, s32 arg1, f32 arg2) {
     BgStage_AdvanceFrame();
 }
 
-// PORT: the division icon with its medal count given (the Nintendo Cups' layout passes '99's own)
-static DepthBuffer* StadiumSelect_BuildDivisionIcon(u8* arg0, s32 var_s3);
+// PORT: the small flags on the restored-content layout's icons (RESTORED_CONTENT.md: the Nintendo Cup '97 and Poké
+// Cup pictures are the same), drawn into the icon's render target with a dark edge. A one-cup icon's flag is 24x16;
+// the four-division icons are drawn smaller on screen, so theirs is 28x19 to look the same size.
+#define NC_FLAG_W 24
+#define NC_FLAG_H 16
+#define NC_FLAG_BIG_W 28
+#define NC_FLAG_BIG_H 19
+#define NC_FLAG_JAPAN 0
+#define NC_FLAG_USA 1
+#define NC_FLAG_EU 2
+static void StadiumSelect_DrawFlag(s32 kind, s32 x, s32 y, s32 w, s32 h) {
+    s32 i;
+    s32 dy;
+    f32 cx = x + w / 2.0f;
+    f32 cy = y + h / 2.0f;
 
-DepthBuffer* StadiumSelect_BuildDivisionCupIcon(u8* arg0, s16 arg1) {
-    return StadiumSelect_BuildDivisionIcon(arg0, (arg1 == 3) ? D_84103CF0.nintendoCupClears : D_84103CF0.primeCupClears);
+    gSPDisplayList(gDisplayListHead++, gUiTranslucentFillDL);
+    Gfx_FillRectRgba(x - 1, y - 1, w + 2, h + 2, 0x40, 0x40, 0x40, 0xFF);
+    switch (kind) {
+        case NC_FLAG_JAPAN: {
+            // white, a red disc (its diameter 3/5 of the height) in the middle
+            f32 r = h * 0.3f + 0.2f;
+
+            Gfx_FillRectRgba(x, y, w, h, 0xFF, 0xFF, 0xFF, 0xFF);
+            for (dy = 0; dy < h; dy++) {
+                f32 fy = (y + dy + 0.5f) - cy;
+
+                if (fy * fy < r * r) {
+                    f32 half = sqrtf(r * r - fy * fy);
+                    s32 x0 = (s32)(cx - half + 0.5f);
+                    s32 x1 = (s32)(cx + half + 0.5f);
+
+                    if (x1 > x0) {
+                        Gfx_FillRectRgba(x0, y + dy, x1 - x0, 1, 0xBC, 0x00, 0x2D, 0xFF);
+                    }
+                }
+            }
+            break;
+        }
+
+        case NC_FLAG_USA: {
+            // thirteen red and white stripes (rounded to rows), a blue canton with a grid of white stars
+            s32 cw = (w * 10 + 12) / 24;
+            s32 ch = (h * 7 + 6) / 13;
+
+            for (i = 0; i < h; i++) {
+                if (((i * 13) / h) % 2 == 0) {
+                    Gfx_FillRectRgba(x, y + i, w, 1, 0xB2, 0x22, 0x34, 0xFF);
+                } else {
+                    Gfx_FillRectRgba(x, y + i, w, 1, 0xFF, 0xFF, 0xFF, 0xFF);
+                }
+            }
+            Gfx_FillRectRgba(x, y, cw, ch, 0x3C, 0x3B, 0x6E, 0xFF);
+            for (dy = 1; dy < ch; dy += 2) {
+                for (i = ((dy / 2) % 2) ? 2 : 1; i < cw; i += 2) {
+                    Gfx_FillRectRgba(x + i, y + dy, 1, 1, 0xFF, 0xFF, 0xFF, 0xFF);
+                }
+            }
+            break;
+        }
+
+        case NC_FLAG_EU: {
+            // blue, a circle of twelve gold stars
+            f32 r = h * (5.5f / 16.0f);
+
+            Gfx_FillRectRgba(x, y, w, h, 0x00, 0x33, 0x99, 0xFF);
+            for (i = 0; i < 12; i++) {
+                f32 angle = i * (2.0f * 3.14159265f / 12.0f);
+                s32 sx = (s32)floorf(cx + sinf(angle) * r + 0.5f) - 1;
+                s32 sy = (s32)floorf(cy - cosf(angle) * r + 0.5f) - 1;
+
+                Gfx_FillRectRgba(sx, sy, 2, 2, 0xFF, 0xCC, 0x00, 0xFF);
+            }
+            break;
+        }
+    }
+    gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 }
 
-static DepthBuffer* StadiumSelect_BuildDivisionIcon(u8* arg0, s32 var_s3) {
+// PORT: the division icon with its medal count given (the Nintendo Cups' layout passes '99's own)
+static DepthBuffer* StadiumSelect_BuildDivisionIcon(u8* arg0, s32 var_s3, s32 flags);
+
+DepthBuffer* StadiumSelect_BuildDivisionCupIcon(u8* arg0, s16 arg1) {
+    return StadiumSelect_BuildDivisionIcon(arg0, (arg1 == 3) ? D_84103CF0.nintendoCupClears : D_84103CF0.primeCupClears,
+                                           0);
+}
+
+static DepthBuffer* StadiumSelect_BuildDivisionIcon(u8* arg0, s32 var_s3, s32 flags) {
     s16 i;
     DepthBuffer* sp40 = GfxImage_Allocate(0, 2, 0xA4, 0x7E, 1);
 
@@ -1014,6 +1094,12 @@ static DepthBuffer* StadiumSelect_BuildDivisionIcon(u8* arg0, s32 var_s3) {
     }
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
+
+    if (flags) {
+        // PORT: the Poké Cup beside Nintendo Cup '97: the western releases' flags (the EU's left, the USA's right)
+        StadiumSelect_DrawFlag(NC_FLAG_EU, 4 + 4, 4 + 4, NC_FLAG_BIG_W, NC_FLAG_BIG_H);
+        StadiumSelect_DrawFlag(NC_FLAG_USA, 4 + 0x98 - NC_FLAG_BIG_W - 4, 4 + 4, NC_FLAG_BIG_W, NC_FLAG_BIG_H);
+    }
 
     return sp40;
 }
@@ -1039,23 +1125,7 @@ static DepthBuffer* StadiumSelect_BuildSimpleIcon(u8* arg0, s32 medal, s32 flag)
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 
     if (flag) {
-        // 24x16 with a dark edge: white, a red disc of radius 5 in the middle
-        s32 x = 0x88 - 4 - 24 - 3;
-        s32 y = 4 + 3;
-        s32 dy;
-
-        gSPDisplayList(gDisplayListHead++, gUiTranslucentFillDL);
-        Gfx_FillRectRgba(x - 1, y - 1, 26, 18, 0x40, 0x40, 0x40, 0xFF);
-        Gfx_FillRectRgba(x, y, 24, 16, 0xFF, 0xFF, 0xFF, 0xFF);
-        for (dy = -5; dy <= 4; dy++) {
-            f32 fy = dy + 0.5f;
-            s32 half = (s32)(sqrtf(25.0f - fy * fy) + 0.5f);
-
-            if (half > 0) {
-                Gfx_FillRectRgba(x + 12 - half, y + 8 + dy, half * 2, 1, 0xBC, 0x00, 0x2D, 0xFF);
-            }
-        }
-        gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
+        StadiumSelect_DrawFlag(NC_FLAG_JAPAN, 4 + 0x80 - NC_FLAG_W - 3, 4 + 3, NC_FLAG_W, NC_FLAG_H);
     }
 
     return sp30;
@@ -1103,13 +1173,13 @@ static void StadiumSelect_BuildNcCupIconGrid(void) {
     u8 nc = MODE_SETTINGS_NC_CLEARED(&D_84103CF0);
     u8* ui = (sNcJpUi != NULL) ? sNcJpUi : (u8*)D_3000000;
 
-    D_84103CD0[0] = StadiumSelect_BuildDivisionIcon((u8*)&D_300C000, D_84103CF0.nintendoCupClears);
+    D_84103CD0[0] = StadiumSelect_BuildDivisionIcon((u8*)&D_300C000, D_84103CF0.nintendoCupClears, 1);
     D_84103CD0[1] = StadiumSelect_BuildSimpleIcon(ui + 0x0000, (nc & (1 << 1)) ? 5 : -1, 1);
     D_84103CD0[2] = StadiumSelect_BuildSimpleIcon((u8*)&D_3014760, (D_84103CF0.clearedModes & 0x10) ? 5 : -1, 0);
-    D_84103CD0[3] = StadiumSelect_BuildDivisionIcon((u8*)&D_3020760, D_84103CF0.primeCupClears);
+    D_84103CD0[3] = StadiumSelect_BuildDivisionIcon((u8*)&D_3020760, D_84103CF0.primeCupClears, 0);
     D_84103CD0[4] = StadiumSelect_BuildSimpleIcon((u8*)&D_301A760, (D_84103CF0.clearedModes & 0x20) ? 4 : -1, 0);
     D_84103CD0[5] = StadiumSelect_BuildSimpleIcon(ui + 0x6000, (nc & (1 << 2)) ? 5 : -1, 0);
-    D_84103CD0[6] = StadiumSelect_BuildDivisionIcon(ui + 0xC000, MODE_SETTINGS_NC99_CLEARS(&D_84103CF0));
+    D_84103CD0[6] = StadiumSelect_BuildDivisionIcon(ui + 0xC000, MODE_SETTINGS_NC99_CLEARS(&D_84103CF0), 0);
 
     sNcSparkleCount = 0;
     for (i = 0; i < NC_CUP_COUNT; i++) {
