@@ -47,6 +47,7 @@ constexpr uint32_t kOtAt = 0x3B;     // western: its trainer's name (11 bytes)
 constexpr int kRound2 = 0x1F;
 
 int gIs99 = 0;
+int gMode = 0; // the session mode (Session_SetMode): Nintendo Cup '97 is 1
 
 uint32_t Be32(const uint8_t* p) {
     return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | p[3];
@@ -324,6 +325,7 @@ namespace Port {
 
 void ResetNintendoCup() {
     gIs99 = 0;
+    gMode = 0;
     gLoaded = LoadedNames();
     gFiles.clear();
 }
@@ -349,6 +351,10 @@ void Port_NcSet99(int on) {
     gIs99 = on ? 1 : 0;
 }
 
+void Port_NcSetMode(int mode) {
+    gMode = mode;
+}
+
 const void* Port_NcTrainerFile(uint32_t archiveRaw, int index, uint32_t* size) {
     if (!Port_NcAvailable() || archiveRaw != Port_RomToRaw(kTrainerArchive)) {
         return nullptr;
@@ -359,6 +365,9 @@ const void* Port_NcTrainerFile(uint32_t archiveRaw, int index, uint32_t* size) {
         case 6: // Nintendo Cup '97
         case 7: // '98
             trainers = true;
+            break;
+        case 26: // the 149 rentals: Nintendo Cup '97 takes the Japanese release's, with their own movesets
+            rentals = gMode == 1;
             break;
         case 27: // '98 rentals
             rentals = true;

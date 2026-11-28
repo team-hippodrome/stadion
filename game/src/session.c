@@ -39,6 +39,7 @@ void Session_SetMode(s32 arg0, s32 arg1, s32 arg2) {
     gSessionContext.roundOrDemoId = 1;
     // PORT: mode 3 is the Poké Cup until whoever chose Nintendo Cup '99 says otherwise (restored content)
     Port_NcSet99(0);
+    Port_NcSetMode(arg0);
 
     gSessionContext.timeLimitsEnabled = 0;
     gSessionContext.battleLimitMinutes = 0;

@@ -118,6 +118,8 @@ int Port_RestoredArchiveFile(uint32_t archiveRaw, int index, uint32_t* start, ui
 int Port_NcAvailable(void);
 int Port_NcIs99(void);
 void Port_NcSet99(int on);
+// The session mode, from Session_SetMode (Nintendo Cup '97 takes the Japanese rentals)
+void Port_NcSetMode(int mode);
 // A trainer archive file (archiveRaw: the archive's marked start) that the Nintendo Cups take from the Japanese ROM,
 // converted to the western layout: its bytes and size, or NULL for the loaded ROM's own.
 const void* Port_NcTrainerFile(uint32_t archiveRaw, int index, uint32_t* size);
