@@ -29,12 +29,16 @@ typedef struct ModeSettings {
 // Bit (1 << rule category) of each Nintendo Cup won: '97 (1), '98 (2), '99 (3, its Master Ball division)
 #define MODE_SETTINGS_NC_CLEARED(settings) ((settings)->unk02[1])
 #define MODE_SETTINGS_NC_ALL_CLEARED 0x0E
-// clearedModes, with all three Nintendo Cups counting as the Poké Cup's bit (0x8): for the game's 0xF8 and 0x1F8 checks
-#define MODE_SETTINGS_CLEARED_MODES(settings)                                                     \
-    ((u16)((settings)->clearedModes |                                                             \
-           ((MODE_SETTINGS_NC_CLEARED(settings) & MODE_SETTINGS_NC_ALL_CLEARED) == MODE_SETTINGS_NC_ALL_CLEARED \
-                ? 8                                                                               \
-                : 0)))
+// clearedModes for the game's 0xF8 and 0x1F8 checks: with the Nintendo Cups, their unlock rules (save_data.c) stand
+// in for bits 0x8-0x80
+u16 ModeSettings_EffectiveClearedModes(const ModeSettings* settings);
+#define MODE_SETTINGS_CLEARED_MODES(settings) ModeSettings_EffectiveClearedModes(settings)
+// With the Nintendo Cups: the Poké Cup's part of the unlocks is cleared (Poké Cup or '99 Master Ball, or both Ultra Balls)
+s32 ModeSettings_NcPokeSideCleared(const ModeSettings* settings);
+// With the Nintendo Cups: everything Mewtwo needs is cleared
+s32 ModeSettings_NcMewtwoReady(const ModeSettings* settings);
+// With the Nintendo Cups: how many of the GB Tower's two Game Boys (Doduo, Dodrio) are earned
+s32 ModeSettings_NcGbTowerTier(const ModeSettings* settings);
 
 typedef struct SessionContinueData {
     /* 0x00 */ u8 sessionMode;

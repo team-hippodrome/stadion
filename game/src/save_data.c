@@ -1419,3 +1419,41 @@ void Deck_CompactRegisteredTeams(void) {
         Save_ResetAndCommitTypedRecord(0x10, 9);
     }
 }
+
+// PORT: the unlock rules with the Nintendo Cups (restored content, RESTORED_CONTENT.md "Unlocking methods"). Mewtwo:
+// Nintendo Cups '97 and '98, Petit and Pika Cup, Prime Cup Master Ball and the Poké Cup's part (Poké Cup or '99
+// Master Ball, or both of their Ultra Balls), and Gym Leader Castle as in the game. The GB Tower: one Game Boy for
+// Prime Cup Master Ball or the Poké Cup's part, the other for both.
+#define NC_MEWTWO_NEEDS_CASTLE 1
+
+s32 ModeSettings_NcPokeSideCleared(const ModeSettings* settings) {
+    u8 poke = settings->nintendoCupClears;
+    u8 nc99 = MODE_SETTINGS_NC99_CLEARS(settings);
+
+    return (settings->clearedModes & 8) || (MODE_SETTINGS_NC_CLEARED(settings) & (1 << 3)) || (poke >= 4) ||
+           (nc99 >= 4) || ((poke >= 3) && (nc99 >= 3));
+}
+
+s32 ModeSettings_NcMewtwoReady(const ModeSettings* settings) {
+    u16 modes = settings->clearedModes;
+    u8 nc = MODE_SETTINGS_NC_CLEARED(settings);
+
+    return (nc & (1 << 1)) && (nc & (1 << 2)) && (modes & 0x10) && (modes & 0x20) && (modes & 0x40) &&
+           (!NC_MEWTWO_NEEDS_CASTLE || (modes & 0x80)) && ModeSettings_NcPokeSideCleared(settings);
+}
+
+s32 ModeSettings_NcGbTowerTier(const ModeSettings* settings) {
+    return ((settings->clearedModes & 0x40) ? 1 : 0) + (ModeSettings_NcPokeSideCleared(settings) ? 1 : 0);
+}
+
+u16 ModeSettings_EffectiveClearedModes(const ModeSettings* settings) {
+    u16 modes = settings->clearedModes;
+
+    if (Port_NcAvailable()) {
+        modes &= ~0xF8;
+        if (ModeSettings_NcMewtwoReady(settings)) {
+            modes |= 0xF8;
+        }
+    }
+    return modes;
+}
