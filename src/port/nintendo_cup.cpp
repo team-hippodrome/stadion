@@ -355,6 +355,10 @@ void Port_NcSetMode(int mode) {
     gMode = mode;
 }
 
+int Port_NcMode(void) {
+    return gMode;
+}
+
 const void* Port_NcTrainerFile(uint32_t archiveRaw, int index, uint32_t* size) {
     if (!Port_NcAvailable() || archiveRaw != Port_RomToRaw(kTrainerArchive)) {
         return nullptr;

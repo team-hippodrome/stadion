@@ -21,6 +21,7 @@ not copied from the US ROM. That is how the official localizations stay side by 
 | `jp.csv` | Japan, ポケモンスタジアム２ (CP2J) | `2449bb712a64e3363a6cbd56f5adeda5` | en, es, pt, de, ko, fr, it |
 | `kanji.csv` | Japan: its kana text written with kanji | | kanji |
 | `<src>_localized.csv` | the same source's COM Pokémon nicknames, localized | | as `<src>.csv` |
+| `subtitles.csv` | the announcer's voice lines, transcribed from the audio (not ROM text) | | en, es, jp, pt, de, ko, fr, it |
 
 The European English ROMs and the US revisions are not separate sources: they share most strings with USA 1.0 and
 are matched by md5.
@@ -118,6 +119,24 @@ and DELETE SAVED DATA) sets it, saved as `gPort.TextLanguage`. Every textdata st
 the ROM's own when the cell is empty (`src/port/text_lookup.cpp`, `game/src/text_system.c`). A character the ROM
 font has is drawn by it; any other (kana, kanji, Hangul, ...) by hippodrome-utils' Unifont (Pop with
 `gPort.TextFont` 1) at the font size's height (`game/src/graphics_textures.c`).
+
+## Announcer subtitles
+
+`subtitles.csv` holds one row per announcer voice line (hippodrome-utils `docs/specs/SUBTITLES.md`):
+`id,md5,address,en,es,jp,pt,de,ko,fr,it,note`, every language filled.
+
+- `SUBTITLE_ANNOUNCER_EN_<NNN>`: the English dub (USA and English Europe share it), `NNN` the clip id the game queues
+  (`Audio_QueueSequenceId`, one-based) in upper-case hex. `en` is what the announcer says.
+- `SUBTITLE_ANNOUNCER_JP_<NNN>`: the Japanese ROM's announcer, which the port plays on the restored Nintendo Cups
+  (`src/port/announcer.cpp`). `jp` is what he says, written with kanji; `md5` is its md5 in EUC-JP.
+- Clips without speech (0.2 s placeholders, mostly status moves the announcer never names) have no rows. The French,
+  German, Spanish and Italian dubs are not transcribed yet, so their ROMs show no subtitles.
+- Official names (species, moves, characters, cups, cities) per language as everywhere else; the rest is translated
+  literally from the line that was spoken.
+- `tools/announcer/announcer_clips.c` decodes a ROM's clips to WAV files to check transcriptions against the audio.
+
+The setting is OPTIONS > SUBTITLES (`gPort.Subtitles`): Off, Non-native only (the default: lines are shown only when
+the dub's language is not the text language) or On.
 
 ## Not done yet
 

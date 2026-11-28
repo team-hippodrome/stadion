@@ -44,6 +44,9 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
             z.write(root / f"translation/{src}.csv", f"translation/{src}.csv")
     # the Japanese ROM's COM nicknames and its text in kanji, for the Nintendo Cups taken from a Japanese ROM beside a
     # western one (src/port/nintendo_cup.cpp)
+    # the announcer's subtitles: transcriptions of each dub's voice lines and their translations (src/port/announcer.cpp)
+    if (root / "translation/subtitles.csv").exists():
+        z.write(root / "translation/subtitles.csv", "translation/subtitles.csv")
     for name in ("jp_localized", "kanji"):
         if (root / f"translation/{name}.csv").exists():
             z.write(root / f"translation/{name}.csv", f"translation/{name}.csv")

@@ -289,6 +289,10 @@ const char* Port_TextLookup(uint32_t table, uint32_t index) {
     return it == cells.end() ? nullptr : it->second.c_str();
 }
 
+uint32_t Port_TextWideCodePoint(uint32_t wide_index) {
+    return wide_index < gWide.size() ? gWide[wide_index] : 0;
+}
+
 int Port_TextGlyph(uint32_t wide_index, int height, PortTextGlyph* out) {
     if (wide_index >= gWide.size() || height < 1 || height > HU_GLYPH_MAX_HEIGHT || out == nullptr) {
         return 0;

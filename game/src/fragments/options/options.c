@@ -23,16 +23,19 @@ static char** sOptionsText;
 #endif
 static s16 sSelectedOption;
 static u16 sPendingSoundSettings;
-// PORT: the text-language row (src/port/text_lookup.cpp) between VOICE and DELETE SAVED DATA, so the rows are
-// SOUND, VOICE, LANGUAGE, DELETE SAVED DATA, QUIT; the choice applies on QUIT like the sound settings.
+// PORT: the text-language row (src/port/text_lookup.cpp) and the subtitles row (src/port/announcer.cpp) between VOICE
+// and DELETE SAVED DATA, so the rows are SOUND, VOICE, LANGUAGE, SUBTITLES, DELETE SAVED DATA, QUIT; the choices apply
+// on QUIT like the sound settings.
 #define OPTIONS_ROW_LANGUAGE 2
-#define OPTIONS_ROW_DELETE 3
-#define OPTIONS_ROW_QUIT 4
-#define OPTIONS_ROW_COUNT 5
+#define OPTIONS_ROW_SUBTITLES 3
+#define OPTIONS_ROW_DELETE 4
+#define OPTIONS_ROW_QUIT 5
+#define OPTIONS_ROW_COUNT 6
 static s32 sPendingTextLanguage;
+static s32 sPendingSubtitles;
 
-// PORT: one row taller for the text-language row (was * 22)
-#define OPTIONS_MAIN_PANEL_HEIGHT(step) (((step)*26) + 10)
+// PORT: two rows taller for the text-language and subtitles rows (was * 22)
+#define OPTIONS_MAIN_PANEL_HEIGHT(step) (((step)*30) + 10)
 #define OPTIONS_ERASE_PROMPT_HEIGHT(step) (((step)*17) + 2)
 #define OPTIONS_ERASE_COMPLETE_HEIGHT(step) ((step)*9)
 
@@ -108,7 +111,7 @@ void Options_DrawMainPanel(s16 opening_progress, s32 show_cursor) {
     s32 text_blue;
 #endif
     s16 height = OPTIONS_MAIN_PANEL_HEIGHT(opening_progress);
-    s16 y = ((218 - height) / 2) + 213; // PORT: one row taller (was 186 open, centred at 322)
+    s16 y = ((250 - height) / 2) + 197; // PORT: two rows taller (was 186 open, centred at 322)
 
     if (opening_progress > 0) {
         Ui_DrawBorderedPanelNoFill(137, y, 366, height);
@@ -119,7 +122,7 @@ void Options_DrawMainPanel(s16 opening_progress, s32 show_cursor) {
 #endif
 
             Options_DrawFilledPanel(144, y + 7, 352, 0x20, 0x3C, 0x3C, 0xA0, 0xFF); // #3C3CA0
-            Options_DrawFilledPanel(144, y + 39, 352, 172, 0x1E, 0x1E, 0x64, 0xFF); // #1E1E64 (PORT: was 140)
+            Options_DrawFilledPanel(144, y + 39, 352, 204, 0x1E, 0x1E, 0x64, 0xFF); // #1E1E64 (PORT: was 140)
 
             if (show_cursor != 0) {
                 Ui_DrawAnimatedTextureMarker(149, y + (sSelectedOption * 32) + 49);
@@ -130,6 +133,7 @@ void Options_DrawMainPanel(s16 opening_progress, s32 show_cursor) {
             Options_DrawValueCapsule(360, y + 48);
             Options_DrawValueCapsule(360, y + 80);
             Options_DrawValueCapsule(360, y + 112);
+            Options_DrawValueCapsule(360, y + 144);
 
             gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 
@@ -195,6 +199,35 @@ void Options_DrawMainPanel(s16 opening_progress, s32 show_cursor) {
             text = (char*)Port_TextLanguageName(sPendingTextLanguage);
             Font_Printf(420 - (Font_MeasureTextExtent(0x10, 0, "%s", text) / 2), y + 113, "%s", text);
 
+            if (sSelectedOption == OPTIONS_ROW_SUBTITLES) {
+                text_blue = 0;
+            } else {
+                text_blue = 0xFF;
+            }
+
+            Gfx_SetEnvColor(0xFF, 0xFF, text_blue, 0xFF);
+            Font_Printf(187, y + 145, "%s", Port_SubtitlesOptionLabel());
+            // off and on are the game's own words (the VOICE row's), "non-native only" the port's
+            if (sPendingSubtitles == PORT_SUBTITLES_NON_NATIVE) {
+                text = (char*)Port_SubtitlesOptionValue(sPendingSubtitles);
+            } else {
+                text = Text_GetString(NULL, 0, sOptionsText, (sPendingSubtitles == PORT_SUBTITLES_OFF) ? 3 : 2);
+            }
+            {
+                // a long value in a smaller size, so it stays inside its capsule
+                static const s32 kSizes[] = { 0x10, 8, 4 };
+                static const s32 kRaise[] = { 0, 2, 4 };
+                s32 size = 0;
+
+                while (size < 2 && Font_MeasureTextExtent(kSizes[size], 0, "%s", text) > 128) {
+                    size++;
+                }
+                Font_SetActive(kSizes[size], 0);
+                Font_Printf(420 - (Font_MeasureTextExtent(kSizes[size], 0, "%s", text) / 2), y + 145 + kRaise[size],
+                            "%s", text);
+                Font_SetActive(0x10, 0);
+            }
+
             if (sSelectedOption == OPTIONS_ROW_DELETE) {
                 text_blue = 0;
             } else {
@@ -202,7 +235,7 @@ void Options_DrawMainPanel(s16 opening_progress, s32 show_cursor) {
             }
 
             Gfx_SetEnvColor(0xFF, 0xFF, text_blue, 0xFF);
-            Font_Printf(187, y + 145, Text_GetString(NULL, 0, sOptionsText, 7));
+            Font_Printf(187, y + 177, Text_GetString(NULL, 0, sOptionsText, 7));
 
             if (sSelectedOption == OPTIONS_ROW_QUIT) {
                 text_blue = 0;
@@ -211,7 +244,7 @@ void Options_DrawMainPanel(s16 opening_progress, s32 show_cursor) {
             }
 
             Gfx_SetEnvColor(0xFF, 0xFF, text_blue, 0xFF);
-            Font_Printf(187, y + 177, Text_GetString(NULL, 0, sOptionsText, 8));
+            Font_Printf(187, y + 209, Text_GetString(NULL, 0, sOptionsText, 8));
 #endif
             Font_EndTexturedTextRendering();
         }
@@ -459,6 +492,11 @@ s16 Options_HandleSelection(void) {
             sPendingTextLanguage = (sPendingTextLanguage + 1) % Port_TextLanguageCount();
             break;
 
+        case OPTIONS_ROW_SUBTITLES:
+            Audio_PlaySoundEffectById(SFX_MENU_CONFIRM);
+            sPendingSubtitles = (sPendingSubtitles + 1) % 3;
+            break;
+
         case OPTIONS_ROW_DELETE:
             Audio_PlaySoundEffectById(SFX_MENU_CONFIRM);
             if ((Options_ConfirmSaveErasure(0) != 0) && (Options_ConfirmSaveErasure(1) != 0)) {
@@ -472,6 +510,9 @@ s16 Options_HandleSelection(void) {
             Options_ApplySoundSettings(sPendingSoundSettings);
             if (sPendingTextLanguage != Port_TextLanguageChoice()) {
                 Port_TextLanguageSet(sPendingTextLanguage);
+            }
+            if (sPendingSubtitles != Port_SubtitlesSetting()) {
+                Port_SubtitlesSetSetting(sPendingSubtitles);
             }
             should_exit = 1;
             break;
@@ -511,6 +552,11 @@ void Options_RunMenu(void) {
 
             sPendingTextLanguage = (sPendingTextLanguage + (BTN_IS_PRESSED(gPlayer1Controller, BTN_DLEFT) ? count - 1 : 1)) %
                                    count;
+            Audio_PlaySoundEffectById(SFX_MENU_SCROLL);
+        } else if ((sSelectedOption == OPTIONS_ROW_SUBTITLES) &&
+                   (BTN_IS_PRESSED(gPlayer1Controller, BTN_DLEFT) || BTN_IS_PRESSED(gPlayer1Controller, BTN_DRIGHT))) {
+            // PORT: off, non-native only, on
+            sPendingSubtitles = (sPendingSubtitles + (BTN_IS_PRESSED(gPlayer1Controller, BTN_DLEFT) ? 2 : 1)) % 3;
             Audio_PlaySoundEffectById(SFX_MENU_SCROLL);
         } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_A)) {
             exit_reason = Options_HandleSelection();
@@ -556,6 +602,7 @@ s32 Options_Main(UNUSED s32 arg0, UNUSED s32 arg1) {
     Save_EnsureAllBanksLoaded();
     Save_GetOptionsField02(&sPendingSoundSettings);
     sPendingTextLanguage = Port_TextLanguageChoice();
+    sPendingSubtitles = Port_SubtitlesSetting();
     sSelectedOption = 0;
     StageContext_Activate(stage);
     Options_RunMenu();
