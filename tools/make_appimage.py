@@ -5,6 +5,7 @@ Usage: tools/make_appimage.py <build dir> <output .AppImage> [version] [appimage
 
 - usr/bin/stadion (its resources are built in); started without arguments the game shows the launcher
 - AppRun keeps config, logs and saves beside the original .AppImage, outside its read-only mount. SHIP_HOME overrides it.
+  It also sets SDL_VIDEO_WAYLAND_SCALE_TO_DISPLAY=1 unless the variable is already set.
 - a .desktop file and the icon from tools/launcher/assets
 - no bundled libraries: the release build links SDL3, libzip, spdlog, tinyxml2 and the C++ runtime statically
   (build.yml), so the executable needs only glibc and the system's OpenGL (libOpenGL/libGLX, from the GPU driver,
@@ -31,6 +32,9 @@ fi
 mkdir -p "$SHIP_HOME"
 # the window's app id matches the .desktop file (taskbar icon on Wayland)
 export SDL_APP_ID="${SDL_APP_ID:-stadion}"
+# Wayland with fractional display scaling: without this the picture can be drawn offset and cut off.
+# SDL_VIDEO_WAYLAND_SCALE_TO_DISPLAY=0 turns it off.
+export SDL_VIDEO_WAYLAND_SCALE_TO_DISPLAY="${SDL_VIDEO_WAYLAND_SCALE_TO_DISPLAY:-1}"
 exec "$HERE/usr/bin/stadion" "$@"
 """
 
