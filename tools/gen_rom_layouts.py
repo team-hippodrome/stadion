@@ -72,14 +72,21 @@ def main_segment_rows(code, syms):
     piece when a version's code grows, so it gets one row per run of symbols that moved by the same amount."""
     def rom_of(s, addr):
         return s["text_ROM_START"] + addr - s["text_VRAM"]
+    gstart, gend = code["text_ROM_START"], code["text_ROM_END"]
+    vstart, vend = syms["text_ROM_START"], syms["text_ROM_END"]
     anchors = {}
     for name, gaddr in code.items():
         vaddr = syms.get(name)
         if vaddr is None or name.endswith(("_VRAM", "_VRAM_END")):
             continue
         if code["text_VRAM"] <= gaddr < code["text_VRAM_END"] and syms["text_VRAM"] <= vaddr < syms["text_VRAM_END"]:
-            anchors.setdefault(rom_of(code, gaddr), rom_of(syms, vaddr))
-    gstart, gend = code["text_ROM_START"], code["text_ROM_END"]
+            # only symbols the ROM holds in both builds: text_VRAM_END also covers the segment's bss, which is not in
+            # the ROM. A bss symbol's "ROM offset" lands past the segment, in whatever comes next (fragment1's data),
+            # and a row made from it sends reads there to the wrong place: the European ROMs read the GB Tower's
+            # border images 0x30 bytes late and crashed decompressing garbage
+            g, v = rom_of(code, gaddr), rom_of(syms, vaddr)
+            if gstart <= g < gend and vstart <= v < vend:
+                anchors.setdefault(g, v)
     anchors.setdefault(gstart, syms["text_ROM_START"])
     pts = sorted(anchors.items())
     rows, run = [], None  # run: [game start, version start, delta]

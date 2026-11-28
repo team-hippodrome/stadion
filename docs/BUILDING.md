@@ -147,7 +147,9 @@ reads the maps of every other accepted ROM (`us`, `us_rev1`, `eu`, `eu_rev1`, `f
 `src/port/rom_version.cpp` uses to read them. Build them all in the decomp first, each with its own
 `baseroms/<version>/baserom.z64`: `make init VERSION=us && make VERSION=us`, then
 `make extract VERSION=<version> && make VERSION=<version>` for each of the others (the European ones build the code
-they change from assembly).
+they change from assembly). After regenerating, run `tools/test_rom_layouts.py`, and with your ROMs
+`tools/test_rom_layouts.py --rom-dir DIR`: it checks that the main segment's rows stay out of the pieces after it and
+that the Game Boy Tower's data is found in every ROM.
 
 ## Shader coverage
 
