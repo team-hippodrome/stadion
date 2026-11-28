@@ -9,6 +9,7 @@
 #include "util.h"
 #include "profiler.h"
 #include "stdarg.h"
+#include "StadionPort.h"
 
 typedef struct unk_D_80068CA0 {
     /* 0x00 */ struct unk_D_80068CA0* next;
@@ -348,6 +349,7 @@ void StageLoader_SetupFrame(void) {
     }
 
     TextRenderer_FlushQueuedStrings(&gDisplayListHead, StageContext_IsHighResolution());
+    Port_SubtitlesDraw(); // PORT: the announcer's subtitles, over everything the stage drew
 
     if (gShowCPUProfiler != 0) {
         draw_profiler(gShowCPUProfiler - 1);

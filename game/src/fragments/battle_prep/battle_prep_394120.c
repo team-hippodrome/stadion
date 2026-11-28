@@ -6,6 +6,7 @@
 #include "src/pokemon_stats.h"
 #include "src/save_data.h"
 #include "src/game_state.h"
+#include "StadionPort.h" // PORT: the Nintendo Cups (restored content)
 #include "src/session.h"
 #include "src/text_system.h"
 #include "src/audio_sfx.h"
@@ -100,12 +101,34 @@ void BattlePrep_AdvanceGbTowerUnlock(void) {
 
     Save_GetOptions(&options);
 
-    if ((gSessionContext.mode == 3) && (gSessionContext.modeSelection == 3) && !(sModeSettings.clearedModes & 8)) {
-        is_first_clear = 1;
-    }
+    if (Port_NcAvailable()) {
+        // PORT: with the Nintendo Cups (restored content), save_data.c's rule: the Game Boys earned once this clear
+        // is counted
+        ModeSettings after = sModeSettings;
 
-    if ((gSessionContext.mode == 6) && (gSessionContext.modeSelection == 3) && !(sModeSettings.clearedModes & 0x40)) {
-        is_first_clear = 1;
+        if ((gSessionContext.mode == 6) && (gSessionContext.modeSelection == 3)) {
+            after.clearedModes |= 0x40;
+        } else if ((gSessionContext.mode == 3) && (gSessionContext.modeSelection < 4)) {
+            if (Port_NcIs99()) {
+                if (MODE_SETTINGS_NC99_CLEARS(&after) < gSessionContext.modeSelection + 1) {
+                    MODE_SETTINGS_NC99_CLEARS(&after) = gSessionContext.modeSelection + 1;
+                }
+            } else if (after.nintendoCupClears < gSessionContext.modeSelection + 1) {
+                after.nintendoCupClears = gSessionContext.modeSelection + 1;
+            }
+        }
+        if (ModeSettings_NcGbTowerTier(&after) > options.gbTowerUnlockTier) {
+            is_first_clear = 1;
+        }
+    } else {
+        if ((gSessionContext.mode == 3) && (gSessionContext.modeSelection == 3) && !(sModeSettings.clearedModes & 8)) {
+            is_first_clear = 1;
+        }
+
+        if ((gSessionContext.mode == 6) && (gSessionContext.modeSelection == 3) &&
+            !(sModeSettings.clearedModes & 0x40)) {
+            is_first_clear = 1;
+        }
     }
 
     if ((is_first_clear != 0) && (options.gbTowerUnlockTier < 2)) {
@@ -128,8 +151,16 @@ void BattlePrep_MarkModeCleared(void) {
     if (((gSessionContext.mode != 3) || (gSessionContext.modeSelection >= 3)) &&
         ((gSessionContext.mode != 6) || (gSessionContext.modeSelection >= 3)) &&
         ((gSessionContext.mode != 7) || (gSessionContext.modeSelection >= 9))) {
-        sModeSettings.clearedModes |= (1 << gSessionContext.mode);
-        if (sModeSettings.clearedModes == 0xF8) {
+        // PORT: the Nintendo Cups (restored content) keep their clears apart, so clearedModes keeps the values the
+        // game compares it with; Mewtwo then follows save_data.c's rule
+        if ((gSessionContext.mode == 1) || (gSessionContext.mode == 2) ||
+            ((gSessionContext.mode == 3) && Port_NcIs99())) {
+            MODE_SETTINGS_NC_CLEARED(&sModeSettings) |= (1 << gSessionContext.mode);
+        } else {
+            sModeSettings.clearedModes |= (1 << gSessionContext.mode);
+        }
+        if (Port_NcAvailable() ? (ModeSettings_NcMewtwoReady(&sModeSettings) && !(sModeSettings.clearedModes & 0x100))
+                               : (sModeSettings.clearedModes == 0xF8)) {
             sModeSettings.mewtwoUnlocked = 1;
             gSessionContext.sessionFlags |= SESSION_FLAG_REVEAL_MEWTWO;
         }
@@ -148,6 +179,13 @@ void BattlePrep_UpdateClearProgress(void) {
             sModeSettings.castleClears = gSessionContext.modeSelection + 1;
             gSessionContext.transitionFlags |= 0x400;
         }
+    } else if ((gSessionContext.mode == 3) && Port_NcIs99()) {
+        // PORT: Nintendo Cup '99's divisions (restored content)
+        if ((gSessionContext.modeSelection >= MODE_SETTINGS_NC99_CLEARS(&sModeSettings)) &&
+            (gSessionContext.modeSelection < 4)) {
+            MODE_SETTINGS_NC99_CLEARS(&sModeSettings) = gSessionContext.modeSelection + 1;
+            gSessionContext.transitionFlags |= 0x400;
+        }
     } else if (gSessionContext.mode == 3) {
         if ((gSessionContext.modeSelection >= sModeSettings.nintendoCupClears) && (gSessionContext.modeSelection < 4)) {
             sModeSettings.nintendoCupClears = gSessionContext.modeSelection + 1;
@@ -157,6 +195,12 @@ void BattlePrep_UpdateClearProgress(void) {
                (gSessionContext.modeSelection < 4)) {
         sModeSettings.primeCupClears = gSessionContext.modeSelection + 1;
         gSessionContext.transitionFlags |= 0x400;
+    }
+    // PORT: with the Nintendo Cups, the Poké Cup's part can also be both Ultra Balls, which no mode clear marks
+    if (Port_NcAvailable() && !sModeSettings.mewtwoUnlocked && !(sModeSettings.clearedModes & 0x100) &&
+        ModeSettings_NcMewtwoReady(&sModeSettings)) {
+        sModeSettings.mewtwoUnlocked = 1;
+        gSessionContext.sessionFlags |= SESSION_FLAG_REVEAL_MEWTWO;
     }
     Save_SetModeSettings(&sModeSettings, gSessionContext.inRound2);
 }

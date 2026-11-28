@@ -122,7 +122,7 @@ void RentalRules_LoadBackgroundArchive(void) {
                 D_83003C8C = BinArchive_GetFile(D_83003C88, 0x10);
             }
         } else {
-            D_83003C8C = BinArchive_GetFile(D_83003C88, D_830039C8[gSessionContext.mode]);
+            D_83003C8C = BinArchive_GetFile(D_83003C88, Port_NcBackgroundFile(gSessionContext.mode, D_830039C8[gSessionContext.mode]));
         }
     }
 }
@@ -166,6 +166,22 @@ s16* RentalRules_GetRuleIdList(SessionContext* session_context) {
             break;
 
         case 3:
+            if (Port_NcIs99()) {
+                // PORT: Nintendo Cup '99 (restored content): the Japanese release's lists, packed after the '98
+                // free battle list
+                switch (session_context->mode) {
+                    case 3:
+                        var_v1 = &D_83003A38[8];
+                        break;
+                    case 10:
+                        var_v1 = &D_83003A38[18];
+                        break;
+                    case 0:
+                        var_v1 = &D_83003A38[28];
+                        break;
+                }
+                break;
+            }
             switch (session_context->mode) {
                 case 3:
                     var_v1 = D_830039D4;
@@ -696,6 +712,10 @@ void RentalRules_LoadDescriptionStrings(void) {
                 D_83003DE0.unk_00[i] = Text_GetString(NULL, 0, sBattleModeLabels, var_s2 + 35);
                 var_s2++;
                 break;
+        }
+        if ((i == 13) && Port_NcAvailable()) {
+            // PORT: the Nintendo Cup '99 rule the western releases left as "!no use!" (restored content)
+            D_83003DE0.unk_00[i] = (char*)Port_NcText(PORT_NC_TEXT_NO_CHAMPIONS);
         }
     }
 }

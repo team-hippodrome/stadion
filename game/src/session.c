@@ -37,6 +37,9 @@ void Session_SetMode(s32 arg0, s32 arg1, s32 arg2) {
     gSessionContext.ruleCategory = arg1;
     gSessionContext.modeSelection = arg2;
     gSessionContext.roundOrDemoId = 1;
+    // PORT: mode 3 is the Poké Cup until whoever chose Nintendo Cup '99 says otherwise (restored content)
+    Port_NcSet99(0);
+    Port_NcSetMode(arg0);
 
     gSessionContext.timeLimitsEnabled = 0;
     gSessionContext.battleLimitMinutes = 0;
@@ -575,6 +578,9 @@ void Session_SaveContinueData(void) {
 
     _bcopy(gSessionContext.opponentHistory[0], &sp20.unk_05, 8);
     Text_TranscodeNameWrapper(sp20.unk_10, gSessionContext.battleSides[0].tagTeamMember[0]->trainerName);
+    // PORT: a suspended Nintendo Cup '99 keeps that in the record's last byte, past the trainer's name (restored
+    // content; the western game never reads it)
+    sp20.unk_10[sizeof(sp20.unk_10) - 1] = Port_NcIs99() ? SESSION_CONTINUE_NC99 : 0;
     Session_SaveContinueRecord(&sp20, sp1C->battleMon, sp1C->numberOfPokemonCanBePicked);
     Save_CommitTypedRecord(0x15, 0);
 }
@@ -590,6 +596,8 @@ s32 Session_LoadContinueData(void) {
     temp_v0 = Session_LoadContinueRecord(&sp250, sp58);
     if (temp_v0 != -1) {
         Session_SetMode(sp250.sessionMode, sp250.sessionMode, sp250.cupOrGymIndex);
+        // PORT: a suspended Nintendo Cup '99 (Session_SaveContinueData)
+        Port_NcSet99((sp250.sessionMode == 3) && ((u8)sp250.unk_10[sizeof(sp250.unk_10) - 1] == SESSION_CONTINUE_NC99));
 
         _bcopy(sp250.unk_05, gSessionContext.opponentHistory[0], 8);
         gSessionContext.roundOrDemoId = sp250.trainerIndex;

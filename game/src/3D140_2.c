@@ -1433,6 +1433,7 @@ void Audio_SelectModeMusic(u32 arg0, u32 arg1) {
     func_80041A98();
     D_80078404 = arg1;
     D_80078408 = arg0;
+    Port_AnnouncerModeRow(arg1); // PORT: the Nintendo Cups' own opening lines in Japanese
 
     if (arg1 < 0x11) {
         D_800783FC = 1;
@@ -3123,6 +3124,8 @@ void Audio_UpdateBattleAudioFrame(void) {
     if ((D_800783B4 < D_800783B8) && (D_80078388 != 0) && (AudioStream_IsPlaying(1) == 0)) {
         if (D_800783A4[D_800783B4 & 3] != 0) {
             seq = (u32)(uintptr_t)D_800FC714->seqArray[D_800783A4[D_800783B4 & 3] - 1].offset;
+            // PORT: the Japanese announcer where the restored content plays it, and the line's subtitle
+            seq = Port_AnnouncerClip(D_800783A4[D_800783B4 & 3], seq);
             AudioStream_Start(1, seq, NTSC_PAL(0x7E, 0x80), 0);
         }
         D_800783B4++;

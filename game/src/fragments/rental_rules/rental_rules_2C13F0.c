@@ -42,7 +42,8 @@ s32 RentalRules_SpeciesMatchesCategory(s16 species, s16 ruleset) {
             break;
 
         case RULE_CATEGORY_NINTENDO_CUP_99:
-            eligibility_mask = 1;
+            // PORT: the Japanese release's Nintendo Cup '99 list (restored content); the Poké Cup's otherwise
+            eligibility_mask = Port_NcIs99() ? 4 : 1;
             break;
 
         case RULE_CATEGORY_PETIT_CUP:

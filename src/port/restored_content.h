@@ -1,5 +1,5 @@
-// Restored content: Gallery, Nidoqueen's animation and Jynx's colour from other Stadium releases the player also
-// provides (restored_content.cpp).
+// Restored content: the Nintendo Cups, Gallery, Nidoqueen's animation and Jynx's colour from other Stadium releases
+// the player also provides (restored_content.cpp, nintendo_cup.cpp).
 #pragma once
 
 #include "rom_layouts.h"
@@ -25,6 +25,10 @@ namespace Port {
 void LoadRestoredContent();
 // The version of the extra ROM in slot (PORT_ROM_VERSION_COUNT: none)
 PortRomVersion ExtraRomVersion(int slot);
+// The slot of the Japanese extra ROM (0: none)
+int JapanRomSlot();
+// Forgets what nintendo_cup.cpp read from the ROMs (LoadRestoredContent: the ROMs may have changed)
+void ResetNintendoCup();
 
 // What the launcher offers for a ROM and the extra ROMs beside it
 struct RestoredContentChoices {
@@ -32,6 +36,7 @@ struct RestoredContentChoices {
     bool jynx = false;      // both of Jynx's colours are there
     bool jynxOriginalDefault = false; // the loaded ROM's own colour is Original
     bool nidoqueen = false; // the Japanese animation is there
+    bool nintendoCup = false; // the Nintendo Cups are there (a Japanese ROM beside a western one)
 };
 RestoredContentChoices RestoredChoicesFor(PortRomVersion loaded, const std::vector<PortRomVersion>& extras);
 
@@ -47,6 +52,8 @@ void Port_Enh_SetNidoqueenAnimation(int animation);
 // A file of an archive read from the ROM (archiveRaw: the archive's start as Port_RomToRaw marks it, index: the file)
 // that restored content takes from another ROM: sets *start (a marked offset) and *size and returns 1, else 0.
 int Port_RestoredArchiveFile(uint32_t archiveRaw, int index, uint32_t* start, uint32_t* size);
+
+// The Nintendo Cups' hooks (Port_Nc*) are declared in StadionPort.h.
 
 #ifdef __cplusplus
 }

@@ -17,6 +17,7 @@
 #include "src/memory.h"
 #include "src/stage_loader.h"
 #include "StadionPort.h" // PORT_SEGSYM: images the translated releases keep elsewhere
+#include <math.h>        // PORT: sqrtf, sinf, cosf (the flags on the Nintendo Cup '97 and Poké Cup icons)
 
 typedef struct MenuItemInfo {
     /* 0x00 */ s16 unk_00;
@@ -46,9 +47,10 @@ static void* D_84103448;
 static void* D_8410344C;
 static Vtx* D_84103450;
 static GraphNode* D_84103454;
-static DisplayObject D_84103458[6];
+// PORT: 7 with the Nintendo Cups restored (the port's seven-cup layout, below), else 6
+static DisplayObject D_84103458[7];
 static s16 D_84103CC8;
-static DepthBuffer* D_84103CD0[6];
+static DepthBuffer* D_84103CD0[7];
 static GraphNode* D_84103CE8;
 static GraphNode* D_84103CEC;
 static ModeSettings D_84103CF0;
@@ -58,6 +60,40 @@ static u8 sBackgroundFileIds[] = {
 };
 static s16 gStadiumCupSessionModes[] = { 3, 1, 2, 6, 4, 5 };
 static s16 gStadiumCupModeCategories[] = { 3, 1, 2, 6, 4, 5 };
+
+// PORT: restored content (src/port/nintendo_cup.cpp). With a Japanese ROM beside a western one, the screen offers
+// seven cups in three rows (Julius's layout): Poké Cup and Nintendo Cup '97; Petit, Prime and Pika Cup; Nintendo Cup
+// '98 and '99. The icons are drawn smaller (NC_ICON_SCALE) to fit; '97 and '98 (and '99's) pictures come from the
+// Japanese ROM's stadium_select_ui, which keeps them where the western one does.
+#define NC_CUP_COUNT 7
+#define NC_ICON_SCALE 0.72f
+#define NC_JP_STADIUM_SELECT_UI_START 0x524BF0
+#define NC_JP_STADIUM_SELECT_UI_END 0x54B7E0
+typedef struct NcCupSlot {
+    s16 mode;       // session mode and rule category
+    s8 is99;        // mode 3 as Nintendo Cup '99
+    u8 background;  // backgrounds archive file
+    u8 big;         // a four-division icon (152x114) rather than a one-cup icon (128x96)
+    u8 corner;      // a corner cup: drawn at the four-division icon's size
+    s16 x, y;       // the icon's centre on the 640x480 screen
+    s8 up, down, left, right;
+} NcCupSlot;
+static NcCupSlot sNcCupSlots[NC_CUP_COUNT] = {
+    { 3, 0, 9, 1, 1, 255, 96, -1, 2, -1, 1 },  // Poké Cup
+    { 1, 0, 9, 0, 1, 385, 96, -1, 4, 0, -1 },  // Nintendo Cup '97 (backgrounds file 9: the Japanese '97 picture)
+    { 4, 0, 10, 0, 0, 160, 191, 0, 5, -1, 3 }, // Petit Cup
+    { 6, 0, 12, 1, 0, 320, 191, 0, 6, 2, 4 },  // Prime Cup
+    { 5, 0, 11, 0, 0, 480, 191, 1, 6, 3, -1 }, // Pika Cup
+    { 2, 0, 8, 0, 1, 255, 286, 2, -1, -1, 6 }, // Nintendo Cup '98
+    { 3, 1, 7, 1, 1, 385, 286, 4, -1, 5, -1 }, // Nintendo Cup '99 (file 7: the Japanese '99 picture)
+};
+static s32 sNcLayout;     // the seven-cup layout is on
+static s16 sCupCount = 6; // cups on the screen (B returns this)
+static u8* sNcJpUi;       // the Japanese stadium_select_ui
+static MenuItemInfo sNcItemInfo[NC_CUP_COUNT];
+// sparkles over the medals: four for each four-division cup (Poké, Prime, '99), one for each other
+static MenuRectAnim sNcSparkles[16];
+static s32 sNcSparkleCount;
 #if defined(VERSION_JP)
 static MenuItemInfo sMenuItemInfo[] = {
     { 244, 70, 152, 114, -1, 3, 1, 2 },  { 88, 88, 128, 96, -1, 4, -1, 0 },  { 424, 88, 128, 96, -1, 5, 0, -1 },
@@ -555,6 +591,32 @@ void StadiumSelect_UpdateSparkles(s16 arg0) {
         return;
     }
 
+    // PORT: the seven-cup layout's own sparkles
+    if (sNcLayout) {
+        var_s0 = sNcSparkles;
+        for (i = 0; i < sNcSparkleCount; i++, var_s0++) {
+            switch (var_s0->unk_00) {
+                case 1:
+                    var_s0->unk_06 = (s32)(COSS(var_s0->unk_08) * 12.0f) + 12;
+                    StadiumSelect_AnimateRectangle(var_s0->unk_02, var_s0->unk_04, var_s0->unk_06);
+                    var_s0->unk_08 += 0x1000;
+                    if ((u16)var_s0->unk_08 == 0x8000) {
+                        var_s0->unk_00 = 2;
+                        var_s0->unk_0A = (MathUtil_Random16() & 7) + 0x14;
+                    }
+                    break;
+
+                case 2:
+                    var_s0->unk_0A--;
+                    if (var_s0->unk_0A == 0) {
+                        var_s0->unk_00 = 1;
+                    }
+                    break;
+            }
+        }
+        return;
+    }
+
     for (i = 0; i < 12; i++, var_s0++) {
         switch (i) {
 #if !defined(VERSION_JP)
@@ -724,7 +786,7 @@ s32 StadiumSelect_IconGeoPostCallback(s32 arg0, unk_func_80011B94* arg1) {
 
         gSPSegment(gDisplayListHead++, 0x0F, (uintptr_t)D_84103CD0[idx]->img_p);
 
-        if ((idx == 0) || (idx == 3)) {
+        if ((idx == 0) || (idx == 3) || (sNcLayout && (idx == 6))) {
             gSPDisplayList(gDisplayListHead++, sMenuBarBackgroundDL);
         } else {
             gSPDisplayList(gDisplayListHead++, sMenuOptionBackgroundDL);
@@ -733,6 +795,56 @@ s32 StadiumSelect_IconGeoPostCallback(s32 arg0, unk_func_80011B94* arg1) {
     }
     return 0;
 }
+
+#if !defined(VERSION_JP)
+// PORT: the panel under the seven-cup layout: the western cups' text from the ROM, the Nintendo Cups' from
+// translation/jp.csv (Port_NcText)
+static void StadiumSelect_DrawNcCupInfo(void) {
+    // the western table's entry (name; description + 6; sMenuOptionRanges) for Poké, Petit, Prime and Pika Cup
+    static const s8 sWesternEntry[NC_CUP_COUNT] = { 0, -1, 4, 3, 5, -1, -1 };
+    static const u8 sNcRanges[NC_CUP_COUNT][2] = { { 50, 55 }, { 50, 55 }, { 0 }, { 0 }, { 0 }, { 1, 30 }, { 1, 50 } };
+    static const s8 sNcName[NC_CUP_COUNT] = { -1, PORT_NC_TEXT_NAME_97, -1, -1, -1, PORT_NC_TEXT_NAME_98,
+                                              PORT_NC_TEXT_NAME_99 };
+    s32 entry = sWesternEntry[D_84103CC8];
+    const char* name;
+    const char* description;
+    s32 low;
+    s32 high;
+
+    if (entry >= 0) {
+        name = Text_GetString(NULL, 0, sStadiumCupText, entry);
+        description = Text_GetString(NULL, 0, sStadiumCupText, entry + 6);
+        low = sMenuOptionRanges[entry][0];
+        high = sMenuOptionRanges[entry][1];
+    } else {
+        name = Port_NcText(sNcName[D_84103CC8]);
+        description = Port_NcText(sNcName[D_84103CC8] + (PORT_NC_TEXT_DESC_97 - PORT_NC_TEXT_NAME_97));
+        low = sNcRanges[D_84103CC8][0];
+        high = sNcRanges[D_84103CC8][1];
+    }
+
+    Font_BeginTranslucentTextRendering();
+    Font_SetActive(0x10, 0);
+    Gfx_SetEnvColor(0xFF, 0xFF, 0x64, 0xFF);
+    Font_Printf(0x48, 0x160, name);
+    Font_Printf(0x18C, 0x160, Text_GetString(NULL, 0, sStadiumCupText, 0xC));
+    Font_Printf(Font_MeasureTextExtent(0x10, 0, Text_GetString(NULL, 0, sStadiumCupText, 0xC)) + 0x190, 0x160,
+                "%d~%d", low, high);
+    Font_SetActive(8, 0);
+    Gfx_SetEnvColor(0xFF, 0xFF, 0xFF, 0xFF);
+    Font_SetLineHeight(0x18);
+    Font_Printf(0x48, 0x182, description);
+    Font_EndTexturedTextRendering();
+
+    if (gSessionContext.inRound2 == 1) {
+        s32 width = Font_MeasureTextExtent(0x10, 0, name);
+
+        gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
+        Gfx_DrawTextureRgba16(width + 0x4C, 0x160, 0x1C, 0x1C, PORT_SEGSYM(&D_302E840), 0x1C, 0);
+        gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
+    }
+}
+#endif
 
 void StadiumSelect_DrawCupInfoPanel(s16 arg0) {
     s32 sp28;
@@ -779,6 +891,11 @@ void StadiumSelect_DrawCupInfoPanel(s16 arg0) {
 }
 
 #else
+    // PORT: the seven-cup layout's names, descriptions and level ranges
+    if (sNcLayout && (sp28 == 0x5A) && (D_84103CC8 < NC_CUP_COUNT)) {
+        StadiumSelect_DrawNcCupInfo();
+        return;
+    }
     if ((sp28 == 0x5A) && (D_84103CC8 < 6)) {
         Font_BeginTranslucentTextRendering();
         Font_SetActive(0x10, 0);
@@ -813,7 +930,16 @@ void StadiumSelect_RenderFrame(s32 arg0, s32 arg1, f32 arg2) {
     s16 temp_v1;
     s16 var_v0;
 
-    if (arg0 < 0xB) {
+    // PORT: the seven-cup layout flips its rows alternately (top and bottom one way, middle the other)
+    if (sNcLayout) {
+        var_v0 = (arg0 < 0xB) ? ((10 - arg0) * -0x5000) / 10 : ((arg0 - 10) * -0x5000) / 10;
+        for (i = 0; i < NC_CUP_COUNT; i++) {
+            if ((arg0 >= 0xB) && (i == D_84103CC8)) {
+                continue;
+            }
+            D_84103458[i].rotation.x = ((i >= 2) && (i <= 4)) ? -var_v0 : var_v0;
+        }
+    } else if (arg0 < 0xB) {
         var_v0 = ((10 - arg0) * -0x5000) / 10;
         for (i = 0; i < 3; i++) {
             D_84103458[i].rotation.x = var_v0;
@@ -842,7 +968,7 @@ void StadiumSelect_RenderFrame(s32 arg0, s32 arg1, f32 arg2) {
     Geo_RenderRootNode(D_84103454);
 
     if (arg2 != 0.0f) {
-        MenuItemInfo* ptr = &sMenuItemInfo[D_84103CC8];
+        MenuItemInfo* ptr = sNcLayout ? &sNcItemInfo[D_84103CC8] : &sMenuItemInfo[D_84103CC8];
 
         temp_v1 = (ptr->unk_04 / 2) + ptr->unk_00;
         temp_t1 = (ptr->unk_06 / 2) + ptr->unk_02;
@@ -852,7 +978,7 @@ void StadiumSelect_RenderFrame(s32 arg0, s32 arg1, f32 arg2) {
     }
 
     if (arg1 != 0) {
-        MenuItemInfo* ptr = &sMenuItemInfo[D_84103CC8];
+        MenuItemInfo* ptr = sNcLayout ? &sNcItemInfo[D_84103CC8] : &sMenuItemInfo[D_84103CC8];
 
         StadiumSelect_DrawSelectionCorners(ptr->unk_00, ptr->unk_02, ptr->unk_04, ptr->unk_06, 0xFF, 0xF0, 0x64, 0xFF);
     }
@@ -862,16 +988,97 @@ void StadiumSelect_RenderFrame(s32 arg0, s32 arg1, f32 arg2) {
     BgStage_AdvanceFrame();
 }
 
+// PORT: the small flags on the restored-content layout's icons (RESTORED_CONTENT.md: the Nintendo Cup '97 and Poké
+// Cup pictures are the same), drawn into the icon's render target with a dark edge. A one-cup icon's flag is 24x16;
+// the four-division icons are drawn smaller on screen, so theirs is 28x19 to look the same size.
+#define NC_FLAG_W 24
+#define NC_FLAG_H 16
+#define NC_FLAG_BIG_W 28
+#define NC_FLAG_BIG_H 19
+#define NC_FLAG_JAPAN 0
+#define NC_FLAG_USA 1
+#define NC_FLAG_EU 2
+static void StadiumSelect_DrawFlag(s32 kind, s32 x, s32 y, s32 w, s32 h) {
+    s32 i;
+    s32 dy;
+    f32 cx = x + w / 2.0f;
+    f32 cy = y + h / 2.0f;
+
+    gSPDisplayList(gDisplayListHead++, gUiTranslucentFillDL);
+    Gfx_FillRectRgba(x - 1, y - 1, w + 2, h + 2, 0x40, 0x40, 0x40, 0xFF);
+    switch (kind) {
+        case NC_FLAG_JAPAN: {
+            // white, a red disc (its diameter 3/5 of the height) in the middle
+            f32 r = h * 0.3f + 0.2f;
+
+            Gfx_FillRectRgba(x, y, w, h, 0xFF, 0xFF, 0xFF, 0xFF);
+            for (dy = 0; dy < h; dy++) {
+                f32 fy = (y + dy + 0.5f) - cy;
+
+                if (fy * fy < r * r) {
+                    f32 half = sqrtf(r * r - fy * fy);
+                    s32 x0 = (s32)(cx - half + 0.5f);
+                    s32 x1 = (s32)(cx + half + 0.5f);
+
+                    if (x1 > x0) {
+                        Gfx_FillRectRgba(x0, y + dy, x1 - x0, 1, 0xBC, 0x00, 0x2D, 0xFF);
+                    }
+                }
+            }
+            break;
+        }
+
+        case NC_FLAG_USA: {
+            // thirteen red and white stripes (rounded to rows), a blue canton with a grid of white stars
+            s32 cw = (w * 10 + 12) / 24;
+            s32 ch = (h * 7 + 6) / 13;
+
+            for (i = 0; i < h; i++) {
+                if (((i * 13) / h) % 2 == 0) {
+                    Gfx_FillRectRgba(x, y + i, w, 1, 0xB2, 0x22, 0x34, 0xFF);
+                } else {
+                    Gfx_FillRectRgba(x, y + i, w, 1, 0xFF, 0xFF, 0xFF, 0xFF);
+                }
+            }
+            Gfx_FillRectRgba(x, y, cw, ch, 0x3C, 0x3B, 0x6E, 0xFF);
+            for (dy = 1; dy < ch; dy += 2) {
+                for (i = ((dy / 2) % 2) ? 2 : 1; i < cw; i += 2) {
+                    Gfx_FillRectRgba(x + i, y + dy, 1, 1, 0xFF, 0xFF, 0xFF, 0xFF);
+                }
+            }
+            break;
+        }
+
+        case NC_FLAG_EU: {
+            // blue, a circle of twelve gold stars
+            f32 r = h * (5.5f / 16.0f);
+
+            Gfx_FillRectRgba(x, y, w, h, 0x00, 0x33, 0x99, 0xFF);
+            for (i = 0; i < 12; i++) {
+                f32 angle = i * (2.0f * 3.14159265f / 12.0f);
+                s32 sx = (s32)floorf(cx + sinf(angle) * r + 0.5f) - 1;
+                s32 sy = (s32)floorf(cy - cosf(angle) * r + 0.5f) - 1;
+
+                Gfx_FillRectRgba(sx, sy, 2, 2, 0xFF, 0xCC, 0x00, 0xFF);
+            }
+            break;
+        }
+    }
+    gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
+}
+
+// PORT: the division icon with its medal count given (the Nintendo Cups' layout passes '99's own)
+static DepthBuffer* StadiumSelect_BuildDivisionIcon(u8* arg0, s32 var_s3, s32 flags);
+
 DepthBuffer* StadiumSelect_BuildDivisionCupIcon(u8* arg0, s16 arg1) {
+    return StadiumSelect_BuildDivisionIcon(arg0, (arg1 == 3) ? D_84103CF0.nintendoCupClears : D_84103CF0.primeCupClears,
+                                           0);
+}
+
+static DepthBuffer* StadiumSelect_BuildDivisionIcon(u8* arg0, s32 var_s3, s32 flags) {
     s16 i;
     DepthBuffer* sp40 = GfxImage_Allocate(0, 2, 0xA4, 0x7E, 1);
-    s32 var_s3;
 
-    if (arg1 == 3) {
-        var_s3 = D_84103CF0.nintendoCupClears;
-    } else {
-        var_s3 = D_84103CF0.primeCupClears;
-    }
     StadiumSelect_DrawIconFrame(sp40, 0xA0, 0x7A);
 
     gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
@@ -888,7 +1095,40 @@ DepthBuffer* StadiumSelect_BuildDivisionCupIcon(u8* arg0, s16 arg1) {
 
     gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
 
+    if (flags) {
+        // PORT: the Poké Cup beside Nintendo Cup '97: the western releases' flags (the EU's left, the USA's right)
+        StadiumSelect_DrawFlag(NC_FLAG_EU, 4 + 4, 4 + 4, NC_FLAG_BIG_W, NC_FLAG_BIG_H);
+        StadiumSelect_DrawFlag(NC_FLAG_USA, 4 + 0x98 - NC_FLAG_BIG_W - 4, 4 + 4, NC_FLAG_BIG_W, NC_FLAG_BIG_H);
+    }
+
     return sp40;
+}
+
+// PORT: a one-cup icon with its medal given (-1: none); flag draws a small Japanese flag in its top right corner
+// (RESTORED_CONTENT.md: Nintendo Cup '97's picture is the Poké Cup's)
+static DepthBuffer* StadiumSelect_BuildSimpleIcon(u8* arg0, s32 medal, s32 flag) {
+    s16 i;
+    DepthBuffer* sp30 = GfxImage_Allocate(0, 2, 0x8C, 0x6C, 1);
+
+    StadiumSelect_DrawIconFrame(sp30, 0x88, 0x68);
+
+    gSPDisplayList(gDisplayListHead++, gUiEnvTintTextureDL);
+
+    for (i = 0; i < 6; i++) {
+        Gfx_DrawTextureRgba16(4, (i * 0x10) + 4, 0x80, 0x10, (i << 0xC) + arg0, 0x80, 0);
+    }
+
+    if (medal >= 0) {
+        Gfx_DrawTextureRgba16(0x54, 0x3A, 0x30, 0x2A, MENU_OPTION_TEXTURES[medal], 0x30, 0);
+    }
+
+    gSPDisplayList(gDisplayListHead++, gUiRestoreTextureDL);
+
+    if (flag) {
+        StadiumSelect_DrawFlag(NC_FLAG_JAPAN, 4 + 0x80 - NC_FLAG_W - 3, 4 + 3, NC_FLAG_W, NC_FLAG_H);
+    }
+
+    return sp30;
 }
 
 DepthBuffer* StadiumSelect_BuildSimpleCupIcon(u8* arg0, s16 arg1) {
@@ -926,7 +1166,80 @@ DepthBuffer* StadiumSelect_BuildSimpleCupIcon(u8* arg0, s16 arg1) {
     return sp30;
 }
 
+// PORT: the seven-cup layout: icons, their places and sizes, the cursor's moves and the medals' sparkles
+static void StadiumSelect_BuildNcCupIconGrid(void) {
+    s32 i;
+    s32 k;
+    u8 nc = MODE_SETTINGS_NC_CLEARED(&D_84103CF0);
+    u8* ui = (sNcJpUi != NULL) ? sNcJpUi : (u8*)D_3000000;
+
+    D_84103CD0[0] = StadiumSelect_BuildDivisionIcon((u8*)&D_300C000, D_84103CF0.nintendoCupClears, 1);
+    D_84103CD0[1] = StadiumSelect_BuildSimpleIcon(ui + 0x0000, (nc & (1 << 1)) ? 5 : -1, 1);
+    D_84103CD0[2] = StadiumSelect_BuildSimpleIcon((u8*)&D_3014760, (D_84103CF0.clearedModes & 0x10) ? 5 : -1, 0);
+    D_84103CD0[3] = StadiumSelect_BuildDivisionIcon((u8*)&D_3020760, D_84103CF0.primeCupClears, 0);
+    D_84103CD0[4] = StadiumSelect_BuildSimpleIcon((u8*)&D_301A760, (D_84103CF0.clearedModes & 0x20) ? 4 : -1, 0);
+    D_84103CD0[5] = StadiumSelect_BuildSimpleIcon(ui + 0x6000, (nc & (1 << 2)) ? 5 : -1, 0);
+    D_84103CD0[6] = StadiumSelect_BuildDivisionIcon(ui + 0xC000, MODE_SETTINGS_NC99_CLEARS(&D_84103CF0), 0);
+
+    sNcSparkleCount = 0;
+    for (i = 0; i < NC_CUP_COUNT; i++) {
+        NcCupSlot* slot = &sNcCupSlots[i];
+        MenuItemInfo* info = &sNcItemInfo[i];
+        // the four corner cups (Poké, '97, '98, '99) all have the four-division icon's size: the one-cup icons of
+        // '97 and '98 are drawn larger to match
+        f32 scale = (!slot->big && slot->corner) ? NC_ICON_SCALE * 152.0f / 128.0f : NC_ICON_SCALE;
+        f32 width = (slot->big ? 152.0f : 128.0f) * scale;
+        f32 height = (slot->big ? 114.0f : 96.0f) * scale;
+        s32 medals;
+        s32 count;
+
+        info->unk_00 = (s16)(slot->x - width / 2);
+        info->unk_02 = (s16)(slot->y - height / 2);
+        info->unk_04 = (s16)width;
+        info->unk_06 = (s16)height;
+        info->unk_08 = slot->up;
+        info->unk_09 = slot->down;
+        info->unk_0A = slot->left;
+        info->unk_0B = slot->right;
+
+        Model_InitDisplayObject(&D_84103458[i], 0, 0, slot->big ? D_84103CE8 : D_84103CEC);
+        // the models' left edge is at x, their middle at y: 1 unit is a pixel at this depth
+        Vec3f_SetComponentsDuplicate(&D_84103458[i].position,
+                                     slot->x - 320.0f - (slot->big ? 82.0f : 70.0f) * scale, 240.0f - slot->y,
+                                     -579.0f);
+        D_84103458[i].scale.x = D_84103458[i].scale.y = D_84103458[i].scale.z = scale;
+
+        // the medals' sparkles, at the western layout's places on the icon
+        if (slot->big) {
+            medals = 4;
+            count = (i == 0)   ? D_84103CF0.nintendoCupClears
+                    : (i == 3) ? D_84103CF0.primeCupClears
+                               : MODE_SETTINGS_NC99_CLEARS(&D_84103CF0);
+        } else {
+            medals = 1;
+            count = (i == 1)   ? ((nc >> 1) & 1)
+                    : (i == 5) ? ((nc >> 2) & 1)
+                    : (i == 2) ? ((D_84103CF0.clearedModes >> 4) & 1)
+                               : ((D_84103CF0.clearedModes >> 5) & 1);
+        }
+        for (k = 0; k < medals; k++) {
+            MenuRectAnim* sparkle = &sNcSparkles[sNcSparkleCount++];
+
+            sparkle->unk_00 = (k < count) ? 1 : 0;
+            sparkle->unk_02 = info->unk_00 + (s16)((slot->big ? 16 + k * 38 : 100) * scale);
+            sparkle->unk_04 = info->unk_02 + (s16)((slot->big ? 70 : 60) * scale);
+            sparkle->unk_06 = 0x20;
+            sparkle->unk_08 = (s16)(k * 0x2000);
+            sparkle->unk_0A = 0;
+        }
+    }
+}
+
 void StadiumSelect_BuildCupIconGrid(void) {
+    if (sNcLayout) {
+        StadiumSelect_BuildNcCupIconGrid();
+        return;
+    }
     StadiumSelect_InitSparkleFlags();
     D_84103CD0[0] = StadiumSelect_BuildDivisionCupIcon(&D_300C000, 3);
     D_84103CD0[1] = StadiumSelect_BuildSimpleCupIcon(D_3000000, 1);
@@ -970,15 +1283,15 @@ s16 StadiumSelect_HandleInput(void) {
     } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_B)) {
         Audio_PlaySoundEffectById(SFX_MENU_BACK);
         var_v1 = -1;
-        var_a1 = 6;
+        var_a1 = sCupCount; // PORT: 7 with the Nintendo Cups (was 6)
     } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_DUP)) {
-        var_v1 = sMenuItemInfo[D_84103CC8].unk_08;
+        var_v1 = (sNcLayout ? sNcItemInfo : sMenuItemInfo)[D_84103CC8].unk_08;
     } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_DDOWN)) {
-        var_v1 = sMenuItemInfo[D_84103CC8].unk_09;
+        var_v1 = (sNcLayout ? sNcItemInfo : sMenuItemInfo)[D_84103CC8].unk_09;
     } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_DLEFT)) {
-        var_v1 = sMenuItemInfo[D_84103CC8].unk_0A;
+        var_v1 = (sNcLayout ? sNcItemInfo : sMenuItemInfo)[D_84103CC8].unk_0A;
     } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_DRIGHT)) {
-        var_v1 = sMenuItemInfo[D_84103CC8].unk_0B;
+        var_v1 = (sNcLayout ? sNcItemInfo : sMenuItemInfo)[D_84103CC8].unk_0B;
     }
 
     if (var_v1 != -1) {
@@ -1013,15 +1326,16 @@ void StadiumSelect_Loop(void) {
 
     D_84103CC8 = temp_v0;
 
-    if (D_84103CC8 < 6) {
-        D_8410344C = BinArchive_GetFile(D_84103444, sBackgroundFileIds[D_84103CC8]);
+    if (D_84103CC8 < sCupCount) {
+        D_8410344C = BinArchive_GetFile(D_84103444, sNcLayout ? sNcCupSlots[D_84103CC8].background
+                                                              : sBackgroundFileIds[D_84103CC8]);
 
         for (i = 11; i < 21; i++) {
             Controller_PollInputs();
             StadiumSelect_RenderFrame(i, 0, 0.0f);
         }
 
-        for (i = 0; i < 6; i++) {
+        for (i = 0; i < sCupCount; i++) {
             ModelRenderer_ClearDisplayObject(&D_84103458[i]);
         }
 
@@ -1058,7 +1372,7 @@ void StadiumSelect_InitGeoLayouts(void) {
     ModelRenderer_InitDisplayRoots();
 
     ptr = &D_84103458[0];
-    for (i = 0; i < 6; ptr++, i++) {
+    for (i = 0; i < sCupCount; ptr++, i++) {
         ModelRenderer_AttachDisplayObject(ptr);
         D_84103458[i].node.callbackArg = i;
     }
@@ -1067,7 +1381,14 @@ void StadiumSelect_InitGeoLayouts(void) {
 s32 StadiumSelect_ConfirmSelection(void) {
     s32 var_v1 = 0;
 
-    if (D_84103CC8 < 6) {
+    if (sNcLayout && (D_84103CC8 < NC_CUP_COUNT)) {
+        // PORT: the seven-cup layout's choice; mode 3 is Nintendo Cup '99 or the Poké Cup
+        Session_SetMode(sNcCupSlots[D_84103CC8].mode, sNcCupSlots[D_84103CC8].mode, 0);
+        Port_NcSet99(sNcCupSlots[D_84103CC8].is99);
+        Team_AddTrainer(0, Trainer_Create(0, 0, "1P", Text_GetPlayerLabel(1)));
+        Team_AddTrainer(1, Trainer_Create(-1, 0, "COM", Text_GetPlayerLabel(3)));
+        var_v1 = 1;
+    } else if (D_84103CC8 < 6) {
         s16 tmp = gStadiumCupSessionModes[D_84103CC8];
 
         Session_SetMode(tmp, gStadiumCupModeCategories[D_84103CC8], 0);
@@ -1096,6 +1417,14 @@ s32 StadiumSelect_Main(s32 arg0, s32 arg1) {
     ASSET_LOAD(D_1000000, common_menu1_ui, 0);
     ASSET_LOAD(D_2000000, common_menu2_ui, 0);
     ASSET_LOAD(D_3000000, stadium_select_ui, 0);
+    // PORT: the Nintendo Cups (restored content): the seven-cup layout, with the Japanese ROM's pictures
+    sNcLayout = Port_NcAvailable();
+    sCupCount = sNcLayout ? NC_CUP_COUNT : 6;
+    sNcJpUi = NULL;
+    if (sNcLayout) {
+        sNcJpUi = Asset_LoadCompressed((u8*)(uintptr_t)Port_NcJapanRom(NC_JP_STADIUM_SELECT_UI_START),
+                                       (u8*)(uintptr_t)Port_NcJapanRom(NC_JP_STADIUM_SELECT_UI_END), 0, 0);
+    }
 #if !defined(VERSION_JP)
     Text_InitStringTables();
     sStadiumCupText = Text_GetStringTable(0x13);

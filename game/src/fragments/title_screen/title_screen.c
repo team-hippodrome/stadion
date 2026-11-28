@@ -574,7 +574,7 @@ void Title_LoadAssets(void) {
 
     gTitleBackgroundArchive = ASSET_LOAD2(backgrounds, 1, 1);
 
-    if (gTitleModeSettings.clearedModes == TITLE_ALL_MODES_CLEARED) {
+    if (MODE_SETTINGS_CLEARED_MODES(&gTitleModeSettings) == TITLE_ALL_MODES_CLEARED) {
         gTitleBackgroundImage = BinArchive_GetFile(gTitleBackgroundArchive, 0x11);
     } else {
         gTitleBackgroundImage = BinArchive_GetFile(gTitleBackgroundArchive, 0);

@@ -15,12 +15,30 @@ typedef struct GameOptions {
 
 typedef struct ModeSettings {
     /* 0x00 */ u16 clearedModes; // Bit (1 << session mode); Mewtwo victory is bit 8.
-    /* 0x02 */ char unk02[0x2];
+    /* 0x02 */ u8 unk02[0x2]; // PORT: the Nintendo Cups' progress (MODE_SETTINGS_NC_*); unused by the game
     /* 0x04 */ u8 castleClears;      // Highest completed castle location + 1, capped at 8.
     /* 0x05 */ u8 nintendoCupClears; // Highest completed division + 1, capped at 4.
     /* 0x06 */ u8 primeCupClears;    // Highest completed division + 1, capped at 4.
     /* 0x07 */ u8 mewtwoUnlocked;    // Set when clearedModes reaches 0xF8.
 } ModeSettings;                      // size = 0x8
+
+// PORT: restored content (the Nintendo Cups, src/port/nintendo_cup.cpp) keeps its progress in the two bytes the
+// western releases leave unused, so clearedModes keeps the values the game compares it with (0xF8, 0x1F8).
+// Nintendo Cup '99's divisions, as nintendoCupClears is the Poké Cup's
+#define MODE_SETTINGS_NC99_CLEARS(settings) ((settings)->unk02[0])
+// Bit (1 << rule category) of each Nintendo Cup won: '97 (1), '98 (2), '99 (3, its Master Ball division)
+#define MODE_SETTINGS_NC_CLEARED(settings) ((settings)->unk02[1])
+#define MODE_SETTINGS_NC_ALL_CLEARED 0x0E
+// clearedModes for the game's 0xF8 and 0x1F8 checks: with the Nintendo Cups, their unlock rules (save_data.c) stand
+// in for bits 0x8-0x80
+u16 ModeSettings_EffectiveClearedModes(const ModeSettings* settings);
+#define MODE_SETTINGS_CLEARED_MODES(settings) ModeSettings_EffectiveClearedModes(settings)
+// With the Nintendo Cups: the Poké Cup's part of the unlocks is cleared (Poké Cup or '99 Master Ball, or both Ultra Balls)
+s32 ModeSettings_NcPokeSideCleared(const ModeSettings* settings);
+// With the Nintendo Cups: everything Mewtwo needs is cleared
+s32 ModeSettings_NcMewtwoReady(const ModeSettings* settings);
+// With the Nintendo Cups: how many of the GB Tower's two Game Boys (Doduo, Dodrio) are earned
+s32 ModeSettings_NcGbTowerTier(const ModeSettings* settings);
 
 typedef struct SessionContinueData {
     /* 0x00 */ u8 sessionMode;
@@ -39,6 +57,8 @@ typedef struct SessionContinueData {
     /* 0x10 */ char unk_10[16];
 } SessionContinueData; // size = 0x20
 #endif
+// PORT: unk_10's last byte in a suspended Nintendo Cup '99 (src/session.c; restored content)
+#define SESSION_CONTINUE_NC99 0x99
 
 typedef struct DeckRecordHeader {
     /* 0x00 */ u8 unk_00;

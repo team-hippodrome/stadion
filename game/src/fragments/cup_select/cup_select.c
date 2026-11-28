@@ -13,6 +13,7 @@
 #include "src/memmap.h"
 #include "src/memory.h"
 #include "src/stage_loader.h"
+#include "StadionPort.h" // PORT: the Nintendo Cups (restored content)
 
 #define SELECTED_CUP 0
 #define SELECTING_DIVISION 1
@@ -436,7 +437,9 @@ s32 CupSelect_Main(UNUSED s32 arg0, UNUSED s32 arg1) {
         Font_Init(0x10, 0);
         Save_EnsureBankLoaded(2);
         Save_GetModeSettings(&D_82E023A0, gSessionContext.inRound2);
-        if (gSessionContext.mode == 3) {
+        if ((gSessionContext.mode == 3) && Port_NcIs99()) {
+            sLatestUnlockedDivision = MODE_SETTINGS_NC99_CLEARS(&D_82E023A0); // PORT: Nintendo Cup '99
+        } else if (gSessionContext.mode == 3) {
             sLatestUnlockedDivision = D_82E023A0.nintendoCupClears;
         } else {
             sLatestUnlockedDivision = D_82E023A0.primeCupClears;
@@ -450,7 +453,8 @@ s32 CupSelect_Main(UNUSED s32 arg0, UNUSED s32 arg1) {
         ASSET_LOAD(D_3000000, cup_ball_select_ui, 0);
 
         sCupBackgroundBin = ASSET_LOAD2(backgrounds, 1, 1);
-        sCupBackground = BinArchive_GetFile(sCupBackgroundBin, background_file);
+        // PORT: the Nintendo Cup '99 picture (restored content)
+        sCupBackground = BinArchive_GetFile(sCupBackgroundBin, Port_NcBackgroundFile(gSessionContext.mode, background_file));
 
         CupSelect_InitGeoLayouts();
         StageLoader_UpdateSegments();

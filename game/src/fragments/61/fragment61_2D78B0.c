@@ -1135,7 +1135,7 @@ void Rental_LoadBackgroundImage(void) {
             }
         }
     } else {
-        D_84211B34 = BinArchive_GetFile(D_84211B30, D_84210D4C[gSessionContext.mode]);
+        D_84211B34 = BinArchive_GetFile(D_84211B30, Port_NcBackgroundFile(gSessionContext.mode, D_84210D4C[gSessionContext.mode]));
     }
 }
 

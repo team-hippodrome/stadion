@@ -112,6 +112,34 @@ uint32_t Port_FragmentRomWord(uintptr_t fragmentRom, uint32_t fragmentVram, uint
 // is the archive's start as Port_RomToRaw marks it; sets *start (marked) and *size and returns 1, else 0.
 int Port_RestoredArchiveFile(uint32_t archiveRaw, int index, uint32_t* start, uint32_t* size);
 
+// The Nintendo Cups (nintendo_cup.cpp). Port_NcAvailable: a Japanese ROM was provided beside a western one, so the
+// stadium select screen offers Nintendo Cup '97, '98 and '99 beside the Poké Cup. Session mode 3 is the Poké Cup or,
+// while Port_NcIs99() is set, Nintendo Cup '99 (the stadium select screen and a resumed session set it).
+int Port_NcAvailable(void);
+int Port_NcIs99(void);
+void Port_NcSet99(int on);
+// The session mode, from Session_SetMode (Nintendo Cup '97 takes the Japanese rentals), and reading it back
+void Port_NcSetMode(int mode);
+int Port_NcMode(void);
+// A trainer archive file (archiveRaw: the archive's marked start) that the Nintendo Cups take from the Japanese ROM,
+// converted to the western layout: its bytes and size, or NULL for the loaded ROM's own.
+const void* Port_NcTrainerFile(uint32_t archiveRaw, int index, uint32_t* size);
+// The Nintendo Cups' text in the game's encoding and the chosen text language (translation/jp.csv)
+#define PORT_NC_TEXT_NAME_97 0
+#define PORT_NC_TEXT_NAME_98 1
+#define PORT_NC_TEXT_NAME_99 2
+#define PORT_NC_TEXT_DESC_97 3
+#define PORT_NC_TEXT_DESC_98 4
+#define PORT_NC_TEXT_DESC_99 5
+#define PORT_NC_TEXT_NO_CHAMPIONS 6
+const char* Port_NcText(int id);
+// The cup names in the western message tables, for the Nintendo Cups (NULL: the table's own string)
+const char* Port_NcTableText(uint32_t table, uint32_t index);
+// The backgrounds archive file for a mode's pictures (`file`: the western table's), where the Nintendo Cups differ
+int Port_NcBackgroundFile(int mode, int file);
+// The marked offset of a Japanese ROM offset (0: no Japanese ROM)
+uint32_t Port_NcJapanRom(uint32_t jpOffset);
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Input and saves (src/port/os_devices.cpp)
 // ---------------------------------------------------------------------------------------------------------------------
@@ -294,6 +322,37 @@ const char* Port_TextPortString(const char* id);
 // `text` (the game's encoding) as UTF-8 into out (size bytes, always terminated): for the port's own windows (ImGui).
 // Returns the bytes written.
 int Port_TextToUtf8(const char* text, char* out, int size);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Announcer and subtitles (src/port/announcer.cpp, src/port/enhancements/subtitles.c; hippodrome-utils
+// docs/specs/SUBTITLES.md)
+// ---------------------------------------------------------------------------------------------------------------------
+
+// The announcer is about to play clip `id` (1-based) of its bank, at romOffset in the loaded ROM
+// (Audio_UpdateBattleAudioFrame): the offset to stream instead (the Japanese announcer's clip, a marked offset in the
+// Japanese ROM, where the restored content plays it). Publishes the line for the subtitles.
+uint32_t Port_AnnouncerClip(uint32_t id, uint32_t romOffset);
+// The row of the mode music table the battle's opening lines come from (Audio_SelectModeMusic: 10 and 11 are the
+// Nintendo Cups '97 and '98, whose own lines only the Japanese announcer has).
+void Port_AnnouncerModeRow(int row);
+// The subtitles setting (gPort.Subtitles): off, only for a line spoken in another language than the text's, or always.
+#define PORT_SUBTITLES_OFF 0
+#define PORT_SUBTITLES_NON_NATIVE 1
+#define PORT_SUBTITLES_ON 2
+int Port_SubtitlesSetting(void);
+void Port_SubtitlesSetSetting(int value);
+// Bumped by each line Port_AnnouncerClip publishes; the current line's subtitle in the text language (the game's
+// encoding), or NULL when it has none or the setting hides it. PORT_SUBTITLE_TEST=<EN_|JP_><hex id> pins a line.
+int Port_SubtitleSerial(void);
+int Port_SubtitleTestActive(void);
+const char* Port_SubtitleText(void);
+// The game side (subtitles.c): the subtitle box, drawn at the end of each frame (StageLoader_SetupFrame).
+void Port_SubtitlesDraw(void);
+// The options screen's row: its label and the values' names, in capitals, in the game's encoding.
+const char* Port_SubtitlesOptionLabel(void);
+const char* Port_SubtitlesOptionValue(int value);
+// A wide character's code point (for line breaking), or 0.
+uint32_t Port_TextWideCodePoint(uint32_t wide_index);
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Enhancements (src/port/enhancements/; hippodrome-utils docs/specs). Each hook does nothing while its option is off.

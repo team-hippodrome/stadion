@@ -257,6 +257,26 @@ void BuildLabels() {
 
 } // namespace
 
+namespace Port {
+
+std::string TextTargetLanguage() {
+    std::string lang = Chosen();
+    if (lang.empty()) {
+        lang = gState.source.empty() ? "en" : gState.source;
+    }
+    return lang;
+}
+
+std::string TextEncode(const std::string& utf8) {
+    return Encode(utf8);
+}
+
+std::string TextUpper(const std::string& utf8) {
+    return Upper(utf8);
+}
+
+} // namespace Port
+
 extern "C" {
 
 const char* Port_TextLookup(uint32_t table, uint32_t index) {
@@ -267,6 +287,10 @@ const char* Port_TextLookup(uint32_t table, uint32_t index) {
     const auto& cells = Load(lang);
     auto it = cells.find(Key(table, index));
     return it == cells.end() ? nullptr : it->second.c_str();
+}
+
+uint32_t Port_TextWideCodePoint(uint32_t wide_index) {
+    return wide_index < gWide.size() ? gWide[wide_index] : 0;
 }
 
 int Port_TextGlyph(uint32_t wide_index, int height, PortTextGlyph* out) {
